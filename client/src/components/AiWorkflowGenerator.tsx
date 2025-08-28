@@ -28,16 +28,7 @@ export function AiWorkflowGenerator({ onClose, onGenerate }: AiWorkflowGenerator
       return;
     }
 
-    // Check if API key is configured
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY || localStorage.getItem('openai_api_key');
-    if (!apiKey) {
-      toast({
-        title: "API Key Required",
-        description: "Please configure your OpenAI API key in AI Settings first.",
-        variant: "destructive"
-      });
-      return;
-    }
+    // API key is now handled by the backend
 
     setIsGenerating(true);
     try {
@@ -152,16 +143,9 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
                 }
               }}
             />
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
-                Press Ctrl+Enter to generate, or click the button below
-              </p>
-              {!import.meta.env.VITE_OPENAI_API_KEY && !localStorage.getItem('openai_api_key') && (
-                <p className="text-xs text-orange-600 dark:text-orange-400">
-                  ⚠️ Configure API key in AI Settings first
-                </p>
-              )}
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Press Ctrl+Enter to generate, or click the button below
+            </p>
           </div>
           
           <div className="space-y-2">

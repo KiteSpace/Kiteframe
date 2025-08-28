@@ -70,10 +70,9 @@ export default function WorkflowEditor() {
   const [selectedNodeId, setSelectedNodeId] = useState<string>('node-2');
   const [viewport, setViewport] = useState({ x: 100, y: 100, zoom: 1 });
 
-  // AI Client setup
+  // AI Client setup - now uses backend proxy
   const aiClient = new OpenAICompatClient({
-    baseURL: 'https://api.openai.com',
-    apiKey: import.meta.env.VITE_OPENAI_API_KEY || localStorage.getItem('openai_api_key') || ''
+    baseURL: '/api', // Will use backend proxy
   });
 
   const handleNodesChange = useCallback((newNodes: Node[]) => {
