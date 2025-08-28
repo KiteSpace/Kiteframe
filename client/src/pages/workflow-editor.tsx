@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import { Sidebar } from '@/components/Sidebar';
 import { Toolbar } from '@/components/Toolbar';
@@ -154,6 +154,31 @@ export default function WorkflowEditor() {
   const handleZoomChange = useCallback((zoom: number) => {
     setViewport(prev => ({ ...prev, zoom }));
   }, []);
+
+  // Keyboard event handling for deleting selected nodes
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const selectedNodes = nodes.filter(n => n.selected);
+        if (selectedNodes.length > 0) {
+          const selectedNodeIds = selectedNodes.map(n => n.id);
+          // Remove selected nodes
+          setNodes(prev => prev.filter(n => !n.selected));
+          // Remove edges connected to deleted nodes
+          setEdges(prev => prev.filter(e => 
+            !selectedNodeIds.includes(e.source) && !selectedNodeIds.includes(e.target)
+          ));
+          // Clear selected node ID if it was deleted
+          if (selectedNodeIds.includes(selectedNodeId)) {
+            setSelectedNodeId('');
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [nodes, selectedNodeId]);
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
