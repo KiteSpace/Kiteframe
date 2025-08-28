@@ -28,6 +28,17 @@ export function AiWorkflowGenerator({ onClose, onGenerate }: AiWorkflowGenerator
       return;
     }
 
+    // Check if API key is configured
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY || localStorage.getItem('openai_api_key');
+    if (!apiKey) {
+      toast({
+        title: "API Key Required",
+        description: "Please configure your OpenAI API key in AI Settings first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsGenerating(true);
     try {
       const systemPrompt = `You are a workflow generator. Create a visual workflow based on the user's description. 
@@ -82,9 +93,28 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
       }
     } catch (error) {
       console.error('Workflow generation error:', error);
+      
+      let title = "Generation Failed";
+      let description = "Failed to generate workflow. Please try again.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('401')) {
+          title = "Authentication Error";
+          description = "Invalid API key. Please check your OpenAI API key in AI Settings.";
+        } else if (error.message.includes('429')) {
+          title = "Rate Limit Exceeded";
+          description = "Too many requests. Please wait a moment and try again.";
+        } else if (error.message.includes('500')) {
+          title = "Server Error";
+          description = "OpenAI service is temporarily unavailable. Please try again later.";
+        } else {
+          description = error.message;
+        }
+      }
+      
       toast({
-        title: "Generation Failed",
-        description: error instanceof Error ? error.message : "Failed to generate workflow. Please try again.",
+        title,
+        description,
         variant: "destructive"
       });
     } finally {
@@ -94,13 +124,16 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg" data-testid="modal-ai-workflow-generator">
+      <DialogContent className="max-w-lg" data-testid="modal-ai-workflow-generator" aria-describedby="ai-generator-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <i className="fas fa-magic text-primary" />
             AI Workflow Generator
           </DialogTitle>
         </DialogHeader>
+        <div id="ai-generator-description" className="sr-only">
+          Generate complete workflows from natural language descriptions using AI
+        </div>
         
         <div className="space-y-4">
           <div className="space-y-2">
@@ -119,9 +152,16 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
                 }
               }}
             />
-            <p className="text-xs text-muted-foreground">
-              Press Ctrl+Enter to generate, or click the button below
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Press Ctrl+Enter to generate, or click the button below
+              </p>
+              {!import.meta.env.VITE_OPENAI_API_KEY && !localStorage.getItem('openai_api_key') && (
+                <p className="text-xs text-orange-600 dark:text-orange-400">
+                  ⚠️ Configure API key in AI Settings first
+                </p>
+              )}
+            </div>
           </div>
           
           <div className="space-y-2">
