@@ -3,6 +3,7 @@ import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import { Sidebar } from '@/components/Sidebar';
 import { Toolbar } from '@/components/Toolbar';
 import { AiSettingsModal } from '@/components/AiSettingsModal';
+import { AiWorkflowGenerator } from '@/components/AiWorkflowGenerator';
 import { ContextMenu } from '@/components/ContextMenu';
 import { AiProvider } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
@@ -64,6 +65,7 @@ export default function WorkflowEditor() {
   ]);
 
   const [showAiModal, setShowAiModal] = useState(false);
+  const [showAiGenerator, setShowAiGenerator] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node } | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('node-2');
   const [viewport, setViewport] = useState({ x: 100, y: 100, zoom: 1 });
@@ -155,6 +157,13 @@ export default function WorkflowEditor() {
     setViewport(prev => ({ ...prev, zoom }));
   }, []);
 
+  const handleAiGenerate = useCallback((nodes: Node[], edges: Edge[]) => {
+    setNodes(nodes);
+    setEdges(edges);
+    // Center the viewport on the generated workflow
+    setViewport({ x: 50, y: 50, zoom: 0.8 });
+  }, []);
+
   // Keyboard event handling for deleting selected nodes
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -190,6 +199,7 @@ export default function WorkflowEditor() {
           onOpenWorkflow={() => {}}
           onSaveWorkflow={() => {}}
           onOpenAiSettings={() => setShowAiModal(true)}
+          onOpenAiGenerator={() => setShowAiGenerator(true)}
           zoom={viewport.zoom}
         />
         
@@ -232,6 +242,13 @@ export default function WorkflowEditor() {
               }
               setShowAiModal(false);
             }}
+          />
+        )}
+
+        {showAiGenerator && (
+          <AiWorkflowGenerator
+            onClose={() => setShowAiGenerator(false)}
+            onGenerate={handleAiGenerate}
           />
         )}
 

@@ -3,6 +3,7 @@ interface ToolbarProps {
   onOpenWorkflow: () => void;
   onSaveWorkflow: () => void;
   onOpenAiSettings: () => void;
+  onOpenAiGenerator: () => void;
   zoom: number;
 }
 
@@ -11,6 +12,7 @@ export function Toolbar({
   onOpenWorkflow,
   onSaveWorkflow,
   onOpenAiSettings,
+  onOpenAiGenerator,
   zoom
 }: ToolbarProps) {
   return (
@@ -28,6 +30,14 @@ export function Toolbar({
           >
             <i className="fas fa-plus mr-1" />
             New Workflow
+          </button>
+          <button
+            className="px-3 py-1.5 text-sm bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-md hover:from-purple-600 hover:to-blue-600 transition-all duration-200"
+            onClick={onOpenAiGenerator}
+            data-testid="button-ai-generator"
+          >
+            <i className="fas fa-magic mr-1" />
+            AI Generate
           </button>
           <button
             className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-accent transition-colors"
