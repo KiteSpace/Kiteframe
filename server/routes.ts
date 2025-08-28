@@ -52,6 +52,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Test endpoint - validate API key and model compatibility
+  app.post('/api/ai/test', async (req, res) => {
+    try {
+      const { provider, model, apiKey, customEndpoint } = req.body;
+      
+      if (!apiKey) {
+        return res.status(400).json({ error: 'API key is required for testing' });
+      }
+
+      let testUrl: string;
+      let headers: Record<string, string>;
+
+      // Configure endpoints and headers based on provider
+      switch (provider) {
+        case 'openai':
+          testUrl = 'https://api.openai.com/v1/chat/completions';
+          headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          };
+          break;
+        case 'anthropic':
+          testUrl = 'https://api.anthropic.com/v1/messages';
+          headers = {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
+          };
+          break;
+        case 'custom':
+          if (!customEndpoint) {
+            return res.status(400).json({ error: 'Custom endpoint is required for custom provider' });
+          }
+          testUrl = `${customEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
+          headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          };
+          break;
+        default:
+          return res.status(400).json({ error: 'Unsupported provider' });
+      }
+
+      // Make test request with provider-specific format
+      let requestBody: any;
+      if (provider === 'anthropic') {
+        requestBody = {
+          model,
+          max_tokens: 10,
+          messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }]
+        };
+      } else {
+        requestBody = {
+          model,
+          messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
+          max_tokens: 10,
+          temperature: 0.1
+        };
+      }
+
+      const response = await fetch(testUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error(`AI Test Error ${response.status} for ${provider}:`, error);
+        
+        let errorMessage = `API test failed (${response.status})`;
+        if (response.status === 401) {
+          errorMessage = 'Invalid API key for ' + provider;
+        } else if (response.status === 403) {
+          errorMessage = `API key doesn't have access to ${model} on ${provider}`;
+        } else if (response.status === 404) {
+          errorMessage = `Model ${model} not found on ${provider}`;
+        } else if (response.status === 429) {
+          errorMessage = 'Rate limit exceeded';
+        }
+        
+        return res.status(response.status).json({ error: errorMessage });
+      }
+
+      const json = await response.json();
+      let responseText = '';
+      
+      if (provider === 'anthropic') {
+        responseText = json.content?.[0]?.text || '';
+      } else {
+        responseText = json.choices?.[0]?.message?.content || '';
+      }
+
+      res.json({ 
+        success: true, 
+        response: responseText,
+        model,
+        provider 
+      });
+
+    } catch (error) {
+      console.error('AI test error:', error);
+      res.status(500).json({ error: 'Internal server error during AI test' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

@@ -11,8 +11,10 @@ import { useAi } from '../ai/AiProvider';
 interface AiSettings {
   provider: string;
   model: string;
+  customModel?: string;
   apiKey: string;
   temperature: number;
+  customEndpoint?: string;
 }
 
 interface AiSettingsModalProps {
@@ -23,10 +25,28 @@ interface AiSettingsModalProps {
 export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   const [settings, setSettings] = useState<AiSettings>({
     provider: 'openai',
-    model: 'gpt-5', // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+    model: 'gpt-4o',
     apiKey: '',
     temperature: 0.7
   });
+
+  // Provider-specific model options
+  const modelOptions = {
+    openai: [
+      { value: 'gpt-4o', label: 'GPT-4o' },
+      { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+      { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+      { value: 'custom', label: 'Custom Model' }
+    ],
+    anthropic: [
+      { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
+      { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
+      { value: 'custom', label: 'Custom Model' }
+    ],
+    custom: [
+      { value: 'custom', label: 'Custom Model' }
+    ]
+  };
   const [isTestingApi, setIsTestingApi] = useState(false);
   const { toast } = useToast();
   const aiClient = useAi();
@@ -49,6 +69,27 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
     }
   }, []);
 
+  const handleProviderChange = (provider: string) => {
+    const currentModels = modelOptions[provider as keyof typeof modelOptions] || modelOptions.custom;
+    const defaultModel = currentModels[0]?.value || 'custom';
+    
+    setSettings(prev => ({ 
+      ...prev, 
+      provider,
+      model: defaultModel,
+      customModel: provider === 'custom' ? prev.customModel : '',
+      customEndpoint: provider === 'custom' ? prev.customEndpoint || 'https://api.openai.com' : ''
+    }));
+  };
+
+  const handleModelChange = (model: string) => {
+    setSettings(prev => ({ 
+      ...prev, 
+      model,
+      customModel: model === 'custom' ? prev.customModel || '' : ''
+    }));
+  };
+
   const handleSave = () => {
     if (!settings.apiKey.trim()) {
       toast({
@@ -58,6 +99,25 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       });
       return;
     }
+
+    if (settings.model === 'custom' && !settings.customModel?.trim()) {
+      toast({
+        title: "Custom Model Required",
+        description: "Please specify a custom model name when using custom model option.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (settings.provider === 'custom' && !settings.customEndpoint?.trim()) {
+      toast({
+        title: "Custom Endpoint Required",
+        description: "Please specify a custom API endpoint when using custom provider.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     onSave(settings);
   };
 
@@ -71,32 +131,50 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       return;
     }
 
+    if (settings.model === 'custom' && !settings.customModel?.trim()) {
+      toast({
+        title: "Custom Model Required",
+        description: "Please specify a custom model name first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsTestingApi(true);
     try {
-      const response = await aiClient.chat({
-        model: settings.model,
-        messages: [{ role: 'user', content: 'Reply with just "Hello!" to test the connection.' }],
-        temperature: 0.1,
-        maxTokens: 10
-      });
+      // Determine actual model to test
+      const modelToTest = settings.model === 'custom' ? settings.customModel : settings.model;
       
-      if (response.text.toLowerCase().includes('hello')) {
+      const response = await fetch('/api/ai/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: settings.provider,
+          model: modelToTest,
+          apiKey: settings.apiKey,
+          customEndpoint: settings.customEndpoint
+        })
+      });
+
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
         toast({
           title: "Connection Successful",
-          description: "AI API is working correctly!",
+          description: `${settings.provider.toUpperCase()} API is working correctly with ${modelToTest}!`,
           variant: "default"
         });
       } else {
         toast({
-          title: "Unexpected Response",
-          description: "Connection works but got unexpected response.",
-          variant: "default"
+          title: "Connection Failed",
+          description: result.error || "Failed to connect to AI service.",
+          variant: "destructive"
         });
       }
     } catch (error) {
       toast({
         title: "Connection Failed",
-        description: error instanceof Error ? error.message : "Failed to connect to AI service.",
+        description: error instanceof Error ? error.message : "Failed to test AI connection.",
         variant: "destructive"
       });
     } finally {
@@ -119,7 +197,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             <Label htmlFor="provider">API Provider</Label>
             <Select
               value={settings.provider}
-              onValueChange={(value) => setSettings(prev => ({ ...prev, provider: value }))}
+              onValueChange={handleProviderChange}
             >
               <SelectTrigger data-testid="select-ai-provider">
                 <SelectValue />
@@ -136,22 +214,54 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             <Label htmlFor="model">Model</Label>
             <Select
               value={settings.model}
-              onValueChange={(value) => setSettings(prev => ({ ...prev, model: value }))}
+              onValueChange={handleModelChange}
             >
               <SelectTrigger data-testid="select-ai-model">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="gpt-5">GPT-5</SelectItem>
-                <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
-                <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                {(modelOptions[settings.provider as keyof typeof modelOptions] || []).map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
+
+          {settings.model === 'custom' && (
+            <div className="space-y-2">
+              <Label htmlFor="customModel">Custom Model Name</Label>
+              <Input
+                id="customModel"
+                placeholder="e.g., gpt-4-turbo, claude-3-opus"
+                value={settings.customModel || ''}
+                onChange={(e) => setSettings(prev => ({ ...prev, customModel: e.target.value }))}
+                data-testid="input-custom-model"
+              />
+            </div>
+          )}
+
+          {settings.provider === 'custom' && (
+            <div className="space-y-2">
+              <Label htmlFor="customEndpoint">Custom Endpoint</Label>
+              <Input
+                id="customEndpoint"
+                placeholder="https://api.example.com"
+                value={settings.customEndpoint || ''}
+                onChange={(e) => setSettings(prev => ({ ...prev, customEndpoint: e.target.value }))}
+                data-testid="input-custom-endpoint"
+              />
+            </div>
+          )}
           
           <div className="space-y-2">
-            <Label htmlFor="apiKey">API Key</Label>
+            <Label htmlFor="apiKey">
+              API Key 
+              {settings.provider === 'openai' && ' (OpenAI)'}
+              {settings.provider === 'anthropic' && ' (Anthropic)'}
+              {settings.provider === 'custom' && ' (Custom Provider)'}
+            </Label>
             <Input
               id="apiKey"
               type="password"
