@@ -21,25 +21,18 @@ export const ConnectionEdge: React.FC<{ edge: Edge; sourceNode: Node; targetNode
   const t = anchor(targetNode, sourceNode);
   const type = edge.type ?? 'bezier';
   let d = '';
-  let arrowAngle = 0;
   
-  // Calculate the path and determine arrow direction based on final segment
+  // Calculate the path - arrow orientation is handled automatically by SVG
   if (type === 'straight') {
     d = `M ${s.x} ${s.y} L ${t.x} ${t.y}`;
-    // Calculate angle from source to target
-    arrowAngle = Math.atan2(t.y - s.y, t.x - s.x) * (180 / Math.PI);
   } else if (type === 'step') {
     const mx = s.x + (t.x - s.x)/2;
     d = `M ${s.x} ${s.y} L ${mx} ${s.y} L ${mx} ${t.y} L ${t.x} ${t.y}`;
-    // For step edges, the final segment is from (mx, t.y) to (t.x, t.y)
-    arrowAngle = Math.atan2(0, t.x - mx) * (180 / Math.PI); // Horizontal line
   } else {
-    // For bezier curves, calculate direction based on the final control point
+    // Bezier curve
     const c1x = s.x + (t.x - s.x) * .5, c1y = s.y;
     const c2x = t.x - (t.x - s.x) * .5, c2y = t.y;
     d = `M ${s.x} ${s.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${t.x} ${t.y}`;
-    // Calculate angle from the second control point to target
-    arrowAngle = Math.atan2(t.y - c2y, t.x - c2x) * (180 / Math.PI);
   }
   
   const stroke = edge.data?.color || '#64748b';
@@ -55,12 +48,12 @@ export const ConnectionEdge: React.FC<{ edge: Edge; sourceNode: Node; targetNode
         <marker 
           id={markerId} 
           viewBox="0 0 10 7" 
-          refX="9" 
+          refX="10" 
           refY="3.5" 
           markerWidth="10" 
           markerHeight="7" 
-          orient={arrowAngle}
-          markerUnits="strokeWidth"
+          orient="auto"
+          markerUnits="userSpaceOnUse"
         >
           <polygon points="0 0, 10 3.5, 0 7" fill={stroke} />
         </marker>
