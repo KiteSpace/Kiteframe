@@ -372,7 +372,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             const s = props.nodes.find(n => n.id === e.source);
             const t = props.nodes.find(n => n.id === e.target);
             if (!s || !t) return null;
-            return <ConnectionEdge key={e.id} edge={e} sourceNode={s} targetNode={t} />;
+            return <ConnectionEdge key={e.id} edge={e} sourceNode={s} targetNode={t} onEdgeClick={(edge) => props.onEdgeClick?.(e as any, edge)} />;
           })}
 
           {/* PREVIEW EDGE while dragging a connection */}

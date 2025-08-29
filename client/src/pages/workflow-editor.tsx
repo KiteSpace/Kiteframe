@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import { Sidebar } from '@/components/Sidebar';
+import { EdgeCustomizer } from '@/components/EdgeCustomizer';
 import { Toolbar } from '@/components/Toolbar';
 import { AiSettingsModal } from '@/components/AiSettingsModal';
 import { AiWorkflowGenerator } from '@/components/AiWorkflowGenerator';
@@ -53,7 +54,8 @@ export default function WorkflowEditor() {
       source: 'node-1',
       target: 'node-2',
       type: 'bezier',
-      data: { color: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }
+      style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
+      markers: { type: 'arrow', position: 'end' }
     },
     {
       id: 'edge-2',
@@ -61,7 +63,8 @@ export default function WorkflowEditor() {
       target: 'node-2',
       type: 'bezier',
       animated: true,
-      data: { color: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }
+      style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
+      markers: { type: 'arrow', position: 'end' }
     }
   ]);
 
@@ -70,6 +73,7 @@ export default function WorkflowEditor() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node } | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('node-2');
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string>('');
   const [viewport, setViewport] = useState({ x: 100, y: 100, zoom: 1 });
 
   // History management for undo/redo
@@ -141,7 +145,8 @@ export default function WorkflowEditor() {
       source: connection.source,
       target: connection.target,
       type: 'bezier',
-      data: { color: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }
+      style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
+      markers: { type: 'arrow', position: 'end' }
     };
     setEdges(prev => [...prev, newEdge]);
   }, [saveToHistory]);
@@ -154,6 +159,15 @@ export default function WorkflowEditor() {
       setNodes(prev => prev.map(n => n.id === node.id ? { ...n, selected: !n.selected } : n));
     }
     setSelectedNodeId(node.id);
+    setSelectedEdgeId(''); // Deselect edges when node is selected
+    setEdges(prev => prev.map(e => ({ ...e, selected: false })));
+  }, []);
+
+  const handleEdgeClick = useCallback((edge: Edge) => {
+    setEdges(prev => prev.map(e => ({ ...e, selected: e.id === edge.id })));
+    setSelectedEdgeId(edge.id);
+    setSelectedNodeId(''); // Deselect nodes when edge is selected
+    setNodes(prev => prev.map(n => ({ ...n, selected: false })));
   }, []);
 
   const handleNodeRightClick = useCallback((e: React.MouseEvent, node: Node) => {
@@ -163,7 +177,9 @@ export default function WorkflowEditor() {
 
   const handleCanvasClick = useCallback(() => {
     setNodes(prev => prev.map(n => ({ ...n, selected: false })));
+    setEdges(prev => prev.map(e => ({ ...e, selected: false })));
     setSelectedNodeId('');
+    setSelectedEdgeId('');
     setContextMenu(null);
   }, []);
 
@@ -258,6 +274,12 @@ export default function WorkflowEditor() {
   }, [nodes, selectedNodeId, handleUndo, handleRedo, saveToHistory]);
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
+  const selectedEdge = edges.find(e => e.id === selectedEdgeId);
+
+  // Handle edge updates
+  const handleEdgeUpdate = useCallback((edgeId: string, updates: Partial<Edge>) => {
+    setEdges(prev => prev.map(e => e.id === edgeId ? { ...e, ...updates } : e));
+  }, []);
 
   // Export workflow as JSON file
   const handleExportWorkflow = useCallback(() => {
@@ -317,21 +339,32 @@ export default function WorkflowEditor() {
         />
         
         <div className="flex flex-1">
-          <Sidebar
-            selectedNode={selectedNode}
-            onCreateNode={handleCreateNode}
-            onFitView={handleFitView}
-            onClearCanvas={() => { setNodes([]); setEdges([]); }}
-            onExport={handleExportWorkflow}
-            onImport={() => setShowImportModal(true)}
-            onNodeUpdate={(nodeId, updates) => {
-              setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, ...updates } : n));
-            }}
-            onDeselectNode={() => {
-              setNodes(prev => prev.map(n => ({ ...n, selected: false })));
-              setSelectedNodeId('');
-            }}
-          />
+          {selectedEdge ? (
+            <EdgeCustomizer
+              selectedEdge={selectedEdge}
+              onEdgeUpdate={handleEdgeUpdate}
+              onDeselectEdge={() => {
+                setEdges(prev => prev.map(e => ({ ...e, selected: false })));
+                setSelectedEdgeId('');
+              }}
+            />
+          ) : (
+            <Sidebar
+              selectedNode={selectedNode}
+              onCreateNode={handleCreateNode}
+              onFitView={handleFitView}
+              onClearCanvas={() => { setNodes([]); setEdges([]); }}
+              onExport={handleExportWorkflow}
+              onImport={() => setShowImportModal(true)}
+              onNodeUpdate={(nodeId, updates) => {
+                setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, ...updates } : n));
+              }}
+              onDeselectNode={() => {
+                setNodes(prev => prev.map(n => ({ ...n, selected: false })));
+                setSelectedNodeId('');
+              }}
+            />
+          )}
           
           <main className="flex-1 relative">
             <WorkflowCanvas
@@ -341,6 +374,7 @@ export default function WorkflowEditor() {
               onEdgesChange={handleEdgesChange}
               onConnect={handleConnect}
               onNodeClick={handleNodeClick}
+              onEdgeClick={handleEdgeClick}
               onCanvasClick={handleCanvasClick}
               onNodeRightClick={handleNodeRightClick}
               viewport={viewport}

@@ -10,6 +10,7 @@ interface WorkflowCanvasProps {
   onEdgesChange: (edges: Edge[]) => void;
   onConnect: (connection: { source: string; target: string }) => void;
   onNodeClick?: (e: React.MouseEvent, node: Node) => void;
+  onEdgeClick?: (edge: Edge) => void;
   onCanvasClick?: () => void;
   onNodeRightClick?: (e: React.MouseEvent, node: Node) => void;
   viewport: { x: number; y: number; zoom: number };
@@ -27,6 +28,7 @@ export function WorkflowCanvas({
   onEdgesChange,
   onConnect,
   onNodeClick,
+  onEdgeClick,
   onCanvasClick,
   onNodeRightClick,
   viewport,
@@ -73,12 +75,11 @@ export function WorkflowCanvas({
       <KiteFrameCanvas
         nodes={nodes}
         edges={edges}
-        viewport={viewport}
-        onViewportChange={onViewportChange}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onEdgeClick={(e, edge) => onEdgeClick?.(edge)}
         onCanvasClick={onCanvasClick}
         onNodeRightClick={onNodeRightClick}
         gridType="dots"
