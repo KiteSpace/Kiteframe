@@ -88,12 +88,12 @@ export default function WorkflowEditor() {
     return `${adj} ${noun}`;
   }, []);
 
-  // Initialize workflow name
+  // Initialize workflow name only on first load
   useEffect(() => {
     if (!workflowName) {
       setWorkflowName(generateCuteName());
     }
-  }, [workflowName, generateCuteName]);
+  }, [generateCuteName]); // Remove workflowName dependency to prevent re-generation
   const [viewport, setViewport] = useState({ x: 100, y: 100, zoom: 1 });
 
 
@@ -400,7 +400,7 @@ export default function WorkflowEditor() {
     const workflowData = {
       version: "1.1.0", // Increment version to support image metadata
       metadata: {
-        name: workflowName || generateCuteName(),
+        name: workflowName.trim() || "My Workflow",
         description: "Exported workflow from KiteFrame editor",
         created: new Date().toISOString(),
         nodeCount: nodes.length,
@@ -418,12 +418,12 @@ export default function WorkflowEditor() {
     
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${(workflowName || 'workflow').replace(/[^a-zA-Z0-9-_]/g, '-')}.json`;
+    link.download = `${(workflowName.trim() || 'My-Workflow').replace(/[^a-zA-Z0-9-_]/g, '-')}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [nodes, edges, viewport, workflowName, generateCuteName]);
+  }, [nodes, edges, viewport, workflowName]);
 
   // State for missing images during import
   const [missingImages, setMissingImages] = useState<Array<{
@@ -780,18 +780,7 @@ export default function WorkflowEditor() {
           onOpenAiSettings={() => setShowAiModal(true)}
           onOpenAiGenerator={() => setShowAiGenerator(true)}
         />
-        
-        {/* Floating workflow name input */}
-        <div className="absolute top-16 left-5 z-30">
-          <input
-            type="text"
-            value={workflowName}
-            onChange={(e) => setWorkflowName(e.target.value)}
-            className="px-3 py-2 text-sm bg-card border border-border rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-primary/50 max-w-64"
-            placeholder="Workflow name..."
-            data-testid="input-workflow-name"
-          />
-        </div>
+
 
         <div className="flex flex-1">
           {selectedEdge ? (
@@ -837,6 +826,32 @@ export default function WorkflowEditor() {
           )}
           
           <main className="flex-1 relative">
+            {/* Workflow name input */}
+            <div className="absolute top-4 left-4 z-30">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={workflowName}
+                  onChange={(e) => setWorkflowName(e.target.value)}
+                  className="px-3 py-2 pr-10 text-sm bg-card border border-border rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-primary/50 max-w-64"
+                  placeholder="Name this workflow"
+                  data-testid="input-workflow-name"
+                />
+                {!workflowName.trim() && (
+                  <button
+                    onClick={() => setWorkflowName(generateCuteName())}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-accent rounded transition-colors"
+                    title="Generate cute name"
+                    data-testid="button-generate-name"
+                  >
+                    <svg className="w-4 h-4 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+            
             <WorkflowCanvas
               nodes={nodes}
               edges={edges}
