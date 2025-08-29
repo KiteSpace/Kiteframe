@@ -120,8 +120,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       setPanning(true);
       panStart.current = { x: e.clientX - viewport.x, y: e.clientY - viewport.y };
     } else if (isShift) {
-      selectStart.current = { x: e.clientX, y: e.clientY };
-      setSelectRect({ x: e.clientX, y: e.clientY, w: 0, h: 0 });
+      const rect = containerRef.current!.getBoundingClientRect();
+      const containerX = e.clientX - rect.left;
+      const containerY = e.clientY - rect.top;
+      selectStart.current = { x: containerX, y: containerY };
+      setSelectRect({ x: containerX, y: containerY, w: 0, h: 0 });
     }
   };
 
@@ -132,8 +135,16 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       return;
     }
     if (selectStart.current) {
+      const rect = containerRef.current!.getBoundingClientRect();
+      const containerX = e.clientX - rect.left;
+      const containerY = e.clientY - rect.top;
       const sx = selectStart.current.x, sy = selectStart.current.y;
-      setSelectRect({ x: Math.min(sx, e.clientX), y: Math.min(sy, e.clientY), w: Math.abs(e.clientX - sx), h: Math.abs(e.clientY - sy) });
+      setSelectRect({ 
+        x: Math.min(sx, containerX), 
+        y: Math.min(sy, containerY), 
+        w: Math.abs(containerX - sx), 
+        h: Math.abs(containerY - sy) 
+      });
       return;
     }
     if (connecting) {
@@ -211,8 +222,15 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     }
   };
 
-  // Node dragging
-  const dragInfo = useRef<{ id:string; start:{x:number;y:number}; origin:{x:number;y:number} }|null>(null);
+  // Node dragging with group support
+  const dragInfo = useRef<{ 
+    id: string; 
+    start: {x:number;y:number}; 
+    origin: {x:number;y:number}; 
+    origins?: {id: string; origin: {x:number;y:number}}[];
+    isGroupDrag?: boolean;
+  }|null>(null);
+  
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragInfo.current) return;
@@ -220,11 +238,54 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
       const dx = wp.x - dragInfo.current.start.x;
       const dy = wp.y - dragInfo.current.start.y;
-      const id = dragInfo.current.id;
-      const updated = props.nodes.map(n => n.id === id ? { ...n, position: { x: dragInfo.current!.origin.x + dx, y: dragInfo.current!.origin.y + dy } } : n);
-      props.onNodesChange(updated);
+      
+      if (dragInfo.current.isGroupDrag && dragInfo.current.origins) {
+        // Group drag: move all selected nodes
+        const updated = props.nodes.map(n => {
+          const nodeOrigin = dragInfo.current!.origins!.find(o => o.id === n.id);
+          if (nodeOrigin) {
+            return { ...n, position: { x: nodeOrigin.origin.x + dx, y: nodeOrigin.origin.y + dy } };
+          }
+          return n;
+        });
+        props.onNodesChange(updated);
+        
+        console.log(`🎯 GROUP DRAG:`, {
+          cursor: { clientX: e.clientX, clientY: e.clientY },
+          worldCoords: wp,
+          dragStart: dragInfo.current.start,
+          delta: { dx, dy },
+          dragType: 'group',
+          nodeCount: dragInfo.current.origins.length,
+          viewport: viewport,
+          source: 'world-coordinates'
+        });
+      } else {
+        // Individual drag: move single node
+        const id = dragInfo.current.id;
+        const updated = props.nodes.map(n => n.id === id ? { ...n, position: { x: dragInfo.current!.origin.x + dx, y: dragInfo.current!.origin.y + dy } } : n);
+        props.onNodesChange(updated);
+        
+        console.log(`🎯 NODE DRAG:`, {
+          cursor: { clientX: e.clientX, clientY: e.clientY },
+          worldCoords: wp,
+          dragStart: dragInfo.current.start,
+          delta: { dx, dy },
+          dragType: 'individual',
+          nodeCount: 1,
+          viewport: viewport,
+          source: 'world-coordinates'
+        });
+      }
     };
-    const onUp = () => { dragInfo.current = null; };
+    
+    const onUp = () => { 
+      if (dragInfo.current) {
+        console.log(`🔼 ${dragInfo.current.isGroupDrag ? 'GROUP' : 'NODE'} DRAG END`);
+      }
+      dragInfo.current = null; 
+    };
+    
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => {
@@ -337,7 +398,36 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 if (!containerRef.current) return;
                 const rect = containerRef.current.getBoundingClientRect();
                 const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
-                dragInfo.current = { id: n.id, start: wp, origin: { ...n.position } };
+                
+                // Check if this node is selected and if there are other selected nodes
+                const selectedNodes = props.nodes.filter(node => node.selected === true);
+                const isGroupDrag = selectedNodes.length > 1 && n.selected === true;
+                
+                // Prepare origins for all nodes that will be dragged
+                const origins = isGroupDrag 
+                  ? selectedNodes.map(node => ({ id: node.id, origin: { ...node.position } }))
+                  : [{ id: n.id, origin: { ...n.position } }];
+                
+                dragInfo.current = { 
+                  id: n.id, 
+                  start: wp, 
+                  origin: { ...n.position },
+                  origins: origins,
+                  isGroupDrag: isGroupDrag
+                };
+                
+                console.log(`🎯 ${isGroupDrag ? 'GROUP' : 'NODE'} ${n.id} DRAG START:`, {
+                  cursor: { clientX: e.clientX, clientY: e.clientY },
+                  worldCoords: wp,
+                  clickedNodePosition: n.position,
+                  clickedNodeSelected: n.selected,
+                  isGroupDrag: isGroupDrag,
+                  selectedNodesCount: selectedNodes.length,
+                  allSelectedNodes: selectedNodes.map(s => ({ id: s.id, selected: s.selected })),
+                  draggedNodes: origins.map(o => o.id),
+                  viewport: viewport,
+                  source: 'node-mousedown'
+                });
               }}
               onDoubleClick={(e)=>props.onNodeDoubleClick?.(e, n)}
               onContextMenu={(e)=>{ e.preventDefault(); props.onNodeRightClick?.(e, n); }}
