@@ -47,15 +47,15 @@ export const ConnectionEdge: React.FC<{ edge: Edge; sourceNode: Node; targetNode
       <defs>
         <marker 
           id={markerId} 
-          viewBox="0 0 10 7" 
-          refX="10" 
-          refY="3.5" 
-          markerWidth="10" 
-          markerHeight="7" 
+          viewBox="0 0 12 12" 
+          refX="11" 
+          refY="6" 
+          markerWidth="8" 
+          markerHeight="8" 
           orient="auto"
-          markerUnits="userSpaceOnUse"
+          markerUnits="strokeWidth"
         >
-          <polygon points="0 0, 10 3.5, 0 7" fill={stroke} />
+          <path d="M2,2 L2,10 L10,6 z" fill={stroke} />
         </marker>
       </defs>
       <path 
