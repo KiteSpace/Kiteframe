@@ -76,6 +76,7 @@ export default function WorkflowEditor() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node } | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('node-2');
   const [selectedEdgeId, setSelectedEdgeId] = useState<string>('');
+  const [showImageModal, setShowImageModal] = useState<string | null>(null);
   const [viewport, setViewport] = useState({ x: 100, y: 100, zoom: 1 });
 
 
@@ -156,6 +157,13 @@ export default function WorkflowEditor() {
 
   const handleNodeClick = useCallback((e: React.MouseEvent, node: Node) => {
     e.stopPropagation();
+    console.log('🎯 NODE CLICKED:', { 
+      nodeId: node.id, 
+      nodeType: node.type, 
+      shift: e.shiftKey,
+      currentShowImageModal: showImageModal,
+      timestamp: new Date().toISOString() 
+    });
     
     if (!e.shiftKey) {
       setNodes(prev => prev.map(n => ({ ...n, selected: n.id === node.id })));
@@ -165,7 +173,13 @@ export default function WorkflowEditor() {
     setSelectedNodeId(node.id);
     setSelectedEdgeId(''); // Deselect edges when node is selected
     setEdges(prev => prev.map(e => ({ ...e, selected: false })));
-  }, []);
+    
+    console.log('🎯 NODE CLICK COMPLETED:', { 
+      selectedNodeId: node.id,
+      imageModalStillShowing: showImageModal,
+      nodeType: node.type
+    });
+  }, [showImageModal]);
 
   const handleEdgeClick = useCallback((edge: Edge) => {
     setEdges(prev => prev.map(e => ({ ...e, selected: e.id === edge.id })));
@@ -555,6 +569,11 @@ export default function WorkflowEditor() {
 
   // Handle image upload completion with auto-sizing
   const handleImageUpload = useCallback((nodeId: string, objectPath: string, filename?: string) => {
+    console.log('🖼️ IMAGE UPLOAD HANDLER CALLED:', { nodeId, filename, timestamp: new Date().toISOString() });
+    // Close the image modal after successful upload
+    setShowImageModal(null);
+    console.log('🖼️ IMAGE MODAL CLOSED AFTER UPLOAD');
+    
     // Create an image element to get natural dimensions
     const img = new Image();
     img.onload = () => {
@@ -619,6 +638,11 @@ export default function WorkflowEditor() {
 
   // Handle image URL input
   const handleImageUrl = useCallback((nodeId: string, url: string) => {
+    console.log('🖼️ IMAGE URL HANDLER CALLED:', { nodeId, url, timestamp: new Date().toISOString() });
+    // Close the image modal after successful URL set
+    setShowImageModal(null);
+    console.log('🖼️ IMAGE MODAL CLOSED AFTER URL SET');
+    
     // Create an image element to get natural dimensions
     const img = new Image();
     img.onload = () => {
@@ -718,15 +742,18 @@ export default function WorkflowEditor() {
               }}
               onImageUpload={handleImageUpload}
               onImageUrl={handleImageUrl}
-              showImageModal={selectedNodeId && selectedNode?.type === 'image' ? selectedNodeId : null}
+              showImageModal={showImageModal}
               onOpenImageModal={(nodeId) => {
+                console.log('🖼️ OPEN IMAGE MODAL CALLED:', { nodeId, from: 'properties-panel', timestamp: new Date().toISOString() });
                 setNodes(prev => prev.map(n => ({ ...n, selected: n.id === nodeId })));
                 setSelectedNodeId(nodeId);
+                setShowImageModal(nodeId);
+                console.log('🖼️ IMAGE MODAL STATE SET FROM PROPERTIES:', { showImageModal: nodeId });
               }}
               onCloseImageModal={() => {
-                // Close the image modal by deselecting the node
-                setNodes(prev => prev.map(n => ({ ...n, selected: false })));
-                setSelectedNodeId('');
+                console.log('🖼️ CLOSE IMAGE MODAL CALLED:', { timestamp: new Date().toISOString() });
+                setShowImageModal(null);
+                console.log('🖼️ IMAGE MODAL STATE CLEARED');
               }}
             />
           )}
@@ -743,9 +770,12 @@ export default function WorkflowEditor() {
               onCanvasClick={handleCanvasClick}
               onNodeRightClick={handleNodeRightClick}
               onImageButtonClick={(nodeId) => {
-                // No longer needed - image modal is now only triggered from properties panel
+                console.log('🖼️ IMAGE BUTTON CLICKED:', { nodeId, timestamp: new Date().toISOString() });
+                // Select the node and show the image modal
                 setNodes(prev => prev.map(n => ({ ...n, selected: n.id === nodeId })));
                 setSelectedNodeId(nodeId);
+                setShowImageModal(nodeId);
+                console.log('🖼️ IMAGE MODAL STATE SET:', { showImageModal: nodeId });
               }}
               viewport={viewport}
               onViewportChange={setViewport}
