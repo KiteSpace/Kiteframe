@@ -46,8 +46,10 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
+      console.log('File loaded, setting import data and validating...');
       setImportData(content);
       validateWorkflowData(content);
+      console.log('File upload complete, modal should remain open');
     };
     reader.readAsText(file);
   };
@@ -208,7 +210,13 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
   console.log('Component render - canCorrect:', canCorrect);
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={true} onOpenChange={(open) => {
+      console.log('Dialog onOpenChange called with:', open);
+      if (!open) {
+        console.log('Dialog trying to close, calling onClose');
+        onClose();
+      }
+    }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="modal-workflow-import" aria-describedby="import-workflow-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -225,7 +233,13 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               <Button
-                onClick={() => fileInputRef.current?.click()}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Upload button clicked');
+                  fileInputRef.current?.click();
+                }}
                 className="flex items-center gap-2"
                 data-testid="button-upload-file"
               >
@@ -241,7 +255,12 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
               ref={fileInputRef}
               type="file"
               accept=".json"
-              onChange={handleFileUpload}
+              onChange={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('File input onChange triggered');
+                handleFileUpload(e);
+              }}
               className="hidden"
               data-testid="input-file-upload"
             />
