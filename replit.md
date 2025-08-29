@@ -8,6 +8,21 @@ KiteFrame is a visual workflow editor built as a full-stack application with Rea
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### December 2025 - Canvas Coordinate System Fixes
+- Fixed major coordinate system mismatch causing offset shift+select behavior
+- Repositioned selection rectangle outside transformed world div using container-relative coordinates
+- Extended SVG layer to 10000px x 10000px to prevent edge clipping when nodes are dragged far
+- Implemented proper overlap detection for node selection (any overlap selects the node)
+- Added comprehensive coordinate logging system for debugging transformations
+
+### Canvas Selection Controls
+- **Shift+drag**: Creates selection rectangle to select multiple nodes by overlap
+- **Click+drag**: Pans the canvas viewport  
+- **Node drag**: Moves individual nodes in world coordinates
+- **Wheel scroll**: Zooms in/out with proper coordinate transformation
+
 ## System Architecture
 
 ### Frontend Architecture

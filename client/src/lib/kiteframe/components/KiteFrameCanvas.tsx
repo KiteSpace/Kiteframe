@@ -80,6 +80,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     
     console.log('🔽 BACKGROUND DOWN:', {
       isShift,
+      shiftKey: e.shiftKey,
+      altKey: e.altKey,
+      ctrlKey: e.ctrlKey,
+      metaKey: e.metaKey,
       cursor: { clientX: e.clientX, clientY: e.clientY },
       containerRect: rect ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : null,
       viewport: viewport,
@@ -177,6 +181,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     }
     
     if (selectStart.current && selectRect && containerRef.current) {
+      console.log('🔲 PROCESSING SELECTION:', { 
+        hasSelectStart: !!selectStart.current, 
+        hasSelectRect: !!selectRect, 
+        hasContainer: !!containerRef.current 
+      });
+      
       const rect = containerRef.current.getBoundingClientRect();
       const r = selectRect;
       
