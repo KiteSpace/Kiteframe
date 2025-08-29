@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface ObjectUploaderProps {
   maxFileSize?: number;
-  onComplete?: (objectPath: string) => void;
+  onComplete?: (objectPath: string, filename?: string) => void;
   buttonClassName?: string;
   children?: ReactNode;
   accept?: string;
@@ -104,7 +104,7 @@ export function ObjectUploader({
         description: "Image uploaded successfully",
       });
 
-      onComplete?.(objectPath);
+      onComplete?.(objectPath, file.name);
     } catch (error) {
       console.error('Upload error:', error);
       toast({

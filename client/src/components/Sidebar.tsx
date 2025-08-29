@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Node } from '../lib/kiteframe/types';
 import { ObjectUploader } from '@/components/ObjectUploader';
 import { 
@@ -11,6 +12,7 @@ import {
   Trash2,
   Download,
   Upload,
+  Link,
   X
 } from 'lucide-react';
 
@@ -23,7 +25,8 @@ interface SidebarProps {
   onImport: () => void;
   onNodeUpdate: (nodeId: string, updates: Partial<Node>) => void;
   onDeselectNode: () => void;
-  onImageUpload?: (nodeId: string, objectPath: string) => void;
+  onImageUpload?: (nodeId: string, objectPath: string, filename?: string) => void;
+  onImageUrl?: (nodeId: string, url: string) => void;
 }
 
 export function Sidebar({
@@ -35,8 +38,19 @@ export function Sidebar({
   onImport,
   onNodeUpdate,
   onDeselectNode,
-  onImageUpload
+  onImageUpload,
+  onImageUrl
 }: SidebarProps) {
+  const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
+  const [urlInputValue, setUrlInputValue] = useState('');
+
+  const handleUrlSubmit = (nodeId: string) => {
+    if (urlInputValue.trim()) {
+      onImageUrl?.(nodeId, urlInputValue.trim());
+      setShowUrlInput(null);
+      setUrlInputValue('');
+    }
+  };
   const nodeTypes = [
     { type: 'input', icon: ArrowRight, color: 'text-blue-500', label: 'Input' },
     { type: 'process', icon: Cog, color: 'text-green-500', label: 'Process' },
@@ -130,6 +144,7 @@ export function Sidebar({
                 {selectedNode.type === 'image' && (
                   <div className="space-y-3 mt-4 pt-3 border-t border-border">
                     <label className="block text-xs font-medium">Image</label>
+                    
                     {selectedNode.data?.src ? (
                       <div className="space-y-2">
                         <div className="border border-border rounded p-2 bg-background">
@@ -138,23 +153,99 @@ export function Sidebar({
                             alt="Node image" 
                             className="w-full h-20 object-contain rounded"
                           />
+                          {selectedNode.data?.filename && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              File: {selectedNode.data.filename}
+                            </div>
+                          )}
+                          {selectedNode.data?.sourceUrl && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              URL: {selectedNode.data.sourceUrl}
+                            </div>
+                          )}
                         </div>
-                        <ObjectUploader
-                          onComplete={(objectPath) => onImageUpload?.(selectedNode.id, objectPath)}
-                          buttonClassName="w-full text-xs"
-                        >
-                          <Upload size={14} className="mr-1" />
-                          Change Image
-                        </ObjectUploader>
+                        
+                        <div className="space-y-2">
+                          <div className="text-xs text-muted-foreground">Change Image:</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <ObjectUploader
+                              onComplete={(objectPath, filename) => onImageUpload?.(selectedNode.id, objectPath, filename)}
+                              buttonClassName="w-full text-xs"
+                            >
+                              <Upload size={12} className="mr-1" />
+                              Upload
+                            </ObjectUploader>
+                            <button
+                              onClick={() => setShowUrlInput(selectedNode.id)}
+                              className="w-full text-xs p-2 border border-border rounded bg-background hover:bg-accent transition-colors flex items-center justify-center"
+                            >
+                              <Link size={12} className="mr-1" />
+                              URL
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     ) : (
-                      <ObjectUploader
-                        onComplete={(objectPath) => onImageUpload?.(selectedNode.id, objectPath)}
-                        buttonClassName="w-full text-xs"
-                      >
-                        <Upload size={14} className="mr-1" />
-                        Upload Image
-                      </ObjectUploader>
+                      <div className="space-y-2">
+                        <div className="text-xs text-muted-foreground mb-2">Add image:</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <ObjectUploader
+                            onComplete={(objectPath, filename) => onImageUpload?.(selectedNode.id, objectPath, filename)}
+                            buttonClassName="w-full text-xs"
+                          >
+                            <Upload size={12} className="mr-1" />
+                            Upload
+                          </ObjectUploader>
+                          <button
+                            onClick={() => setShowUrlInput(selectedNode.id)}
+                            className="w-full text-xs p-2 border border-border rounded bg-background hover:bg-accent transition-colors flex items-center justify-center"
+                          >
+                            <Link size={12} className="mr-1" />
+                            URL
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* URL Input Modal */}
+                    {showUrlInput === selectedNode.id && (
+                      <div className="space-y-2 p-3 border border-border rounded bg-muted">
+                        <label className="block text-xs font-medium">Image URL</label>
+                        <input
+                          type="url"
+                          placeholder="https://example.com/image.jpg"
+                          className="w-full p-2 text-xs border border-border rounded bg-background"
+                          value={urlInputValue}
+                          onChange={(e) => setUrlInputValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleUrlSubmit(selectedNode.id);
+                            } else if (e.key === 'Escape') {
+                              setShowUrlInput(null);
+                              setUrlInputValue('');
+                            }
+                          }}
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleUrlSubmit(selectedNode.id)}
+                            className="flex-1 text-xs p-1.5 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                            disabled={!urlInputValue.trim()}
+                          >
+                            Add
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowUrlInput(null);
+                              setUrlInputValue('');
+                            }}
+                            className="flex-1 text-xs p-1.5 border border-border rounded hover:bg-accent"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}

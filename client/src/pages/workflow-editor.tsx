@@ -7,6 +7,7 @@ import { AiSettingsModal } from '@/components/AiSettingsModal';
 import { AiWorkflowGenerator } from '@/components/AiWorkflowGenerator';
 import { WorkflowImportModal } from '@/components/WorkflowImportModal';
 import { ContextMenu } from '@/components/ContextMenu';
+import { MissingImagesModal } from '@/components/MissingImagesModal';
 import { AiProvider } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import { ObjectUploader } from '@/components/ObjectUploader';
@@ -264,7 +265,7 @@ export default function WorkflowEditor() {
         const isInputFocused = activeElement && (
           activeElement.tagName === 'INPUT' ||
           activeElement.tagName === 'TEXTAREA' ||
-          activeElement.contentEditable === 'true' ||
+          (activeElement as HTMLElement).contentEditable === 'true' ||
           activeElement.getAttribute('role') === 'textbox'
         );
         
@@ -304,16 +305,36 @@ export default function WorkflowEditor() {
 
   // Export workflow as JSON file
   const handleExportWorkflow = useCallback(() => {
+    // Process nodes to include image metadata
+    const processedNodes = nodes.map(node => {
+      if (node.type === 'image' && node.data?.src) {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            imageMetadata: {
+              filename: node.data.filename || null,
+              sourceUrl: node.data.sourceUrl || null,
+              sourceType: node.data.sourceType || 'unknown',
+              originalSrc: node.data.src
+            }
+          }
+        };
+      }
+      return node;
+    });
+
     const workflowData = {
-      version: "1.0.0",
+      version: "1.1.0", // Increment version to support image metadata
       metadata: {
         name: "KiteFrame Workflow",
         description: "Exported workflow from KiteFrame editor",
         created: new Date().toISOString(),
         nodeCount: nodes.length,
-        edgeCount: edges.length
+        edgeCount: edges.length,
+        hasImages: nodes.some(n => n.type === 'image' && n.data?.src)
       },
-      nodes,
+      nodes: processedNodes,
       edges,
       viewport
     };
@@ -331,26 +352,120 @@ export default function WorkflowEditor() {
     URL.revokeObjectURL(url);
   }, [nodes, edges, viewport]);
 
-  // Import workflow from JSON data
-  const handleImportWorkflow = useCallback((newNodes: Node[], newEdges: Edge[], newViewport?: { x: number; y: number; zoom: number }) => {
+  // State for missing images during import
+  const [missingImages, setMissingImages] = useState<Array<{
+    nodeId: string;
+    filename: string | null;
+    sourceUrl: string | null;
+    sourceType: string;
+  }>>([]);
+  const [showMissingImagesModal, setShowMissingImagesModal] = useState(false);
+  const [pendingImportData, setPendingImportData] = useState<{
+    nodes: Node[];
+    edges: Edge[];
+    viewport?: { x: number; y: number; zoom: number };
+  } | null>(null);
+
+  // Import workflow from JSON data with missing image detection
+  const handleImportWorkflow = useCallback(async (newNodes: Node[], newEdges: Edge[], newViewport?: { x: number; y: number; zoom: number }) => {
     console.log('handleImportWorkflow called with:', newNodes.length, 'nodes,', newEdges.length, 'edges');
-    console.log('New nodes:', newNodes);
-    console.log('New edges:', newEdges);
-    console.log('New viewport:', newViewport);
     
-    saveToHistory(); // Save current state before import
-    setNodes(newNodes);
-    setEdges(newEdges);
-    if (newViewport) {
-      setViewport(newViewport);
+    // Check for missing images
+    const missingImageNodes: Array<{
+      nodeId: string;
+      filename: string | null;
+      sourceUrl: string | null;
+      sourceType: string;
+    }> = [];
+
+    for (const node of newNodes) {
+      if (node.type === 'image' && node.data?.src) {
+        // Check if image is accessible
+        try {
+          const response = await fetch(node.data.src, { method: 'HEAD' });
+          if (!response.ok) {
+            throw new Error('Image not accessible');
+          }
+        } catch (error) {
+          // Image is missing, add to missing list
+          const metadata = node.data.imageMetadata;
+          missingImageNodes.push({
+            nodeId: node.id,
+            filename: metadata?.filename || null,
+            sourceUrl: metadata?.sourceUrl || null,
+            sourceType: metadata?.sourceType || 'unknown'
+          });
+        }
+      }
     }
-    setSelectedNodeId(''); // Clear selection
-    setShowImportModal(false); // Close modal after successful import
-    console.log('Import completed, modal closed');
+
+    if (missingImageNodes.length > 0) {
+      // Show missing images modal
+      setMissingImages(missingImageNodes);
+      setPendingImportData({ nodes: newNodes, edges: newEdges, viewport: newViewport });
+      setShowMissingImagesModal(true);
+      setShowImportModal(false); // Close import modal
+    } else {
+      // No missing images, proceed with import
+      saveToHistory(); // Save current state before import
+      setNodes(newNodes);
+      setEdges(newEdges);
+      if (newViewport) {
+        setViewport(newViewport);
+      }
+      setSelectedNodeId(''); // Clear selection
+      setShowImportModal(false); // Close modal after successful import
+      console.log('Import completed, modal closed');
+    }
   }, [saveToHistory]);
 
+  // Handle missing image replacement
+  const handleMissingImageReplace = useCallback((nodeId: string, objectPath: string, filename?: string) => {
+    if (pendingImportData) {
+      const updatedNodes = pendingImportData.nodes.map(node => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              src: objectPath,
+              filename: filename,
+              sourceType: 'upload'
+            }
+          };
+        }
+        return node;
+      });
+      
+      setPendingImportData({
+        ...pendingImportData,
+        nodes: updatedNodes
+      });
+      
+      // Remove from missing list
+      setMissingImages(prev => prev.filter(item => item.nodeId !== nodeId));
+    }
+  }, [pendingImportData]);
+
+  // Complete import after all missing images are resolved
+  const handleCompleteMissingImageImport = useCallback(() => {
+    if (pendingImportData) {
+      saveToHistory(); // Save current state before import
+      setNodes(pendingImportData.nodes);
+      setEdges(pendingImportData.edges);
+      if (pendingImportData.viewport) {
+        setViewport(pendingImportData.viewport);
+      }
+      setSelectedNodeId(''); // Clear selection
+      setShowMissingImagesModal(false);
+      setPendingImportData(null);
+      setMissingImages([]);
+      console.log('Import completed with resolved missing images');
+    }
+  }, [pendingImportData, saveToHistory]);
+
   // Handle image upload completion with auto-sizing
-  const handleImageUpload = useCallback((nodeId: string, objectPath: string) => {
+  const handleImageUpload = useCallback((nodeId: string, objectPath: string, filename?: string) => {
     // Create an image element to get natural dimensions
     const img = new Image();
     img.onload = () => {
@@ -377,7 +492,12 @@ export default function WorkflowEditor() {
         n.id === nodeId 
           ? { 
               ...n, 
-              data: { ...n.data, src: objectPath },
+              data: { 
+                ...n.data, 
+                src: objectPath,
+                filename: filename,
+                sourceType: 'upload'
+              },
               width: finalWidth,
               height: finalHeight
             }
@@ -390,7 +510,15 @@ export default function WorkflowEditor() {
       // Fallback if image fails to load - just set the src without resizing
       setNodes(prev => prev.map(n => 
         n.id === nodeId 
-          ? { ...n, data: { ...n.data, src: objectPath } }
+          ? { 
+              ...n, 
+              data: { 
+                ...n.data, 
+                src: objectPath,
+                filename: filename,
+                sourceType: 'upload'
+              } 
+            }
           : n
       ));
       saveToHistory();
@@ -399,6 +527,70 @@ export default function WorkflowEditor() {
     // Set the source to trigger loading
     img.src = objectPath;
     setShowImageUploader(null);
+  }, [saveToHistory]);
+
+  // Handle image URL input
+  const handleImageUrl = useCallback((nodeId: string, url: string) => {
+    // Create an image element to get natural dimensions
+    const img = new Image();
+    img.onload = () => {
+      const maxWidth = 300;
+      const maxHeight = 300;
+      const headerHeight = 28; // Approximate height of the title bar
+      
+      // Calculate available space for the image (accounting for header)
+      const availableHeight = maxHeight - headerHeight;
+      
+      // Calculate the scaling factor to fit within max dimensions while maintaining aspect ratio
+      const scaleX = maxWidth / img.naturalWidth;
+      const scaleY = availableHeight / img.naturalHeight;
+      const scale = Math.min(scaleX, scaleY, 1); // Don't scale up, only down
+      
+      const imageWidth = Math.round(img.naturalWidth * scale);
+      const imageHeight = Math.round(img.naturalHeight * scale);
+      
+      // Total node dimensions (image + header)
+      const finalWidth = Math.max(imageWidth, 150);
+      const finalHeight = Math.max(imageHeight + headerHeight, 100);
+      
+      setNodes(prev => prev.map(n => 
+        n.id === nodeId 
+          ? { 
+              ...n, 
+              data: { 
+                ...n.data, 
+                src: url,
+                sourceUrl: url,
+                sourceType: 'url'
+              },
+              width: finalWidth,
+              height: finalHeight
+            }
+          : n
+      ));
+      saveToHistory(); // Save to history after image URL and resize
+    };
+    
+    img.onerror = () => {
+      // Fallback if image fails to load - just set the src without resizing
+      setNodes(prev => prev.map(n => 
+        n.id === nodeId 
+          ? { 
+              ...n, 
+              data: { 
+                ...n.data, 
+                src: url,
+                sourceUrl: url,
+                sourceType: 'url'
+              } 
+            }
+          : n
+      ));
+      saveToHistory();
+    };
+    
+    // Set the source to trigger loading
+    img.src = url;
   }, [saveToHistory]);
 
   return (
@@ -437,6 +629,7 @@ export default function WorkflowEditor() {
                 setSelectedNodeId('');
               }}
               onImageUpload={handleImageUpload}
+              onImageUrl={handleImageUrl}
             />
           )}
           
@@ -486,6 +679,19 @@ export default function WorkflowEditor() {
           <WorkflowImportModal
             onClose={() => setShowImportModal(false)}
             onImport={handleImportWorkflow}
+          />
+        )}
+
+        {showMissingImagesModal && (
+          <MissingImagesModal
+            missingImages={missingImages}
+            onImageReplace={handleMissingImageReplace}
+            onComplete={handleCompleteMissingImageImport}
+            onCancel={() => {
+              setShowMissingImagesModal(false);
+              setPendingImportData(null);
+              setMissingImages([]);
+            }}
           />
         )}
 
