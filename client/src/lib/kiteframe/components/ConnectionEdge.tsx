@@ -22,6 +22,18 @@ export const ConnectionEdge: React.FC<{ edge: Edge; sourceNode: Node; targetNode
   const type = edge.type ?? 'bezier';
   let d = '';
   
+  // Debug: Log connection details
+  const dx = t.x - s.x;
+  const dy = t.y - s.y;
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+  console.log(`🏹 ARROW DEBUG for edge ${edge.id}:`, {
+    source: { id: sourceNode.id, pos: sourceNode.position, anchor: s },
+    target: { id: targetNode.id, pos: targetNode.position, anchor: t },
+    vector: { dx, dy },
+    angle: angle,
+    expectedDirection: Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical'
+  });
+  
   // Calculate the path - arrow orientation is handled automatically by SVG
   if (type === 'straight') {
     d = `M ${s.x} ${s.y} L ${t.x} ${t.y}`;
@@ -47,15 +59,15 @@ export const ConnectionEdge: React.FC<{ edge: Edge; sourceNode: Node; targetNode
       <defs>
         <marker 
           id={markerId} 
-          viewBox="0 0 12 12" 
-          refX="11" 
-          refY="6" 
-          markerWidth="8" 
-          markerHeight="8" 
+          viewBox="0 0 10 10" 
+          refX="9" 
+          refY="5" 
+          markerWidth="6" 
+          markerHeight="6" 
           orient="auto"
           markerUnits="strokeWidth"
         >
-          <path d="M2,2 L2,10 L10,6 z" fill={stroke} />
+          <polygon points="0,0 0,10 10,5" fill={stroke} />
         </marker>
       </defs>
       <path 
