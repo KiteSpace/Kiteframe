@@ -26,6 +26,7 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [showCorrectionPreview, setShowCorrectionPreview] = useState(false);
+  const [allowClose, setAllowClose] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const aiContext = useAi();
@@ -184,7 +185,8 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
       console.log('Extracted data:', { nodes, edges, viewport });
       console.log('Calling onImport with:', nodes.length, 'nodes and', edges.length, 'edges');
 
-      // Don't close modal immediately, let parent handle it
+      // Allow close after successful import
+      setAllowClose(true);
       onImport(nodes, edges, viewport);
       
       toast({
@@ -211,10 +213,12 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
 
   return (
     <Dialog open={true} onOpenChange={(open) => {
-      console.log('Dialog onOpenChange called with:', open);
-      if (!open) {
-        console.log('Dialog trying to close, calling onClose');
+      console.log('Dialog onOpenChange called with:', open, 'allowClose:', allowClose);
+      if (!open && allowClose) {
+        console.log('Dialog close allowed, calling onClose');
         onClose();
+      } else if (!open) {
+        console.log('Dialog close blocked - not user initiated');
       }
     }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="modal-workflow-import" aria-describedby="import-workflow-description">
@@ -383,7 +387,11 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={() => {
+                console.log('Cancel button clicked, allowing close');
+                setAllowClose(true);
+                onClose();
+              }}
               className="flex-1"
               data-testid="button-cancel-import"
             >
