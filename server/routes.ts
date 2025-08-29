@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 // Workflow validation utility
 function validateWorkflowStructure(data: any): { isValid: boolean; errors: string[]; warnings: string[] } {
@@ -384,6 +385,49 @@ Respond with only the corrected JSON data:`;
     } catch (error) {
       console.error('AI correction error:', error);
       res.status(500).json({ error: 'Internal server error during AI correction' });
+    }
+  });
+
+  // Object storage routes for image uploads
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(
+        req.path,
+      );
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error checking object access:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  app.post("/api/objects/upload", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+    res.json({ uploadURL });
+  });
+
+  app.put("/api/images", async (req, res) => {
+    if (!req.body.imageURL) {
+      return res.status(400).json({ error: "imageURL is required" });
+    }
+
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = objectStorageService.normalizeObjectEntityPath(
+        req.body.imageURL,
+      );
+
+      res.status(200).json({
+        objectPath: objectPath,
+      });
+    } catch (error) {
+      console.error("Error setting image:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 

@@ -468,7 +468,15 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             >
               <div className="title">{n.data?.label || n.type || n.id}</div>
               <div className="body">
-                {n.type === 'image' && n.data?.src ? <img src={n.data.src} alt="" style={{ maxWidth: '100%', maxHeight: '100%' }} />: (n.data?.description || 'Drop content here…')}
+                {n.type === 'image' ? (
+                  n.data?.src ? 
+                    <img src={n.data.src} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} /> : 
+                    <div style={{ padding: '8px', textAlign: 'center', color: '#666' }}>
+                      Click to upload image
+                    </div>
+                ) : (
+                  n.data?.description || 'Drop content here…'
+                )}
               </div>
               {n.showHandles !== false && <NodeHandles node={n} onHandleConnect={(p, e)=>{
                 if (!containerRef.current) return;
