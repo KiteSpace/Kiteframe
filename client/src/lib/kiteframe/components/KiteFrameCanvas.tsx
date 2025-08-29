@@ -393,8 +393,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   cursor: { clientX: e.clientX, clientY: e.clientY },
                   worldCoords: wp,
                   clickedNodePosition: n.position,
+                  clickedNodeSelected: n.selected,
                   isGroupDrag: isGroupDrag,
                   selectedNodesCount: selectedNodes.length,
+                  allSelectedNodes: selectedNodes.map(s => ({ id: s.id, selected: s.selected })),
                   draggedNodes: origins.map(o => o.id),
                   viewport: viewport,
                   source: 'node-mousedown'
