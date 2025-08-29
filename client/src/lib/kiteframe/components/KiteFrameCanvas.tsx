@@ -197,22 +197,32 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         source: 'client-to-world-transform'
       });
       
-      // Check which nodes are inside the selection
+      // Check which nodes overlap with the selection (not just completely inside)
       const nodeSelections = props.nodes.map(n => {
         const w = n.style?.width ?? n.width ?? 200;
         const h = n.style?.height ?? n.height ?? 100;
-        const inside = n.position.x >= nx1 && n.position.y >= ny1 && (n.position.x + w) <= nx2 && (n.position.y + h) <= ny2;
+        const nodeX1 = n.position.x;
+        const nodeY1 = n.position.y;
+        const nodeX2 = n.position.x + w;
+        const nodeY2 = n.position.y + h;
+        
+        // Check for overlap: rectangles overlap if they intersect on both axes
+        const overlapsX = nodeX1 <= nx2 && nodeX2 >= nx1;
+        const overlapsY = nodeY1 <= ny2 && nodeY2 >= ny1;
+        const overlaps = overlapsX && overlapsY;
         
         console.log(`🔍 NODE ${n.id} SELECTION CHECK:`, {
           nodePosition: n.position,
           nodeSize: { w, h },
-          nodeBounds: { x1: n.position.x, y1: n.position.y, x2: n.position.x + w, y2: n.position.y + h },
+          nodeBounds: { x1: nodeX1, y1: nodeY1, x2: nodeX2, y2: nodeY2 },
           selectionBounds: { nx1, ny1, nx2, ny2 },
-          inside: inside,
-          source: 'world-coordinates'
+          overlapsX: overlapsX,
+          overlapsY: overlapsY,
+          selected: overlaps,
+          source: 'overlap-detection'
         });
         
-        return { ...n, selected: inside };
+        return { ...n, selected: overlaps };
       });
       
       props.onNodesChange(nodeSelections);
