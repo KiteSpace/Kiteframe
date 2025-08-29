@@ -10,17 +10,16 @@ interface LocalImageUploaderProps {
   accept?: string;
 }
 
+interface PreviewState {
+  imageUrl: string;
+  filename: string;
+  fileSize: number;
+}
+
 /**
  * A local image upload component that stores images in the browser's memory/local storage
  * for privacy. Images are converted to base64 data URLs and can be used directly in the app
  * without uploading to any external service.
- * 
- * @param props - Component props
- * @param props.maxFileSize - Maximum file size in bytes (default: 10MB)
- * @param props.onComplete - Callback function called when upload is complete with the base64 data URL
- * @param props.buttonClassName - Optional CSS class name for the button
- * @param props.children - Content to be rendered inside the button
- * @param props.accept - File input accept attribute (default: "image/*")
  */
 export function LocalImageUploader({
   maxFileSize = 10485760, // 10MB default
@@ -32,6 +31,7 @@ export function LocalImageUploader({
   const [dragActive, setDragActive] = useState(false);
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [preview, setPreview] = useState<PreviewState | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = (file: File): { valid: boolean; error?: string } => {
@@ -53,6 +53,10 @@ export function LocalImageUploader({
     if (!validation.valid) {
       setIsValid(false);
       setErrorMessage(validation.error || 'Invalid file');
+      setTimeout(() => {
+        setIsValid(null);
+        setErrorMessage('');
+      }, 3000);
       return;
     }
 
@@ -62,30 +66,57 @@ export function LocalImageUploader({
     const reader = new FileReader();
     reader.onload = (e) => {
       const result = e.target?.result as string;
-      if (result && onComplete) {
-        onComplete(result, file.name);
+      if (result) {
+        setPreview({
+          imageUrl: result,
+          filename: file.name,
+          fileSize: file.size
+        });
       }
     };
     reader.readAsDataURL(file);
   };
 
+  const handleConfirm = () => {
+    if (preview && onComplete) {
+      onComplete(preview.imageUrl, preview.filename);
+      setPreview(null);
+    }
+  };
+
+  const handleCancel = () => {
+    setPreview(null);
+    setIsValid(null);
+    setErrorMessage('');
+  };
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
     if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true);
       
-      // Check if dragged items are valid
-      const files = Array.from(e.dataTransfer.files);
-      if (files.length > 0) {
-        const validation = validateFile(files[0]);
+      // Only validate on dragover if we have files
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const validation = validateFile(e.dataTransfer.files[0]);
         setIsValid(validation.valid);
         setErrorMessage(validation.error || '');
+      } else {
+        // For external dragged content, assume it might be valid
+        setIsValid(null);
+        setErrorMessage('');
       }
     } else if (e.type === "dragleave") {
-      setDragActive(false);
-      setIsValid(null);
-      setErrorMessage('');
+      // Only reset if we're leaving the main container
+      const rect = e.currentTarget.getBoundingClientRect();
+      const isOutside = e.clientX < rect.left || e.clientX > rect.right || 
+                       e.clientY < rect.top || e.clientY > rect.bottom;
+      if (isOutside) {
+        setDragActive(false);
+        setIsValid(null);
+        setErrorMessage('');
+      }
     }
   };
 
@@ -93,6 +124,8 @@ export function LocalImageUploader({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
+    setIsValid(null);
+    setErrorMessage('');
     
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
@@ -105,17 +138,21 @@ export function LocalImageUploader({
     if (files && files.length > 0) {
       processFile(files[0]);
     }
+    // Reset input so same file can be selected again
+    e.target.value = '';
   };
 
   const handleClick = () => {
-    fileInputRef.current?.click();
+    if (!preview) {
+      fileInputRef.current?.click();
+    }
   };
 
   const getBorderColor = () => {
     if (!dragActive) return 'border-border';
     if (isValid === true) return 'border-green-500 bg-green-50 dark:bg-green-950/20';
     if (isValid === false) return 'border-red-500 bg-red-50 dark:bg-red-950/20';
-    return 'border-primary';
+    return 'border-primary bg-primary/5';
   };
 
   const getTextColor = () => {
@@ -123,6 +160,40 @@ export function LocalImageUploader({
     if (isValid === false) return 'text-red-600 dark:text-red-400';
     return '';
   };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  if (preview) {
+    return (
+      <div className="space-y-4">
+        <div className="border rounded-lg overflow-hidden">
+          <img 
+            src={preview.imageUrl} 
+            alt="Preview" 
+            className="w-full h-48 object-contain bg-gray-50 dark:bg-gray-900"
+          />
+        </div>
+        <div className="text-sm text-muted-foreground">
+          <p><strong>File:</strong> {preview.filename}</p>
+          <p><strong>Size:</strong> {formatFileSize(preview.fileSize)}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={handleConfirm} className="flex-1">
+            Use This Image
+          </Button>
+          <Button onClick={handleCancel} variant="outline" className="flex-1">
+            Choose Different
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">
@@ -147,14 +218,20 @@ export function LocalImageUploader({
         </div>
         
         {dragActive && isValid === false && errorMessage && (
-          <div className="absolute inset-0 flex items-center justify-center bg-red-50/90 dark:bg-red-950/90 rounded-lg">
+          <div className="absolute inset-0 flex items-center justify-center bg-red-50/90 dark:bg-red-950/90 rounded-lg z-10">
             <p className="text-sm text-red-600 dark:text-red-400 font-medium">{errorMessage}</p>
           </div>
         )}
         
         {dragActive && isValid === true && (
-          <div className="absolute inset-0 flex items-center justify-center bg-green-50/90 dark:bg-green-950/90 rounded-lg">
+          <div className="absolute inset-0 flex items-center justify-center bg-green-50/90 dark:bg-green-950/90 rounded-lg z-10">
             <p className="text-sm text-green-600 dark:text-green-400 font-medium">Drop to upload image</p>
+          </div>
+        )}
+        
+        {dragActive && isValid === null && (
+          <div className="absolute inset-0 flex items-center justify-center bg-primary/10 rounded-lg z-10">
+            <p className="text-sm text-primary font-medium">Drop image here</p>
           </div>
         )}
       </div>

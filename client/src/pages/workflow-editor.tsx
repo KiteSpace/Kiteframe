@@ -299,18 +299,21 @@ export default function WorkflowEditor() {
 
   // Export workflow as JSON file
   const handleExportWorkflow = useCallback(() => {
-    // Process nodes to include image metadata
+    // Process nodes to include only image filenames instead of full base64 data
     const processedNodes = nodes.map(node => {
       if (node.type === 'image' && node.data?.src) {
         return {
           ...node,
           data: {
             ...node.data,
+            // Remove the base64 src data for export
+            src: undefined,
+            // Store only the metadata for reconstruction
             imageMetadata: {
-              filename: node.data.filename || null,
+              filename: node.data.filename || 'image',
               sourceUrl: node.data.sourceUrl || null,
-              sourceType: node.data.sourceType || 'unknown',
-              originalSrc: node.data.src
+              sourceType: node.data.sourceType || 'upload',
+              hasImage: true
             }
           }
         };
@@ -623,6 +626,12 @@ export default function WorkflowEditor() {
               }}
               onImageUpload={handleImageUpload}
               onImageUrl={handleImageUrl}
+              showImageModal={selectedNodeId && selectedNode?.type === 'image' ? selectedNodeId : null}
+              onOpenImageModal={(nodeId) => {
+                setNodes(prev => prev.map(n => ({ ...n, selected: n.id === nodeId })));
+                setSelectedNodeId(nodeId);
+              }}
+              onCloseImageModal={() => {}}
             />
           )}
           
@@ -638,8 +647,13 @@ export default function WorkflowEditor() {
               onCanvasClick={handleCanvasClick}
               onNodeRightClick={handleNodeRightClick}
               onImageButtonClick={(nodeId) => {
+                // First select the node
                 setNodes(prev => prev.map(n => ({ ...n, selected: n.id === nodeId })));
                 setSelectedNodeId(nodeId);
+                // Then wait for next render cycle to ensure selectedNode is updated
+                setTimeout(() => {
+                  // The image modal will automatically show for selected image nodes
+                }, 0);
               }}
               viewport={viewport}
               onViewportChange={setViewport}

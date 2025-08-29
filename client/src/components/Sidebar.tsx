@@ -28,6 +28,9 @@ interface SidebarProps {
   onDeselectNode: () => void;
   onImageUpload?: (nodeId: string, objectPath: string, filename?: string) => void;
   onImageUrl?: (nodeId: string, url: string) => void;
+  showImageModal?: string | null;
+  onOpenImageModal?: (nodeId: string) => void;
+  onCloseImageModal?: () => void;
 }
 
 export function Sidebar({
@@ -40,12 +43,15 @@ export function Sidebar({
   onNodeUpdate,
   onDeselectNode,
   onImageUpload,
-  onImageUrl
+  onImageUrl,
+  showImageModal,
+  onOpenImageModal,
+  onCloseImageModal
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  const [showImageModal, setShowImageModal] = useState<string | null>(null);
+  // showImageModal is now passed as a prop
 
   const handleUrlSubmit = (nodeId: string) => {
     if (urlInputValue.trim()) {
@@ -183,7 +189,7 @@ export function Sidebar({
                         </div>
                         
                         <button
-                          onClick={() => setShowImageModal(selectedNode.id)}
+                          onClick={() => onOpenImageModal?.(selectedNode.id)}
                           className="w-full text-xs p-2 border border-border rounded bg-background hover:bg-accent transition-colors flex items-center justify-center"
                         >
                           <Image size={12} className="mr-1" />
@@ -192,7 +198,7 @@ export function Sidebar({
                       </div>
                     ) : (
                       <button
-                        onClick={() => setShowImageModal(selectedNode.id)}
+                        onClick={() => onOpenImageModal?.(selectedNode.id)}
                         className="w-full text-xs p-3 border-2 border-dashed border-border rounded bg-background hover:bg-accent transition-colors flex items-center justify-center"
                       >
                         <Image size={14} className="mr-2" />
@@ -346,7 +352,7 @@ export function Sidebar({
         {showImageModal && (
           <ImageModal
             nodeId={showImageModal}
-            onClose={() => setShowImageModal(null)}
+            onClose={onCloseImageModal || (() => {})}
             onImageUpload={onImageUpload}
             onImageUrl={onImageUrl}
           />
