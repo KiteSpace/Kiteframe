@@ -146,7 +146,7 @@ export function Sidebar({
                             return { method: 'PUT' as const, url: data.uploadURL };
                           }}
                           onComplete={async (result) => {
-                            if (result.successful[0]?.uploadURL) {
+                            if (result.successful && result.successful[0]?.uploadURL) {
                               try {
                                 const response = await fetch('/api/images', {
                                   method: 'PUT',
@@ -174,7 +174,7 @@ export function Sidebar({
                           return { method: 'PUT' as const, url: data.uploadURL };
                         }}
                         onComplete={async (result) => {
-                          if (result.successful[0]?.uploadURL) {
+                          if (result.successful && result.successful[0]?.uploadURL) {
                             try {
                               const response = await fetch('/api/images', {
                                 method: 'PUT',
