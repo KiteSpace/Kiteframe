@@ -176,11 +176,44 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const x2 = ((r.x + r.w) - rect.left - viewport.x) / viewport.zoom;
       const y2 = ((r.y + r.h) - rect.top - viewport.y) / viewport.zoom;
       const nx1 = Math.min(x1,x2), ny1=Math.min(y1,y2), nx2=Math.max(x1,x2), ny2=Math.max(y1,y2);
+      
+      console.log(`🔲 SELECT END - COORDINATE TRANSFORMATION:`, {
+        selectRect: r,
+        containerRect: { left: rect.left, top: rect.top },
+        viewport: viewport,
+        clientCoords: { x1: r.x, y1: r.y, x2: r.x + r.w, y2: r.y + r.h },
+        transformedCoords: { x1, y1, x2, y2 },
+        worldBounds: { nx1, ny1, nx2, ny2 },
+        source: 'client-to-world-transform'
+      });
+      
       const updated = props.nodes.map(n => {
         const w = n.style?.width ?? n.width ?? 200;
         const h = n.style?.height ?? n.height ?? 100;
-        const inside = n.position.x >= nx1 && n.position.y >= ny1 && (n.position.x + w) <= nx2 && (n.position.y + h) <= ny2;
-        return { ...n, selected: inside };
+        const nodeBounds = {
+          x1: n.position.x,
+          y1: n.position.y,
+          x2: n.position.x + w,
+          y2: n.position.y + h
+        };
+        
+        // Use overlap detection instead of complete containment
+        const overlapsX = nodeBounds.x1 < nx2 && nodeBounds.x2 > nx1;
+        const overlapsY = nodeBounds.y1 < ny2 && nodeBounds.y2 > ny1;
+        const selected = overlapsX && overlapsY;
+        
+        console.log(`🔍 NODE ${n.id} SELECTION CHECK:`, {
+          nodePosition: n.position,
+          nodeSize: { w, h },
+          nodeBounds,
+          selectionBounds: { nx1, ny1, nx2, ny2 },
+          overlapsX,
+          overlapsY,
+          selected,
+          source: 'overlap-detection'
+        });
+        
+        return { ...n, selected };
       });
       props.onNodesChange(updated);
       setSelectRect(null); selectStart.current = null;
