@@ -631,7 +631,11 @@ export default function WorkflowEditor() {
                 setNodes(prev => prev.map(n => ({ ...n, selected: n.id === nodeId })));
                 setSelectedNodeId(nodeId);
               }}
-              onCloseImageModal={() => {}}
+              onCloseImageModal={() => {
+                // Close the image modal by deselecting the node
+                setNodes(prev => prev.map(n => ({ ...n, selected: false })));
+                setSelectedNodeId('');
+              }}
             />
           )}
           

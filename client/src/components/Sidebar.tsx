@@ -424,7 +424,7 @@ function ImageModal({ nodeId, onClose, onImageUpload, onImageUrl }: ImageModalPr
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background border border-border rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-4">
+      <div className="bg-background border border-border rounded-lg p-6 max-w-2xl w-full h-[600px] overflow-y-auto mx-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Add Image</h2>
           <button

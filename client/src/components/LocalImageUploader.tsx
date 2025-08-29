@@ -29,6 +29,7 @@ export function LocalImageUploader({
   accept = "image/*"
 }: LocalImageUploaderProps) {
   const [dragActive, setDragActive] = useState(false);
+  const [dragValidationState, setDragValidationState] = useState<'valid' | 'invalid' | null>(null);
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [preview, setPreview] = useState<PreviewState | null>(null);
@@ -97,14 +98,15 @@ export function LocalImageUploader({
     if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true);
       
-      // Only validate on dragover if we have files
+      // Real-time validation during drag
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const validation = validateFile(e.dataTransfer.files[0]);
-        setIsValid(validation.valid);
+        const file = e.dataTransfer.files[0];
+        const validation = validateFile(file);
+        setDragValidationState(validation.valid ? 'valid' : 'invalid');
         setErrorMessage(validation.error || '');
-      } else {
-        // For external dragged content, assume it might be valid
-        setIsValid(null);
+      } else if (e.dataTransfer.types && e.dataTransfer.types.includes('Files')) {
+        // Files are being dragged but we can't access them yet
+        setDragValidationState(null);
         setErrorMessage('');
       }
     } else if (e.type === "dragleave") {
@@ -114,7 +116,7 @@ export function LocalImageUploader({
                        e.clientY < rect.top || e.clientY > rect.bottom;
       if (isOutside) {
         setDragActive(false);
-        setIsValid(null);
+        setDragValidationState(null);
         setErrorMessage('');
       }
     }
@@ -124,7 +126,7 @@ export function LocalImageUploader({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    setIsValid(null);
+    setDragValidationState(null);
     setErrorMessage('');
     
     const files = Array.from(e.dataTransfer.files);
@@ -150,14 +152,23 @@ export function LocalImageUploader({
 
   const getBorderColor = () => {
     if (!dragActive) return 'border-border';
-    if (isValid === true) return 'border-green-500 bg-green-50 dark:bg-green-950/20';
-    if (isValid === false) return 'border-red-500 bg-red-50 dark:bg-red-950/20';
+    
+    // Real-time validation colors during drag
+    if (dragValidationState === 'valid') return 'border-green-500 bg-green-50 dark:bg-green-950/20';
+    if (dragValidationState === 'invalid') return 'border-border'; // Only text color for invalid, no border/bg change
+    
+    // Default drag state (before validation)
     return 'border-primary bg-primary/5';
   };
 
   const getTextColor = () => {
-    if (isValid === true) return 'text-green-600 dark:text-green-400';
+    // Real-time validation colors during drag
+    if (dragValidationState === 'valid') return 'text-green-600 dark:text-green-400';
+    if (dragValidationState === 'invalid') return 'text-red-600 dark:text-red-400';
+    
+    // Final validation after drop (for error display)
     if (isValid === false) return 'text-red-600 dark:text-red-400';
+    
     return '';
   };
 
@@ -217,8 +228,8 @@ export function LocalImageUploader({
           {children}
         </div>
         
-        {dragActive && isValid === false && errorMessage && (
-          <div className="absolute inset-0 flex items-center justify-center bg-red-50/90 dark:bg-red-950/90 rounded-lg z-10">
+        {dragActive && dragValidationState === 'invalid' && errorMessage && (
+          <div className="absolute inset-0 flex items-center justify-center z-10">
             <p className="text-sm text-red-600 dark:text-red-400 font-medium">{errorMessage}</p>
           </div>
         )}
