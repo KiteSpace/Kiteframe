@@ -31,6 +31,8 @@ type Props = {
   onImageUpload?: (id:string, data:string)=>void;
   onImageUrlSet?: (id:string, url:string)=>void;
   disablePan?: boolean;
+  viewport?: Viewport;
+  onViewportChange?: (viewport: Viewport) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -45,7 +47,11 @@ type ConnectingState = {
 
 export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
+  const [internalViewport, setInternalViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
+  
+  // Use external viewport if provided, otherwise use internal
+  const viewport = props.viewport || internalViewport;
+  const setViewport = props.onViewportChange || setInternalViewport;
   const [panning, setPanning] = useState(false);
   const panStart = useRef<{x:number;y:number}|null>(null);
   const [selectRect, setSelectRect] = useState<null | {x:number;y:number;w:number;h:number}>(null);

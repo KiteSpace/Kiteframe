@@ -48,24 +48,47 @@ export function WorkflowCanvas({
     setIsDraggingMinimap(true);
     e.preventDefault();
     
-    // Calculate position within minimap and update viewport
+    // Get minimap click position relative to minimap bounds
     const rect = e.currentTarget.getBoundingClientRect();
-    const relativeX = (e.clientX - rect.left) / rect.width;
-    const relativeY = (e.clientY - rect.top) / rect.height;
+    const minimapClickX = e.clientX - rect.left;
+    const minimapClickY = e.clientY - rect.top;
     
-    // Convert to world coordinates with proper scaling
+    // Account for the 8px padding in the minimap (inset-2)
+    const minimapContent = rect.getBoundingClientRect();
+    const contentWidth = minimapContent.width - 16; // 8px padding on each side
+    const contentHeight = minimapContent.height - 16;
+    const contentOffsetX = 8;
+    const contentOffsetY = 8;
+    
+    // Calculate relative position within the content area
+    const relativeX = Math.max(0, Math.min(1, (minimapClickX - contentOffsetX) / contentWidth));
+    const relativeY = Math.max(0, Math.min(1, (minimapClickY - contentOffsetY) / contentHeight));
+    
+    // Map to world coordinates (assuming 2000x1500 world space)
     const worldWidth = 2000;
     const worldHeight = 1500;
-    const viewportWidth = 800 / viewport.zoom;
-    const viewportHeight = 600 / viewport.zoom;
+    const worldClickX = relativeX * worldWidth;
+    const worldClickY = relativeY * worldHeight;
     
-    const centerX = relativeX * worldWidth - viewportWidth / 2;
-    const centerY = relativeY * worldHeight - viewportHeight / 2;
+    // Calculate canvas dimensions
+    const canvasWidth = 800;
+    const canvasHeight = 600;
+    
+    // Calculate new viewport to center the clicked world position on screen
+    const newViewportX = (canvasWidth / 2) - (worldClickX * viewport.zoom);
+    const newViewportY = (canvasHeight / 2) - (worldClickY * viewport.zoom);
+    
+    console.log('🗺️ MINIMAP CLICK:', {
+      click: { x: minimapClickX, y: minimapClickY },
+      relative: { x: relativeX, y: relativeY },
+      worldClick: { x: worldClickX, y: worldClickY },
+      viewport: { x: newViewportX, y: newViewportY, zoom: viewport.zoom }
+    });
     
     onViewportChange({ 
-      ...viewport, 
-      x: Math.max(0, Math.min(worldWidth - viewportWidth, centerX)),
-      y: Math.max(0, Math.min(worldHeight - viewportHeight, centerY))
+      x: newViewportX,
+      y: newViewportY,
+      zoom: viewport.zoom
     });
   }, [viewport, onViewportChange]);
 
@@ -73,23 +96,40 @@ export function WorkflowCanvas({
     if (!isDraggingMinimap) return;
     e.preventDefault();
     
+    // Get minimap click position relative to minimap bounds
     const rect = e.currentTarget.getBoundingClientRect();
-    const relativeX = (e.clientX - rect.left) / rect.width;
-    const relativeY = (e.clientY - rect.top) / rect.height;
+    const minimapClickX = e.clientX - rect.left;
+    const minimapClickY = e.clientY - rect.top;
     
-    // Convert to world coordinates with proper scaling
+    // Account for the 8px padding in the minimap (inset-2)
+    const minimapContent = rect.getBoundingClientRect();
+    const contentWidth = minimapContent.width - 16; // 8px padding on each side
+    const contentHeight = minimapContent.height - 16;
+    const contentOffsetX = 8;
+    const contentOffsetY = 8;
+    
+    // Calculate relative position within the content area
+    const relativeX = Math.max(0, Math.min(1, (minimapClickX - contentOffsetX) / contentWidth));
+    const relativeY = Math.max(0, Math.min(1, (minimapClickY - contentOffsetY) / contentHeight));
+    
+    // Map to world coordinates (assuming 2000x1500 world space)
     const worldWidth = 2000;
     const worldHeight = 1500;
-    const viewportWidth = 800 / viewport.zoom;
-    const viewportHeight = 600 / viewport.zoom;
+    const worldClickX = relativeX * worldWidth;
+    const worldClickY = relativeY * worldHeight;
     
-    const centerX = relativeX * worldWidth - viewportWidth / 2;
-    const centerY = relativeY * worldHeight - viewportHeight / 2;
+    // Calculate canvas dimensions
+    const canvasWidth = 800;
+    const canvasHeight = 600;
+    
+    // Calculate new viewport to center the clicked world position on screen
+    const newViewportX = (canvasWidth / 2) - (worldClickX * viewport.zoom);
+    const newViewportY = (canvasHeight / 2) - (worldClickY * viewport.zoom);
     
     onViewportChange({ 
-      ...viewport, 
-      x: Math.max(0, Math.min(worldWidth - viewportWidth, centerX)),
-      y: Math.max(0, Math.min(worldHeight - viewportHeight, centerY))
+      x: newViewportX,
+      y: newViewportY,
+      zoom: viewport.zoom
     });
   }, [isDraggingMinimap, viewport, onViewportChange]);
 
@@ -119,6 +159,8 @@ export function WorkflowCanvas({
         onCanvasClick={onCanvasClick}
         onNodeRightClick={onNodeRightClick}
         onImageButtonClick={onImageButtonClick}
+        viewport={viewport}
+        onViewportChange={onViewportChange}
         gridType="dots"
         minZoom={0.1}
         maxZoom={3}
@@ -199,10 +241,12 @@ export function WorkflowCanvas({
                 isDraggingMinimap ? 'bg-primary/20' : 'bg-primary/10'
               } transition-colors`}
               style={{
-                left: `${(viewport.x / 2000) * 100}%`,
-                top: `${(viewport.y / 1500) * 100}%`,
-                width: `${Math.min(40, (800 / viewport.zoom / 2000) * 100)}%`,
-                height: `${Math.min(60, (600 / viewport.zoom / 1500) * 100)}%`
+                // Calculate viewport rectangle position in minimap
+                // Viewport shows the world area from -viewport.x/zoom to (-viewport.x + canvasWidth)/zoom
+                left: `${Math.max(0, Math.min(95, ((-viewport.x / viewport.zoom) / 2000) * 100))}%`,
+                top: `${Math.max(0, Math.min(95, ((-viewport.y / viewport.zoom) / 1500) * 100))}%`,
+                width: `${Math.min(95, Math.max(5, (800 / viewport.zoom / 2000) * 100))}%`,
+                height: `${Math.min(95, Math.max(5, (600 / viewport.zoom / 1500) * 100))}%`
               }}
             />
           </div>

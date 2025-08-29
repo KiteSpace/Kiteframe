@@ -255,7 +255,7 @@ export default function WorkflowEditor() {
 
   const handleFitView = useCallback(() => {
     if (nodes.length === 0) {
-      setViewport({ x: 100, y: 100, zoom: 1 });
+      setViewport({ x: 0, y: 0, zoom: 1 });
       return;
     }
 
@@ -266,40 +266,51 @@ export default function WorkflowEditor() {
     let maxY = -Infinity;
 
     nodes.forEach(node => {
-      const nodeMinX = node.position.x;
-      const nodeMinY = node.position.y;
-      const nodeMaxX = node.position.x + (node.width || 200);
-      const nodeMaxY = node.position.y + (node.height || 100);
-
-      minX = Math.min(minX, nodeMinX);
-      minY = Math.min(minY, nodeMinY);
-      maxX = Math.max(maxX, nodeMaxX);
-      maxY = Math.max(maxY, nodeMaxY);
+      const w = node.style?.width ?? node.width ?? 200;
+      const h = node.style?.height ?? node.height ?? 100;
+      
+      minX = Math.min(minX, node.position.x);
+      minY = Math.min(minY, node.position.y);
+      maxX = Math.max(maxX, node.position.x + w);
+      maxY = Math.max(maxY, node.position.y + h);
     });
 
     // Add padding around the content
     const padding = 100;
-    const contentWidth = maxX - minX + 2 * padding;
-    const contentHeight = maxY - minY + 2 * padding;
+    const contentWidth = maxX - minX + (padding * 2);
+    const contentHeight = maxY - minY + (padding * 2);
 
-    // Calculate canvas dimensions (assuming 800x600 viewport)
+    // Canvas dimensions (approximate viewport size)
     const canvasWidth = 800;
     const canvasHeight = 600;
 
-    // Calculate zoom to fit content with some margin
-    const zoomX = canvasWidth / contentWidth;
-    const zoomY = canvasHeight / contentHeight;
-    const zoom = Math.min(zoomX, zoomY, 1); // Don't zoom in beyond 100%
+    // Calculate zoom to fit content with margin
+    const zoomX = (canvasWidth * 0.9) / contentWidth;
+    const zoomY = (canvasHeight * 0.9) / contentHeight;
+    const zoom = Math.max(0.1, Math.min(1.2, Math.min(zoomX, zoomY)));
 
-    // Calculate viewport position to center the content
-    const viewportX = (minX - padding) - (canvasWidth / zoom - contentWidth) / 2;
-    const viewportY = (minY - padding) - (canvasHeight / zoom - contentHeight) / 2;
+    // Calculate content center
+    const contentCenterX = (minX + maxX) / 2;
+    const contentCenterY = (minY + maxY) / 2;
 
-    setViewport({ 
-      x: Math.max(0, viewportX), 
-      y: Math.max(0, viewportY), 
-      zoom 
+    // Calculate viewport translation to center content
+    // The viewport x,y represents the world coordinate that appears at canvas 0,0
+    // To center content: canvas_center = content_center * zoom + viewport_offset
+    // So: viewport_offset = canvas_center - content_center * zoom
+    const x = (canvasWidth / 2) - (contentCenterX * zoom);
+    const y = (canvasHeight / 2) - (contentCenterY * zoom);
+
+    console.log('🎯 FIT VIEW CALCULATION:', {
+      nodeCount: nodes.length,
+      bounds: { minX, minY, maxX, maxY },
+      contentSize: { width: contentWidth, height: contentHeight },
+      contentCenter: { x: contentCenterX, y: contentCenterY },
+      canvasSize: { width: canvasWidth, height: canvasHeight },
+      zoom: zoom,
+      finalViewport: { x, y, zoom }
     });
+
+    setViewport({ x, y, zoom });
   }, [nodes]);
 
   const handleZoomChange = useCallback((zoom: number) => {
