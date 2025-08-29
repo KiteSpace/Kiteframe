@@ -66,6 +66,7 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
       const result = await response.json();
       
       if (response.ok) {
+        console.log('Validation API response:', result);
         setValidationResult(result);
         
         if (!result.isValid && result.errors.length > 0) {
@@ -201,6 +202,10 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
 
   const canCorrect = validationResult && !validationResult.isValid && validationResult.errors.length > 0;
   const canImport = validationResult?.isValid;
+  
+  console.log('Component render - validationResult:', validationResult);
+  console.log('Component render - canImport:', canImport);
+  console.log('Component render - canCorrect:', canCorrect);
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -373,10 +378,10 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
                 handleImport();
               }}
               disabled={!canImport}
-              className="flex-1"
+              className={`flex-1 ${!canImport ? 'opacity-50 cursor-not-allowed' : ''}`}
               data-testid="button-import-workflow"
             >
-              Import Workflow
+              Import Workflow {!canImport ? '(Disabled)' : '(Enabled)'}
             </Button>
           </div>
         </div>
