@@ -396,9 +396,35 @@ export default function WorkflowEditor() {
                   filename: undefined
                 }
               };
+            } else {
+              // URL exists but not accessible (403, 404, etc.)
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  src: undefined,
+                  sourceUrl: metadata.sourceUrl,
+                  sourceType: 'url',
+                  filename: undefined,
+                  displayText: `Image not available\nOriginal URL: ${metadata.sourceUrl}`,
+                  isImageBroken: true
+                }
+              };
             }
           } catch (error) {
-            // URL not accessible, will show as missing
+            // Network error or invalid URL
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                src: undefined,
+                sourceUrl: metadata.sourceUrl,
+                sourceType: 'url',
+                filename: undefined,
+                displayText: `Broken image link\nOriginal URL: ${metadata.sourceUrl}`,
+                isImageBroken: true
+              }
+            };
           }
         }
         
@@ -428,15 +454,31 @@ export default function WorkflowEditor() {
             // Image is accessible, keep as-is
             return node;
           } catch (error) {
-            // Image is missing, add to missing list
-            missingImageNodes.push({
-              nodeId: node.id,
-              filename: metadata?.filename || null,
-              sourceUrl: metadata?.sourceUrl || null,
-              sourceType: metadata?.sourceType || 'unknown'
-            });
-            return node; // Will be processed in missing images flow
+            // Image is broken, show fallback
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                src: undefined,
+                displayText: `Image no longer available\n${node.data.src ? `Original source: ${node.data.src.substring(0, 50)}...` : 'Unknown source'}`,
+                isImageBroken: true
+              }
+            };
           }
+        }
+        
+        // Image node without any source - show as empty
+        if (metadata?.hasImage) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              displayText: metadata.filename ? 
+                `Original Image File: ${metadata.filename}\n(Image data not preserved)` :
+                'Image data not available',
+              isImageBroken: true
+            }
+          };
         }
       }
       

@@ -520,10 +520,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       {n.data?.displayText ? (
                         <div style={{
                           fontSize: '11px',
-                          color: '#888',
+                          color: n.data?.isImageBroken ? '#dc2626' : '#888',
                           fontStyle: 'italic',
-                          marginBottom: '8px'
+                          marginBottom: '8px',
+                          whiteSpace: 'pre-line',
+                          textAlign: 'center'
                         }}>
+                          {n.data?.isImageBroken && '⚠️ '}
                           {n.data.displayText}
                         </div>
                       ) : null}
