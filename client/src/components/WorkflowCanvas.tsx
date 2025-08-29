@@ -13,6 +13,7 @@ interface WorkflowCanvasProps {
   onEdgeClick?: (edge: Edge) => void;
   onCanvasClick?: () => void;
   onNodeRightClick?: (e: React.MouseEvent, node: Node) => void;
+  onImageButtonClick?: (nodeId: string) => void;
   viewport: { x: number; y: number; zoom: number };
   onViewportChange: (viewport: { x: number; y: number; zoom: number }) => void;
   onUndo: () => void;
@@ -31,6 +32,7 @@ export function WorkflowCanvas({
   onEdgeClick,
   onCanvasClick,
   onNodeRightClick,
+  onImageButtonClick,
   viewport,
   onViewportChange,
   onUndo,
@@ -82,6 +84,7 @@ export function WorkflowCanvas({
         onEdgeClick={(e, edge) => onEdgeClick?.(edge)}
         onCanvasClick={onCanvasClick}
         onNodeRightClick={onNodeRightClick}
+        onImageButtonClick={onImageButtonClick}
         gridType="dots"
         minZoom={0.1}
         maxZoom={3}

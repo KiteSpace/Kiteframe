@@ -10,12 +10,26 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### December 2025 - Canvas Coordinate System Fixes
-- Fixed major coordinate system mismatch causing offset shift+select behavior
-- Repositioned selection rectangle outside transformed world div using container-relative coordinates
-- Extended SVG layer to 10000px x 10000px to prevent edge clipping when nodes are dragged far
-- Implemented proper overlap detection for node selection (any overlap selects the node)
-- Added comprehensive coordinate logging system for debugging transformations
+### December 2025 - Enhanced Image Management & Local Storage Implementation
+- **Image Management System Overhaul:**
+  - Added "Add image" buttons in both properties panel and image node bodies
+  - Implemented hover trash can deletion with "cannot be undone" confirmation
+  - Created enhanced modal with tabbed Upload/URL interface and real-time preview validation
+  - Removed click-to-upload functionality from image nodes to prevent accidental uploads
+  - Added comprehensive drag-and-drop visual feedback (green for valid, red for invalid files)
+
+- **Local Storage for Privacy:**
+  - Implemented LocalImageUploader component for browser-based image storage
+  - Images converted to base64 data URLs and stored in browser memory
+  - No external cloud storage required - images stay on user's local machine
+  - Added privacy notices in upload interface
+
+- **Canvas Coordinate System Fixes:**
+  - Fixed major coordinate system mismatch causing offset shift+select behavior
+  - Repositioned selection rectangle outside transformed world div using container-relative coordinates
+  - Extended SVG layer to 10000px x 10000px to prevent edge clipping when nodes are dragged far
+  - Implemented proper overlap detection for node selection (any overlap selects the node)
+  - Added comprehensive coordinate logging system for debugging transformations
 
 ### Canvas Selection Controls
 - **Shift+drag**: Creates selection rectangle to select multiple nodes by overlap

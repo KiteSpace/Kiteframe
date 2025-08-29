@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Node } from '../lib/kiteframe/types';
 import { ObjectUploader } from '@/components/ObjectUploader';
+import { LocalImageUploader } from '@/components/LocalImageUploader';
 import { 
   ArrowRight, 
   Cog, 
@@ -413,16 +414,11 @@ function ImageModal({ nodeId, onClose, onImageUpload, onImageUrl }: ImageModalPr
     }
   };
 
-  const handleUploadComplete = (objectPath: string, filename?: string) => {
-    if (onImageUpload) {
-      onImageUpload(nodeId, objectPath, filename);
-      onClose();
-    }
-  };
+
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background border border-border rounded-lg p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto mx-4">
+      <div className="bg-background border border-border rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Add Image</h2>
           <button
@@ -463,18 +459,28 @@ function ImageModal({ nodeId, onClose, onImageUpload, onImageUrl }: ImageModalPr
         {activeTab === 'upload' ? (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Upload an image file from your computer. Drag and drop or click to browse.
+              Upload an image file from your computer. Images are stored locally in your browser for privacy.
             </p>
-            <ObjectUploader
-              onComplete={handleUploadComplete}
-              buttonClassName="w-full"
-              accept="image/*"
-            >
-              <div className="flex items-center justify-center gap-2 p-6 border-2 border-dashed border-border rounded-lg hover:border-primary transition-colors">
-                <Upload size={20} />
-                <span>Choose image or drag and drop</span>
-              </div>
-            </ObjectUploader>
+            <div className="h-48">
+              <LocalImageUploader
+                onComplete={(imageUrl, filename) => {
+                  if (onImageUpload) {
+                    onImageUpload(nodeId, imageUrl, filename);
+                    onClose();
+                  }
+                }}
+                buttonClassName="w-full h-full"
+                accept="image/*"
+              >
+                <div className="flex flex-col items-center justify-center gap-3 h-full border-2 border-dashed border-border rounded-lg hover:border-primary transition-colors group">
+                  <Upload size={32} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium">Drop image here or click to browse</p>
+                    <p className="text-xs text-muted-foreground mt-1">PNG, JPG, GIF up to 10MB • Stored locally for privacy</p>
+                  </div>
+                </div>
+              </LocalImageUploader>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">

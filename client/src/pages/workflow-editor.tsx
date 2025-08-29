@@ -637,6 +637,10 @@ export default function WorkflowEditor() {
               onEdgeClick={handleEdgeClick}
               onCanvasClick={handleCanvasClick}
               onNodeRightClick={handleNodeRightClick}
+              onImageButtonClick={(nodeId) => {
+                setNodes(prev => prev.map(n => ({ ...n, selected: n.id === nodeId })));
+                setSelectedNodeId(nodeId);
+              }}
               viewport={viewport}
               onViewportChange={setViewport}
               onUndo={handleUndo}

@@ -23,6 +23,7 @@ type Props = {
   onNodeRightClick?: (e: React.MouseEvent, node: Node) => void;
   onEdgeClick?: (e: React.MouseEvent, edge: Edge) => void;
   onNodeResize?: (id: string, w: number, h: number) => void;
+  onImageButtonClick?: (nodeId: string) => void;
   smartConnect?: boolean;
   snapToGuides?: boolean;
   snapToGrid?: boolean;
@@ -510,11 +511,40 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       textAlign: 'center', 
                       color: '#666',
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      height: '100%'
+                      height: '100%',
+                      gap: '8px'
                     }}>
-                      Select node to add image
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          props.onImageButtonClick?.(n.id);
+                        }}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          border: '1px dashed #ccc',
+                          borderRadius: '4px',
+                          background: 'transparent',
+                          color: '#666',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.borderColor = '#007bff';
+                          e.currentTarget.style.color = '#007bff';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.borderColor = '#ccc';
+                          e.currentTarget.style.color = '#666';
+                        }}
+                      >
+                        📷 Add Image
+                      </button>
                     </div>
                 ) : (
                   n.data?.description || 'Drop content here…'
