@@ -290,6 +290,11 @@ export default function WorkflowEditor() {
 
   // Import workflow from JSON data
   const handleImportWorkflow = useCallback((newNodes: Node[], newEdges: Edge[], newViewport?: { x: number; y: number; zoom: number }) => {
+    console.log('handleImportWorkflow called with:', newNodes.length, 'nodes,', newEdges.length, 'edges');
+    console.log('New nodes:', newNodes);
+    console.log('New edges:', newEdges);
+    console.log('New viewport:', newViewport);
+    
     saveToHistory(); // Save current state before import
     setNodes(newNodes);
     setEdges(newEdges);
@@ -297,7 +302,7 @@ export default function WorkflowEditor() {
       setViewport(newViewport);
     }
     setSelectedNodeId(''); // Clear selection
-    setShowImportModal(false);
+    console.log('Import completed, modal should close');
   }, [saveToHistory]);
 
   return (

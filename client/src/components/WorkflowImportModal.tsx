@@ -167,11 +167,15 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
 
     try {
       const workflowData = JSON.parse(importData);
+      console.log('Importing workflow data:', workflowData);
       
       // Extract nodes, edges, and viewport
       const nodes = workflowData.nodes || [];
       const edges = workflowData.edges || [];
       const viewport = workflowData.viewport || { x: 0, y: 0, zoom: 1 };
+      
+      console.log('Extracted data:', { nodes, edges, viewport });
+      console.log('Calling onImport with:', nodes.length, 'nodes and', edges.length, 'edges');
 
       onImport(nodes, edges, viewport);
       
@@ -183,6 +187,7 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
       
       onClose();
     } catch (error) {
+      console.error('Import error:', error);
       toast({
         title: "Import Failed",
         description: "Could not parse workflow data.",
@@ -196,13 +201,16 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="modal-workflow-import">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="modal-workflow-import" aria-describedby="import-workflow-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="text-primary" size={20} />
             Import Workflow
           </DialogTitle>
         </DialogHeader>
+        <div id="import-workflow-description" className="sr-only">
+          Import workflow data from JSON files with validation and AI-powered error correction
+        </div>
         
         <div className="space-y-6">
           {/* File Upload Section */}
