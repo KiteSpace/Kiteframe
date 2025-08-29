@@ -92,12 +92,19 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       panStart.current = { x: e.clientX - viewport.x, y: e.clientY - viewport.y };
       console.log('🟢 PAN START:', { panStart: panStart.current });
     } else if (isShift) {
-      selectStart.current = { x: e.clientX, y: e.clientY };
-      setSelectRect({ x: e.clientX, y: e.clientY, w: 0, h: 0 });
+      // Store client coordinates relative to the container, not the page
+      const containerRect = rect || { left: 0, top: 0 };
+      const relativeX = e.clientX - containerRect.left;
+      const relativeY = e.clientY - containerRect.top;
+      
+      selectStart.current = { x: relativeX, y: relativeY };
+      setSelectRect({ x: relativeX, y: relativeY, w: 0, h: 0 });
       console.log('🔲 SELECT START:', { 
         selectStart: selectStart.current,
-        initialRect: { x: e.clientX, y: e.clientY, w: 0, h: 0 },
-        source: 'client-coordinates'
+        initialRect: { x: relativeX, y: relativeY, w: 0, h: 0 },
+        clientCoords: { x: e.clientX, y: e.clientY },
+        containerRect: containerRect,
+        source: 'container-relative-coordinates'
       });
     }
   };
@@ -115,17 +122,28 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       });
       setViewport(newViewport);
     } else if (selectStart.current) {
+      // Calculate current position relative to container
+      const containerRect = rect || { left: 0, top: 0 };
+      const relativeX = e.clientX - containerRect.left;
+      const relativeY = e.clientY - containerRect.top;
+      
       const sx = selectStart.current.x, sy = selectStart.current.y;
-      const newRect = { x: Math.min(sx, e.clientX), y: Math.min(sy, e.clientY), w: Math.abs(e.clientX - sx), h: Math.abs(e.clientY - sy) };
+      const newRect = { 
+        x: Math.min(sx, relativeX), 
+        y: Math.min(sy, relativeY), 
+        w: Math.abs(relativeX - sx), 
+        h: Math.abs(relativeY - sy) 
+      };
       setSelectRect(newRect);
       
       console.log('🔲 SELECT DRAG:', {
         cursor: { clientX: e.clientX, clientY: e.clientY },
+        containerRelative: { x: relativeX, y: relativeY },
         selectStart: selectStart.current,
         selectRect: newRect,
         worldCoords: worldCoords,
         viewport: viewport,
-        source: 'client-coordinates'
+        source: 'container-relative-coordinates'
       });
     } else if (connecting && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
@@ -162,11 +180,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const rect = containerRef.current.getBoundingClientRect();
       const r = selectRect;
       
-      // Transform selection rectangle from client coordinates to world coordinates
-      const x1 = (r.x - rect.left - viewport.x) / viewport.zoom;
-      const y1 = (r.y - rect.top - viewport.y) / viewport.zoom;
-      const x2 = ((r.x + r.w) - rect.left - viewport.x) / viewport.zoom;
-      const y2 = ((r.y + r.h) - rect.top - viewport.y) / viewport.zoom;
+      // Transform selection rectangle from container-relative coordinates to world coordinates
+      const x1 = (r.x - viewport.x) / viewport.zoom;
+      const y1 = (r.y - viewport.y) / viewport.zoom;
+      const x2 = ((r.x + r.w) - viewport.x) / viewport.zoom;
+      const y2 = ((r.y + r.h) - viewport.y) / viewport.zoom;
       const nx1 = Math.min(x1,x2), ny1=Math.min(y1,y2), nx2=Math.max(x1,x2), ny2=Math.max(y1,y2);
       
       console.log('🔲 SELECT END - COORDINATE TRANSFORMATION:', {
@@ -338,8 +356,23 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           );
         })}
       </div>
+      
+      {/* Selection rectangle - positioned in client coordinates, outside transformed world */}
       {selectRect && (
-        <div className="kiteframe-select-rect" style={{ left: selectRect.x, top: selectRect.y, width: selectRect.w, height: selectRect.h }} />
+        <div 
+          className="kiteframe-select-rect" 
+          style={{ 
+            position: 'absolute',
+            left: selectRect.x, 
+            top: selectRect.y, 
+            width: selectRect.w, 
+            height: selectRect.h,
+            border: '1px dashed #3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            pointerEvents: 'none',
+            zIndex: 1000
+          }} 
+        />
       )}
     </div>
   );
