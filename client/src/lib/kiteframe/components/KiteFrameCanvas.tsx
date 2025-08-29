@@ -467,7 +467,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               onClick={(e)=>props.onNodeClick?.(e, n)}
             >
               <div className="title">{n.data?.label || n.type || n.id}</div>
-              <div className="body">
+              <div className="body" style={{ padding: n.type === 'image' ? '0' : undefined }}>
                 {n.type === 'image' ? (
                   n.data?.src ? 
                     <img 

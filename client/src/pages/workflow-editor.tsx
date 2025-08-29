@@ -208,7 +208,7 @@ export default function WorkflowEditor() {
       type,
       position: { x: 400, y: 250 },
       data: {
-        label: `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+        label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
         description: `Configure ${type} settings`,
         icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
         iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
@@ -257,22 +257,34 @@ export default function WorkflowEditor() {
         return;
       }
 
-      // Delete selected nodes
+      // Delete selected nodes (only if no input is focused)
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const selectedNodes = nodes.filter(n => n.selected);
-        if (selectedNodes.length > 0) {
-          e.preventDefault();
-          saveToHistory(); // Save current state before deletion
-          const selectedNodeIds = selectedNodes.map(n => n.id);
-          // Remove selected nodes
-          setNodes(prev => prev.filter(n => !n.selected));
-          // Remove edges connected to deleted nodes
-          setEdges(prev => prev.filter(e => 
-            !selectedNodeIds.includes(e.source) && !selectedNodeIds.includes(e.target)
-          ));
-          // Clear selected node ID if it was deleted
-          if (selectedNodeIds.includes(selectedNodeId)) {
-            setSelectedNodeId('');
+        // Check if the focus is on an input, textarea, or contenteditable element
+        const activeElement = document.activeElement;
+        const isInputFocused = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.contentEditable === 'true' ||
+          activeElement.getAttribute('role') === 'textbox'
+        );
+        
+        // Only delete nodes if no input is focused
+        if (!isInputFocused) {
+          const selectedNodes = nodes.filter(n => n.selected);
+          if (selectedNodes.length > 0) {
+            e.preventDefault();
+            saveToHistory(); // Save current state before deletion
+            const selectedNodeIds = selectedNodes.map(n => n.id);
+            // Remove selected nodes
+            setNodes(prev => prev.filter(n => !n.selected));
+            // Remove edges connected to deleted nodes
+            setEdges(prev => prev.filter(e => 
+              !selectedNodeIds.includes(e.source) && !selectedNodeIds.includes(e.target)
+            ));
+            // Clear selected node ID if it was deleted
+            if (selectedNodeIds.includes(selectedNodeId)) {
+              setSelectedNodeId('');
+            }
           }
         }
       }
@@ -344,18 +356,22 @@ export default function WorkflowEditor() {
     img.onload = () => {
       const maxWidth = 300;
       const maxHeight = 300;
+      const headerHeight = 28; // Approximate height of the title bar
+      
+      // Calculate available space for the image (accounting for header)
+      const availableHeight = maxHeight - headerHeight;
       
       // Calculate the scaling factor to fit within max dimensions while maintaining aspect ratio
       const scaleX = maxWidth / img.naturalWidth;
-      const scaleY = maxHeight / img.naturalHeight;
+      const scaleY = availableHeight / img.naturalHeight;
       const scale = Math.min(scaleX, scaleY, 1); // Don't scale up, only down
       
-      const newWidth = Math.round(img.naturalWidth * scale);
-      const newHeight = Math.round(img.naturalHeight * scale);
+      const imageWidth = Math.round(img.naturalWidth * scale);
+      const imageHeight = Math.round(img.naturalHeight * scale);
       
-      // Ensure minimum dimensions for usability
-      const finalWidth = Math.max(newWidth, 150);
-      const finalHeight = Math.max(newHeight, 100);
+      // Total node dimensions (image + header)
+      const finalWidth = Math.max(imageWidth, 150);
+      const finalHeight = Math.max(imageHeight + headerHeight, 100);
       
       setNodes(prev => prev.map(n => 
         n.id === nodeId 
