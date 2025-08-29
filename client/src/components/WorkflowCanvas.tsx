@@ -16,6 +16,7 @@ interface WorkflowCanvasProps {
   onImageButtonClick?: (nodeId: string) => void;
   viewport: { x: number; y: number; zoom: number };
   onViewportChange: (viewport: { x: number; y: number; zoom: number }) => void;
+  onFitView: () => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -35,6 +36,7 @@ export function WorkflowCanvas({
   onImageButtonClick,
   viewport,
   onViewportChange,
+  onFitView,
   onUndo,
   onRedo,
   canUndo,
@@ -44,19 +46,51 @@ export function WorkflowCanvas({
 
   const handleMinimapMouseDown = useCallback((e: React.MouseEvent) => {
     setIsDraggingMinimap(true);
+    e.preventDefault();
+    
     // Calculate position within minimap and update viewport
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 2000 - 200;
-    const y = ((e.clientY - rect.top) / rect.height) * 1500 - 150;
-    onViewportChange({ ...viewport, x: Math.max(0, Math.min(1800, x)), y: Math.max(0, Math.min(1350, y)) });
+    const relativeX = (e.clientX - rect.left) / rect.width;
+    const relativeY = (e.clientY - rect.top) / rect.height;
+    
+    // Convert to world coordinates with proper scaling
+    const worldWidth = 2000;
+    const worldHeight = 1500;
+    const viewportWidth = 800 / viewport.zoom;
+    const viewportHeight = 600 / viewport.zoom;
+    
+    const centerX = relativeX * worldWidth - viewportWidth / 2;
+    const centerY = relativeY * worldHeight - viewportHeight / 2;
+    
+    onViewportChange({ 
+      ...viewport, 
+      x: Math.max(0, Math.min(worldWidth - viewportWidth, centerX)),
+      y: Math.max(0, Math.min(worldHeight - viewportHeight, centerY))
+    });
   }, [viewport, onViewportChange]);
 
   const handleMinimapMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDraggingMinimap) return;
+    e.preventDefault();
+    
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 2000 - 200;
-    const y = ((e.clientY - rect.top) / rect.height) * 1500 - 150;
-    onViewportChange({ ...viewport, x: Math.max(0, Math.min(1800, x)), y: Math.max(0, Math.min(1350, y)) });
+    const relativeX = (e.clientX - rect.left) / rect.width;
+    const relativeY = (e.clientY - rect.top) / rect.height;
+    
+    // Convert to world coordinates with proper scaling
+    const worldWidth = 2000;
+    const worldHeight = 1500;
+    const viewportWidth = 800 / viewport.zoom;
+    const viewportHeight = 600 / viewport.zoom;
+    
+    const centerX = relativeX * worldWidth - viewportWidth / 2;
+    const centerY = relativeY * worldHeight - viewportHeight / 2;
+    
+    onViewportChange({ 
+      ...viewport, 
+      x: Math.max(0, Math.min(worldWidth - viewportWidth, centerX)),
+      y: Math.max(0, Math.min(worldHeight - viewportHeight, centerY))
+    });
   }, [isDraggingMinimap, viewport, onViewportChange]);
 
   const handleMinimapMouseUp = useCallback(() => {
@@ -118,7 +152,7 @@ export function WorkflowCanvas({
         </button>
         <button
           className="w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
-          onClick={() => onViewportChange({ x: 100, y: 100, zoom: 1 })}
+          onClick={onFitView}
           data-testid="button-zoom-fit"
           title="Fit to View"
         >

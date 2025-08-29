@@ -1,20 +1,30 @@
-import { Plus, Sparkles, Bot, Settings, Workflow } from 'lucide-react';
+import { Plus, Sparkles, Bot, Settings, Workflow, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
 
 interface ToolbarProps {
   onNewWorkflow: () => void;
   onOpenAiSettings: () => void;
   onOpenAiGenerator: () => void;
-  zoom: number;
 }
 
 export function Toolbar({
   onNewWorkflow,
   onOpenAiSettings,
-  onOpenAiGenerator,
-  zoom
+  onOpenAiGenerator
 }: ToolbarProps) {
+  const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   return (
-    <header className="h-14 px-4 flex items-center justify-between bg-card border-b border-border shadow-sm" data-testid="toolbar">
+    <header 
+      className="h-14 px-4 flex items-center justify-between bg-card border-b border-border shadow-sm" 
+      data-testid="toolbar"
+      onClick={(e: React.MouseEvent) => {
+        // Close dropdown when clicking outside
+        const target = e.target as HTMLElement;
+        if (!target.closest('[data-testid="button-settings"]') && !target.closest('.absolute')) {
+          setShowSettingsDropdown(false);
+        }
+      }}
+    >
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <Workflow className="text-primary" size={24} />
@@ -40,20 +50,31 @@ export function Toolbar({
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <div className="text-sm text-muted-foreground" data-testid="text-zoom-level">
-          Zoom: {Math.round(zoom * 100)}%
+        <div className="relative">
+          <button 
+            className="p-2 rounded-md hover:bg-accent transition-colors" 
+            data-testid="button-settings"
+            onClick={() => setShowSettingsDropdown(!showSettingsDropdown)}
+          >
+            <Settings size={16} />
+          </button>
+          {showSettingsDropdown && (
+            <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg z-50">
+              <button
+                className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2 rounded-t-lg"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenAiSettings();
+                  setShowSettingsDropdown(false);
+                }}
+                data-testid="button-ai-settings"
+              >
+                <Bot size={16} className="text-purple-500" />
+                AI Settings
+              </button>
+            </div>
+          )}
         </div>
-        <button
-          className="px-3 py-1.5 text-sm bg-emerald-500 text-white rounded-md hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
-          onClick={onOpenAiSettings}
-          data-testid="button-ai-settings"
-        >
-          <Bot size={16} />
-          AI Settings
-        </button>
-        <button className="p-2 rounded-md hover:bg-accent transition-colors" data-testid="button-settings">
-          <Settings size={16} />
-        </button>
       </div>
     </header>
   );

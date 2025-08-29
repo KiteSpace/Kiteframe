@@ -77,6 +77,23 @@ export default function WorkflowEditor() {
   const [selectedNodeId, setSelectedNodeId] = useState<string>('node-2');
   const [selectedEdgeId, setSelectedEdgeId] = useState<string>('');
   const [showImageModal, setShowImageModal] = useState<string | null>(null);
+  const [workflowName, setWorkflowName] = useState<string>('');
+
+  // Generate cute workflow names
+  const generateCuteName = useCallback(() => {
+    const adjectives = ['Cozy', 'Sunny', 'Magic', 'Happy', 'Swift', 'Gentle', 'Bright', 'Clever', 'Dreamy', 'Stellar'];
+    const nouns = ['Workflow', 'Journey', 'Process', 'Adventure', 'Quest', 'Flow', 'Path', 'Stream', 'Dance', 'Symphony'];
+    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    return `${adj} ${noun}`;
+  }, []);
+
+  // Initialize workflow name
+  useEffect(() => {
+    if (!workflowName) {
+      setWorkflowName(generateCuteName());
+    }
+  }, [workflowName, generateCuteName]);
   const [viewport, setViewport] = useState({ x: 100, y: 100, zoom: 1 });
 
 
@@ -237,8 +254,53 @@ export default function WorkflowEditor() {
   }, [saveToHistory]);
 
   const handleFitView = useCallback(() => {
-    setViewport({ x: 100, y: 100, zoom: 1 });
-  }, []);
+    if (nodes.length === 0) {
+      setViewport({ x: 100, y: 100, zoom: 1 });
+      return;
+    }
+
+    // Calculate bounding box of all nodes
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    nodes.forEach(node => {
+      const nodeMinX = node.position.x;
+      const nodeMinY = node.position.y;
+      const nodeMaxX = node.position.x + (node.width || 200);
+      const nodeMaxY = node.position.y + (node.height || 100);
+
+      minX = Math.min(minX, nodeMinX);
+      minY = Math.min(minY, nodeMinY);
+      maxX = Math.max(maxX, nodeMaxX);
+      maxY = Math.max(maxY, nodeMaxY);
+    });
+
+    // Add padding around the content
+    const padding = 100;
+    const contentWidth = maxX - minX + 2 * padding;
+    const contentHeight = maxY - minY + 2 * padding;
+
+    // Calculate canvas dimensions (assuming 800x600 viewport)
+    const canvasWidth = 800;
+    const canvasHeight = 600;
+
+    // Calculate zoom to fit content with some margin
+    const zoomX = canvasWidth / contentWidth;
+    const zoomY = canvasHeight / contentHeight;
+    const zoom = Math.min(zoomX, zoomY, 1); // Don't zoom in beyond 100%
+
+    // Calculate viewport position to center the content
+    const viewportX = (minX - padding) - (canvasWidth / zoom - contentWidth) / 2;
+    const viewportY = (minY - padding) - (canvasHeight / zoom - contentHeight) / 2;
+
+    setViewport({ 
+      x: Math.max(0, viewportX), 
+      y: Math.max(0, viewportY), 
+      zoom 
+    });
+  }, [nodes]);
 
   const handleZoomChange = useCallback((zoom: number) => {
     setViewport(prev => ({ ...prev, zoom }));
@@ -338,7 +400,7 @@ export default function WorkflowEditor() {
     const workflowData = {
       version: "1.1.0", // Increment version to support image metadata
       metadata: {
-        name: "KiteFrame Workflow",
+        name: workflowName || generateCuteName(),
         description: "Exported workflow from KiteFrame editor",
         created: new Date().toISOString(),
         nodeCount: nodes.length,
@@ -356,12 +418,12 @@ export default function WorkflowEditor() {
     
     const link = document.createElement('a');
     link.href = url;
-    link.download = `kiteframe-workflow-${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `${(workflowName || 'workflow').replace(/[^a-zA-Z0-9-_]/g, '-')}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [nodes, edges, viewport]);
+  }, [nodes, edges, viewport, workflowName, generateCuteName]);
 
   // State for missing images during import
   const [missingImages, setMissingImages] = useState<Array<{
@@ -378,8 +440,13 @@ export default function WorkflowEditor() {
   } | null>(null);
 
   // Import workflow from JSON data with missing image detection
-  const handleImportWorkflow = useCallback(async (newNodes: Node[], newEdges: Edge[], newViewport?: { x: number; y: number; zoom: number }) => {
+  const handleImportWorkflow = useCallback(async (newNodes: Node[], newEdges: Edge[], newViewport?: { x: number; y: number; zoom: number }, importedWorkflowName?: string) => {
     console.log('handleImportWorkflow called with:', newNodes.length, 'nodes,', newEdges.length, 'edges');
+    
+    // Set workflow name if provided in import
+    if (importedWorkflowName) {
+      setWorkflowName(importedWorkflowName);
+    }
     
     // Check for missing images
     const missingImageNodes: Array<{
@@ -712,9 +779,20 @@ export default function WorkflowEditor() {
           onNewWorkflow={() => {}}
           onOpenAiSettings={() => setShowAiModal(true)}
           onOpenAiGenerator={() => setShowAiGenerator(true)}
-          zoom={viewport.zoom}
         />
         
+        {/* Floating workflow name input */}
+        <div className="absolute top-16 left-5 z-30">
+          <input
+            type="text"
+            value={workflowName}
+            onChange={(e) => setWorkflowName(e.target.value)}
+            className="px-3 py-2 text-sm bg-card border border-border rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-primary/50 max-w-64"
+            placeholder="Workflow name..."
+            data-testid="input-workflow-name"
+          />
+        </div>
+
         <div className="flex flex-1">
           {selectedEdge ? (
             <EdgeCustomizer
@@ -762,8 +840,8 @@ export default function WorkflowEditor() {
             <WorkflowCanvas
               nodes={nodes}
               edges={edges}
-              onNodesChange={handleNodesChange}
-              onEdgesChange={handleEdgesChange}
+              onNodesChange={setNodes}
+              onEdgesChange={setEdges}
               onConnect={handleConnect}
               onNodeClick={handleNodeClick}
               onEdgeClick={handleEdgeClick}
@@ -779,6 +857,7 @@ export default function WorkflowEditor() {
               }}
               viewport={viewport}
               onViewportChange={setViewport}
+              onFitView={handleFitView}
               onUndo={handleUndo}
               onRedo={handleRedo}
               canUndo={historyIndex > 0}
