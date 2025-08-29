@@ -77,7 +77,7 @@ export default function WorkflowEditor() {
   const [selectedNodeId, setSelectedNodeId] = useState<string>('node-2');
   const [selectedEdgeId, setSelectedEdgeId] = useState<string>('');
   const [viewport, setViewport] = useState({ x: 100, y: 100, zoom: 1 });
-  const [showImageUploader, setShowImageUploader] = useState<string | null>(null);
+
 
   // History management for undo/redo
   const [history, setHistory] = useState<Array<{ nodes: Node[]; edges: Edge[] }>>([]);
@@ -156,12 +156,6 @@ export default function WorkflowEditor() {
 
   const handleNodeClick = useCallback((e: React.MouseEvent, node: Node) => {
     e.stopPropagation();
-    
-    // Special handling for image nodes - show upload dialog if no image is set
-    if (node.type === 'image' && !node.data?.src) {
-      setShowImageUploader(node.id);
-      return;
-    }
     
     if (!e.shiftKey) {
       setNodes(prev => prev.map(n => ({ ...n, selected: n.id === node.id })));
@@ -526,7 +520,6 @@ export default function WorkflowEditor() {
     
     // Set the source to trigger loading
     img.src = objectPath;
-    setShowImageUploader(null);
   }, [saveToHistory]);
 
   // Handle image URL input
@@ -721,28 +714,7 @@ export default function WorkflowEditor() {
           />
         )}
 
-        {showImageUploader && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold mb-4">Upload Image</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Select an image to display in the Image node.
-              </p>
-              <div className="space-y-4">
-                <ObjectUploader
-                  onComplete={(objectPath) => handleImageUpload(showImageUploader, objectPath)}
-                  buttonClassName="w-full"
-                />
-                <button
-                  onClick={() => setShowImageUploader(null)}
-                  className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+
       </div>
     </AiProvider>
   );

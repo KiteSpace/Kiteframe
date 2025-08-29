@@ -43,6 +43,8 @@ export function Sidebar({
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showImageModal, setShowImageModal] = useState<string | null>(null);
 
   const handleUrlSubmit = (nodeId: string) => {
     if (urlInputValue.trim()) {
@@ -50,6 +52,13 @@ export function Sidebar({
       setShowUrlInput(null);
       setUrlInputValue('');
     }
+  };
+
+  const handleDeleteImage = (nodeId: string) => {
+    onNodeUpdate(nodeId, {
+      data: { ...selectedNode?.data, src: undefined, filename: undefined, sourceUrl: undefined, sourceType: undefined }
+    });
+    setShowDeleteConfirm(null);
   };
   const nodeTypes = [
     { type: 'input', icon: ArrowRight, color: 'text-blue-500', label: 'Input' },
@@ -147,12 +156,19 @@ export function Sidebar({
                     
                     {selectedNode.data?.src ? (
                       <div className="space-y-2">
-                        <div className="border border-border rounded p-2 bg-background">
+                        <div className="relative group border border-border rounded p-2 bg-background">
                           <img 
                             src={selectedNode.data.src} 
                             alt="Node image" 
                             className="w-full h-20 object-contain rounded"
                           />
+                          <button
+                            onClick={() => setShowDeleteConfirm(selectedNode.id)}
+                            className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 hover:bg-red-600 transition-all duration-200"
+                            title="Delete image"
+                          >
+                            <Trash2 size={12} />
+                          </button>
                           {selectedNode.data?.filename && (
                             <div className="text-xs text-muted-foreground mt-1">
                               File: {selectedNode.data.filename}
@@ -165,46 +181,22 @@ export function Sidebar({
                           )}
                         </div>
                         
-                        <div className="space-y-2">
-                          <div className="text-xs text-muted-foreground">Change Image:</div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <ObjectUploader
-                              onComplete={(objectPath, filename) => onImageUpload?.(selectedNode.id, objectPath, filename)}
-                              buttonClassName="w-full text-xs"
-                            >
-                              <Upload size={12} className="mr-1" />
-                              Upload
-                            </ObjectUploader>
-                            <button
-                              onClick={() => setShowUrlInput(selectedNode.id)}
-                              className="w-full text-xs p-2 border border-border rounded bg-background hover:bg-accent transition-colors flex items-center justify-center"
-                            >
-                              <Link size={12} className="mr-1" />
-                              URL
-                            </button>
-                          </div>
-                        </div>
+                        <button
+                          onClick={() => setShowImageModal(selectedNode.id)}
+                          className="w-full text-xs p-2 border border-border rounded bg-background hover:bg-accent transition-colors flex items-center justify-center"
+                        >
+                          <Image size={12} className="mr-1" />
+                          Change Image
+                        </button>
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        <div className="text-xs text-muted-foreground mb-2">Add image:</div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <ObjectUploader
-                            onComplete={(objectPath, filename) => onImageUpload?.(selectedNode.id, objectPath, filename)}
-                            buttonClassName="w-full text-xs"
-                          >
-                            <Upload size={12} className="mr-1" />
-                            Upload
-                          </ObjectUploader>
-                          <button
-                            onClick={() => setShowUrlInput(selectedNode.id)}
-                            className="w-full text-xs p-2 border border-border rounded bg-background hover:bg-accent transition-colors flex items-center justify-center"
-                          >
-                            <Link size={12} className="mr-1" />
-                            URL
-                          </button>
-                        </div>
-                      </div>
+                      <button
+                        onClick={() => setShowImageModal(selectedNode.id)}
+                        className="w-full text-xs p-3 border-2 border-dashed border-border rounded bg-background hover:bg-accent transition-colors flex items-center justify-center"
+                      >
+                        <Image size={14} className="mr-2" />
+                        Add Image
+                      </button>
                     )}
                     
                     {/* URL Input Modal */}
@@ -314,7 +306,223 @@ export function Sidebar({
             </div>
           </>
         )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-background border border-border rounded-lg p-6 max-w-sm w-full mx-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-full">
+                  <Trash2 className="text-red-600 dark:text-red-400" size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Delete Image</h3>
+                  <p className="text-xs text-muted-foreground">This action cannot be undone.</p>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground mb-6">
+                Are you sure you want to remove this image from the node?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowDeleteConfirm(null)}
+                  className="flex-1 text-xs p-2 border border-border rounded hover:bg-accent transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteImage(showDeleteConfirm)}
+                  className="flex-1 text-xs p-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Image Modal */}
+        {showImageModal && (
+          <ImageModal
+            nodeId={showImageModal}
+            onClose={() => setShowImageModal(null)}
+            onImageUpload={onImageUpload}
+            onImageUrl={onImageUrl}
+          />
+        )}
       </div>
     </aside>
+  );
+}
+
+// Enhanced Image Modal Component
+interface ImageModalProps {
+  nodeId: string;
+  onClose: () => void;
+  onImageUpload?: (nodeId: string, objectPath: string, filename?: string) => void;
+  onImageUrl?: (nodeId: string, url: string) => void;
+}
+
+function ImageModal({ nodeId, onClose, onImageUpload, onImageUrl }: ImageModalProps) {
+  const [activeTab, setActiveTab] = useState<'upload' | 'url'>('upload');
+  const [urlValue, setUrlValue] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const validateUrl = async (url: string) => {
+    if (!url.trim()) {
+      setPreviewUrl(null);
+      setValidationError(null);
+      return;
+    }
+
+    setIsValidating(true);
+    setValidationError(null);
+
+    try {
+      // Create image element to test if URL is valid
+      const img = document.createElement('img');
+      img.crossOrigin = 'anonymous';
+      
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = url;
+      });
+
+      setPreviewUrl(url);
+    } catch (error) {
+      setValidationError('Unable to load image from this URL');
+      setPreviewUrl(null);
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleUrlChange = (url: string) => {
+    setUrlValue(url);
+    // Debounce validation
+    setTimeout(() => validateUrl(url), 500);
+  };
+
+  const handleUrlSubmit = () => {
+    if (previewUrl && onImageUrl) {
+      onImageUrl(nodeId, previewUrl);
+      onClose();
+    }
+  };
+
+  const handleUploadComplete = (objectPath: string, filename?: string) => {
+    if (onImageUpload) {
+      onImageUpload(nodeId, objectPath, filename);
+      onClose();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-background border border-border rounded-lg p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto mx-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Add Image</h2>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-accent rounded"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex border-b border-border mb-4">
+          <button
+            onClick={() => setActiveTab('upload')}
+            className={`flex-1 py-2 px-4 text-sm font-medium text-center border-b-2 transition-colors ${
+              activeTab === 'upload'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Upload size={14} className="inline mr-2" />
+            Upload File
+          </button>
+          <button
+            onClick={() => setActiveTab('url')}
+            className={`flex-1 py-2 px-4 text-sm font-medium text-center border-b-2 transition-colors ${
+              activeTab === 'url'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Link size={14} className="inline mr-2" />
+            Image URL
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'upload' ? (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Upload an image file from your computer. Drag and drop or click to browse.
+            </p>
+            <ObjectUploader
+              onComplete={handleUploadComplete}
+              buttonClassName="w-full"
+              accept="image/*"
+            >
+              <div className="flex items-center justify-center gap-2 p-6 border-2 border-dashed border-border rounded-lg hover:border-primary transition-colors">
+                <Upload size={20} />
+                <span>Choose image or drag and drop</span>
+              </div>
+            </ObjectUploader>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Image URL</label>
+              <input
+                type="url"
+                placeholder="https://example.com/image.jpg"
+                className="w-full p-3 border border-border rounded bg-background"
+                value={urlValue}
+                onChange={(e) => handleUrlChange(e.target.value)}
+              />
+              {isValidating && (
+                <p className="text-xs text-muted-foreground mt-1">Validating image...</p>
+              )}
+              {validationError && (
+                <p className="text-xs text-red-500 mt-1">{validationError}</p>
+              )}
+            </div>
+
+            {/* URL Preview */}
+            {previewUrl && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Preview</label>
+                <div className="border border-border rounded p-2 bg-muted">
+                  <img 
+                    src={previewUrl} 
+                    alt="Preview" 
+                    className="w-full max-h-32 object-contain rounded"
+                  />
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleUrlSubmit}
+              disabled={!previewUrl || isValidating}
+              className={`w-full p-3 rounded transition-colors ${
+                previewUrl && !isValidating
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  : 'bg-muted text-muted-foreground cursor-not-allowed'
+              }`}
+            >
+              {isValidating ? 'Validating...' : 'Use This Image'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

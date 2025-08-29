@@ -484,26 +484,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               onDoubleClick={(e)=>props.onNodeDoubleClick?.(e, n)}
               onContextMenu={(e)=>{ e.preventDefault(); props.onNodeRightClick?.(e, n); }}
               onClick={(e) => {
-                // For image nodes without images, use delayed click to avoid showing modal during drag
-                if (n.type === 'image' && !n.data?.src) {
-                  const target = e.target as HTMLElement;
-                  const isBodyClick = target.classList.contains('body') || target.closest('.body');
-                  
-                  if (isBodyClick) {
-                    // Use timeout to check if drag starts
-                    clickTimeoutRef.current = setTimeout(() => {
-                      if (!isDraggingRef.current) {
-                        props.onNodeClick?.(e, n);
-                      }
-                      clickTimeoutRef.current = null;
-                    }, 150);
-                  } else {
-                    // Still allow selection for non-body clicks (like title)
-                    props.onNodeClick?.(e, n);
-                  }
-                } else {
-                  props.onNodeClick?.(e, n);
-                }
+                // Always just select the node on click - image upload is now handled via the properties panel
+                props.onNodeClick?.(e, n);
               }}
             >
               <div className="title">{n.data?.label || n.type || n.id}</div>
@@ -520,9 +502,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         display: 'block',
                         userSelect: 'none',
                         pointerEvents: 'none',
-                        WebkitUserDrag: 'none',
                         draggable: false
-                      }} 
+                      } as React.CSSProperties} 
                     /> : 
                     <div style={{ 
                       padding: '8px', 
@@ -533,7 +514,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       justifyContent: 'center',
                       height: '100%'
                     }}>
-                      Click to upload image
+                      Select node to add image
                     </div>
                 ) : (
                   n.data?.description || 'Drop content here…'
