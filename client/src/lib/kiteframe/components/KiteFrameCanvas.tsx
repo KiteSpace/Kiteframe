@@ -127,7 +127,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   const onBackgroundMove = (e: React.MouseEvent) => {
     if (panning && panStart.current) {
-      setViewport(v => ({ ...v, x: e.clientX - panStart.current!.x, y: e.clientY - panStart.current!.y }));
+      const panStartRef = panStart.current; // Capture reference to avoid race condition
+      setViewport(v => ({ ...v, x: e.clientX - panStartRef.x, y: e.clientY - panStartRef.y }));
       return;
     }
     if (selectStart.current) {
