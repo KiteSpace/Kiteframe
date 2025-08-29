@@ -517,6 +517,16 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       height: '100%',
                       gap: '8px'
                     }}>
+                      {n.data?.displayText ? (
+                        <div style={{
+                          fontSize: '11px',
+                          color: '#888',
+                          fontStyle: 'italic',
+                          marginBottom: '8px'
+                        }}>
+                          {n.data.displayText}
+                        </div>
+                      ) : null}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

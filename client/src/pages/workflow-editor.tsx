@@ -306,9 +306,9 @@ export default function WorkflowEditor() {
           ...node,
           data: {
             ...node.data,
-            // Remove the base64 src data for export
-            src: undefined,
-            // Store only the metadata for reconstruction
+            // Keep web URLs for direct import, remove base64 data for uploads
+            src: node.data.sourceType === 'url' ? node.data.sourceUrl : undefined,
+            // Store metadata for reconstruction
             imageMetadata: {
               filename: node.data.filename || 'image',
               sourceUrl: node.data.sourceUrl || null,
@@ -375,26 +375,76 @@ export default function WorkflowEditor() {
       sourceType: string;
     }> = [];
 
-    for (const node of newNodes) {
-      if (node.type === 'image' && node.data?.src) {
-        // Check if image is accessible
-        try {
-          const response = await fetch(node.data.src, { method: 'HEAD' });
-          if (!response.ok) {
-            throw new Error('Image not accessible');
+    // Process nodes and handle different image types during import
+    const processedNodes = await Promise.all(newNodes.map(async (node) => {
+      if (node.type === 'image') {
+        const metadata = node.data?.imageMetadata;
+        
+        // Handle web URLs - try to load directly
+        if (metadata?.sourceType === 'url' && metadata.sourceUrl) {
+          try {
+            const response = await fetch(metadata.sourceUrl, { method: 'HEAD' });
+            if (response.ok) {
+              // URL is accessible, load it directly
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  src: metadata.sourceUrl,
+                  sourceUrl: metadata.sourceUrl,
+                  sourceType: 'url',
+                  filename: undefined
+                }
+              };
+            }
+          } catch (error) {
+            // URL not accessible, will show as missing
           }
-        } catch (error) {
-          // Image is missing, add to missing list
-          const metadata = node.data.imageMetadata;
-          missingImageNodes.push({
-            nodeId: node.id,
-            filename: metadata?.filename || null,
-            sourceUrl: metadata?.sourceUrl || null,
-            sourceType: metadata?.sourceType || 'unknown'
-          });
+        }
+        
+        // Handle uploaded files - show filename only
+        if (metadata?.sourceType === 'upload' && metadata.filename) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              src: undefined,
+              filename: metadata.filename,
+              sourceType: 'upload',
+              sourceUrl: undefined,
+              // Store display text for missing upload
+              displayText: `Original Image File: ${metadata.filename}`
+            }
+          };
+        }
+        
+        // Image with source but not handled above - check if still accessible
+        if (node.data?.src) {
+          try {
+            const response = await fetch(node.data.src, { method: 'HEAD' });
+            if (!response.ok) {
+              throw new Error('Image not accessible');
+            }
+            // Image is accessible, keep as-is
+            return node;
+          } catch (error) {
+            // Image is missing, add to missing list
+            missingImageNodes.push({
+              nodeId: node.id,
+              filename: metadata?.filename || null,
+              sourceUrl: metadata?.sourceUrl || null,
+              sourceType: metadata?.sourceType || 'unknown'
+            });
+            return node; // Will be processed in missing images flow
+          }
         }
       }
-    }
+      
+      return node;
+    }));
+    
+    // Update newNodes with processed nodes
+    newNodes = processedNodes;
 
     if (missingImageNodes.length > 0) {
       // Show missing images modal
@@ -651,13 +701,9 @@ export default function WorkflowEditor() {
               onCanvasClick={handleCanvasClick}
               onNodeRightClick={handleNodeRightClick}
               onImageButtonClick={(nodeId) => {
-                // First select the node
+                // No longer needed - image modal is now only triggered from properties panel
                 setNodes(prev => prev.map(n => ({ ...n, selected: n.id === nodeId })));
                 setSelectedNodeId(nodeId);
-                // Then wait for next render cycle to ensure selectedNode is updated
-                setTimeout(() => {
-                  // The image modal will automatically show for selected image nodes
-                }, 0);
               }}
               viewport={viewport}
               onViewportChange={setViewport}
