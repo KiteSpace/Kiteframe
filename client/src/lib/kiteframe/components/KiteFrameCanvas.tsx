@@ -465,11 +465,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               onDoubleClick={(e)=>props.onNodeDoubleClick?.(e, n)}
               onContextMenu={(e)=>{ e.preventDefault(); props.onNodeRightClick?.(e, n); }}
               onClick={(e) => {
-                // For image nodes without images, only show upload modal if click is on body and not dragging
+                // For image nodes without images, only show upload modal if click is on body
                 if (n.type === 'image' && !n.data?.src) {
                   const target = e.target as HTMLElement;
                   const isBodyClick = target.classList.contains('body') || target.closest('.body');
-                  if (isBodyClick && !isDragging) {
+                  if (isBodyClick) {
                     props.onNodeClick?.(e, n);
                   } else if (!isBodyClick) {
                     // Still allow selection for non-body clicks (like title)
