@@ -363,7 +363,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           top: '-5000px',
           width: '10000px', 
           height: '10000px',
-          pointerEvents: 'none',
+          pointerEvents: 'auto',
           overflow: 'visible'
         }}
         viewBox="-5000 -5000 10000 10000"

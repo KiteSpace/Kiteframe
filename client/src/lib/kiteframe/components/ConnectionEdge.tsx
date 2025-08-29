@@ -207,7 +207,10 @@ export const ConnectionEdge: React.FC<{
   const selectionWidth = isSelected ? strokeWidth + 1 : strokeWidth;
   
   return (
-    <g className="kiteframe-edge" onClick={() => onEdgeClick?.(edge)}>
+    <g className="kiteframe-edge" onClick={(e) => {
+      e.stopPropagation();
+      onEdgeClick?.(edge);
+    }}>
       <defs>
         {/* Gradient definition */}
         {style.gradient && (
@@ -263,6 +266,21 @@ export const ConnectionEdge: React.FC<{
         />
       )}
       
+      {/* Invisible wider path for easier clicking */}
+      <path 
+        d={pathData} 
+        fill="none" 
+        stroke="transparent" 
+        strokeWidth={Math.max(selectionWidth + 6, 10)} 
+        style={{ 
+          cursor: edge.interactable !== false ? 'pointer' : 'default'
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onEdgeClick?.(edge);
+        }}
+      />
+      
       {/* Main edge path */}
       <path 
         d={pathData} 
@@ -276,7 +294,8 @@ export const ConnectionEdge: React.FC<{
         filter={style.shadow ? `url(#${shadowId})` : style.glow ? `url(#${glowId})` : undefined}
         style={{ 
           cursor: edge.interactable !== false ? 'pointer' : 'default',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
+          pointerEvents: 'none' // Let the invisible path handle clicks
         }}
       />
       
