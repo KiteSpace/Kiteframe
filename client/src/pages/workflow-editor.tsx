@@ -16,7 +16,7 @@ export default function WorkflowEditor() {
       id: 'node-1',
       type: 'input',
       position: { x: 200, y: 100 },
-      data: { label: 'Input Node', description: 'Data source configuration', icon: 'fas fa-sign-in-alt', iconColor: 'text-blue-500' },
+      data: { label: 'Input Node', description: 'Data source configuration', icon: 'ArrowRight', iconColor: 'text-blue-500' },
       width: 200,
       height: 100
     },
@@ -24,7 +24,7 @@ export default function WorkflowEditor() {
       id: 'node-2',
       type: 'ai',
       position: { x: 500, y: 100 },
-      data: { label: 'AI Processor', description: 'Process data with AI\nModel: GPT-5', icon: 'fas fa-robot', iconColor: 'text-purple-500' },
+      data: { label: 'AI Processor', description: 'Process data with AI\nModel: GPT-4o', icon: 'Bot', iconColor: 'text-purple-500' },
       width: 200,
       height: 120,
       selected: true
@@ -33,7 +33,7 @@ export default function WorkflowEditor() {
       id: 'node-3',
       type: 'condition',
       position: { x: 200, y: 300 },
-      data: { label: 'Condition', description: 'Evaluate condition logic', icon: 'fas fa-question-circle', iconColor: 'text-yellow-500' },
+      data: { label: 'Condition', description: 'Evaluate condition logic', icon: 'HelpCircle', iconColor: 'text-yellow-500' },
       width: 200,
       height: 100
     },
@@ -41,7 +41,7 @@ export default function WorkflowEditor() {
       id: 'node-4',
       type: 'output',
       position: { x: 500, y: 300 },
-      data: { label: 'Output', description: 'Final result destination', icon: 'fas fa-sign-out-alt', iconColor: 'text-red-500' },
+      data: { label: 'Output', description: 'Final result destination', icon: 'ArrowLeft', iconColor: 'text-red-500' },
       width: 200,
       height: 100
     }
@@ -168,12 +168,12 @@ export default function WorkflowEditor() {
   const handleCreateNode = useCallback((type: string) => {
     saveToHistory(); // Save current state before adding node
     const icons = {
-      input: { icon: 'fas fa-sign-in-alt', color: 'text-blue-500' },
-      process: { icon: 'fas fa-cogs', color: 'text-green-500' },
-      condition: { icon: 'fas fa-question-circle', color: 'text-yellow-500' },
-      output: { icon: 'fas fa-sign-out-alt', color: 'text-red-500' },
-      ai: { icon: 'fas fa-robot', color: 'text-purple-500' },
-      image: { icon: 'fas fa-image', color: 'text-indigo-500' }
+      input: { icon: 'ArrowRight', color: 'text-blue-500' },
+      process: { icon: 'Cog', color: 'text-green-500' },
+      condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
+      output: { icon: 'ArrowLeft', color: 'text-red-500' },
+      ai: { icon: 'Bot', color: 'text-purple-500' },
+      image: { icon: 'Image', color: 'text-indigo-500' }
     };
 
     const newNode: Node = {

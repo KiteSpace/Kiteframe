@@ -1,3 +1,5 @@
+import { Plus, Sparkles, FolderOpen, Save, Bot, Settings, Workflow } from 'lucide-react';
+
 interface ToolbarProps {
   onNewWorkflow: () => void;
   onOpenWorkflow: () => void;
@@ -19,40 +21,40 @@ export function Toolbar({
     <header className="h-14 px-4 flex items-center justify-between bg-card border-b border-border shadow-sm" data-testid="toolbar">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <i className="fas fa-project-diagram text-primary text-xl" />
+          <Workflow className="text-primary" size={24} />
           <h1 className="text-lg font-semibold">KiteFrame</h1>
         </div>
         <div className="flex items-center gap-2">
           <button
-            className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors flex items-center gap-1.5"
             onClick={onNewWorkflow}
             data-testid="button-new-workflow"
           >
-            <i className="fas fa-plus mr-1" />
+            <Plus size={16} />
             New Workflow
           </button>
           <button
-            className="px-3 py-1.5 text-sm bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-md hover:from-purple-600 hover:to-blue-600 transition-all duration-200"
+            className="px-3 py-1.5 text-sm bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-md hover:from-purple-600 hover:to-blue-600 transition-all duration-200 flex items-center gap-1.5"
             onClick={onOpenAiGenerator}
             data-testid="button-ai-generator"
           >
-            <i className="fas fa-magic mr-1" />
+            <Sparkles size={16} />
             AI Generate
           </button>
           <button
-            className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-accent transition-colors"
+            className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-accent transition-colors flex items-center gap-1.5"
             onClick={onOpenWorkflow}
             data-testid="button-open-workflow"
           >
-            <i className="fas fa-folder-open mr-1" />
+            <FolderOpen size={16} />
             Open
           </button>
           <button
-            className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-accent transition-colors"
+            className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-accent transition-colors flex items-center gap-1.5"
             onClick={onSaveWorkflow}
             data-testid="button-save-workflow"
           >
-            <i className="fas fa-save mr-1" />
+            <Save size={16} />
             Save
           </button>
         </div>
@@ -62,15 +64,15 @@ export function Toolbar({
           Zoom: {Math.round(zoom * 100)}%
         </div>
         <button
-          className="px-3 py-1.5 text-sm bg-emerald-500 text-white rounded-md hover:bg-emerald-600 transition-colors"
+          className="px-3 py-1.5 text-sm bg-emerald-500 text-white rounded-md hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
           onClick={onOpenAiSettings}
           data-testid="button-ai-settings"
         >
-          <i className="fas fa-robot mr-1" />
+          <Bot size={16} />
           AI Settings
         </button>
         <button className="p-2 rounded-md hover:bg-accent transition-colors" data-testid="button-settings">
-          <i className="fas fa-cog" />
+          <Settings size={16} />
         </button>
       </div>
     </header>

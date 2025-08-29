@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
+import { Bot, Loader2 } from 'lucide-react';
 
 interface AiSettings {
   provider: string;
@@ -187,7 +188,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       <DialogContent className="max-w-md" data-testid="modal-ai-settings">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <i className="fas fa-robot text-primary" />
+            <Bot className="text-primary" size={20} />
             AI Settings
           </DialogTitle>
         </DialogHeader>
@@ -303,7 +304,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             >
               {isTestingApi ? (
                 <>
-                  <i className="fas fa-spinner fa-spin mr-2" />
+                  <Loader2 className="animate-spin mr-2" size={16} />
                   Testing...
                 </>
               ) : (

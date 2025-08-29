@@ -1,4 +1,15 @@
 import type { Node } from '../lib/kiteframe/types';
+import { 
+  ArrowRight, 
+  Cog, 
+  HelpCircle, 
+  ArrowLeft, 
+  Bot, 
+  Image,
+  Maximize2,
+  Trash2,
+  Download
+} from 'lucide-react';
 
 interface SidebarProps {
   selectedNode?: Node;
@@ -18,12 +29,12 @@ export function Sidebar({
   onNodeUpdate
 }: SidebarProps) {
   const nodeTypes = [
-    { type: 'input', icon: 'fas fa-sign-in-alt', color: 'text-blue-500', label: 'Input' },
-    { type: 'process', icon: 'fas fa-cogs', color: 'text-green-500', label: 'Process' },
-    { type: 'condition', icon: 'fas fa-question-circle', color: 'text-yellow-500', label: 'Condition' },
-    { type: 'output', icon: 'fas fa-sign-out-alt', color: 'text-red-500', label: 'Output' },
-    { type: 'ai', icon: 'fas fa-robot', color: 'text-purple-500', label: 'AI Task' },
-    { type: 'image', icon: 'fas fa-image', color: 'text-indigo-500', label: 'Image' }
+    { type: 'input', icon: ArrowRight, color: 'text-blue-500', label: 'Input' },
+    { type: 'process', icon: Cog, color: 'text-green-500', label: 'Process' },
+    { type: 'condition', icon: HelpCircle, color: 'text-yellow-500', label: 'Condition' },
+    { type: 'output', icon: ArrowLeft, color: 'text-red-500', label: 'Output' },
+    { type: 'ai', icon: Bot, color: 'text-purple-500', label: 'AI Task' },
+    { type: 'image', icon: Image, color: 'text-indigo-500', label: 'Image' }
   ];
 
   return (
@@ -32,17 +43,20 @@ export function Sidebar({
         <div>
           <h3 className="text-sm font-semibold mb-3">Node Types</h3>
           <div className="grid grid-cols-2 gap-2">
-            {nodeTypes.map((nodeType) => (
-              <div
-                key={nodeType.type}
-                className="p-3 border border-border rounded-md cursor-pointer text-center hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
-                onClick={() => onCreateNode(nodeType.type)}
-                data-testid={`node-type-${nodeType.type}`}
-              >
-                <i className={`${nodeType.icon} ${nodeType.color} mb-1 text-base`} />
-                <div className="text-xs font-medium">{nodeType.label}</div>
-              </div>
-            ))}
+            {nodeTypes.map((nodeType) => {
+              const IconComponent = nodeType.icon;
+              return (
+                <div
+                  key={nodeType.type}
+                  className="p-3 border border-border rounded-md cursor-pointer text-center hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
+                  onClick={() => onCreateNode(nodeType.type)}
+                  data-testid={`node-type-${nodeType.type}`}
+                >
+                  <IconComponent className={`${nodeType.color} mb-1 mx-auto`} size={20} />
+                  <div className="text-xs font-medium">{nodeType.label}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -125,27 +139,27 @@ export function Sidebar({
           <h3 className="text-sm font-semibold mb-3">Actions</h3>
           <div className="space-y-2">
             <button
-              className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left"
+              className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left flex items-center gap-2"
               onClick={onFitView}
               data-testid="button-fit-view"
             >
-              <i className="fas fa-expand-arrows-alt mr-2" />
+              <Maximize2 size={14} />
               Fit to View
             </button>
             <button
-              className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left"
+              className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left flex items-center gap-2"
               onClick={onClearCanvas}
               data-testid="button-clear-canvas"
             >
-              <i className="fas fa-trash mr-2" />
+              <Trash2 size={14} />
               Clear Canvas
             </button>
             <button
-              className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left"
+              className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left flex items-center gap-2"
               onClick={onExport}
               data-testid="button-export"
             >
-              <i className="fas fa-download mr-2" />
+              <Download size={14} />
               Export
             </button>
           </div>

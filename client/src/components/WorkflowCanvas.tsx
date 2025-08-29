@@ -1,5 +1,7 @@
+import { useState, useCallback } from 'react';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
 import type { Node, Edge } from '../lib/kiteframe/types';
+import { Undo, Redo, ZoomIn, Maximize2 } from 'lucide-react';
 
 interface WorkflowCanvasProps {
   nodes: Node[];
@@ -34,6 +36,35 @@ export function WorkflowCanvas({
   canUndo,
   canRedo
 }: WorkflowCanvasProps) {
+  const [isDraggingMinimap, setIsDraggingMinimap] = useState(false);
+
+  const handleMinimapMouseDown = useCallback((e: React.MouseEvent) => {
+    setIsDraggingMinimap(true);
+    // Calculate position within minimap and update viewport
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 2000 - 200;
+    const y = ((e.clientY - rect.top) / rect.height) * 1500 - 150;
+    onViewportChange({ ...viewport, x: Math.max(0, Math.min(1800, x)), y: Math.max(0, Math.min(1350, y)) });
+  }, [viewport, onViewportChange]);
+
+  const handleMinimapMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDraggingMinimap) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 2000 - 200;
+    const y = ((e.clientY - rect.top) / rect.height) * 1500 - 150;
+    onViewportChange({ ...viewport, x: Math.max(0, Math.min(1800, x)), y: Math.max(0, Math.min(1350, y)) });
+  }, [isDraggingMinimap, viewport, onViewportChange]);
+
+  const handleMinimapMouseUp = useCallback(() => {
+    setIsDraggingMinimap(false);
+  }, []);
+
+  const handleMinimapWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1;
+    const newZoom = Math.max(0.1, Math.min(3, viewport.zoom * zoomDelta));
+    onViewportChange({ ...viewport, zoom: newZoom });
+  }, [viewport, onViewportChange]);
   return (
     <div className="relative w-full h-full">
       {/* Grid Background */}
@@ -63,7 +94,7 @@ export function WorkflowCanvas({
           data-testid="button-undo"
           title="Undo (Cmd+Z)"
         >
-          <i className="fas fa-undo text-sm" />
+          <Undo size={16} />
         </button>
         <button
           className={`w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center transition-colors shadow-lg ${
@@ -74,7 +105,7 @@ export function WorkflowCanvas({
           data-testid="button-redo"
           title="Redo (Cmd+Shift+Z)"
         >
-          <i className="fas fa-redo text-sm" />
+          <Redo size={16} />
         </button>
         <button
           className="w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
@@ -82,39 +113,53 @@ export function WorkflowCanvas({
           data-testid="button-zoom-fit"
           title="Fit to View"
         >
-          <i className="fas fa-expand-arrows-alt text-sm" />
+          <Maximize2 size={16} />
         </button>
       </div>
 
-      {/* Mini-map */}
+      {/* Interactive Mini-map */}
       <div className="absolute bottom-5 right-5 w-52 h-40 bg-card border border-border rounded-lg shadow-xl overflow-hidden">
-        <div className="w-full h-full bg-muted/20 relative">
+        <div 
+          className="w-full h-full bg-muted/20 relative cursor-pointer select-none"
+          onMouseDown={handleMinimapMouseDown}
+          onMouseMove={handleMinimapMouseMove}
+          onMouseUp={handleMinimapMouseUp}
+          onMouseLeave={handleMinimapMouseUp}
+          onWheel={handleMinimapWheel}
+        >
           <div className="absolute inset-2 border border-primary/30 rounded bg-background">
-            {/* Mini nodes */}
-            {nodes.map((node, index) => (
-              <div
-                key={node.id}
-                className={`absolute w-3 h-2 rounded-sm ${
-                  node.type === 'input' ? 'bg-blue-400' :
-                  node.type === 'ai' ? 'bg-purple-400' :
-                  node.type === 'condition' ? 'bg-yellow-400' :
-                  node.type === 'output' ? 'bg-red-400' : 'bg-gray-400'
-                }`}
-                style={{
-                  left: `${20 + (index % 2) * 30}%`,
-                  top: `${30 + Math.floor(index / 2) * 40}%`
-                }}
-              />
-            ))}
-            {/* Viewport indicator */}
+            {/* Mini nodes with actual positions */}
+            {nodes.map((node) => {
+              const scaledX = (node.position.x / 2000) * 100;
+              const scaledY = (node.position.y / 1500) * 100;
+              return (
+                <div
+                  key={node.id}
+                  className={`absolute w-2 h-2 rounded-sm ${
+                    node.type === 'input' ? 'bg-blue-400' :
+                    node.type === 'ai' ? 'bg-purple-400' :
+                    node.type === 'condition' ? 'bg-yellow-400' :
+                    node.type === 'output' ? 'bg-red-400' :
+                    node.type === 'process' ? 'bg-green-400' :
+                    node.type === 'image' ? 'bg-indigo-400' : 'bg-gray-400'
+                  } ${node.selected ? 'ring-2 ring-primary ring-offset-1' : ''}`}
+                  style={{
+                    left: `${Math.max(0, Math.min(95, scaledX))}%`,
+                    top: `${Math.max(0, Math.min(95, scaledY))}%`
+                  }}
+                />
+              );
+            })}
+            {/* Interactive Viewport indicator */}
             <div
-              className="absolute border-2 border-primary rounded"
+              className={`absolute border-2 border-primary rounded cursor-move ${
+                isDraggingMinimap ? 'bg-primary/20' : 'bg-primary/10'
+              } transition-colors`}
               style={{
-                left: '10%',
-                top: '10%',
-                width: '40%',
-                height: '60%',
-                background: 'hsla(221.2, 83.2%, 53.3%, 0.1)'
+                left: `${(viewport.x / 2000) * 100}%`,
+                top: `${(viewport.y / 1500) * 100}%`,
+                width: `${Math.min(40, (800 / viewport.zoom / 2000) * 100)}%`,
+                height: `${Math.min(60, (600 / viewport.zoom / 1500) * 100)}%`
               }}
             />
           </div>

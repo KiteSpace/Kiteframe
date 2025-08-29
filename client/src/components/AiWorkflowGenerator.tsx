@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
 import type { Node, Edge } from '../lib/kiteframe/types';
+import { Sparkles, Loader2 } from 'lucide-react';
 
 interface AiWorkflowGeneratorProps {
   onClose: () => void;
@@ -118,7 +119,7 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
       <DialogContent className="max-w-lg" data-testid="modal-ai-workflow-generator" aria-describedby="ai-generator-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <i className="fas fa-magic text-primary" />
+            <Sparkles className="text-primary" size={20} />
             AI Workflow Generator
           </DialogTitle>
         </DialogHeader>
@@ -184,12 +185,12 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
             >
               {isGenerating ? (
                 <>
-                  <i className="fas fa-spinner fa-spin mr-2" />
+                  <Loader2 className="animate-spin mr-2" size={16} />
                   Generating...
                 </>
               ) : (
                 <>
-                  <i className="fas fa-magic mr-2" />
+                  <Sparkles className="mr-2" size={16} />
                   Generate
                 </>
               )}
