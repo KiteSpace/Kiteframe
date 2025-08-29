@@ -273,7 +273,8 @@ export const ConnectionEdge: React.FC<{
         stroke="transparent" 
         strokeWidth={Math.max(selectionWidth + 6, 10)} 
         style={{ 
-          cursor: edge.interactable !== false ? 'pointer' : 'default'
+          cursor: edge.interactable !== false ? 'pointer' : 'default',
+          pointerEvents: 'auto' // Only this path captures events
         }}
         onClick={(e) => {
           e.stopPropagation();
