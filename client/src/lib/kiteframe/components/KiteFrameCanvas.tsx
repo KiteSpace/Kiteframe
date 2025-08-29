@@ -264,9 +264,24 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     isGroupDrag?: boolean;
   }|null>(null);
   
+  // Click delay to prevent upload modal during drag
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isDraggingRef = useRef(false);
+  
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragInfo.current) return;
+      
+      // Mark as dragging to prevent click handlers
+      if (!isDraggingRef.current) {
+        isDraggingRef.current = true;
+        // Clear any pending click timeout
+        if (clickTimeoutRef.current) {
+          clearTimeout(clickTimeoutRef.current);
+          clickTimeoutRef.current = null;
+        }
+      }
+      
       const rect = containerRef.current!.getBoundingClientRect();
       const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
       const dx = wp.x - dragInfo.current.start.x;
@@ -316,7 +331,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       if (dragInfo.current) {
         console.log(`🔼 ${dragInfo.current.isGroupDrag ? 'GROUP' : 'NODE'} DRAG END`);
       }
-      dragInfo.current = null; 
+      dragInfo.current = null;
+      // Reset dragging flag after a short delay
+      setTimeout(() => {
+        isDraggingRef.current = false;
+      }, 50);
     };
     
     window.addEventListener('mousemove', onMove);
@@ -465,13 +484,20 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               onDoubleClick={(e)=>props.onNodeDoubleClick?.(e, n)}
               onContextMenu={(e)=>{ e.preventDefault(); props.onNodeRightClick?.(e, n); }}
               onClick={(e) => {
-                // For image nodes without images, only show upload modal if click is on body
+                // For image nodes without images, use delayed click to avoid showing modal during drag
                 if (n.type === 'image' && !n.data?.src) {
                   const target = e.target as HTMLElement;
                   const isBodyClick = target.classList.contains('body') || target.closest('.body');
+                  
                   if (isBodyClick) {
-                    props.onNodeClick?.(e, n);
-                  } else if (!isBodyClick) {
+                    // Use timeout to check if drag starts
+                    clickTimeoutRef.current = setTimeout(() => {
+                      if (!isDraggingRef.current) {
+                        props.onNodeClick?.(e, n);
+                      }
+                      clickTimeoutRef.current = null;
+                    }, 150);
+                  } else {
                     // Still allow selection for non-body clicks (like title)
                     props.onNodeClick?.(e, n);
                   }
@@ -491,7 +517,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         width: '100%', 
                         height: '100%', 
                         objectFit: 'contain',
-                        display: 'block'
+                        display: 'block',
+                        userSelect: 'none',
+                        pointerEvents: 'none',
+                        WebkitUserDrag: 'none',
+                        draggable: false
                       }} 
                     /> : 
                     <div style={{ 

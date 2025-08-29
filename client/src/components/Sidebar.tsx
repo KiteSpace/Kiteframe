@@ -140,26 +140,7 @@ export function Sidebar({
                           />
                         </div>
                         <ObjectUploader
-                          onGetUploadParameters={async () => {
-                            const response = await fetch('/api/objects/upload', { method: 'POST' });
-                            const data = await response.json();
-                            return { method: 'PUT' as const, url: data.uploadURL };
-                          }}
-                          onComplete={async (result) => {
-                            if (result.successful && result.successful[0]?.uploadURL) {
-                              try {
-                                const response = await fetch('/api/images', {
-                                  method: 'PUT',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ bannerImageURL: result.successful[0].uploadURL })
-                                });
-                                const data = await response.json();
-                                onImageUpload?.(selectedNode.id, data.objectPath);
-                              } catch (error) {
-                                console.error('Error updating image:', error);
-                              }
-                            }
-                          }}
+                          onComplete={(objectPath) => onImageUpload?.(selectedNode.id, objectPath)}
                           buttonClassName="w-full text-xs"
                         >
                           <Upload size={14} className="mr-1" />
@@ -168,26 +149,7 @@ export function Sidebar({
                       </div>
                     ) : (
                       <ObjectUploader
-                        onGetUploadParameters={async () => {
-                          const response = await fetch('/api/objects/upload', { method: 'POST' });
-                          const data = await response.json();
-                          return { method: 'PUT' as const, url: data.uploadURL };
-                        }}
-                        onComplete={async (result) => {
-                          if (result.successful && result.successful[0]?.uploadURL) {
-                            try {
-                              const response = await fetch('/api/images', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ bannerImageURL: result.successful[0].uploadURL })
-                              });
-                              const data = await response.json();
-                              onImageUpload?.(selectedNode.id, data.objectPath);
-                            } catch (error) {
-                              console.error('Error updating image:', error);
-                            }
-                          }
-                        }}
+                        onComplete={(objectPath) => onImageUpload?.(selectedNode.id, objectPath)}
                         buttonClassName="w-full text-xs"
                       >
                         <Upload size={14} className="mr-1" />
