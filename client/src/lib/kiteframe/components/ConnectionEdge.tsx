@@ -22,17 +22,7 @@ export const ConnectionEdge: React.FC<{ edge: Edge; sourceNode: Node; targetNode
   const type = edge.type ?? 'bezier';
   let d = '';
   
-  // Debug: Log connection details
-  const dx = t.x - s.x;
-  const dy = t.y - s.y;
-  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-  console.log(`🏹 ARROW DEBUG for edge ${edge.id}:`, {
-    source: { id: sourceNode.id, pos: sourceNode.position, anchor: s },
-    target: { id: targetNode.id, pos: targetNode.position, anchor: t },
-    vector: { dx, dy },
-    angle: angle,
-    expectedDirection: Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical'
-  });
+  // Debug: Log connection details (removed for production)
   
   // Calculate the path - arrow orientation is handled automatically by SVG
   if (type === 'straight') {

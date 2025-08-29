@@ -311,8 +311,6 @@ export default function WorkflowEditor() {
       <div className="flex flex-col h-screen bg-background text-foreground">
         <Toolbar
           onNewWorkflow={() => {}}
-          onOpenWorkflow={() => {}}
-          onSaveWorkflow={() => {}}
           onOpenAiSettings={() => setShowAiModal(true)}
           onOpenAiGenerator={() => setShowAiGenerator(true)}
           zoom={viewport.zoom}
@@ -328,6 +326,10 @@ export default function WorkflowEditor() {
             onImport={() => setShowImportModal(true)}
             onNodeUpdate={(nodeId, updates) => {
               setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, ...updates } : n));
+            }}
+            onDeselectNode={() => {
+              setNodes(prev => prev.map(n => ({ ...n, selected: false })));
+              setSelectedNodeId('');
             }}
           />
           

@@ -1,9 +1,7 @@
-import { Plus, Sparkles, FolderOpen, Save, Bot, Settings, Workflow } from 'lucide-react';
+import { Plus, Sparkles, Bot, Settings, Workflow } from 'lucide-react';
 
 interface ToolbarProps {
   onNewWorkflow: () => void;
-  onOpenWorkflow: () => void;
-  onSaveWorkflow: () => void;
   onOpenAiSettings: () => void;
   onOpenAiGenerator: () => void;
   zoom: number;
@@ -11,8 +9,6 @@ interface ToolbarProps {
 
 export function Toolbar({
   onNewWorkflow,
-  onOpenWorkflow,
-  onSaveWorkflow,
   onOpenAiSettings,
   onOpenAiGenerator,
   zoom
@@ -40,22 +36,6 @@ export function Toolbar({
           >
             <Sparkles size={16} />
             AI Generate
-          </button>
-          <button
-            className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-accent transition-colors flex items-center gap-1.5"
-            onClick={onOpenWorkflow}
-            data-testid="button-open-workflow"
-          >
-            <FolderOpen size={16} />
-            Open
-          </button>
-          <button
-            className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-accent transition-colors flex items-center gap-1.5"
-            onClick={onSaveWorkflow}
-            data-testid="button-save-workflow"
-          >
-            <Save size={16} />
-            Save
           </button>
         </div>
       </div>
