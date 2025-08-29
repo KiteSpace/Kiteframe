@@ -70,10 +70,59 @@ export default function WorkflowEditor() {
   const [selectedNodeId, setSelectedNodeId] = useState<string>('node-2');
   const [viewport, setViewport] = useState({ x: 100, y: 100, zoom: 1 });
 
+  // History management for undo/redo
+  const [history, setHistory] = useState<Array<{ nodes: Node[]; edges: Edge[] }>>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
   // AI Client setup - now uses backend proxy
   const aiClient = new OpenAICompatClient({
     baseURL: '/api', // Will use backend proxy
   });
+
+  // Save current state to history
+  const saveToHistory = useCallback(() => {
+    const currentState = { nodes, edges };
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1);
+      newHistory.push(currentState);
+      // Limit history to 50 entries
+      if (newHistory.length > 50) {
+        newHistory.shift();
+        return newHistory;
+      }
+      return newHistory;
+    });
+    setHistoryIndex(prev => Math.min(prev + 1, 49));
+  }, [nodes, edges, historyIndex]);
+
+  // Initialize history with current state
+  useEffect(() => {
+    if (history.length === 0) {
+      saveToHistory();
+    }
+  }, []);
+
+  // Undo function
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const previousState = history[historyIndex - 1];
+      setNodes(previousState.nodes);
+      setEdges(previousState.edges);
+      setHistoryIndex(prev => prev - 1);
+      setSelectedNodeId('');
+    }
+  }, [history, historyIndex]);
+
+  // Redo function
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const nextState = history[historyIndex + 1];
+      setNodes(nextState.nodes);
+      setEdges(nextState.edges);
+      setHistoryIndex(prev => prev + 1);
+      setSelectedNodeId('');
+    }
+  }, [history, historyIndex]);
 
   const handleNodesChange = useCallback((newNodes: Node[]) => {
     setNodes(newNodes);
@@ -84,6 +133,7 @@ export default function WorkflowEditor() {
   }, []);
 
   const handleConnect = useCallback((connection: { source: string; target: string }) => {
+    saveToHistory(); // Save current state before connecting
     const newEdge: Edge = {
       id: `edge-${Date.now()}`,
       source: connection.source,
@@ -92,7 +142,7 @@ export default function WorkflowEditor() {
       data: { color: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }
     };
     setEdges(prev => [...prev, newEdge]);
-  }, []);
+  }, [saveToHistory]);
 
   const handleNodeClick = useCallback((e: React.MouseEvent, node: Node) => {
     e.stopPropagation();
@@ -116,6 +166,7 @@ export default function WorkflowEditor() {
   }, []);
 
   const handleCreateNode = useCallback((type: string) => {
+    saveToHistory(); // Save current state before adding node
     const icons = {
       input: { icon: 'fas fa-sign-in-alt', color: 'text-blue-500' },
       process: { icon: 'fas fa-cogs', color: 'text-green-500' },
@@ -140,13 +191,14 @@ export default function WorkflowEditor() {
     };
 
     setNodes(prev => [...prev, newNode]);
-  }, []);
+  }, [saveToHistory]);
 
   const handleDeleteNode = useCallback((nodeId: string) => {
+    saveToHistory(); // Save current state before deletion
     setNodes(prev => prev.filter(n => n.id !== nodeId));
     setEdges(prev => prev.filter(e => e.source !== nodeId && e.target !== nodeId));
     setContextMenu(null);
-  }, []);
+  }, [saveToHistory]);
 
   const handleFitView = useCallback(() => {
     setViewport({ x: 100, y: 100, zoom: 1 });
@@ -157,18 +209,33 @@ export default function WorkflowEditor() {
   }, []);
 
   const handleAiGenerate = useCallback((nodes: Node[], edges: Edge[]) => {
+    saveToHistory(); // Save current state before AI generation
     setNodes(nodes);
     setEdges(edges);
     // Center the viewport on the generated workflow
     setViewport({ x: 50, y: 50, zoom: 0.8 });
-  }, []);
+  }, [saveToHistory]);
 
-  // Keyboard event handling for deleting selected nodes
+  // Keyboard event handling for deleting selected nodes and undo/redo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Undo/Redo shortcuts
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+        return;
+      }
+
+      // Delete selected nodes
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const selectedNodes = nodes.filter(n => n.selected);
         if (selectedNodes.length > 0) {
+          e.preventDefault();
+          saveToHistory(); // Save current state before deletion
           const selectedNodeIds = selectedNodes.map(n => n.id);
           // Remove selected nodes
           setNodes(prev => prev.filter(n => !n.selected));
@@ -186,7 +253,7 @@ export default function WorkflowEditor() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nodes, selectedNodeId]);
+  }, [nodes, selectedNodeId, handleUndo, handleRedo, saveToHistory]);
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
@@ -226,6 +293,10 @@ export default function WorkflowEditor() {
               onNodeRightClick={handleNodeRightClick}
               viewport={viewport}
               onViewportChange={setViewport}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              canUndo={historyIndex > 0}
+              canRedo={historyIndex < history.length - 1}
             />
           </main>
         </div>

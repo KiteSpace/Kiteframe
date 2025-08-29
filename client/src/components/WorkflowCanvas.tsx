@@ -12,6 +12,10 @@ interface WorkflowCanvasProps {
   onNodeRightClick?: (e: React.MouseEvent, node: Node) => void;
   viewport: { x: number; y: number; zoom: number };
   onViewportChange: (viewport: { x: number; y: number; zoom: number }) => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 export function WorkflowCanvas({
@@ -24,7 +28,11 @@ export function WorkflowCanvas({
   onCanvasClick,
   onNodeRightClick,
   viewport,
-  onViewportChange
+  onViewportChange,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo
 }: WorkflowCanvasProps) {
   return (
     <div className="relative w-full h-full">
@@ -44,23 +52,29 @@ export function WorkflowCanvas({
         data-testid="workflow-canvas"
       />
 
-      {/* Zoom Controls */}
+      {/* Undo/Redo Controls */}
       <div className="absolute bottom-5 left-5 flex flex-col gap-2">
         <button
-          className="w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
-          onClick={() => onViewportChange({ ...viewport, zoom: Math.min(3, viewport.zoom * 1.2) })}
-          data-testid="button-zoom-in"
-          title="Zoom In"
+          className={`w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center transition-colors shadow-lg ${
+            canUndo ? 'hover:bg-accent text-foreground' : 'opacity-50 cursor-not-allowed text-muted-foreground'
+          }`}
+          onClick={canUndo ? onUndo : undefined}
+          disabled={!canUndo}
+          data-testid="button-undo"
+          title="Undo (Cmd+Z)"
         >
-          <i className="fas fa-plus text-sm" />
+          <i className="fas fa-undo text-sm" />
         </button>
         <button
-          className="w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
-          onClick={() => onViewportChange({ ...viewport, zoom: Math.max(0.1, viewport.zoom * 0.8) })}
-          data-testid="button-zoom-out"
-          title="Zoom Out"
+          className={`w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center transition-colors shadow-lg ${
+            canRedo ? 'hover:bg-accent text-foreground' : 'opacity-50 cursor-not-allowed text-muted-foreground'
+          }`}
+          onClick={canRedo ? onRedo : undefined}
+          disabled={!canRedo}
+          data-testid="button-redo"
+          title="Redo (Cmd+Shift+Z)"
         >
-          <i className="fas fa-minus text-sm" />
+          <i className="fas fa-redo text-sm" />
         </button>
         <button
           className="w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
