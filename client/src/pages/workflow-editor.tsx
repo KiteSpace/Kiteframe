@@ -515,20 +515,60 @@ export default function WorkflowEditor() {
                 saveToHistory();
               }}
               onNodeClick={(e: React.MouseEvent, node: Node) => {
-                setNodes(prev => prev.map(n => ({ ...n, selected: n.id === node.id })));
+                console.log(`📝 EDITOR NODE CLICK HANDLER:`, { 
+                  nodeId: node.id, 
+                  currentSelected: selectedNodeId,
+                  tabId: activeTab 
+                });
+                
+                setNodes(prev => {
+                  const updated = prev.map(n => ({ ...n, selected: n.id === node.id }));
+                  console.log(`📝 NODES SELECTION UPDATE:`, { 
+                    selected: updated.filter(n => n.selected).map(n => n.id),
+                    total: updated.length 
+                  });
+                  return updated;
+                });
+                
                 setEdges(prev => prev.map(e => ({ ...e, selected: false })));
                 setSelectedNodeId(node.id);
                 setSelectedEdgeId('');
                 setContextMenu(null);
+                
+                console.log(`📝 SELECTION STATE SET:`, { 
+                  selectedNodeId: node.id,
+                  selectedEdgeId: '',
+                  tabId: activeTab 
+                });
               }}
               onEdgeClick={(edge: Edge) => {
+                console.log(`📝 EDITOR EDGE CLICK HANDLER:`, { 
+                  edgeId: edge.id, 
+                  currentSelected: selectedEdgeId,
+                  tabId: activeTab 
+                });
+                
                 setNodes(prev => prev.map(n => ({ ...n, selected: false })));
-                setEdges(prev => prev.map(e => ({ ...e, selected: e.id === edge.id })));
+                setEdges(prev => {
+                  const updated = prev.map(e => ({ ...e, selected: e.id === edge.id }));
+                  console.log(`📝 EDGES SELECTION UPDATE:`, { 
+                    selected: updated.filter(e => e.selected).map(e => e.id),
+                    total: updated.length 
+                  });
+                  return updated;
+                });
                 setSelectedNodeId('');
                 setSelectedEdgeId(edge.id);
                 setContextMenu(null);
+                
+                console.log(`📝 SELECTION STATE SET:`, { 
+                  selectedNodeId: '',
+                  selectedEdgeId: edge.id,
+                  tabId: activeTab 
+                });
               }}
               onCanvasClick={() => {
+                console.log(`📝 CANVAS CLICK:`, { tabId: activeTab, clearing: 'all selections' });
                 setNodes(prev => prev.map(n => ({ ...n, selected: false })));
                 setEdges(prev => prev.map(e => ({ ...e, selected: false })));
                 setSelectedNodeId('');

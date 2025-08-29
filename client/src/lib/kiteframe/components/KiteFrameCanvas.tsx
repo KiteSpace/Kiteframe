@@ -138,7 +138,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const onBackgroundMove = (e: React.MouseEvent) => {
     if (panning && panStart.current) {
       const panStartRef = panStart.current; // Capture reference to avoid race condition
-      setViewport((v: Viewport) => ({ ...v, x: e.clientX - panStartRef.x, y: e.clientY - panStartRef.y }));
+      setViewport({ ...viewport, x: e.clientX - panStartRef.x, y: e.clientY - panStartRef.y });
       return;
     }
     if (selectStart.current) {
@@ -266,6 +266,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const dragInfo = useRef<{ 
     id: string; 
     start: {x:number;y:number}; 
+    startScreen: {x:number;y:number}; // Track screen coordinates for threshold
     origin: {x:number;y:number}; 
     origins?: {id: string; origin: {x:number;y:number}}[];
     isGroupDrag?: boolean;
@@ -280,16 +281,21 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       if (!dragInfo.current) return;
       
       const rect = containerRef.current!.getBoundingClientRect();
-      const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
-      const dx = wp.x - dragInfo.current.start.x;
-      const dy = wp.y - dragInfo.current.start.y;
       
-      // Only start dragging if we've moved beyond threshold (5 pixels in world coordinates)
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const dragThreshold = 5 / viewport.zoom; // Adjust threshold based on zoom level
+      // Calculate distance in screen pixels, not world coordinates
+      const screenDx = e.clientX - dragInfo.current.startScreen.x;
+      const screenDy = e.clientY - dragInfo.current.startScreen.y;
+      const screenDistance = Math.sqrt(screenDx * screenDx + screenDy * screenDy);
+      const dragThreshold = 5; // 5 pixels on screen
       
-      if (!isDraggingRef.current && distance > dragThreshold) {
+      if (!isDraggingRef.current && screenDistance > dragThreshold) {
         isDraggingRef.current = true;
+        console.log(`🎯 DRAG THRESHOLD EXCEEDED:`, { 
+          nodeId: dragInfo.current.id,
+          screenDistance,
+          threshold: dragThreshold 
+        });
+        
         // Clear any pending click timeout
         if (clickTimeoutRef.current) {
           clearTimeout(clickTimeoutRef.current);
@@ -299,6 +305,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       
       // Only update positions if we're actually dragging
       if (!isDraggingRef.current) return;
+      
+      const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+      const dx = wp.x - dragInfo.current.start.x;
+      const dy = wp.y - dragInfo.current.start.y;
       
       if (dragInfo.current.isGroupDrag && dragInfo.current.origins) {
         // Group drag: move all selected nodes
@@ -344,15 +354,21 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       if (dragInfo.current && isDraggingRef.current) {
         console.log(`🔼 ${dragInfo.current.isGroupDrag ? 'GROUP' : 'NODE'} DRAG END`);
       }
+      
+      const wasDragging = isDraggingRef.current;
       dragInfo.current = null;
-      // Reset dragging flag immediately if not dragging, or after delay if dragging
-      if (!isDraggingRef.current) {
-        // No drag occurred, so this was likely a click - don't prevent it
+      
+      // Reset dragging flag with appropriate timing
+      if (!wasDragging) {
+        // No actual drag occurred - reset immediately to allow click
+        isDraggingRef.current = false;
+        console.log(`🎯 DRAG FLAG RESET (no drag occurred)`);
       } else {
-        // Actual drag occurred, reset after short delay
+        // Actual drag occurred, reset after short delay to prevent accidental clicks
         setTimeout(() => {
           isDraggingRef.current = false;
-        }, 50);
+          console.log(`🎯 DRAG FLAG RESET (after drag completed)`);
+        }, 100);
       }
     };
     
@@ -469,6 +485,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 const rect = containerRef.current.getBoundingClientRect();
                 const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
                 
+                console.log(`🎯 NODE ${n.id} MOUSEDOWN:`, {
+                  nodeId: n.id,
+                  currentlySelected: n.selected,
+                  isDraggingRef: isDraggingRef.current,
+                  screenCoords: { x: e.clientX, y: e.clientY }
+                });
+                
                 // Check if this node is selected and if there are other selected nodes
                 const selectedNodes = props.nodes.filter(node => node.selected === true);
                 const isGroupDrag = selectedNodes.length > 1 && n.selected === true;
@@ -481,12 +504,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 dragInfo.current = { 
                   id: n.id, 
                   start: wp, 
+                  startScreen: { x: e.clientX, y: e.clientY }, // Track screen coordinates
                   origin: { ...n.position },
                   origins: origins,
                   isGroupDrag: isGroupDrag
                 };
                 
-                console.log(`🎯 ${isGroupDrag ? 'GROUP' : 'NODE'} ${n.id} DRAG START:`, {
+                console.log(`🎯 ${isGroupDrag ? 'GROUP' : 'NODE'} ${n.id} DRAG DETECTION SETUP:`, {
                   cursor: { clientX: e.clientX, clientY: e.clientY },
                   worldCoords: wp,
                   clickedNodePosition: n.position,
@@ -502,6 +526,27 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               onDoubleClick={(e)=>props.onNodeDoubleClick?.(e, n)}
               onContextMenu={(e)=>{ e.preventDefault(); props.onNodeRightClick?.(e, n); }}
               onClick={(e) => {
+                console.log(`🎯 NODE ${n.id} CLICK EVENT FIRED:`, { 
+                  nodeId: n.id, 
+                  wasSelected: n.selected,
+                  isDragging: isDraggingRef.current,
+                  hasCallback: !!props.onNodeClick,
+                  dragInfoExists: !!dragInfo.current
+                });
+                
+                // Prevent click if we were dragging
+                if (isDraggingRef.current) {
+                  console.log(`🚫 NODE CLICK PREVENTED (was dragging):`, { nodeId: n.id, isDragging: isDraggingRef.current });
+                  e.stopPropagation();
+                  return;
+                }
+                
+                console.log(`✅ NODE CLICK PROCEEDING:`, { 
+                  nodeId: n.id, 
+                  wasSelected: n.selected,
+                  callingOnNodeClick: !!props.onNodeClick
+                });
+                
                 // Always just select the node on click - image upload is now handled via the properties panel
                 props.onNodeClick?.(e, n);
               }}
