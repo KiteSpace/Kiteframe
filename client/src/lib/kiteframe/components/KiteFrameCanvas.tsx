@@ -30,18 +30,31 @@ type Props = {
   onImageUpload?: (id:string, data:string)=>void;
   onImageUrlSet?: (id:string, url:string)=>void;
   disablePan?: boolean;
+  viewport?: Viewport;
+  onViewportChange?: (viewport: Viewport) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
 
 export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
+  const [internalViewport, setInternalViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [panning, setPanning] = useState(false);
   const panStart = useRef<{x:number;y:number}|null>(null);
   const [selectRect, setSelectRect] = useState<null | {x:number;y:number;w:number;h:number}>(null);
   const selectStart = useRef<{x:number;y:number}|null>(null);
   const [connecting, setConnecting] = useState<null | { sourceId:string; wx:number; wy:number }>(null);
+
+  // Use external viewport if provided, otherwise use internal state
+  const viewport = props.viewport || internalViewport;
+  const setViewport = (newViewport: Viewport | ((prev: Viewport) => Viewport)) => {
+    const next = typeof newViewport === 'function' ? newViewport(viewport) : newViewport;
+    if (props.onViewportChange) {
+      props.onViewportChange(next);
+    } else {
+      setInternalViewport(next);
+    }
+  };
 
   const minZoom = props.minZoom ?? 0.1;
   const maxZoom = props.maxZoom ?? 3;
@@ -49,7 +62,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   // Wheel/pinch zoom (cursor-anchored)
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const rect = containerRef.current!.getBoundingClientRect();
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
     const old = viewport;
     const newZoom = zoomAroundPoint(old.zoom, e.deltaY * 0.001, minZoom, maxZoom);
     const mouseWorld = clientToWorld(e.clientX, e.clientY, old, rect);
@@ -75,17 +89,17 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     } else if (selectStart.current) {
       const sx = selectStart.current.x, sy = selectStart.current.y;
       setSelectRect({ x: Math.min(sx, e.clientX), y: Math.min(sy, e.clientY), w: Math.abs(e.clientX - sx), h: Math.abs(e.clientY - sy) });
-    } else if (connecting) {
-      const rect = containerRef.current!.getBoundingClientRect();
+    } else if (connecting && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
       const wpos = clientToWorld(e.clientX, e.clientY, viewport, rect);
       setConnecting(c => c ? { ...c, wx: wpos.x, wy: wpos.y } : null);
     }
   };
   const onBackgroundUp = (e: React.MouseEvent) => {
     if (panning) { setPanning(false); panStart.current = null; }
-    if (selectStart.current) {
-      const rect = containerRef.current!.getBoundingClientRect();
-      const r = selectRect!;
+    if (selectStart.current && selectRect && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const r = selectRect;
       const x1 = (r.x - rect.left - viewport.x) / viewport.zoom;
       const y1 = (r.y - rect.top - viewport.y) / viewport.zoom;
       const x2 = ((r.x + r.w) - rect.left - viewport.x) / viewport.zoom;
@@ -100,9 +114,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       props.onNodesChange(updated);
       setSelectRect(null); selectStart.current = null;
     }
-    if (connecting) {
+    if (connecting && containerRef.current) {
       const srcId = connecting.sourceId;
-      const rect = containerRef.current!.getBoundingClientRect();
+      const rect = containerRef.current.getBoundingClientRect();
       const world = clientToWorld(e.clientX, e.clientY, viewport, rect);
       const threshold = 16;
       let best: { id:string; dist:number } | null = null;
@@ -130,8 +144,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const dragInfo = useRef<{ id:string; start:{x:number;y:number}; origin:{x:number;y:number} }|null>(null);
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
-      if (!dragInfo.current) return;
-      const rect = containerRef.current!.getBoundingClientRect();
+      if (!dragInfo.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
       const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
       const dx = wp.x - dragInfo.current.start.x;
       const dy = wp.y - dragInfo.current.start.y;
@@ -184,7 +198,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               style={{ left: n.position.x, top: n.position.y, width: w, height: h, background: color, borderColor: border, color: txt }}
               onMouseDown={(e)=>{
                 e.stopPropagation();
-                const rect = containerRef.current!.getBoundingClientRect();
+                if (!containerRef.current) return;
+                const rect = containerRef.current.getBoundingClientRect();
                 const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
                 dragInfo.current = { id: n.id, start: wp, origin: { ...n.position } };
               }}
@@ -197,7 +212,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 {n.type === 'image' && n.data?.src ? <img src={n.data.src} alt="" style={{ maxWidth: '100%', maxHeight: '100%' }} />: (n.data?.description || 'Drop content here…')}
               </div>
               {n.showHandles !== false && <NodeHandles node={n} onHandleConnect={(p, e)=>{
-                const rect = containerRef.current!.getBoundingClientRect();
+                if (!containerRef.current) return;
+                const rect = containerRef.current.getBoundingClientRect();
                 const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
                 setConnecting({ sourceId: n.id, wx: wp.x, wy: wp.y });
               }} />}

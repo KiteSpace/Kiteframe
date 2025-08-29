@@ -68,8 +68,16 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
         maxTokens: 2000
       });
 
-      // Parse the AI response
-      const cleanedResponse = response.text.replace(/```json\s?|```/g, '').trim();
+      // Parse the AI response with better JSON cleaning
+      let cleanedResponse = response.text.replace(/```json\s?|```/g, '').trim();
+      
+      // Remove any trailing commas before closing brackets/braces
+      cleanedResponse = cleanedResponse.replace(/,(\s*[}\]])/g, '$1');
+      
+      // Fix common JSON formatting issues
+      cleanedResponse = cleanedResponse.replace(/([{,]\s*)(\w+):/g, '$1"$2":'); // Quote unquoted keys
+      cleanedResponse = cleanedResponse.replace(/:\s*'([^']*)'/g, ': "$1"'); // Single to double quotes
+      
       const workflowData = JSON.parse(cleanedResponse);
 
       if (workflowData.nodes && workflowData.edges) {

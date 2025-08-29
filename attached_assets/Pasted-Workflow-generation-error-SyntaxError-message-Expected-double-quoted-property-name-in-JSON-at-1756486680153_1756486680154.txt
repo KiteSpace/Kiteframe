@@ -1,0 +1,32 @@
+Workflow generation error: 
+SyntaxError {}
+message: "Expected double-quoted property name in JSON at position 6167 (line 254 column 45)"
+stack: "SyntaxError: Expected double-quoted property name in JSON at position 6167 (line 254 column 45)↵ at JSON.parse (<anonymous>)↵ at handleGenerate (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/src/components/AiWorkflowGenerator.tsx:77:33)"
+get stack: ƒ ()
+set stack: ƒ ()
+[[Prototype]]: Object
+
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+Cannot read properties of null (reading 'x')
+Cannot read properties of null (reading 'x')
+The above error occurred in the <KiteFrameCanvas> component:
+
+    at KiteFrameCanvas (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/src/lib/kiteframe/components/KiteFrameCanvas.tsx:25:24)
+    at div
+    at WorkflowCanvas (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/src/components/WorkflowCanvas.tsx:22:3)
+    at main
+    at div
+    at div
+    at AiProvider (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/src/ai/AiProvider.tsx:20:30)
+    at WorkflowEditor (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/src/pages/workflow-editor.tsx:31:29)
+    at Route (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8245393e:338:16)
+    at Switch (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8245393e:394:17)
+    at Router
+    at Provider (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-IPG7JSOJ.js?v=8245393e:38:15)
+    at TooltipProvider (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=8245393e:959:5)
+    at QueryClientProvider (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=8245393e:2934:3)
+    at App
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+Cannot read properties of null (reading 'x')

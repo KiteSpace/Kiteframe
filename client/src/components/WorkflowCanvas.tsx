@@ -73,12 +73,17 @@ export function WorkflowCanvas({
       <KiteFrameCanvas
         nodes={nodes}
         edges={edges}
+        viewport={viewport}
+        onViewportChange={onViewportChange}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
         onCanvasClick={onCanvasClick}
         onNodeRightClick={onNodeRightClick}
+        gridType="dots"
+        minZoom={0.1}
+        maxZoom={3}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />
