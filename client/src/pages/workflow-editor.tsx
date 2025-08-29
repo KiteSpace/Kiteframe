@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { Toolbar } from '@/components/Toolbar';
 import { AiSettingsModal } from '@/components/AiSettingsModal';
 import { AiWorkflowGenerator } from '@/components/AiWorkflowGenerator';
+import { WorkflowImportModal } from '@/components/WorkflowImportModal';
 import { ContextMenu } from '@/components/ContextMenu';
 import { AiProvider } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
@@ -66,6 +67,7 @@ export default function WorkflowEditor() {
 
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node } | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('node-2');
   const [viewport, setViewport] = useState({ x: 100, y: 100, zoom: 1 });
@@ -257,6 +259,47 @@ export default function WorkflowEditor() {
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
+  // Export workflow as JSON file
+  const handleExportWorkflow = useCallback(() => {
+    const workflowData = {
+      version: "1.0.0",
+      metadata: {
+        name: "KiteFrame Workflow",
+        description: "Exported workflow from KiteFrame editor",
+        created: new Date().toISOString(),
+        nodeCount: nodes.length,
+        edgeCount: edges.length
+      },
+      nodes,
+      edges,
+      viewport
+    };
+
+    const jsonString = JSON.stringify(workflowData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `kiteframe-workflow-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [nodes, edges, viewport]);
+
+  // Import workflow from JSON data
+  const handleImportWorkflow = useCallback((newNodes: Node[], newEdges: Edge[], newViewport?: { x: number; y: number; zoom: number }) => {
+    saveToHistory(); // Save current state before import
+    setNodes(newNodes);
+    setEdges(newEdges);
+    if (newViewport) {
+      setViewport(newViewport);
+    }
+    setSelectedNodeId(''); // Clear selection
+    setShowImportModal(false);
+  }, [saveToHistory]);
+
   return (
     <AiProvider client={aiClient}>
       <div className="flex flex-col h-screen bg-background text-foreground">
@@ -275,7 +318,8 @@ export default function WorkflowEditor() {
             onCreateNode={handleCreateNode}
             onFitView={handleFitView}
             onClearCanvas={() => { setNodes([]); setEdges([]); }}
-            onExport={() => {}}
+            onExport={handleExportWorkflow}
+            onImport={() => setShowImportModal(true)}
             onNodeUpdate={(nodeId, updates) => {
               setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, ...updates } : n));
             }}
@@ -319,6 +363,13 @@ export default function WorkflowEditor() {
           <AiWorkflowGenerator
             onClose={() => setShowAiGenerator(false)}
             onGenerate={handleAiGenerate}
+          />
+        )}
+
+        {showImportModal && (
+          <WorkflowImportModal
+            onClose={() => setShowImportModal(false)}
+            onImport={handleImportWorkflow}
           />
         )}
 

@@ -8,7 +8,8 @@ import {
   Image,
   Maximize2,
   Trash2,
-  Download
+  Download,
+  Upload
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -17,6 +18,7 @@ interface SidebarProps {
   onFitView: () => void;
   onClearCanvas: () => void;
   onExport: () => void;
+  onImport: () => void;
   onNodeUpdate: (nodeId: string, updates: Partial<Node>) => void;
 }
 
@@ -26,6 +28,7 @@ export function Sidebar({
   onFitView,
   onClearCanvas,
   onExport,
+  onImport,
   onNodeUpdate
 }: SidebarProps) {
   const nodeTypes = [
@@ -161,6 +164,14 @@ export function Sidebar({
             >
               <Download size={14} />
               Export
+            </button>
+            <button
+              className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left flex items-center gap-2"
+              onClick={onImport}
+              data-testid="button-import"
+            >
+              <Upload size={14} />
+              Import
             </button>
           </div>
         </div>
