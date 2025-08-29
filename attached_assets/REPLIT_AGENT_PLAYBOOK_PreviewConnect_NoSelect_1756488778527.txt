@@ -1,3 +1,36 @@
+REPLIT AGENT PLAYBOOK — Preview Connect Line + Disable Text Selection
+====================================================================
+
+Goal
+----
+Enable handle-drag connections to ANYWHERE on a target node with a live preview line (grey → green/red) and stop text selection during drags.
+
+Safe to run: yes. This modifies only the canvas component and CSS.
+
+File Map (expected)
+-------------------
+src/
+  lib/
+    kiteframe/
+      components/
+        KiteFrameCanvas.tsx      <-- REPLACE with the block in Section A
+        NodeHandles.tsx          <-- already in repo
+        ConnectionEdge.tsx       <-- already in repo
+      styles/
+        kiteframe.css            <-- APPEND rules from Section B
+      utils/
+        geometry.ts              <-- already in repo
+      types.ts                   <-- already in repo
+
+If your paths differ, adjust accordingly.
+
+Section A — Replace Canvas
+--------------------------
+Create or overwrite the file EXACTLY at:
+  src/lib/kiteframe/components/KiteFrameCanvas.tsx
+
+Use this full content:
+--------------------------------- BEGIN FILE ---------------------------------
 import React, { useEffect, useRef, useState } from 'react';
 import '../styles/kiteframe.css';
 import type { Node, Edge } from '../types';
@@ -262,17 +295,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       <Grid />
       <div className="kiteframe-world" style={worldStyle}>
         {/* Existing edges */}
-        <svg className="kiteframe-edge-layer" style={{ 
-          position: 'absolute',
-          left: '-5000px',
-          top: '-5000px',
-          width: '10000px', 
-          height: '10000px',
-          pointerEvents: 'none',
-          overflow: 'visible'
-        }}
-        viewBox="-5000 -5000 10000 10000"
-        preserveAspectRatio="none">
+        <svg className="kiteframe-edge-layer" style={{ width: '100%', height: '100%' }}>
           {props.edges.map(e => {
             const s = props.nodes.find(n => n.id === e.source);
             const t = props.nodes.find(n => n.id === e.target);
@@ -299,22 +322,19 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               }
             }
 
-            // Source anchor smart-positioned
-            const anchor = sourceAnchorTowards(src, tx, ty);
-            const sx = anchor.x, sy = anchor.y;
+            // Exit point from source towards the current target point
+            const sPt = sourceAnchorTowards(src, tx, ty);
 
-            // Simple straight line for preview
             return (
-              <line
-                key="preview"
-                x1={sx} y1={sy}
-                x2={tx} y2={ty}
-                stroke={stroke}
-                strokeWidth="2"
-                strokeDasharray={dash}
-                markerEnd="url(#arrowhead)"
-                style={{ pointerEvents: 'none' }}
-              />
+              <g>
+                <path
+                  d={`M ${sPt.x} ${sPt.y} L ${tx} ${ty}`}
+                  fill="none"
+                  stroke={stroke}
+                  strokeWidth={2}
+                  strokeDasharray={dash}
+                />
+              </g>
             );
           })()}
         </svg>
@@ -326,54 +346,141 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           const color = n.data?.color || 'white';
           const border = n.data?.borderColor || '#e2e8f0';
           const txt = n.data?.textColor || '#0f172a';
+
+          // Highlight target node if hovering during connect
+          const isHoverTarget = !!connecting && connecting.hoverTargetId === n.id;
+          const outline = isHoverTarget ? (connecting!.eligible ? '#22c55e' : '#ef4444') : undefined;
+
           return (
             <div
               key={n.id}
-              className={`kiteframe-node group ${n.selected?'selected':''}`}
-              style={{ left: n.position.x, top: n.position.y, width: w, height: h, background: color, borderColor: border, color: txt }}
+              className={`kiteframe-node group ${n.selected?'selected':''} kf-no-select`}
+              style={{
+                left: n.position.x, top: n.position.y, width: w, height: h,
+                background: color, borderColor: border, color: txt,
+                outline: outline ? `2px solid ${outline}` : undefined
+              }}
               onMouseDown={(e)=>{
                 e.stopPropagation();
-                if (!containerRef.current) return;
-                const rect = containerRef.current.getBoundingClientRect();
+                const rect = containerRef.current!.getBoundingClientRect();
                 const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+                // start dragging the node (not a connection)
+                // NOTE: prevent browser text-drag/selection
+                e.preventDefault();
+                (window.getSelection && window.getSelection()?.removeAllRanges?.());
                 dragInfo.current = { id: n.id, start: wp, origin: { ...n.position } };
               }}
               onDoubleClick={(e)=>props.onNodeDoubleClick?.(e, n)}
               onContextMenu={(e)=>{ e.preventDefault(); props.onNodeRightClick?.(e, n); }}
               onClick={(e)=>props.onNodeClick?.(e, n)}
+              onDragStart={(e)=>e.preventDefault()}
             >
               <div className="title">{n.data?.label || n.type || n.id}</div>
               <div className="body">
-                {n.type === 'image' && n.data?.src ? <img src={n.data.src} alt="" style={{ maxWidth: '100%', maxHeight: '100%' }} />: (n.data?.description || 'Drop content here…')}
+                {n.type === 'image' && n.data?.src
+                  ? <img src={n.data.src} alt="" style={{ maxWidth: '100%', maxHeight: '100%', pointerEvents:'none' }} />
+                  : (n.data?.description || 'Drop content here…')}
               </div>
-              {n.showHandles !== false && <NodeHandles node={n} onHandleConnect={(p, e)=>{
-                if (!containerRef.current) return;
-                const rect = containerRef.current.getBoundingClientRect();
-                const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
-                setConnecting({ sourceId: n.id, wx: wp.x, wy: wp.y, hoverTargetId: null, eligible: false });
-              }} />}
+
+              {/* Handles start the connection gesture */}
+              {n.showHandles !== false && (
+                <NodeHandles
+                  node={n}
+                  onHandleConnect={(p, e)=>{
+                    const rect = containerRef.current!.getBoundingClientRect();
+                    const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+                    e.stopPropagation();
+                    e.preventDefault();
+                    (window.getSelection && window.getSelection()?.removeAllRanges?.());
+                    setConnecting({ sourceId: n.id, wx: wp.x, wy: wp.y, hoverTargetId: null, eligible: false });
+                  }}
+                />
+              )}
             </div>
           );
         })}
       </div>
-      
-      {/* Selection rectangle - positioned in client coordinates, outside transformed world */}
+
       {selectRect && (
-        <div 
-          className="kiteframe-select-rect" 
-          style={{ 
-            position: 'absolute',
-            left: selectRect.x, 
-            top: selectRect.y, 
-            width: selectRect.w, 
-            height: selectRect.h,
-            border: '1px dashed #3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            pointerEvents: 'none',
-            zIndex: 1000
-          }} 
-        />
+        <div className="kiteframe-select-rect" style={{ left: selectRect.x, top: selectRect.y, width: selectRect.w, height: selectRect.h }} />
       )}
     </div>
   );
 };
+---------------------------------- END FILE ----------------------------------
+
+
+Section B — Append CSS
+----------------------
+Open:
+  src/lib/kiteframe/styles/kiteframe.css
+
+Append these rules to the BOTTOM of the file (do not remove your existing rules):
+------------------------------- BEGIN APPEND ---------------------------------
+/* Prevent text selection while clicking/dragging nodes and canvas */
+.kiteframe-canvas,
+.kiteframe-canvas * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Specifically ensure nodes don't select text or drag images */
+.kf-no-select,
+.kf-no-select * {
+  -webkit-user-drag: none;
+  user-drag: none;
+  user-select: none;
+}
+-------------------------------- END APPEND ----------------------------------
+
+
+Run steps (Replit)
+------------------
+1) Ensure Node 20 is active (replit.nix):
+   If you don't have one, create a file named `replit.nix` at project root with:
+   { pkgs }: {
+     deps = [
+       pkgs.nodejs_20
+       pkgs.nodePackages.typescript
+     ];
+   }
+   Click **Rebuild** if prompted.
+
+2) Ensure Replit runs Vite (project root):
+   Create `.replit` with this line (or confirm it already exists):
+   run = "npm install --no-fund --no-audit && npm run dev -- --host 0.0.0.0 --port 5173"
+
+3) Install & start:
+   - Open Shell
+   - Run: npm install --no-fund --no-audit
+   - Run: npm run dev -- --host 0.0.0.0 --port 5173
+   - Open the web preview
+
+Validation checklist
+--------------------
+- Drag background → canvas pans.
+- Mouse wheel / pinch → zooms around cursor.
+- Drag node handle → dotted grey preview line follows cursor.
+- Hover another node:
+  • Preview turns GREEN if valid, RED if invalid (self/duplicate).
+- Release over valid node → a solid blue edge appears between nodes.
+- Shift + drag on background → shows selection rectangle; selected nodes highlight.
+- While dragging nodes, text does NOT highlight (no blue selection band).
+
+Common errors & fixes
+---------------------
+• “Property 'clientToWorld' not found”: ensure import path is exactly '../utils/geometry'.
+• No preview line: confirm `setConnecting` is called in `onHandleConnect` inside `NodeHandles` handler.
+• Can’t connect by dropping on node: ensure the `onBackgroundUp` branch checks `hoverTargetId && eligible` first.
+• Text still highlights: ensure CSS file is imported in the canvas (top of file) and `.kf-no-select` class is on node div.
+• Nothing compiles: check for stray smart quotes copied by the editor — everything should be plain quotes.
+
+Notes
+-----
+- The ineligible rule currently blocks only self-connections and exact duplicates (A→B exists). If you want to block reverse duplicates (B→A) too, change `edgeExists` to check both directions.
+- You can change preview colors in the preview render block (search for #cbd5e1, #22c55e, #ef4444).
+- The final edge styling is controlled by your `ConnectionEdge` component; set its default stroke to your brand blue if needed.
+
+Done.
