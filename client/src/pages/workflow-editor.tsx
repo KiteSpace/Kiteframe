@@ -436,6 +436,7 @@ export default function WorkflowEditor() {
                 setNodes(prev => prev.map(n => ({ ...n, selected: false })));
                 setSelectedNodeId('');
               }}
+              onImageUpload={handleImageUpload}
             />
           )}
           

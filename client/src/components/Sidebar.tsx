@@ -1,4 +1,5 @@
 import type { Node } from '../lib/kiteframe/types';
+import { ObjectUploader } from '@/components/ObjectUploader';
 import { 
   ArrowRight, 
   Cog, 
@@ -22,6 +23,7 @@ interface SidebarProps {
   onImport: () => void;
   onNodeUpdate: (nodeId: string, updates: Partial<Node>) => void;
   onDeselectNode: () => void;
+  onImageUpload?: (nodeId: string, objectPath: string) => void;
 }
 
 export function Sidebar({
@@ -32,7 +34,8 @@ export function Sidebar({
   onExport,
   onImport,
   onNodeUpdate,
-  onDeselectNode
+  onDeselectNode,
+  onImageUpload
 }: SidebarProps) {
   const nodeTypes = [
     { type: 'input', icon: ArrowRight, color: 'text-blue-500', label: 'Input' },
@@ -122,6 +125,77 @@ export function Sidebar({
                     />
                   </div>
                 </div>
+                
+                {/* Image upload section for image nodes */}
+                {selectedNode.type === 'image' && (
+                  <div className="space-y-3 mt-4 pt-3 border-t border-border">
+                    <label className="block text-xs font-medium">Image</label>
+                    {selectedNode.data?.src ? (
+                      <div className="space-y-2">
+                        <div className="border border-border rounded p-2 bg-background">
+                          <img 
+                            src={selectedNode.data.src} 
+                            alt="Node image" 
+                            className="w-full h-20 object-contain rounded"
+                          />
+                        </div>
+                        <ObjectUploader
+                          onGetUploadParameters={async () => {
+                            const response = await fetch('/api/objects/upload', { method: 'POST' });
+                            const data = await response.json();
+                            return { method: 'PUT' as const, url: data.uploadURL };
+                          }}
+                          onComplete={async (result) => {
+                            if (result.successful[0]?.uploadURL) {
+                              try {
+                                const response = await fetch('/api/images', {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ bannerImageURL: result.successful[0].uploadURL })
+                                });
+                                const data = await response.json();
+                                onImageUpload?.(selectedNode.id, data.objectPath);
+                              } catch (error) {
+                                console.error('Error updating image:', error);
+                              }
+                            }
+                          }}
+                          buttonClassName="w-full text-xs"
+                        >
+                          <Upload size={14} className="mr-1" />
+                          Change Image
+                        </ObjectUploader>
+                      </div>
+                    ) : (
+                      <ObjectUploader
+                        onGetUploadParameters={async () => {
+                          const response = await fetch('/api/objects/upload', { method: 'POST' });
+                          const data = await response.json();
+                          return { method: 'PUT' as const, url: data.uploadURL };
+                        }}
+                        onComplete={async (result) => {
+                          if (result.successful[0]?.uploadURL) {
+                            try {
+                              const response = await fetch('/api/images', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ bannerImageURL: result.successful[0].uploadURL })
+                              });
+                              const data = await response.json();
+                              onImageUpload?.(selectedNode.id, data.objectPath);
+                            } catch (error) {
+                              console.error('Error updating image:', error);
+                            }
+                          }
+                        }}
+                        buttonClassName="w-full text-xs"
+                      >
+                        <Upload size={14} className="mr-1" />
+                        Upload Image
+                      </ObjectUploader>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
