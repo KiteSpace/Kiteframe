@@ -75,50 +75,146 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   // Background interactions: pan or selection (Shift+drag)
   const onBackgroundDown = (e: React.MouseEvent) => {
     const isShift = e.shiftKey;
+    const rect = containerRef.current?.getBoundingClientRect();
+    const worldCoords = rect ? clientToWorld(e.clientX, e.clientY, viewport, rect) : null;
+    
+    console.log('🔽 BACKGROUND DOWN:', {
+      isShift,
+      cursor: { clientX: e.clientX, clientY: e.clientY },
+      containerRect: rect ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : null,
+      viewport: viewport,
+      worldCoords: worldCoords,
+      source: 'canvas-background'
+    });
+    
     if (!isShift && !props.disablePan) {
       setPanning(true);
       panStart.current = { x: e.clientX - viewport.x, y: e.clientY - viewport.y };
+      console.log('🟢 PAN START:', { panStart: panStart.current });
     } else if (isShift) {
       selectStart.current = { x: e.clientX, y: e.clientY };
       setSelectRect({ x: e.clientX, y: e.clientY, w: 0, h: 0 });
+      console.log('🔲 SELECT START:', { 
+        selectStart: selectStart.current,
+        initialRect: { x: e.clientX, y: e.clientY, w: 0, h: 0 },
+        source: 'client-coordinates'
+      });
     }
   };
   const onBackgroundMove = (e: React.MouseEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const worldCoords = rect ? clientToWorld(e.clientX, e.clientY, viewport, rect) : null;
+    
     if (panning && panStart.current) {
-      setViewport(v => ({ ...v, x: e.clientX - panStart.current!.x, y: e.clientY - panStart.current!.y }));
+      const newViewport = { ...viewport, x: e.clientX - panStart.current.x, y: e.clientY - panStart.current.y };
+      console.log('🔄 PAN MOVE:', {
+        cursor: { clientX: e.clientX, clientY: e.clientY },
+        panStart: panStart.current,
+        oldViewport: viewport,
+        newViewport: newViewport
+      });
+      setViewport(newViewport);
     } else if (selectStart.current) {
       const sx = selectStart.current.x, sy = selectStart.current.y;
-      setSelectRect({ x: Math.min(sx, e.clientX), y: Math.min(sy, e.clientY), w: Math.abs(e.clientX - sx), h: Math.abs(e.clientY - sy) });
+      const newRect = { x: Math.min(sx, e.clientX), y: Math.min(sy, e.clientY), w: Math.abs(e.clientX - sx), h: Math.abs(e.clientY - sy) };
+      setSelectRect(newRect);
+      
+      console.log('🔲 SELECT DRAG:', {
+        cursor: { clientX: e.clientX, clientY: e.clientY },
+        selectStart: selectStart.current,
+        selectRect: newRect,
+        worldCoords: worldCoords,
+        viewport: viewport,
+        source: 'client-coordinates'
+      });
     } else if (connecting && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const wpos = clientToWorld(e.clientX, e.clientY, viewport, rect);
       setConnecting(c => c ? { ...c, wx: wpos.x, wy: wpos.y } : null);
+      
+      console.log('🔗 CONNECTION MOVE:', {
+        cursor: { clientX: e.clientX, clientY: e.clientY },
+        worldCoords: wpos,
+        viewport: viewport
+      });
     }
   };
   const onBackgroundUp = (e: React.MouseEvent) => {
-    if (panning) { setPanning(false); panStart.current = null; }
+    const rect = containerRef.current?.getBoundingClientRect();
+    const worldCoords = rect ? clientToWorld(e.clientX, e.clientY, viewport, rect) : null;
+    
+    console.log('🔼 BACKGROUND UP:', {
+      cursor: { clientX: e.clientX, clientY: e.clientY },
+      worldCoords: worldCoords,
+      viewport: viewport,
+      selectRect: selectRect,
+      panning: panning,
+      connecting: connecting
+    });
+    
+    if (panning) { 
+      console.log('🔴 PAN END');
+      setPanning(false); 
+      panStart.current = null; 
+    }
+    
     if (selectStart.current && selectRect && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const r = selectRect;
+      
+      // Transform selection rectangle from client coordinates to world coordinates
       const x1 = (r.x - rect.left - viewport.x) / viewport.zoom;
       const y1 = (r.y - rect.top - viewport.y) / viewport.zoom;
       const x2 = ((r.x + r.w) - rect.left - viewport.x) / viewport.zoom;
       const y2 = ((r.y + r.h) - rect.top - viewport.y) / viewport.zoom;
       const nx1 = Math.min(x1,x2), ny1=Math.min(y1,y2), nx2=Math.max(x1,x2), ny2=Math.max(y1,y2);
-      const updated = props.nodes.map(n => {
+      
+      console.log('🔲 SELECT END - COORDINATE TRANSFORMATION:', {
+        selectRect: r,
+        containerRect: { left: rect.left, top: rect.top },
+        viewport: viewport,
+        clientCoords: { x1: r.x, y1: r.y, x2: r.x + r.w, y2: r.y + r.h },
+        transformedCoords: { x1, y1, x2, y2 },
+        worldBounds: { nx1, ny1, nx2, ny2 },
+        source: 'client-to-world-transform'
+      });
+      
+      // Check which nodes are inside the selection
+      const nodeSelections = props.nodes.map(n => {
         const w = n.style?.width ?? n.width ?? 200;
         const h = n.style?.height ?? n.height ?? 100;
         const inside = n.position.x >= nx1 && n.position.y >= ny1 && (n.position.x + w) <= nx2 && (n.position.y + h) <= ny2;
+        
+        console.log(`🔍 NODE ${n.id} SELECTION CHECK:`, {
+          nodePosition: n.position,
+          nodeSize: { w, h },
+          nodeBounds: { x1: n.position.x, y1: n.position.y, x2: n.position.x + w, y2: n.position.y + h },
+          selectionBounds: { nx1, ny1, nx2, ny2 },
+          inside: inside,
+          source: 'world-coordinates'
+        });
+        
         return { ...n, selected: inside };
       });
-      props.onNodesChange(updated);
-      setSelectRect(null); selectStart.current = null;
+      
+      props.onNodesChange(nodeSelections);
+      setSelectRect(null); 
+      selectStart.current = null;
     }
+    
     if (connecting && containerRef.current) {
       const srcId = connecting.sourceId;
       const rect = containerRef.current.getBoundingClientRect();
       const world = clientToWorld(e.clientX, e.clientY, viewport, rect);
       const threshold = 16;
+      
+      console.log('🔗 CONNECTION END:', {
+        cursor: { clientX: e.clientX, clientY: e.clientY },
+        worldCoords: world,
+        sourceId: srcId,
+        threshold: threshold
+      });
+      
       let best: { id:string; dist:number } | null = null;
       for (const n of props.nodes) {
         if (n.id === srcId) continue;
@@ -150,7 +246,20 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const dx = wp.x - dragInfo.current.start.x;
       const dy = wp.y - dragInfo.current.start.y;
       const id = dragInfo.current.id;
-      const updated = props.nodes.map(n => n.id === id ? { ...n, position: { x: dragInfo.current!.origin.x + dx, y: dragInfo.current!.origin.y + dy } } : n);
+      const newPosition = { x: dragInfo.current.origin.x + dx, y: dragInfo.current.origin.y + dy };
+      
+      console.log(`🎯 NODE ${id} DRAG:`, {
+        cursor: { clientX: e.clientX, clientY: e.clientY },
+        worldCoords: wp,
+        dragStart: dragInfo.current.start,
+        origin: dragInfo.current.origin,
+        delta: { dx, dy },
+        newPosition: newPosition,
+        viewport: viewport,
+        source: 'world-coordinates'
+      });
+      
+      const updated = props.nodes.map(n => n.id === id ? { ...n, position: newPosition } : n);
       props.onNodesChange(updated);
     };
     const onUp = () => { dragInfo.current = null; };
@@ -202,6 +311,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 const rect = containerRef.current.getBoundingClientRect();
                 const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
                 dragInfo.current = { id: n.id, start: wp, origin: { ...n.position } };
+                
+                console.log(`🎯 NODE ${n.id} DRAG START:`, {
+                  cursor: { clientX: e.clientX, clientY: e.clientY },
+                  worldCoords: wp,
+                  nodePosition: n.position,
+                  viewport: viewport,
+                  source: 'node-mousedown'
+                });
               }}
               onDoubleClick={(e)=>props.onNodeDoubleClick?.(e, n)}
               onContextMenu={(e)=>{ e.preventDefault(); props.onNodeRightClick?.(e, n); }}
