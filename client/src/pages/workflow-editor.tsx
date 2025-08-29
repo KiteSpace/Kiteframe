@@ -221,6 +221,52 @@ export default function WorkflowEditor() {
     ));
   }, []);
 
+  // History management
+  const saveToHistory = useCallback(() => {
+    if (!activeTab) return;
+    
+    const newHistoryState = {
+      nodes: [...nodes],
+      edges: [...edges],
+      viewport: { ...viewport }
+    };
+    
+    const newHistory = [...history.slice(0, historyIndex + 1), newHistoryState];
+    updateActiveTab({ 
+      history: newHistory,
+      historyIndex: newHistory.length - 1
+    });
+  }, [activeTab, nodes, edges, viewport, history, historyIndex, updateActiveTab]);
+
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      const state = history[newIndex];
+      updateActiveTab({
+        nodes: [...state.nodes],
+        edges: [...state.edges],
+        viewport: { ...state.viewport },
+        historyIndex: newIndex
+      });
+    }
+  }, [historyIndex, history, updateActiveTab]);
+
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      const state = history[newIndex];
+      updateActiveTab({
+        nodes: [...state.nodes],
+        edges: [...state.edges],
+        viewport: { ...state.viewport },
+        historyIndex: newIndex
+      });
+    }
+  }, [historyIndex, history, updateActiveTab]);
+
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
+
   // Other UI state
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
@@ -232,51 +278,6 @@ export default function WorkflowEditor() {
       apiKey: localStorage.getItem('aiApiKey') || ''
     });
   });
-
-  // Save current state to history
-  const saveToHistory = useCallback(() => {
-    const currentState = { nodes, edges, viewport };
-    updateActiveTab({
-      history: [...history.slice(0, historyIndex + 1), currentState].slice(-50), // Limit to 50 entries
-      historyIndex: Math.min(historyIndex + 1, 49)
-    });
-  }, [nodes, edges, viewport, history, historyIndex, updateActiveTab]);
-
-  // Initialize history with current state
-  useEffect(() => {
-    if (history.length === 0) {
-      saveToHistory();
-    }
-  }, [activeTabId]); // Re-initialize when switching tabs
-
-  // Undo function
-  const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      const previousState = history[historyIndex - 1];
-      updateActiveTab({
-        nodes: previousState.nodes,
-        edges: previousState.edges,
-        viewport: previousState.viewport,
-        historyIndex: historyIndex - 1
-      });
-    }
-  }, [history, historyIndex, updateActiveTab]);
-
-  // Redo function
-  const handleRedo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const nextState = history[historyIndex + 1];
-      updateActiveTab({
-        nodes: nextState.nodes,
-        edges: nextState.edges,
-        viewport: nextState.viewport,
-        historyIndex: historyIndex + 1
-      });
-    }
-  }, [history, historyIndex, updateActiveTab]);
-
-  const canUndo = historyIndex > 0;
-  const canRedo = historyIndex < history.length - 1;
 
   // Rest of the component implementation would go here...
   // For now, let me just return a basic structure
@@ -484,7 +485,7 @@ export default function WorkflowEditor() {
                 });
                 saveToHistory();
               }}
-              onEdgesChange={(changes) => {
+              onEdgesChange={(changes: any[]) => {
                 setEdges(prev => {
                   let newEdges = [...prev];
                   changes.forEach(change => {
@@ -513,14 +514,14 @@ export default function WorkflowEditor() {
                 setEdges(prev => [...prev, newEdge]);
                 saveToHistory();
               }}
-              onNodeClick={(nodeId) => {
-                setNodes(prev => prev.map(n => ({ ...n, selected: n.id === nodeId })));
+              onNodeClick={(e: React.MouseEvent, node: Node) => {
+                setNodes(prev => prev.map(n => ({ ...n, selected: n.id === node.id })));
                 setEdges(prev => prev.map(e => ({ ...e, selected: false })));
-                setSelectedNodeId(nodeId);
+                setSelectedNodeId(node.id);
                 setSelectedEdgeId('');
                 setContextMenu(null);
               }}
-              onEdgeClick={(edge) => {
+              onEdgeClick={(edge: Edge) => {
                 setNodes(prev => prev.map(n => ({ ...n, selected: false })));
                 setEdges(prev => prev.map(e => ({ ...e, selected: e.id === edge.id })));
                 setSelectedNodeId('');
@@ -534,7 +535,7 @@ export default function WorkflowEditor() {
                 setSelectedEdgeId('');
                 setContextMenu(null);
               }}
-              onNodeRightClick={(e, node) => {
+              onNodeRightClick={(e: React.MouseEvent, node: Node) => {
                 setContextMenu({ x: e.clientX, y: e.clientY, node });
               }}
               onImageButtonClick={setShowImageModal}
@@ -606,10 +607,14 @@ export default function WorkflowEditor() {
         {showAiGenerator && (
           <AiWorkflowGenerator
             onClose={() => setShowAiGenerator(false)}
-            onGenerate={(generatedWorkflow) => {
+            onGenerate={(generatedWorkflow: any) => {
               // Handle generated workflow
-              setNodes(generatedWorkflow.nodes);
-              setEdges(generatedWorkflow.edges);
+              if (generatedWorkflow.nodes) {
+                setNodes(generatedWorkflow.nodes);
+              }
+              if (generatedWorkflow.edges) {
+                setEdges(generatedWorkflow.edges);
+              }
               saveToHistory();
               setShowAiGenerator(false);
             }}
@@ -618,10 +623,14 @@ export default function WorkflowEditor() {
         {showImportModal && (
           <WorkflowImportModal
             onClose={() => setShowImportModal(false)}
-            onImport={(importedWorkflow) => {
+            onImport={(importedWorkflow: any) => {
               // Handle imported workflow
-              setNodes(importedWorkflow.nodes);
-              setEdges(importedWorkflow.edges);
+              if (importedWorkflow.nodes) {
+                setNodes(importedWorkflow.nodes);
+              }
+              if (importedWorkflow.edges) {
+                setEdges(importedWorkflow.edges);
+              }
               if (importedWorkflow.viewport) {
                 setViewport(importedWorkflow.viewport);
               }
@@ -635,11 +644,30 @@ export default function WorkflowEditor() {
             x={contextMenu.x}
             y={contextMenu.y}
             onClose={() => setContextMenu(null)}
-            onDeleteNode={() => {
+            onDelete={() => {
               if (contextMenu.node) {
                 saveToHistory();
                 setNodes(prev => prev.filter(n => n.id !== contextMenu.node!.id));
                 setEdges(prev => prev.filter(e => e.source !== contextMenu.node!.id && e.target !== contextMenu.node!.id));
+                setContextMenu(null);
+              }
+            }}
+            onCopy={() => {
+              // TODO: Implement copy functionality
+              setContextMenu(null);
+            }}
+            onDuplicate={() => {
+              if (contextMenu.node) {
+                const newNode = {
+                  ...contextMenu.node,
+                  id: `node-${Date.now()}`,
+                  position: {
+                    x: contextMenu.node.position.x + 20,
+                    y: contextMenu.node.position.y + 20
+                  }
+                };
+                setNodes(prev => [...prev, newNode]);
+                saveToHistory();
                 setContextMenu(null);
               }
             }}
