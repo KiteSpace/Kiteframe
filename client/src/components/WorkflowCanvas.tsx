@@ -54,9 +54,8 @@ export function WorkflowCanvas({
     const minimapClickY = e.clientY - rect.top;
     
     // Account for the 8px padding in the minimap (inset-2)
-    const minimapContent = rect.getBoundingClientRect();
-    const contentWidth = minimapContent.width - 16; // 8px padding on each side
-    const contentHeight = minimapContent.height - 16;
+    const contentWidth = rect.width - 16; // 8px padding on each side
+    const contentHeight = rect.height - 16;
     const contentOffsetX = 8;
     const contentOffsetY = 8;
     
@@ -102,9 +101,8 @@ export function WorkflowCanvas({
     const minimapClickY = e.clientY - rect.top;
     
     // Account for the 8px padding in the minimap (inset-2)
-    const minimapContent = rect.getBoundingClientRect();
-    const contentWidth = minimapContent.width - 16; // 8px padding on each side
-    const contentHeight = minimapContent.height - 16;
+    const contentWidth = rect.width - 16; // 8px padding on each side
+    const contentHeight = rect.height - 16;
     const contentOffsetX = 8;
     const contentOffsetY = 8;
     

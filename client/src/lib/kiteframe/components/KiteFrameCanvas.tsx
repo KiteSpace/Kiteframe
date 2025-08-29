@@ -138,7 +138,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const onBackgroundMove = (e: React.MouseEvent) => {
     if (panning && panStart.current) {
       const panStartRef = panStart.current; // Capture reference to avoid race condition
-      setViewport(v => ({ ...v, x: e.clientX - panStartRef.x, y: e.clientY - panStartRef.y }));
+      setViewport((v: Viewport) => ({ ...v, x: e.clientX - panStartRef.x, y: e.clientY - panStartRef.y }));
       return;
     }
     if (selectStart.current) {
@@ -279,8 +279,16 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     const onMove = (e: MouseEvent) => {
       if (!dragInfo.current) return;
       
-      // Mark as dragging to prevent click handlers
-      if (!isDraggingRef.current) {
+      const rect = containerRef.current!.getBoundingClientRect();
+      const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+      const dx = wp.x - dragInfo.current.start.x;
+      const dy = wp.y - dragInfo.current.start.y;
+      
+      // Only start dragging if we've moved beyond threshold (5 pixels in world coordinates)
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const dragThreshold = 5 / viewport.zoom; // Adjust threshold based on zoom level
+      
+      if (!isDraggingRef.current && distance > dragThreshold) {
         isDraggingRef.current = true;
         // Clear any pending click timeout
         if (clickTimeoutRef.current) {
@@ -289,10 +297,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         }
       }
       
-      const rect = containerRef.current!.getBoundingClientRect();
-      const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
-      const dx = wp.x - dragInfo.current.start.x;
-      const dy = wp.y - dragInfo.current.start.y;
+      // Only update positions if we're actually dragging
+      if (!isDraggingRef.current) return;
       
       if (dragInfo.current.isGroupDrag && dragInfo.current.origins) {
         // Group drag: move all selected nodes
@@ -335,14 +341,19 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     };
     
     const onUp = () => { 
-      if (dragInfo.current) {
+      if (dragInfo.current && isDraggingRef.current) {
         console.log(`🔼 ${dragInfo.current.isGroupDrag ? 'GROUP' : 'NODE'} DRAG END`);
       }
       dragInfo.current = null;
-      // Reset dragging flag after a short delay
-      setTimeout(() => {
-        isDraggingRef.current = false;
-      }, 50);
+      // Reset dragging flag immediately if not dragging, or after delay if dragging
+      if (!isDraggingRef.current) {
+        // No drag occurred, so this was likely a click - don't prevent it
+      } else {
+        // Actual drag occurred, reset after short delay
+        setTimeout(() => {
+          isDraggingRef.current = false;
+        }, 50);
+      }
     };
     
     window.addEventListener('mousemove', onMove);
