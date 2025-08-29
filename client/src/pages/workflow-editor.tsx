@@ -302,7 +302,8 @@ export default function WorkflowEditor() {
       setViewport(newViewport);
     }
     setSelectedNodeId(''); // Clear selection
-    console.log('Import completed, modal should close');
+    setShowImportModal(false); // Close modal after successful import
+    console.log('Import completed, modal closed');
   }, [saveToHistory]);
 
   return (

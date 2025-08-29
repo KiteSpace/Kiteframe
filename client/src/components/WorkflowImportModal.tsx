@@ -156,7 +156,10 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
   };
 
   const handleImport = () => {
+    console.log('handleImport called, validationResult:', validationResult);
+    
     if (!validationResult?.isValid) {
+      console.log('Import blocked: validation not valid');
       toast({
         title: "Cannot Import",
         description: "Please fix validation errors before importing.",
@@ -165,6 +168,7 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
       return;
     }
 
+    console.log('Starting import process...');
     try {
       const workflowData = JSON.parse(importData);
       console.log('Importing workflow data:', workflowData);
@@ -177,6 +181,7 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
       console.log('Extracted data:', { nodes, edges, viewport });
       console.log('Calling onImport with:', nodes.length, 'nodes and', edges.length, 'edges');
 
+      // Don't close modal immediately, let parent handle it
       onImport(nodes, edges, viewport);
       
       toast({
@@ -184,8 +189,6 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
         description: `Imported ${nodes.length} nodes and ${edges.length} connections.`,
         variant: "default"
       });
-      
-      onClose();
     } catch (error) {
       console.error('Import error:', error);
       toast({
@@ -363,7 +366,12 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
               Cancel
             </Button>
             <Button
-              onClick={handleImport}
+              onClick={() => {
+                console.log('Import button clicked, canImport:', canImport);
+                console.log('validationResult:', validationResult);
+                console.log('importData length:', importData.length);
+                handleImport();
+              }}
               disabled={!canImport}
               className="flex-1"
               data-testid="button-import-workflow"
