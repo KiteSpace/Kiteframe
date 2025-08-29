@@ -274,8 +274,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     }
   };
 
-  // Node dragging
-  const dragInfo = useRef<{ id:string; start:{x:number;y:number}; origin:{x:number;y:number} }|null>(null);
+  // Node dragging (individual and group)
+  const dragInfo = useRef<{ 
+    id:string; 
+    start:{x:number;y:number}; 
+    origins: {id:string; position:{x:number;y:number}}[];
+    isGroupDrag: boolean;
+  }|null>(null);
+  
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragInfo.current || !containerRef.current) return;
@@ -283,21 +289,26 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
       const dx = wp.x - dragInfo.current.start.x;
       const dy = wp.y - dragInfo.current.start.y;
-      const id = dragInfo.current.id;
-      const newPosition = { x: dragInfo.current.origin.x + dx, y: dragInfo.current.origin.y + dy };
       
-      console.log(`🎯 NODE ${id} DRAG:`, {
+      console.log(`🎯 ${dragInfo.current.isGroupDrag ? 'GROUP' : 'NODE'} DRAG:`, {
         cursor: { clientX: e.clientX, clientY: e.clientY },
         worldCoords: wp,
         dragStart: dragInfo.current.start,
-        origin: dragInfo.current.origin,
         delta: { dx, dy },
-        newPosition: newPosition,
+        dragType: dragInfo.current.isGroupDrag ? 'group' : 'individual',
+        nodeCount: dragInfo.current.origins.length,
         viewport: viewport,
         source: 'world-coordinates'
       });
       
-      const updated = props.nodes.map(n => n.id === id ? { ...n, position: newPosition } : n);
+      // Update all dragged nodes (either just one or the whole selection)
+      const updated = props.nodes.map(n => {
+        const draggedNode = dragInfo.current!.origins.find(o => o.id === n.id);
+        if (draggedNode) {
+          return { ...n, position: { x: draggedNode.position.x + dx, y: draggedNode.position.y + dy } };
+        }
+        return n;
+      });
       props.onNodesChange(updated);
     };
     const onUp = () => { dragInfo.current = null; };
@@ -361,12 +372,30 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 if (!containerRef.current) return;
                 const rect = containerRef.current.getBoundingClientRect();
                 const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
-                dragInfo.current = { id: n.id, start: wp, origin: { ...n.position } };
                 
-                console.log(`🎯 NODE ${n.id} DRAG START:`, {
+                // Check if this node is selected and if there are other selected nodes
+                const selectedNodes = props.nodes.filter(node => node.selected === true);
+                const isGroupDrag = selectedNodes.length > 1 && n.selected === true;
+                
+                // Prepare origins for all nodes that will be dragged
+                const origins = isGroupDrag 
+                  ? selectedNodes.map(node => ({ id: node.id, position: { ...node.position } }))
+                  : [{ id: n.id, position: { ...n.position } }];
+                
+                dragInfo.current = { 
+                  id: n.id, 
+                  start: wp, 
+                  origins: origins,
+                  isGroupDrag: isGroupDrag
+                };
+                
+                console.log(`🎯 ${isGroupDrag ? 'GROUP' : 'NODE'} ${n.id} DRAG START:`, {
                   cursor: { clientX: e.clientX, clientY: e.clientY },
                   worldCoords: wp,
-                  nodePosition: n.position,
+                  clickedNodePosition: n.position,
+                  isGroupDrag: isGroupDrag,
+                  selectedNodesCount: selectedNodes.length,
+                  draggedNodes: origins.map(o => o.id),
                   viewport: viewport,
                   source: 'node-mousedown'
                 });
