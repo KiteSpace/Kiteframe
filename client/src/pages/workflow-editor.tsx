@@ -129,8 +129,17 @@ export default function WorkflowEditor() {
   }), [generateTabId, generateCuteName]);
 
   // Tab management state
-  const [tabs, setTabs] = useState<WorkflowTab[]>(() => [createDefaultTab()]);
-  const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0]?.id || '');
+  const [tabs, setTabs] = useState<WorkflowTab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string>('');
+
+  // Initialize tabs on first render
+  useEffect(() => {
+    if (tabs.length === 0) {
+      const defaultTab = createDefaultTab();
+      setTabs([defaultTab]);
+      setActiveTabId(defaultTab.id);
+    }
+  }, [createDefaultTab]);
 
   // Get current active tab
   const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId) || tabs[0], [tabs, activeTabId]);
@@ -275,6 +284,11 @@ export default function WorkflowEditor() {
   return (
     <AiProvider client={aiClient}>
       <div className="h-screen flex flex-col bg-background">
+        {/* Header */}
+        <Toolbar
+          onOpenAiSettings={() => setShowAiModal(true)}
+        />
+        
         {/* Tab Bar */}
         <div className="flex items-center bg-card border-b border-border px-4 py-2">
           <div className="flex items-center space-x-1 flex-1 overflow-x-auto">
@@ -436,16 +450,12 @@ export default function WorkflowEditor() {
               showImageModal={showImageModal}
               onOpenImageModal={setShowImageModal}
               onCloseImageModal={() => setShowImageModal(null)}
+              onOpenAiGenerator={() => setShowAiGenerator(true)}
             />
           </div>
 
           {/* Canvas Area */}
           <div className="flex-1 relative">
-            <Toolbar
-              onNewWorkflow={createNewTab}
-              onOpenAiSettings={() => setShowAiModal(true)}
-              onOpenAiGenerator={() => setShowAiGenerator(true)}
-            />
             
             <WorkflowCanvas
               nodes={nodes}

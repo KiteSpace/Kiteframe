@@ -14,7 +14,8 @@ import {
   Download,
   Upload,
   Link,
-  X
+  X,
+  Sparkles
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -31,6 +32,7 @@ interface SidebarProps {
   showImageModal?: string | null;
   onOpenImageModal?: (nodeId: string) => void;
   onCloseImageModal?: () => void;
+  onOpenAiGenerator?: () => void;
 }
 
 export function Sidebar({
@@ -46,7 +48,8 @@ export function Sidebar({
   onImageUrl,
   showImageModal,
   onOpenImageModal,
-  onCloseImageModal
+  onCloseImageModal,
+  onOpenAiGenerator
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
@@ -254,6 +257,19 @@ export function Sidebar({
         ) : (
           // Default view when no node is selected
           <>
+            {/* AI Generator Section */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3">AI Assistant</h3>
+              <button
+                className="w-full px-3 py-2.5 text-sm bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-md hover:from-purple-600 hover:to-blue-600 transition-all duration-200 flex items-center justify-center gap-2"
+                onClick={onOpenAiGenerator}
+                data-testid="button-ai-generator"
+              >
+                <Sparkles size={16} />
+                AI Generate Workflow
+              </button>
+            </div>
+            
             <div>
               <h3 className="text-sm font-semibold mb-3">Node Types</h3>
               <div className="grid grid-cols-2 gap-2">
