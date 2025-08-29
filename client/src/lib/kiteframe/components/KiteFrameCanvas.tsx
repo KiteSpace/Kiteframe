@@ -470,8 +470,25 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               <div className="body">
                 {n.type === 'image' ? (
                   n.data?.src ? 
-                    <img src={n.data.src} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} /> : 
-                    <div style={{ padding: '8px', textAlign: 'center', color: '#666' }}>
+                    <img 
+                      src={n.data.src} 
+                      alt="" 
+                      style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'contain',
+                        display: 'block'
+                      }} 
+                    /> : 
+                    <div style={{ 
+                      padding: '8px', 
+                      textAlign: 'center', 
+                      color: '#666',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: '100%'
+                    }}>
                       Click to upload image
                     </div>
                 ) : (

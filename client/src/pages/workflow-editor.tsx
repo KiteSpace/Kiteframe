@@ -337,15 +337,52 @@ export default function WorkflowEditor() {
     console.log('Import completed, modal closed');
   }, [saveToHistory]);
 
-  // Handle image upload completion
+  // Handle image upload completion with auto-sizing
   const handleImageUpload = useCallback((nodeId: string, objectPath: string) => {
-    setNodes(prev => prev.map(n => 
-      n.id === nodeId 
-        ? { ...n, data: { ...n.data, src: objectPath } }
-        : n
-    ));
+    // Create an image element to get natural dimensions
+    const img = new Image();
+    img.onload = () => {
+      const maxWidth = 300;
+      const maxHeight = 300;
+      
+      // Calculate the scaling factor to fit within max dimensions while maintaining aspect ratio
+      const scaleX = maxWidth / img.naturalWidth;
+      const scaleY = maxHeight / img.naturalHeight;
+      const scale = Math.min(scaleX, scaleY, 1); // Don't scale up, only down
+      
+      const newWidth = Math.round(img.naturalWidth * scale);
+      const newHeight = Math.round(img.naturalHeight * scale);
+      
+      // Ensure minimum dimensions for usability
+      const finalWidth = Math.max(newWidth, 150);
+      const finalHeight = Math.max(newHeight, 100);
+      
+      setNodes(prev => prev.map(n => 
+        n.id === nodeId 
+          ? { 
+              ...n, 
+              data: { ...n.data, src: objectPath },
+              width: finalWidth,
+              height: finalHeight
+            }
+          : n
+      ));
+      saveToHistory(); // Save to history after image upload and resize
+    };
+    
+    img.onerror = () => {
+      // Fallback if image fails to load - just set the src without resizing
+      setNodes(prev => prev.map(n => 
+        n.id === nodeId 
+          ? { ...n, data: { ...n.data, src: objectPath } }
+          : n
+      ));
+      saveToHistory();
+    };
+    
+    // Set the source to trigger loading
+    img.src = objectPath;
     setShowImageUploader(null);
-    saveToHistory(); // Save to history after image upload
   }, [saveToHistory]);
 
   return (
