@@ -76,7 +76,18 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
       });
 
       // Parse the AI response with better JSON cleaning
-      let cleanedResponse = response.text.replace(/```json\s?|```/g, '').trim();
+      let cleanedResponse = response.text
+        .replace(/^JSON:\s*/i, '') // Remove "JSON:" prefix from TinyLlama responses
+        .replace(/```json\s?|```/g, '') // Remove markdown code blocks
+        .trim();
+      
+      console.log('🧹 CLEANED RESPONSE:', cleanedResponse.substring(0, 200) + '...');
+      
+      // Try to find JSON content if wrapped in text
+      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanedResponse = jsonMatch[0];
+      }
       
       // Remove any trailing commas before closing brackets/braces
       cleanedResponse = cleanedResponse.replace(/,(\s*[}\]])/g, '$1');
