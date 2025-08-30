@@ -77,7 +77,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
         if (fixedSettings.provider === 'openai' && fixedSettings.model === 'gpt-5') {
           fixedSettings.model = 'gpt-4o';
         }
-        if (fixedSettings.provider === 'kiteframe' && fixedSettings.model === 'tinyllama:1.1b') {
+        if (fixedSettings.provider === 'kiteframe' && (fixedSettings.model === 'tinyllama:1.1b' || fixedSettings.model === 'gemma2:2b')) {
           fixedSettings.model = 'llama3.2:3b';
         }
         setSettings(prev => ({ ...prev, ...fixedSettings }));
