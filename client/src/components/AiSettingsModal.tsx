@@ -207,8 +207,57 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
         </DialogHeader>
         
         <div className="space-y-4">
+          <div className="space-y-3">
+            <Label className="text-base font-medium">Privacy Level</Label>
+            <div className="grid grid-cols-1 gap-3">
+              {/* Maximum Privacy */}
+              <div className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                settings.provider === 'ollama' || settings.provider === 'custom' 
+                  ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
+                  : 'border-gray-200 dark:border-gray-700 hover:border-green-300'
+              }`}
+              onClick={() => setSettings({ ...settings, provider: 'ollama' })}
+              >
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 rounded-full bg-green-500 mt-2"></div>
+                  <div className="flex-1">
+                    <h3 className="font-medium text-green-800 dark:text-green-200">Maximum Privacy</h3>
+                    <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                      Data stays on your machine or private server. Zero external data sharing.
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      Local Ollama • Remote Ollama • Private Custom Endpoint
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Standard Privacy */}
+              <div className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                settings.provider === 'openai' || settings.provider === 'anthropic'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                  : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
+              }`}
+              onClick={() => setSettings({ ...settings, provider: 'openai' })}
+              >
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
+                  <div className="flex-1">
+                    <h3 className="font-medium text-blue-800 dark:text-blue-200">Standard Privacy</h3>
+                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                      Convenient cloud AI with established privacy policies.
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      OpenAI • Anthropic • Major cloud providers
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="provider">API Provider</Label>
+            <Label htmlFor="provider">Select Provider</Label>
             <Select
               value={settings.provider}
               onValueChange={handleProviderChange}
@@ -217,9 +266,9 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="openai">OpenAI</SelectItem>
-                <SelectItem value="anthropic">Anthropic</SelectItem>
-                <SelectItem value="ollama">Ollama Local</SelectItem>
+                <SelectItem value="openai">OpenAI (GPT-4, GPT-5)</SelectItem>
+                <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
+                <SelectItem value="ollama">Ollama (Local)</SelectItem>
                 <SelectItem value="custom">Custom Endpoint</SelectItem>
               </SelectContent>
             </Select>
@@ -262,27 +311,86 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
               <Label htmlFor="customEndpoint">Custom Endpoint</Label>
               <Input
                 id="customEndpoint"
-                placeholder="https://api.example.com"
+                placeholder="https://your-ollama-server.com"
                 value={settings.customEndpoint || ''}
                 onChange={(e) => setSettings(prev => ({ ...prev, customEndpoint: e.target.value }))}
                 data-testid="input-custom-endpoint"
               />
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                <p>Examples:</p>
+                <p>• <code>https://ollama.your-domain.com</code> (recommended)</p>
+                <p>• <code>http://192.168.1.100:11434</code> (local network)</p>
+                <p>• <code>https://your-server.ngrok.io</code> (tunnel)</p>
+              </div>
             </div>
           )}
 
           {settings.provider === 'ollama' && (
             <div className="space-y-2">
-              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                  Local AI Processing
+              <Label htmlFor="ollamaEndpoint">Ollama Endpoint (Optional)</Label>
+              <Input
+                id="ollamaEndpoint"
+                placeholder="http://localhost:11434 (default)"
+                value={settings.customEndpoint || ''}
+                onChange={(e) => setSettings(prev => ({ ...prev, customEndpoint: e.target.value }))}
+                data-testid="input-ollama-endpoint"
+              />
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                <p>Leave empty for local Ollama (localhost:11434)</p>
+                <p>Or specify your remote Ollama server URL</p>
+              </div>
+            </div>
+          )}
+
+          {settings.provider === 'ollama' && (
+            <div className="space-y-2">
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+                <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                  🔒 Maximum Privacy Mode
                 </p>
-                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                  Your data stays private - no external API calls
+                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                  Your data never leaves your control - zero external sharing
                 </p>
-                <div className="text-xs text-amber-600 dark:text-amber-400 mt-2 space-y-1">
-                  <div>• <strong>For local development:</strong> Install Ollama on your machine</div>
-                  <div>• <strong>In Replit:</strong> Service may be unstable - use for testing only</div>
-                  <div>• <strong>Alternative:</strong> Use other providers for production workflows</div>
+                <div className="text-xs text-green-600 dark:text-green-400 mt-2 space-y-1">
+                  <div>• <strong>Local:</strong> Install Ollama on your machine</div>
+                  <div>• <strong>Remote:</strong> Run Ollama on your own server</div>
+                  <div>• <strong>Custom:</strong> Use "Custom Endpoint" for private Ollama servers</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {settings.provider === 'custom' && (
+            <div className="space-y-2">
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+                <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                  🔒 Private Endpoint Mode
+                </p>
+                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                  Connect to your own AI service for complete data control
+                </p>
+                <div className="text-xs text-green-600 dark:text-green-400 mt-2 space-y-1">
+                  <div>• <strong>Recommended:</strong> Your own Ollama server</div>
+                  <div>• <strong>Alternative:</strong> Other self-hosted AI services</div>
+                  <div>• <strong>Format:</strong> https://your-server.com (no /v1 needed)</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(settings.provider === 'openai' || settings.provider === 'anthropic') && (
+            <div className="space-y-2">
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  ☁️ Cloud AI Service
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  Convenient and reliable, with established privacy policies
+                </p>
+                <div className="text-xs text-blue-600 dark:text-blue-400 mt-2 space-y-1">
+                  <div>• Data processed by {settings.provider === 'openai' ? 'OpenAI' : 'Anthropic'}</div>
+                  <div>• Check their privacy policy for data handling details</div>
+                  <div>• API key required for authentication</div>
                 </div>
               </div>
             </div>

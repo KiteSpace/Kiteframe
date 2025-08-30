@@ -10,7 +10,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### January 2025 - Local AI Integration with Ollama & Provider System Enhancement
+### January 2025 - Local AI Integration with Ollama & Privacy-Focused Provider System
+
+- **Hybrid Privacy Approach Implementation:**
+  - Added privacy-focused UI with "Maximum Privacy" and "Standard Privacy" tiers
+  - Maximum Privacy: Local Ollama, Remote Ollama servers, Custom private endpoints
+  - Standard Privacy: OpenAI, Anthropic with established privacy policies
+  - Enhanced custom endpoint support with auto-detection for Ollama servers
+  - Comprehensive guidance for users to choose appropriate privacy level
 
 - **Ollama Local AI Integration:**
   - Added Ollama as a provider option for completely local AI processing
@@ -25,9 +32,10 @@ Preferred communication style: Simple, everyday language.
   - Improved error handling with provider-specific messages for common issues
   - API key validation with better format checking and encoding error handling
   - Settings persistence across all AI features with localStorage integration
-  - Provider-specific UI elements (hidden API key field for Ollama, endpoint configuration)
+  - Provider-specific UI elements with privacy indicators and setup guidance
   - Fixed test button logic to skip API key validation for Ollama provider
   - Updated error messages to show connection status instead of API key errors for Ollama
+  - Auto-detection of Ollama endpoints in custom provider mode
 
 ### January 2025 - AI Workflow Generation Fix & Auto Layout Feature
 

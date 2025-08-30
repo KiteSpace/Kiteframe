@@ -173,6 +173,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           max_tokens: maxTokens,
           stream: false
         };
+      } else if (activeProvider === 'custom') {
+        const { customEndpoint } = req.body;
+        if (!customEndpoint) {
+          return res.status(400).json({ error: 'Custom endpoint is required for custom provider' });
+        }
+        // Auto-detect if this is an Ollama endpoint
+        const isCustomOllama = customEndpoint.includes('ollama') || !activeApiKey;
+        endpoint = `${customEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
+        headers = {
+          'Content-Type': 'application/json',
+          ...(isCustomOllama ? {} : { 'Authorization': `Bearer ${activeApiKey}` })
+        };
+        requestBody = {
+          model,
+          messages,
+          temperature,
+          max_tokens: maxTokens,
+          ...(isCustomOllama ? { stream: false } : {})
+        };
       } else {
         endpoint = 'https://api.openai.com/v1/chat/completions';
         headers = {
@@ -327,10 +346,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!customEndpoint) {
             return res.status(400).json({ error: 'Custom endpoint is required for custom provider' });
           }
+          // Auto-detect if this is an Ollama endpoint by checking if it needs auth
+          const isOllamaEndpoint = customEndpoint.includes('ollama') || !finalApiKey;
           testUrl = `${customEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
           headers = {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${finalApiKey}`
+            ...(isOllamaEndpoint ? {} : { 'Authorization': `Bearer ${finalApiKey}` })
           };
           break;
         default:
