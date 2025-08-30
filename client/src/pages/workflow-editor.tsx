@@ -67,8 +67,7 @@ export default function WorkflowEditor() {
         position: { x: 500, y: 100 },
         data: { label: 'AI Processor', description: 'Process data with AI\nModel: GPT-4o', icon: 'Bot', iconColor: 'text-purple-500' },
         width: 200,
-        height: 120,
-        selected: true
+        height: 120
       },
       {
         id: 'node-3',
@@ -107,7 +106,7 @@ export default function WorkflowEditor() {
       }
     ],
     viewport: { x: 0, y: 0, zoom: 1 },
-    selectedNodeId: 'node-2',
+    selectedNodeId: '',
     selectedEdgeId: '',
     history: [],
     historyIndex: -1,
@@ -327,7 +326,7 @@ export default function WorkflowEditor() {
         const inputNodes = updatedNodes.filter(n => n.type === 'input');
         const processNodes = updatedNodes.filter(n => n.type === 'process' || n.type === 'ai' || n.type === 'condition');
         const outputNodes = updatedNodes.filter(n => n.type === 'output');
-        const otherNodes = updatedNodes.filter(n => !['input', 'process', 'ai', 'condition', 'output'].includes(n.type));
+        const otherNodes = updatedNodes.filter(n => n.type && !['input', 'process', 'ai', 'condition', 'output'].includes(n.type));
         
         // Position input nodes at top
         inputNodes.forEach((node, index) => {
