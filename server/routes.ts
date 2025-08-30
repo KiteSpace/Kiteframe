@@ -119,13 +119,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Set API keys from environment if not provided (but not for Ollama or Kiteframe which don't need them)
-      if (!activeApiKey && activeProvider !== 'ollama' && activeProvider !== 'kiteframe') {
-        if (activeProvider === 'anthropic') {
-          activeApiKey = process.env.ANTHROPIC_API_KEY;
-        } else if (activeProvider === 'openai') {
-          activeApiKey = process.env.OPENAI_API_KEY;
-        }
+      // Set API keys from environment for server-side requests (not for Ollama or Kiteframe which don't need them)
+      if (activeProvider === 'openai') {
+        activeApiKey = process.env.OPENAI_API_KEY; // Always use environment key for OpenAI
+      } else if (activeProvider === 'anthropic') {
+        activeApiKey = activeApiKey || process.env.ANTHROPIC_API_KEY; // Use client key or fallback to environment
       }
 
       if (!activeApiKey && activeProvider !== 'ollama' && activeProvider !== 'kiteframe') {
@@ -292,15 +290,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { provider, model, apiKey, customEndpoint } = req.body;
       
-      if (!apiKey && provider !== 'ollama' && provider !== 'kiteframe') {
+      // For OpenAI, always use environment key. For others, require API key unless it's ollama/kiteframe
+      let finalApiKey = apiKey;
+      if (provider === 'openai') {
+        finalApiKey = process.env.OPENAI_API_KEY;
+        if (!finalApiKey) {
+          return res.status(500).json({ error: 'OpenAI API key not configured on server' });
+        }
+      } else if (!finalApiKey && provider !== 'ollama' && provider !== 'kiteframe') {
         return res.status(400).json({ error: 'API key is required for testing' });
       }
 
       // Clean and validate API key format - must be ASCII only (no emojis or special Unicode characters)
       // Skip validation for Ollama and Kiteframe which don't need API keys
       let cleanApiKey = '';
-      if (provider !== 'ollama' && provider !== 'kiteframe' && apiKey) {
-        cleanApiKey = apiKey.trim();
+      if (provider !== 'ollama' && provider !== 'kiteframe' && finalApiKey) {
+        cleanApiKey = finalApiKey.trim();
         console.log('API Key validation:', { 
           length: cleanApiKey.length, 
           firstChar: cleanApiKey.charCodeAt(0),
@@ -316,20 +321,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Additional provider-specific validation using cleaned key
-      if (provider === 'openai' && !cleanApiKey.startsWith('sk-')) {
+      if (provider === 'openai' && cleanApiKey && !cleanApiKey.startsWith('sk-')) {
         return res.status(400).json({ 
           error: 'OpenAI API keys should start with "sk-"' 
         });
       }
 
-      if (provider === 'anthropic' && !cleanApiKey.startsWith('sk-ant-')) {
+      if (provider === 'anthropic' && cleanApiKey && !cleanApiKey.startsWith('sk-ant-')) {
         return res.status(400).json({ 
           error: 'Anthropic API keys should start with "sk-ant-"' 
         });
       }
 
-      // Use cleaned API key for requests
-      const finalApiKey = cleanApiKey;
+      // Use cleaned API key for requests (or already set environment key for OpenAI)
+      const testApiKey = cleanApiKey || finalApiKey;
 
       let testUrl: string;
       let headers: Record<string, string>;
@@ -340,14 +345,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           testUrl = 'https://api.openai.com/v1/chat/completions';
           headers = {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${finalApiKey}`
+            'Authorization': `Bearer ${testApiKey}`
           };
           break;
         case 'anthropic':
           testUrl = 'https://api.anthropic.com/v1/messages';
           headers = {
             'Content-Type': 'application/json',
-            'x-api-key': finalApiKey,
+            'x-api-key': testApiKey,
             'anthropic-version': '2023-06-01'
           };
           break;

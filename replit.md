@@ -30,7 +30,15 @@ Preferred communication style: Simple, everyday language.
   - Removed API key requirement for users - automatically uses environment secret
   - Updated UI to indicate OpenAI is ready to use without setup
   - Server-side integration automatically routes to stored OPENAI_API_KEY
-  - Simplified user experience for cloud AI access
+  - Fixed model to GPT-4o Mini across all components (AI client, settings, workflow generator)
+  - Resolved API key routing issue that was using Anthropic keys for OpenAI requests
+  - Simplified user experience for cloud AI access with no configuration needed
+
+- **KitelineAI Memory Constraints:**
+  - Attempted to deploy requested models (Llama 3.2 3B, Phi-3 Mini) but memory limitations prevent usage
+  - Llama 3.2 3B requires 3.4 GiB, Phi-3 Mini requires 5.6 GiB (deployment only has 3.1 GiB available)
+  - Currently using TinyLlama 1.1B as the only model that fits memory constraints
+  - All requested larger models exceed current deployment memory capacity
 
 - **Hybrid Privacy Approach Implementation:**
   - Added privacy-focused UI with "Maximum Privacy" and "Standard Privacy" tiers

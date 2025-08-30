@@ -1,0 +1,34 @@
+🔧 DRAG MOVE: 
+Object {dragInfo: {…}, worldPos: {…}, delta: {…}, viewport: {…}, isGroupDrag: false}
+🔧 INDIVIDUAL DRAG UPDATE: 
+Object {nodeId: "node-1", newPosition: {…}, updated: {…}}
+📊 onNodesChange CALLED: 
+Object {changes: Array(3), isArray: true, length: 3, firstItem: {…}}
+📊 DIRECT NODE UPDATE (drag): 
+Object {nodeCount: 3, sample: {…}}
+🔧 DRAG MOVE: 
+Object {dragInfo: {…}, worldPos: {…}, delta: {…}, viewport: {…}, isGroupDrag: false}
+🔧 INDIVIDUAL DRAG UPDATE: 
+Object {nodeId: "node-1", newPosition: {…}, updated: {…}}
+📊 onNodesChange CALLED: 
+Object {changes: Array(3), isArray: true, length: 3, firstItem: {…}}
+📊 DIRECT NODE UPDATE (drag): 
+Object {nodeCount: 3, sample: {…}}
+🔧 DRAG END: 
+Object {id: "node-1", start: {…}, origin: {…}, origins: Array(1), isGroupDrag: false}
+📝 CANVAS CLICK: 
+Object {tabId: {…}, clearing: "all selections"}
+🔧 DRAG END: null
+Workflow generation error: 
+Error {}
+message: "AI error: 401 - openai API error: 401"
+stack: "Error: AI error: 401 - openai API error: 401↵ at OpenAICompatClient.chat (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/src/ai/OpenAICompatClient.ts:36:13)↵ at async https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/src/pages/workflow-editor.tsx:271:22↵ at async https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/src/pages/workflow-editor.tsx:330:33↵ at async handlePromptSubmit (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/src/components/NewTabModal.tsx:224:7)"
+get stack: ƒ ()
+set stack: ƒ ()
+[[Prototype]]: Object
+
+at t.value (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+🔧 DRAG END: null
