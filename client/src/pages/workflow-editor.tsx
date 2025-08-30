@@ -31,7 +31,7 @@ interface WorkflowTab {
   showImageModal: string | null;
 }
 
-function WorkflowEditorContent() {
+function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: () => void }) {
   const ai = useAi();
   const { toast } = useToast();
 
@@ -1327,9 +1327,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           <AiSettingsModal
             onClose={() => setShowAiModal(false)}
             onSave={(settings) => {
-              // Update AI client with new settings
+              // Save AI settings to localStorage
+              localStorage.setItem('ai_settings', JSON.stringify(settings));
+              if (settings.apiKey) {
+                localStorage.setItem('openai_api_key', settings.apiKey);
+              }
               console.log('AI settings saved:', settings);
               setShowAiModal(false);
+              // Update the AI client with new settings
+              onAiSettingsChange?.();
             }}
           />
         )}
@@ -1428,16 +1434,45 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
 // Main wrapper component that provides AiProvider context
 export default function WorkflowEditor() {
-  const [aiClient, setAiClient] = useState<OpenAICompatClient>(() => {
+  const createAiClient = useCallback(() => {
+    // Load saved AI settings
+    const savedSettings = localStorage.getItem('ai_settings');
+    let baseURL = 'https://api.openai.com/v1';
+    let defaultModel = 'gpt-5'; // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+    
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        if (settings.provider === 'custom' && settings.customEndpoint) {
+          baseURL = settings.customEndpoint;
+        } else if (settings.provider === 'anthropic') {
+          baseURL = 'https://api.anthropic.com/v1';
+        }
+        defaultModel = settings.model === 'custom' && settings.customModel 
+          ? settings.customModel 
+          : settings.model || defaultModel;
+      } catch (e) {
+        console.warn('Failed to parse saved AI settings');
+      }
+    }
+    
     return new OpenAICompatClient({
-      baseURL: localStorage.getItem('aiBaseURL') || 'https://api.openai.com/v1',
-      apiKey: localStorage.getItem('aiApiKey') || ''
+      baseURL,
+      apiKey: localStorage.getItem('openai_api_key') || '',
+      defaultModel
     });
-  });
+  }, []);
+
+  const [aiClient, setAiClient] = useState<OpenAICompatClient>(createAiClient);
+
+  // Function to update AI client when settings change
+  const updateAiClient = useCallback(() => {
+    setAiClient(createAiClient());
+  }, [createAiClient]);
 
   return (
     <AiProvider client={aiClient}>
-      <WorkflowEditorContent />
+      <WorkflowEditorContent onAiSettingsChange={updateAiClient} />
     </AiProvider>
   );
 }

@@ -26,7 +26,7 @@ interface AiSettingsModalProps {
 export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   const [settings, setSettings] = useState<AiSettings>({
     provider: 'openai',
-    model: 'gpt-4o',
+    model: 'gpt-5', // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
     apiKey: '',
     temperature: 0.7
   });
@@ -34,6 +34,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   // Provider-specific model options
   const modelOptions = {
     openai: [
+      { value: 'gpt-5', label: 'GPT-5' },
       { value: 'gpt-4o', label: 'GPT-4o' },
       { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
       { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
