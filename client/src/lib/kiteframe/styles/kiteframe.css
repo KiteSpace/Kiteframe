@@ -65,10 +65,10 @@
 /* Edge animation for animated edges */
 @keyframes dashflow {
   0% {
-    stroke-dashoffset: 0;
+    stroke-dashoffset: 20;
   }
   100% {
-    stroke-dashoffset: 20;
+    stroke-dashoffset: 0;
   }
 }
 

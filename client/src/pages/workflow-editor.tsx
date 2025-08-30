@@ -95,7 +95,7 @@ function WorkflowEditorContent() {
     });
 
     // Create edges between the nodes (linear flow: 1->2->3)
-    const edgeTypes = ['bezier', 'straight', 'step'];
+    const edgeTypes: ('bezier' | 'straight' | 'step' | 'curved' | 'orthogonal' | 'smoothstep')[] = ['bezier', 'straight', 'step'];
     const colors = [
       'hsl(221.2, 83.2%, 53.3%)', 
       'hsl(142.1, 76.2%, 36.3%)',
@@ -103,7 +103,7 @@ function WorkflowEditorContent() {
       'hsl(346.8, 77.2%, 49.8%)'
     ];
     
-    const edges = [
+    const edges: Edge[] = [
       {
         id: 'edge-1',
         source: 'node-1',
