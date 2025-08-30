@@ -399,8 +399,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                 <div className="text-xs text-green-600 dark:text-green-400 mt-2 space-y-1">
                   <div>• <strong>No API key required</strong> - Ready to use immediately</div>
                   <div>• <strong>Data never stored</strong> - Processed only, never saved</div>
-                  <div>• <strong>Private infrastructure</strong> - Dedicated secure servers</div>
-                  <div>• <strong>99.9% uptime</strong> - Always available when you need it</div>
+                  <div>• <strong>Private infrastructure</strong> - Your own dedicated AI server</div>
+                  <div>• <strong>Cost optimized</strong> - Scales to zero when not in use</div>
                 </div>
               </div>
             </div>
