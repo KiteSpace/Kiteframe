@@ -250,14 +250,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error(`AI Test Error ${response.status} for ${provider}:`, error);
         
         let errorMessage = `API test failed (${response.status})`;
-        if (response.status === 401) {
-          errorMessage = 'Invalid API key for ' + provider;
-        } else if (response.status === 403) {
-          errorMessage = `API key doesn't have access to ${model} on ${provider}`;
-        } else if (response.status === 404) {
-          errorMessage = `Model ${model} not found on ${provider}`;
-        } else if (response.status === 429) {
-          errorMessage = 'Rate limit exceeded';
+        
+        // Try to parse the error response for more details
+        try {
+          const errorData = JSON.parse(error);
+          
+          if (response.status === 400) {
+            // Handle specific 400 errors from providers
+            if (provider === 'anthropic' && errorData.error?.message) {
+              if (errorData.error.message.includes('credit balance is too low')) {
+                errorMessage = 'Insufficient credits in your Anthropic account. Please add credits in your Anthropic console.';
+              } else if (errorData.error.message.includes('invalid_request_error')) {
+                errorMessage = `Anthropic API error: ${errorData.error.message}`;
+              } else {
+                errorMessage = `Bad request: ${errorData.error.message}`;
+              }
+            } else if (errorData.error?.message) {
+              errorMessage = `Bad request: ${errorData.error.message}`;
+            } else if (errorData.message) {
+              errorMessage = `Bad request: ${errorData.message}`;
+            }
+          } else if (response.status === 401) {
+            errorMessage = 'Invalid API key for ' + provider;
+          } else if (response.status === 403) {
+            errorMessage = `API key doesn't have access to ${model} on ${provider}`;
+          } else if (response.status === 404) {
+            errorMessage = `Model ${model} not found on ${provider}`;
+          } else if (response.status === 429) {
+            errorMessage = 'Rate limit exceeded - too many requests';
+          } else if (errorData.error?.message) {
+            errorMessage = `${provider} API error: ${errorData.error.message}`;
+          } else if (errorData.message) {
+            errorMessage = `${provider} API error: ${errorData.message}`;
+          }
+        } catch (parseError) {
+          // If we can't parse the error, use status-based messages
+          if (response.status === 401) {
+            errorMessage = 'Invalid API key for ' + provider;
+          } else if (response.status === 403) {
+            errorMessage = `API key doesn't have access to ${model} on ${provider}`;
+          } else if (response.status === 404) {
+            errorMessage = `Model ${model} not found on ${provider}`;
+          } else if (response.status === 429) {
+            errorMessage = 'Rate limit exceeded';
+          }
         }
         
         return res.status(response.status).json({ error: errorMessage });
