@@ -482,7 +482,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       style={{ 
                         width: '100%', 
                         height: '100%', 
-                        objectFit: 'contain',
+                        objectFit: n.data?.imageSize === 'fill' ? 'cover' : 
+                                   n.data?.imageSize === 'fit' ? 'scale-down' : 
+                                   'contain',
                         display: 'block',
                         userSelect: 'none',
                         pointerEvents: 'none',

@@ -15,7 +15,9 @@ import {
   Upload,
   Link,
   X,
-  Sparkles
+  Sparkles,
+  AlignHorizontalSpaceAround,
+  AlignVerticalSpaceAround
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -126,32 +128,133 @@ export function Sidebar({
                     data-testid="textarea-node-description"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium mb-1">Width</label>
-                    <input
-                      type="number"
-                      value={selectedNode.width || 200}
-                      onChange={(e) => onNodeUpdate(selectedNode.id, {
-                        width: parseInt(e.target.value) || 200
-                      })}
-                      className="w-full p-2 text-xs border border-border rounded bg-background"
-                      data-testid="input-node-width"
-                    />
+                {/* Width and Height controls for image nodes */}
+                {selectedNode.type === 'image' ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Width</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min="100"
+                          max="480"
+                          value={selectedNode.width || 200}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            width: parseInt(e.target.value)
+                          })}
+                          className="flex-1"
+                          data-testid="slider-node-width"
+                        />
+                        <input
+                          type="number"
+                          min="100"
+                          max="480"
+                          value={selectedNode.width || 200}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            width: Math.min(480, Math.max(100, parseInt(e.target.value) || 200))
+                          })}
+                          className="w-16 p-1 text-xs border border-border rounded bg-background"
+                          data-testid="input-node-width"
+                        />
+                        <button
+                          onClick={() => {
+                            // Auto-size width based on image aspect ratio
+                            if (selectedNode.data?.src) {
+                              const img = new window.Image();
+                              img.onload = () => {
+                                const maxWidth = 300;
+                                const scale = img.naturalWidth > maxWidth ? maxWidth / img.naturalWidth : 1;
+                                const autoWidth = Math.round(Math.min(img.naturalWidth * scale, 480));
+                                onNodeUpdate(selectedNode.id, { width: Math.max(200, autoWidth + 20) });
+                              };
+                              img.src = selectedNode.data.src;
+                            }
+                          }}
+                          className="p-1.5 border border-border rounded hover:bg-accent transition-colors"
+                          title="Auto-size width"
+                          data-testid="button-auto-width"
+                        >
+                          <AlignHorizontalSpaceAround size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Height</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min="100"
+                          max="480"
+                          value={selectedNode.height || 100}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            height: parseInt(e.target.value)
+                          })}
+                          className="flex-1"
+                          data-testid="slider-node-height"
+                        />
+                        <input
+                          type="number"
+                          min="100"
+                          max="480"
+                          value={selectedNode.height || 100}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            height: Math.min(480, Math.max(100, parseInt(e.target.value) || 100))
+                          })}
+                          className="w-16 p-1 text-xs border border-border rounded bg-background"
+                          data-testid="input-node-height"
+                        />
+                        <button
+                          onClick={() => {
+                            // Auto-size height based on image aspect ratio
+                            if (selectedNode.data?.src) {
+                              const img = new window.Image();
+                              img.onload = () => {
+                                const maxHeight = 250;
+                                const headerHeight = 30;
+                                const scale = img.naturalHeight > maxHeight ? maxHeight / img.naturalHeight : 1;
+                                const autoHeight = Math.round(Math.min(img.naturalHeight * scale, 480));
+                                onNodeUpdate(selectedNode.id, { height: autoHeight + headerHeight + 20 });
+                              };
+                              img.src = selectedNode.data.src;
+                            }
+                          }}
+                          className="p-1.5 border border-border rounded hover:bg-accent transition-colors"
+                          title="Auto-size height"
+                          data-testid="button-auto-height"
+                        >
+                          <AlignVerticalSpaceAround size={14} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium mb-1">Height</label>
-                    <input
-                      type="number"
-                      value={selectedNode.height || 100}
-                      onChange={(e) => onNodeUpdate(selectedNode.id, {
-                        height: parseInt(e.target.value) || 100
-                      })}
-                      className="w-full p-2 text-xs border border-border rounded bg-background"
-                      data-testid="input-node-height"
-                    />
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Width</label>
+                      <input
+                        type="number"
+                        value={selectedNode.width || 200}
+                        onChange={(e) => onNodeUpdate(selectedNode.id, {
+                          width: parseInt(e.target.value) || 200
+                        })}
+                        className="w-full p-2 text-xs border border-border rounded bg-background"
+                        data-testid="input-node-width"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Height</label>
+                      <input
+                        type="number"
+                        value={selectedNode.height || 100}
+                        onChange={(e) => onNodeUpdate(selectedNode.id, {
+                          height: parseInt(e.target.value) || 100
+                        })}
+                        className="w-full p-2 text-xs border border-border rounded bg-background"
+                        data-testid="input-node-height"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
                 
                 {/* Image upload section for image nodes */}
                 {selectedNode.type === 'image' && (
@@ -164,7 +267,11 @@ export function Sidebar({
                           <img 
                             src={selectedNode.data.src} 
                             alt="Node image" 
-                            className="w-full h-20 object-contain rounded"
+                            className={`w-full h-20 rounded ${
+                              selectedNode.data?.imageSize === 'fill' ? 'object-cover' :
+                              selectedNode.data?.imageSize === 'fit' ? 'object-scale-down' :
+                              'object-contain'
+                            }`}
                           />
                           <button
                             onClick={() => setShowDeleteConfirm(selectedNode.id)}
@@ -183,6 +290,52 @@ export function Sidebar({
                               URL: {selectedNode.data.sourceUrl}
                             </div>
                           )}
+                        </div>
+                        
+                        {/* Image Size Toggle Buttons */}
+                        <div>
+                          <label className="block text-xs font-medium mb-1">Image Size</label>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => onNodeUpdate(selectedNode.id, {
+                                data: { ...selectedNode.data, imageSize: 'fit' }
+                              })}
+                              className={`flex-1 text-xs px-2 py-1.5 border rounded transition-colors ${
+                                selectedNode.data?.imageSize === 'fit' || !selectedNode.data?.imageSize
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'border-border hover:bg-accent'
+                              }`}
+                              data-testid="button-image-fit"
+                            >
+                              Fit
+                            </button>
+                            <button
+                              onClick={() => onNodeUpdate(selectedNode.id, {
+                                data: { ...selectedNode.data, imageSize: 'contain' }
+                              })}
+                              className={`flex-1 text-xs px-2 py-1.5 border rounded transition-colors ${
+                                selectedNode.data?.imageSize === 'contain'
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'border-border hover:bg-accent'
+                              }`}
+                              data-testid="button-image-contain"
+                            >
+                              Contain
+                            </button>
+                            <button
+                              onClick={() => onNodeUpdate(selectedNode.id, {
+                                data: { ...selectedNode.data, imageSize: 'fill' }
+                              })}
+                              className={`flex-1 text-xs px-2 py-1.5 border rounded transition-colors ${
+                                selectedNode.data?.imageSize === 'fill'
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'border-border hover:bg-accent'
+                              }`}
+                              data-testid="button-image-fill"
+                            >
+                              Fill
+                            </button>
+                          </div>
                         </div>
                         
                         <button
