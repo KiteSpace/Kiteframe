@@ -38,26 +38,33 @@ export function AiWorkflowGenerator({ onClose, onGenerate }: AiWorkflowGenerator
 Return a JSON object with "nodes" and "edges" arrays. Each node should have:
 - id: unique string (like "node-1", "node-2", etc.)
 - type: one of "input", "process", "condition", "output", "ai", "image"
-- position: {x: number, y: number} (spread nodes horizontally, 250px apart)
+- position: {x: number, y: number} (CENTER the workflow on canvas - start first node around x:300, y:250 and spread horizontally 250px apart)
 - data: {label: string, description: string, icon: string, iconColor: string}
 - width: 200, height: 100
+
+POSITIONING RULES:
+- Start the first node at approximately x:300, y:250 (center-left of canvas)
+- Place subsequent nodes 250px to the right: x:550, y:250 then x:800, y:250, etc.
+- For branching workflows, offset vertically by ±150px: y:100 for upper branch, y:400 for lower branch
+- Keep the workflow centered and visually balanced
 
 Each edge should have:
 - id: unique string (like "edge-1", "edge-2", etc.)
 - source: source node id
 - target: target node id
 - type: "bezier"
-- data: {color: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2}
+- style: {strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2}
+- markers: {type: "arrow", position: "end"}
 
 Icon mapping:
-- input: "fas fa-sign-in-alt", color: "text-blue-500"
-- process: "fas fa-cogs", color: "text-green-500"
-- condition: "fas fa-question-circle", color: "text-yellow-500"
-- output: "fas fa-sign-out-alt", color: "text-red-500"
-- ai: "fas fa-robot", color: "text-purple-500"
-- image: "fas fa-image", color: "text-indigo-500"
+- input: "ArrowRight", color: "text-blue-500"
+- process: "Cog", color: "text-green-500"
+- condition: "HelpCircle", color: "text-yellow-500"
+- output: "ArrowLeft", color: "text-red-500"
+- ai: "Bot", color: "text-purple-500"
+- image: "Image", color: "text-indigo-500"
 
-Create a logical flow with meaningful labels and descriptions. Position nodes left to right based on workflow order.`;
+Create a logical flow with meaningful labels and descriptions. Position nodes left to right based on workflow order, centered on the canvas.`;
 
       const response = await aiClient.chat({
         messages: [
