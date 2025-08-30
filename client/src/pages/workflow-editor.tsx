@@ -277,16 +277,53 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
     });
 
     // Parse the AI response with better JSON cleaning
-    let cleanedResponse = response.text.replace(/```json\s?|```/g, '').trim();
+    let cleanedResponse = response.text.trim();
     
-    // Remove any trailing commas before closing brackets/braces
-    cleanedResponse = cleanedResponse.replace(/,(\s*[}\]])/g, '$1');
+    // Remove markdown code blocks if present
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/```\s*$/, '');
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/```\s*$/, '');
+    }
     
-    // Fix common JSON formatting issues
-    cleanedResponse = cleanedResponse.replace(/([{,]\s*)(\w+):/g, '$1"$2":'); // Quote unquoted keys
-    cleanedResponse = cleanedResponse.replace(/:\s*'([^']*)'/g, ': "$1"'); // Single to double quotes
+    cleanedResponse = cleanedResponse.trim();
     
-    const workflowData = JSON.parse(cleanedResponse);
+    console.log('🧹 CLEANED RESPONSE:', cleanedResponse.substring(0, 200) + '...');
+    
+    let workflowData;
+    try {
+      workflowData = JSON.parse(cleanedResponse);
+    } catch (firstError) {
+      console.log('❌ FIRST PARSE FAILED, TRYING FIXES:', firstError.message);
+      
+      // Try additional cleaning if first parse fails
+      let fixedResponse = cleanedResponse;
+      
+      // Remove any trailing commas before closing brackets/braces
+      fixedResponse = fixedResponse.replace(/,(\s*[}\]])/g, '$1');
+      
+      // Fix unquoted keys (but be careful not to break quoted strings)
+      fixedResponse = fixedResponse.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+      
+      // Convert single quotes to double quotes (but avoid breaking contractions in strings)
+      fixedResponse = fixedResponse.replace(/:\s*'([^']*)'/g, ': "$1"');
+      
+      console.log('🔧 ATTEMPTING FIXED PARSE:', fixedResponse.substring(0, 200) + '...');
+      
+      try {
+        workflowData = JSON.parse(fixedResponse);
+      } catch (secondError) {
+        console.error('❌ BOTH PARSE ATTEMPTS FAILED:', { 
+          original: firstError.message,
+          afterFix: secondError.message,
+          responseLength: response.text.length,
+          cleanedLength: cleanedResponse.length,
+          rawStart: response.text.substring(0, 100),
+          cleanedStart: cleanedResponse.substring(0, 100)
+        });
+        throw new Error(`Failed to parse AI response: ${secondError.message}. Raw response length: ${response.text.length}`);
+      }
+    }
 
     if (workflowData.nodes && workflowData.edges) {
       console.log('🤖 AI GENERATED WORKFLOW (DIRECT):', { 
