@@ -466,12 +466,25 @@ export default function WorkflowEditor() {
 
         {/* Main Content */}
         <div className="flex-1 flex">
-          {/* Sidebar */}
+          {/* Sidebar or Edge Customizer */}
           <div className="w-80 border-r border-border flex flex-col">
-            <Sidebar
-              selectedNode={nodes.find(n => n.id === selectedNodeId)}
-              selectedEdge={edges.find(e => e.id === selectedEdgeId)}
-              onCreateNode={(type: string) => {
+            {selectedEdgeId ? (
+              <EdgeCustomizer
+                selectedEdge={edges.find(e => e.id === selectedEdgeId)}
+                onEdgeUpdate={(edgeId: string, updates: Partial<Edge>) => {
+                  setEdges(prev => prev.map(e => e.id === edgeId ? { ...e, ...updates } : e));
+                  saveToHistory();
+                }}
+                onDeselectEdge={() => {
+                  setSelectedEdgeId('');
+                  setEdges(prev => prev.map(e => ({ ...e, selected: false })));
+                }}
+              />
+            ) : (
+              <Sidebar
+                selectedNode={nodes.find(n => n.id === selectedNodeId)}
+                selectedEdge={edges.find(e => e.id === selectedEdgeId)}
+                onCreateNode={(type: string) => {
                 saveToHistory(); // Save current state before adding node
                 const icons = {
                   input: { icon: 'ArrowRight', color: 'text-blue-500' },
@@ -580,28 +593,79 @@ export default function WorkflowEditor() {
                 setNodes(prev => prev.map(n => ({ ...n, selected: false })));
               }}
               onImageUpload={(nodeId: string, objectPath: string, filename?: string) => {
-                // Update the node with the image data
-                setNodes(prev => prev.map(n => 
-                  n.id === nodeId 
-                    ? { ...n, data: { ...n.data, src: objectPath, filename } }
-                    : n
-                ));
-                saveToHistory();
+                // Update the node with the image data and auto-size
+                const img = new Image();
+                img.onload = () => {
+                  const maxWidth = 300;
+                  const maxHeight = 250;
+                  const headerHeight = 30;
+                  
+                  const aspectRatio = img.naturalWidth / img.naturalHeight;
+                  let imageWidth = img.naturalWidth;
+                  let imageHeight = img.naturalHeight;
+                  
+                  // Scale down if needed to fit constraints
+                  const scaleX = imageWidth > maxWidth ? maxWidth / imageWidth : 1;
+                  const scaleY = imageHeight > maxHeight ? maxHeight / imageHeight : 1;
+                  const scale = Math.min(scaleX, scaleY, 1); // Don't scale up
+                  
+                  imageWidth = Math.round(imageWidth * scale);
+                  imageHeight = Math.round(imageHeight * scale);
+                  
+                  setNodes(prev => prev.map(n => 
+                    n.id === nodeId 
+                      ? { 
+                          ...n, 
+                          width: Math.max(200, imageWidth + 20), // Add padding
+                          height: imageHeight + headerHeight + 20, // Add header and padding
+                          data: { ...n.data, src: objectPath, filename }
+                        }
+                      : n
+                  ));
+                  saveToHistory();
+                };
+                img.src = objectPath;
               }}
               onImageUrl={(nodeId: string, url: string) => {
-                // Update the node with the image URL
-                setNodes(prev => prev.map(n => 
-                  n.id === nodeId 
-                    ? { ...n, data: { ...n.data, src: url, sourceUrl: url } }
-                    : n
-                ));
-                saveToHistory();
+                // Update the node with the image URL and auto-size
+                const img = new Image();
+                img.onload = () => {
+                  const maxWidth = 300;
+                  const maxHeight = 250;
+                  const headerHeight = 30;
+                  
+                  const aspectRatio = img.naturalWidth / img.naturalHeight;
+                  let imageWidth = img.naturalWidth;
+                  let imageHeight = img.naturalHeight;
+                  
+                  // Scale down if needed to fit constraints
+                  const scaleX = imageWidth > maxWidth ? maxWidth / imageWidth : 1;
+                  const scaleY = imageHeight > maxHeight ? maxHeight / imageHeight : 1;
+                  const scale = Math.min(scaleX, scaleY, 1); // Don't scale up
+                  
+                  imageWidth = Math.round(imageWidth * scale);
+                  imageHeight = Math.round(imageHeight * scale);
+                  
+                  setNodes(prev => prev.map(n => 
+                    n.id === nodeId 
+                      ? { 
+                          ...n, 
+                          width: Math.max(200, imageWidth + 20), // Add padding
+                          height: imageHeight + headerHeight + 20, // Add header and padding
+                          data: { ...n.data, src: url, sourceUrl: url }
+                        }
+                      : n
+                  ));
+                  saveToHistory();
+                };
+                img.src = url;
               }}
               showImageModal={showImageModal}
               onOpenImageModal={setShowImageModal}
               onCloseImageModal={() => setShowImageModal(null)}
               onOpenAiGenerator={() => setShowAiGenerator(true)}
-            />
+              />
+            )}
           </div>
 
           {/* Canvas Area */}
