@@ -119,7 +119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      if (!activeApiKey) {
+      if (!activeApiKey && activeProvider !== 'ollama') {
         return res.status(401).json({ 
           error: `${activeProvider} API key not configured. Please set it in AI settings.` 
         });
@@ -148,6 +148,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           model,
           max_tokens: maxTokens || 1024,
           messages
+        };
+      } else if (activeProvider === 'ollama') {
+        // Ollama uses OpenAI-compatible API
+        const { customEndpoint } = req.body;
+        endpoint = `${customEndpoint || 'http://localhost:11434'}/v1/chat/completions`;
+        headers = {
+          'Content-Type': 'application/json'
+          // Ollama doesn't require Authorization header for local usage
+        };
+        requestBody = {
+          model,
+          messages,
+          temperature,
+          max_tokens: maxTokens,
+          stream: false
         };
       } else {
         endpoint = 'https://api.openai.com/v1/chat/completions';
@@ -269,6 +284,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             'anthropic-version': '2023-06-01'
           };
           break;
+        case 'ollama':
+          if (!customEndpoint) {
+            return res.status(400).json({ error: 'Ollama endpoint is required' });
+          }
+          testUrl = `${customEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
+          headers = {
+            'Content-Type': 'application/json'
+            // Ollama doesn't require Authorization for local usage
+          };
+          break;
         case 'custom':
           if (!customEndpoint) {
             return res.status(400).json({ error: 'Custom endpoint is required for custom provider' });
@@ -290,6 +315,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           model,
           max_tokens: 10,
           messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }]
+        };
+      } else if (provider === 'ollama') {
+        requestBody = {
+          model,
+          messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
+          max_tokens: 10,
+          temperature: 0.1,
+          stream: false
         };
       } else {
         requestBody = {

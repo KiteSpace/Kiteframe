@@ -10,6 +10,22 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 2025 - Local AI Integration with Ollama & Provider System Enhancement
+
+- **Ollama Local AI Integration:**
+  - Added Ollama as a provider option for completely local AI processing
+  - Integrated popular local models: Llama 3.1 (8B/70B), Llama 3.2 3B, Mistral 7B, CodeLlama 7B, Phi-3 Mini
+  - No API key required for Ollama - runs entirely on local hardware for privacy
+  - Configurable endpoint (defaults to localhost:11434) with automatic service detection
+  - Seamless integration with existing AI workflow generation and chat features
+
+- **Enhanced AI Provider System:**
+  - Dynamic provider routing based on model selection (Claude → Anthropic, local models → Ollama)
+  - Improved error handling with provider-specific messages for common issues
+  - API key validation with better format checking and encoding error handling
+  - Settings persistence across all AI features with localStorage integration
+  - Provider-specific UI elements (hidden API key field for Ollama, endpoint configuration)
+
 ### January 2025 - AI Workflow Generation Fix & Auto Layout Feature
 
 - **Auto Layout System Added:**

@@ -45,6 +45,15 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
       { value: 'custom', label: 'Custom Model' }
     ],
+    ollama: [
+      { value: 'llama3.1:8b', label: 'Llama 3.1 8B' },
+      { value: 'llama3.1:70b', label: 'Llama 3.1 70B' },
+      { value: 'llama3.2:3b', label: 'Llama 3.2 3B' },
+      { value: 'mistral:7b', label: 'Mistral 7B' },
+      { value: 'codellama:7b', label: 'CodeLlama 7B' },
+      { value: 'phi3:mini', label: 'Phi-3 Mini' },
+      { value: 'custom', label: 'Custom Model' }
+    ],
     custom: [
       { value: 'custom', label: 'Custom Model' }
     ]
@@ -80,7 +89,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       provider,
       model: defaultModel,
       customModel: provider === 'custom' ? prev.customModel : '',
-      customEndpoint: provider === 'custom' ? prev.customEndpoint || 'https://api.openai.com' : ''
+      customEndpoint: provider === 'ollama' ? 'http://localhost:11434' : 
+                      provider === 'custom' ? prev.customEndpoint || 'https://api.openai.com' : ''
     }));
   };
 
@@ -93,7 +103,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   };
 
   const handleSave = () => {
-    if (!settings.apiKey.trim()) {
+    // Ollama doesn't require an API key for local usage
+    if (settings.provider !== 'ollama' && !settings.apiKey.trim()) {
       toast({
         title: "API Key Required",
         description: "Please enter your API key to use AI features.",
@@ -124,7 +135,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   };
 
   const handleQuickTest = async () => {
-    if (!settings.apiKey.trim()) {
+    // Ollama doesn't require an API key for local usage
+    if (settings.provider !== 'ollama' && !settings.apiKey.trim()) {
       toast({
         title: "API Key Required",
         description: "Please enter your API key to test the connection.",
@@ -207,6 +219,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
               <SelectContent>
                 <SelectItem value="openai">OpenAI</SelectItem>
                 <SelectItem value="anthropic">Anthropic</SelectItem>
+                <SelectItem value="ollama">Ollama Local</SelectItem>
                 <SelectItem value="custom">Custom Endpoint</SelectItem>
               </SelectContent>
             </Select>
@@ -244,38 +257,47 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             </div>
           )}
 
-          {settings.provider === 'custom' && (
+          {(settings.provider === 'custom' || settings.provider === 'ollama') && (
             <div className="space-y-2">
-              <Label htmlFor="customEndpoint">Custom Endpoint</Label>
+              <Label htmlFor="customEndpoint">
+                {settings.provider === 'ollama' ? 'Ollama Endpoint' : 'Custom Endpoint'}
+              </Label>
               <Input
                 id="customEndpoint"
-                placeholder="https://api.example.com"
+                placeholder={settings.provider === 'ollama' ? 'http://localhost:11434' : 'https://api.example.com'}
                 value={settings.customEndpoint || ''}
                 onChange={(e) => setSettings(prev => ({ ...prev, customEndpoint: e.target.value }))}
                 data-testid="input-custom-endpoint"
               />
+              {settings.provider === 'ollama' && (
+                <p className="text-xs text-muted-foreground">
+                  Make sure Ollama is running locally: <code>ollama serve</code>
+                </p>
+              )}
             </div>
           )}
           
-          <div className="space-y-2">
-            <Label htmlFor="apiKey">
-              API Key 
-              {settings.provider === 'openai' && ' (OpenAI)'}
-              {settings.provider === 'anthropic' && ' (Anthropic)'}
-              {settings.provider === 'custom' && ' (Custom Provider)'}
-            </Label>
-            <Input
-              id="apiKey"
-              type="password"
-              placeholder="Enter your API key"
-              value={settings.apiKey}
-              onChange={(e) => setSettings(prev => ({ ...prev, apiKey: e.target.value }))}
-              data-testid="input-api-key"
-            />
-            <p className="text-xs text-muted-foreground">
-              Keys are stored temporarily for demo purposes only
-            </p>
-          </div>
+          {settings.provider !== 'ollama' && (
+            <div className="space-y-2">
+              <Label htmlFor="apiKey">
+                API Key 
+                {settings.provider === 'openai' && ' (OpenAI)'}
+                {settings.provider === 'anthropic' && ' (Anthropic)'}
+                {settings.provider === 'custom' && ' (Custom Provider)'}
+              </Label>
+              <Input
+                id="apiKey"
+                type="password"
+                placeholder="Enter your API key"
+                value={settings.apiKey}
+                onChange={(e) => setSettings(prev => ({ ...prev, apiKey: e.target.value }))}
+                data-testid="input-api-key"
+              />
+              <p className="text-xs text-muted-foreground">
+                Keys are stored temporarily for demo purposes only
+              </p>
+            </div>
+          )}
           
           <div className="space-y-2">
             <Label>Temperature: {settings.temperature}</Label>
