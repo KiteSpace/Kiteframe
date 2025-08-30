@@ -55,7 +55,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       { value: 'custom', label: 'Custom Model' }
     ],
     kiteframe: [
-      { value: 'tinyllama:1.1b', label: 'TinyLlama 1.1B (Memory Optimized)' },
+      { value: 'gemma2:2b', label: 'Gemma2 2B (Recommended)' },
+      { value: 'tinyllama:1.1b', label: 'TinyLlama 1.1B (Fast)' },
       { value: 'custom', label: 'Custom Model' }
     ],
     custom: [
@@ -397,7 +398,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                   <div>• <strong>No API key required</strong> - Ready to use immediately</div>
                   <div>• <strong>Data never stored</strong> - Processed only, never saved</div>
                   <div>• <strong>Private infrastructure</strong> - Your own dedicated AI server</div>
-                  <div>• <strong>Memory optimized</strong> - TinyLlama 1.1B for fast responses</div>
+                  <div>• <strong>Powerful models</strong> - Gemma2 2B (better quality) & TinyLlama 1.1B (faster)</div>
                   <div>• <strong>Cost optimized</strong> - Scales to zero when not in use</div>
                 </div>
               </div>

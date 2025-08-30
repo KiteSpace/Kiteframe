@@ -18,12 +18,13 @@ Preferred communication style: Simple, everyday language.
   - Autoscale deployment - only pay when users generate workflows
   - Zero data retention - AI processing without storage
 
-- **Memory Constraint Resolution:**
-  - Identified 3.2 GiB memory limit on current Autoscale deployment
-  - Successfully deployed TinyLlama 1.1B model within memory constraints
-  - Updated deployment configuration to support 8GB for larger models
-  - Removed memory-intensive models from UI (Llama 3.1 8B, Phi-3 Mini requiring 5.6 GiB)
-  - Optimized model selection for immediate functionality
+- **Memory Constraint Resolution & Model Optimization:**
+  - Identified and resolved 3.2 GiB memory limit on KitelineAI deployment
+  - Successfully freed memory by removing oversized models (Qwen2.5 3B, Phi-3 Mini, Llama3.2 3B)
+  - Added Gemma2 2B as recommended model - significantly better instruction following than TinyLlama
+  - TinyLlama 1.1B retained as fast option for quick responses
+  - Fixed TypeScript compilation errors in workflow generation code
+  - Memory optimized deployment now supports two working models within constraints
 
 - **Hybrid Privacy Approach Implementation:**
   - Added privacy-focused UI with "Maximum Privacy" and "Standard Privacy" tiers

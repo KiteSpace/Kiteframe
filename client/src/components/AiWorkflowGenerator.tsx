@@ -116,17 +116,17 @@ Position nodes 250px apart horizontally.`;
               id: "edge-1",
               source: "node-1",
               target: "node-2",
-              type: "bezier",
+              type: "bezier" as const,
               style: { strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2 },
-              markers: { type: "arrow", position: "end" }
+              markers: { type: "arrow" as const, position: "end" as const }
             },
             {
               id: "edge-2",
               source: "node-2",
               target: "node-3",
-              type: "bezier",
+              type: "bezier" as const,
               style: { strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2 },
-              markers: { type: "arrow", position: "end" }
+              markers: { type: "arrow" as const, position: "end" as const }
             }
           ]
         };
