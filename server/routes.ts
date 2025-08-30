@@ -238,23 +238,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { provider, model, apiKey, customEndpoint } = req.body;
       
-      if (!apiKey) {
+      if (!apiKey && provider !== 'ollama') {
         return res.status(400).json({ error: 'API key is required for testing' });
       }
 
       // Clean and validate API key format - must be ASCII only (no emojis or special Unicode characters)
-      const cleanApiKey = apiKey.trim();
-      console.log('API Key validation:', { 
-        length: cleanApiKey.length, 
-        firstChar: cleanApiKey.charCodeAt(0),
-        lastChar: cleanApiKey.charCodeAt(cleanApiKey.length - 1),
-        hasNonASCII: !/^[\x20-\x7E]*$/.test(cleanApiKey)
-      });
-      
-      if (!/^[\x20-\x7E]*$/.test(cleanApiKey)) {
-        return res.status(400).json({ 
-          error: 'Invalid API key format. API keys should only contain standard ASCII characters (no emojis or special symbols). Please re-copy your API key.' 
+      // Skip validation for Ollama which doesn't need API keys
+      let cleanApiKey = '';
+      if (provider !== 'ollama' && apiKey) {
+        cleanApiKey = apiKey.trim();
+        console.log('API Key validation:', { 
+          length: cleanApiKey.length, 
+          firstChar: cleanApiKey.charCodeAt(0),
+          lastChar: cleanApiKey.charCodeAt(cleanApiKey.length - 1),
+          hasNonASCII: !/^[\x20-\x7E]*$/.test(cleanApiKey)
         });
+        
+        if (!/^[\x20-\x7E]*$/.test(cleanApiKey)) {
+          return res.status(400).json({ 
+            error: 'Invalid API key format. API keys should only contain standard ASCII characters (no emojis or special symbols). Please re-copy your API key.' 
+          });
+        }
       }
 
       // Additional provider-specific validation using cleaned key
@@ -294,10 +298,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
           break;
         case 'ollama':
-          if (!customEndpoint) {
-            return res.status(400).json({ error: 'Ollama endpoint is required' });
-          }
-          testUrl = `${customEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
+          const ollamaEndpoint = customEndpoint || 'http://localhost:11434';
+          testUrl = `${ollamaEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
           headers = {
             'Content-Type': 'application/json'
             // Ollama doesn't require Authorization for local usage
@@ -418,8 +420,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         provider 
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('AI test error:', error);
+      
+      // Handle Ollama-specific connection errors
+      if (req.body.provider === 'ollama') {
+        if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED')) {
+          return res.status(400).json({ 
+            error: 'Ollama service not running. Please start Ollama with: ollama serve' 
+          });
+        }
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          return res.status(400).json({ 
+            error: 'Cannot connect to Ollama. Make sure it is running on the configured endpoint.' 
+          });
+        }
+        return res.status(400).json({ 
+          error: 'Ollama connection failed. Ensure the service is running and accessible.' 
+        });
+      }
       
       // Handle specific Unicode/ByteString encoding errors
       if (error instanceof TypeError && error.message.includes('ByteString')) {
