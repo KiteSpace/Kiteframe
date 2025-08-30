@@ -473,15 +473,26 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               }}
             >
               <div className="title">{n.data?.label || n.type || n.id}</div>
-              <div className="body" style={{ padding: n.type === 'image' ? '0' : undefined }}>
+              <div 
+                className="body" 
+                style={{ 
+                  padding: n.type === 'image' ? '0' : undefined,
+                  height: n.type === 'image' ? `${h - 30}px` : undefined, // Account for title height
+                  display: n.type === 'image' ? 'flex' : undefined,
+                  alignItems: n.type === 'image' ? 'center' : undefined,
+                  justifyContent: n.type === 'image' ? 'center' : undefined
+                }}
+              >
                 {n.type === 'image' ? (
                   n.data?.src ? 
                     <img 
                       src={n.data.src} 
                       alt="" 
                       style={{ 
-                        width: '100%', 
-                        height: '100%', 
+                        maxWidth: '100%', 
+                        maxHeight: '100%', 
+                        width: n.data?.imageSize === 'fill' ? '100%' : 'auto',
+                        height: n.data?.imageSize === 'fill' ? '100%' : 'auto',
                         objectFit: n.data?.imageSize === 'fill' ? 'cover' : 
                                    n.data?.imageSize === 'fit' ? 'scale-down' : 
                                    'contain',

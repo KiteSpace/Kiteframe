@@ -165,7 +165,14 @@ export function Sidebar({
                                 const maxWidth = 300;
                                 const scale = img.naturalWidth > maxWidth ? maxWidth / img.naturalWidth : 1;
                                 const autoWidth = Math.round(Math.min(img.naturalWidth * scale, 480));
-                                onNodeUpdate(selectedNode.id, { width: Math.max(200, autoWidth + 20) });
+                                const newWidth = Math.max(200, autoWidth + 20);
+                                console.log('Auto-sizing width:', { 
+                                  naturalWidth: img.naturalWidth, 
+                                  scale, 
+                                  autoWidth, 
+                                  newWidth 
+                                });
+                                onNodeUpdate(selectedNode.id, { width: newWidth });
                               };
                               img.src = selectedNode.data.src;
                             }
@@ -213,7 +220,14 @@ export function Sidebar({
                                 const headerHeight = 30;
                                 const scale = img.naturalHeight > maxHeight ? maxHeight / img.naturalHeight : 1;
                                 const autoHeight = Math.round(Math.min(img.naturalHeight * scale, 480));
-                                onNodeUpdate(selectedNode.id, { height: autoHeight + headerHeight + 20 });
+                                const newHeight = autoHeight + headerHeight + 20;
+                                console.log('Auto-sizing height:', { 
+                                  naturalHeight: img.naturalHeight, 
+                                  scale, 
+                                  autoHeight, 
+                                  newHeight 
+                                });
+                                onNodeUpdate(selectedNode.id, { height: newHeight });
                               };
                               img.src = selectedNode.data.src;
                             }
