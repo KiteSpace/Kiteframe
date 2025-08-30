@@ -61,3 +61,17 @@
   -webkit-touch-callout: none !important;
   -webkit-tap-highlight-color: transparent !important;
 }
+
+/* Edge animation for animated edges */
+@keyframes dashflow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 20;
+  }
+}
+
+.kiteframe-edge-animated {
+  animation: dashflow 2s linear infinite;
+}

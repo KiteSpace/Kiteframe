@@ -290,6 +290,7 @@ export const ConnectionEdge: React.FC<{
         strokeWidth={selectionWidth} 
         strokeOpacity={strokeOpacity}
         strokeDasharray={strokeDasharray}
+        className={edge.animated ? 'kiteframe-edge-animated' : ''}
         markerStart={edge.markers?.position === 'start' || edge.markers?.position === 'both' ? `url(#${markerStartId})` : undefined}
         markerEnd={edge.markers?.position !== 'start' ? `url(#${markerId})` : undefined}
         filter={style.shadow ? `url(#${shadowId})` : style.glow ? `url(#${glowId})` : undefined}

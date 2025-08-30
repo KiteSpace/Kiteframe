@@ -53,70 +53,96 @@ function WorkflowEditorContent() {
     return `${adj} ${noun}`;
   }, []);
 
-  // Create default tab with sample data
-  const createDefaultTab = useCallback((): WorkflowTab => ({
-    id: generateTabId(),
-    name: generateCuteName(),
-    nodes: [
-      {
-        id: 'node-1',
-        type: 'input',
-        position: { x: 200, y: 100 },
-        data: { label: 'Input Node', description: 'Data source configuration', icon: 'ArrowRight', iconColor: 'text-blue-500' },
+  // Generate random 3-node workflow
+  const generateRandomWorkflow = useCallback(() => {
+    const nodeTypes = [
+      { type: 'input', icon: 'ArrowRight', iconColor: 'text-blue-500', labels: ['Data Source', 'Input Stream', 'Raw Data', 'User Input'], descriptions: ['Data source configuration', 'Incoming data stream', 'Raw data collection', 'User input validation'] },
+      { type: 'process', icon: 'Cog', iconColor: 'text-gray-500', labels: ['Transform', 'Process', 'Filter', 'Validate'], descriptions: ['Data transformation', 'Process workflow step', 'Filter and clean data', 'Validate input data'] },
+      { type: 'condition', icon: 'HelpCircle', iconColor: 'text-yellow-500', labels: ['Decision', 'Check', 'Condition', 'Branch'], descriptions: ['Evaluate condition logic', 'Check data quality', 'Conditional branching', 'Decision point'] },
+      { type: 'output', icon: 'ArrowLeft', iconColor: 'text-red-500', labels: ['Result', 'Export', 'Save', 'Output'], descriptions: ['Final result destination', 'Export processed data', 'Save to database', 'Output data stream'] },
+      { type: 'ai', icon: 'Bot', iconColor: 'text-purple-500', labels: ['AI Model', 'ML Process', 'Neural Net', 'Analysis'], descriptions: ['Process data with AI\nModel: GPT-5', 'Machine learning processing', 'Neural network analysis', 'AI-powered analysis'] },
+      { type: 'image', icon: 'Image', iconColor: 'text-green-500', labels: ['Visual', 'Chart', 'Diagram', 'Image'], descriptions: ['Visual representation', 'Generate chart or graph', 'Create diagram', 'Image processing'] }
+    ];
+
+    // Randomly select 3 different node types
+    const shuffled = [...nodeTypes].sort(() => 0.5 - Math.random());
+    const selectedTypes = shuffled.slice(0, 3);
+    
+    // Generate random positions in a flowing layout
+    const positions = [
+      { x: 150 + Math.random() * 100, y: 80 + Math.random() * 40 },
+      { x: 400 + Math.random() * 100, y: 80 + Math.random() * 40 },
+      { x: 275 + Math.random() * 100, y: 250 + Math.random() * 40 }
+    ];
+    
+    // Create nodes
+    const nodes = selectedTypes.map((nodeType, index) => {
+      const randomLabel = nodeType.labels[Math.floor(Math.random() * nodeType.labels.length)];
+      const randomDesc = nodeType.descriptions[Math.floor(Math.random() * nodeType.descriptions.length)];
+      return {
+        id: `node-${index + 1}`,
+        type: nodeType.type,
+        position: positions[index],
+        data: { 
+          label: randomLabel, 
+          description: randomDesc, 
+          icon: nodeType.icon, 
+          iconColor: nodeType.iconColor 
+        },
         width: 200,
-        height: 100
-      },
-      {
-        id: 'node-2',
-        type: 'ai',
-        position: { x: 500, y: 100 },
-        data: { label: 'AI Processor', description: 'Process data with AI\nModel: GPT-4o', icon: 'Bot', iconColor: 'text-purple-500' },
-        width: 200,
-        height: 120
-      },
-      {
-        id: 'node-3',
-        type: 'condition',
-        position: { x: 200, y: 300 },
-        data: { label: 'Condition', description: 'Evaluate condition logic', icon: 'HelpCircle', iconColor: 'text-yellow-500' },
-        width: 200,
-        height: 100
-      },
-      {
-        id: 'node-4',
-        type: 'output',
-        position: { x: 500, y: 300 },
-        data: { label: 'Output', description: 'Final result destination', icon: 'ArrowLeft', iconColor: 'text-red-500' },
-        width: 200,
-        height: 100
-      }
-    ],
-    edges: [
+        height: nodeType.type === 'ai' ? 120 : 100
+      };
+    });
+
+    // Create edges between the nodes (linear flow: 1->2->3)
+    const edgeTypes = ['bezier', 'straight', 'step'];
+    const colors = [
+      'hsl(221.2, 83.2%, 53.3%)', 
+      'hsl(142.1, 76.2%, 36.3%)',
+      'hsl(262.1, 83.3%, 57.8%)',
+      'hsl(346.8, 77.2%, 49.8%)'
+    ];
+    
+    const edges = [
       {
         id: 'edge-1',
         source: 'node-1',
         target: 'node-2',
-        type: 'bezier',
-        style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
+        type: edgeTypes[Math.floor(Math.random() * edgeTypes.length)],
+        animated: Math.random() > 0.5,
+        style: { strokeColor: colors[Math.floor(Math.random() * colors.length)], strokeWidth: 2 },
         markers: { type: 'arrow', position: 'end' }
       },
       {
         id: 'edge-2',
-        source: 'node-3',
-        target: 'node-2',
-        type: 'bezier',
-        animated: true,
-        style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
+        source: 'node-2',
+        target: 'node-3',
+        type: edgeTypes[Math.floor(Math.random() * edgeTypes.length)],
+        animated: Math.random() > 0.5,
+        style: { strokeColor: colors[Math.floor(Math.random() * colors.length)], strokeWidth: 2 },
         markers: { type: 'arrow', position: 'end' }
       }
-    ],
-    viewport: { x: 0, y: 0, zoom: 1 },
-    selectedNodeId: '',
-    selectedEdgeId: '',
-    history: [],
-    historyIndex: -1,
-    showImageModal: null
-  }), [generateTabId, generateCuteName]);
+    ];
+
+    return { nodes, edges };
+  }, []);
+
+  // Create default tab with random workflow
+  const createDefaultTab = useCallback((): WorkflowTab => {
+    const { nodes, edges } = generateRandomWorkflow();
+    return {
+      id: generateTabId(),
+      name: generateCuteName(),
+      nodes,
+      edges,
+      viewport: { x: 0, y: 0, zoom: 1 },
+      selectedNodeId: '',
+      selectedEdgeId: '',
+      history: [],
+      historyIndex: -1,
+      showImageModal: null
+    };
+  }, [generateTabId, generateCuteName, generateRandomWorkflow]);
 
   // Create blank tab
   const createBlankTab = useCallback((): WorkflowTab => ({
