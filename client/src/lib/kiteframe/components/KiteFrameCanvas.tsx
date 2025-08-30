@@ -182,12 +182,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   // Background interactions: pan or selection (Shift+drag)
   const onBackgroundDown = (e: React.MouseEvent) => {
-    console.log('🔧 BACKGROUND DOWN:', { shiftKey: e.shiftKey, target: e.target });
     const isShift = e.shiftKey;
     if (!isShift && !props.disablePan) {
       setPanning(true);
       panStart.current = { x: e.clientX - viewport.x, y: e.clientY - viewport.y };
-      console.log('🔧 PANNING STARTED');
     } else if (isShift) {
       e.preventDefault();
       e.stopPropagation();
@@ -196,7 +194,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const containerY = e.clientY - rect.top;
       selectStart.current = { x: containerX, y: containerY };
       setSelectRect({ x: containerX, y: containerY, w: 0, h: 0 });
-      console.log('🔲 SELECTION STARTED:', { containerX, containerY });
     }
   };
 
@@ -211,14 +208,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const containerX = e.clientX - rect.left;
       const containerY = e.clientY - rect.top;
       const sx = selectStart.current.x, sy = selectStart.current.y;
-      const newRect = { 
+      setSelectRect({ 
         x: Math.min(sx, containerX), 
         y: Math.min(sy, containerY), 
         w: Math.abs(containerX - sx), 
         h: Math.abs(containerY - sy) 
-      };
-      setSelectRect(newRect);
-      console.log('🔲 SELECTION DRAG:', newRect);
+      });
       return;
     }
     if (connecting) {
@@ -251,16 +246,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const y2 = ((r.y + r.h) - rect.top - viewport.y) / viewport.zoom;
       const nx1 = Math.min(x1,x2), ny1=Math.min(y1,y2), nx2=Math.max(x1,x2), ny2=Math.max(y1,y2);
       
-      console.log(`🔲 SELECT END - COORDINATE TRANSFORMATION:`, {
-        selectRect: r,
-        containerRect: { left: rect.left, top: rect.top },
-        viewport: viewport,
-        clientCoords: { x1: r.x, y1: r.y, x2: r.x + r.w, y2: r.y + r.h },
-        transformedCoords: { x1, y1, x2, y2 },
-        worldBounds: { nx1, ny1, nx2, ny2 },
-        source: 'client-to-world-transform'
-      });
-      
       const updated = props.nodes.map(n => {
         const w = n.style?.width ?? n.width ?? 200;
         const h = n.style?.height ?? n.height ?? 100;
@@ -275,17 +260,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         const overlapsX = nodeBounds.x1 < nx2 && nodeBounds.x2 > nx1;
         const overlapsY = nodeBounds.y1 < ny2 && nodeBounds.y2 > ny1;
         const selected = overlapsX && overlapsY;
-        
-        console.log(`🔍 NODE ${n.id} SELECTION CHECK:`, {
-          nodePosition: n.position,
-          nodeSize: { w, h },
-          nodeBounds,
-          selectionBounds: { nx1, ny1, nx2, ny2 },
-          overlapsX,
-          overlapsY,
-          selected,
-          source: 'overlap-detection'
-        });
         
         return { ...n, selected };
       });

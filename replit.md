@@ -40,7 +40,7 @@ Preferred communication style: Simple, everyday language.
   - Included unique ID generation with timestamps to prevent conflicts between workflows
   - Preserved history tracking and undo/redo functionality for all append operations
 
-- **Dynamic Node Text Wrapping & Height Adjustment (Latest):**
+- **Dynamic Node Text Wrapping & Height Adjustment:**
   - Added automatic text wrapping for node titles and descriptions
   - Implemented dynamic node height calculation based on content length
   - Nodes maintain default 100px height for short content
@@ -48,6 +48,13 @@ Preferred communication style: Simple, everyday language.
   - Maximum height limit of 400px with scrollable overflow for extremely long content
   - Preserved image node aspect ratio sizing with explicit height override
   - Enhanced text rendering with proper line spacing and paragraph break handling
+
+- **Fixed Shift+Drag Multi-Node Selection (Latest):**
+  - Restored shift+click+drag selection functionality for multiple nodes
+  - Added proper event handling to distinguish between panning and selection modes
+  - Implemented overlap detection for accurate node selection within bounding rectangle
+  - Selection rectangle appears during drag with visual feedback
+  - Multiple selected nodes can be moved together as a group
 
 ### December 2025 - Enhanced Image Management & Local Storage Implementation
 - **Image Management System Overhaul:**
