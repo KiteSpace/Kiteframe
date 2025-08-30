@@ -182,11 +182,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   // Background interactions: pan or selection (Shift+drag)
   const onBackgroundDown = (e: React.MouseEvent) => {
+    console.log('🔧 BACKGROUND DOWN:', { shiftKey: e.shiftKey, target: e.target });
     const isShift = e.shiftKey;
-    if (!isShift && !props.disablePan) {
-      setPanning(true);
-      panStart.current = { x: e.clientX - viewport.x, y: e.clientY - viewport.y };
-    } else if (isShift) {
+    if (isShift) {
       e.preventDefault();
       e.stopPropagation();
       const rect = containerRef.current!.getBoundingClientRect();
@@ -194,6 +192,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const containerY = e.clientY - rect.top;
       selectStart.current = { x: containerX, y: containerY };
       setSelectRect({ x: containerX, y: containerY, w: 0, h: 0 });
+      console.log('🔲 SELECTION STARTED:', { containerX, containerY });
+    } else if (!props.disablePan) {
+      setPanning(true);
+      panStart.current = { x: e.clientX - viewport.x, y: e.clientY - viewport.y };
+      console.log('🔧 PANNING STARTED');
     }
   };
 
@@ -234,17 +237,29 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   };
 
   const onBackgroundUp = (e: React.MouseEvent) => {
+    console.log('🔧 BACKGROUND UP:', { 
+      panning: !!panning, 
+      selecting: !!selectStart.current, 
+      shiftKey: e.shiftKey 
+    });
+    
     if (panning) {
-      setPanning(false); panStart.current = null;
+      setPanning(false); 
+      panStart.current = null;
     }
+    
     if (selectStart.current) {
+      e.preventDefault();
+      e.stopPropagation();
       const rect = containerRef.current!.getBoundingClientRect();
       const r = selectRect!;
-      const x1 = (r.x - rect.left - viewport.x) / viewport.zoom;
-      const y1 = (r.y - rect.top - viewport.y) / viewport.zoom;
-      const x2 = ((r.x + r.w) - rect.left - viewport.x) / viewport.zoom;
-      const y2 = ((r.y + r.h) - rect.top - viewport.y) / viewport.zoom;
+      const x1 = (r.x - viewport.x) / viewport.zoom;
+      const y1 = (r.y - viewport.y) / viewport.zoom;
+      const x2 = ((r.x + r.w) - viewport.x) / viewport.zoom;
+      const y2 = ((r.y + r.h) - viewport.y) / viewport.zoom;
       const nx1 = Math.min(x1,x2), ny1=Math.min(y1,y2), nx2=Math.max(x1,x2), ny2=Math.max(y1,y2);
+      
+      console.log('🔲 SELECTION COMPLETE:', { rect: r, worldBounds: { nx1, ny1, nx2, ny2 } });
       
       const updated = props.nodes.map(n => {
         const w = n.style?.width ?? n.width ?? 200;
@@ -264,7 +279,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         return { ...n, selected };
       });
       props.onNodesChange(updated);
-      setSelectRect(null); selectStart.current = null;
+      setSelectRect(null); 
+      selectStart.current = null;
+      return; // Don't trigger onClick
     }
     if (connecting) {
       const { sourceId, hoverTargetId, eligible } = connecting;
@@ -399,7 +416,15 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       onMouseDown={onBackgroundDown}
       onMouseMove={onBackgroundMove}
       onMouseUp={onBackgroundUp}
-      onClick={() => props.onCanvasClick?.()}
+      onClick={(e) => {
+        // Don't trigger canvas click if we just finished a selection
+        if (selectStart.current || selectRect) {
+          console.log('🔲 SKIPPING CANVAS CLICK - selection in progress');
+          return;
+        }
+        console.log('📝 CANVAS CLICK TRIGGERED');
+        props.onCanvasClick?.();
+      }}
     >
       <Grid />
       <div className="kiteframe-world" style={worldStyle}>
