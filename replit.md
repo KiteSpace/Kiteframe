@@ -32,6 +32,14 @@ Preferred communication style: Simple, everyday language.
   - Fixed coordinate system issues with node interactions
   - Simplified drag/drop functionality to work without interfering with clicks
 
+- **Additive Workflow Functionality (Latest):**
+  - Implemented additive workflow system for sidebar import and AI generation buttons
+  - AI generate button now prompts for workflow description and appends to existing canvas
+  - Import button now opens file dialog and appends imported workflows to existing canvas
+  - Added smart offset positioning system to place new workflows to the right of existing ones
+  - Included unique ID generation with timestamps to prevent conflicts between workflows
+  - Preserved history tracking and undo/redo functionality for all append operations
+
 ### December 2025 - Enhanced Image Management & Local Storage Implementation
 - **Image Management System Overhaul:**
   - Added "Add image" buttons in both properties panel and image node bodies
