@@ -399,6 +399,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stream: false
         };
       } else if (provider === 'kiteframe') {
+        // For KitelineAI, first check if model is available and load if needed
+        try {
+          const tagsResponse = await fetch('https://kiteline-ai.replit.app/api/tags');
+          const tagsData = await tagsResponse.json();
+          const availableModels = tagsData.models?.map((m: any) => m.name) || [];
+          
+          if (!availableModels.includes(model)) {
+            return res.status(404).json({ 
+              error: `Model ${model} not available on KitelineAI. Available models: ${availableModels.join(', ')}` 
+            });
+          }
+        } catch (tagsError) {
+          console.warn('Could not check KitelineAI model availability:', tagsError);
+        }
+        
         requestBody = {
           model,
           messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
