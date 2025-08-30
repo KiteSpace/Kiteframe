@@ -9,8 +9,9 @@ import { WorkflowImportModal } from '@/components/WorkflowImportModal';
 import { ContextMenu } from '@/components/ContextMenu';
 import { MissingImagesModal } from '@/components/MissingImagesModal';
 import { NewTabModal } from '@/components/NewTabModal';
-import { AiProvider } from '../ai/AiProvider';
+import { AiProvider, useAi } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
+import { useToast } from '@/hooks/use-toast';
 import { ObjectUploader } from '@/components/ObjectUploader';
 import type { Node, Edge } from '../lib/kiteframe/types';
 import '../lib/kiteframe/styles/kiteframe.css';
@@ -30,7 +31,10 @@ interface WorkflowTab {
   showImageModal: string | null;
 }
 
-export default function WorkflowEditor() {
+function WorkflowEditorContent() {
+  const ai = useAi();
+  const { toast } = useToast();
+
   // Generate unique ID for tabs
   const generateTabId = useCallback(() => `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, []);
   
@@ -228,15 +232,131 @@ export default function WorkflowEditor() {
     setActiveTabId(newTab.id);
   }, [createBlankTab]);
 
-  const handleCreateFromPrompt = useCallback(async (prompt: string) => {
-    // Create a new blank tab first
-    const newTab = createBlankTab();
-    setTabs(prev => [...prev, newTab]);
-    setActiveTabId(newTab.id);
+  // Direct AI generation function
+  const generateWorkflowFromPrompt = useCallback(async (prompt: string): Promise<{ nodes: Node[]; edges: Edge[] }> => {
+    const systemPrompt = `You are a workflow generator. Create a visual workflow based on the user's description. 
+
+Return a JSON object with "nodes" and "edges" arrays. Each node should have:
+- id: unique string (like "node-1", "node-2", etc.)
+- type: one of "input", "process", "condition", "output", "ai", "image"
+- position: {x: number, y: number} (CENTER the workflow on canvas - start first node around x:300, y:250 and spread horizontally 250px apart)
+- data: {label: string, description: string, icon: string, iconColor: string}
+- width: 200, height: 100
+
+POSITIONING RULES:
+- Start the first node at approximately x:300, y:250 (center-left of canvas)
+- Place subsequent nodes 250px to the right: x:550, y:250 then x:800, y:250, etc.
+- For branching workflows, offset vertically by ±150px: y:100 for upper branch, y:400 for lower branch
+- Keep the workflow centered and visually balanced
+
+Each edge should have:
+- id: unique string (like "edge-1", "edge-2", etc.)
+- source: source node id
+- target: target node id
+- type: "bezier"
+- style: {strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2}
+- markers: {type: "arrow", position: "end"}
+
+Icon mapping:
+- input: "ArrowRight", color: "text-blue-500"
+- process: "Cog", color: "text-green-500"
+- condition: "HelpCircle", color: "text-yellow-500"
+- output: "ArrowLeft", color: "text-red-500"
+- ai: "Bot", color: "text-purple-500"
+- image: "Image", color: "text-indigo-500"
+
+Create a logical flow with meaningful labels and descriptions. Position nodes left to right based on workflow order, centered on the canvas.`;
+
+    const response = await ai.chat({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.7,
+      maxTokens: 2000
+    });
+
+    // Parse the AI response with better JSON cleaning
+    let cleanedResponse = response.text.replace(/```json\s?|```/g, '').trim();
     
-    // Then trigger AI generation for this tab
-    setShowAiGenerator(true);
-  }, [createBlankTab]);
+    // Remove any trailing commas before closing brackets/braces
+    cleanedResponse = cleanedResponse.replace(/,(\s*[}\]])/g, '$1');
+    
+    // Fix common JSON formatting issues
+    cleanedResponse = cleanedResponse.replace(/([{,]\s*)(\w+):/g, '$1"$2":'); // Quote unquoted keys
+    cleanedResponse = cleanedResponse.replace(/:\s*'([^']*)'/g, ': "$1"'); // Single to double quotes
+    
+    const workflowData = JSON.parse(cleanedResponse);
+
+    if (workflowData.nodes && workflowData.edges) {
+      console.log('🤖 AI GENERATED WORKFLOW (DIRECT):', { 
+        nodeCount: workflowData.nodes.length, 
+        edgeCount: workflowData.edges.length,
+        nodes: workflowData.nodes,
+        edges: workflowData.edges
+      });
+      
+      return workflowData;
+    } else {
+      throw new Error('Invalid workflow structure returned');
+    }
+  }, [ai]);
+
+  const handleCreateFromPrompt = useCallback(async (prompt: string) => {
+    try {
+      // Create a new blank tab first
+      const newTab = createBlankTab();
+      setTabs(prev => [...prev, newTab]);
+      setActiveTabId(newTab.id);
+      
+      // Generate workflow directly using AI
+      const generatedWorkflow = await generateWorkflowFromPrompt(prompt);
+      
+      // Update the new tab with generated nodes and edges
+      setTabs(prev => prev.map(tab => 
+        tab.id === newTab.id 
+          ? { 
+              ...tab, 
+              nodes: generatedWorkflow.nodes.map(node => ({ ...node, selected: false })),
+              edges: generatedWorkflow.edges.map(edge => ({ ...edge, selected: false }))
+            }
+          : tab
+      ));
+      
+      toast({
+        title: "Workflow Generated",
+        description: `Created ${generatedWorkflow.nodes.length} nodes and ${generatedWorkflow.edges.length} connections.`,
+        variant: "default"
+      });
+      
+    } catch (error) {
+      console.error('Workflow generation error:', error);
+      
+      let title = "Generation Failed";
+      let description = "Failed to generate workflow. Please try again.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('401')) {
+          title = "Authentication Error";
+          description = "Invalid API key. Please check your OpenAI API key in AI Settings.";
+        } else if (error.message.includes('429')) {
+          title = "Rate Limit Exceeded";
+          description = "Too many requests. Please wait a moment and try again.";
+        } else if (error.message.includes('500')) {
+          title = "Server Error";
+          description = "OpenAI service is temporarily unavailable. Please try again later.";
+        } else {
+          description = error.message;
+        }
+      }
+      
+      toast({
+        title,
+        description,
+        variant: "destructive"
+      });
+    }
+  }, [createBlankTab, generateWorkflowFromPrompt, toast]);
 
   const handleCreateFromFile = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
     const newTab: WorkflowTab = {
@@ -459,19 +579,9 @@ export default function WorkflowEditor() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showNewTabModal, setShowNewTabModal] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node } | null>(null);
-  const [aiClient, setAiClient] = useState<OpenAICompatClient>(() => {
-    return new OpenAICompatClient({
-      baseURL: localStorage.getItem('aiBaseURL') || 'https://api.openai.com/v1',
-      apiKey: localStorage.getItem('aiApiKey') || ''
-    });
-  });
-
-  // Rest of the component implementation would go here...
-  // For now, let me just return a basic structure
 
   return (
-    <AiProvider client={aiClient}>
-      <div className="h-screen flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-background">
         {/* Header */}
         <Toolbar
           onOpenAiSettings={() => setShowAiModal(true)}
@@ -1061,6 +1171,21 @@ export default function WorkflowEditor() {
           />
         )}
       </div>
+  );
+}
+
+// Main wrapper component that provides AiProvider context
+export default function WorkflowEditor() {
+  const [aiClient, setAiClient] = useState<OpenAICompatClient>(() => {
+    return new OpenAICompatClient({
+      baseURL: localStorage.getItem('aiBaseURL') || 'https://api.openai.com/v1',
+      apiKey: localStorage.getItem('aiApiKey') || ''
+    });
+  });
+
+  return (
+    <AiProvider client={aiClient}>
+      <WorkflowEditorContent />
     </AiProvider>
   );
 }
