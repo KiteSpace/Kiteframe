@@ -257,23 +257,27 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             </div>
           )}
 
-          {(settings.provider === 'custom' || settings.provider === 'ollama') && (
+          {settings.provider === 'custom' && (
             <div className="space-y-2">
-              <Label htmlFor="customEndpoint">
-                {settings.provider === 'ollama' ? 'Ollama Endpoint' : 'Custom Endpoint'}
-              </Label>
+              <Label htmlFor="customEndpoint">Custom Endpoint</Label>
               <Input
                 id="customEndpoint"
-                placeholder={settings.provider === 'ollama' ? 'http://localhost:11434' : 'https://api.example.com'}
+                placeholder="https://api.example.com"
                 value={settings.customEndpoint || ''}
                 onChange={(e) => setSettings(prev => ({ ...prev, customEndpoint: e.target.value }))}
                 data-testid="input-custom-endpoint"
               />
-              {settings.provider === 'ollama' && (
-                <p className="text-xs text-muted-foreground">
-                  Make sure Ollama is running locally: <code>ollama serve</code>
-                </p>
-              )}
+            </div>
+          )}
+
+          {settings.provider === 'ollama' && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Using local Ollama at <code>http://localhost:11434</code>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Make sure Ollama is running locally: <code>ollama serve</code>
+              </p>
             </div>
           )}
           
