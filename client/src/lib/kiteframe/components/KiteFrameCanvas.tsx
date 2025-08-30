@@ -5,6 +5,51 @@ import { clientToWorld, zoomAroundPoint } from '../utils/geometry';
 import { NodeHandles } from './NodeHandles';
 import { ConnectionEdge } from './ConnectionEdge';
 
+// Utility to calculate dynamic node height based on content
+const calculateNodeHeight = (node: Node, nodeWidth: number): number => {
+  const minHeight = 100;
+  const maxHeight = 400;
+  const titleHeight = 34; // Approximate title height with padding
+  const padding = 24; // Body padding (12px top + 12px bottom)
+  const lineHeight = 16.8; // 12px font-size * 1.4 line-height
+  
+  // For image nodes with images, defer to explicit sizing
+  if (node.type === 'image' && node.data?.src) {
+    return minHeight; // Will be overridden by explicit height anyway
+  }
+  
+  // Get text content
+  const titleText = node.data?.label || node.type || node.id;
+  const bodyText = node.data?.description || 'Drop content here…';
+  
+  if (!bodyText || bodyText.trim() === 'Drop content here…') {
+    return minHeight;
+  }
+  
+  // Estimate character width (approximate for 12px font)
+  const avgCharWidth = 7;
+  const availableWidth = nodeWidth - 24; // Subtract body padding
+  const charsPerLine = Math.max(1, Math.floor(availableWidth / avgCharWidth));
+  
+  // Calculate lines needed for title
+  const titleCharsPerLine = Math.max(1, Math.floor((nodeWidth - 24) / avgCharWidth)); // Title area
+  const titleLines = Math.max(1, Math.ceil(titleText.length / titleCharsPerLine));
+  
+  // Calculate lines needed for body text
+  const bodyLines = bodyText.split('\n').reduce((totalLines: number, line: string) => {
+    if (line.length === 0) return totalLines + 1;
+    return totalLines + Math.max(1, Math.ceil(line.length / charsPerLine));
+  }, 0);
+  
+  // Calculate total height needed
+  const titleRequiredHeight = titleLines * 15.6; // 12px * 1.3 line-height
+  const bodyRequiredHeight = Math.max(40, bodyLines * lineHeight); // min-height 40px
+  const calculatedHeight = titleRequiredHeight + bodyRequiredHeight + padding + 1; // +1 for border
+  
+  // Apply constraints
+  return Math.min(maxHeight, Math.max(minHeight, Math.ceil(calculatedHeight)));
+};
+
 type Props = {
   nodes: Node[];
   edges: Edge[];
@@ -64,7 +109,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   // ---------- helpers ----------
   const getNodeRect = (n: Node) => {
     const w = n.style?.width ?? n.width ?? 200;
-    const h = n.style?.height ?? n.height ?? 100;
+    const h = n.style?.height ?? n.height ?? calculateNodeHeight(n, w);
     return {
       x: n.position.x,
       y: n.position.y,
@@ -423,7 +468,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         {/* Nodes */}
         {props.nodes.filter(n=>!n.hidden).map(n => {
           const w = n.style?.width ?? n.width ?? 200;
-          const h = n.style?.height ?? n.height ?? 100;
+          // Use dynamic height calculation if no explicit height is set
+          const h = n.style?.height ?? n.height ?? calculateNodeHeight(n, w);
           const color = n.data?.color || 'white';
           const border = n.data?.borderColor || '#e2e8f0';
           const txt = n.data?.textColor || '#0f172a';
