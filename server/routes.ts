@@ -175,7 +175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       } else if (activeProvider === 'kiteframe') {
         // Kiteframe managed Ollama service
-        endpoint = 'https://ollama.replit.app/v1/chat/completions';
+        endpoint = 'https://driftline.replit.app/v1/chat/completions';
         headers = {
           'Content-Type': 'application/json'
           // Kiteframe managed service - no auth required
@@ -360,7 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
           break;
         case 'kiteframe':
-          testUrl = 'https://ollama.replit.app/v1/chat/completions';
+          testUrl = 'https://driftline.replit.app/v1/chat/completions';
           headers = {
             'Content-Type': 'application/json'
             // Kiteframe managed service - no auth required
