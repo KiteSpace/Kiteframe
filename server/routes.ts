@@ -292,14 +292,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { provider, model, apiKey, customEndpoint } = req.body;
       
-      if (!apiKey && provider !== 'ollama') {
+      if (!apiKey && provider !== 'ollama' && provider !== 'kiteframe') {
         return res.status(400).json({ error: 'API key is required for testing' });
       }
 
       // Clean and validate API key format - must be ASCII only (no emojis or special Unicode characters)
-      // Skip validation for Ollama which doesn't need API keys
+      // Skip validation for Ollama and Kiteframe which don't need API keys
       let cleanApiKey = '';
-      if (provider !== 'ollama' && apiKey) {
+      if (provider !== 'ollama' && provider !== 'kiteframe' && apiKey) {
         cleanApiKey = apiKey.trim();
         console.log('API Key validation:', { 
           length: cleanApiKey.length, 
