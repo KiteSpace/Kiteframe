@@ -26,18 +26,23 @@ Preferred communication style: Simple, everyday language.
   - Fixed TypeScript compilation errors in workflow generation code
   - Memory optimized deployment now supports Gemma2 2B model within constraints
 
-- **OpenAI Integration Enhancement:**
+- **OpenAI Integration Complete:**
   - Removed API key requirement for users - automatically uses environment secret
   - Updated UI to indicate OpenAI is ready to use without setup
   - Server-side integration automatically routes to stored OPENAI_API_KEY
-  - Fixed model to GPT-4o Mini across all components (AI client, settings, workflow generator)
+  - Fixed model to GPT-4o across all components (not GPT-5 due to API access limitations)
   - Resolved API key routing issue that was using Anthropic keys for OpenAI requests
+  - Added automatic legacy settings migration (gpt-5 → gpt-4o)
+  - Quick test functionality confirmed working with GPT-4o
   - Simplified user experience for cloud AI access with no configuration needed
 
-- **KitelineAI Model Deployment Success:**
+- **KitelineAI Model Deployment Complete:**
   - Successfully resolved memory constraints by removing Phi-3 Mini model
   - Llama 3.2 3B now running successfully on KitelineAI deployment
   - Freed sufficient memory (3.4 GiB required vs 3.3+ GiB available after cleanup)
+  - Added automatic legacy settings migration (tinyllama:1.1b → llama3.2:3b)  
+  - Quick test functionality confirmed working with Llama 3.2 3B
+  - Fixed server-side default model routing for provider test endpoints
   - KitelineAI now provides privacy-focused Llama 3.2 3B processing as requested
 
 - **Hybrid Privacy Approach Implementation:**

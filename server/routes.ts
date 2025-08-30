@@ -288,7 +288,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Test endpoint - validate API key and model compatibility
   app.post('/api/ai/test', async (req, res) => {
     try {
-      const { provider, model, apiKey, customEndpoint } = req.body;
+      const { provider, apiKey, customEndpoint } = req.body;
+      
+      // Set default models for each provider
+      let model = req.body.model;
+      console.log('Test model received:', { model, type: typeof model, provider });
+      
+      if (!model || model === 'undefined' || model === 'null' || (typeof model === 'string' && model.trim() === '')) {
+        console.log('Setting default model for provider:', provider);
+        switch (provider) {
+          case 'openai':
+            model = 'gpt-4o';
+            break;
+          case 'kiteframe':
+            model = 'llama3.2:3b';
+            break;
+          case 'anthropic':
+            model = 'claude-3-5-sonnet-20241022';
+            break;
+          case 'ollama':
+            model = 'llama3.2:3b'; // Default Ollama model
+            break;
+          default:
+            model = 'gpt-4o';
+        }
+        console.log('Default model set to:', model);
+      }
       
       // For OpenAI, always use environment key. For others, require API key unless it's ollama/kiteframe
       let finalApiKey = apiKey;
@@ -405,10 +430,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       } else if (provider === 'kiteframe') {
         // For KitelineAI, first check if model is available and load if needed
+        console.log('KitelineAI model check for:', model);
         try {
           const tagsResponse = await fetch('https://kiteline-ai.replit.app/api/tags');
           const tagsData = await tagsResponse.json();
           const availableModels = tagsData.models?.map((m: any) => m.name) || [];
+          console.log('Available KitelineAI models:', availableModels);
           
           if (!availableModels.includes(model)) {
             return res.status(404).json({ 

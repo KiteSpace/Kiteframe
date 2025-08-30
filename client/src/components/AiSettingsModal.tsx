@@ -55,7 +55,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       { value: 'custom', label: 'Custom Model' }
     ],
     kiteframe: [
-      { value: 'tinyllama:1.1b', label: 'TinyLlama 1.1B (Available)' },
+      { value: 'llama3.2:3b', label: 'Llama 3.2 3B (Available)' },
       { value: 'custom', label: 'Custom Model' }
     ],
     custom: [
@@ -72,7 +72,15 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setSettings(prev => ({ ...prev, ...parsed }));
+        // Fix legacy settings with wrong models
+        const fixedSettings = { ...parsed };
+        if (fixedSettings.provider === 'openai' && fixedSettings.model === 'gpt-5') {
+          fixedSettings.model = 'gpt-4o';
+        }
+        if (fixedSettings.provider === 'kiteframe' && fixedSettings.model === 'tinyllama:1.1b') {
+          fixedSettings.model = 'llama3.2:3b';
+        }
+        setSettings(prev => ({ ...prev, ...fixedSettings }));
       } catch (e) {
         console.warn('Failed to parse saved AI settings');
       }
@@ -169,7 +177,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider: settings.provider,
-          model: modelToTest,
+          model: modelToTest || undefined, // Let server set defaults if empty
           apiKey: settings.apiKey,
           customEndpoint: settings.customEndpoint
         })
@@ -283,8 +291,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
           {settings.provider === 'openai' && (
             <div className="space-y-2">
               <Label>Model</Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-800 border rounded-md text-sm">
-                Using: <strong>GPT-4o</strong> (latest OpenAI model)
+              <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-md text-sm">
+                ✅ Using: <strong>GPT-4o</strong> (latest OpenAI model, no setup required)
               </div>
             </div>
           )}
@@ -292,8 +300,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
           {settings.provider === 'kiteframe' && (
             <div className="space-y-2">
               <Label>Model</Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-800 border rounded-md text-sm">
-                Using: <strong>Llama 3.2 3B</strong> (privacy-focused processing)
+              <div className="p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-md text-sm">
+                🔒 Using: <strong>Llama 3.2 3B</strong> (privacy-focused processing, no setup required)
               </div>
             </div>
           )}
