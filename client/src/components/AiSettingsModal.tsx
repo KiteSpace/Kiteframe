@@ -26,7 +26,7 @@ interface AiSettingsModalProps {
 export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   const [settings, setSettings] = useState<AiSettings>({
     provider: 'openai',
-    model: 'gpt-5', // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+    model: 'gpt-4o-mini',
     apiKey: '',
     temperature: 0.7
   });
@@ -55,7 +55,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       { value: 'custom', label: 'Custom Model' }
     ],
     kiteframe: [
-      { value: 'gemma2:2b', label: 'Gemma2 2B (Available)' },
+      { value: 'tinyllama:1.1b', label: 'TinyLlama 1.1B (Available)' },
       { value: 'custom', label: 'Custom Model' }
     ],
     custom: [
@@ -280,24 +280,35 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             </Select>
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="model">Model</Label>
-            <Select
-              value={settings.model}
-              onValueChange={handleModelChange}
-            >
-              <SelectTrigger data-testid="select-ai-model">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(modelOptions[settings.provider as keyof typeof modelOptions] || []).map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {settings.provider === 'openai' && (
+            <div className="space-y-2">
+              <Label>Model</Label>
+              <div className="p-2 bg-gray-50 dark:bg-gray-800 border rounded-md text-sm">
+                Using: <strong>GPT-4o Mini</strong> (optimized for speed and cost)
+              </div>
+            </div>
+          )}
+
+          {settings.provider !== 'openai' && (
+            <div className="space-y-2">
+              <Label htmlFor="model">Model</Label>
+              <Select
+                value={settings.model}
+                onValueChange={handleModelChange}
+              >
+                <SelectTrigger data-testid="select-ai-model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(modelOptions[settings.provider as keyof typeof modelOptions] || []).map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {settings.model === 'custom' && (
             <div className="space-y-2">
@@ -397,7 +408,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                   <div>• <strong>No API key required</strong> - Ready to use immediately</div>
                   <div>• <strong>Data never stored</strong> - Processed only, never saved</div>
                   <div>• <strong>Private infrastructure</strong> - Your own dedicated AI server</div>
-                  <div>• <strong>Available model</strong> - Gemma2 2B optimized for memory constraints</div>
+                  <div>• <strong>Available model</strong> - TinyLlama 1.1B (memory optimized)</div>
                   <div>• <strong>Cost optimized</strong> - Scales to zero when not in use</div>
                 </div>
               </div>
