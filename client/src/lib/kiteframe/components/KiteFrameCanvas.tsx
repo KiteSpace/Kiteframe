@@ -281,6 +281,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const dx = wp.x - dragInfo.current.start.x;
       const dy = wp.y - dragInfo.current.start.y;
       
+      console.log('🔧 DRAG MOVE:', {
+        dragInfo: dragInfo.current,
+        worldPos: wp,
+        delta: { dx, dy },
+        viewport,
+        isGroupDrag: dragInfo.current.isGroupDrag
+      });
+      
       if (dragInfo.current.isGroupDrag && dragInfo.current.origins) {
         // Group drag: move all selected nodes
         const updated = props.nodes.map(n => {
@@ -290,6 +298,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           }
           return n;
         });
+        console.log('🔧 GROUP DRAG UPDATE:', {
+          updatedNodes: updated.filter(n => dragInfo.current!.origins!.some(o => o.id === n.id)),
+          totalNodes: updated.length
+        });
         props.onNodesChange(updated);
         
 
@@ -297,6 +309,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         // Individual drag: move single node
         const id = dragInfo.current.id;
         const updated = props.nodes.map(n => n.id === id ? { ...n, position: { x: dragInfo.current!.origin.x + dx, y: dragInfo.current!.origin.y + dy } } : n);
+        console.log('🔧 INDIVIDUAL DRAG UPDATE:', {
+          nodeId: id,
+          newPosition: { x: dragInfo.current!.origin.x + dx, y: dragInfo.current!.origin.y + dy },
+          updated: updated.find(n => n.id === id)
+        });
         props.onNodesChange(updated);
         
 
@@ -304,6 +321,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     };
     
     const onUp = () => { 
+      console.log('🔧 DRAG END:', dragInfo.current);
       dragInfo.current = null;
     };
     
@@ -313,7 +331,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [viewport, props.nodes]);
+  }, [viewport, props]);
 
   // Grid (optional – keep your existing grid if you have one)
   const Grid = () => {
@@ -436,6 +454,15 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   origins: origins,
                   isGroupDrag: isGroupDrag
                 };
+                
+                console.log('🔧 DRAG START:', {
+                  nodeId: n.id,
+                  worldPos: wp,
+                  nodePosition: n.position,
+                  selectedNodes: selectedNodes.map(sn => sn.id),
+                  isGroupDrag,
+                  dragInfo: dragInfo.current
+                });
               }}
               onDoubleClick={(e)=>props.onNodeDoubleClick?.(e, n)}
               onContextMenu={(e)=>{ e.preventDefault(); props.onNodeRightClick?.(e, n); }}

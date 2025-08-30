@@ -561,15 +561,36 @@ export default function WorkflowEditor() {
               viewport={viewport}
               onViewportChange={setViewport}
               onNodesChange={(changes) => {
+                console.log('📊 onNodesChange CALLED:', {
+                  changes,
+                  isArray: Array.isArray(changes),
+                  length: Array.isArray(changes) ? changes.length : 0,
+                  firstItem: Array.isArray(changes) && changes.length > 0 ? changes[0] : null
+                });
+                
                 // Handle both array of changes and direct node array updates
                 if (Array.isArray(changes) && changes.length > 0) {
                   // Check if it's a direct nodes array update (from drag operations)
-                  if (changes[0].id && changes[0].position && !changes[0].type) {
+                  // Nodes have a 'type' property that is the node type ('input', 'ai', etc.)
+                  // Changes have a 'type' property that is the change type ('position', 'select', etc.)
+                  const isNodeArray = changes[0].id && changes[0].position && 
+                    (changes[0].type === 'input' || changes[0].type === 'ai' || 
+                     changes[0].type === 'condition' || changes[0].type === 'output' || 
+                     changes[0].type === 'process' || changes[0].type === 'image');
+                  
+                  if (isNodeArray) {
                     // Direct nodes array from KiteFrameCanvas drag operations
+                    console.log('📊 DIRECT NODE UPDATE (drag):', {
+                      nodeCount: changes.length,
+                      sample: changes[0]
+                    });
                     setNodes(changes as Node[]);
-                    saveToHistory();
+                    // Don't save to history on every drag move, only on drag end
                   } else {
                     // Change-based updates
+                    console.log('📊 CHANGE-BASED UPDATE:', {
+                      changeTypes: changes.map((c: any) => c.type)
+                    });
                     setNodes(prev => {
                       let newNodes = [...prev];
                       changes.forEach(change => {
