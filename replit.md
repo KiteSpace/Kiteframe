@@ -10,13 +10,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### January 2025 - AI Workflow Generation Fix & Enhanced Node Selection
+### January 2025 - AI Workflow Generation Fix & Auto Layout Feature
+
+- **Auto Layout System Added:**
+  - Added auto layout button to vertical toolbar with 5 layout options
+  - Implemented Horizontal Flow, Vertical Flow, Grid Layout, Circular Layout, and Hierarchical layouts
+  - Button only enabled when nodes are present on canvas
+  - Dropdown closes automatically when clicking outside or selecting an option
+  - All layouts save to history for undo/redo functionality
 
 - **AI Workflow Generation Fixed:**
   - Resolved parameter mismatch preventing AI-generated workflows from appearing on canvas
   - Updated callback interface from separate parameters to single workflow object
   - Added comprehensive logging to track AI generation data flow
   - Verified successful integration between OpenAI API and canvas rendering
+  - Updated AI to generate nodes in center of canvas instead of upper-left corner
 
 - **Node Selection System Restored:**
   - Removed complex drag detection logic that was blocking click events
