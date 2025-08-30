@@ -32,13 +32,22 @@ Preferred communication style: Simple, everyday language.
   - Fixed coordinate system issues with node interactions
   - Simplified drag/drop functionality to work without interfering with clicks
 
-- **Additive Workflow Functionality (Latest):**
+- **Additive Workflow Functionality:**
   - Implemented additive workflow system for sidebar import and AI generation buttons
   - AI generate button now prompts for workflow description and appends to existing canvas
   - Import button now opens file dialog and appends imported workflows to existing canvas
   - Added smart offset positioning system to place new workflows to the right of existing ones
   - Included unique ID generation with timestamps to prevent conflicts between workflows
   - Preserved history tracking and undo/redo functionality for all append operations
+
+- **Dynamic Node Text Wrapping & Height Adjustment (Latest):**
+  - Added automatic text wrapping for node titles and descriptions
+  - Implemented dynamic node height calculation based on content length
+  - Nodes maintain default 100px height for short content
+  - Height automatically expands when text content requires more space
+  - Maximum height limit of 400px with scrollable overflow for extremely long content
+  - Preserved image node aspect ratio sizing with explicit height override
+  - Enhanced text rendering with proper line spacing and paragraph break handling
 
 ### December 2025 - Enhanced Image Management & Local Storage Implementation
 - **Image Management System Overhaul:**
