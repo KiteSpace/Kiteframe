@@ -10,6 +10,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 2025 - AI Workflow Generation Fix & Enhanced Node Selection
+
+- **AI Workflow Generation Fixed:**
+  - Resolved parameter mismatch preventing AI-generated workflows from appearing on canvas
+  - Updated callback interface from separate parameters to single workflow object
+  - Added comprehensive logging to track AI generation data flow
+  - Verified successful integration between OpenAI API and canvas rendering
+
+- **Node Selection System Restored:**
+  - Removed complex drag detection logic that was blocking click events
+  - Restored simple click handling from pre-tabs implementation  
+  - Fixed coordinate system issues with node interactions
+  - Simplified drag/drop functionality to work without interfering with clicks
+
 ### December 2025 - Enhanced Image Management & Local Storage Implementation
 - **Image Management System Overhaul:**
   - Added "Add image" buttons in both properties panel and image node bodies

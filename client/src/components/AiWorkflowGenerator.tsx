@@ -10,7 +10,7 @@ import { Sparkles, Loader2 } from 'lucide-react';
 
 interface AiWorkflowGeneratorProps {
   onClose: () => void;
-  onGenerate: (nodes: Node[], edges: Edge[]) => void;
+  onGenerate: (workflow: { nodes: Node[], edges: Edge[] }) => void;
 }
 
 export function AiWorkflowGenerator({ onClose, onGenerate }: AiWorkflowGeneratorProps) {
@@ -81,7 +81,14 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
       const workflowData = JSON.parse(cleanedResponse);
 
       if (workflowData.nodes && workflowData.edges) {
-        onGenerate(workflowData.nodes, workflowData.edges);
+        console.log('🤖 AI GENERATED WORKFLOW:', { 
+          nodeCount: workflowData.nodes.length, 
+          edgeCount: workflowData.edges.length,
+          nodes: workflowData.nodes,
+          edges: workflowData.edges
+        });
+        
+        onGenerate(workflowData);
         toast({
           title: "Workflow Generated",
           description: `Created ${workflowData.nodes.length} nodes and ${workflowData.edges.length} connections.`,

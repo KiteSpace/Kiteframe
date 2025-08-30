@@ -648,12 +648,22 @@ export default function WorkflowEditor() {
           <AiWorkflowGenerator
             onClose={() => setShowAiGenerator(false)}
             onGenerate={(generatedWorkflow: any) => {
+              console.log('📝 WORKFLOW EDITOR RECEIVED AI DATA:', { 
+                hasNodes: !!generatedWorkflow.nodes,
+                nodeCount: generatedWorkflow.nodes?.length || 0,
+                hasEdges: !!generatedWorkflow.edges,
+                edgeCount: generatedWorkflow.edges?.length || 0,
+                generatedWorkflow
+              });
+              
               // Handle generated workflow
               if (generatedWorkflow.nodes) {
                 setNodes(generatedWorkflow.nodes);
+                console.log('📝 NODES SET FROM AI:', generatedWorkflow.nodes);
               }
               if (generatedWorkflow.edges) {
                 setEdges(generatedWorkflow.edges);
+                console.log('📝 EDGES SET FROM AI:', generatedWorkflow.edges);
               }
               saveToHistory();
               setShowAiGenerator(false);
