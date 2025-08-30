@@ -236,18 +236,16 @@ function WorkflowEditorContent() {
   const generateWorkflowFromPrompt = useCallback(async (prompt: string): Promise<{ nodes: Node[]; edges: Edge[] }> => {
     const systemPrompt = `You are a workflow generator. Create a visual workflow based on the user's description. 
 
-Return a JSON object with "nodes" and "edges" arrays. Each node should have:
+Return ONLY a valid JSON object with "nodes" and "edges" arrays. Keep descriptions short and concise.
+
+Each node should have:
 - id: unique string (like "node-1", "node-2", etc.)
 - type: one of "input", "process", "condition", "output", "ai", "image"
-- position: {x: number, y: number} (CENTER the workflow on canvas - start first node around x:300, y:250 and spread horizontally 250px apart)
-- data: {label: string, description: string, icon: string, iconColor: string}
+- position: {x: number, y: number} (CENTER workflow - start first node at x:300, y:250, then x:550, y:250, etc.)
+- data: {label: string, description: string (MAX 50 chars), icon: string, iconColor: string}
 - width: 200, height: 100
 
-POSITIONING RULES:
-- Start the first node at approximately x:300, y:250 (center-left of canvas)
-- Place subsequent nodes 250px to the right: x:550, y:250 then x:800, y:250, etc.
-- For branching workflows, offset vertically by ±150px: y:100 for upper branch, y:400 for lower branch
-- Keep the workflow centered and visually balanced
+POSITIONING: Start at x:300, y:250, then horizontally +250px per node. For branches: y:100 (upper), y:400 (lower).
 
 Each edge should have:
 - id: unique string (like "edge-1", "edge-2", etc.)
@@ -259,13 +257,13 @@ Each edge should have:
 
 Icon mapping:
 - input: "ArrowRight", color: "text-blue-500"
-- process: "Cog", color: "text-green-500"
+- process: "Cog", color: "text-green-500"  
 - condition: "HelpCircle", color: "text-yellow-500"
 - output: "ArrowLeft", color: "text-red-500"
 - ai: "Bot", color: "text-purple-500"
 - image: "Image", color: "text-indigo-500"
 
-Create a logical flow with meaningful labels and descriptions. Position nodes left to right based on workflow order, centered on the canvas.`;
+Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
     const response = await ai.chat({
       messages: [
@@ -273,7 +271,7 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      maxTokens: 2000
+      maxTokens: 4000
     });
 
     // Parse the AI response with better JSON cleaning
@@ -294,7 +292,8 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
     try {
       workflowData = JSON.parse(cleanedResponse);
     } catch (firstError) {
-      console.log('❌ FIRST PARSE FAILED, TRYING FIXES:', firstError.message);
+      const errorMsg = firstError instanceof Error ? firstError.message : String(firstError);
+      console.log('❌ FIRST PARSE FAILED, TRYING FIXES:', errorMsg);
       
       // Try additional cleaning if first parse fails
       let fixedResponse = cleanedResponse;
@@ -313,15 +312,16 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
       try {
         workflowData = JSON.parse(fixedResponse);
       } catch (secondError) {
+        const secondErrorMsg = secondError instanceof Error ? secondError.message : String(secondError);
         console.error('❌ BOTH PARSE ATTEMPTS FAILED:', { 
-          original: firstError.message,
-          afterFix: secondError.message,
+          original: errorMsg,
+          afterFix: secondErrorMsg,
           responseLength: response.text.length,
           cleanedLength: cleanedResponse.length,
           rawStart: response.text.substring(0, 100),
           cleanedStart: cleanedResponse.substring(0, 100)
         });
-        throw new Error(`Failed to parse AI response: ${secondError.message}. Raw response length: ${response.text.length}`);
+        throw new Error(`Failed to parse AI response: ${secondErrorMsg}. Raw response length: ${response.text.length}`);
       }
     }
 
