@@ -108,13 +108,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let activeProvider = provider;
       let activeApiKey = clientApiKey;
       
-      // If no explicit provider/key, try to infer from model name
-      if (!activeProvider || !activeApiKey) {
+      // If no explicit provider, try to infer from model name
+      if (!activeProvider) {
         if (model && model.includes('claude')) {
           activeProvider = 'anthropic';
           activeApiKey = process.env.ANTHROPIC_API_KEY;
         } else {
           activeProvider = 'openai';
+          activeApiKey = process.env.OPENAI_API_KEY;
+        }
+      }
+      
+      // Set API keys from environment if not provided (but not for Ollama which doesn't need them)
+      if (!activeApiKey && activeProvider !== 'ollama') {
+        if (activeProvider === 'anthropic') {
+          activeApiKey = process.env.ANTHROPIC_API_KEY;
+        } else if (activeProvider === 'openai') {
           activeApiKey = process.env.OPENAI_API_KEY;
         }
       }
