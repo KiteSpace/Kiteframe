@@ -120,7 +120,12 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
+### Multi-Service Architecture
+- **Driftline** (Main Application): Visual workflow editor at https://driftline.replit.app
+- **KitelineAI** (AI Service): Dedicated Ollama service for privacy-focused AI processing
+- **Service Communication**: Driftline connects to KitelineAI for AI workflow generation
+
+### Frontend Architecture (Driftline)
 - **Framework**: React 18 with TypeScript and Vite for development
 - **UI Components**: Radix UI primitives with shadcn/ui design system
 - **Styling**: Tailwind CSS with CSS custom properties for theming
@@ -128,12 +133,18 @@ Preferred communication style: Simple, everyday language.
 - **Canvas System**: Custom KiteFrame library for interactive workflow canvas with node/edge management
 - **Routing**: Wouter for lightweight client-side routing
 
-### Backend Architecture
+### Backend Architecture (Driftline)
 - **Runtime**: Node.js with Express.js framework
 - **Language**: TypeScript with ES modules
 - **Development**: Custom Vite integration for hot reloading in development
 - **API Structure**: RESTful API with `/api` prefix routing
 - **Storage Interface**: Pluggable storage system with in-memory implementation
+
+### AI Service Architecture (KitelineAI)
+- **Runtime**: Ollama on Replit Autoscale deployment
+- **Models**: Llama 3.2 3B, Phi-3 Mini (optimized for fast startup)
+- **API**: OpenAI-compatible endpoints for seamless integration
+- **Privacy**: Data processed but never stored, dedicated infrastructure
 
 ### Data Storage Solutions
 - **Database ORM**: Drizzle ORM configured for PostgreSQL

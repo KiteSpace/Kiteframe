@@ -97,7 +97,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       model: defaultModel,
       customModel: provider === 'custom' ? prev.customModel : '',
       customEndpoint: provider === 'ollama' ? 'http://localhost:11434' : 
-                      provider === 'kiteframe' ? 'https://driftline.replit.app' :
+                      provider === 'kiteframe' ? 'https://kitelineai.replit.app' :
                       provider === 'custom' ? prev.customEndpoint || 'https://api.openai.com' : ''
     }));
   };
@@ -394,7 +394,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                   🚀 Kiteframe Managed Privacy
                 </p>
                 <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                  Maximum privacy with zero setup - Kiteframe runs secure Ollama for you
+                  Maximum privacy with zero setup - KitelineAI runs secure Ollama for you
                 </p>
                 <div className="text-xs text-green-600 dark:text-green-400 mt-2 space-y-1">
                   <div>• <strong>No API key required</strong> - Ready to use immediately</div>
