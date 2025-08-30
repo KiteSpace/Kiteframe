@@ -55,10 +55,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       { value: 'custom', label: 'Custom Model' }
     ],
     kiteframe: [
-      { value: 'llama3.1:8b', label: 'Llama 3.1 8B' },
-      { value: 'llama3.2:3b', label: 'Llama 3.2 3B' },
-      { value: 'mistral:7b', label: 'Mistral 7B' },
-      { value: 'phi3:mini', label: 'Phi-3 Mini' },
+      { value: 'tinyllama:1.1b', label: 'TinyLlama 1.1B (Memory Optimized)' },
       { value: 'custom', label: 'Custom Model' }
     ],
     custom: [
@@ -400,6 +397,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                   <div>• <strong>No API key required</strong> - Ready to use immediately</div>
                   <div>• <strong>Data never stored</strong> - Processed only, never saved</div>
                   <div>• <strong>Private infrastructure</strong> - Your own dedicated AI server</div>
+                  <div>• <strong>Memory optimized</strong> - TinyLlama 1.1B for fast responses</div>
                   <div>• <strong>Cost optimized</strong> - Scales to zero when not in use</div>
                 </div>
               </div>

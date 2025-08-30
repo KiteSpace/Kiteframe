@@ -10,22 +10,34 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### January 2025 - Comprehensive Privacy-First AI Integration with Managed Ollama Service
+### January 2025 - KitelineAI Integration & Memory Optimization (Latest)
+
+- **Two-Service Architecture Deployment:**
+  - Successfully deployed KitelineAI as dedicated Ollama service at https://kiteline-ai.replit.app
+  - Driftline (main app) connects to KitelineAI for privacy-focused AI processing
+  - Autoscale deployment - only pay when users generate workflows
+  - Zero data retention - AI processing without storage
+
+- **Memory Constraint Resolution:**
+  - Identified 3.2 GiB memory limit on current Autoscale deployment
+  - Successfully deployed TinyLlama 1.1B model within memory constraints
+  - Updated deployment configuration to support 8GB for larger models
+  - Removed memory-intensive models from UI (Llama 3.1 8B, Phi-3 Mini requiring 5.6 GiB)
+  - Optimized model selection for immediate functionality
 
 - **Hybrid Privacy Approach Implementation:**
   - Added privacy-focused UI with "Maximum Privacy" and "Standard Privacy" tiers
-  - Maximum Privacy: Kiteframe Managed, Local Ollama, Remote Ollama servers, Custom private endpoints
+  - Maximum Privacy: KitelineAI Managed, Local Ollama, Remote Ollama servers, Custom private endpoints
   - Standard Privacy: OpenAI, Anthropic with established privacy policies
   - Enhanced custom endpoint support with auto-detection for Ollama servers
   - Comprehensive guidance for users to choose appropriate privacy level
 
-- **Kiteframe Managed Privacy Service:**
-  - Added Kiteframe as a zero-setup privacy provider option
-  - Complete Replit Reserved VM deployment configuration for managed Ollama hosting
-  - Pre-configured with popular models: Llama 3.1 8B, Llama 3.2 3B, Mistral 7B, Phi-3 Mini
-  - 99.9% uptime guarantee with dedicated VM infrastructure
+- **KitelineAI Managed Privacy Service:**
+  - Added KitelineAI as a zero-setup privacy provider option
+  - Complete Replit Autoscale deployment with TinyLlama 1.1B (working)
   - No API keys required - immediate privacy-focused AI access
-  - Full deployment guide and configuration files for Reserved VM setup
+  - Full deployment guide and configuration files for autoscale setup
+  - Cost-effective solution scaling to zero when inactive
 
 - **Ollama Local AI Integration:**
   - Added Ollama as a provider option for completely local AI processing

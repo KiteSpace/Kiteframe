@@ -4,6 +4,11 @@ run = "bash start-service.sh"
 deploymentTarget = "cloudrun"
 ignoredPaths = [".git"]
 
+[deployment.cloudrun]
+# Request more memory for larger AI models
+memoryMiB = 8192
+cpuCount = 2
+
 [[ports]]
 localPort = 11434
 externalPort = 80

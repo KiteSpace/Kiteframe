@@ -20,6 +20,8 @@ Complete step-by-step guide to deploy KitelineAI as the AI backend for Driftline
 3. **Configuration**:
    - **App Type**: Web server
    - **Port**: 11434
+   - **Memory**: 8192 MiB (8GB) for larger models
+   - **CPU**: 2 cores for better performance
    - **Build Command**: (leave empty)
    - **Run Command**: `bash start-service.sh`
 4. **Deploy**: Click "Deploy" button
