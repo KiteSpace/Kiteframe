@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Node } from '../lib/kiteframe/types';
+import type { Node, Edge } from '../lib/kiteframe/types';
 import { ObjectUploader } from '@/components/ObjectUploader';
 import { LocalImageUploader } from '@/components/LocalImageUploader';
 import { 
@@ -20,12 +20,14 @@ import {
 
 interface SidebarProps {
   selectedNode?: Node;
+  selectedEdge?: Edge;
   onCreateNode: (type: string) => void;
   onFitView: () => void;
   onClearCanvas: () => void;
   onExport: () => void;
   onImport: () => void;
   onNodeUpdate: (nodeId: string, updates: Partial<Node>) => void;
+  onEdgeUpdate?: (edgeId: string, updates: Partial<Edge>) => void;
   onDeselectNode: () => void;
   onImageUpload?: (nodeId: string, objectPath: string, filename?: string) => void;
   onImageUrl?: (nodeId: string, url: string) => void;
@@ -37,12 +39,14 @@ interface SidebarProps {
 
 export function Sidebar({
   selectedNode,
+  selectedEdge,
   onCreateNode,
   onFitView,
   onClearCanvas,
   onExport,
   onImport,
   onNodeUpdate,
+  onEdgeUpdate,
   onDeselectNode,
   onImageUpload,
   onImageUrl,
@@ -86,7 +90,7 @@ export function Sidebar({
           // Properties view when node is selected
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold">Properties</h3>
+              <h3 className="text-sm font-semibold">Node Properties</h3>
               <button
                 onClick={onDeselectNode}
                 className="p-1 rounded-md hover:bg-accent transition-colors"
@@ -97,16 +101,6 @@ export function Sidebar({
             </div>
             <div className="space-y-3" data-testid="node-properties">
               <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium mb-1">Node ID</label>
-                  <input
-                    type="text"
-                    value={selectedNode.id}
-                    className="w-full p-2 text-xs border border-border rounded bg-background"
-                    readOnly
-                    data-testid="input-node-id"
-                  />
-                </div>
                 <div>
                   <label className="block text-xs font-medium mb-1">Label</label>
                   <input
@@ -254,8 +248,98 @@ export function Sidebar({
               </div>
             </div>
           </div>
+        ) : selectedEdge ? (
+          // Properties view when edge is selected
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">Edge Properties</h3>
+              <button
+                onClick={onDeselectNode}
+                className="p-1 rounded-md hover:bg-accent transition-colors"
+                data-testid="button-close-edge-properties"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-3" data-testid="edge-properties">
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium mb-1">Edge Type</label>
+                  <select
+                    value={selectedEdge.type || 'bezier'}
+                    onChange={(e) => onEdgeUpdate?.(selectedEdge.id, {
+                      type: e.target.value as 'bezier' | 'straight' | 'step'
+                    })}
+                    className="w-full p-2 text-xs border border-border rounded bg-background"
+                    data-testid="select-edge-type"
+                  >
+                    <option value="bezier">Bezier Curve</option>
+                    <option value="straight">Straight Line</option>
+                    <option value="step">Step Line</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Stroke Color</label>
+                  <input
+                    type="color"
+                    value={selectedEdge.style?.strokeColor || '#3b82f6'}
+                    onChange={(e) => onEdgeUpdate?.(selectedEdge.id, {
+                      style: { ...selectedEdge.style, strokeColor: e.target.value }
+                    })}
+                    className="w-full p-1 h-10 border border-border rounded bg-background"
+                    data-testid="input-edge-color"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Stroke Width</label>
+                  <input
+                    type="number"
+                    value={selectedEdge.style?.strokeWidth || 2}
+                    onChange={(e) => onEdgeUpdate?.(selectedEdge.id, {
+                      style: { ...selectedEdge.style, strokeWidth: parseInt(e.target.value) || 2 }
+                    })}
+                    className="w-full p-2 text-xs border border-border rounded bg-background"
+                    min="1"
+                    max="10"
+                    data-testid="input-edge-width"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Animated</label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedEdge.animated || false}
+                      onChange={(e) => onEdgeUpdate?.(selectedEdge.id, {
+                        animated: e.target.checked
+                      })}
+                      className="rounded border-border"
+                      data-testid="checkbox-edge-animated"
+                    />
+                    <span className="text-xs text-muted-foreground">Enable animation</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Arrow Position</label>
+                  <select
+                    value={selectedEdge.markers?.position || 'end'}
+                    onChange={(e) => onEdgeUpdate?.(selectedEdge.id, {
+                      markers: { ...selectedEdge.markers, position: e.target.value as 'start' | 'end' | 'both' }
+                    })}
+                    className="w-full p-2 text-xs border border-border rounded bg-background"
+                    data-testid="select-arrow-position"
+                  >
+                    <option value="none">No Arrow</option>
+                    <option value="start">Start</option>
+                    <option value="end">End</option>
+                    <option value="both">Both Ends</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
-          // Default view when no node is selected
+          // Default view when no node or edge is selected
           <>
             {/* AI Generator Section */}
             <div>

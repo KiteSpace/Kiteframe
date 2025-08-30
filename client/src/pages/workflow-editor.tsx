@@ -263,6 +263,43 @@ export default function WorkflowEditor() {
     }
   }, [historyIndex, history, updateActiveTab]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Delete key handler
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Check if we're not in an input field
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+          return;
+        }
+        
+        // Delete selected nodes
+        const selectedNodes = nodes.filter(n => n.selected);
+        if (selectedNodes.length > 0) {
+          e.preventDefault();
+          console.log('Deleting selected nodes:', selectedNodes.map(n => n.id));
+          setNodes(prev => prev.filter(n => !n.selected));
+          setSelectedNodeId('');
+          saveToHistory();
+        }
+        
+        // Delete selected edges
+        const selectedEdges = edges.filter(e => e.selected);
+        if (selectedEdges.length > 0) {
+          e.preventDefault();
+          console.log('Deleting selected edges:', selectedEdges.map(e => e.id));
+          setEdges(prev => prev.filter(e => !e.selected));
+          setSelectedEdgeId('');
+          saveToHistory();
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [nodes, edges, setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, saveToHistory]);
+
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
 
@@ -433,6 +470,7 @@ export default function WorkflowEditor() {
           <div className="w-80 border-r border-border flex flex-col">
             <Sidebar
               selectedNode={nodes.find(n => n.id === selectedNodeId)}
+              selectedEdge={edges.find(e => e.id === selectedEdgeId)}
               onCreateNode={(type: string) => {
                 saveToHistory(); // Save current state before adding node
                 const icons = {
@@ -533,17 +571,31 @@ export default function WorkflowEditor() {
                 setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, ...updates } : n));
                 saveToHistory();
               }}
+              onEdgeUpdate={(edgeId: string, updates: Partial<Edge>) => {
+                setEdges(prev => prev.map(e => e.id === edgeId ? { ...e, ...updates } : e));
+                saveToHistory();
+              }}
               onDeselectNode={() => {
                 setSelectedNodeId('');
                 setNodes(prev => prev.map(n => ({ ...n, selected: false })));
               }}
               onImageUpload={(nodeId: string, objectPath: string, filename?: string) => {
-                // Handle image upload logic
-                console.log('Image upload:', { nodeId, objectPath, filename });
+                // Update the node with the image data
+                setNodes(prev => prev.map(n => 
+                  n.id === nodeId 
+                    ? { ...n, data: { ...n.data, src: objectPath, filename } }
+                    : n
+                ));
+                saveToHistory();
               }}
               onImageUrl={(nodeId: string, url: string) => {
-                // Handle image URL logic
-                console.log('Image URL:', { nodeId, url });
+                // Update the node with the image URL
+                setNodes(prev => prev.map(n => 
+                  n.id === nodeId 
+                    ? { ...n, data: { ...n.data, src: url, sourceUrl: url } }
+                    : n
+                ));
+                saveToHistory();
               }}
               showImageModal={showImageModal}
               onOpenImageModal={setShowImageModal}
@@ -647,25 +699,53 @@ export default function WorkflowEditor() {
                 console.log(`📝 EDITOR NODE CLICK HANDLER:`, { 
                   nodeId: node.id, 
                   currentSelected: selectedNodeId,
+                  shiftKey: e.shiftKey,
                   tabId: activeTab 
                 });
                 
-                setNodes(prev => {
-                  const updated = prev.map(n => ({ ...n, selected: n.id === node.id }));
-                  console.log(`📝 NODES SELECTION UPDATE:`, { 
-                    selected: updated.filter(n => n.selected).map(n => n.id),
-                    total: updated.length 
+                if (e.shiftKey) {
+                  // Shift+click for multi-select
+                  setNodes(prev => {
+                    const updated = prev.map(n => {
+                      if (n.id === node.id) {
+                        return { ...n, selected: !n.selected };
+                      }
+                      return n;
+                    });
+                    console.log(`📝 MULTI-SELECT UPDATE:`, { 
+                      selected: updated.filter(n => n.selected).map(n => n.id),
+                      total: updated.length 
+                    });
+                    return updated;
                   });
-                  return updated;
-                });
+                  
+                  // Update selectedNodeId to the most recently clicked node if selected
+                  if (!node.selected) {
+                    setSelectedNodeId(node.id);
+                  } else if (selectedNodeId === node.id) {
+                    // If deselecting the current selected node, find another selected node
+                    const otherSelected = nodes.find(n => n.selected && n.id !== node.id);
+                    setSelectedNodeId(otherSelected?.id || '');
+                  }
+                } else {
+                  // Regular click - single select
+                  setNodes(prev => {
+                    const updated = prev.map(n => ({ ...n, selected: n.id === node.id }));
+                    console.log(`📝 SINGLE SELECT UPDATE:`, { 
+                      selected: updated.filter(n => n.selected).map(n => n.id),
+                      total: updated.length 
+                    });
+                    return updated;
+                  });
+                  setSelectedNodeId(node.id);
+                }
                 
                 setEdges(prev => prev.map(e => ({ ...e, selected: false })));
-                setSelectedNodeId(node.id);
                 setSelectedEdgeId('');
                 setContextMenu(null);
                 
                 console.log(`📝 SELECTION STATE SET:`, { 
-                  selectedNodeId: node.id,
+                  selectedNodeId: node.selected && e.shiftKey ? '' : node.id,
                   selectedEdgeId: '',
                   tabId: activeTab 
                 });
