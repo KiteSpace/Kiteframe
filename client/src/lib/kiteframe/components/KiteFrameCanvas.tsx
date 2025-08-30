@@ -9,9 +9,9 @@ import { ConnectionEdge } from './ConnectionEdge';
 const calculateNodeHeight = (node: Node, nodeWidth: number): number => {
   const minHeight = 100;
   const maxHeight = 400;
-  const titleHeight = 34; // Approximate title height with padding
-  const padding = 24; // Body padding (12px top + 12px bottom)
-  const lineHeight = 16.8; // 12px font-size * 1.4 line-height
+  const titlePadding = 16; // Title padding (8px top + 8px bottom)
+  const bodyPadding = 24; // Body padding (12px top + 12px bottom)
+  const borderHeight = 2; // Border thickness
   
   // For image nodes with images, defer to explicit sizing
   if (node.type === 'image' && node.data?.src) {
@@ -20,33 +20,45 @@ const calculateNodeHeight = (node: Node, nodeWidth: number): number => {
   
   // Get text content
   const titleText = node.data?.label || node.type || node.id;
-  const bodyText = node.data?.description || 'Drop content here…';
+  const bodyText = node.data?.description || '';
   
-  if (!bodyText || bodyText.trim() === 'Drop content here…') {
+  // If no meaningful body content, stick to minimum
+  if (!bodyText || bodyText.trim() === '' || bodyText.trim() === 'Drop content here…') {
     return minHeight;
   }
   
-  // Estimate character width (approximate for 12px font)
-  const avgCharWidth = 7;
-  const availableWidth = nodeWidth - 24; // Subtract body padding
-  const charsPerLine = Math.max(1, Math.floor(availableWidth / avgCharWidth));
+  // More accurate character width estimation for 12px font
+  const avgCharWidth = 7.2;
+  const titleLineHeight = 15.6; // 12px * 1.3 line-height
+  const bodyLineHeight = 16.8; // 12px * 1.4 line-height
+  
+  // Calculate available width for text (subtract padding)
+  const titleAvailableWidth = nodeWidth - 24; // Title has same padding as body
+  const bodyAvailableWidth = nodeWidth - 24;
+  
+  const titleCharsPerLine = Math.max(10, Math.floor(titleAvailableWidth / avgCharWidth));
+  const bodyCharsPerLine = Math.max(10, Math.floor(bodyAvailableWidth / avgCharWidth));
   
   // Calculate lines needed for title
-  const titleCharsPerLine = Math.max(1, Math.floor((nodeWidth - 24) / avgCharWidth)); // Title area
   const titleLines = Math.max(1, Math.ceil(titleText.length / titleCharsPerLine));
   
-  // Calculate lines needed for body text
-  const bodyLines = bodyText.split('\n').reduce((totalLines: number, line: string) => {
-    if (line.length === 0) return totalLines + 1;
-    return totalLines + Math.max(1, Math.ceil(line.length / charsPerLine));
-  }, 0);
+  // Calculate lines needed for body text (handle newlines and wrapping)
+  let bodyLines = 0;
+  const textLines = bodyText.split('\n');
+  for (const line of textLines) {
+    if (line.trim() === '') {
+      bodyLines += 1; // Empty line
+    } else {
+      bodyLines += Math.max(1, Math.ceil(line.length / bodyCharsPerLine));
+    }
+  }
   
-  // Calculate total height needed
-  const titleRequiredHeight = titleLines * 15.6; // 12px * 1.3 line-height
-  const bodyRequiredHeight = Math.max(40, bodyLines * lineHeight); // min-height 40px
-  const calculatedHeight = titleRequiredHeight + bodyRequiredHeight + padding + 1; // +1 for border
+  // Calculate total height
+  const titleHeight = (titleLines * titleLineHeight) + titlePadding;
+  const bodyHeight = Math.max(40, (bodyLines * bodyLineHeight) + bodyPadding); // Minimum 40px for body
+  const calculatedHeight = titleHeight + bodyHeight + borderHeight;
   
-  // Apply constraints
+  // Apply constraints and round up
   return Math.min(maxHeight, Math.max(minHeight, Math.ceil(calculatedHeight)));
 };
 
@@ -109,7 +121,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   // ---------- helpers ----------
   const getNodeRect = (n: Node) => {
     const w = n.style?.width ?? n.width ?? 200;
-    const h = n.style?.height ?? n.height ?? calculateNodeHeight(n, w);
+    // Use same logic as in rendering for consistency
+    const dynamicHeight = calculateNodeHeight(n, w);
+    const explicitHeight = n.style?.height ?? (n.type === 'image' && n.data?.src ? n.height : undefined);
+    const h = explicitHeight ?? Math.max(dynamicHeight, n.height ?? 100);
     return {
       x: n.position.x,
       y: n.position.y,
@@ -468,8 +483,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         {/* Nodes */}
         {props.nodes.filter(n=>!n.hidden).map(n => {
           const w = n.style?.width ?? n.width ?? 200;
-          // Use dynamic height calculation if no explicit height is set
-          const h = n.style?.height ?? n.height ?? calculateNodeHeight(n, w);
+          // Use dynamic height calculation, but respect explicit style height or image node heights
+          const dynamicHeight = calculateNodeHeight(n, w);
+          const explicitHeight = n.style?.height ?? (n.type === 'image' && n.data?.src ? n.height : undefined);
+          const h = explicitHeight ?? Math.max(dynamicHeight, n.height ?? 100);
           const color = n.data?.color || 'white';
           const border = n.data?.borderColor || '#e2e8f0';
           const txt = n.data?.textColor || '#0f172a';
