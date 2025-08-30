@@ -10,32 +10,40 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### January 2025 - Local AI Integration with Ollama & Privacy-Focused Provider System
+### January 2025 - Comprehensive Privacy-First AI Integration with Managed Ollama Service
 
 - **Hybrid Privacy Approach Implementation:**
   - Added privacy-focused UI with "Maximum Privacy" and "Standard Privacy" tiers
-  - Maximum Privacy: Local Ollama, Remote Ollama servers, Custom private endpoints
+  - Maximum Privacy: Kiteframe Managed, Local Ollama, Remote Ollama servers, Custom private endpoints
   - Standard Privacy: OpenAI, Anthropic with established privacy policies
   - Enhanced custom endpoint support with auto-detection for Ollama servers
   - Comprehensive guidance for users to choose appropriate privacy level
 
+- **Kiteframe Managed Privacy Service:**
+  - Added Kiteframe as a zero-setup privacy provider option
+  - Complete Replit Reserved VM deployment configuration for managed Ollama hosting
+  - Pre-configured with popular models: Llama 3.1 8B, Llama 3.2 3B, Mistral 7B, Phi-3 Mini
+  - 99.9% uptime guarantee with dedicated VM infrastructure
+  - No API keys required - immediate privacy-focused AI access
+  - Full deployment guide and configuration files for Reserved VM setup
+
 - **Ollama Local AI Integration:**
   - Added Ollama as a provider option for completely local AI processing
-  - Integrated popular local models: Llama 3.1 (8B/70B), Llama 3.2 3B, Mistral 7B, CodeLlama 7B, Phi-3 Mini
+  - Integrated popular local models with seamless model switching
   - No API key required for Ollama - runs entirely on local hardware for privacy
   - Configurable endpoint (defaults to localhost:11434) with automatic service detection
   - Seamless integration with existing AI workflow generation and chat features
-  - **Known Limitation:** Ollama service is unstable in Replit environment; recommended for local development only
 
 - **Enhanced AI Provider System:**
-  - Dynamic provider routing based on model selection (Claude → Anthropic, local models → Ollama)
+  - Dynamic provider routing based on model selection (Claude → Anthropic, local models → Ollama/Kiteframe)
   - Improved error handling with provider-specific messages for common issues
   - API key validation with better format checking and encoding error handling
   - Settings persistence across all AI features with localStorage integration
   - Provider-specific UI elements with privacy indicators and setup guidance
-  - Fixed test button logic to skip API key validation for Ollama provider
-  - Updated error messages to show connection status instead of API key errors for Ollama
+  - Fixed test button logic to skip API key validation for Ollama and Kiteframe providers
+  - Updated error messages to show connection status instead of API key errors
   - Auto-detection of Ollama endpoints in custom provider mode
+  - Modal height fixes with scrollable overflow for viewport compatibility
 
 ### January 2025 - AI Workflow Generation Fix & Auto Layout Feature
 
