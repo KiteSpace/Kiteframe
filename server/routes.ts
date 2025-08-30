@@ -175,7 +175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       } else if (activeProvider === 'kiteframe') {
         // KitelineAI managed Ollama service
-        endpoint = 'https://kitelineai.replit.app/v1/chat/completions';
+        endpoint = 'https://kiteline-ai.replit.app/v1/chat/completions';
         headers = {
           'Content-Type': 'application/json'
           // Kiteframe managed service - no auth required
@@ -360,7 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
           break;
         case 'kiteframe':
-          testUrl = 'https://kitelineai.replit.app/v1/chat/completions';
+          testUrl = 'https://kiteline-ai.replit.app/v1/chat/completions';
           headers = {
             'Content-Type': 'application/json'
             // Kiteframe managed service - no auth required

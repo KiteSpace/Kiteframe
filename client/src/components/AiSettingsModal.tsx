@@ -97,7 +97,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       model: defaultModel,
       customModel: provider === 'custom' ? prev.customModel : '',
       customEndpoint: provider === 'ollama' ? 'http://localhost:11434' : 
-                      provider === 'kiteframe' ? 'https://kitelineai.replit.app' :
+                      provider === 'kiteframe' ? 'https://kiteline-ai.replit.app' :
                       provider === 'custom' ? prev.customEndpoint || 'https://api.openai.com' : ''
     }));
   };
