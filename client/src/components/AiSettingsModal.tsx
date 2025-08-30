@@ -424,7 +424,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             </div>
           )}
           
-          {settings.provider !== 'ollama' && (
+          {settings.provider !== 'ollama' && settings.provider !== 'kiteframe' && (
             <div className="space-y-2">
               <Label htmlFor="apiKey">
                 API Key 
