@@ -561,26 +561,37 @@ export default function WorkflowEditor() {
               viewport={viewport}
               onViewportChange={setViewport}
               onNodesChange={(changes) => {
-                setNodes(prev => {
-                  let newNodes = [...prev];
-                  changes.forEach(change => {
-                    if (change.type === 'position' && change.position) {
-                      const nodeIndex = newNodes.findIndex(n => n.id === change.id);
-                      if (nodeIndex >= 0) {
-                        newNodes[nodeIndex] = { ...newNodes[nodeIndex], position: change.position };
-                      }
-                    } else if (change.type === 'select') {
-                      const nodeIndex = newNodes.findIndex(n => n.id === change.id);
-                      if (nodeIndex >= 0) {
-                        newNodes[nodeIndex] = { ...newNodes[nodeIndex], selected: change.selected };
-                      }
-                    } else if (change.type === 'remove') {
-                      newNodes = newNodes.filter(n => n.id !== change.id);
-                    }
-                  });
-                  return newNodes;
-                });
-                saveToHistory();
+                // Handle both array of changes and direct node array updates
+                if (Array.isArray(changes) && changes.length > 0) {
+                  // Check if it's a direct nodes array update (from drag operations)
+                  if (changes[0].id && changes[0].position && !changes[0].type) {
+                    // Direct nodes array from KiteFrameCanvas drag operations
+                    setNodes(changes as Node[]);
+                    saveToHistory();
+                  } else {
+                    // Change-based updates
+                    setNodes(prev => {
+                      let newNodes = [...prev];
+                      changes.forEach(change => {
+                        if (change.type === 'position' && change.position) {
+                          const nodeIndex = newNodes.findIndex(n => n.id === change.id);
+                          if (nodeIndex >= 0) {
+                            newNodes[nodeIndex] = { ...newNodes[nodeIndex], position: change.position };
+                          }
+                        } else if (change.type === 'select') {
+                          const nodeIndex = newNodes.findIndex(n => n.id === change.id);
+                          if (nodeIndex >= 0) {
+                            newNodes[nodeIndex] = { ...newNodes[nodeIndex], selected: change.selected };
+                          }
+                        } else if (change.type === 'remove') {
+                          newNodes = newNodes.filter(n => n.id !== change.id);
+                        }
+                      });
+                      return newNodes;
+                    });
+                    saveToHistory();
+                  }
+                }
               }}
               onEdgesChange={(changes: any[]) => {
                 setEdges(prev => {
