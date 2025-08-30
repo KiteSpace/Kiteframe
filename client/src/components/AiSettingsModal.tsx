@@ -272,12 +272,19 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
 
           {settings.provider === 'ollama' && (
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Using local Ollama at <code>http://localhost:11434</code>
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Make sure Ollama is running locally: <code>ollama serve</code>
-              </p>
+              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  Local AI Setup Required
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                  Ollama needs to be running locally at <code>http://localhost:11434</code>
+                </p>
+                <div className="text-xs text-amber-600 dark:text-amber-400 mt-2 space-y-1">
+                  <div>1. Install Ollama: <code>curl -fsSL https://ollama.ai/install.sh | sh</code></div>
+                  <div>2. Start service: <code>ollama serve</code></div>
+                  <div>3. Pull a model: <code>ollama pull llama3.2:3b</code></div>
+                </div>
+              </div>
             </div>
           )}
           
