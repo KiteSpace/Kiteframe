@@ -6,7 +6,7 @@ export class OpenAICompatClient implements AiClient {
   async chat(req: AiRequest): Promise<AiResponse> {
     // Get the current AI settings from localStorage
     const savedSettings = localStorage.getItem('ai_settings');
-    let currentModel = req.model || this.opts.defaultModel || 'gpt-4o-mini';
+    let currentModel = req.model || this.opts.defaultModel || 'gpt-4o';
     let provider = 'openai';
     let apiKey = null;
     

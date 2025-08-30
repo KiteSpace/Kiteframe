@@ -26,7 +26,7 @@ interface AiSettingsModalProps {
 export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   const [settings, setSettings] = useState<AiSettings>({
     provider: 'openai',
-    model: 'gpt-4o-mini',
+    model: 'gpt-4o',
     apiKey: '',
     temperature: 0.7
   });
@@ -284,12 +284,21 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             <div className="space-y-2">
               <Label>Model</Label>
               <div className="p-2 bg-gray-50 dark:bg-gray-800 border rounded-md text-sm">
-                Using: <strong>GPT-4o Mini</strong> (optimized for speed and cost)
+                Using: <strong>GPT-4o</strong> (latest OpenAI model)
               </div>
             </div>
           )}
 
-          {settings.provider !== 'openai' && (
+          {settings.provider === 'kiteframe' && (
+            <div className="space-y-2">
+              <Label>Model</Label>
+              <div className="p-2 bg-gray-50 dark:bg-gray-800 border rounded-md text-sm">
+                Using: <strong>Llama 3.2 3B</strong> (privacy-focused processing)
+              </div>
+            </div>
+          )}
+
+          {settings.provider !== 'openai' && settings.provider !== 'kiteframe' && (
             <div className="space-y-2">
               <Label htmlFor="model">Model</Label>
               <Select
@@ -408,7 +417,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                   <div>• <strong>No API key required</strong> - Ready to use immediately</div>
                   <div>• <strong>Data never stored</strong> - Processed only, never saved</div>
                   <div>• <strong>Private infrastructure</strong> - Your own dedicated AI server</div>
-                  <div>• <strong>Available model</strong> - TinyLlama 1.1B (memory optimized)</div>
+                  <div>• <strong>Model</strong> - Llama 3.2 3B (advanced reasoning)</div>
                   <div>• <strong>Cost optimized</strong> - Scales to zero when not in use</div>
                 </div>
               </div>

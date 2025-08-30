@@ -136,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         provider: activeProvider,
         model,
         hasApiKey: !!activeApiKey, 
-        keyPrefix: activeApiKey.substring(0, 7) + '...' 
+        keyPrefix: activeApiKey ? activeApiKey.substring(0, 7) + '...' : 'none'
       });
 
       let endpoint: string;
