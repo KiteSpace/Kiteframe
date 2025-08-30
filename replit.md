@@ -18,6 +18,7 @@ Preferred communication style: Simple, everyday language.
   - No API key required for Ollama - runs entirely on local hardware for privacy
   - Configurable endpoint (defaults to localhost:11434) with automatic service detection
   - Seamless integration with existing AI workflow generation and chat features
+  - **Known Limitation:** Ollama service is unstable in Replit environment; recommended for local development only
 
 - **Enhanced AI Provider System:**
   - Dynamic provider routing based on model selection (Claude → Anthropic, local models → Ollama)
@@ -25,6 +26,8 @@ Preferred communication style: Simple, everyday language.
   - API key validation with better format checking and encoding error handling
   - Settings persistence across all AI features with localStorage integration
   - Provider-specific UI elements (hidden API key field for Ollama, endpoint configuration)
+  - Fixed test button logic to skip API key validation for Ollama provider
+  - Updated error messages to show connection status instead of API key errors for Ollama
 
 ### January 2025 - AI Workflow Generation Fix & Auto Layout Feature
 

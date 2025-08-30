@@ -227,8 +227,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json({ text: responseText });
-    } catch (error) {
+    } catch (error: any) {
       console.error('AI chat error:', error);
+      
+      // Handle Ollama-specific connection errors
+      if (req.body.provider === 'ollama') {
+        if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED')) {
+          return res.status(400).json({ 
+            error: 'Ollama service not running. Please start Ollama locally with: ollama serve' 
+          });
+        }
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          return res.status(400).json({ 
+            error: 'Cannot connect to Ollama. Make sure it is running on the configured endpoint.' 
+          });
+        }
+        return res.status(400).json({ 
+          error: 'Ollama connection failed. Ensure the service is running and accessible.' 
+        });
+      }
+      
       res.status(500).json({ error: 'Internal server error' });
     }
   });
