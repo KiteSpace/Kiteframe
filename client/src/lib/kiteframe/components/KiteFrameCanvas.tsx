@@ -182,16 +182,21 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   // Background interactions: pan or selection (Shift+drag)
   const onBackgroundDown = (e: React.MouseEvent) => {
+    console.log('🔧 BACKGROUND DOWN:', { shiftKey: e.shiftKey, target: e.target });
     const isShift = e.shiftKey;
     if (!isShift && !props.disablePan) {
       setPanning(true);
       panStart.current = { x: e.clientX - viewport.x, y: e.clientY - viewport.y };
+      console.log('🔧 PANNING STARTED');
     } else if (isShift) {
+      e.preventDefault();
+      e.stopPropagation();
       const rect = containerRef.current!.getBoundingClientRect();
       const containerX = e.clientX - rect.left;
       const containerY = e.clientY - rect.top;
       selectStart.current = { x: containerX, y: containerY };
       setSelectRect({ x: containerX, y: containerY, w: 0, h: 0 });
+      console.log('🔲 SELECTION STARTED:', { containerX, containerY });
     }
   };
 
@@ -206,12 +211,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const containerX = e.clientX - rect.left;
       const containerY = e.clientY - rect.top;
       const sx = selectStart.current.x, sy = selectStart.current.y;
-      setSelectRect({ 
+      const newRect = { 
         x: Math.min(sx, containerX), 
         y: Math.min(sy, containerY), 
         w: Math.abs(containerX - sx), 
         h: Math.abs(containerY - sy) 
-      });
+      };
+      setSelectRect(newRect);
+      console.log('🔲 SELECTION DRAG:', newRect);
       return;
     }
     if (connecting) {
