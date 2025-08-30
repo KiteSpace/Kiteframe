@@ -8,6 +8,7 @@ import { AiWorkflowGenerator } from '@/components/AiWorkflowGenerator';
 import { WorkflowImportModal } from '@/components/WorkflowImportModal';
 import { ContextMenu } from '@/components/ContextMenu';
 import { MissingImagesModal } from '@/components/MissingImagesModal';
+import { NewTabModal } from '@/components/NewTabModal';
 import { AiProvider } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import { ObjectUploader } from '@/components/ObjectUploader';
@@ -220,6 +221,57 @@ export default function WorkflowEditor() {
     ));
   }, []);
 
+  // New tab creation handlers
+  const handleCreateBlank = useCallback(() => {
+    const newTab = createBlankTab();
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+  }, [createBlankTab]);
+
+  const handleCreateFromPrompt = useCallback(async (prompt: string) => {
+    // Create a new blank tab first
+    const newTab = createBlankTab();
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+    
+    // Then trigger AI generation for this tab
+    setShowAiGenerator(true);
+  }, [createBlankTab]);
+
+  const handleCreateFromFile = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
+    const newTab: WorkflowTab = {
+      id: generateTabId(),
+      name: generateCuteName(),
+      nodes: data.nodes.map(node => ({ ...node, selected: false })),
+      edges: data.edges.map(edge => ({ ...edge, selected: false })),
+      viewport: { x: 0, y: 0, zoom: 1 },
+      selectedNodeId: '',
+      selectedEdgeId: '',
+      history: [],
+      historyIndex: -1,
+      showImageModal: null
+    };
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+  }, [generateTabId, generateCuteName]);
+
+  const handleCreateFromTemplate = useCallback((template: { name: string; nodes: Node[]; edges: Edge[] }) => {
+    const newTab: WorkflowTab = {
+      id: generateTabId(),
+      name: template.name,
+      nodes: template.nodes.map(node => ({ ...node, selected: false })),
+      edges: template.edges.map(edge => ({ ...edge, selected: false })),
+      viewport: { x: 0, y: 0, zoom: 1 },
+      selectedNodeId: '',
+      selectedEdgeId: '',
+      history: [],
+      historyIndex: -1,
+      showImageModal: null
+    };
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+  }, [generateTabId, generateCuteName]);
+
   // History management
   const saveToHistory = useCallback(() => {
     if (!activeTab) return;
@@ -405,6 +457,7 @@ export default function WorkflowEditor() {
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showNewTabModal, setShowNewTabModal] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node } | null>(null);
   const [aiClient, setAiClient] = useState<OpenAICompatClient>(() => {
     return new OpenAICompatClient({
@@ -455,7 +508,7 @@ export default function WorkflowEditor() {
             ))}
             <button
               className="flex items-center justify-center w-8 h-8 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
-              onClick={createNewTab}
+              onClick={() => setShowNewTabModal(true)}
               data-testid="button-new-tab"
               title="New Workflow Tab"
             >
@@ -961,6 +1014,16 @@ export default function WorkflowEditor() {
               saveToHistory();
               setShowImportModal(false);
             }}
+          />
+        )}
+        {showNewTabModal && (
+          <NewTabModal
+            isOpen={showNewTabModal}
+            onClose={() => setShowNewTabModal(false)}
+            onCreateBlank={handleCreateBlank}
+            onCreateFromPrompt={handleCreateFromPrompt}
+            onCreateFromFile={handleCreateFromFile}
+            onCreateFromTemplate={handleCreateFromTemplate}
           />
         )}
         {contextMenu && (
