@@ -99,49 +99,110 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // AI Chat endpoint - proxy requests to OpenAI with server-side API key
+  // AI Chat endpoint - proxy for AI models with dynamic provider routing
   app.post('/api/ai/chat', async (req, res) => {
     try {
-      const apiKey = process.env.OPENAI_API_KEY;
-      if (!apiKey) {
-        console.error('OPENAI_API_KEY environment variable not found');
-        return res.status(401).json({ error: 'OpenAI API key not configured' });
-      }
+      const { model, messages, temperature, maxTokens, provider, apiKey: clientApiKey } = req.body;
       
-      // Log key info for debugging (don't log the actual key)
-      console.log('API Key status:', {
-        exists: !!apiKey,
-        length: apiKey?.length,
-        prefix: apiKey?.substring(0, 7) + '...'
+      // Determine provider and API key
+      let activeProvider = provider;
+      let activeApiKey = clientApiKey;
+      
+      // If no explicit provider/key, try to infer from model name
+      if (!activeProvider || !activeApiKey) {
+        if (model && model.includes('claude')) {
+          activeProvider = 'anthropic';
+          activeApiKey = process.env.ANTHROPIC_API_KEY;
+        } else {
+          activeProvider = 'openai';
+          activeApiKey = process.env.OPENAI_API_KEY;
+        }
+      }
+
+      if (!activeApiKey) {
+        return res.status(401).json({ 
+          error: `${activeProvider} API key not configured. Please set it in AI settings.` 
+        });
+      }
+
+      console.log('AI Chat Request:', { 
+        provider: activeProvider,
+        model,
+        hasApiKey: !!activeApiKey, 
+        keyPrefix: activeApiKey.substring(0, 7) + '...' 
       });
 
-      const { model = 'gpt-4o', messages, temperature = 0.7, maxTokens = 1024 } = req.body;
+      let endpoint: string;
+      let headers: Record<string, string>;
+      let requestBody: any;
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
+      // Configure request based on provider
+      if (activeProvider === 'anthropic') {
+        endpoint = 'https://api.anthropic.com/v1/messages';
+        headers = {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
+          'x-api-key': activeApiKey,
+          'anthropic-version': '2023-06-01'
+        };
+        requestBody = {
+          model,
+          max_tokens: maxTokens || 1024,
+          messages
+        };
+      } else {
+        endpoint = 'https://api.openai.com/v1/chat/completions';
+        headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${activeApiKey}`
+        };
+        requestBody = {
           model,
           messages,
           temperature,
           max_tokens: maxTokens
-        })
+        };
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
         const error = await response.text();
-        console.error(`OpenAI API Error ${response.status}:`, error);
+        console.error(`${activeProvider} API Error ${response.status}:`, error);
+        
+        // Parse error for better user feedback
+        try {
+          const errorData = JSON.parse(error);
+          if (response.status === 400 && activeProvider === 'anthropic' && 
+              errorData.error?.message?.includes('credit balance is too low')) {
+            return res.status(400).json({ 
+              error: 'Insufficient credits in your Anthropic account. Please add credits in your Anthropic console.' 
+            });
+          }
+        } catch (parseError) {
+          // Use original error if parsing fails
+        }
+        
         return res.status(response.status).json({ 
-          error: `OpenAI API error: ${response.status}`,
+          error: `${activeProvider} API error: ${response.status}`,
           details: error
         });
       }
 
       const json = await response.json();
-      res.json({ text: json.choices?.[0]?.message?.content ?? '' });
+      
+      // Parse response based on provider
+      let responseText = '';
+      if (activeProvider === 'anthropic') {
+        responseText = json.content?.[0]?.text || '';
+      } else {
+        responseText = json.choices?.[0]?.message?.content || '';
+      }
+      
+      res.json({ text: responseText });
     } catch (error) {
       console.error('AI chat error:', error);
       res.status(500).json({ error: 'Internal server error' });
