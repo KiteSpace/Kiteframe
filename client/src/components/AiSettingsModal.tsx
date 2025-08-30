@@ -55,8 +55,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       { value: 'custom', label: 'Custom Model' }
     ],
     kiteframe: [
-      { value: 'gemma2:2b', label: 'Gemma2 2B (Recommended)' },
-      { value: 'tinyllama:1.1b', label: 'TinyLlama 1.1B (Fast)' },
+      { value: 'gemma2:2b', label: 'Gemma2 2B (Available)' },
       { value: 'custom', label: 'Custom Model' }
     ],
     custom: [
@@ -398,7 +397,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                   <div>• <strong>No API key required</strong> - Ready to use immediately</div>
                   <div>• <strong>Data never stored</strong> - Processed only, never saved</div>
                   <div>• <strong>Private infrastructure</strong> - Your own dedicated AI server</div>
-                  <div>• <strong>Powerful models</strong> - Gemma2 2B (better quality) & TinyLlama 1.1B (faster)</div>
+                  <div>• <strong>Available model</strong> - Gemma2 2B optimized for memory constraints</div>
                   <div>• <strong>Cost optimized</strong> - Scales to zero when not in use</div>
                 </div>
               </div>
@@ -417,13 +416,13 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                 <div className="text-xs text-blue-600 dark:text-blue-400 mt-2 space-y-1">
                   <div>• Data processed by {settings.provider === 'openai' ? 'OpenAI' : 'Anthropic'}</div>
                   <div>• Check their privacy policy for data handling details</div>
-                  <div>• API key required for authentication</div>
+                  <div>• {settings.provider === 'openai' ? 'No API key needed - automatically configured' : 'API key required for authentication'}</div>
                 </div>
               </div>
             </div>
           )}
           
-          {settings.provider !== 'ollama' && settings.provider !== 'kiteframe' && (
+          {settings.provider !== 'ollama' && settings.provider !== 'kiteframe' && settings.provider !== 'openai' && (
             <div className="space-y-2">
               <Label htmlFor="apiKey">
                 API Key 
