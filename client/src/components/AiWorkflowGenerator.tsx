@@ -33,46 +33,23 @@ export function AiWorkflowGenerator({ onClose, onGenerate }: AiWorkflowGenerator
 
     setIsGenerating(true);
     try {
-      const systemPrompt = `You are a workflow generator. Create a visual workflow based on the user's description. 
+      const systemPrompt = `ONLY return JSON. No text before or after. Just JSON.
 
-Return a JSON object with "nodes" and "edges" arrays. Each node should have:
-- id: unique string (like "node-1", "node-2", etc.)
-- type: one of "input", "process", "condition", "output", "ai", "image"
-- position: {x: number, y: number} (CENTER the workflow on canvas - start first node around x:300, y:250 and spread horizontally 250px apart)
-- data: {label: string, description: string, icon: string, iconColor: string}
-- width: 200, height: 100
+Format:
+{"nodes":[{"id":"node-1","type":"input","position":{"x":300,"y":250},"data":{"label":"Start","description":"Begin","icon":"ArrowRight","iconColor":"text-blue-500"},"width":200,"height":100}],"edges":[]}
 
-POSITIONING RULES:
-- Start the first node at approximately x:300, y:250 (center-left of canvas)
-- Place subsequent nodes 250px to the right: x:550, y:250 then x:800, y:250, etc.
-- For branching workflows, offset vertically by ±150px: y:100 for upper branch, y:400 for lower branch
-- Keep the workflow centered and visually balanced
-
-Each edge should have:
-- id: unique string (like "edge-1", "edge-2", etc.)
-- source: source node id
-- target: target node id
-- type: "bezier"
-- style: {strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2}
-- markers: {type: "arrow", position: "end"}
-
-Icon mapping:
-- input: "ArrowRight", color: "text-blue-500"
-- process: "Cog", color: "text-green-500"
-- condition: "HelpCircle", color: "text-yellow-500"
-- output: "ArrowLeft", color: "text-red-500"
-- ai: "Bot", color: "text-purple-500"
-- image: "Image", color: "text-indigo-500"
-
-Create a logical flow with meaningful labels and descriptions. Position nodes left to right based on workflow order, centered on the canvas.`;
+Types: input, process, output
+Icons: input=ArrowRight, process=Cog, output=ArrowLeft
+Colors: input=text-blue-500, process=text-green-500, output=text-red-500
+Position nodes 250px apart horizontally.`;
 
       const response = await aiClient.chat({
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt }
+          { role: 'user', content: `Create workflow: ${prompt}` }
         ],
-        temperature: 0.7,
-        maxTokens: 2000
+        temperature: 0.1,
+        maxTokens: 1000
       });
 
       // Parse the AI response with better JSON cleaning
@@ -87,6 +64,81 @@ Create a logical flow with meaningful labels and descriptions. Position nodes le
       const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         cleanedResponse = jsonMatch[0];
+      }
+      
+      // If still no valid JSON structure found, create fallback
+      if (!cleanedResponse.includes('{') || !cleanedResponse.includes('}')) {
+        console.log('❌ NO JSON FOUND, CREATING FALLBACK');
+        const fallbackWorkflow = {
+          nodes: [
+            {
+              id: "node-1",
+              type: "input",
+              position: { x: 300, y: 250 },
+              data: {
+                label: "Start",
+                description: prompt.substring(0, 50) + "...",
+                icon: "ArrowRight",
+                iconColor: "text-blue-500"
+              },
+              width: 200,
+              height: 100
+            },
+            {
+              id: "node-2",
+              type: "process",
+              position: { x: 550, y: 250 },
+              data: {
+                label: "Process",
+                description: "Processing step",
+                icon: "Cog",
+                iconColor: "text-green-500"
+              },
+              width: 200,
+              height: 100
+            },
+            {
+              id: "node-3",
+              type: "output",
+              position: { x: 800, y: 250 },
+              data: {
+                label: "Complete",
+                description: "Process complete",
+                icon: "ArrowLeft",
+                iconColor: "text-red-500"
+              },
+              width: 200,
+              height: 100
+            }
+          ],
+          edges: [
+            {
+              id: "edge-1",
+              source: "node-1",
+              target: "node-2",
+              type: "bezier",
+              style: { strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2 },
+              markers: { type: "arrow", position: "end" }
+            },
+            {
+              id: "edge-2",
+              source: "node-2",
+              target: "node-3",
+              type: "bezier",
+              style: { strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2 },
+              markers: { type: "arrow", position: "end" }
+            }
+          ]
+        };
+        
+        onGenerate(fallbackWorkflow);
+        toast({
+          title: "Basic Workflow Created",
+          description: "Generated a simple 3-step workflow. You can customize the nodes in the sidebar.",
+          variant: "default"
+        });
+        onClose();
+        return;
       }
       
       // Remove any trailing commas before closing brackets/braces
