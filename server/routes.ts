@@ -157,6 +157,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'API key is required for testing' });
       }
 
+      // Clean and validate API key format - must be ASCII only (no emojis or special Unicode characters)
+      const cleanApiKey = apiKey.trim();
+      console.log('API Key validation:', { 
+        length: cleanApiKey.length, 
+        firstChar: cleanApiKey.charCodeAt(0),
+        lastChar: cleanApiKey.charCodeAt(cleanApiKey.length - 1),
+        hasNonASCII: !/^[\x20-\x7E]*$/.test(cleanApiKey)
+      });
+      
+      if (!/^[\x20-\x7E]*$/.test(cleanApiKey)) {
+        return res.status(400).json({ 
+          error: 'Invalid API key format. API keys should only contain standard ASCII characters (no emojis or special symbols). Please re-copy your API key.' 
+        });
+      }
+
+      // Additional provider-specific validation using cleaned key
+      if (provider === 'openai' && !cleanApiKey.startsWith('sk-')) {
+        return res.status(400).json({ 
+          error: 'OpenAI API keys should start with "sk-"' 
+        });
+      }
+
+      if (provider === 'anthropic' && !cleanApiKey.startsWith('sk-ant-')) {
+        return res.status(400).json({ 
+          error: 'Anthropic API keys should start with "sk-ant-"' 
+        });
+      }
+
+      // Use cleaned API key for requests
+      const finalApiKey = cleanApiKey;
+
       let testUrl: string;
       let headers: Record<string, string>;
 
@@ -166,14 +197,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           testUrl = 'https://api.openai.com/v1/chat/completions';
           headers = {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
+            'Authorization': `Bearer ${finalApiKey}`
           };
           break;
         case 'anthropic':
           testUrl = 'https://api.anthropic.com/v1/messages';
           headers = {
             'Content-Type': 'application/json',
-            'x-api-key': apiKey,
+            'x-api-key': finalApiKey,
             'anthropic-version': '2023-06-01'
           };
           break;
@@ -184,7 +215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           testUrl = `${customEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
           headers = {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
+            'Authorization': `Bearer ${finalApiKey}`
           };
           break;
         default:
@@ -250,6 +281,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error('AI test error:', error);
+      
+      // Handle specific Unicode/ByteString encoding errors
+      if (error instanceof TypeError && error.message.includes('ByteString')) {
+        return res.status(400).json({ 
+          error: 'Invalid API key format. Please ensure your API key contains only standard ASCII characters. Try copying the key again or typing it manually.' 
+        });
+      }
+      
+      // Handle other fetch errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return res.status(400).json({ 
+          error: 'Network error or invalid endpoint. Please check your API key and try again.' 
+        });
+      }
+      
       res.status(500).json({ error: 'Internal server error during AI test' });
     }
   });
