@@ -395,6 +395,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   }, [createBlankTab, generateWorkflowFromPrompt, toast]);
 
+
+
   const handleCreateFromFile = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
     const newTab: WorkflowTab = {
       id: generateTabId(),
@@ -445,6 +447,162 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       historyIndex: newHistory.length - 1
     });
   }, [activeTab, nodes, edges, viewport, history, historyIndex, updateActiveTab]);
+
+  // Helper function to calculate offset position for appending workflows
+  const calculateWorkflowOffset = useCallback((newNodes: Node[]): { x: number; y: number } => {
+    if (nodes.length === 0) {
+      return { x: 0, y: 0 }; // No offset needed if canvas is empty
+    }
+
+    // Find the rightmost and bottommost positions of existing nodes
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    
+    nodes.forEach(node => {
+      const nodeRight = node.position.x + (node.width || 200);
+      const nodeBottom = node.position.y + (node.height || 100);
+      
+      if (nodeRight > maxX) maxX = nodeRight;
+      if (nodeBottom > maxY) maxY = nodeBottom;
+    });
+
+    // Find the leftmost and topmost positions of new nodes
+    let minNewX = Infinity;
+    let minNewY = Infinity;
+    
+    newNodes.forEach(node => {
+      if (node.position.x < minNewX) minNewX = node.position.x;
+      if (node.position.y < minNewY) minNewY = node.position.y;
+    });
+
+    // Calculate offset to place new workflow to the right with some spacing
+    const horizontalSpacing = 300;
+    const verticalSpacing = 100;
+    
+    const offsetX = maxX + horizontalSpacing - minNewX;
+    const offsetY = Math.max(0, (maxY + verticalSpacing) - minNewY);
+
+    return { x: offsetX, y: offsetY };
+  }, [nodes]);
+
+  // Function to append AI-generated workflow to existing canvas
+  const appendAiWorkflowToCanvas = useCallback(async (prompt: string) => {
+    try {
+      // Generate workflow using AI
+      const generatedWorkflow = await generateWorkflowFromPrompt(prompt);
+      
+      // Calculate offset for new nodes
+      const offset = calculateWorkflowOffset(generatedWorkflow.nodes);
+      
+      // Apply offset to new nodes
+      const offsetNodes = generatedWorkflow.nodes.map(node => ({
+        ...node,
+        id: `${node.id}-${Date.now()}`, // Ensure unique IDs
+        position: {
+          x: node.position.x + offset.x,
+          y: node.position.y + offset.y
+        },
+        selected: false
+      }));
+
+      // Apply offset to new edges and update IDs
+      const offsetEdges = generatedWorkflow.edges.map(edge => ({
+        ...edge,
+        id: `${edge.id}-${Date.now()}`, // Ensure unique IDs
+        source: `${edge.source}-${Date.now()}`,
+        target: `${edge.target}-${Date.now()}`,
+        selected: false
+      }));
+
+      // Append to existing nodes and edges
+      setNodes(prev => [...prev, ...offsetNodes]);
+      setEdges(prev => [...prev, ...offsetEdges]);
+      
+      // Save to history after state updates
+      setTimeout(() => saveToHistory(), 0);
+      
+      toast({
+        title: "Workflow Added",
+        description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections to canvas.`,
+        variant: "default"
+      });
+      
+    } catch (error) {
+      console.error('Workflow generation error:', error);
+      
+      let title = "Generation Failed";
+      let description = "Failed to generate workflow. Please try again.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('401')) {
+          title = "Authentication Error";
+          description = "Invalid API key. Please check your OpenAI API key in AI Settings.";
+        } else if (error.message.includes('429')) {
+          title = "Rate Limit Exceeded";
+          description = "Too many requests. Please wait a moment and try again.";
+        } else if (error.message.includes('500')) {
+          title = "Server Error";
+          description = "OpenAI service is temporarily unavailable. Please try again later.";
+        } else {
+          description = error.message;
+        }
+      }
+      
+      toast({
+        title,
+        description,
+        variant: "destructive"
+      });
+    }
+  }, [generateWorkflowFromPrompt, calculateWorkflowOffset, saveToHistory, toast]);
+
+  // Function to append imported workflow to existing canvas
+  const appendImportedWorkflowToCanvas = useCallback((importedWorkflow: { nodes: Node[]; edges: Edge[]; viewport?: any }) => {
+    if (!importedWorkflow.nodes || !importedWorkflow.edges) {
+      toast({
+        title: "Import Failed",
+        description: "Invalid workflow format. Must contain nodes and edges.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Calculate offset for new nodes
+    const offset = calculateWorkflowOffset(importedWorkflow.nodes);
+    
+    // Apply offset to imported nodes
+    const offsetNodes = importedWorkflow.nodes.map(node => ({
+      ...node,
+      id: `${node.id}-imported-${Date.now()}`, // Ensure unique IDs
+      position: {
+        x: node.position.x + offset.x,
+        y: node.position.y + offset.y
+      },
+      selected: false
+    }));
+
+    // Apply offset to imported edges and update IDs
+    const offsetEdges = importedWorkflow.edges.map(edge => ({
+      ...edge,
+      id: `${edge.id}-imported-${Date.now()}`, // Ensure unique IDs
+      source: `${edge.source}-imported-${Date.now()}`,
+      target: `${edge.target}-imported-${Date.now()}`,
+      selected: false
+    }));
+
+    // Append to existing nodes and edges
+    setNodes(prev => [...prev, ...offsetNodes]);
+    setEdges(prev => [...prev, ...offsetEdges]);
+    
+    // Save to history after state updates
+    setTimeout(() => saveToHistory(), 0);
+    
+    toast({
+      title: "Workflow Imported",
+      description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections to canvas.`,
+      variant: "default"
+    });
+  }, [calculateWorkflowOffset, saveToHistory, toast]);
 
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
@@ -779,7 +937,32 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 linkElement.setAttribute('download', exportFileDefaultName);
                 linkElement.click();
               }}
-              onImport={() => setShowImportModal(true)}
+              onImport={() => {
+                // Create hidden file input for importing and appending to existing workflow
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (!file) return;
+                  
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    try {
+                      const data = JSON.parse(event.target?.result as string);
+                      appendImportedWorkflowToCanvas(data);
+                    } catch (error) {
+                      toast({
+                        title: "Import Failed",
+                        description: "Invalid JSON file. Please select a valid workflow file.",
+                        variant: "destructive"
+                      });
+                    }
+                  };
+                  reader.readAsText(file);
+                };
+                input.click();
+              }}
               onNodeUpdate={(nodeId: string, updates: Partial<Node>) => {
                 setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, ...updates } : n));
                 saveToHistory();
@@ -863,7 +1046,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               showImageModal={showImageModal}
               onOpenImageModal={setShowImageModal}
               onCloseImageModal={() => setShowImageModal(null)}
-              onOpenAiGenerator={() => setShowAiGenerator(true)}
+              onOpenAiGenerator={() => {
+                // Simple prompt for AI workflow generation that appends to existing canvas
+                const prompt = window.prompt('What workflow would you like me to create for you?\n\nDescribe the process or task you want to automate:');
+                if (prompt && prompt.trim()) {
+                  appendAiWorkflowToCanvas(prompt.trim());
+                }
+              }}
               />
             )}
           </div>
