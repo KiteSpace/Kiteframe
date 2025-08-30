@@ -119,8 +119,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Set API keys from environment if not provided (but not for Ollama which doesn't need them)
-      if (!activeApiKey && activeProvider !== 'ollama') {
+      // Set API keys from environment if not provided (but not for Ollama or Kiteframe which don't need them)
+      if (!activeApiKey && activeProvider !== 'ollama' && activeProvider !== 'kiteframe') {
         if (activeProvider === 'anthropic') {
           activeApiKey = process.env.ANTHROPIC_API_KEY;
         } else if (activeProvider === 'openai') {
@@ -128,7 +128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      if (!activeApiKey && activeProvider !== 'ollama') {
+      if (!activeApiKey && activeProvider !== 'ollama' && activeProvider !== 'kiteframe') {
         return res.status(401).json({ 
           error: `${activeProvider} API key not configured. Please set it in AI settings.` 
         });
@@ -165,6 +165,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         headers = {
           'Content-Type': 'application/json'
           // Ollama doesn't require Authorization header for local usage
+        };
+        requestBody = {
+          model,
+          messages,
+          temperature,
+          max_tokens: maxTokens,
+          stream: false
+        };
+      } else if (activeProvider === 'kiteframe') {
+        // Kiteframe managed Ollama service
+        endpoint = 'https://ollama.kiteframe.ai/v1/chat/completions';
+        headers = {
+          'Content-Type': 'application/json'
+          // Kiteframe managed service - no auth required
         };
         requestBody = {
           model,
@@ -249,20 +263,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('AI chat error:', error);
       
-      // Handle Ollama-specific connection errors
-      if (req.body.provider === 'ollama') {
+      // Handle Ollama and Kiteframe-specific connection errors
+      if (req.body.provider === 'ollama' || req.body.provider === 'kiteframe') {
         if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED')) {
+          const serviceName = req.body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
           return res.status(400).json({ 
-            error: 'Ollama service not running. Please start Ollama locally with: ollama serve' 
+            error: `${serviceName} service not available. ${req.body.provider === 'ollama' ? 'Please start Ollama locally with: ollama serve' : 'Please try again later or contact support.'}` 
           });
         }
         if (error instanceof TypeError && error.message.includes('fetch')) {
+          const serviceName = req.body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
           return res.status(400).json({ 
-            error: 'Cannot connect to Ollama. Make sure it is running on the configured endpoint.' 
+            error: `Cannot connect to ${serviceName}. Make sure the service is running and accessible.` 
           });
         }
+        const serviceName = req.body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
         return res.status(400).json({ 
-          error: 'Ollama connection failed. Ensure the service is running and accessible.' 
+          error: `${serviceName} connection failed. Ensure the service is running and accessible.` 
         });
       }
       
@@ -342,6 +359,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Ollama doesn't require Authorization for local usage
           };
           break;
+        case 'kiteframe':
+          testUrl = 'https://ollama.kiteframe.ai/v1/chat/completions';
+          headers = {
+            'Content-Type': 'application/json'
+            // Kiteframe managed service - no auth required
+          };
+          break;
         case 'custom':
           if (!customEndpoint) {
             return res.status(400).json({ error: 'Custom endpoint is required for custom provider' });
@@ -367,6 +391,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }]
         };
       } else if (provider === 'ollama') {
+        requestBody = {
+          model,
+          messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
+          max_tokens: 10,
+          temperature: 0.1,
+          stream: false
+        };
+      } else if (provider === 'kiteframe') {
         requestBody = {
           model,
           messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
@@ -462,20 +494,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('AI test error:', error);
       
-      // Handle Ollama-specific connection errors
-      if (req.body.provider === 'ollama') {
+      // Handle Ollama and Kiteframe-specific connection errors
+      if (req.body.provider === 'ollama' || req.body.provider === 'kiteframe') {
         if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED')) {
+          const serviceName = req.body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
           return res.status(400).json({ 
-            error: 'Ollama service not running. Please start Ollama with: ollama serve' 
+            error: `${serviceName} service not available. ${req.body.provider === 'ollama' ? 'Please start Ollama with: ollama serve' : 'Please try again later or contact support.'}` 
           });
         }
         if (error instanceof TypeError && error.message.includes('fetch')) {
+          const serviceName = req.body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
           return res.status(400).json({ 
-            error: 'Cannot connect to Ollama. Make sure it is running on the configured endpoint.' 
+            error: `Cannot connect to ${serviceName}. Make sure it is running on the configured endpoint.` 
           });
         }
+        const serviceName = req.body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
         return res.status(400).json({ 
-          error: 'Ollama connection failed. Ensure the service is running and accessible.' 
+          error: `${serviceName} connection failed. Ensure the service is running and accessible.` 
         });
       }
       

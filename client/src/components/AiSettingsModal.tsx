@@ -54,6 +54,13 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       { value: 'phi3:mini', label: 'Phi-3 Mini' },
       { value: 'custom', label: 'Custom Model' }
     ],
+    kiteframe: [
+      { value: 'llama3.1:8b', label: 'Llama 3.1 8B' },
+      { value: 'llama3.2:3b', label: 'Llama 3.2 3B' },
+      { value: 'mistral:7b', label: 'Mistral 7B' },
+      { value: 'phi3:mini', label: 'Phi-3 Mini' },
+      { value: 'custom', label: 'Custom Model' }
+    ],
     custom: [
       { value: 'custom', label: 'Custom Model' }
     ]
@@ -90,6 +97,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       model: defaultModel,
       customModel: provider === 'custom' ? prev.customModel : '',
       customEndpoint: provider === 'ollama' ? 'http://localhost:11434' : 
+                      provider === 'kiteframe' ? 'https://ollama.kiteframe.ai' :
                       provider === 'custom' ? prev.customEndpoint || 'https://api.openai.com' : ''
     }));
   };
@@ -103,8 +111,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   };
 
   const handleSave = () => {
-    // Ollama doesn't require an API key for local usage
-    if (settings.provider !== 'ollama' && !settings.apiKey.trim()) {
+    // Ollama and Kiteframe don't require user API keys
+    if (settings.provider !== 'ollama' && settings.provider !== 'kiteframe' && !settings.apiKey.trim()) {
       toast({
         title: "API Key Required",
         description: "Please enter your API key to use AI features.",
@@ -135,8 +143,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   };
 
   const handleQuickTest = async () => {
-    // Ollama doesn't require an API key for local usage
-    if (settings.provider !== 'ollama' && !settings.apiKey.trim()) {
+    // Ollama and Kiteframe don't require user API keys
+    if (settings.provider !== 'ollama' && settings.provider !== 'kiteframe' && !settings.apiKey.trim()) {
       toast({
         title: "API Key Required",
         description: "Please enter your API key to test the connection.",
@@ -198,7 +206,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-md" data-testid="modal-ai-settings">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" data-testid="modal-ai-settings">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Bot className="text-primary" size={20} />
@@ -212,11 +220,11 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             <div className="grid grid-cols-1 gap-3">
               {/* Maximum Privacy */}
               <div className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                settings.provider === 'ollama' || settings.provider === 'custom' 
+                settings.provider === 'ollama' || settings.provider === 'custom' || settings.provider === 'kiteframe'
                   ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
                   : 'border-gray-200 dark:border-gray-700 hover:border-green-300'
               }`}
-              onClick={() => setSettings({ ...settings, provider: 'ollama' })}
+              onClick={() => setSettings({ ...settings, provider: 'kiteframe' })}
               >
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 rounded-full bg-green-500 mt-2"></div>
@@ -226,7 +234,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                       Data stays on your machine or private server. Zero external data sharing.
                     </p>
                     <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                      Local Ollama • Remote Ollama • Private Custom Endpoint
+                      Kiteframe Managed • Local Ollama • Remote Ollama • Custom Endpoint
                     </p>
                   </div>
                 </div>
@@ -268,6 +276,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
               <SelectContent>
                 <SelectItem value="openai">OpenAI (GPT-4, GPT-5)</SelectItem>
                 <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
+                <SelectItem value="kiteframe">Kiteframe (Managed Privacy)</SelectItem>
                 <SelectItem value="ollama">Ollama (Local)</SelectItem>
                 <SelectItem value="custom">Custom Endpoint</SelectItem>
               </SelectContent>
@@ -373,6 +382,25 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                   <div>• <strong>Recommended:</strong> Your own Ollama server</div>
                   <div>• <strong>Alternative:</strong> Other self-hosted AI services</div>
                   <div>• <strong>Format:</strong> https://your-server.com (no /v1 needed)</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {settings.provider === 'kiteframe' && (
+            <div className="space-y-2">
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+                <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                  🚀 Kiteframe Managed Privacy
+                </p>
+                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                  Maximum privacy with zero setup - Kiteframe runs secure Ollama for you
+                </p>
+                <div className="text-xs text-green-600 dark:text-green-400 mt-2 space-y-1">
+                  <div>• <strong>No API key required</strong> - Ready to use immediately</div>
+                  <div>• <strong>Data never stored</strong> - Processed only, never saved</div>
+                  <div>• <strong>Private infrastructure</strong> - Dedicated secure servers</div>
+                  <div>• <strong>99.9% uptime</strong> - Always available when you need it</div>
                 </div>
               </div>
             </div>
