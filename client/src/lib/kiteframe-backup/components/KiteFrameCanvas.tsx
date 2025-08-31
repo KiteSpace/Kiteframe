@@ -74,9 +74,6 @@ type Props = {
   maxZoom?: number;
   fitView?: boolean;
   showMiniMap?: boolean;
-  // Plugin system integration
-  core?: KiteFrameCore;
-  enablePlugins?: boolean;
   selectedNodes?: string[];
   onNodeClick?: (e: React.MouseEvent, node: Node) => void;
   onCanvasClick?: () => void;
@@ -113,10 +110,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   // Use external viewport if provided, otherwise use internal
   const viewport = props.viewport || internalViewport;
   const setViewport = props.onViewportChange || setInternalViewport;
-  
-  // Plugin system integration
-  const core = props.core || kiteFrameCore;
-  const enablePlugins = props.enablePlugins !== false; // Default to true
   const [panning, setPanning] = useState(false);
   const panStart = useRef<{x:number;y:number}|null>(null);
   const [selectRect, setSelectRect] = useState<null | {x:number;y:number;w:number;h:number}>(null);

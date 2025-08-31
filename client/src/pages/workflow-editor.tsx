@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
+import { PluginProvider, layoutPlugin } from '@/lib/kiteframe';
 import { Sidebar } from '@/components/Sidebar';
 import { EdgeCustomizer } from '@/components/EdgeCustomizer';
 import { Toolbar } from '@/components/Toolbar';

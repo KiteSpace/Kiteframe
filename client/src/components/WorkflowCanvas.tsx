@@ -22,6 +22,8 @@ interface WorkflowCanvasProps {
   canUndo: boolean;
   canRedo: boolean;
   onAutoLayout: (layoutType: string) => void;
+  selectedNodeIds?: string[];
+  enablePlugins?: boolean;
 }
 
 export function WorkflowCanvas({
@@ -42,7 +44,9 @@ export function WorkflowCanvas({
   onRedo,
   canUndo,
   canRedo,
-  onAutoLayout
+  onAutoLayout,
+  selectedNodeIds,
+  enablePlugins
 }: WorkflowCanvasProps) {
   const [isDraggingMinimap, setIsDraggingMinimap] = useState(false);
   const [showLayoutDropdown, setShowLayoutDropdown] = useState(false);
@@ -178,9 +182,11 @@ export function WorkflowCanvas({
         onImageButtonClick={onImageButtonClick}
         viewport={viewport}
         onViewportChange={onViewportChange}
+        selectedNodes={selectedNodeIds || []}
         gridType="dots"
         minZoom={0.1}
         maxZoom={3}
+        enablePlugins={enablePlugins}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />
