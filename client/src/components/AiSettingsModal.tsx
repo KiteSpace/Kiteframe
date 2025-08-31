@@ -116,8 +116,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   };
 
   const handleSave = () => {
-    // Ollama and Kiteframe don't require user API keys
-    if (settings.provider !== 'ollama' && settings.provider !== 'kiteframe' && !settings.apiKey.trim()) {
+    // Ollama, Kiteframe, and OpenAI don't require user API keys
+    if (settings.provider !== 'ollama' && settings.provider !== 'kiteframe' && settings.provider !== 'openai' && !settings.apiKey.trim()) {
       toast({
         title: "API Key Required",
         description: "Please enter your API key to use AI features.",
@@ -148,8 +148,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   };
 
   const handleQuickTest = async () => {
-    // Ollama and Kiteframe don't require user API keys
-    if (settings.provider !== 'ollama' && settings.provider !== 'kiteframe' && !settings.apiKey.trim()) {
+    // Ollama, Kiteframe, and OpenAI don't require user API keys
+    if (settings.provider !== 'ollama' && settings.provider !== 'kiteframe' && settings.provider !== 'openai' && !settings.apiKey.trim()) {
       toast({
         title: "API Key Required",
         description: "Please enter your API key to test the connection.",
