@@ -30,7 +30,7 @@ Preferred communication style: Simple, everyday language.
   - Removed API key requirement for users - automatically uses environment secret
   - Updated UI to indicate OpenAI is ready to use without setup
   - Server-side integration automatically routes to stored OPENAI_API_KEY
-  - Fixed model to GPT-4o across all components (not GPT-5 due to API access limitations)
+  - Fixed model to GPT-4o across all components (removed GPT-5 due to API access limitations)
   - Resolved API key routing issue that was using Anthropic keys for OpenAI requests
   - Added automatic legacy settings migration (gpt-5 → gpt-4o)
   - Quick test functionality confirmed working with GPT-4o

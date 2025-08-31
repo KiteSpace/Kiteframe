@@ -34,9 +34,9 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   // Provider-specific model options
   const modelOptions = {
     openai: [
-      { value: 'gpt-5', label: 'GPT-5' },
       { value: 'gpt-4o', label: 'GPT-4o' },
       { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+      { value: 'gpt-4', label: 'GPT-4' },
       { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
       { value: 'custom', label: 'Custom Model' }
     ],
@@ -74,7 +74,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
         const parsed = JSON.parse(saved);
         // Fix legacy settings with wrong models
         const fixedSettings = { ...parsed };
-        if (fixedSettings.provider === 'openai' && fixedSettings.model === 'gpt-5') {
+        if (fixedSettings.provider === 'openai' && (fixedSettings.model === 'gpt-5' || !fixedSettings.model)) {
           fixedSettings.model = 'gpt-4o';
         }
         if (fixedSettings.provider === 'kiteframe' && (fixedSettings.model === 'tinyllama:1.1b' || fixedSettings.model === 'gemma2:2b')) {
@@ -292,7 +292,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             <div className="space-y-2">
               <Label>Model</Label>
               <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-md text-sm">
-                ✅ Using: <strong>GPT-4o</strong> (latest OpenAI model, no setup required)
+                ✅ Using: <strong>GPT-4o</strong> (latest available model, no setup required)
               </div>
             </div>
           )}
