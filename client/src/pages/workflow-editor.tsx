@@ -1350,23 +1350,36 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 // Calculate offset for new nodes
                 const offset = calculateWorkflowOffset(generatedWorkflow.nodes);
                 
-                // Apply offset to new nodes
-                const offsetNodes = generatedWorkflow.nodes.map((node: Node) => ({
-                  ...node,
-                  id: `${node.id}-ai-${Date.now()}`, // Ensure unique IDs
-                  position: {
-                    x: node.position.x + offset.x,
-                    y: node.position.y + offset.y
-                  },
-                  selected: false
-                }));
+                // Generate unique timestamp for this batch
+                const batchId = Date.now();
+                const randomSuffix = Math.random().toString(36).substr(2, 9);
+                
+                // Create a mapping from old node IDs to new node IDs
+                const nodeIdMapping: { [oldId: string]: string } = {};
+                
+                // Apply offset to new nodes with guaranteed unique IDs
+                const offsetNodes = generatedWorkflow.nodes.map((node: Node, index: number) => {
+                  const oldId = node.id || `node-${index}`;
+                  const newId = `${oldId}-ai-${batchId}-${index}`;
+                  nodeIdMapping[oldId] = newId;
+                  
+                  return {
+                    ...node,
+                    id: newId,
+                    position: {
+                      x: node.position.x + offset.x,
+                      y: node.position.y + offset.y
+                    },
+                    selected: false
+                  };
+                });
 
-                // Apply offset to new edges and update IDs
-                const offsetEdges = generatedWorkflow.edges.map((edge: Edge) => ({
+                // Apply offset to new edges and update IDs using the mapping
+                const offsetEdges = generatedWorkflow.edges.map((edge: Edge, index: number) => ({
                   ...edge,
-                  id: `${edge.id}-ai-${Date.now()}`, // Ensure unique IDs
-                  source: `${edge.source}-ai-${Date.now()}`,
-                  target: `${edge.target}-ai-${Date.now()}`,
+                  id: `${edge.id || `edge-${index}`}-ai-${batchId}-${index}`,
+                  source: nodeIdMapping[edge.source] || edge.source,
+                  target: nodeIdMapping[edge.target] || edge.target,
                   selected: false
                 }));
 

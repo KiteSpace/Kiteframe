@@ -52,10 +52,12 @@ Position nodes 250px apart horizontally.`;
         maxTokens: 1000
       });
 
-      // Parse the AI response with better JSON cleaning
+      // Parse the AI response with comprehensive JSON cleaning
       let cleanedResponse = response.text
-        .replace(/^JSON:\s*/i, '') // Remove "JSON:" prefix from TinyLlama responses
+        .replace(/^JSON:\s*/i, '') // Remove "JSON:" prefix
         .replace(/```json\s?|```/g, '') // Remove markdown code blocks
+        .replace(/^[^{]*/, '') // Remove any text before first {
+        .replace(/[^}]*$/, '') // Remove any text after last }
         .trim();
       
       console.log('🧹 CLEANED RESPONSE:', cleanedResponse.substring(0, 200) + '...');
@@ -66,89 +68,126 @@ Position nodes 250px apart horizontally.`;
         cleanedResponse = jsonMatch[0];
       }
       
-      // If still no valid JSON structure found, create fallback
-      if (!cleanedResponse.includes('{') || !cleanedResponse.includes('}')) {
-        console.log('❌ NO JSON FOUND, CREATING FALLBACK');
-        const fallbackWorkflow = {
-          nodes: [
-            {
-              id: "node-1",
-              type: "input",
-              position: { x: 300, y: 250 },
-              data: {
-                label: "Start",
-                description: prompt.substring(0, 50) + "...",
-                icon: "ArrowRight",
-                iconColor: "text-blue-500"
-              },
-              width: 200,
-              height: 100
-            },
-            {
-              id: "node-2",
-              type: "process",
-              position: { x: 550, y: 250 },
-              data: {
-                label: "Process",
-                description: "Processing step",
-                icon: "Cog",
-                iconColor: "text-green-500"
-              },
-              width: 200,
-              height: 100
-            },
-            {
-              id: "node-3",
-              type: "output",
-              position: { x: 800, y: 250 },
-              data: {
-                label: "Complete",
-                description: "Process complete",
-                icon: "ArrowLeft",
-                iconColor: "text-red-500"
-              },
-              width: 200,
-              height: 100
-            }
-          ],
-          edges: [
-            {
-              id: "edge-1",
-              source: "node-1",
-              target: "node-2",
-              type: "bezier" as const,
-              style: { strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2 },
-              markers: { type: "arrow" as const, position: "end" as const }
-            },
-            {
-              id: "edge-2",
-              source: "node-2",
-              target: "node-3",
-              type: "bezier" as const,
-              style: { strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2 },
-              markers: { type: "arrow" as const, position: "end" as const }
-            }
-          ]
-        };
+      let workflowData;
+      
+      try {
+        // First attempt - parse as-is
+        workflowData = JSON.parse(cleanedResponse);
+      } catch (firstError) {
+        console.log('❌ FIRST PARSE FAILED, ATTEMPTING FIXES:', firstError);
         
-        onGenerate(fallbackWorkflow);
-        toast({
-          title: "Basic Workflow Created",
-          description: "Generated a simple 3-step workflow. You can customize the nodes in the sidebar.",
-          variant: "default"
-        });
-        onClose();
-        return;
+        try {
+          // Second attempt - fix common JSON issues
+          let fixedResponse = cleanedResponse;
+          
+          // Remove trailing commas
+          fixedResponse = fixedResponse.replace(/,(\s*[}\]])/g, '$1');
+          
+          // Fix unquoted keys
+          fixedResponse = fixedResponse.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+          
+          // Convert single quotes to double quotes
+          fixedResponse = fixedResponse.replace(/:\s*'([^']*)'/g, ': "$1"');
+          
+          // Fix missing quotes around string values
+          fixedResponse = fixedResponse.replace(/:\s*([a-zA-Z][a-zA-Z0-9\-_]*)\s*([,}])/g, ': "$1"$2');
+          
+          // Remove any duplicate commas
+          fixedResponse = fixedResponse.replace(/,,+/g, ',');
+          
+          // Try to fix incomplete JSON by balancing brackets
+          const openBraces = (fixedResponse.match(/\{/g) || []).length;
+          const closeBraces = (fixedResponse.match(/\}/g) || []).length;
+          const openBrackets = (fixedResponse.match(/\[/g) || []).length;
+          const closeBrackets = (fixedResponse.match(/\]/g) || []).length;
+          
+          // Add missing closing braces/brackets
+          for (let i = 0; i < openBraces - closeBraces; i++) {
+            fixedResponse += '}';
+          }
+          for (let i = 0; i < openBrackets - closeBrackets; i++) {
+            fixedResponse += ']';
+          }
+          
+          console.log('🔧 ATTEMPTING FIXED PARSE:', fixedResponse.substring(0, 200) + '...');
+          workflowData = JSON.parse(fixedResponse);
+          
+        } catch (secondError) {
+          console.log('❌ SECOND PARSE FAILED, USING FALLBACK:', secondError);
+          
+          // Create fallback workflow
+          const fallbackWorkflow = {
+            nodes: [
+              {
+                id: "node-1",
+                type: "input",
+                position: { x: 300, y: 250 },
+                data: {
+                  label: "Start",
+                  description: prompt.substring(0, 50) + (prompt.length > 50 ? "..." : ""),
+                  icon: "ArrowRight",
+                  iconColor: "text-blue-500"
+                },
+                width: 200,
+                height: 100
+              },
+              {
+                id: "node-2",
+                type: "process",
+                position: { x: 550, y: 250 },
+                data: {
+                  label: "Process",
+                  description: "Processing step",
+                  icon: "Cog",
+                  iconColor: "text-green-500"
+                },
+                width: 200,
+                height: 100
+              },
+              {
+                id: "node-3",
+                type: "output",
+                position: { x: 800, y: 250 },
+                data: {
+                  label: "Complete",
+                  description: "Process complete",
+                  icon: "ArrowLeft",
+                  iconColor: "text-red-500"
+                },
+                width: 200,
+                height: 100
+              }
+            ],
+            edges: [
+              {
+                id: "edge-1",
+                source: "node-1",
+                target: "node-2",
+                type: "bezier" as const,
+                style: { strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2 },
+                markers: { type: "arrow" as const, position: "end" as const }
+              },
+              {
+                id: "edge-2",
+                source: "node-2",
+                target: "node-3",
+                type: "bezier" as const,
+                style: { strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2 },
+                markers: { type: "arrow" as const, position: "end" as const }
+              }
+            ]
+          };
+          
+          onGenerate(fallbackWorkflow);
+          toast({
+            title: "Basic Workflow Created",
+            description: "AI response couldn't be parsed, created a simple 3-step workflow instead. You can customize it in the sidebar.",
+            variant: "default"
+          });
+          onClose();
+          return;
+        }
       }
-      
-      // Remove any trailing commas before closing brackets/braces
-      cleanedResponse = cleanedResponse.replace(/,(\s*[}\]])/g, '$1');
-      
-      // Fix common JSON formatting issues
-      cleanedResponse = cleanedResponse.replace(/([{,]\s*)(\w+):/g, '$1"$2":'); // Quote unquoted keys
-      cleanedResponse = cleanedResponse.replace(/:\s*'([^']*)'/g, ': "$1"'); // Single to double quotes
-      
-      const workflowData = JSON.parse(cleanedResponse);
 
       if (workflowData.nodes && workflowData.edges) {
         console.log('🤖 AI GENERATED WORKFLOW:', { 
