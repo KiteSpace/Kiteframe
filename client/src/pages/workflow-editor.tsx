@@ -1072,13 +1072,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               showImageModal={showImageModal}
               onOpenImageModal={setShowImageModal}
               onCloseImageModal={() => setShowImageModal(null)}
-              onOpenAiGenerator={() => {
-                // Simple prompt for AI workflow generation that appends to existing canvas
-                const prompt = window.prompt('What workflow would you like me to create for you?\n\nDescribe the process or task you want to automate:');
-                if (prompt && prompt.trim()) {
-                  appendAiWorkflowToCanvas(prompt.trim());
-                }
-              }}
+              onOpenAiGenerator={() => setShowAiGenerator(true)}
               />
             )}
           </div>
@@ -1351,16 +1345,50 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 generatedWorkflow
               });
               
-              // Handle generated workflow
-              if (generatedWorkflow.nodes) {
-                setNodes(generatedWorkflow.nodes);
-                console.log('📝 NODES SET FROM AI:', generatedWorkflow.nodes);
+              // Append generated workflow to existing canvas instead of replacing it
+              if (generatedWorkflow.nodes && generatedWorkflow.edges) {
+                // Calculate offset for new nodes
+                const offset = calculateWorkflowOffset(generatedWorkflow.nodes);
+                
+                // Apply offset to new nodes
+                const offsetNodes = generatedWorkflow.nodes.map((node: Node) => ({
+                  ...node,
+                  id: `${node.id}-ai-${Date.now()}`, // Ensure unique IDs
+                  position: {
+                    x: node.position.x + offset.x,
+                    y: node.position.y + offset.y
+                  },
+                  selected: false
+                }));
+
+                // Apply offset to new edges and update IDs
+                const offsetEdges = generatedWorkflow.edges.map((edge: Edge) => ({
+                  ...edge,
+                  id: `${edge.id}-ai-${Date.now()}`, // Ensure unique IDs
+                  source: `${edge.source}-ai-${Date.now()}`,
+                  target: `${edge.target}-ai-${Date.now()}`,
+                  selected: false
+                }));
+
+                // Append to existing nodes and edges
+                setNodes(prev => [...prev, ...offsetNodes]);
+                setEdges(prev => [...prev, ...offsetEdges]);
+                
+                console.log('📝 AI WORKFLOW APPENDED TO CANVAS:', { 
+                  addedNodes: offsetNodes.length, 
+                  addedEdges: offsetEdges.length 
+                });
+                
+                // Save to history after state updates
+                setTimeout(() => saveToHistory(), 0);
+                
+                toast({
+                  title: "Workflow Generated",
+                  description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections to canvas.`,
+                  variant: "default"
+                });
               }
-              if (generatedWorkflow.edges) {
-                setEdges(generatedWorkflow.edges);
-                console.log('📝 EDGES SET FROM AI:', generatedWorkflow.edges);
-              }
-              saveToHistory();
+              
               setShowAiGenerator(false);
             }}
           />
