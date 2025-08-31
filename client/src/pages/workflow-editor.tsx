@@ -60,7 +60,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       { type: 'process', icon: 'Cog', iconColor: 'text-gray-500', labels: ['Transform', 'Process', 'Filter', 'Validate'], descriptions: ['Data transformation', 'Process workflow step', 'Filter and clean data', 'Validate input data'] },
       { type: 'condition', icon: 'HelpCircle', iconColor: 'text-yellow-500', labels: ['Decision', 'Check', 'Condition', 'Branch'], descriptions: ['Evaluate condition logic', 'Check data quality', 'Conditional branching', 'Decision point'] },
       { type: 'output', icon: 'ArrowLeft', iconColor: 'text-red-500', labels: ['Result', 'Export', 'Save', 'Output'], descriptions: ['Final result destination', 'Export processed data', 'Save to database', 'Output data stream'] },
-      { type: 'ai', icon: 'Bot', iconColor: 'text-purple-500', labels: ['AI Model', 'ML Process', 'Neural Net', 'Analysis'], descriptions: ['Process data with AI\nModel: GPT-5', 'Machine learning processing', 'Neural network analysis', 'AI-powered analysis'] },
+      { type: 'ai', icon: 'Bot', iconColor: 'text-purple-500', labels: ['AI Model', 'ML Process', 'Neural Net', 'Analysis'], descriptions: ['Process data with AI\nModel: GPT-4o', 'Machine learning processing', 'Neural network analysis', 'AI-powered analysis'] },
       { type: 'image', icon: 'Image', iconColor: 'text-green-500', labels: ['Visual', 'Chart', 'Diagram', 'Image'], descriptions: ['Visual representation', 'Generate chart or graph', 'Create diagram', 'Image processing'] }
     ];
 
@@ -1466,11 +1466,18 @@ export default function WorkflowEditor() {
     // Load saved AI settings
     const savedSettings = localStorage.getItem('ai_settings');
     let baseURL = 'https://api.openai.com/v1';
-    let defaultModel = 'gpt-5'; // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+    let defaultModel = 'gpt-4o'; // using gpt-4o as it's available with current API key access
     
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
+        
+        // Legacy model migration for gpt-5 -> gpt-4o
+        if (settings.model === 'gpt-5') {
+          settings.model = 'gpt-4o';
+          localStorage.setItem('ai_settings', JSON.stringify(settings));
+        }
+        
         if (settings.provider === 'custom' && settings.customEndpoint) {
           baseURL = settings.customEndpoint;
         } else if (settings.provider === 'anthropic') {

@@ -77,7 +77,7 @@ const templates = [
         id: 'ai-review',
         type: 'ai',
         position: { x: 400, y: 100 },
-        data: { label: 'AI Reviewer', description: 'Analyze content quality\nModel: GPT-5', icon: 'Bot', iconColor: 'text-purple-500' },
+        data: { label: 'AI Reviewer', description: 'Analyze content quality\nModel: GPT-4o', icon: 'Bot', iconColor: 'text-purple-500' },
         width: 200,
         height: 120
       },

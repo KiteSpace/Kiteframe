@@ -279,7 +279,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="openai">OpenAI (GPT-4, GPT-5)</SelectItem>
+                <SelectItem value="openai">OpenAI (GPT-4o)</SelectItem>
                 <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
                 <SelectItem value="kiteframe">Kiteframe (Managed Privacy)</SelectItem>
                 <SelectItem value="ollama">Ollama (Local)</SelectItem>
