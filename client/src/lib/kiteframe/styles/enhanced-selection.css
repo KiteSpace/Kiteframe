@@ -1,15 +1,20 @@
 /* Enhanced Node Selection Styles - Restored Premium Visual Feedback */
 
 .kiteframe-node.selected {
-  /* Strong visual outline with offset for better visibility */
-  outline: 3px solid hsl(221.2, 83.2%, 53.3%) !important; 
-  outline-offset: 2px !important; 
+  /* Remove outline since it doesn't follow border-radius, use box-shadow instead */
   
-  /* Enhanced layered box-shadow for premium glow effect */
-  box-shadow: 0 0 0 6px hsla(221.2, 83.2%, 53.3%, 0.15), 0 4px 20px hsla(221.2, 83.2%, 53.3%, 0.25), 0 2px 8px rgba(0,0,0,0.08) !important;
+  /* Enhanced layered box-shadow for premium glow effect that follows border-radius */
+  box-shadow: 
+    0 0 0 3px hsl(221.2, 83.2%, 53.3%),
+    0 0 0 6px hsla(221.2, 83.2%, 53.3%, 0.15), 
+    0 4px 20px hsla(221.2, 83.2%, 53.3%, 0.25), 
+    0 2px 8px rgba(0,0,0,0.08) !important;
   
   /* Subtle background tint */
   background-color: hsla(221.2, 83.2%, 53.3%, 0.03) !important;
+  
+  /* Ensure border-radius matches the base node */
+  border-radius: 8px !important;
   
   /* Slight elevation and scaling for prominence */
   transform: scale(1.01) !important;
@@ -20,9 +25,14 @@
 }
 
 .kiteframe-node.selected:hover {
-  /* Enhanced hover state for selected nodes */
-  box-shadow: 0 0 0 6px hsla(221.2, 83.2%, 53.3%, 0.2), 0 6px 25px hsla(221.2, 83.2%, 53.3%, 0.3), 0 4px 12px rgba(0,0,0,0.12) !important;
+  /* Enhanced hover state for selected nodes with matching border radius */
+  box-shadow: 
+    0 0 0 3px hsl(221.2, 83.2%, 53.3%),
+    0 0 0 6px hsla(221.2, 83.2%, 53.3%, 0.2), 
+    0 6px 25px hsla(221.2, 83.2%, 53.3%, 0.3), 
+    0 4px 12px rgba(0,0,0,0.12) !important;
   transform: scale(1.02) !important;
+  border-radius: 8px !important;
 }
 
 /* Selection animation for smooth transitions */
@@ -36,7 +46,7 @@
   }
   100% {
     transform: scale(1.01);
-    box-shadow: 0 0 0 6px hsla(221.2, 83.2%, 53.3%, 0.15), 0 4px 20px hsla(221.2, 83.2%, 53.3%, 0.25), 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 0 0 3px hsl(221.2, 83.2%, 53.3%), 0 0 0 6px hsla(221.2, 83.2%, 53.3%, 0.15), 0 4px 20px hsla(221.2, 83.2%, 53.3%, 0.25), 0 2px 8px rgba(0,0,0,0.08);
   }
 }
 
