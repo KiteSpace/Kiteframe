@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
-import { PluginProvider, layoutPlugin } from '@/lib/kiteframe';
+import { PluginProvider, layoutPlugin, consolePlugin, testPlugin } from '@/lib/kiteframe';
+import { PluginTestButton } from '@/components/PluginTestButton';
+import { PluginTestPanel } from '@/components/PluginTestPanel';
 import { Sidebar } from '@/components/Sidebar';
 import { EdgeCustomizer } from '@/components/EdgeCustomizer';
 import { Toolbar } from '@/components/Toolbar';
@@ -800,13 +802,31 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showAiGenerator, setShowAiGenerator] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showNewTabModal, setShowNewTabModal] = useState(false);
+  const [showPluginTest, setShowPluginTest] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node } | null>(null);
+
+  // Auto-register demo plugins when component mounts
+  useEffect(() => {
+    const registerPlugins = async () => {
+      try {
+        const { kiteFrameCore, consolePlugin, testPlugin } = await import('@/lib/kiteframe');
+        kiteFrameCore.use(consolePlugin);
+        kiteFrameCore.use(testPlugin);
+        console.log('✅ Demo plugins registered successfully');
+        console.log('🔌 Plugin System Ready! Check Settings → Test Plugins or watch console for activity');
+      } catch (error) {
+        console.log('ℹ️ Plugin registration will be handled by PluginProvider');
+      }
+    };
+    registerPlugins();
+  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-background">
         {/* Header */}
         <Toolbar
           onOpenAiSettings={() => setShowAiModal(true)}
+          onOpenPluginTest={() => setShowPluginTest(true)}
         />
         
         {/* Tab Bar */}
@@ -1434,6 +1454,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onCreateFromPrompt={handleCreateFromPrompt}
             onCreateFromFile={handleCreateFromFile}
             onCreateFromTemplate={handleCreateFromTemplate}
+          />
+        )}
+
+        {/* Plugin Test Panel */}
+        {showPluginTest && (
+          <PluginTestPanel
+            onClose={() => setShowPluginTest(false)}
+            nodes={nodes}
+            edges={edges}
           />
         )}
         {contextMenu && (

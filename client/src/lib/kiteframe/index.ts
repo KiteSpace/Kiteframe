@@ -21,6 +21,10 @@ export { PluginProvider, usePluginSystem, usePluginContext, usePlugin } from './
 export { multiSelectPlugin } from './plugins/basic/MultiSelectPlugin';
 export { layoutPlugin } from './plugins/basic/LayoutPlugin';
 
+// Demo plugins
+export { testPlugin } from './plugins/demo/TestPlugin';
+export { consolePlugin } from './plugins/demo/ConsolePlugin';
+
 // Plugin development utilities
 export const createPlugin = (config: {
   name: string;

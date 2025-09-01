@@ -6,14 +6,16 @@ import {
   Workflow,
   ChevronDown,
   Ship,
+  TestTube,
 } from "lucide-react";
 import { useState } from "react";
 
 interface ToolbarProps {
   onOpenAiSettings: () => void;
+  onOpenPluginTest?: () => void;
 }
 
-export function Toolbar({ onOpenAiSettings }: ToolbarProps) {
+export function Toolbar({ onOpenAiSettings, onOpenPluginTest }: ToolbarProps) {
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   return (
     <header
@@ -59,6 +61,20 @@ export function Toolbar({ onOpenAiSettings }: ToolbarProps) {
                 <Bot size={16} className="text-purple-500" />
                 AI Settings
               </button>
+              {onOpenPluginTest && (
+                <button
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2 rounded-b-lg"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenPluginTest();
+                    setShowSettingsDropdown(false);
+                  }}
+                  data-testid="button-plugin-test"
+                >
+                  <TestTube size={16} className="text-green-500" />
+                  Test Plugins
+                </button>
+              )}
             </div>
           )}
         </div>
