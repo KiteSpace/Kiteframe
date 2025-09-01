@@ -24,6 +24,9 @@ export class VersionControlPlugin implements KiteFramePlugin {
     this.core = core;
     console.log('📚 Version Control Pro Plugin: Initializing...');
     
+    // Store reference for global access
+    (window as any).kiteframeVersionControlPlugin = this;
+    
     // Add version control extension points
     this.setupExtensionPoints();
     
@@ -184,57 +187,19 @@ export class VersionControlPlugin implements KiteFramePlugin {
     }
   }
 
+  public handleSnapshot(): void {
+    const name = prompt('Enter snapshot name:');
+    if (name) {
+      this.createSnapshot(name);
+    }
+  }
+
+  public handleVersionHistory(): void {
+    this.showVersionHistory();
+  }
+
   private setupVersionControlUI(): void {
-    // Add version control button to canvas controls
-    const versionControlHTML = `
-      <div class="fixed top-16 right-16 z-40 sm:top-5 sm:right-20">
-        <div class="flex gap-1 sm:gap-2">
-          <button
-            id="version-control-snapshot"
-            class="w-12 h-12 sm:w-10 sm:h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
-            title="Create Snapshot (Pro)"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera">
-              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
-              <circle cx="12" cy="13" r="3"/>
-            </svg>
-          </button>
-          <button
-            id="version-control-history"
-            class="w-12 h-12 sm:w-10 sm:h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
-            title="Version History (Pro)"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-history">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-              <path d="M3 3v5h5"/>
-              <path d="M12 7v5l4 2"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-    `;
-
-    // Add to DOM when canvas is ready
-    setTimeout(() => {
-      const canvas = document.querySelector('.workflow-canvas-container');
-      if (canvas) {
-        const versionUI = document.createElement('div');
-        versionUI.innerHTML = versionControlHTML;
-        canvas.appendChild(versionUI.firstElementChild!);
-
-        // Add event listeners
-        document.getElementById('version-control-snapshot')?.addEventListener('click', () => {
-          const name = prompt('Enter snapshot name:');
-          if (name) {
-            this.createSnapshot(name);
-          }
-        });
-
-        document.getElementById('version-control-history')?.addEventListener('click', () => {
-          this.showVersionHistory();
-        });
-      }
-    }, 1000);
+    // UI is now handled by FloatingToolbar
   }
 
   private async showVersionHistory(): Promise<void> {

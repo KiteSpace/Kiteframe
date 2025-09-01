@@ -267,45 +267,27 @@ export class CollaborationPlugin implements KiteFramePlugin {
         </div>
       </div>
 
-      <!-- Collaboration Toggle Button -->
-      <div class="fixed top-16 right-2 z-40 sm:top-5 sm:right-5">
-        <button
-          id="collaboration-toggle"
-          class="w-12 h-12 sm:w-10 sm:h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
-          title="Collaboration (Pro)"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-        </button>
-      </div>
+
     `;
 
     // Add to DOM when ready
     setTimeout(() => {
-      const canvas = document.querySelector('.workflow-canvas-container');
-      if (canvas) {
-        const collaborationUI = document.createElement('div');
-        collaborationUI.innerHTML = collaborationHTML;
-        document.body.appendChild(collaborationUI.firstElementChild!);
-        canvas.appendChild(collaborationUI.firstElementChild!);
+      const collaborationUI = document.createElement('div');
+      collaborationUI.innerHTML = collaborationHTML;
+      document.body.appendChild(collaborationUI.firstElementChild!);
 
-        this.setupCollaborationEventListeners();
-      }
+      this.setupCollaborationEventListeners();
     }, 1000);
   }
 
+  public toggleCollaborationPanel(): void {
+    const panel = document.getElementById('collaboration-panel');
+    if (panel) {
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+  }
+
   private setupCollaborationEventListeners(): void {
-    // Toggle collaboration panel
-    document.getElementById('collaboration-toggle')?.addEventListener('click', () => {
-      const panel = document.getElementById('collaboration-panel');
-      if (panel) {
-        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-      }
-    });
 
     // Close collaboration panel
     document.getElementById('close-collaboration')?.addEventListener('click', () => {

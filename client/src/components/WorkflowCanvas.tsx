@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
+import { FloatingToolbar } from './FloatingToolbar';
 import type { Node, Edge } from '../lib/kiteframe/types';
 import { Undo, Redo, ZoomIn, Maximize2, LayoutGrid, ChevronRight } from 'lucide-react';
 
@@ -49,7 +50,6 @@ export function WorkflowCanvas({
   enablePlugins
 }: WorkflowCanvasProps) {
   const [isDraggingMinimap, setIsDraggingMinimap] = useState(false);
-  const [showLayoutDropdown, setShowLayoutDropdown] = useState(false);
 
   const handleMinimapMouseDown = useCallback((e: React.MouseEvent) => {
     setIsDraggingMinimap(true);
@@ -149,21 +149,7 @@ export function WorkflowCanvas({
     onViewportChange({ ...viewport, zoom: newZoom });
   }, [viewport, onViewportChange]);
 
-  // Close dropdown when clicking outside
-  const handleClickOutside = useCallback((e: MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest('[data-testid="button-auto-layout"]') && !target.closest('.auto-layout-dropdown')) {
-      setShowLayoutDropdown(false);
-    }
-  }, []);
 
-  // Add/remove click outside listener
-  useEffect(() => {
-    if (showLayoutDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showLayoutDropdown, handleClickOutside]);
   return (
     <div className="relative w-full h-full">
       {/* Grid Background */}
@@ -191,117 +177,36 @@ export function WorkflowCanvas({
         data-testid="workflow-canvas"
       />
 
-      {/* Undo/Redo/Layout Controls */}
-      <div className="absolute bottom-5 left-5 flex flex-col gap-2">
-        <button
-          className={`w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center transition-colors shadow-lg ${
-            canUndo ? 'hover:bg-accent text-foreground' : 'opacity-50 cursor-not-allowed text-muted-foreground'
-          }`}
-          onClick={canUndo ? onUndo : undefined}
-          disabled={!canUndo}
-          data-testid="button-undo"
-          title="Undo (Cmd+Z)"
-        >
-          <Undo size={16} />
-        </button>
-        <button
-          className={`w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center transition-colors shadow-lg ${
-            canRedo ? 'hover:bg-accent text-foreground' : 'opacity-50 cursor-not-allowed text-muted-foreground'
-          }`}
-          onClick={canRedo ? onRedo : undefined}
-          disabled={!canRedo}
-          data-testid="button-redo"
-          title="Redo (Cmd+Shift+Z)"
-        >
-          <Redo size={16} />
-        </button>
-        <button
-          className="w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
-          onClick={onFitView}
-          data-testid="button-zoom-fit"
-          title="Fit to View"
-        >
-          <Maximize2 size={16} />
-        </button>
-        
-        {/* Auto Layout Button with Dropdown */}
-        <div className="relative">
-          <button
-            className={`w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg ${
-              nodes.length > 0 ? 'text-foreground' : 'opacity-50 cursor-not-allowed text-muted-foreground'
-            }`}
-            onClick={() => nodes.length > 0 && setShowLayoutDropdown(!showLayoutDropdown)}
-            disabled={nodes.length === 0}
-            data-testid="button-auto-layout"
-            title="Auto Layout"
-          >
-            <LayoutGrid size={16} />
-          </button>
-          
-          {showLayoutDropdown && nodes.length > 0 && (
-            <div className="absolute left-12 bottom-0 w-48 bg-card border border-border rounded-lg shadow-xl z-50 auto-layout-dropdown">
-              <div className="p-2">
-                <div className="text-xs font-medium text-muted-foreground mb-2 px-2">Auto Layout Options</div>
-                <button
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center justify-between rounded"
-                  onClick={() => {
-                    onAutoLayout('horizontal');
-                    setShowLayoutDropdown(false);
-                  }}
-                  data-testid="layout-horizontal"
-                >
-                  <span>Horizontal Flow</span>
-                  <ChevronRight size={12} />
-                </button>
-                <button
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center justify-between rounded"
-                  onClick={() => {
-                    onAutoLayout('vertical');
-                    setShowLayoutDropdown(false);
-                  }}
-                  data-testid="layout-vertical"
-                >
-                  <span>Vertical Flow</span>
-                  <ChevronRight size={12} />
-                </button>
-                <button
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center justify-between rounded"
-                  onClick={() => {
-                    onAutoLayout('grid');
-                    setShowLayoutDropdown(false);
-                  }}
-                  data-testid="layout-grid"
-                >
-                  <span>Grid Layout</span>
-                  <ChevronRight size={12} />
-                </button>
-                <button
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center justify-between rounded"
-                  onClick={() => {
-                    onAutoLayout('circular');
-                    setShowLayoutDropdown(false);
-                  }}
-                  data-testid="layout-circular"
-                >
-                  <span>Circular Layout</span>
-                  <ChevronRight size={12} />
-                </button>
-                <button
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center justify-between rounded"
-                  onClick={() => {
-                    onAutoLayout('hierarchy');
-                    setShowLayoutDropdown(false);
-                  }}
-                  data-testid="layout-hierarchy"
-                >
-                  <span>Hierarchical</span>
-                  <ChevronRight size={12} />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Floating Toolbar */}
+      <FloatingToolbar
+        onUndo={onUndo}
+        onRedo={onRedo}
+        onFitView={onFitView}
+        onAutoLayout={onAutoLayout}
+        onCollaboration={() => {
+          // Access collaboration plugin through global registry
+          const collabPlugin = (window as any).kiteframeCollaborationPlugin;
+          if (collabPlugin) {
+            collabPlugin.toggleCollaborationPanel();
+          }
+        }}
+        onSnapshot={() => {
+          // Access version control plugin through global registry
+          const versionPlugin = (window as any).kiteframeVersionControlPlugin;
+          if (versionPlugin) {
+            versionPlugin.handleSnapshot();
+          }
+        }}
+        onVersionHistory={() => {
+          // Access version control plugin through global registry
+          const versionPlugin = (window as any).kiteframeVersionControlPlugin;
+          if (versionPlugin) {
+            versionPlugin.handleVersionHistory();
+          }
+        }}
+        canUndo={canUndo}
+        canRedo={canRedo}
+      />
 
       {/* Interactive Mini-map */}
       <div className="absolute bottom-5 right-5 w-52 h-40 bg-card border border-border rounded-lg shadow-xl overflow-hidden">
