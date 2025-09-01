@@ -889,7 +889,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         {/* Main Content */}
         <div className="flex-1 flex">
           {/* Sidebar or Edge Customizer */}
-          <div className="w-80 border-r border-border flex flex-col">
+          <div className="w-64 sm:w-80 border-r border-border flex flex-col">
             {selectedEdgeId ? (
               <EdgeCustomizer
                 selectedEdge={edges.find(e => e.id === selectedEdgeId)}

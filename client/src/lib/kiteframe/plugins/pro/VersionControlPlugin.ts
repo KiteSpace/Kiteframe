@@ -187,7 +187,7 @@ export class VersionControlPlugin implements KiteFramePlugin {
   private setupVersionControlUI(): void {
     // Add version control button to canvas controls
     const versionControlHTML = `
-      <div class="fixed top-16 right-20 z-40 sm:top-5 sm:right-20">
+      <div class="fixed top-16 right-16 z-40 sm:top-5 sm:right-20">
         <div class="flex gap-1 sm:gap-2">
           <button
             id="version-control-snapshot"

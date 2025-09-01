@@ -268,7 +268,7 @@ export class CollaborationPlugin implements KiteFramePlugin {
       </div>
 
       <!-- Collaboration Toggle Button -->
-      <div class="fixed top-16 right-4 z-40 sm:top-5 sm:right-5">
+      <div class="fixed top-16 right-2 z-40 sm:top-5 sm:right-5">
         <button
           id="collaboration-toggle"
           class="w-12 h-12 sm:w-10 sm:h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
