@@ -207,46 +207,49 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
   }
 
   private setupCopyPasteListeners(): void {
-    // Listen for keyboard events for copy/paste
-    document.addEventListener('keydown', (e) => {
-      // Only handle if we're not in an input field
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        e.preventDefault();
-        this.copySelectedNode();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-        e.preventDefault();
-        this.pasteNode();
-      }
-    });
+    // Listen for keyboard events for copy/paste using stored handler reference
+    document.addEventListener('keydown', this.copyPasteHandler, true);
   }
 
   private copySelectedNode(): void {
-    // Find the currently selected node
-    const selectedNode = document.querySelector('.kiteframe-node.selected');
-    if (!selectedNode) {
-      console.log('🚀 Copy: No node selected');
+    console.log('🚀 Attempting to copy selected node...');
+    
+    // Get node data from tab manager first (more reliable)
+    const tabManager = (window as any).tabManager;
+    if (!tabManager?.currentTab?.nodes) {
+      console.log('🚀 Copy: No tab manager or nodes available');
       return;
     }
 
-    const nodeId = selectedNode.getAttribute('data-node-id');
-    if (!nodeId) return;
-
-    // Get node data from tab manager
-    const tabManager = (window as any).tabManager;
-    if (!tabManager?.currentTab?.nodes) return;
-
-    const node = tabManager.currentTab.nodes.find((n: any) => n.id === nodeId);
-    if (node) {
-      this.copiedNode = { ...node };
-      console.log('🚀 Node copied:', this.copiedNode.data?.label);
+    // Find selected node from tab data
+    const selectedNode = tabManager.currentTab.nodes.find((n: any) => n.selected === true);
+    if (!selectedNode) {
+      console.log('🚀 Copy: No node selected in tab data');
       
-      // Show visual feedback
-      this.showCopyFeedback();
+      // Fallback: check DOM for selected node
+      const domSelectedNode = document.querySelector('.kiteframe-node.selected');
+      if (domSelectedNode) {
+        const nodeId = domSelectedNode.getAttribute('data-node-id');
+        if (nodeId) {
+          const nodeFromDom = tabManager.currentTab.nodes.find((n: any) => n.id === nodeId);
+          if (nodeFromDom) {
+            this.copiedNode = { ...nodeFromDom };
+            console.log('🚀 Node copied from DOM fallback:', this.copiedNode.data?.label);
+            this.showCopyFeedback();
+            return;
+          }
+        }
+      }
+      
+      console.log('🚀 Copy: No selected node found');
+      return;
     }
+
+    this.copiedNode = { ...selectedNode };
+    console.log('🚀 Node copied:', this.copiedNode.data?.label);
+    
+    // Show visual feedback
+    this.showCopyFeedback();
   }
 
   private pasteNode(): void {
@@ -345,8 +348,37 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
     });
     this.quickAddHandles.clear();
     
+    // Remove event listeners to prevent memory leaks
+    document.removeEventListener('keydown', this.copyPasteHandler, true);
+    
     console.log('🚀 AdvancedInteractions Pro Plugin: Cleaned up');
   }
+
+  // Store handler reference for cleanup
+  private copyPasteHandler = (e: KeyboardEvent) => {
+    const target = e.target as HTMLElement;
+    if (target instanceof HTMLInputElement || 
+        target instanceof HTMLTextAreaElement ||
+        target.closest('[role="dialog"]') ||
+        target.closest('.modal')) {
+      return;
+    }
+
+    const isCopyKey = (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C');
+    const isPasteKey = (e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V');
+
+    if (isCopyKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('🚀 Copy shortcut detected');
+      this.copySelectedNode();
+    } else if (isPasteKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('🚀 Paste shortcut detected');
+      this.pasteNode();
+    }
+  };
 }
 
 export const advancedInteractionsPlugin = new AdvancedInteractionsPlugin();
