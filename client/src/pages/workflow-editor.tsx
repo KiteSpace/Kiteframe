@@ -3,7 +3,7 @@ import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import { PluginProvider, layoutPlugin, consolePlugin, testPlugin, advancedInteractionsPlugin } from '@/lib/kiteframe';
 import { PluginTestButton } from '@/components/PluginTestButton';
 import { PluginTestPanel } from '@/components/PluginTestPanel';
-import { QuickAddDemo } from '@/components/QuickAddDemo';
+
 import { Sidebar } from '@/components/Sidebar';
 import { EdgeCustomizer } from '@/components/EdgeCustomizer';
 import { Toolbar } from '@/components/Toolbar';
@@ -1483,8 +1483,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           />
         )}
 
-        {/* Quick Add Demo UI */}
-        <QuickAddDemo />
+
         {contextMenu && (
           <ContextMenu
             x={contextMenu.x}
