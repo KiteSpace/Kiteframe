@@ -16,7 +16,8 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
   version = '1.0.0';
   isPro = true;
 
-  private quickAddHandles: Map<string, HTMLElement> = new Map();
+  private quickAddButtons: Map<string, HTMLElement> = new Map();
+  private ghostPreview: HTMLElement | null = null;
   private copiedNode: any = null;
 
   initialize(core: any): void {
@@ -24,10 +25,6 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
     
     // Register hooks for enhanced interactions
     const hooks: PluginHooks = {
-      afterNodesChange: (nodes) => {
-        this.updateQuickAddHandles(nodes);
-      },
-      
       onCanvasClick: (event, worldPos) => {
         // Handle canvas interactions for quick-add functionality
         console.log('🚀 AdvancedInteractions: Canvas clicked', worldPos);
@@ -54,185 +51,206 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
   }
 
   private setupNodeHoverListeners(): void {
-    console.log('🚀 Setting up node hover listeners...');
+    console.log('🚀 Setting up handle hover listeners for quick-add functionality...');
     
-    // Setup global event delegation for node hover events
+    // Listen for hover events on existing connection handles
     document.addEventListener('mouseenter', (e) => {
-      const target = e.target as HTMLElement;
-      if (target && typeof target.closest === 'function') {
-        const nodeElement = target.closest('[data-node-id]');
+      const target = e.target as SVGCircleElement;
+      
+      // Check if this is a connection handle (SVG circle with cursor-crosshair)
+      if (target.tagName === 'circle' && target.classList.contains('cursor-crosshair')) {
+        const svgElement = target.closest('svg');
+        const nodeElement = svgElement?.closest('[data-node-id]');
+        
         if (nodeElement && nodeElement.hasAttribute('data-node-id')) {
           const nodeId = nodeElement.getAttribute('data-node-id');
-          if (nodeId) {
-            console.log('🚀 Node hover detected:', nodeId);
-            this.showQuickAddHandles(nodeId);
-          }
-        }
-      }
-    }, true); // Use capture to ensure we catch the event
-
-    document.addEventListener('mouseleave', (e) => {
-      const target = e.target as HTMLElement;
-      if (target && typeof target.closest === 'function') {
-        const nodeElement = target.closest('[data-node-id]');
-        if (nodeElement && nodeElement.hasAttribute('data-node-id')) {
-          const nodeId = nodeElement.getAttribute('data-node-id');
-          if (nodeId) {
-            console.log('🚀 Node hover ended:', nodeId);
-            this.hideQuickAddHandles(nodeId);
+          const handlePosition = this.getHandlePosition(target, svgElement!);
+          
+          if (nodeId && handlePosition) {
+            console.log('🚀 Handle hover detected:', { nodeId, position: handlePosition });
+            this.showQuickAddButton(nodeId, handlePosition, target);
           }
         }
       }
     }, true);
 
-    // Also listen for mouseout as backup
-    document.addEventListener('mouseout', (e) => {
+    // Listen for mouse leave to hide quick-add buttons
+    document.addEventListener('mouseleave', (e) => {
       const target = e.target as HTMLElement;
-      const relatedTarget = e.relatedTarget as HTMLElement;
       
-      if (target && typeof target.closest === 'function') {
-        const nodeElement = target.closest('[data-node-id]');
-        if (nodeElement && nodeElement.hasAttribute('data-node-id')) {
-          // Check if we're moving to a child element or outside the node
-          if (!relatedTarget || !nodeElement.contains(relatedTarget)) {
-            const nodeId = nodeElement.getAttribute('data-node-id');
-            if (nodeId) {
-              console.log('🚀 Node mouse out detected:', nodeId);
-              this.hideQuickAddHandles(nodeId);
-            }
-          }
-        }
+      if (target.classList?.contains('quick-add-button') || 
+          (target.tagName === 'circle' && target.classList.contains('cursor-crosshair'))) {
+        
+        // Delay hiding to allow moving from handle to button
+        setTimeout(() => {
+          this.hideAllQuickAddButtons();
+        }, 100);
       }
-    });
+    }, true);
   }
 
-  private updateQuickAddHandles(nodes: any[]): void {
-    // Update quick-add handle positions for all nodes
-    nodes.forEach(node => {
-      const existingHandles = this.quickAddHandles.get(node.id);
-      if (existingHandles) {
-        this.updateHandlePositions(node.id, node);
-      }
-    });
+  private getHandlePosition(circleElement: SVGCircleElement, svgElement: SVGElement): 'top' | 'right' | 'bottom' | 'left' | null {
+    const cx = parseFloat(circleElement.getAttribute('cx') || '0');
+    const cy = parseFloat(circleElement.getAttribute('cy') || '0');
+    const svgSVGElement = svgElement as SVGSVGElement;
+    const svgWidth = svgSVGElement.width.baseVal.value;
+    const svgHeight = svgSVGElement.height.baseVal.value;
+    
+    // Determine position based on coordinates
+    if (cy === 0) return 'top';
+    if (cy === svgHeight) return 'bottom';
+    if (cx === 0) return 'left';
+    if (cx === svgWidth) return 'right';
+    
+    return null;
   }
 
-  private showQuickAddHandles(nodeId: string): void {
-    // Create and show quick-add handles around the node
+  private showQuickAddButton(nodeId: string, position: 'top' | 'right' | 'bottom' | 'left', handleElement: SVGCircleElement): void {
+    // Hide existing buttons first
+    this.hideAllQuickAddButtons();
+    
     const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
-    if (!nodeElement) {
-      console.log('🚀 Cannot find node element:', nodeId);
-      return;
-    }
+    if (!nodeElement) return;
 
-    console.log('🚀 Creating quick-add handles for node:', nodeId);
+    const button = document.createElement('button');
+    button.className = `quick-add-button quick-add-${position}`;
+    button.innerHTML = '+';
+    button.style.position = 'absolute';
+    button.style.width = '24px';
+    button.style.height = '24px';
+    button.style.borderRadius = '50%';
+    button.style.backgroundColor = '#10b981';
+    button.style.color = 'white';
+    button.style.border = '2px solid white';
+    button.style.cursor = 'pointer';
+    button.style.fontSize = '14px';
+    button.style.fontWeight = 'bold';
+    button.style.display = 'flex';
+    button.style.alignItems = 'center';
+    button.style.justifyContent = 'center';
+    button.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+    button.style.zIndex = '1000';
+    button.style.transition = 'all 0.2s ease';
 
-    // Remove existing handles
-    this.hideQuickAddHandles(nodeId);
-
-    // Create handle container
-    const handleContainer = document.createElement('div');
-    handleContainer.className = 'quick-add-handles';
-    handleContainer.style.position = 'absolute';
-    handleContainer.style.top = '0';
-    handleContainer.style.left = '0';
-    handleContainer.style.width = '100%';
-    handleContainer.style.height = '100%';
-    handleContainer.style.pointerEvents = 'none';
-    handleContainer.style.zIndex = '20';
-
-    // Create handles for each position
-    const positions = ['top', 'right', 'bottom', 'left'] as const;
-    positions.forEach(position => {
-      const handle = this.createQuickAddHandle(nodeId, position);
-      handleContainer.appendChild(handle);
-    });
-
-    nodeElement.appendChild(handleContainer);
-    this.quickAddHandles.set(nodeId, handleContainer);
-  }
-
-  private createQuickAddHandle(nodeId: string, position: 'top' | 'right' | 'bottom' | 'left'): HTMLElement {
-    const handle = document.createElement('button');
-    handle.className = `quick-add-handle quick-add-${position}`;
-    handle.innerHTML = '+';
-    handle.style.position = 'absolute';
-    handle.style.width = '24px';
-    handle.style.height = '24px';
-    handle.style.borderRadius = '50%';
-    handle.style.backgroundColor = '#3b82f6';
-    handle.style.color = 'white';
-    handle.style.border = '2px solid white';
-    handle.style.cursor = 'pointer';
-    handle.style.pointerEvents = 'auto';
-    handle.style.fontSize = '14px';
-    handle.style.fontWeight = 'bold';
-    handle.style.display = 'flex';
-    handle.style.alignItems = 'center';
-    handle.style.justifyContent = 'center';
-    handle.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-    handle.style.transition = 'all 0.2s ease';
-
-    // Position the handle based on side
-    const offset = -12; // Half of handle size
+    // Position button offset from the handle
+    const offset = 40; // Distance from node edge
     switch (position) {
       case 'top':
-        handle.style.top = `${offset}px`;
-        handle.style.left = '50%';
-        handle.style.transform = 'translateX(-50%)';
+        button.style.top = `${-offset}px`;
+        button.style.left = '50%';
+        button.style.transform = 'translateX(-50%)';
         break;
       case 'right':
-        handle.style.right = `${offset}px`;
-        handle.style.top = '50%';
-        handle.style.transform = 'translateY(-50%)';
+        button.style.right = `${-offset}px`;
+        button.style.top = '50%';
+        button.style.transform = 'translateY(-50%)';
         break;
       case 'bottom':
-        handle.style.bottom = `${offset}px`;
-        handle.style.left = '50%';
-        handle.style.transform = 'translateX(-50%)';
+        button.style.bottom = `${-offset}px`;
+        button.style.left = '50%';
+        button.style.transform = 'translateX(-50%)';
         break;
       case 'left':
-        handle.style.left = `${offset}px`;
-        handle.style.top = '50%';
-        handle.style.transform = 'translateY(-50%)';
+        button.style.left = `${-offset}px`;
+        button.style.top = '50%';
+        button.style.transform = 'translateY(-50%)';
         break;
     }
 
-    // Add hover effects
-    handle.addEventListener('mouseenter', () => {
-      handle.style.backgroundColor = '#2563eb';
-      handle.style.transform += ' scale(1.1)';
+    // Add hover effects for ghost preview
+    button.addEventListener('mouseenter', () => {
+      button.style.backgroundColor = '#059669';
+      button.style.transform += ' scale(1.2)';
+      this.showGhostPreview(nodeId, position);
     });
 
-    handle.addEventListener('mouseleave', () => {
-      handle.style.backgroundColor = '#3b82f6';
-      handle.style.transform = handle.style.transform.replace(' scale(1.1)', '');
+    button.addEventListener('mouseleave', () => {
+      button.style.backgroundColor = '#10b981';
+      button.style.transform = button.style.transform.replace(' scale(1.2)', '');
+      this.hideGhostPreview();
     });
 
-    // Handle click to add new node
-    handle.addEventListener('click', (e) => {
+    // Handle click to create node
+    button.addEventListener('click', (e) => {
       e.stopPropagation();
       this.handleQuickAddNode(nodeId, position);
+      this.hideAllQuickAddButtons();
+      this.hideGhostPreview();
     });
 
-    return handle;
+    nodeElement.appendChild(button);
+    this.quickAddButtons.set(`${nodeId}-${position}`, button);
   }
 
-  private hideQuickAddHandles(nodeId: string): void {
-    const handles = this.quickAddHandles.get(nodeId);
-    if (handles) {
-      handles.remove();
-      this.quickAddHandles.delete(nodeId);
+  private showGhostPreview(nodeId: string, position: 'top' | 'right' | 'bottom' | 'left'): void {
+    this.hideGhostPreview();
+    
+    const tabManager = (window as any).tabManager;
+    if (!tabManager?.currentTab?.nodes) return;
+
+    const sourceNode = tabManager.currentTab.nodes.find((n: any) => n.id === nodeId);
+    if (!sourceNode) return;
+
+    // Calculate ghost position
+    const spacing = 250;
+    let ghostPosition = { x: 0, y: 0 };
+    
+    switch (position) {
+      case 'top':
+        ghostPosition = { x: sourceNode.position.x, y: sourceNode.position.y - spacing };
+        break;
+      case 'right':
+        ghostPosition = { x: sourceNode.position.x + spacing, y: sourceNode.position.y };
+        break;
+      case 'bottom':
+        ghostPosition = { x: sourceNode.position.x, y: sourceNode.position.y + spacing };
+        break;
+      case 'left':
+        ghostPosition = { x: sourceNode.position.x - spacing, y: sourceNode.position.y };
+        break;
+    }
+
+    // Create ghost preview
+    const ghost = document.createElement('div');
+    ghost.className = 'ghost-preview';
+    ghost.style.position = 'absolute';
+    ghost.style.left = `${ghostPosition.x}px`;
+    ghost.style.top = `${ghostPosition.y}px`;
+    ghost.style.width = '200px';
+    ghost.style.height = '100px';
+    ghost.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+    ghost.style.border = '2px dashed #3b82f6';
+    ghost.style.borderRadius = '8px';
+    ghost.style.pointerEvents = 'none';
+    ghost.style.zIndex = '999';
+    ghost.style.display = 'flex';
+    ghost.style.alignItems = 'center';
+    ghost.style.justifyContent = 'center';
+    ghost.style.color = '#3b82f6';
+    ghost.style.fontSize = '14px';
+    ghost.style.fontWeight = 'bold';
+    ghost.innerHTML = 'New Process';
+
+    // Add to canvas
+    const canvasWorld = document.querySelector('.kiteframe-world');
+    if (canvasWorld) {
+      canvasWorld.appendChild(ghost);
+      this.ghostPreview = ghost;
     }
   }
 
-  private updateHandlePositions(nodeId: string, node: any): void {
-    // Update handle positions when node moves or resizes
-    const handles = this.quickAddHandles.get(nodeId);
-    if (handles) {
-      // Re-create handles with updated positions
-      this.hideQuickAddHandles(nodeId);
-      this.showQuickAddHandles(nodeId);
+  private hideGhostPreview(): void {
+    if (this.ghostPreview) {
+      this.ghostPreview.remove();
+      this.ghostPreview = null;
     }
+  }
+
+  private hideAllQuickAddButtons(): void {
+    this.quickAddButtons.forEach((button) => {
+      button.remove();
+    });
+    this.quickAddButtons.clear();
   }
 
   private setupCopyPasteListeners(): void {
@@ -371,11 +389,9 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
   }
 
   cleanup(): void {
-    // Clean up all quick-add handles
-    this.quickAddHandles.forEach((handles) => {
-      handles.remove();
-    });
-    this.quickAddHandles.clear();
+    // Clean up all quick-add buttons and ghost preview
+    this.hideAllQuickAddButtons();
+    this.hideGhostPreview();
     
     // Remove event listeners to prevent memory leaks
     document.removeEventListener('keydown', this.copyPasteHandler, true);
