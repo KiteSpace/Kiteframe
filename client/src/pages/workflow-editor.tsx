@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
-import { PluginProvider, layoutPlugin, consolePlugin, testPlugin } from '@/lib/kiteframe';
+import { PluginProvider, layoutPlugin, consolePlugin, testPlugin, advancedInteractionsPlugin } from '@/lib/kiteframe';
 import { PluginTestButton } from '@/components/PluginTestButton';
 import { PluginTestPanel } from '@/components/PluginTestPanel';
+import { QuickAddDemo } from '@/components/QuickAddDemo';
 import { Sidebar } from '@/components/Sidebar';
 import { EdgeCustomizer } from '@/components/EdgeCustomizer';
 import { Toolbar } from '@/components/Toolbar';
@@ -809,11 +810,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   useEffect(() => {
     const registerPlugins = async () => {
       try {
-        const { kiteFrameCore, consolePlugin, testPlugin } = await import('@/lib/kiteframe');
+        const { kiteFrameCore, consolePlugin, testPlugin, advancedInteractionsPlugin } = await import('@/lib/kiteframe');
         kiteFrameCore.use(consolePlugin);
         kiteFrameCore.use(testPlugin);
-        console.log('✅ Demo plugins registered successfully');
+        kiteFrameCore.use(advancedInteractionsPlugin);
+        console.log('✅ Demo + Pro plugins registered successfully');
         console.log('🔌 Plugin System Ready! Check Settings → Test Plugins or watch console for activity');
+        console.log('🚀 Advanced Interactions Pro: Quick-add handles enabled on node hover!');
       } catch (error) {
         console.log('ℹ️ Plugin registration will be handled by PluginProvider');
       }
@@ -1465,6 +1468,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             edges={edges}
           />
         )}
+
+        {/* Quick Add Demo UI */}
+        <QuickAddDemo />
         {contextMenu && (
           <ContextMenu
             x={contextMenu.x}

@@ -25,6 +25,9 @@ export { layoutPlugin } from './plugins/basic/LayoutPlugin';
 export { testPlugin } from './plugins/demo/TestPlugin';
 export { consolePlugin } from './plugins/demo/ConsolePlugin';
 
+// Pro plugins
+export { advancedInteractionsPlugin } from './plugins/pro/AdvancedInteractionsPlugin';
+
 // Plugin development utilities
 export const createPlugin = (config: {
   name: string;
