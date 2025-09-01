@@ -806,19 +806,33 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showPluginTest, setShowPluginTest] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node } | null>(null);
 
+  // Expose tab manager to global window for pro plugins
+  useEffect(() => {
+    (window as any).tabManager = {
+      currentTab: activeTab,
+      tabs: tabs,
+      setTabs: setTabs,
+      setActiveTabId: setActiveTabId,
+      updateTab: updateActiveTab
+    };
+  }, [activeTab, tabs, setTabs, setActiveTabId, updateActiveTab]);
+
   // Auto-register demo plugins when component mounts
   useEffect(() => {
     const registerPlugins = async () => {
       try {
-        const { kiteFrameCore, consolePlugin, testPlugin, advancedInteractionsPlugin } = await import('@/lib/kiteframe');
+        const { kiteFrameCore, consolePlugin, testPlugin, advancedInteractionsPlugin, versionControlPlugin, collaborationPlugin } = await import('@/lib/kiteframe');
         kiteFrameCore.use(consolePlugin);
         kiteFrameCore.use(testPlugin);
         kiteFrameCore.use(advancedInteractionsPlugin);
+        kiteFrameCore.use(versionControlPlugin);
+        kiteFrameCore.use(collaborationPlugin);
         console.log('✅ Demo + Pro plugins registered successfully');
         console.log('🔌 Plugin System Ready! Check Settings → Test Plugins or watch console for activity');
         console.log('🚀 Advanced Interactions Pro: Quick-add handles enabled on node hover!');
       } catch (error) {
-        console.log('ℹ️ Plugin registration will be handled by PluginProvider');
+        console.error('❌ Plugin registration error:', error);
+        console.log('ℹ️ Some plugins may not have loaded correctly');
       }
     };
     registerPlugins();

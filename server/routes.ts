@@ -1,7 +1,17 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from 'ws';
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { db } from "./db";
+import { 
+  workflowSnapshots, 
+  collaborationRooms, 
+  roomParticipants, 
+  chatMessages, 
+  workflowComments 
+} from "@shared/schema";
+import { eq, desc } from "drizzle-orm";
 
 // Workflow validation utility
 function validateWorkflowStructure(data: any): { isValid: boolean; errors: string[]; warnings: string[] } {
@@ -756,7 +766,249 @@ Respond with only the corrected JSON data:`;
     }
   });
 
+  // Pro Plugin API Routes
+
+  // Workflow Snapshots API (Version Control Pro)
+  app.post('/api/snapshots', async (req, res) => {
+    try {
+      const { workflowId, name, description, nodes, edges, metadata, isAutoSave } = req.body;
+      
+      const snapshot = await db.insert(workflowSnapshots).values({
+        workflowId,
+        name,
+        description,
+        nodes,
+        edges,
+        metadata,
+        isAutoSave: isAutoSave || false
+      }).returning();
+
+      res.json(snapshot[0]);
+    } catch (error) {
+      console.error('Snapshot creation error:', error);
+      res.status(500).json({ error: 'Failed to create snapshot' });
+    }
+  });
+
+  app.get('/api/snapshots/:workflowId', async (req, res) => {
+    try {
+      const { workflowId } = req.params;
+      
+      const snapshots = await db
+        .select()
+        .from(workflowSnapshots)
+        .where(eq(workflowSnapshots.workflowId, workflowId))
+        .orderBy(desc(workflowSnapshots.createdAt));
+
+      res.json(snapshots);
+    } catch (error) {
+      console.error('Snapshot fetch error:', error);
+      res.status(500).json({ error: 'Failed to fetch snapshots' });
+    }
+  });
+
+  app.post('/api/snapshots/:id/restore', async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const snapshot = await db
+        .select()
+        .from(workflowSnapshots)
+        .where(eq(workflowSnapshots.id, id));
+
+      if (snapshot.length === 0) {
+        return res.status(404).json({ error: 'Snapshot not found' });
+      }
+
+      res.json(snapshot[0]);
+    } catch (error) {
+      console.error('Snapshot restore error:', error);
+      res.status(500).json({ error: 'Failed to restore snapshot' });
+    }
+  });
+
+  // Collaboration Rooms API (Collaboration Pro)
+  app.post('/api/rooms', async (req, res) => {
+    try {
+      const { workflowId, name, description, isPrivate } = req.body;
+      
+      const room = await db.insert(collaborationRooms).values({
+        workflowId,
+        name,
+        description,
+        isPrivate: isPrivate || false
+      }).returning();
+
+      res.json(room[0]);
+    } catch (error) {
+      console.error('Room creation error:', error);
+      res.status(500).json({ error: 'Failed to create room' });
+    }
+  });
+
+  app.post('/api/rooms/:id/join', async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const room = await db
+        .select()
+        .from(collaborationRooms)
+        .where(eq(collaborationRooms.id, id));
+
+      if (room.length === 0) {
+        return res.status(404).json({ error: 'Room not found' });
+      }
+
+      // Add participant (in real implementation, get userId from authentication)
+      // For now, we'll just return the room
+      res.json(room[0]);
+    } catch (error) {
+      console.error('Room join error:', error);
+      res.status(500).json({ error: 'Failed to join room' });
+    }
+  });
+
+  // Chat Messages API (Collaboration Pro)
+  app.post('/api/chat/messages', async (req, res) => {
+    try {
+      const { roomId, message, messageType, metadata } = req.body;
+      
+      const chatMessage = await db.insert(chatMessages).values({
+        roomId,
+        message,
+        messageType: messageType || 'text',
+        metadata
+      }).returning();
+
+      // In real implementation, broadcast via WebSocket
+      res.json(chatMessage[0]);
+    } catch (error) {
+      console.error('Chat message error:', error);
+      res.status(500).json({ error: 'Failed to send message' });
+    }
+  });
+
+  app.get('/api/chat/messages/:roomId', async (req, res) => {
+    try {
+      const { roomId } = req.params;
+      
+      const messages = await db
+        .select()
+        .from(chatMessages)
+        .where(eq(chatMessages.roomId, roomId))
+        .orderBy(desc(chatMessages.createdAt))
+        .limit(50);
+
+      res.json(messages);
+    } catch (error) {
+      console.error('Chat messages fetch error:', error);
+      res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+  });
+
+  // Workflow Comments API (Collaboration Pro)
+  app.post('/api/comments', async (req, res) => {
+    try {
+      const { workflowId, roomId, nodeId, positionX, positionY, content } = req.body;
+      
+      const comment = await db.insert(workflowComments).values({
+        workflowId,
+        roomId,
+        nodeId,
+        positionX,
+        positionY,
+        content
+      }).returning();
+
+      // In real implementation, broadcast via WebSocket
+      res.json(comment[0]);
+    } catch (error) {
+      console.error('Comment creation error:', error);
+      res.status(500).json({ error: 'Failed to create comment' });
+    }
+  });
+
+  app.get('/api/comments/:workflowId', async (req, res) => {
+    try {
+      const { workflowId } = req.params;
+      
+      const comments = await db
+        .select()
+        .from(workflowComments)
+        .where(eq(workflowComments.workflowId, workflowId))
+        .orderBy(desc(workflowComments.createdAt));
+
+      res.json(comments);
+    } catch (error) {
+      console.error('Comments fetch error:', error);
+      res.status(500).json({ error: 'Failed to fetch comments' });
+    }
+  });
+
   const httpServer = createServer(app);
+  
+  // WebSocket server for real-time collaboration
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  wss.on('connection', (ws: WebSocket, request) => {
+    console.log('🔗 New WebSocket connection established');
+    
+    ws.on('message', (data: Buffer) => {
+      try {
+        const message = JSON.parse(data.toString());
+        console.log('📨 WebSocket message received:', message);
+        
+        // Handle different message types
+        switch (message.type) {
+          case 'join_room':
+            // Handle room join
+            ws.send(JSON.stringify({
+              type: 'room_joined',
+              roomId: message.roomId
+            }));
+            break;
+          case 'chat_message':
+            // Broadcast chat message to all clients in room
+            wss.clients.forEach((client) => {
+              if (client !== ws && client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                  type: 'chat_message',
+                  message: message
+                }));
+              }
+            });
+            break;
+          case 'cursor_update':
+            // Broadcast cursor position to all clients in room
+            wss.clients.forEach((client) => {
+              if (client !== ws && client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                  type: 'cursor_update',
+                  cursor: message.cursor
+                }));
+              }
+            });
+            break;
+        }
+      } catch (error) {
+        console.error('❌ WebSocket message error:', error);
+      }
+    });
+    
+    ws.on('close', () => {
+      console.log('🔗 WebSocket connection closed');
+    });
+    
+    ws.on('error', (error) => {
+      console.error('❌ WebSocket error:', error);
+    });
+    
+    // Send welcome message
+    ws.send(JSON.stringify({
+      type: 'connection_established',
+      message: 'Connected to collaboration server'
+    }));
+  });
 
   return httpServer;
 }

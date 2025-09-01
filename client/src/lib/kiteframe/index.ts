@@ -27,6 +27,8 @@ export { consolePlugin } from './plugins/demo/ConsolePlugin';
 
 // Pro plugins
 export { advancedInteractionsPlugin } from './plugins/pro/AdvancedInteractionsPlugin';
+export { versionControlPlugin } from './plugins/pro/VersionControlPlugin';
+export { collaborationPlugin } from './plugins/pro/CollaborationPlugin';
 
 // Plugin development utilities
 export const createPlugin = (config: {
