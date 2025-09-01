@@ -5,13 +5,13 @@
   
   /* Enhanced layered box-shadow for premium glow effect that follows border-radius */
   box-shadow: 
-    0 0 0 3px hsl(221.2, 83.2%, 53.3%),
-    0 0 0 6px hsla(221.2, 83.2%, 53.3%, 0.15), 
-    0 4px 20px hsla(221.2, 83.2%, 53.3%, 0.25), 
-    0 2px 8px rgba(0,0,0,0.08) !important;
+    0 0 0 3px hsl(var(--primary)),
+    0 0 0 6px hsl(var(--primary) / 0.15), 
+    0 4px 20px hsl(var(--primary) / 0.25), 
+    0 2px 8px hsl(var(--foreground) / 0.08) !important;
   
   /* Subtle background tint */
-  background-color: hsla(221.2, 83.2%, 53.3%, 0.03) !important;
+  background-color: hsl(var(--primary) / 0.03) !important;
   
   /* Ensure border-radius matches the base node */
   border-radius: 8px !important;
@@ -27,10 +27,10 @@
 .kiteframe-node.selected:hover {
   /* Enhanced hover state for selected nodes with matching border radius */
   box-shadow: 
-    0 0 0 3px hsl(221.2, 83.2%, 53.3%),
-    0 0 0 6px hsla(221.2, 83.2%, 53.3%, 0.2), 
-    0 6px 25px hsla(221.2, 83.2%, 53.3%, 0.3), 
-    0 4px 12px rgba(0,0,0,0.12) !important;
+    0 0 0 3px hsl(var(--primary)),
+    0 0 0 6px hsl(var(--primary) / 0.2), 
+    0 6px 25px hsl(var(--primary) / 0.3), 
+    0 4px 12px hsl(var(--foreground) / 0.12) !important;
   transform: scale(1.02) !important;
   border-radius: 8px !important;
 }
@@ -39,14 +39,14 @@
 @keyframes nodeSelect {
   0% {
     transform: scale(1);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 8px hsl(var(--foreground) / 0.08);
   }
   50% {
     transform: scale(1.05);
   }
   100% {
     transform: scale(1.01);
-    box-shadow: 0 0 0 3px hsl(221.2, 83.2%, 53.3%), 0 0 0 6px hsla(221.2, 83.2%, 53.3%, 0.15), 0 4px 20px hsla(221.2, 83.2%, 53.3%, 0.25), 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 0 0 3px hsl(var(--primary)), 0 0 0 6px hsl(var(--primary) / 0.15), 0 4px 20px hsl(var(--primary) / 0.25), 0 2px 8px hsl(var(--foreground) / 0.08);
   }
 }
 
