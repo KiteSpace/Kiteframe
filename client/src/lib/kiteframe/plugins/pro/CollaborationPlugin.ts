@@ -298,15 +298,22 @@ export class CollaborationPlugin implements KiteFramePlugin {
   }
 
   private setupCollaborationEventListeners(): void {
+    console.log('🤝 Setting up collaboration event listeners...');
 
     // Close collaboration panel
-    document.getElementById('close-collaboration')?.addEventListener('click', () => {
+    const closeBtn = document.getElementById('close-collaboration');
+    console.log('🤝 Close button found:', !!closeBtn);
+    closeBtn?.addEventListener('click', () => {
+      console.log('🤝 Close button clicked');
       const panel = document.getElementById('collaboration-panel');
       if (panel) panel.style.display = 'none';
     });
 
     // Create room
-    document.getElementById('create-room')?.addEventListener('click', async () => {
+    const createBtn = document.getElementById('create-room');
+    console.log('🤝 Create room button found:', !!createBtn);
+    createBtn?.addEventListener('click', async () => {
+      console.log('🤝 Create room button clicked');
       const input = document.getElementById('room-name') as HTMLInputElement;
       if (input?.value) {
         const roomId = await this.createRoom(input.value);
@@ -319,19 +326,27 @@ export class CollaborationPlugin implements KiteFramePlugin {
 
     // Send chat message
     const sendChat = () => {
+      console.log('🤝 Sending chat message...');
       const input = document.getElementById('chat-input') as HTMLInputElement;
       if (input?.value) {
         this.sendChatMessage(input.value);
+        input.value = '';
       }
     };
 
-    document.getElementById('send-chat')?.addEventListener('click', sendChat);
-    document.getElementById('chat-input')?.addEventListener('keypress', (e) => {
+    const sendBtn = document.getElementById('send-chat');
+    console.log('🤝 Send chat button found:', !!sendBtn);
+    sendBtn?.addEventListener('click', sendChat);
+    
+    const chatInput = document.getElementById('chat-input');
+    console.log('🤝 Chat input found:', !!chatInput);
+    chatInput?.addEventListener('keypress', (e) => {
       if ((e as KeyboardEvent).key === 'Enter') sendChat();
     });
 
     // Add comment
     const addComment = () => {
+      console.log('🤝 Adding comment...');
       const input = document.getElementById('comment-input') as HTMLInputElement;
       if (input?.value) {
         this.addComment(input.value);
@@ -339,8 +354,13 @@ export class CollaborationPlugin implements KiteFramePlugin {
       }
     };
 
-    document.getElementById('add-comment')?.addEventListener('click', addComment);
-    document.getElementById('comment-input')?.addEventListener('keypress', (e) => {
+    const addBtn = document.getElementById('add-comment');
+    console.log('🤝 Add comment button found:', !!addBtn);
+    addBtn?.addEventListener('click', addComment);
+    
+    const commentInput = document.getElementById('comment-input');
+    console.log('🤝 Comment input found:', !!commentInput);
+    commentInput?.addEventListener('keypress', (e) => {
       if ((e as KeyboardEvent).key === 'Enter') addComment();
     });
   }
@@ -397,22 +417,51 @@ export class CollaborationPlugin implements KiteFramePlugin {
   }
 
   private setupCommentSystem(): void {
+    console.log('🤝 Setting up comment system...');
+    
     // Add double-click handler for canvas comments
-    setTimeout(() => {
-      const canvas = document.querySelector('.kiteframe-canvas');
+    const setupCanvasHandler = () => {
+      // Try multiple selectors to find the canvas
+      const selectors = [
+        '.kiteframe-canvas',
+        '[data-testid="workflow-canvas"]', 
+        '.react-flow__pane',
+        '.react-flow__viewport',
+        'canvas'
+      ];
+      
+      let canvas = null;
+      for (const selector of selectors) {
+        canvas = document.querySelector(selector);
+        if (canvas) {
+          console.log(`🤝 Canvas found with selector: ${selector}`);
+          break;
+        }
+      }
+      
       if (canvas) {
+        console.log('🤝 Adding double-click listener to canvas');
         canvas.addEventListener('dblclick', (e) => {
+          console.log('🤝 Canvas double-clicked!');
           const rect = canvas.getBoundingClientRect();
           const x = (e as MouseEvent).clientX - rect.left;
           const y = (e as MouseEvent).clientY - rect.top;
           
           const comment = prompt('Add a comment:');
           if (comment) {
+            console.log(`🤝 Adding comment at (${x}, ${y}):`, comment);
             this.addComment(comment, undefined, x, y);
           }
         });
+      } else {
+        console.error('🤝 Canvas element not found with any selector');
       }
-    }, 1000);
+    };
+    
+    // Try multiple times with longer delays
+    setTimeout(setupCanvasHandler, 1000);
+    setTimeout(setupCanvasHandler, 2000);
+    setTimeout(setupCanvasHandler, 3000);
   }
 
   cleanup(): void {
