@@ -52,21 +52,27 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
   private setupNodeHoverListeners(): void {
     // Setup global event delegation for node hover events
     document.addEventListener('mouseover', (e) => {
-      const nodeElement = (e.target as HTMLElement).closest('[data-node-id]');
-      if (nodeElement && nodeElement.hasAttribute('data-node-id')) {
-        const nodeId = nodeElement.getAttribute('data-node-id');
-        if (nodeId) {
-          this.showQuickAddHandles(nodeId);
+      const target = e.target as HTMLElement;
+      if (target && typeof target.closest === 'function') {
+        const nodeElement = target.closest('[data-node-id]');
+        if (nodeElement && nodeElement.hasAttribute('data-node-id')) {
+          const nodeId = nodeElement.getAttribute('data-node-id');
+          if (nodeId) {
+            this.showQuickAddHandles(nodeId);
+          }
         }
       }
     });
 
     document.addEventListener('mouseleave', (e) => {
-      const nodeElement = (e.target as HTMLElement).closest('[data-node-id]');
-      if (nodeElement && nodeElement.hasAttribute('data-node-id')) {
-        const nodeId = nodeElement.getAttribute('data-node-id');
-        if (nodeId) {
-          this.hideQuickAddHandles(nodeId);
+      const target = e.target as HTMLElement;
+      if (target && typeof target.closest === 'function') {
+        const nodeElement = target.closest('[data-node-id]');
+        if (nodeElement && nodeElement.hasAttribute('data-node-id')) {
+          const nodeId = nodeElement.getAttribute('data-node-id');
+          if (nodeId) {
+            this.hideQuickAddHandles(nodeId);
+          }
         }
       }
     });

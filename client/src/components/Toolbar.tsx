@@ -25,6 +25,7 @@ export function Toolbar({ onOpenAiSettings, onOpenPluginTest }: ToolbarProps) {
         // Close dropdown when clicking outside
         const target = e.target as HTMLElement;
         if (
+          target && typeof target.closest === 'function' &&
           !target.closest('[data-testid="button-settings"]') &&
           !target.closest(".absolute")
         ) {
