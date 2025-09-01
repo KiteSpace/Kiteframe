@@ -25,6 +25,10 @@ export class CollaborationPlugin implements KiteFramePlugin {
     this.core = core;
     console.log('🤝 Collaboration Pro Plugin: Initializing...');
     
+    // Store reference for global access
+    (window as any).kiteframeCollaborationPlugin = this;
+    console.log('🤝 Global reference set:', !!(window as any).kiteframeCollaborationPlugin);
+    
     // Setup collaboration UI
     this.setupCollaborationUI();
     
@@ -281,9 +285,15 @@ export class CollaborationPlugin implements KiteFramePlugin {
   }
 
   public toggleCollaborationPanel(): void {
+    console.log('🤝 Toggling collaboration panel...');
     const panel = document.getElementById('collaboration-panel');
+    console.log('🤝 Panel found:', !!panel);
     if (panel) {
-      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      const isCurrentlyHidden = panel.style.display === 'none' || panel.style.display === '';
+      panel.style.display = isCurrentlyHidden ? 'block' : 'none';
+      console.log('🤝 Panel now:', panel.style.display);
+    } else {
+      console.error('🤝 Collaboration panel not found in DOM');
     }
   }
 
