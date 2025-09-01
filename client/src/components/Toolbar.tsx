@@ -9,6 +9,7 @@ import {
   TestTube,
 } from "lucide-react";
 import { useState } from "react";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 interface ToolbarProps {
   onOpenAiSettings: () => void;
@@ -40,6 +41,7 @@ export function Toolbar({ onOpenAiSettings, onOpenPluginTest }: ToolbarProps) {
         </div>
       </div>
       <div className="flex items-center gap-3">
+        <ThemeToggle />
         <div className="relative">
           <button
             className="p-2 rounded-md hover:bg-accent transition-colors"
