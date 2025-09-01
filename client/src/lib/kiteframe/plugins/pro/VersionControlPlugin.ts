@@ -187,11 +187,11 @@ export class VersionControlPlugin implements KiteFramePlugin {
   private setupVersionControlUI(): void {
     // Add version control button to canvas controls
     const versionControlHTML = `
-      <div class="absolute top-5 right-20">
-        <div class="flex gap-2">
+      <div class="fixed top-16 right-20 z-40 sm:top-5 sm:right-20">
+        <div class="flex gap-1 sm:gap-2">
           <button
             id="version-control-snapshot"
-            class="w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
+            class="w-12 h-12 sm:w-10 sm:h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
             title="Create Snapshot (Pro)"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera">
@@ -201,7 +201,7 @@ export class VersionControlPlugin implements KiteFramePlugin {
           </button>
           <button
             id="version-control-history"
-            class="w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
+            class="w-12 h-12 sm:w-10 sm:h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
             title="Version History (Pro)"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-history">

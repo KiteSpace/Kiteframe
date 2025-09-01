@@ -218,7 +218,7 @@ export class CollaborationPlugin implements KiteFramePlugin {
 
   private setupCollaborationUI(): void {
     const collaborationHTML = `
-      <div id="collaboration-panel" class="fixed right-4 top-4 w-80 bg-card border border-border rounded-lg shadow-lg" style="display: none;">
+      <div id="collaboration-panel" class="fixed right-2 top-20 w-80 max-w-[calc(100vw-1rem)] bg-card border border-border rounded-lg shadow-lg z-50 sm:right-4 sm:top-4" style="display: none;">
         <!-- Room Controls -->
         <div class="p-4 border-b border-border">
           <div class="flex justify-between items-center mb-2">
@@ -268,10 +268,10 @@ export class CollaborationPlugin implements KiteFramePlugin {
       </div>
 
       <!-- Collaboration Toggle Button -->
-      <div class="absolute top-5 right-5">
+      <div class="fixed top-16 right-4 z-40 sm:top-5 sm:right-5">
         <button
           id="collaboration-toggle"
-          class="w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
+          class="w-12 h-12 sm:w-10 sm:h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
           title="Collaboration (Pro)"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users">
