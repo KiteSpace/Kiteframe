@@ -168,55 +168,100 @@ export class CollaborationPlugin implements KiteFramePlugin {
   }
 
   async sendChatMessage(message: string): Promise<void> {
-    if (!this.currentRoom || !message.trim()) return;
+    if (!message.trim()) return;
+    
+    console.log('💬 Sending chat message:', message);
 
-    try {
-      const messageData = {
-        roomId: this.currentRoom.id,
-        message: message.trim(),
-        messageType: 'text'
-      };
+    // Add message to local chat immediately for instant feedback
+    this.addChatMessage({
+      id: Date.now().toString(),
+      content: message.trim(),
+      author: 'You',
+      timestamp: new Date().toISOString()
+    });
 
-      const response = await fetch('/api/chat/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(messageData)
-      });
-
-      if (response.ok) {
-        // Message will be broadcast via WebSocket
-        const chatInput = document.getElementById('chat-input') as HTMLInputElement;
-        if (chatInput) chatInput.value = '';
+    // If no room, create a default one
+    if (!this.currentRoom) {
+      console.log('💬 No room found, creating default room...');
+      const roomId = await this.createRoom('Default Room');
+      if (roomId) {
+        await this.joinRoom(roomId);
       }
-    } catch (error) {
-      console.error('❌ Chat message failed:', error);
+    }
+
+    // Try to send to server if room exists
+    if (this.currentRoom) {
+      try {
+        const messageData = {
+          roomId: this.currentRoom.id,
+          message: message.trim(),
+          messageType: 'text'
+        };
+
+        const response = await fetch('/api/chat/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(messageData)
+        });
+
+        if (response.ok) {
+          console.log('💬 Chat message sent to server');
+        }
+      } catch (error) {
+        console.error('❌ Chat message failed:', error);
+      }
     }
   }
 
   async addComment(content: string, nodeId?: string, positionX?: number, positionY?: number): Promise<void> {
-    if (!this.currentRoom || !content.trim()) return;
+    if (!content.trim()) return;
+    
+    console.log('💬 Adding comment:', content, 'at position:', positionX, positionY);
 
-    try {
-      const commentData = {
-        workflowId: 'current-workflow', // Get from context
-        roomId: this.currentRoom.id,
-        content: content.trim(),
-        nodeId,
-        positionX,
-        positionY
-      };
+    // Create visual comment bubble immediately
+    this.displayComment({
+      id: Date.now().toString(),
+      content: content.trim(),
+      author: 'You',
+      nodeId,
+      positionX: positionX || 100,
+      positionY: positionY || 100,
+      timestamp: new Date().toISOString()
+    });
 
-      const response = await fetch('/api/comments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(commentData)
-      });
-
-      if (response.ok) {
-        console.log('💬 Comment added successfully');
+    // If no room, create a default one
+    if (!this.currentRoom) {
+      console.log('💬 No room found, creating default room...');
+      const roomId = await this.createRoom('Default Room');
+      if (roomId) {
+        await this.joinRoom(roomId);
       }
-    } catch (error) {
-      console.error('❌ Comment failed:', error);
+    }
+
+    // Try to send to server if room exists
+    if (this.currentRoom) {
+      try {
+        const commentData = {
+          workflowId: 'current-workflow',
+          roomId: this.currentRoom.id,
+          content: content.trim(),
+          nodeId,
+          positionX,
+          positionY
+        };
+
+        const response = await fetch('/api/comments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(commentData)
+        });
+
+        if (response.ok) {
+          console.log('💬 Comment sent to server');
+        }
+      } catch (error) {
+        console.error('❌ Comment failed:', error);
+      }
     }
   }
 
@@ -392,14 +437,22 @@ export class CollaborationPlugin implements KiteFramePlugin {
   }
 
   private addChatMessage(message: any): void {
+    console.log('💬 Adding chat message to UI:', message);
+    
     const messagesEl = document.getElementById('chat-messages');
     if (!messagesEl) return;
 
+    // Remove "No messages yet" placeholder
+    const placeholder = messagesEl.querySelector('.text-muted-foreground');
+    if (placeholder && placeholder.textContent === 'No messages yet') {
+      placeholder.remove();
+    }
+
     const messageEl = document.createElement('div');
-    messageEl.className = 'text-xs';
+    messageEl.className = 'p-2 bg-muted rounded text-xs mb-1';
     messageEl.innerHTML = `
-      <span class="font-medium">${message.user?.firstName || 'User'}:</span>
-      <span class="ml-1">${message.message}</span>
+      <span class="font-medium">${message.author || 'User'}:</span>
+      <span class="ml-1">${message.content}</span>
     `;
 
     messagesEl.appendChild(messageEl);
@@ -407,8 +460,44 @@ export class CollaborationPlugin implements KiteFramePlugin {
   }
 
   private displayComment(comment: any): void {
-    // Add comment visualization to canvas
-    console.log('💬 New comment:', comment);
+    console.log('💬 Displaying comment on canvas:', comment);
+    
+    // Find the canvas container
+    const canvas = document.querySelector('.kiteframe-canvas') || document.querySelector('[data-testid="workflow-canvas"]');
+    if (!canvas) {
+      console.error('💬 Canvas not found for comment display');
+      return;
+    }
+
+    // Create comment bubble element
+    const commentBubble = document.createElement('div');
+    commentBubble.className = 'absolute bg-yellow-100 border-2 border-yellow-300 rounded-lg p-2 text-xs max-w-48 shadow-lg z-50';
+    commentBubble.style.left = `${comment.positionX}px`;
+    commentBubble.style.top = `${comment.positionY}px`;
+    commentBubble.style.pointerEvents = 'auto';
+    
+    commentBubble.innerHTML = `
+      <div class="flex justify-between items-start gap-2">
+        <div>
+          <div class="font-medium text-yellow-800">${comment.author}</div>
+          <div class="text-yellow-700">${comment.content}</div>
+        </div>
+        <button class="text-yellow-600 hover:text-yellow-800 text-lg leading-none" onclick="this.parentElement.parentElement.remove()">×</button>
+      </div>
+      <div class="absolute -bottom-2 left-4 w-0 h-0 border-l-4 border-l-transparent border-r-4 border-r-transparent border-t-4 border-t-yellow-300"></div>
+    `;
+
+    // Add to canvas
+    canvas.appendChild(commentBubble);
+    
+    // Auto-remove after 30 seconds
+    setTimeout(() => {
+      if (commentBubble.parentElement) {
+        commentBubble.remove();
+      }
+    }, 30000);
+    
+    console.log('💬 Comment bubble created and positioned');
   }
 
   private updateLiveCursor(cursor: any): void {
