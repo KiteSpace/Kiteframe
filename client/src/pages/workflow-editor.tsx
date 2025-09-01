@@ -837,6 +837,78 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     registerPlugins();
   }, []);
 
+  // Handle quick-add node events from Advanced Interactions plugin
+  useEffect(() => {
+    const handleQuickAddNode = (event: CustomEvent) => {
+      const { sourceNodeId, position, direction } = event.detail;
+      console.log('🚀 Handling quick-add node:', { sourceNodeId, position, direction });
+
+      // Find the source node to calculate new position
+      const sourceNode = nodes.find(n => n.id === sourceNodeId);
+      if (!sourceNode) return;
+
+      // Calculate new node position based on direction
+      const spacing = 250;
+      let newPosition = { x: 0, y: 0 };
+      
+      switch (direction) {
+        case 'top':
+          newPosition = { x: sourceNode.position.x, y: sourceNode.position.y - spacing };
+          break;
+        case 'right':
+          newPosition = { x: sourceNode.position.x + spacing, y: sourceNode.position.y };
+          break;
+        case 'bottom':
+          newPosition = { x: sourceNode.position.x, y: sourceNode.position.y + spacing };
+          break;
+        case 'left':
+          newPosition = { x: sourceNode.position.x - spacing, y: sourceNode.position.y };
+          break;
+      }
+
+      // Create new node
+      const newNode: Node = {
+        id: `node-${Date.now()}`,
+        type: 'process',
+        position: newPosition,
+        data: {
+          label: 'New Process',
+          description: 'Configure process settings',
+          icon: 'Cog',
+          iconColor: 'text-gray-500'
+        },
+        width: 200,
+        height: 100
+      };
+
+      // Add the new node
+      setNodes(prev => [...prev, newNode]);
+
+      // Create edge from source to new node
+      const newEdge: Edge = {
+        id: `edge-${Date.now()}`,
+        source: sourceNodeId,
+        target: newNode.id,
+        type: 'step',
+        animated: false,
+        style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
+        markers: { type: 'arrow', position: 'end' }
+      };
+
+      setEdges(prev => [...prev, newEdge]);
+      
+      // Save to history
+      saveToHistory();
+    };
+
+    // Listen for quick-add events
+    window.addEventListener('kiteframe:quick-add-node', handleQuickAddNode as EventListener);
+    
+    return () => {
+      window.removeEventListener('kiteframe:quick-add-node', handleQuickAddNode as EventListener);
+    };
+  }, [nodes, setNodes, setEdges, saveToHistory]);
+
   return (
     <div className="h-screen flex flex-col bg-background">
         {/* Header */}

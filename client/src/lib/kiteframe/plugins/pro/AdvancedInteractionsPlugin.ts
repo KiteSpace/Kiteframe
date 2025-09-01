@@ -17,6 +17,7 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
   isPro = true;
 
   private quickAddHandles: Map<string, HTMLElement> = new Map();
+  private copiedNode: any = null;
 
   initialize(core: any): void {
     console.log('🚀 AdvancedInteractions Pro Plugin: Initializing...');
@@ -37,6 +38,9 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
 
     // Setup DOM event listeners for node hover detection
     this.setupNodeHoverListeners();
+
+    // Setup copy/paste functionality
+    this.setupCopyPasteListeners();
 
     // Register quick-add functionality
     core.on('quick-add:trigger', (data: { nodeId: string; position: 'top' | 'right' | 'bottom' | 'left' }) => {
@@ -202,38 +206,133 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
     }
   }
 
+  private setupCopyPasteListeners(): void {
+    // Listen for keyboard events for copy/paste
+    document.addEventListener('keydown', (e) => {
+      // Only handle if we're not in an input field
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        e.preventDefault();
+        this.copySelectedNode();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        e.preventDefault();
+        this.pasteNode();
+      }
+    });
+  }
+
+  private copySelectedNode(): void {
+    // Find the currently selected node
+    const selectedNode = document.querySelector('.kiteframe-node.selected');
+    if (!selectedNode) {
+      console.log('🚀 Copy: No node selected');
+      return;
+    }
+
+    const nodeId = selectedNode.getAttribute('data-node-id');
+    if (!nodeId) return;
+
+    // Get node data from tab manager
+    const tabManager = (window as any).tabManager;
+    if (!tabManager?.currentTab?.nodes) return;
+
+    const node = tabManager.currentTab.nodes.find((n: any) => n.id === nodeId);
+    if (node) {
+      this.copiedNode = { ...node };
+      console.log('🚀 Node copied:', this.copiedNode.data?.label);
+      
+      // Show visual feedback
+      this.showCopyFeedback();
+    }
+  }
+
+  private pasteNode(): void {
+    if (!this.copiedNode) {
+      console.log('🚀 Paste: No node copied');
+      return;
+    }
+
+    // Get tab manager
+    const tabManager = (window as any).tabManager;
+    if (!tabManager?.currentTab?.nodes || !tabManager.updateTab) return;
+
+    // Create new node with offset position
+    const newNode = {
+      ...this.copiedNode,
+      id: `node-${Date.now()}`,
+      position: {
+        x: this.copiedNode.position.x + 50,
+        y: this.copiedNode.position.y + 50
+      },
+      selected: false
+    };
+
+    // Add to current tab
+    const updatedTab = {
+      ...tabManager.currentTab,
+      nodes: [...tabManager.currentTab.nodes, newNode]
+    };
+
+    tabManager.updateTab(updatedTab);
+    console.log('🚀 Node pasted:', newNode.data?.label);
+    
+    // Show visual feedback
+    this.showPasteFeedback();
+  }
+
+  private showCopyFeedback(): void {
+    this.showFeedback('Copied!', '#10b981');
+  }
+
+  private showPasteFeedback(): void {
+    this.showFeedback('Pasted!', '#3b82f6');
+  }
+
+  private showFeedback(message: string, color: string): void {
+    const feedback = document.createElement('div');
+    feedback.textContent = message;
+    feedback.style.position = 'fixed';
+    feedback.style.top = '20px';
+    feedback.style.right = '20px';
+    feedback.style.backgroundColor = color;
+    feedback.style.color = 'white';
+    feedback.style.padding = '8px 16px';
+    feedback.style.borderRadius = '8px';
+    feedback.style.fontSize = '14px';
+    feedback.style.fontWeight = 'bold';
+    feedback.style.zIndex = '9999';
+    feedback.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    feedback.style.transition = 'all 0.3s ease';
+    
+    document.body.appendChild(feedback);
+    
+    // Animate in
+    setTimeout(() => {
+      feedback.style.transform = 'translateY(0)';
+    }, 10);
+    
+    // Remove after 2 seconds
+    setTimeout(() => {
+      feedback.style.opacity = '0';
+      feedback.style.transform = 'translateY(-20px)';
+      setTimeout(() => {
+        document.body.removeChild(feedback);
+      }, 300);
+    }, 2000);
+  }
+
   private handleQuickAddNode(sourceNodeId: string, position: 'top' | 'right' | 'bottom' | 'left'): void {
     console.log(`🚀 Quick-adding node from ${sourceNodeId} at ${position}`);
     
-    // Calculate new node position based on source node and direction
-    const sourceNode = document.querySelector(`[data-node-id="${sourceNodeId}"]`);
-    if (!sourceNode) return;
-
-    const rect = sourceNode.getBoundingClientRect();
-    const spacing = 200; // Distance between nodes
-    
-    let newPosition = { x: 0, y: 0 };
-    switch (position) {
-      case 'top':
-        newPosition = { x: rect.left, y: rect.top - spacing };
-        break;
-      case 'right':
-        newPosition = { x: rect.right + spacing, y: rect.top };
-        break;
-      case 'bottom':
-        newPosition = { x: rect.left, y: rect.bottom + spacing };
-        break;
-      case 'left':
-        newPosition = { x: rect.left - spacing, y: rect.top };
-        break;
-    }
-
     // Emit event for core to handle node creation
-    // This would be handled by the main workflow editor
+    // This will be handled by the main workflow editor
     window.dispatchEvent(new CustomEvent('kiteframe:quick-add-node', {
       detail: {
         sourceNodeId,
-        position: newPosition,
+        position: { x: 0, y: 0 }, // Position will be calculated in the editor
         direction: position
       }
     }));
