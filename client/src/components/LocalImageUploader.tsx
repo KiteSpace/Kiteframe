@@ -99,6 +99,15 @@ export function LocalImageUploader({
       setDragActive(true);
       
       // Real-time validation during drag
+      // Ensure e.target is an HTMLElement before calling closest()
+      const targetElement = e.target as HTMLElement;
+      if (targetElement && typeof targetElement.closest === 'function') {
+        const nodeElement = targetElement.closest('[data-node-id]');
+        if (nodeElement && nodeElement.hasAttribute('data-node-id')) {
+          // Additional validation logic can go here if needed
+        }
+      }
+      
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         const file = e.dataTransfer.files[0];
         const validation = validateFile(file);

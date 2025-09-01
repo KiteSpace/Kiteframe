@@ -167,16 +167,25 @@ export class VersionControlPlugin implements KiteFramePlugin {
         const tabManager = (window as any).tabManager;
         
         if (tabManager?.currentTab) {
-          // Restore the workflow state
-          tabManager.currentTab.nodes = JSON.parse(snapshot.nodes);
-          tabManager.currentTab.edges = JSON.parse(snapshot.edges);
-          
-          // Trigger refresh
-          const event = new CustomEvent('workflow:restored', { detail: snapshot });
-          window.dispatchEvent(event);
-          
-          console.log(`🔄 Restored to snapshot: ${snapshot.name}`);
-          return true;
+          // Restore the workflow state - handle both string and object data
+          try {
+            tabManager.currentTab.nodes = typeof snapshot.nodes === 'string' 
+              ? JSON.parse(snapshot.nodes) 
+              : snapshot.nodes;
+            tabManager.currentTab.edges = typeof snapshot.edges === 'string' 
+              ? JSON.parse(snapshot.edges) 
+              : snapshot.edges;
+            
+            // Trigger refresh
+            const event = new CustomEvent('workflow:restored', { detail: snapshot });
+            window.dispatchEvent(event);
+            
+            console.log(`🔄 Restored to snapshot: ${snapshot.name}`);
+            return true;
+          } catch (parseError) {
+            console.error('❌ Failed to parse snapshot data:', parseError);
+            return false;
+          }
         }
       }
       
