@@ -183,17 +183,7 @@ export function WorkflowCanvas({
         onRedo={onRedo}
         onFitView={onFitView}
         onAutoLayout={onAutoLayout}
-        onCollaboration={() => {
-          // Access collaboration plugin through global registry
-          console.log('🎯 Collaboration button clicked');
-          const collabPlugin = (window as any).kiteframeCollaborationPlugin;
-          console.log('🎯 Collaboration plugin found:', !!collabPlugin);
-          if (collabPlugin) {
-            collabPlugin.toggleCollaborationPanel();
-          } else {
-            console.error('🎯 Collaboration plugin not found on window');
-          }
-        }}
+
         onSnapshot={() => {
           // Access version control plugin through global registry
           const versionPlugin = (window as any).kiteframeVersionControlPlugin;

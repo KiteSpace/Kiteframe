@@ -821,12 +821,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   useEffect(() => {
     const registerPlugins = async () => {
       try {
-        const { kiteFrameCore, consolePlugin, testPlugin, advancedInteractionsPlugin, versionControlPlugin, collaborationPlugin } = await import('@/lib/kiteframe');
+        const { kiteFrameCore, consolePlugin, testPlugin, advancedInteractionsPlugin, versionControlPlugin } = await import('@/lib/kiteframe');
         kiteFrameCore.use(consolePlugin);
         kiteFrameCore.use(testPlugin);
         kiteFrameCore.use(advancedInteractionsPlugin);
         kiteFrameCore.use(versionControlPlugin);
-        kiteFrameCore.use(collaborationPlugin);
         console.log('✅ Demo + Pro plugins registered successfully');
         console.log('🔌 Plugin System Ready! Check Settings → Test Plugins or watch console for activity');
         console.log('🚀 Advanced Interactions Pro: Quick-add handles enabled on node hover!');

@@ -1,12 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Undo, Redo, ZoomIn, LayoutGrid, GripVertical, Users, Camera, History } from 'lucide-react';
+import { Undo, Redo, ZoomIn, LayoutGrid, GripVertical, Camera, History } from 'lucide-react';
 
 interface FloatingToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onFitView: () => void;
   onAutoLayout: (layoutType: string) => void;
-  onCollaboration: () => void;
   onSnapshot: () => void;
   onVersionHistory: () => void;
   canUndo: boolean;
@@ -18,7 +17,6 @@ export function FloatingToolbar({
   onRedo,
   onFitView,
   onAutoLayout,
-  onCollaboration,
   onSnapshot,
   onVersionHistory,
   canUndo,
@@ -216,15 +214,6 @@ export function FloatingToolbar({
 
         {/* Separator */}
         <div className="w-px h-6 bg-border mx-1" />
-
-        {/* Collaboration */}
-        <button
-          className="w-8 h-8 flex items-center justify-center text-foreground hover:bg-accent rounded-full transition-colors"
-          onClick={onCollaboration}
-          title="Collaboration (Pro)"
-        >
-          <Users size={16} />
-        </button>
 
         {/* Snapshot */}
         <button
