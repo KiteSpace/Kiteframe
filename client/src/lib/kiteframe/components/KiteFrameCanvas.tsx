@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../styles/kiteframe.css';
 import '../styles/enhanced-selection.css';
-import type { Node, Edge } from '../types';
+import type { Node, Edge, NodeType, ProFeaturesConfig, QuickAddConfig } from '../types';
 import { clientToWorld, zoomAroundPoint } from '../utils/geometry';
 import { NodeHandles } from './NodeHandles';
 import { ConnectionEdge } from './ConnectionEdge';
@@ -69,7 +69,7 @@ type Props = {
   edges: Edge[];
   onNodesChange: (n: Node[]) => void;
   onEdgesChange: (e: Edge[]) => void;
-  onConnect: (c: { source: string; target: string }) => void;
+  onConnect?: (c: { source: string; target: string }) => void;
   gridType?: 'dots'|'lines'|'none';
   minZoom?: number;
   maxZoom?: number;
@@ -95,6 +95,10 @@ type Props = {
   disablePan?: boolean;
   viewport?: Viewport;
   onViewportChange?: (viewport: Viewport) => void;
+  
+  // Pro Features
+  proFeatures?: ProFeaturesConfig;
+  onQuickAdd?: (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -125,8 +129,72 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const justCompletedSelection = useRef<boolean>(false);
   const [connecting, setConnecting] = useState<ConnectingState | null>(null);
 
+  // Pro Features Configuration
+  const quickAddConfig = props.proFeatures?.quickAdd;
+  const isQuickAddEnabled = quickAddConfig?.enabled !== false; // Default enabled
+  const [quickAddButtons, setQuickAddButtons] = useState<Map<string, HTMLElement>>(new Map());
+  const [ghostPreview, setGhostPreview] = useState<HTMLElement | null>(null);
+
   const minZoom = props.minZoom ?? 0.1;
   const maxZoom = props.maxZoom ?? 3;
+
+  // Pro Features: Quick Add Functions
+  const createQuickAddNode = (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left'): Node => {
+    const spacing = quickAddConfig?.defaultSpacing ?? 250;
+    const nodeType = quickAddConfig?.defaultNodeType ?? 'process';
+    const template = quickAddConfig?.defaultNodeTemplate ?? {};
+    
+    let newPosition = { x: 0, y: 0 };
+    switch (position) {
+      case 'top':
+        newPosition = { x: sourceNode.position.x, y: sourceNode.position.y - spacing };
+        break;
+      case 'right':
+        newPosition = { x: sourceNode.position.x + spacing, y: sourceNode.position.y };
+        break;
+      case 'bottom':
+        newPosition = { x: sourceNode.position.x, y: sourceNode.position.y + spacing };
+        break;
+      case 'left':
+        newPosition = { x: sourceNode.position.x - spacing, y: sourceNode.position.y };
+        break;
+    }
+
+    const newNode: Node = {
+      id: `node-${Date.now()}`,
+      type: nodeType,
+      position: newPosition,
+      data: {
+        label: 'New Process',
+        description: 'Configure process settings',
+        icon: 'Cog',
+        iconColor: 'text-gray-500',
+        ...template
+      },
+      width: 200,
+      height: 100
+    };
+
+    return newNode;
+  };
+
+  const handleQuickAdd = (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => {
+    const newNode = createQuickAddNode(sourceNode, position);
+    
+    // Add the new node
+    const updatedNodes = [...props.nodes, newNode];
+    props.onNodesChange(updatedNodes);
+
+    // Create connecting edge if handler exists
+    if (props.onConnect) {
+      props.onConnect({ source: sourceNode.id, target: newNode.id });
+    }
+
+    // Call custom handler if provided
+    if (quickAddConfig?.onQuickAdd) {
+      quickAddConfig.onQuickAdd(sourceNode, position, newNode);
+    }
+  };
 
   // ---------- helpers ----------
   const getNodeRect = (n: Node) => {
@@ -629,12 +697,17 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   n.data?.description || 'Drop content here…'
                 )}
               </div>
-              {n.showHandles !== false && <NodeHandles node={n} onHandleConnect={(p, e)=>{
-                if (!containerRef.current) return;
-                const rect = containerRef.current.getBoundingClientRect();
-                const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
-                setConnecting({ sourceId: n.id, wx: wp.x, wy: wp.y, hoverTargetId: null, eligible: false });
-              }} />}
+              {n.showHandles !== false && <NodeHandles 
+                node={n} 
+                onHandleConnect={(p, e)=>{
+                  if (!containerRef.current) return;
+                  const rect = containerRef.current.getBoundingClientRect();
+                  const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+                  setConnecting({ sourceId: n.id, wx: wp.x, wy: wp.y, hoverTargetId: null, eligible: false });
+                }}
+                proFeatures={props.proFeatures}
+                onQuickAdd={props.onQuickAdd}
+              />}
             </div>
           );
         })}

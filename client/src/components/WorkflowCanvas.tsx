@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
 import { FloatingToolbar } from './FloatingToolbar';
-import type { Node, Edge } from '../lib/kiteframe/types';
+import type { Node, Edge, ProFeaturesConfig } from '../lib/kiteframe/types';
 import { Undo, Redo, ZoomIn, Maximize2, LayoutGrid, ChevronRight } from 'lucide-react';
 
 interface WorkflowCanvasProps {
@@ -25,6 +25,8 @@ interface WorkflowCanvasProps {
   onAutoLayout: (layoutType: string) => void;
   selectedNodeIds?: string[];
   enablePlugins?: boolean;
+  proFeatures?: ProFeaturesConfig;
+  onQuickAdd?: (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => void;
 }
 
 export function WorkflowCanvas({
@@ -47,7 +49,9 @@ export function WorkflowCanvas({
   canRedo,
   onAutoLayout,
   selectedNodeIds,
-  enablePlugins
+  enablePlugins,
+  proFeatures,
+  onQuickAdd
 }: WorkflowCanvasProps) {
   const [isDraggingMinimap, setIsDraggingMinimap] = useState(false);
 
@@ -173,6 +177,8 @@ export function WorkflowCanvas({
         minZoom={0.1}
         maxZoom={3}
         enablePlugins={enablePlugins}
+        proFeatures={proFeatures}
+        onQuickAdd={onQuickAdd}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

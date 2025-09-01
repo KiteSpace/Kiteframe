@@ -73,3 +73,64 @@ export type Edge = {
   interactable?: boolean;
   data?: any; // Keep for backward compatibility
 };
+
+export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image';
+
+// Pro Features Configuration Interfaces
+export interface QuickAddConfig {
+  enabled?: boolean;
+  showGhostPreview?: boolean;
+  defaultSpacing?: number;
+  defaultNodeType?: NodeType;
+  defaultNodeTemplate?: Partial<Node['data']>;
+  onQuickAdd?: (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left', newNode: Node) => void;
+}
+
+export interface AdvancedSelectionConfig {
+  enabled?: boolean;
+  enableMultiSelect?: boolean;
+  enableShiftDragSelection?: boolean;
+  selectionRectStyle?: React.CSSProperties;
+}
+
+export interface CopyPasteConfig {
+  enabled?: boolean;
+  offsetDistance?: number;
+  onCopy?: (node: Node) => void;
+  onPaste?: (originalNode: Node, newNode: Node) => void;
+}
+
+export interface VersionControlConfig {
+  enabled?: boolean;
+  autoSaveInterval?: number;
+  maxSnapshots?: number;
+  enableComparison?: boolean;
+  onSnapshot?: (snapshot: any) => void;
+}
+
+export interface ProFeaturesConfig {
+  quickAdd?: QuickAddConfig;
+  advancedSelection?: AdvancedSelectionConfig;
+  copyPaste?: CopyPasteConfig;
+  versionControl?: VersionControlConfig;
+}
+
+export interface KiteFrameProps {
+  nodes: Node[];
+  edges: Edge[];
+  onNodesChange?: (nodes: Node[]) => void;
+  onEdgesChange?: (edges: Edge[]) => void;
+  onNodeClick?: (event: React.MouseEvent, node: Node) => void;
+  onNodeDoubleClick?: (event: React.MouseEvent, node: Node) => void;
+  onNodeRightClick?: (event: React.MouseEvent, node: Node) => void;
+  onEdgeClick?: (event: React.MouseEvent, edge: Edge) => void;
+  onCanvasClick?: (event: React.MouseEvent) => void;
+  onImageButtonClick?: (nodeId: string) => void;
+  className?: string;
+  disablePan?: boolean;
+  minZoom?: number;
+  maxZoom?: number;
+  
+  // Pro Features
+  proFeatures?: ProFeaturesConfig;
+}

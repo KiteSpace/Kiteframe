@@ -17,7 +17,7 @@ import { AiProvider, useAi } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import { useToast } from '@/hooks/use-toast';
 import { ObjectUploader } from '@/components/ObjectUploader';
-import type { Node, Edge } from '../lib/kiteframe/types';
+import type { Node, Edge, ProFeaturesConfig, NodeType } from '../lib/kiteframe/types';
 import '../lib/kiteframe/styles/kiteframe.css';
 import { X, Plus } from 'lucide-react';
 
@@ -38,6 +38,66 @@ interface WorkflowTab {
 function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: () => void }) {
   const ai = useAi();
   const { toast } = useToast();
+
+  // Pro Features Configuration
+  const proFeaturesConfig: ProFeaturesConfig = {
+    quickAdd: {
+      enabled: true,
+      showGhostPreview: true,
+      defaultSpacing: 250,
+      defaultNodeType: 'process',
+      defaultNodeTemplate: {
+        label: 'New Process',
+        description: 'Configure process settings',
+        icon: 'Cog',
+        iconColor: 'text-gray-500'
+      },
+      onQuickAdd: (sourceNode, position, newNode) => {
+        console.log('📊 Quick-add node created:', { source: sourceNode.id, position, new: newNode.id });
+        toast({
+          title: "Node Added",
+          description: `Added ${newNode.data?.label} to the ${position} of ${sourceNode.data?.label}`,
+        });
+      }
+    },
+    copyPaste: {
+      enabled: true,
+      offsetDistance: 50,
+      onCopy: (node) => {
+        console.log('📋 Node copied:', node.id);
+        toast({
+          title: "Node Copied",
+          description: `${node.data?.label} copied to clipboard`,
+        });
+      },
+      onPaste: (originalNode, newNode) => {
+        console.log('📋 Node pasted:', { original: originalNode.id, new: newNode.id });
+        toast({
+          title: "Node Pasted",
+          description: `${newNode.data?.label} pasted from ${originalNode.data?.label}`,
+        });
+      }
+    },
+    advancedSelection: {
+      enabled: true,
+      enableMultiSelect: true,
+      enableShiftDragSelection: true,
+      selectionRectStyle: {
+        border: '2px dashed #3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderRadius: '4px'
+      }
+    },
+    versionControl: {
+      enabled: true,
+      autoSaveInterval: 30000,
+      maxSnapshots: 50,
+      enableComparison: true,
+      onSnapshot: (snapshot) => {
+        console.log('📸 Snapshot created:', snapshot);
+      }
+    }
+  };
 
   // Generate unique ID for tabs
   const generateTabId = useCallback(() => `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, []);
@@ -425,8 +485,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   }, [createBlankTab, generateWorkflowFromPrompt, toast]);
 
-
-
   const handleCreateFromFile = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
     const newTab: WorkflowTab = {
       id: generateTabId(),
@@ -477,6 +535,72 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       historyIndex: newHistory.length - 1
     });
   }, [activeTab, nodes, edges, viewport, history, historyIndex, updateActiveTab]);
+
+  // Quick-add functionality
+  const handleQuickAdd = useCallback((sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => {
+    saveToHistory(); // Save current state before adding node
+    
+    const spacing = proFeaturesConfig.quickAdd?.defaultSpacing ?? 250;
+    const nodeType = proFeaturesConfig.quickAdd?.defaultNodeType ?? 'process';
+    const template = proFeaturesConfig.quickAdd?.defaultNodeTemplate ?? {};
+    
+    let newPosition = { x: 0, y: 0 };
+    switch (position) {
+      case 'top':
+        newPosition = { x: sourceNode.position.x, y: sourceNode.position.y - spacing };
+        break;
+      case 'right':
+        newPosition = { x: sourceNode.position.x + spacing, y: sourceNode.position.y };
+        break;
+      case 'bottom':
+        newPosition = { x: sourceNode.position.x, y: sourceNode.position.y + spacing };
+        break;
+      case 'left':
+        newPosition = { x: sourceNode.position.x - spacing, y: sourceNode.position.y };
+        break;
+    }
+
+    const newNode: Node = {
+      id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: nodeType,
+      position: newPosition,
+      data: {
+        label: 'New Process',
+        description: 'Configure process settings',
+        icon: 'Cog',
+        iconColor: 'text-gray-500',
+        ...template
+      },
+      width: 200,
+      height: 100
+    };
+
+    // Add the new node
+    setNodes(prev => [...prev, newNode]);
+    
+    // Create connecting edge
+    const newEdge: Edge = {
+      id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      source: sourceNode.id,
+      target: newNode.id,
+      type: 'bezier',
+      style: {
+        strokeColor: 'hsl(221.2, 83.2%, 53.3%)',
+        strokeWidth: 2
+      },
+      markers: {
+        type: 'arrow',
+        position: 'end'
+      }
+    };
+    
+    setEdges(prev => [...prev, newEdge]);
+    
+    // Call custom handler if provided
+    if (proFeaturesConfig.quickAdd?.onQuickAdd) {
+      proFeaturesConfig.quickAdd.onQuickAdd(sourceNode, position, newNode);
+    }
+  }, [proFeaturesConfig.quickAdd, saveToHistory]);
 
   // Helper function to calculate offset position for appending workflows
   const calculateWorkflowOffset = useCallback((newNodes: Node[]): { x: number; y: number } => {
@@ -1194,6 +1318,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               edges={edges}
               viewport={viewport}
               onViewportChange={setViewport}
+              proFeatures={proFeaturesConfig}
+              onQuickAdd={handleQuickAdd}
               onNodesChange={(changes) => {
                 console.log('📊 onNodesChange CALLED:', {
                   changes,

@@ -6,7 +6,19 @@ export { ConnectionEdge } from './components/ConnectionEdge';
 export { NodeHandles } from './components/NodeHandles';
 
 // Types
-export type { Node, Edge, Position, EdgeStyle, EdgeMarker } from './types';
+export type { 
+  Node, 
+  Edge, 
+  Position, 
+  EdgeStyle, 
+  EdgeMarker,
+  ProFeaturesConfig,
+  QuickAddConfig,
+  CopyPasteConfig,
+  AdvancedSelectionConfig,
+  VersionControlConfig,
+  NodeType
+} from './types';
 
 // Utilities
 export { getBounds } from './utils/flowUtils';
