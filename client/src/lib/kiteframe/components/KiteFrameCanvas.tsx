@@ -499,6 +499,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           return (
             <div
               key={n.id}
+              data-node-id={n.id}
               className={`kiteframe-node group ${n.selected?'selected':''}`}
               style={{ left: n.position.x, top: n.position.y, width: w, height: h, background: color, borderColor: border, color: txt }}
               onMouseDown={(e)=>{

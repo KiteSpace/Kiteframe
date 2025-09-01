@@ -54,19 +54,22 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
   }
 
   private setupNodeHoverListeners(): void {
+    console.log('🚀 Setting up node hover listeners...');
+    
     // Setup global event delegation for node hover events
-    document.addEventListener('mouseover', (e) => {
+    document.addEventListener('mouseenter', (e) => {
       const target = e.target as HTMLElement;
       if (target && typeof target.closest === 'function') {
         const nodeElement = target.closest('[data-node-id]');
         if (nodeElement && nodeElement.hasAttribute('data-node-id')) {
           const nodeId = nodeElement.getAttribute('data-node-id');
           if (nodeId) {
+            console.log('🚀 Node hover detected:', nodeId);
             this.showQuickAddHandles(nodeId);
           }
         }
       }
-    });
+    }, true); // Use capture to ensure we catch the event
 
     document.addEventListener('mouseleave', (e) => {
       const target = e.target as HTMLElement;
@@ -75,7 +78,28 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
         if (nodeElement && nodeElement.hasAttribute('data-node-id')) {
           const nodeId = nodeElement.getAttribute('data-node-id');
           if (nodeId) {
+            console.log('🚀 Node hover ended:', nodeId);
             this.hideQuickAddHandles(nodeId);
+          }
+        }
+      }
+    }, true);
+
+    // Also listen for mouseout as backup
+    document.addEventListener('mouseout', (e) => {
+      const target = e.target as HTMLElement;
+      const relatedTarget = e.relatedTarget as HTMLElement;
+      
+      if (target && typeof target.closest === 'function') {
+        const nodeElement = target.closest('[data-node-id]');
+        if (nodeElement && nodeElement.hasAttribute('data-node-id')) {
+          // Check if we're moving to a child element or outside the node
+          if (!relatedTarget || !nodeElement.contains(relatedTarget)) {
+            const nodeId = nodeElement.getAttribute('data-node-id');
+            if (nodeId) {
+              console.log('🚀 Node mouse out detected:', nodeId);
+              this.hideQuickAddHandles(nodeId);
+            }
           }
         }
       }
@@ -95,7 +119,12 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
   private showQuickAddHandles(nodeId: string): void {
     // Create and show quick-add handles around the node
     const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
-    if (!nodeElement) return;
+    if (!nodeElement) {
+      console.log('🚀 Cannot find node element:', nodeId);
+      return;
+    }
+
+    console.log('🚀 Creating quick-add handles for node:', nodeId);
 
     // Remove existing handles
     this.hideQuickAddHandles(nodeId);
@@ -109,7 +138,7 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
     handleContainer.style.width = '100%';
     handleContainer.style.height = '100%';
     handleContainer.style.pointerEvents = 'none';
-    handleContainer.style.zIndex = '10';
+    handleContainer.style.zIndex = '20';
 
     // Create handles for each position
     const positions = ['top', 'right', 'bottom', 'left'] as const;
