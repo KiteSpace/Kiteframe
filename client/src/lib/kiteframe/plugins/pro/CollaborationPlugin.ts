@@ -223,7 +223,12 @@ export class CollaborationPlugin implements KiteFramePlugin {
         <div class="p-4 border-b border-border">
           <div class="flex justify-between items-center mb-2">
             <h3 class="font-semibold">Collaboration</h3>
-            <button id="close-collaboration" class="text-muted-foreground hover:text-foreground">✕</button>
+            <button id="close-collaboration" class="text-muted-foreground hover:text-foreground">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x">
+                <path d="M18 6 6 18"/>
+                <path d="M6 6l12 12"/>
+              </svg>
+            </button>
           </div>
           <div class="flex gap-2 mb-2">
             <input id="room-name" placeholder="Room name" class="flex-1 px-2 py-1 text-sm border border-border rounded" />
@@ -269,7 +274,12 @@ export class CollaborationPlugin implements KiteFramePlugin {
           class="w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
           title="Collaboration (Pro)"
         >
-          🤝
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
         </button>
       </div>
     `;

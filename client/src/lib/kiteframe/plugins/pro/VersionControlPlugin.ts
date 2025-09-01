@@ -194,14 +194,21 @@ export class VersionControlPlugin implements KiteFramePlugin {
             class="w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
             title="Create Snapshot (Pro)"
           >
-            📸
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera">
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+              <circle cx="12" cy="13" r="3"/>
+            </svg>
           </button>
           <button
             id="version-control-history"
             class="w-10 h-10 bg-card border border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors shadow-lg"
             title="Version History (Pro)"
           >
-            📚
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-history">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+              <path d="M12 7v5l4 2"/>
+            </svg>
           </button>
         </div>
       </div>
@@ -241,7 +248,12 @@ export class VersionControlPlugin implements KiteFramePlugin {
         <div class="bg-card border border-border rounded-lg p-6 max-w-2xl w-full m-4 max-h-96 overflow-y-auto">
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-semibold">Version History</h3>
-            <button id="close-version-history" class="text-muted-foreground hover:text-foreground">✕</button>
+            <button id="close-version-history" class="text-muted-foreground hover:text-foreground">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x">
+                <path d="M18 6 6 18"/>
+                <path d="M6 6l12 12"/>
+              </svg>
+            </button>
           </div>
           <div class="space-y-2">
             ${snapshots.map(snapshot => `
