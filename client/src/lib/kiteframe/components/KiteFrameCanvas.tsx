@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../styles/kiteframe.css';
+import '../styles/enhanced-selection.css';
 import type { Node, Edge } from '../types';
 import { clientToWorld, zoomAroundPoint } from '../utils/geometry';
 import { NodeHandles } from './NodeHandles';

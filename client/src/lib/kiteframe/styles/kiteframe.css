@@ -4,10 +4,7 @@
 .kiteframe-node   { position: absolute; box-sizing: border-box; border: 1px solid hsl(214.3, 31.8%, 91.4%); background: hsl(0, 0%, 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); cursor: grab; transition: all 0.2s ease; }
 .kiteframe-node:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
 .kiteframe-node.selected { 
-  outline: 3px solid hsl(221.2, 83.2%, 53.3%) !important; 
-  outline-offset: 2px !important; 
-  box-shadow: 0 0 0 6px hsla(221.2, 83.2%, 53.3%, 0.2) !important; 
-  background-color: hsla(221.2, 83.2%, 53.3%, 0.05) !important;
+  /* Enhanced selection styling is now in enhanced-selection.css */
 }
 .kiteframe-node.dragging { cursor: grabbing; z-index: 1000; transform: scale(1.02); }
 .kiteframe-node .title { 
