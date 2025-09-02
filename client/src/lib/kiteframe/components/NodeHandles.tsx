@@ -98,7 +98,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
       setHoveredHandle(null);
       setShowQuickAddButton(null);
       setShowGhostPreview(null);
-    }, 300); // 300ms delay before hiding
+    }, 200); // 200ms delay before hiding
   }, [clearAllTimeouts]);
 
   const cancelHide = useCallback(() => {
@@ -117,7 +117,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
       if (isQuickAddEnabled) {
         setShowQuickAddButton(position);
       }
-    }, 400); // 400ms delay before showing
+    }, 270); // 270ms delay before showing
   }, [isQuickAddEnabled]);
 
   const cancelShow = useCallback(() => {
