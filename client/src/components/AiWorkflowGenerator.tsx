@@ -393,7 +393,7 @@ Position nodes 250px apart horizontally.`;
   };
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={true} onOpenChange={() => {}} modal={true}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="modal-ai-workflow-generator" aria-describedby="ai-generator-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
