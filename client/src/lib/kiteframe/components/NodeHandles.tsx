@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import type { Node, ProFeaturesConfig } from '../types';
 
 interface NodeHandlesProps {
@@ -18,6 +18,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   const [showQuickAddButton, setShowQuickAddButton] = useState<'top'|'bottom'|'left'|'right' | null>(null);
   const [showGhostPreview, setShowGhostPreview] = useState<'top'|'bottom'|'left'|'right' | null>(null);
   const [isMouseInNodeArea, setIsMouseInNodeArea] = useState(false);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const w = node.style?.width ?? node.width ?? 200;
   const h = node.style?.height ?? node.height ?? 100;
@@ -76,6 +77,26 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
     }
   };
 
+  // Debounced hide function to prevent buttons from disappearing too quickly
+  const scheduleHide = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+    }
+    hideTimeoutRef.current = setTimeout(() => {
+      setIsMouseInNodeArea(false);
+      setHoveredHandle(null);
+      setShowQuickAddButton(null);
+      setShowGhostPreview(null);
+    }, 200); // 200ms delay before hiding
+  }, []);
+
+  const cancelHide = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+  }, []);
+
   const handleQuickAddClick = (position: 'top'|'bottom'|'left'|'right', e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -83,6 +104,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
     // Clear ghost preview immediately
     setShowGhostPreview(null);
     setShowQuickAddButton(null);
+    cancelHide();
     
     // Create actual node through callback
     if (onQuickAdd) {
@@ -92,20 +114,27 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
 
   return (
     <div 
-      className="absolute top-0 left-0 w-full h-full"
-      onMouseEnter={() => setIsMouseInNodeArea(true)}
+      className="absolute"
+      style={{
+        // Expand the detection area to include button zones (50px padding on all sides)
+        top: -50,
+        left: -50,
+        width: w + 100,
+        height: h + 100,
+      }}
+      onMouseEnter={() => {
+        setIsMouseInNodeArea(true);
+        cancelHide();
+      }}
       onMouseLeave={() => {
-        setIsMouseInNodeArea(false);
-        // Clear all states when mouse leaves node area
-        setHoveredHandle(null);
-        setShowQuickAddButton(null);
-        setShowGhostPreview(null);
+        scheduleHide();
       }}
     >
       <svg 
         width={w} 
         height={h} 
-        className="absolute top-0 left-0 overflow-visible pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute overflow-visible pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ top: 50, left: 50 }} // Offset to account for expanded detection area
       >
         {(['top','bottom','left','right'] as const).map((p) => (
           <circle
@@ -138,13 +167,22 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
       {isQuickAddEnabled && showQuickAddButton && isMouseInNodeArea && (
         <button
           className="absolute w-6 h-6 bg-green-500 hover:bg-green-600 text-white border-2 border-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-all duration-200 hover:scale-110 z-10"
-          style={getQuickAddButtonPosition(showQuickAddButton)}
+          style={{
+            ...getQuickAddButtonPosition(showQuickAddButton),
+            // Offset positions to account for expanded detection area
+            ...(showQuickAddButton === 'top' && { top: 15 }),
+            ...(showQuickAddButton === 'bottom' && { bottom: 15 }),
+            ...(showQuickAddButton === 'left' && { left: 15 }),
+            ...(showQuickAddButton === 'right' && { right: 15 }),
+          }}
           onClick={(e) => handleQuickAddClick(showQuickAddButton, e)}
           onMouseEnter={() => {
+            cancelHide();
             setShowGhostPreview(showQuickAddButton);
           }}
           onMouseLeave={() => {
             setShowGhostPreview(null);
+            scheduleHide();
           }}
           data-testid={`quick-add-${showQuickAddButton}`}
         >
@@ -157,7 +195,8 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
         <>
           {/* Ghost connection line - positioned in parent coordinate system */}
           <svg 
-            className="absolute top-0 left-0 overflow-visible pointer-events-none z-15"
+            className="absolute overflow-visible pointer-events-none z-15"
+            style={{ top: 50, left: 50 }} // Offset to account for expanded detection area
             width={w} 
             height={h}
           >
@@ -180,7 +219,12 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
           {/* Ghost node preview */}
           <div
             className="absolute pointer-events-none z-20"
-            style={getGhostPreviewPosition(showGhostPreview)}
+            style={{
+              ...getGhostPreviewPosition(showGhostPreview),
+              // Offset positions to account for expanded detection area
+              top: (getGhostPreviewPosition(showGhostPreview).top as number) + 50,
+              left: (getGhostPreviewPosition(showGhostPreview).left as number) + 50,
+            }}
           >
             <div
               className="relative bg-white border border-dashed border-gray-400 rounded-lg shadow-lg opacity-60"
