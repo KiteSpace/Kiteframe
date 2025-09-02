@@ -929,6 +929,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showNewTabModal, setShowNewTabModal] = useState(false);
   const [showPluginTest, setShowPluginTest] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node } | null>(null);
+  const [isEditingWorkflowName, setIsEditingWorkflowName] = useState(false);
+  const [workflowNameInput, setWorkflowNameInput] = useState('');
 
   // Expose tab manager to global window for pro plugins
   useEffect(() => {
@@ -960,6 +962,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     };
     registerPlugins();
   }, []);
+
+  // Handle keyboard shortcut for workflow name editing
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F2') {
+        e.preventDefault();
+        setWorkflowNameInput(activeTab?.name || '');
+        setIsEditingWorkflowName(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab?.name]);
 
   // Handle quick-add node events from Advanced Interactions plugin
   useEffect(() => {
@@ -1033,6 +1049,51 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     };
   }, [nodes, setNodes, setEdges, saveToHistory]);
 
+  // Local storage persistence for workflows
+  const saveToLocalStorage = useCallback((tabsToSave: WorkflowTab[]) => {
+    try {
+      localStorage.setItem('kiteframe_workflows', JSON.stringify(tabsToSave));
+      console.log('💾 Workflows saved to local storage');
+    } catch (error) {
+      console.error('❌ Failed to save workflows to local storage:', error);
+    }
+  }, []);
+
+  const loadFromLocalStorage = useCallback((): WorkflowTab[] => {
+    try {
+      const saved = localStorage.getItem('kiteframe_workflows');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log('📂 Workflows loaded from local storage:', parsed.length);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('❌ Failed to load workflows from local storage:', error);
+    }
+    return [];
+  }, []);
+
+  // Auto-save to local storage when tabs change
+  useEffect(() => {
+    if (tabs.length > 0) {
+      const timer = setTimeout(() => {
+        saveToLocalStorage(tabs);
+      }, 1000); // Debounce saves by 1 second
+      
+      return () => clearTimeout(timer);
+    }
+  }, [tabs, saveToLocalStorage]);
+
+  // Load workflows from local storage on mount
+  useEffect(() => {
+    const savedTabs = loadFromLocalStorage();
+    if (savedTabs.length > 0) {
+      setTabs(savedTabs);
+      setActiveTabId(savedTabs[0].id);
+      console.log('🔄 Restored workflows from local storage');
+    }
+  }, [loadFromLocalStorage]);
+
   return (
     <div className="h-screen flex flex-col bg-background">
         {/* Header */}
@@ -1054,7 +1115,51 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 onClick={() => setActiveTabId(tab.id)}
                 data-testid={`tab-${tab.id}`}
               >
-                <span className="truncate text-sm font-medium max-w-32">{tab.name}</span>
+                {isEditingWorkflowName && tab.id === activeTabId ? (
+                  <input
+                    type="text"
+                    value={workflowNameInput}
+                    onChange={(e) => setWorkflowNameInput(e.target.value)}
+                    onBlur={() => {
+                      if (workflowNameInput.trim()) {
+                        updateActiveTab({ name: workflowNameInput.trim() });
+                      }
+                      setIsEditingWorkflowName(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (workflowNameInput.trim()) {
+                          updateActiveTab({ name: workflowNameInput.trim() });
+                        }
+                        setIsEditingWorkflowName(false);
+                      } else if (e.key === 'Escape') {
+                        setIsEditingWorkflowName(false);
+                        setWorkflowNameInput(tab.name);
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-transparent border-none outline-none text-sm font-medium text-inherit px-0 py-0 w-full max-w-32"
+                    autoFocus
+                    data-testid="input-workflow-name"
+                  />
+                ) : (
+                  <span 
+                    className="truncate text-sm font-medium max-w-32 cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setWorkflowNameInput(tab.name);
+                      setIsEditingWorkflowName(true);
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      setWorkflowNameInput(tab.name);
+                      setIsEditingWorkflowName(true);
+                    }}
+                    data-testid="text-workflow-name"
+                  >
+                    {tab.name}
+                  </span>
+                )}
                 {tabs.length > 1 && (
                   <button
                     className="ml-1 hover:bg-background/20 rounded p-0.5"

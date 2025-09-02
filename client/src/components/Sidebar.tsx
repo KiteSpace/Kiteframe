@@ -17,7 +17,9 @@ import {
   X,
   Sparkles,
   AlignHorizontalSpaceAround,
-  AlignVerticalSpaceAround
+  AlignVerticalSpaceAround,
+  Palette,
+  RotateCcw
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -269,6 +271,230 @@ export function Sidebar({
                     </div>
                   </div>
                 )}
+
+                {/* Color Customization Section */}
+                <div className="space-y-3 mt-4 pt-3 border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-semibold flex items-center gap-2">
+                      <Palette size={14} />
+                      Node Colors
+                    </h4>
+                    <button
+                      onClick={() => {
+                        // Reset to default colors
+                        onNodeUpdate(selectedNode.id, {
+                          data: {
+                            ...selectedNode.data,
+                            colors: {
+                              headerBackground: '#f8fafc',
+                              bodyBackground: 'white',
+                              borderColor: '#e2e8f0',
+                              headerTextColor: '#0f172a',
+                              bodyTextColor: '#475569'
+                            }
+                          }
+                        });
+                      }}
+                      className="p-1 hover:bg-accent rounded transition-colors"
+                      title="Reset colors"
+                      data-testid="button-reset-colors"
+                    >
+                      <RotateCcw size={12} />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Header Background */}
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Header BG</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: {
+                              ...selectedNode.data,
+                              colors: {
+                                ...selectedNode.data?.colors,
+                                headerBackground: e.target.value
+                              }
+                            }
+                          })}
+                          className="w-8 h-6 rounded border border-border cursor-pointer"
+                          data-testid="input-header-bg-color"
+                        />
+                        <input
+                          type="text"
+                          value={selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: {
+                              ...selectedNode.data,
+                              colors: {
+                                ...selectedNode.data?.colors,
+                                headerBackground: e.target.value
+                              }
+                            }
+                          })}
+                          className="flex-1 p-1 text-xs border border-border rounded bg-background"
+                          placeholder="#f8fafc"
+                          data-testid="input-header-bg-hex"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Body Background */}
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Body BG</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || 'white'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: {
+                              ...selectedNode.data,
+                              colors: {
+                                ...selectedNode.data?.colors,
+                                bodyBackground: e.target.value
+                              }
+                            }
+                          })}
+                          className="w-8 h-6 rounded border border-border cursor-pointer"
+                          data-testid="input-body-bg-color"
+                        />
+                        <input
+                          type="text"
+                          value={selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || '#ffffff'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: {
+                              ...selectedNode.data,
+                              colors: {
+                                ...selectedNode.data?.colors,
+                                bodyBackground: e.target.value
+                              }
+                            }
+                          })}
+                          className="flex-1 p-1 text-xs border border-border rounded bg-background"
+                          placeholder="#ffffff"
+                          data-testid="input-body-bg-hex"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Border Color */}
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Border</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: {
+                              ...selectedNode.data,
+                              colors: {
+                                ...selectedNode.data?.colors,
+                                borderColor: e.target.value
+                              }
+                            }
+                          })}
+                          className="w-8 h-6 rounded border border-border cursor-pointer"
+                          data-testid="input-border-color"
+                        />
+                        <input
+                          type="text"
+                          value={selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: {
+                              ...selectedNode.data,
+                              colors: {
+                                ...selectedNode.data?.colors,
+                                borderColor: e.target.value
+                              }
+                            }
+                          })}
+                          className="flex-1 p-1 text-xs border border-border rounded bg-background"
+                          placeholder="#e2e8f0"
+                          data-testid="input-border-hex"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Header Text */}
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Header Text</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={selectedNode.data?.colors?.headerTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#0f172a'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: {
+                              ...selectedNode.data,
+                              colors: {
+                                ...selectedNode.data?.colors,
+                                headerTextColor: e.target.value
+                              }
+                            }
+                          })}
+                          className="w-8 h-6 rounded border border-border cursor-pointer"
+                          data-testid="input-header-text-color"
+                        />
+                        <input
+                          type="text"
+                          value={selectedNode.data?.colors?.headerTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#0f172a'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: {
+                              ...selectedNode.data,
+                              colors: {
+                                ...selectedNode.data?.colors,
+                                headerTextColor: e.target.value
+                              }
+                            }
+                          })}
+                          className="flex-1 p-1 text-xs border border-border rounded bg-background"
+                          placeholder="#0f172a"
+                          data-testid="input-header-text-hex"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Body Text */}
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium mb-1">Body Text</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: {
+                              ...selectedNode.data,
+                              colors: {
+                                ...selectedNode.data?.colors,
+                                bodyTextColor: e.target.value
+                              }
+                            }
+                          })}
+                          className="w-8 h-6 rounded border border-border cursor-pointer"
+                          data-testid="input-body-text-color"
+                        />
+                        <input
+                          type="text"
+                          value={selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: {
+                              ...selectedNode.data,
+                              colors: {
+                                ...selectedNode.data?.colors,
+                                bodyTextColor: e.target.value
+                              }
+                            }
+                          })}
+                          className="flex-1 p-1 text-xs border border-border rounded bg-background"
+                          placeholder="#475569"
+                          data-testid="input-body-text-hex"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 
                 {/* Image upload section for image nodes */}
                 {selectedNode.type === 'image' && (

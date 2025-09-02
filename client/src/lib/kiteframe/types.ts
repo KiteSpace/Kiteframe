@@ -1,10 +1,21 @@
 export type Position = { x: number; y: number };
 
+export type NodeColors = {
+  headerBackground?: string;
+  bodyBackground?: string;
+  borderColor?: string;
+  textColor?: string;
+  headerTextColor?: string;
+  bodyTextColor?: string;
+};
+
 export type Node = {
   id: string;
   type?: string;
   position: Position;
-  data: any;
+  data: any & {
+    colors?: NodeColors;
+  };
   style?: { width?: number; height?: number };
   draggable?: boolean;
   selectable?: boolean;

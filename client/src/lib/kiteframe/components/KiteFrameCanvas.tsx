@@ -561,15 +561,26 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           const dynamicHeight = calculateNodeHeight(n, w);
           const explicitHeight = n.style?.height ?? (n.type === 'image' && n.data?.src ? n.height : undefined);
           const h = explicitHeight ?? Math.max(dynamicHeight, n.height ?? 100);
-          const color = n.data?.color || 'white';
-          const border = n.data?.borderColor || '#e2e8f0';
-          const txt = n.data?.textColor || '#0f172a';
+          // Enhanced color system with separate header/body colors
+          const colors = n.data?.colors || {};
+          const headerBg = colors.headerBackground || n.data?.color || '#f8fafc';
+          const bodyBg = colors.bodyBackground || n.data?.color || 'white';
+          const border = colors.borderColor || n.data?.borderColor || '#e2e8f0';
+          const headerText = colors.headerTextColor || colors.textColor || n.data?.textColor || '#0f172a';
+          const bodyText = colors.bodyTextColor || colors.textColor || n.data?.textColor || '#475569';
           return (
             <div
               key={n.id}
               data-node-id={n.id}
               className={`kiteframe-node group ${n.selected?'selected':''}`}
-              style={{ left: n.position.x, top: n.position.y, width: w, height: h, background: color, borderColor: border, color: txt }}
+              style={{ 
+                left: n.position.x, 
+                top: n.position.y, 
+                width: w, 
+                height: h, 
+                borderColor: border,
+                background: 'transparent' // Remove default background since we'll use separate header/body
+              }}
               onMouseDown={(e)=>{
                 e.stopPropagation();
                 if (!containerRef.current) return;
@@ -610,10 +621,25 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 props.onNodeClick?.(e, n);
               }}
             >
-              <div className="title">{n.data?.label || n.type || n.id}</div>
+              <div 
+                className="title"
+                style={{ 
+                  backgroundColor: headerBg,
+                  color: headerText,
+                  borderTopLeftRadius: '8px',
+                  borderTopRightRadius: '8px',
+                  borderBottom: `1px solid ${border}`
+                }}
+              >
+                {n.data?.label || n.type || n.id}
+              </div>
               <div 
                 className="body" 
                 style={{ 
+                  backgroundColor: bodyBg,
+                  color: bodyText,
+                  borderBottomLeftRadius: '8px',
+                  borderBottomRightRadius: '8px',
                   padding: n.type === 'image' ? '0' : undefined,
                   height: n.type === 'image' ? `${h - 30}px` : undefined, // Account for title height
                   display: n.type === 'image' ? 'flex' : undefined,
