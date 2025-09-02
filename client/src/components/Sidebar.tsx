@@ -274,55 +274,37 @@ export function Sidebar({
 
                 {/* Color Customization Section */}
                 <div className="space-y-3 mt-4 pt-3 border-t border-border">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-semibold flex items-center gap-2">
-                      <Palette size={14} />
-                      Node Colors
-                    </h4>
-                    <button
-                      onClick={() => {
-                        // Reset to default colors
-                        onNodeUpdate(selectedNode.id, {
-                          data: {
-                            ...selectedNode.data,
-                            colors: {
-                              headerBackground: '#f8fafc',
-                              bodyBackground: 'white',
-                              borderColor: '#e2e8f0',
-                              headerTextColor: '#0f172a',
-                              bodyTextColor: '#475569'
-                            }
-                          }
-                        });
-                      }}
-                      className="p-1 hover:bg-accent rounded transition-colors"
-                      title="Reset colors"
-                      data-testid="button-reset-colors"
-                    >
-                      <RotateCcw size={12} />
-                    </button>
-                  </div>
+                  <h4 className="text-xs font-semibold flex items-center gap-2">
+                    <Palette size={14} />
+                    Node Colors
+                  </h4>
                   
                   <div className="grid grid-cols-2 gap-3">
                     {/* Header Background */}
                     <div>
                       <label className="block text-xs font-medium mb-1">Header BG</label>
                       <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc'}
-                          onChange={(e) => onNodeUpdate(selectedNode.id, {
-                            data: {
-                              ...selectedNode.data,
-                              colors: {
-                                ...selectedNode.data?.colors,
-                                headerBackground: e.target.value
+                        <div className="relative">
+                          <input
+                            type="color"
+                            value={selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc'}
+                            onChange={(e) => onNodeUpdate(selectedNode.id, {
+                              data: {
+                                ...selectedNode.data,
+                                colors: {
+                                  ...selectedNode.data?.colors,
+                                  headerBackground: e.target.value
+                                }
                               }
-                            }
-                          })}
-                          className="w-8 h-6 rounded border border-border cursor-pointer"
-                          data-testid="input-header-bg-color"
-                        />
+                            })}
+                            className="w-6 h-6 rounded-full border border-border cursor-pointer opacity-0 absolute"
+                            data-testid="input-header-bg-color"
+                          />
+                          <div 
+                            className="w-6 h-6 rounded-full border border-border cursor-pointer"
+                            style={{ backgroundColor: selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc' }}
+                          />
+                        </div>
                         <input
                           type="text"
                           value={selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc'}
@@ -346,21 +328,27 @@ export function Sidebar({
                     <div>
                       <label className="block text-xs font-medium mb-1">Body BG</label>
                       <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || 'white'}
-                          onChange={(e) => onNodeUpdate(selectedNode.id, {
-                            data: {
-                              ...selectedNode.data,
-                              colors: {
-                                ...selectedNode.data?.colors,
-                                bodyBackground: e.target.value
+                        <div className="relative">
+                          <input
+                            type="color"
+                            value={selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || 'white'}
+                            onChange={(e) => onNodeUpdate(selectedNode.id, {
+                              data: {
+                                ...selectedNode.data,
+                                colors: {
+                                  ...selectedNode.data?.colors,
+                                  bodyBackground: e.target.value
+                                }
                               }
-                            }
-                          })}
-                          className="w-8 h-6 rounded border border-border cursor-pointer"
-                          data-testid="input-body-bg-color"
-                        />
+                            })}
+                            className="w-6 h-6 rounded-full border border-border cursor-pointer opacity-0 absolute"
+                            data-testid="input-body-bg-color"
+                          />
+                          <div 
+                            className="w-6 h-6 rounded-full border border-border cursor-pointer"
+                            style={{ backgroundColor: selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || '#ffffff' }}
+                          />
+                        </div>
                         <input
                           type="text"
                           value={selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || '#ffffff'}
@@ -384,21 +372,27 @@ export function Sidebar({
                     <div>
                       <label className="block text-xs font-medium mb-1">Border</label>
                       <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0'}
-                          onChange={(e) => onNodeUpdate(selectedNode.id, {
-                            data: {
-                              ...selectedNode.data,
-                              colors: {
-                                ...selectedNode.data?.colors,
-                                borderColor: e.target.value
+                        <div className="relative">
+                          <input
+                            type="color"
+                            value={selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0'}
+                            onChange={(e) => onNodeUpdate(selectedNode.id, {
+                              data: {
+                                ...selectedNode.data,
+                                colors: {
+                                  ...selectedNode.data?.colors,
+                                  borderColor: e.target.value
+                                }
                               }
-                            }
-                          })}
-                          className="w-8 h-6 rounded border border-border cursor-pointer"
-                          data-testid="input-border-color"
-                        />
+                            })}
+                            className="w-6 h-6 rounded-full border border-border cursor-pointer opacity-0 absolute"
+                            data-testid="input-border-color"
+                          />
+                          <div 
+                            className="w-6 h-6 rounded-full border border-border cursor-pointer"
+                            style={{ backgroundColor: selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0' }}
+                          />
+                        </div>
                         <input
                           type="text"
                           value={selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0'}
@@ -422,21 +416,27 @@ export function Sidebar({
                     <div>
                       <label className="block text-xs font-medium mb-1">Header Text</label>
                       <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={selectedNode.data?.colors?.headerTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#0f172a'}
-                          onChange={(e) => onNodeUpdate(selectedNode.id, {
-                            data: {
-                              ...selectedNode.data,
-                              colors: {
-                                ...selectedNode.data?.colors,
-                                headerTextColor: e.target.value
+                        <div className="relative">
+                          <input
+                            type="color"
+                            value={selectedNode.data?.colors?.headerTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#0f172a'}
+                            onChange={(e) => onNodeUpdate(selectedNode.id, {
+                              data: {
+                                ...selectedNode.data,
+                                colors: {
+                                  ...selectedNode.data?.colors,
+                                  headerTextColor: e.target.value
+                                }
                               }
-                            }
-                          })}
-                          className="w-8 h-6 rounded border border-border cursor-pointer"
-                          data-testid="input-header-text-color"
-                        />
+                            })}
+                            className="w-6 h-6 rounded-full border border-border cursor-pointer opacity-0 absolute"
+                            data-testid="input-header-text-color"
+                          />
+                          <div 
+                            className="w-6 h-6 rounded-full border border-border cursor-pointer"
+                            style={{ backgroundColor: selectedNode.data?.colors?.headerTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#0f172a' }}
+                          />
+                        </div>
                         <input
                           type="text"
                           value={selectedNode.data?.colors?.headerTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#0f172a'}
@@ -460,21 +460,27 @@ export function Sidebar({
                     <div className="col-span-2">
                       <label className="block text-xs font-medium mb-1">Body Text</label>
                       <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569'}
-                          onChange={(e) => onNodeUpdate(selectedNode.id, {
-                            data: {
-                              ...selectedNode.data,
-                              colors: {
-                                ...selectedNode.data?.colors,
-                                bodyTextColor: e.target.value
+                        <div className="relative">
+                          <input
+                            type="color"
+                            value={selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569'}
+                            onChange={(e) => onNodeUpdate(selectedNode.id, {
+                              data: {
+                                ...selectedNode.data,
+                                colors: {
+                                  ...selectedNode.data?.colors,
+                                  bodyTextColor: e.target.value
+                                }
                               }
-                            }
-                          })}
-                          className="w-8 h-6 rounded border border-border cursor-pointer"
-                          data-testid="input-body-text-color"
-                        />
+                            })}
+                            className="w-6 h-6 rounded-full border border-border cursor-pointer opacity-0 absolute"
+                            data-testid="input-body-text-color"
+                          />
+                          <div 
+                            className="w-6 h-6 rounded-full border border-border cursor-pointer"
+                            style={{ backgroundColor: selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569' }}
+                          />
+                        </div>
                         <input
                           type="text"
                           value={selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569'}
@@ -494,6 +500,23 @@ export function Sidebar({
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Reset to defaults button */}
+                  <button
+                    onClick={() => {
+                      // Reset to default colors
+                      onNodeUpdate(selectedNode.id, {
+                        data: {
+                          ...selectedNode.data,
+                          colors: undefined // Remove colors entirely to use defaults
+                        }
+                      });
+                    }}
+                    className="w-full text-xs text-muted-foreground hover:text-foreground underline hover:no-underline transition-colors mt-2"
+                    data-testid="button-reset-colors"
+                  >
+                    Reset to defaults
+                  </button>
                 </div>
                 
                 {/* Image upload section for image nodes */}

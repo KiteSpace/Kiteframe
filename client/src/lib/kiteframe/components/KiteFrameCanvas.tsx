@@ -358,7 +358,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
       // If hovering a valid node, connect directly (no need to land on handle)
       if (hoverTargetId && eligible) {
-        props.onConnect({ source: sourceId, target: hoverTargetId });
+        props.onConnect?.({ source: sourceId, target: hoverTargetId });
         setConnecting(null);
         return;
       }
@@ -384,7 +384,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         }
       }
       if (best && !edgeExists(sourceId, best.id)) {
-        props.onConnect({ source: sourceId, target: best.id });
+        props.onConnect?.({ source: sourceId, target: best.id });
       }
       setConnecting(null);
     }
@@ -579,7 +579,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 width: w, 
                 height: h, 
                 borderColor: border,
-                background: 'transparent' // Remove default background since we'll use separate header/body
+                background: 'transparent', // Remove default background since we'll use separate header/body
+                display: 'flex',
+                flexDirection: 'column'
               }}
               onMouseDown={(e)=>{
                 e.stopPropagation();
@@ -641,8 +643,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   borderBottomLeftRadius: '8px',
                   borderBottomRightRadius: '8px',
                   padding: n.type === 'image' ? '0' : undefined,
+                  flex: 1, // Make the body fill remaining space
+                  display: 'flex',
+                  flexDirection: 'column',
                   height: n.type === 'image' ? `${h - 30}px` : undefined, // Account for title height
-                  display: n.type === 'image' ? 'flex' : undefined,
                   alignItems: n.type === 'image' ? 'center' : undefined,
                   justifyContent: n.type === 'image' ? 'center' : undefined
                 }}
