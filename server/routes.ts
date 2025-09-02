@@ -954,7 +954,7 @@ Respond with only the corrected JSON data:`;
     },
     fileFilter: (req, file, cb) => {
       if (!file.mimetype.startsWith('image/')) {
-        return cb(new Error('Only image files are allowed'), false);
+        return cb(new Error('Only image files are allowed'));
       }
       cb(null, true);
     },

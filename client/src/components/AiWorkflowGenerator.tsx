@@ -1,12 +1,29 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
 import type { Node, Edge } from '../lib/kiteframe/types';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, Image, Upload, FileImage, CheckCircle, AlertTriangle, MessageSquare } from 'lucide-react';
+
+interface ImageAnalysisResult {
+  success: boolean;
+  confidence: number;
+  canGenerate: boolean;
+  analysis: string;
+  nodes: Node[];
+  edges: Edge[];
+  recommendations: string[];
+  metadata: {
+    originalFileName: string;
+    fileSize: number;
+    analysisTimestamp: string;
+  };
+}
 
 interface AiWorkflowGeneratorProps {
   onClose: () => void;
@@ -14,10 +31,147 @@ interface AiWorkflowGeneratorProps {
 }
 
 export function AiWorkflowGenerator({ onClose, onGenerate }: AiWorkflowGeneratorProps) {
+  const [mode, setMode] = useState<'text' | 'image'>('text');
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<ImageAnalysisResult | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const aiClient = useAi();
+
+  // Image handling functions
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const handleFileSelect = (file: File) => {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file (PNG, JPG, GIF, etc.)');
+      return;
+    }
+
+    // Validate file size (10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image must be smaller than 10MB');
+      return;
+    }
+
+    setError(null);
+    setSelectedImage(file);
+    setAnalysisResult(null);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files[0]) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const analyzeImage = async () => {
+    if (!selectedImage) return;
+
+    setIsAnalyzing(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', selectedImage);
+
+      const response = await fetch('/api/ai/analyze-workflow-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Analysis failed with status ${response.status}`);
+      }
+
+      const result: ImageAnalysisResult = await response.json();
+      setAnalysisResult(result);
+
+      if (result.confidence < 70) {
+        toast({
+          title: "Low Confidence Analysis",
+          description: `Confidence: ${result.confidence}%. The image might not contain clear workflow elements.`,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Analysis Complete",
+          description: `Confidence: ${result.confidence}%. Found ${result.nodes.length} nodes and ${result.edges.length} connections.`
+        });
+      }
+
+    } catch (error: any) {
+      console.error('Image analysis error:', error);
+      setError(error.message);
+      toast({
+        title: "Analysis Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const generateFromImage = async () => {
+    if (!analysisResult || !analysisResult.canGenerate) {
+      toast({
+        title: "Cannot Generate",
+        description: "Please analyze an image with higher confidence first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      onGenerate({
+        nodes: analysisResult.nodes,
+        edges: analysisResult.edges
+      });
+      onClose();
+    } catch (error) {
+      console.error('Workflow generation error:', error);
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate workflow from image analysis.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -240,7 +394,7 @@ Position nodes 250px apart horizontally.`;
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg" data-testid="modal-ai-workflow-generator" aria-describedby="ai-generator-description">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="modal-ai-workflow-generator" aria-describedby="ai-generator-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="text-primary" size={20} />
@@ -248,49 +402,209 @@ Position nodes 250px apart horizontally.`;
           </DialogTitle>
         </DialogHeader>
         <div id="ai-generator-description" className="sr-only">
-          Generate complete workflows from natural language descriptions using AI
+          Generate complete workflows from natural language descriptions or images using AI
         </div>
         
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="workflow-prompt">Describe Your Workflow</Label>
-            <Input
-              id="workflow-prompt"
-              placeholder="e.g., Create a data processing pipeline that validates CSV files and generates reports"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              data-testid="input-workflow-prompt"
-              className="min-h-[80px]"
-              style={{ height: '80px', resize: 'vertical' }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                  handleGenerate();
-                }
-              }}
-            />
-            <p className="text-xs text-muted-foreground">
-              Press Ctrl+Enter to generate, or click the button below
-            </p>
+        <div className="space-y-6">
+          {/* Mode Toggle */}
+          <div className="flex space-x-1 bg-muted p-1 rounded-lg">
+            <button
+              onClick={() => setMode('text')}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                mode === 'text' 
+                  ? 'bg-background text-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              data-testid="tab-text-prompt"
+            >
+              <MessageSquare size={16} />
+              Text Prompt
+            </button>
+            <button
+              onClick={() => setMode('image')}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                mode === 'image' 
+                  ? 'bg-background text-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              data-testid="tab-image-upload"
+            >
+              <FileImage size={16} />
+              Upload Image
+            </button>
           </div>
-          
-          <div className="space-y-2">
-            <Label>Example Prompts:</Label>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <div className="cursor-pointer hover:text-foreground p-1 rounded hover:bg-accent" 
-                   onClick={() => setPrompt("Create an e-commerce order processing workflow")}>
-                • Create an e-commerce order processing workflow
+
+          {/* Text Mode */}
+          {mode === 'text' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="workflow-prompt">Describe Your Workflow</Label>
+                <Input
+                  id="workflow-prompt"
+                  placeholder="e.g., Create a data processing pipeline that validates CSV files and generates reports"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  data-testid="input-workflow-prompt"
+                  className="min-h-[80px]"
+                  style={{ height: '80px', resize: 'vertical' }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                      handleGenerate();
+                    }
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Press Ctrl+Enter to generate, or click the button below
+                </p>
               </div>
-              <div className="cursor-pointer hover:text-foreground p-1 rounded hover:bg-accent"
-                   onClick={() => setPrompt("Build a content moderation system with AI review")}>
-                • Build a content moderation system with AI review
-              </div>
-              <div className="cursor-pointer hover:text-foreground p-1 rounded hover:bg-accent"
-                   onClick={() => setPrompt("Design a customer support ticket routing system")}>
-                • Design a customer support ticket routing system
+              
+              <div className="space-y-2">
+                <Label>Example Prompts:</Label>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div className="cursor-pointer hover:text-foreground p-1 rounded hover:bg-accent" 
+                       onClick={() => setPrompt("Create an e-commerce order processing workflow")}>
+                    • Create an e-commerce order processing workflow
+                  </div>
+                  <div className="cursor-pointer hover:text-foreground p-1 rounded hover:bg-accent"
+                       onClick={() => setPrompt("Build a content moderation system with AI review")}>
+                    • Build a content moderation system with AI review
+                  </div>
+                  <div className="cursor-pointer hover:text-foreground p-1 rounded hover:bg-accent"
+                       onClick={() => setPrompt("Design a customer support ticket routing system")}>
+                    • Design a customer support ticket routing system
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-          
+          )}
+
+          {/* Image Mode */}
+          {mode === 'image' && (
+            <div className="space-y-4">
+              {/* Image Upload Area */}
+              <div className="space-y-3">
+                <Label>Upload Workflow Diagram</Label>
+                <div
+                  className={`relative border-2 border-dashed rounded-lg p-6 transition-colors ${
+                    dragActive 
+                      ? 'border-primary bg-primary/10' 
+                      : 'border-muted-foreground/25 hover:border-muted-foreground/40'
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  {imagePreview ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-center">
+                        <img 
+                          src={imagePreview} 
+                          alt="Workflow preview"
+                          className="max-w-full max-h-48 object-contain rounded-md border"
+                        />
+                      </div>
+                      <div className="text-center text-sm text-muted-foreground">
+                        {selectedImage?.name} ({Math.round((selectedImage?.size || 0) / 1024)}KB)
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedImage(null);
+                          setImagePreview(null);
+                          setAnalysisResult(null);
+                          setError(null);
+                        }}
+                        className="w-full"
+                      >
+                        Remove Image
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-4">
+                      <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
+                      <div>
+                        <p className="text-base font-medium">
+                          Drop your workflow image here, or{' '}
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="text-primary hover:text-primary/80"
+                          >
+                            browse files
+                          </button>
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Supports PNG, JPG, GIF up to 10MB
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileInputChange}
+                    className="hidden"
+                    data-testid="input-image-upload"
+                  />
+                </div>
+              </div>
+
+              {/* Error Display */}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Analysis Results */}
+              {analysisResult && (
+                <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Analysis Results</h4>
+                    <Badge variant={analysisResult.confidence >= 70 ? "default" : "secondary"}>
+                      {analysisResult.confidence}% confidence
+                    </Badge>
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground">
+                    {analysisResult.analysis}
+                  </p>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      {analysisResult.nodes.length} nodes detected
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      {analysisResult.edges.length} connections found
+                    </div>
+                  </div>
+
+                  {analysisResult.recommendations && analysisResult.recommendations.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-xs">Recommendations:</Label>
+                      <ul className="text-xs text-muted-foreground space-y-1">
+                        {analysisResult.recommendations.map((rec, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-primary">•</span>
+                            {rec}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
             <Button
               type="button"
@@ -301,24 +615,60 @@ Position nodes 250px apart horizontally.`;
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleGenerate}
-              disabled={isGenerating || !prompt.trim()}
-              className="flex-1"
-              data-testid="button-generate-workflow"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="animate-spin mr-2" size={16} />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2" size={16} />
-                  Generate
-                </>
-              )}
-            </Button>
+            
+            {mode === 'text' ? (
+              <Button
+                onClick={handleGenerate}
+                disabled={isGenerating || !prompt.trim()}
+                className="flex-1"
+                data-testid="button-generate-workflow"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="animate-spin mr-2" size={16} />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2" size={16} />
+                    Generate
+                  </>
+                )}
+              </Button>
+            ) : (
+              <div className="flex-1 flex gap-2">
+                {!analysisResult ? (
+                  <Button
+                    onClick={analyzeImage}
+                    disabled={isAnalyzing || !selectedImage}
+                    className="flex-1"
+                    data-testid="button-analyze-image"
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <Loader2 className="animate-spin mr-2" size={16} />
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <Image className="mr-2" size={16} />
+                        Analyze Image
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={generateFromImage}
+                    disabled={!analysisResult.canGenerate}
+                    className="flex-1"
+                    data-testid="button-generate-from-image"
+                  >
+                    <Sparkles className="mr-2" size={16} />
+                    Generate Workflow
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>
