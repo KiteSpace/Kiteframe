@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from 'ws';
+import multer from 'multer';
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { db } from "./db";
@@ -942,6 +943,216 @@ Respond with only the corrected JSON data:`;
     } catch (error) {
       console.error('Comments fetch error:', error);
       res.status(500).json({ error: 'Failed to fetch comments' });
+    }
+  });
+
+  // Configure multer for image upload
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+    fileFilter: (req, file, cb) => {
+      if (!file.mimetype.startsWith('image/')) {
+        return cb(new Error('Only image files are allowed'), false);
+      }
+      cb(null, true);
+    },
+  });
+
+  // AI Image-to-Workflow Analysis endpoint
+  app.post("/api/ai/analyze-workflow-image", upload.single('image'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        return res.status(503).json({ 
+          error: "AI service is not available. Please check OpenAI API key configuration." 
+        });
+      }
+
+      console.log('[Image Analysis] Processing workflow image:', {
+        filename: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
+
+      // Convert image buffer to base64
+      const base64Image = req.file.buffer.toString('base64');
+      const imageDataUrl = `data:${req.file.mimetype};base64,${base64Image}`;
+
+      // Analyze image with GPT-4o Vision
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+          model: "gpt-5",
+          messages: [
+            {
+              role: "system",
+              content: `You are a workflow diagram analysis expert. Analyze hand-drawn or digital workflow diagrams and extract workflow elements in KiteFrame format.
+
+IMPORTANT: Return ONLY valid JSON in this exact format:
+{
+  "confidence": 85,
+  "analysis": "Description of what you see",
+  "nodes": [
+    {
+      "id": "node-1",
+      "type": "input",
+      "position": {"x": 100, "y": 100},
+      "data": {
+        "label": "extracted text",
+        "description": "inferred purpose",
+        "icon": "ArrowRight",
+        "iconColor": "text-blue-500"
+      },
+      "width": 200,
+      "height": 100
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "node-1",
+      "target": "node-2",
+      "type": "bezier",
+      "animated": true,
+      "style": {"strokeColor": "hsl(221.2, 83.2%, 53.3%)", "strokeWidth": 2},
+      "markers": {"type": "arrow", "position": "end"}
+    }
+  ],
+  "recommendations": ["suggestions for workflow improvement"]
+}
+
+Node types: "input", "process", "condition", "output", "ai", "image"
+Icons by type: input=ArrowRight, process=Cog, condition=HelpCircle, output=ArrowLeft, ai=Bot, image=Image
+Colors by type: input=text-blue-500, process=text-green-500, condition=text-yellow-500, output=text-red-500, ai=text-purple-500, image=text-green-500
+
+Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 3+ workflow elements.`
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Analyze this workflow diagram and extract the workflow structure. Focus on identifying nodes, connections, and text labels."
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: imageDataUrl
+                  }
+                }
+              ]
+            }
+          ],
+          response_format: { type: "json_object" },
+          max_tokens: 4000,
+          temperature: 0.2
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error(`OpenAI API Error ${response.status}:`, error);
+        return res.status(500).json({ 
+          error: "Failed to analyze image", 
+          details: `OpenAI API error: ${response.status}` 
+        });
+      }
+
+      const aiResult = await response.json();
+      const rawContent = aiResult.choices?.[0]?.message?.content || '{}';
+      
+      console.log('[Image Analysis] Raw AI response length:', rawContent.length);
+
+      let analysisResult;
+      try {
+        analysisResult = JSON.parse(rawContent);
+      } catch (parseError) {
+        console.error('[Image Analysis] Failed to parse AI response:', parseError);
+        return res.status(500).json({ 
+          error: "Failed to analyze image", 
+          details: "Invalid AI response format" 
+        });
+      }
+
+      // Validate and normalize the response
+      const confidence = Math.max(0, Math.min(100, analysisResult.confidence || 0));
+      
+      // Ensure nodes follow KiteFrame format
+      if (analysisResult.nodes && Array.isArray(analysisResult.nodes)) {
+        analysisResult.nodes = analysisResult.nodes.map((node: any, index: number) => ({
+          id: node.id || `analyzed-node-${index + 1}`,
+          type: node.type || 'process',
+          position: node.position || { x: 100 + (index * 250), y: 100 },
+          data: {
+            label: node.data?.label || node.label || `Step ${index + 1}`,
+            description: node.data?.description || node.description || '',
+            icon: node.data?.icon || 'Cog',
+            iconColor: node.data?.iconColor || 'text-green-500'
+          },
+          width: node.width || 200,
+          height: node.height || 100,
+          draggable: true,
+          selectable: true
+        }));
+      }
+
+      // Ensure edges follow KiteFrame format
+      if (analysisResult.edges && Array.isArray(analysisResult.edges)) {
+        analysisResult.edges = analysisResult.edges.map((edge: any, index: number) => ({
+          id: edge.id || `analyzed-edge-${index + 1}`,
+          source: edge.source,
+          target: edge.target,
+          type: edge.type || 'bezier',
+          animated: edge.animated !== false,
+          style: edge.style || {
+            strokeColor: 'hsl(221.2, 83.2%, 53.3%)',
+            strokeWidth: 2
+          },
+          markers: edge.markers || {
+            type: 'arrow',
+            position: 'end'
+          }
+        }));
+      }
+
+      console.log('[Image Analysis] Analysis completed:', {
+        confidence: confidence,
+        nodeCount: analysisResult.nodes?.length || 0,
+        edgeCount: analysisResult.edges?.length || 0
+      });
+
+      res.json({
+        success: true,
+        confidence,
+        canGenerate: confidence >= 70,
+        analysis: analysisResult.analysis || '',
+        nodes: analysisResult.nodes || [],
+        edges: analysisResult.edges || [],
+        recommendations: analysisResult.recommendations || [],
+        metadata: {
+          originalFileName: req.file.originalname,
+          fileSize: req.file.size,
+          analysisTimestamp: new Date().toISOString()
+        }
+      });
+
+    } catch (error: any) {
+      console.error('[Image Analysis] Error:', error);
+      res.status(500).json({ 
+        error: 'Failed to analyze workflow image', 
+        details: error.message 
+      });
     }
   });
 
