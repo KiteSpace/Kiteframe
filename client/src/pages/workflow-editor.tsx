@@ -1425,6 +1425,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onViewportChange={setViewport}
               proFeatures={proFeaturesConfig}
               onQuickAdd={handleQuickAdd}
+              workflowName={activeTab?.name}
+              onWorkflowNameChange={setWorkflowName}
               onNodesChange={(changes) => {
                 console.log('📊 onNodesChange CALLED:', {
                   changes,

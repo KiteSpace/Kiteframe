@@ -27,6 +27,8 @@ interface WorkflowCanvasProps {
   enablePlugins?: boolean;
   proFeatures?: ProFeaturesConfig;
   onQuickAdd?: (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => void;
+  workflowName?: string;
+  onWorkflowNameChange?: (name: string) => void;
 }
 
 export function WorkflowCanvas({
@@ -51,7 +53,9 @@ export function WorkflowCanvas({
   selectedNodeIds,
   enablePlugins,
   proFeatures,
-  onQuickAdd
+  onQuickAdd,
+  workflowName,
+  onWorkflowNameChange
 }: WorkflowCanvasProps) {
   const [isDraggingMinimap, setIsDraggingMinimap] = useState(false);
 
@@ -179,6 +183,8 @@ export function WorkflowCanvas({
         enablePlugins={enablePlugins}
         proFeatures={proFeatures}
         onQuickAdd={onQuickAdd}
+        workflowName={workflowName}
+        onWorkflowNameChange={onWorkflowNameChange}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

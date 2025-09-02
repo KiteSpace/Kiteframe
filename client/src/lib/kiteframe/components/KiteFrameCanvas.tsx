@@ -7,6 +7,91 @@ import { NodeHandles } from './NodeHandles';
 import { ConnectionEdge } from './ConnectionEdge';
 import { KiteFrameCore, kiteFrameCore } from '../core/KiteFrameCore';
 
+// Floating workflow name input component
+interface WorkflowNameInputProps {
+  name: string;
+  onChange: (name: string) => void;
+}
+
+const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({ name, onChange }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [inputValue, setInputValue] = useState(name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Update local state when name prop changes
+  useEffect(() => {
+    setInputValue(name);
+  }, [name]);
+
+  // Handle keydown events for F2 and Enter/Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F2' && !isEditing) {
+        e.preventDefault();
+        setIsEditing(true);
+        setTimeout(() => inputRef.current?.focus(), 0);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isEditing]);
+
+  const handleStartEdit = () => {
+    setIsEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const handleFinishEdit = () => {
+    setIsEditing(false);
+    onChange(inputValue.trim() || 'Untitled Workflow');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleFinishEdit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setInputValue(name); // Reset to original value
+      setIsEditing(false);
+    }
+  };
+
+  const handleBlur = () => {
+    handleFinishEdit();
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+        className="absolute top-4 left-4 z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm font-medium text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        style={{
+          minWidth: '200px',
+          maxWidth: '400px',
+        }}
+        placeholder="Workflow name..."
+      />
+    );
+  }
+
+  return (
+    <div
+      onClick={handleStartEdit}
+      className="absolute top-4 left-4 z-50 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm cursor-pointer hover:bg-white dark:hover:bg-gray-800 transition-colors"
+      title="Click to edit workflow name (or press F2)"
+    >
+      {name || 'Untitled Workflow'}
+    </div>
+  );
+};
+
 // Utility to calculate dynamic node height based on content
 const calculateNodeHeight = (node: Node, nodeWidth: number): number => {
   const minHeight = 100;
@@ -99,6 +184,10 @@ type Props = {
   // Pro Features
   proFeatures?: ProFeaturesConfig;
   onQuickAdd?: (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => void;
+  
+  // Workflow name
+  workflowName?: string;
+  onWorkflowNameChange?: (name: string) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -758,6 +847,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             pointerEvents: 'none',
             zIndex: 1000
           }} 
+        />
+      )}
+
+      {/* Floating workflow name input */}
+      {props.workflowName !== undefined && props.onWorkflowNameChange && (
+        <WorkflowNameInput 
+          name={props.workflowName}
+          onChange={props.onWorkflowNameChange}
         />
       )}
     </div>
