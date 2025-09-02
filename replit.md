@@ -46,15 +46,17 @@ Preferred communication style: Simple, everyday language.
 - **Node Types**: Supports input, process, condition, output, AI, and image nodes with dynamic text wrapping and height adjustment.
 - **Edge Management**: Bezier, straight, and step connection types with animation support.
 - **Interactive Features**: Drag-and-drop, zoom/pan, multi-node selection (Shift+drag), context menus, and auto-layout with 5 options (Horizontal Flow, Vertical Flow, Grid, Circular, Hierarchical).
-- **Workflow Generation**: AI-generated workflows are appended to the canvas with smart offset positioning.
+- **Workflow Generation**: AI-generated workflows from text prompts and image analysis are appended to the canvas with smart offset positioning.
+- **Image Analysis**: Upload workflow diagrams (PNG, JPG, GIF up to 10MB) with drag-and-drop support, confidence scoring above 70% threshold, and comprehensive error handling.
 - **Image Management**: Enhanced system for uploading images via URL or local storage (base64 data URLs) with privacy notices.
 
 ### AI Integration Layer
 - **Client Interface**: OpenAI-compatible API client with configurable endpoints.
 - **Provider System**: React context-based AI provider with dynamic routing and enhanced error handling.
-- **Model Support**: Integrates with OpenAI (GPT-4o) and local/remote Ollama models (KitelineAI, local Ollama, custom endpoints).
+- **Model Support**: Integrates with OpenAI (GPT-5) and local/remote Ollama models (KitelineAI, local Ollama, custom endpoints).
 - **Privacy Tiers**: UI offers "Maximum Privacy" (KitelineAI, local Ollama, custom) and "Standard Privacy" (OpenAI, Anthropic) options.
 - **Settings Management**: Persistent AI configuration via local storage.
+- **Image-to-Workflow Generation**: AI-powered analysis of hand-drawn or digital workflow diagrams using GPT-5 Vision API with confidence scoring and real-time conversion to interactive workflows.
 
 ### Plugin Architecture
 - **KiteFrameCore**: Comprehensive plugin management system with PluginProvider, hooks, and an event system.
