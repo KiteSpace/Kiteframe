@@ -1035,9 +1035,17 @@ Node types: "input", "process", "condition", "output", "ai", "image"
 Icons by type: input=ArrowRight, process=Cog, condition=HelpCircle, output=ArrowLeft, ai=Bot, image=Image
 Colors by type: input=text-blue-500, process=text-green-500, condition=text-yellow-500, output=text-red-500, ai=text-purple-500, image=text-green-500
 
-IMPORTANT: 
-- "label" = SHORT title (2-4 words max, e.g. "Enter Credentials", "Send Code", "Login")
-- "description" = LONGER explanation (full sentence describing what happens in this step)
+CRITICAL FORMATTING RULES:
+- "label" = SHORT title (2-4 words max) - THIS IS THE NODE HEADER
+- "description" = LONGER explanation (detailed sentence) - THIS IS THE NODE BODY
+
+CORRECT EXAMPLE:
+"label": "Enter Credentials",
+"description": "User receives prompt to enter their SSO credentials"
+
+WRONG EXAMPLE:
+"label": "User receives prompt to enter their SSO credentials",
+"description": "Enter Credentials"
 
 Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 3+ workflow elements.`
             },
