@@ -4,12 +4,14 @@ interface ContextMenuProps {
   x: number;
   y: number;
   onClose: () => void;
-  onCopy: () => void;
+  onCopyProperties: () => void;
+  onPasteProperties?: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  hasPropertiesInClipboard?: boolean;
 }
 
-export function ContextMenu({ x, y, onClose, onCopy, onDuplicate, onDelete }: ContextMenuProps) {
+export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties, onDuplicate, onDelete, hasPropertiesInClipboard }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,12 +45,22 @@ export function ContextMenu({ x, y, onClose, onCopy, onDuplicate, onDelete }: Co
     >
       <div
         className="px-3 py-2 hover:bg-accent cursor-pointer text-sm"
-        onClick={onCopy}
-        data-testid="context-menu-copy"
+        onClick={onCopyProperties}
+        data-testid="context-menu-copy-properties"
       >
-        <i className="fas fa-copy mr-2" />
-        Copy Node
+        <i className="fas fa-palette mr-2" />
+        Copy Properties
       </div>
+      {hasPropertiesInClipboard && onPasteProperties && (
+        <div
+          className="px-3 py-2 hover:bg-accent cursor-pointer text-sm"
+          onClick={onPasteProperties}
+          data-testid="context-menu-paste-properties"
+        >
+          <i className="fas fa-brush mr-2" />
+          Paste Properties
+        </div>
+      )}
       <div
         className="px-3 py-2 hover:bg-accent cursor-pointer text-sm"
         onClick={onDuplicate}

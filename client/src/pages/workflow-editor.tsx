@@ -931,6 +931,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node } | null>(null);
   const [isEditingWorkflowName, setIsEditingWorkflowName] = useState(false);
   const [workflowNameInput, setWorkflowNameInput] = useState('');
+  const [copiedProperties, setCopiedProperties] = useState<{ colors?: any; data?: Partial<Node['data']> } | null>(null);
 
   // Expose tab manager to global window for pro plugins
   useEffect(() => {
@@ -1794,6 +1795,43 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             x={contextMenu.x}
             y={contextMenu.y}
             onClose={() => setContextMenu(null)}
+            onCopyProperties={() => {
+              if (contextMenu.node) {
+                // Copy properties (colors, icon, iconColor, etc.) but not label/description
+                const propertiesToCopy = {
+                  colors: contextMenu.node.data?.colors,
+                  data: {
+                    icon: contextMenu.node.data?.icon,
+                    iconColor: contextMenu.node.data?.iconColor,
+                  }
+                };
+                setCopiedProperties(propertiesToCopy);
+                console.log('📋 Properties copied:', propertiesToCopy);
+                setContextMenu(null);
+              }
+            }}
+            onPasteProperties={copiedProperties ? () => {
+              if (contextMenu.node && copiedProperties) {
+                saveToHistory();
+                updateActiveTab({
+                  nodes: nodes.map(n => 
+                    n.id === contextMenu.node!.id 
+                      ? {
+                          ...n,
+                          data: {
+                            ...n.data,
+                            ...copiedProperties.data,
+                            colors: copiedProperties.colors
+                          }
+                        }
+                      : n
+                  )
+                });
+                console.log('🎨 Properties pasted to node:', contextMenu.node.id);
+                setContextMenu(null);
+              }
+            } : undefined}
+            hasPropertiesInClipboard={!!copiedProperties}
             onDelete={() => {
               if (contextMenu.node) {
                 saveToHistory();
@@ -1801,10 +1839,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setEdges(prev => prev.filter(e => e.source !== contextMenu.node!.id && e.target !== contextMenu.node!.id));
                 setContextMenu(null);
               }
-            }}
-            onCopy={() => {
-              // TODO: Implement copy functionality
-              setContextMenu(null);
             }}
             onDuplicate={() => {
               if (contextMenu.node) {
