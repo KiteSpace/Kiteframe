@@ -175,15 +175,6 @@ export function FloatingToolbar({
         {/* Separator */}
         <div className="w-px h-6 bg-border mx-1" />
 
-        {/* Fit View */}
-        <button
-          className="w-8 h-8 flex items-center justify-center text-foreground hover:bg-accent rounded-full transition-colors"
-          onClick={onFitView}
-          title="Fit to View"
-        >
-          <ZoomIn size={16} />
-        </button>
-
         {/* Auto Layout */}
         <div className="relative">
           <button

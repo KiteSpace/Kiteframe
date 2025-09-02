@@ -454,14 +454,7 @@ export function Sidebar({
             <div>
               <h3 className="text-sm font-semibold mb-3">Actions</h3>
               <div className="space-y-2">
-                <button
-                  className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left flex items-center gap-2"
-                  onClick={onFitView}
-                  data-testid="button-fit-view"
-                >
-                  <Maximize2 size={14} />
-                  Fit to View
-                </button>
+
                 <button
                   className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left flex items-center gap-2"
                   onClick={onClearCanvas}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, FileText, Sparkles, Upload, Grid3X3 } from 'lucide-react';
+import { X, FileText, Sparkles, Upload, Grid3X3, Image as ImageIcon } from 'lucide-react';
 import type { Node, Edge } from '../lib/kiteframe/types';
 
 interface NewTabModalProps {
@@ -9,6 +9,7 @@ interface NewTabModalProps {
   onCreateFromPrompt: (prompt: string) => void;
   onCreateFromFile: (data: { nodes: Node[]; edges: Edge[] }) => void;
   onCreateFromTemplate: (template: { name: string; nodes: Node[]; edges: Edge[] }) => void;
+  onCreateFromImage?: (imageFile: File) => void;
 }
 
 // Pre-defined workflow templates
@@ -207,10 +208,16 @@ const templates = [
   }
 ];
 
-export function NewTabModal({ isOpen, onClose, onCreateBlank, onCreateFromPrompt, onCreateFromFile, onCreateFromTemplate }: NewTabModalProps) {
+export function NewTabModal({ isOpen, onClose, onCreateBlank, onCreateFromPrompt, onCreateFromFile, onCreateFromTemplate, onCreateFromImage }: NewTabModalProps) {
   const [activeTab, setActiveTab] = useState<'blank' | 'prompt' | 'file' | 'template'>('blank');
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [mode, setMode] = useState<'text' | 'image'>('text');
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -245,6 +252,95 @@ export function NewTabModal({ isOpen, onClose, onCreateBlank, onCreateFromPrompt
       }
     };
     reader.readAsText(file);
+  };
+
+  // Image handling functions
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      handleImageSelect(files[0]);
+    }
+  };
+
+  const handleImageSelect = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file (PNG, JPG, GIF, etc.)');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image must be smaller than 10MB');
+      return;
+    }
+
+    setError(null);
+    setSelectedImage(file);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files[0]) {
+      handleImageSelect(files[0]);
+    }
+  };
+
+  const analyzeAndCreateImage = async () => {
+    if (!selectedImage) return;
+
+    setIsAnalyzing(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', selectedImage);
+
+      const response = await fetch('/api/ai/analyze-workflow-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Analysis failed with status ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.confidence < 70) {
+        setError(`Low confidence analysis (${result.confidence}%). The image might not contain clear workflow elements.`);
+        return;
+      }
+
+      // Create workflow from image analysis
+      onCreateFromFile({ nodes: result.nodes, edges: result.edges });
+      onClose();
+
+    } catch (error: any) {
+      console.error('Image analysis error:', error);
+      setError(error.message);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
@@ -333,28 +429,122 @@ export function NewTabModal({ isOpen, onClose, onCreateBlank, onCreateFromPrompt
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Generate with AI</h3>
                 <p className="text-muted-foreground">
-                  Describe the workflow you want to create and AI will generate it for you.
+                  Create workflows from text descriptions or upload images of hand-drawn workflows.
                 </p>
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium">Workflow Description</label>
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Describe the workflow you want to create... (e.g., 'Create a workflow for processing customer feedback with sentiment analysis and routing to the appropriate team')"
-                    className="w-full p-3 border border-border rounded-md bg-background resize-none"
-                    rows={4}
-                    data-testid="textarea-ai-prompt"
-                  />
+                
+                {/* Mode Toggle */}
+                <div className="flex gap-2 p-1 bg-muted rounded-md">
                   <button
-                    onClick={handlePromptSubmit}
-                    disabled={!prompt.trim() || isGenerating}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-md hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    data-testid="button-generate-workflow"
+                    onClick={() => setMode('text')}
+                    className={`flex-1 py-2 px-3 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                      mode === 'text' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}
                   >
                     <Sparkles size={16} />
-                    {isGenerating ? 'Generating...' : 'Generate Workflow'}
+                    Text Prompt
+                  </button>
+                  <button
+                    onClick={() => setMode('image')}
+                    className={`flex-1 py-2 px-3 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                      mode === 'image' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <ImageIcon size={16} />
+                    Image Analysis
                   </button>
                 </div>
+
+                {mode === 'text' ? (
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium">Workflow Description</label>
+                    <textarea
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      placeholder="Describe the workflow you want to create... (e.g., 'Create a workflow for processing customer feedback with sentiment analysis and routing to the appropriate team')"
+                      className="w-full p-3 border border-border rounded-md bg-background resize-none"
+                      rows={4}
+                      data-testid="textarea-ai-prompt"
+                    />
+                    <button
+                      onClick={handlePromptSubmit}
+                      disabled={!prompt.trim() || isGenerating}
+                      className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-md hover:from-purple-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      data-testid="button-generate-workflow"
+                    >
+                      <Sparkles size={16} />
+                      {isGenerating ? 'Generating...' : 'Generate Workflow'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Upload Workflow Image</label>
+                      <div
+                        className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                          dragActive 
+                            ? 'border-primary bg-primary/10' 
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                        onDragEnter={handleDrag}
+                        onDragLeave={handleDrag}
+                        onDragOver={handleDrag}
+                        onDrop={handleDrop}
+                      >
+                        {imagePreview ? (
+                          <div className="space-y-3">
+                            <img 
+                              src={imagePreview} 
+                              alt="Workflow preview" 
+                              className="mx-auto max-h-32 rounded border"
+                            />
+                            <p className="text-sm text-muted-foreground">
+                              {selectedImage?.name} ({Math.round((selectedImage?.size || 0) / 1024)}KB)
+                            </p>
+                            <button
+                              onClick={() => {
+                                setSelectedImage(null);
+                                setImagePreview(null);
+                                setError(null);
+                              }}
+                              className="text-sm text-muted-foreground hover:text-foreground underline"
+                            >
+                              Remove image
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <ImageIcon size={24} className="mx-auto text-muted-foreground" />
+                            <p className="text-sm font-medium">Drop an image here or click to browse</p>
+                            <p className="text-xs text-muted-foreground">
+                              Supports PNG, JPG, GIF up to 10MB
+                            </p>
+                          </div>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageInputChange}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    {error && (
+                      <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                        <p className="text-sm text-destructive">{error}</p>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={analyzeAndCreateImage}
+                      disabled={!selectedImage || isAnalyzing}
+                      className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-md hover:from-green-600 hover:to-teal-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <ImageIcon size={16} />
+                      {isAnalyzing ? 'Analyzing Image...' : 'Analyze & Create Workflow'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

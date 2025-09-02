@@ -229,11 +229,11 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   // Initialize tabs on first render
   useEffect(() => {
     if (tabs.length === 0) {
-      const defaultTab = createDefaultTab();
+      const defaultTab = createBlankTab();
       setTabs([defaultTab]);
       setActiveTabId(defaultTab.id);
     }
-  }, [createDefaultTab]);
+  }, [createBlankTab]);
 
   // Get current active tab
   const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId) || tabs[0], [tabs, activeTabId]);
@@ -1083,7 +1083,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         {/* Main Content */}
         <div className="flex-1 flex">
           {/* Sidebar or Edge Customizer */}
-          <div className="w-64 sm:w-80 border-r border-border flex flex-col">
+          <div className="w-64 border-r border-border flex flex-col">
             {selectedEdgeId ? (
               <EdgeCustomizer
                 selectedEdge={edges.find(e => e.id === selectedEdgeId)}
@@ -1667,6 +1667,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onCreateFromPrompt={handleCreateFromPrompt}
             onCreateFromFile={handleCreateFromFile}
             onCreateFromTemplate={handleCreateFromTemplate}
+            onCreateFromImage={(imageFile: File) => {
+              // Image analysis is now handled directly in the modal
+              console.log('Image file received:', imageFile);
+            }}
           />
         )}
 
