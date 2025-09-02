@@ -1008,8 +1008,8 @@ IMPORTANT: Return ONLY valid JSON in this exact format:
       "type": "input",
       "position": {"x": 100, "y": 100},
       "data": {
-        "label": "extracted text",
-        "description": "inferred purpose",
+        "label": "Short Title",
+        "description": "Detailed explanation of what this step does",
         "icon": "ArrowRight",
         "iconColor": "text-blue-500"
       },
@@ -1034,6 +1034,10 @@ IMPORTANT: Return ONLY valid JSON in this exact format:
 Node types: "input", "process", "condition", "output", "ai", "image"
 Icons by type: input=ArrowRight, process=Cog, condition=HelpCircle, output=ArrowLeft, ai=Bot, image=Image
 Colors by type: input=text-blue-500, process=text-green-500, condition=text-yellow-500, output=text-red-500, ai=text-purple-500, image=text-green-500
+
+IMPORTANT: 
+- "label" = SHORT title (2-4 words max, e.g. "Enter Credentials", "Send Code", "Login")
+- "description" = LONGER explanation (full sentence describing what happens in this step)
 
 Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 3+ workflow elements.`
             },
