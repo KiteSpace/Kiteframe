@@ -113,68 +113,75 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   };
 
   return (
-    <div 
-      className="absolute"
-      style={{
-        // Expand the detection area to include button zones (50px padding on all sides)
-        top: -50,
-        left: -50,
-        width: w + 100,
-        height: h + 100,
-      }}
-      onMouseEnter={() => {
-        setIsMouseInNodeArea(true);
-        cancelHide();
-      }}
-      onMouseLeave={() => {
-        scheduleHide();
-      }}
-    >
-      <svg 
-        width={w} 
-        height={h} 
-        className="absolute overflow-visible pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ top: 50, left: 50 }} // Offset to account for expanded detection area
+    <>
+      {/* Original node area for handles */}
+      <div 
+        className="absolute top-0 left-0 w-full h-full"
+        onMouseEnter={() => {
+          setIsMouseInNodeArea(true);
+          cancelHide();
+        }}
+        onMouseLeave={() => {
+          // Don't schedule hide immediately - let expanded area handle it
+        }}
       >
-        {(['top','bottom','left','right'] as const).map((p) => (
-          <circle
-            key={p}
-            cx={pos[p].cx} 
-            cy={pos[p].cy} 
-            r={r}
-            className="pointer-events-auto cursor-crosshair"
-            fill="white" 
-            stroke="#3b82f6" 
-            strokeWidth={2}
-            onMouseDown={(e) => { 
-              e.stopPropagation(); 
-              onHandleConnect?.(p, e); 
-            }}
-            onMouseEnter={() => {
-              setHoveredHandle(p);
-              if (isQuickAddEnabled && isMouseInNodeArea) {
-                setShowQuickAddButton(p);
-              }
-            }}
-            onMouseLeave={() => {
-              setHoveredHandle(null);
-            }}
-          />
-        ))}
-      </svg>
+        <svg 
+          width={w} 
+          height={h} 
+          className="absolute top-0 left-0 overflow-visible pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          {(['top','bottom','left','right'] as const).map((p) => (
+            <circle
+              key={p}
+              cx={pos[p].cx} 
+              cy={pos[p].cy} 
+              r={r}
+              className="pointer-events-auto cursor-crosshair"
+              fill="white" 
+              stroke="#3b82f6" 
+              strokeWidth={2}
+              onMouseDown={(e) => { 
+                e.stopPropagation(); 
+                onHandleConnect?.(p, e); 
+              }}
+              onMouseEnter={() => {
+                setHoveredHandle(p);
+                if (isQuickAddEnabled) {
+                  setShowQuickAddButton(p);
+                }
+                cancelHide();
+              }}
+              onMouseLeave={() => {
+                setHoveredHandle(null);
+                // Don't hide button immediately when leaving handle
+              }}
+            />
+          ))}
+        </svg>
+      </div>
+
+      {/* Expanded hover area for button zones */}
+      <div 
+        className="absolute pointer-events-none"
+        style={{
+          top: -50,
+          left: -50,
+          width: w + 100,
+          height: h + 100,
+        }}
+        onMouseEnter={() => {
+          cancelHide();
+        }}
+        onMouseLeave={() => {
+          scheduleHide();
+        }}
+      />
       
       {/* Quick-add buttons */}
-      {isQuickAddEnabled && showQuickAddButton && isMouseInNodeArea && (
+      {isQuickAddEnabled && showQuickAddButton && (
         <button
-          className="absolute w-6 h-6 bg-green-500 hover:bg-green-600 text-white border-2 border-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-all duration-200 hover:scale-110 z-10"
-          style={{
-            ...getQuickAddButtonPosition(showQuickAddButton),
-            // Offset positions to account for expanded detection area
-            ...(showQuickAddButton === 'top' && { top: 15 }),
-            ...(showQuickAddButton === 'bottom' && { bottom: 15 }),
-            ...(showQuickAddButton === 'left' && { left: 15 }),
-            ...(showQuickAddButton === 'right' && { right: 15 }),
-          }}
+          className="absolute w-6 h-6 bg-green-500 hover:bg-green-600 text-white border-2 border-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-all duration-200 hover:scale-110 z-10 pointer-events-auto"
+          style={getQuickAddButtonPosition(showQuickAddButton)}
           onClick={(e) => handleQuickAddClick(showQuickAddButton, e)}
           onMouseEnter={() => {
             cancelHide();
@@ -191,12 +198,11 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
       )}
       
       {/* Ghost preview of the new node */}
-      {isQuickAddEnabled && showGhostPreview && isMouseInNodeArea && (
+      {isQuickAddEnabled && showGhostPreview && (
         <>
           {/* Ghost connection line - positioned in parent coordinate system */}
           <svg 
-            className="absolute overflow-visible pointer-events-none z-15"
-            style={{ top: 50, left: 50 }} // Offset to account for expanded detection area
+            className="absolute top-0 left-0 overflow-visible pointer-events-none z-15"
             width={w} 
             height={h}
           >
@@ -219,12 +225,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
           {/* Ghost node preview */}
           <div
             className="absolute pointer-events-none z-20"
-            style={{
-              ...getGhostPreviewPosition(showGhostPreview),
-              // Offset positions to account for expanded detection area
-              top: (getGhostPreviewPosition(showGhostPreview).top as number) + 50,
-              left: (getGhostPreviewPosition(showGhostPreview).left as number) + 50,
-            }}
+            style={getGhostPreviewPosition(showGhostPreview)}
           >
             <div
               className="relative bg-white border border-dashed border-gray-400 rounded-lg shadow-lg opacity-60"
@@ -240,6 +241,6 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
           </div>
         </>
       )}
-    </div>
+    </>
   );
 };
