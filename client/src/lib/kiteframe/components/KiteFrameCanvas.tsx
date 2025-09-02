@@ -251,7 +251,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     e.preventDefault();
     const rect = containerRef.current!.getBoundingClientRect();
     const old = viewport;
-    const newZoom = zoomAroundPoint(old.zoom, e.deltaY * 0.0015, minZoom, maxZoom);
+    const newZoom = zoomAroundPoint(old.zoom, e.deltaY * 0.00225, minZoom, maxZoom);
     const mouseWorld = clientToWorld(e.clientX, e.clientY, old, rect);
     const newX = e.clientX - rect.left - mouseWorld.x * newZoom;
     const newY = e.clientY - rect.top - mouseWorld.y * newZoom;
