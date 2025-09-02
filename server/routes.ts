@@ -992,8 +992,7 @@ Respond with only the corrected JSON data:`;
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-          model: "gpt-5",
+          model: "gpt-4o",
           messages: [
             {
               role: "system",

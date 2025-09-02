@@ -53,10 +53,10 @@ Preferred communication style: Simple, everyday language.
 ### AI Integration Layer
 - **Client Interface**: OpenAI-compatible API client with configurable endpoints.
 - **Provider System**: React context-based AI provider with dynamic routing and enhanced error handling.
-- **Model Support**: Integrates with OpenAI (GPT-5) and local/remote Ollama models (KitelineAI, local Ollama, custom endpoints).
+- **Model Support**: Integrates with OpenAI (GPT-4o) and local/remote Ollama models (KitelineAI, local Ollama, custom endpoints).
 - **Privacy Tiers**: UI offers "Maximum Privacy" (KitelineAI, local Ollama, custom) and "Standard Privacy" (OpenAI, Anthropic) options.
 - **Settings Management**: Persistent AI configuration via local storage.
-- **Image-to-Workflow Generation**: AI-powered analysis of hand-drawn or digital workflow diagrams using GPT-5 Vision API with confidence scoring and real-time conversion to interactive workflows.
+- **Image-to-Workflow Generation**: AI-powered analysis of hand-drawn or digital workflow diagrams using GPT-4o Vision API with confidence scoring and real-time conversion to interactive workflows.
 
 ### Plugin Architecture
 - **KiteFrameCore**: Comprehensive plugin management system with PluginProvider, hooks, and an event system.
