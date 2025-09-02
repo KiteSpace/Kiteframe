@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Node, ProFeaturesConfig } from '../types';
 
 interface NodeHandlesProps {
@@ -19,6 +19,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   const [showGhostPreview, setShowGhostPreview] = useState<'top'|'bottom'|'left'|'right' | null>(null);
   const [isMouseInNodeArea, setIsMouseInNodeArea] = useState(false);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const showTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const w = node.style?.width ?? node.width ?? 200;
   const h = node.style?.height ?? node.height ?? 100;
@@ -77,18 +78,28 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
     }
   };
 
-  // Debounced hide function to prevent buttons from disappearing too quickly
-  const scheduleHide = useCallback(() => {
+  // Clean up all timeouts and state
+  const clearAllTimeouts = useCallback(() => {
     if (hideTimeoutRef.current) {
       clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
     }
+    if (showTimeoutRef.current) {
+      clearTimeout(showTimeoutRef.current);
+      showTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Debounced hide function to prevent buttons from disappearing too quickly
+  const scheduleHide = useCallback(() => {
+    clearAllTimeouts();
     hideTimeoutRef.current = setTimeout(() => {
       setIsMouseInNodeArea(false);
       setHoveredHandle(null);
       setShowQuickAddButton(null);
       setShowGhostPreview(null);
-    }, 200); // 200ms delay before hiding
-  }, []);
+    }, 300); // 300ms delay before hiding
+  }, [clearAllTimeouts]);
 
   const cancelHide = useCallback(() => {
     if (hideTimeoutRef.current) {
@@ -97,14 +108,41 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
     }
   }, []);
 
+  // Delayed show function to prevent buttons from appearing too quickly
+  const scheduleShow = useCallback((position: 'top'|'bottom'|'left'|'right') => {
+    if (showTimeoutRef.current) {
+      clearTimeout(showTimeoutRef.current);
+    }
+    showTimeoutRef.current = setTimeout(() => {
+      if (isQuickAddEnabled) {
+        setShowQuickAddButton(position);
+      }
+    }, 400); // 400ms delay before showing
+  }, [isQuickAddEnabled]);
+
+  const cancelShow = useCallback(() => {
+    if (showTimeoutRef.current) {
+      clearTimeout(showTimeoutRef.current);
+      showTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      clearAllTimeouts();
+    };
+  }, [clearAllTimeouts]);
+
   const handleQuickAddClick = (position: 'top'|'bottom'|'left'|'right', e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Clear ghost preview immediately
+    // Clear all timeouts and state immediately
+    clearAllTimeouts();
     setShowGhostPreview(null);
     setShowQuickAddButton(null);
-    cancelHide();
+    setIsMouseInNodeArea(false);
     
     // Create actual node through callback
     if (onQuickAdd) {
@@ -122,7 +160,9 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
           cancelHide();
         }}
         onMouseLeave={() => {
-          // Don't schedule hide immediately - let expanded area handle it
+          setIsMouseInNodeArea(false);
+          // Start hide process when leaving node area
+          scheduleHide();
         }}
       >
         <svg 
@@ -146,14 +186,14 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
               }}
               onMouseEnter={() => {
                 setHoveredHandle(p);
-                if (isQuickAddEnabled) {
-                  setShowQuickAddButton(p);
-                }
                 cancelHide();
+                scheduleShow(p);
               }}
               onMouseLeave={() => {
                 setHoveredHandle(null);
-                // Don't hide button immediately when leaving handle
+                cancelShow();
+                // Start hide process when leaving handle
+                scheduleHide();
               }}
             />
           ))}
@@ -173,6 +213,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
           cancelHide();
         }}
         onMouseLeave={() => {
+          cancelShow();
           scheduleHide();
         }}
       />
@@ -185,6 +226,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
           onClick={(e) => handleQuickAddClick(showQuickAddButton, e)}
           onMouseEnter={() => {
             cancelHide();
+            cancelShow(); // Stop any pending show operations
             setShowGhostPreview(showQuickAddButton);
           }}
           onMouseLeave={() => {
