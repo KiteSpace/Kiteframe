@@ -49,21 +49,44 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
     const spacing = proFeatures?.quickAdd?.defaultSpacing ?? 250;
     switch (position) {
       case 'top':
-        return { top: -spacing - h/2, left: '50%', transform: 'translateX(-50%)' };
+        return { top: -spacing, left: 0 };
       case 'bottom':
-        return { top: spacing + h/2, left: '50%', transform: 'translateX(-50%)' };
+        return { top: spacing, left: 0 };
       case 'left':
-        return { left: -spacing - w/2, top: '50%', transform: 'translateY(-50%)' };
+        return { left: -spacing, top: 0 };
       case 'right':
-        return { left: spacing + w/2, top: '50%', transform: 'translateY(-50%)' };
+        return { left: spacing, top: 0 };
     }
   };
 
-  const handleQuickAddClick = (position: 'top'|'bottom'|'left'|'right') => {
+  const getConnectionLinePoints = (position: 'top'|'bottom'|'left'|'right') => {
+    const handlePos = pos[position];
+    const spacing = proFeatures?.quickAdd?.defaultSpacing ?? 250;
+    
+    switch (position) {
+      case 'top':
+        return { x1: handlePos.cx, y1: handlePos.cy, x2: w/2, y2: -spacing + h };
+      case 'bottom':
+        return { x1: handlePos.cx, y1: handlePos.cy, x2: w/2, y2: spacing };
+      case 'left':
+        return { x1: handlePos.cx, y1: handlePos.cy, x2: -spacing + w, y2: h/2 };
+      case 'right':
+        return { x1: handlePos.cx, y1: handlePos.cy, x2: spacing, y2: h/2 };
+    }
+  };
+
+  const handleQuickAddClick = (position: 'top'|'bottom'|'left'|'right', e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Clear ghost preview immediately
+    setShowGhostPreview(null);
+    setShowQuickAddButton(null);
+    
+    // Create actual node through callback
     if (onQuickAdd) {
       onQuickAdd(node, position);
     }
-    setShowQuickAddButton(null);
   };
 
   return (
@@ -111,7 +134,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
         <button
           className="absolute w-6 h-6 bg-green-500 hover:bg-green-600 text-white border-2 border-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-all duration-200 hover:scale-110 z-10"
           style={getQuickAddButtonPosition(showQuickAddButton)}
-          onClick={() => handleQuickAddClick(showQuickAddButton)}
+          onClick={(e) => handleQuickAddClick(showQuickAddButton, e)}
           onMouseEnter={() => {
             setShowQuickAddButton(showQuickAddButton);
             setShowGhostPreview(showQuickAddButton);
@@ -128,47 +151,47 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
       
       {/* Ghost preview of the new node */}
       {isQuickAddEnabled && showGhostPreview && (
-        <div
-          className="absolute pointer-events-none z-20"
-          style={getGhostPreviewPosition(showGhostPreview)}
-        >
-          <div
-            className="relative bg-white border border-dashed border-gray-400 rounded-lg shadow-lg opacity-60"
-            style={{ width: w, height: h }}
+        <>
+          {/* Ghost connection line - positioned in parent coordinate system */}
+          <svg 
+            className="absolute top-0 left-0 overflow-visible pointer-events-none z-15"
+            width={w} 
+            height={h}
           >
-            <div className="absolute top-2 left-2 right-2 text-sm font-medium text-gray-600 truncate">
-              {proFeatures?.quickAdd?.defaultNodeTemplate?.label || 'New Process'}
-            </div>
-            <div className="absolute top-8 left-2 right-2 bottom-2 text-xs text-gray-500 overflow-hidden">
-              {proFeatures?.quickAdd?.defaultNodeTemplate?.description || 'Configure process settings'}
-            </div>
-            {/* Ghost connection line */}
-            <svg 
-              className="absolute top-0 left-0 overflow-visible pointer-events-none"
-              style={{ 
-                width: w, 
-                height: h,
-                transform: showGhostPreview === 'top' ? 'translateY(100%)' :
-                          showGhostPreview === 'bottom' ? 'translateY(-100%)' :
-                          showGhostPreview === 'left' ? 'translateX(100%)' :
-                          'translateX(-100%)'
-              }}
+            {(() => {
+              const linePoints = getConnectionLinePoints(showGhostPreview);
+              return (
+                <line 
+                  x1={linePoints.x1} 
+                  y1={linePoints.y1} 
+                  x2={linePoints.x2} 
+                  y2={linePoints.y2} 
+                  stroke="#cbd5e1" 
+                  strokeWidth="2" 
+                  strokeDasharray="4 4" 
+                />
+              );
+            })()}
+          </svg>
+          
+          {/* Ghost node preview */}
+          <div
+            className="absolute pointer-events-none z-20"
+            style={getGhostPreviewPosition(showGhostPreview)}
+          >
+            <div
+              className="relative bg-white border border-dashed border-gray-400 rounded-lg shadow-lg opacity-60"
+              style={{ width: w, height: h }}
             >
-              {showGhostPreview === 'top' && (
-                <line x1={w/2} y1={0} x2={w/2} y2={h} stroke="#cbd5e1" strokeWidth="2" strokeDasharray="4 4" />
-              )}
-              {showGhostPreview === 'bottom' && (
-                <line x1={w/2} y1={h} x2={w/2} y2={0} stroke="#cbd5e1" strokeWidth="2" strokeDasharray="4 4" />
-              )}
-              {showGhostPreview === 'left' && (
-                <line x1={0} y1={h/2} x2={w} y2={h/2} stroke="#cbd5e1" strokeWidth="2" strokeDasharray="4 4" />
-              )}
-              {showGhostPreview === 'right' && (
-                <line x1={w} y1={h/2} x2={0} y2={h/2} stroke="#cbd5e1" strokeWidth="2" strokeDasharray="4 4" />
-              )}
-            </svg>
+              <div className="absolute top-2 left-2 right-2 text-sm font-medium text-gray-600 truncate">
+                {proFeatures?.quickAdd?.defaultNodeTemplate?.label || 'New Process'}
+              </div>
+              <div className="absolute top-8 left-2 right-2 bottom-2 text-xs text-gray-500 overflow-hidden">
+                {proFeatures?.quickAdd?.defaultNodeTemplate?.description || 'Configure process settings'}
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
