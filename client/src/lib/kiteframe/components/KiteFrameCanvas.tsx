@@ -7,71 +7,305 @@ import { NodeHandles } from './NodeHandles';
 import { ConnectionEdge } from './ConnectionEdge';
 import { EdgeHandles } from './EdgeHandles';
 import { KiteFrameCore, kiteFrameCore } from '../core/KiteFrameCore';
+import { ChevronDown, ChevronUp, X, ExternalLink, List, Type } from 'lucide-react';
 
 // Floating workflow name input component
+interface WorkflowLink {
+  id: string;
+  text: string;
+  url: string;
+}
+
+interface WorkflowMetadata {
+  name: string;
+  description: string;
+  links: WorkflowLink[];
+  linksFormat: 'bulleted' | 'text';
+  categories: string[];
+}
+
 interface WorkflowNameInputProps {
   name: string;
   onChange: (name: string) => void;
+  metadata?: WorkflowMetadata;
+  onMetadataChange?: (metadata: WorkflowMetadata) => void;
 }
 
-const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({ name, onChange }) => {
-  const [isEditing, setIsEditing] = useState(false);
+const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({ 
+  name, 
+  onChange, 
+  metadata,
+  onMetadataChange 
+}) => {
+  const [mode, setMode] = useState<'collapsed' | 'editing-name' | 'expanded'>('collapsed');
   const [inputValue, setInputValue] = useState(name);
+  const [formData, setFormData] = useState<WorkflowMetadata>(metadata || {
+    name,
+    description: '',
+    links: [],
+    linksFormat: 'text',
+    categories: []
+  });
+  const [newCategory, setNewCategory] = useState('');
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [newLink, setNewLink] = useState({ text: '', url: '' });
+  
   const inputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
+  const categoryRef = useRef<HTMLInputElement>(null);
 
-  // Update local state when name prop changes
+  const categorySuggestions = [
+    'User Experience', 'Feature Planning', 'Brainstorming', 
+    'Collaboration', 'Workshop', 'Design System'
+  ];
+
+  // Update local state when props change
   useEffect(() => {
     setInputValue(name);
+    setFormData(prev => ({ ...prev, name }));
   }, [name]);
 
-  // Handle keydown events for F2 and Enter/Escape
+  useEffect(() => {
+    if (metadata) {
+      setFormData(metadata);
+    }
+  }, [metadata]);
+
+  // Handle keydown events for F2 and form interactions
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F2' && !isEditing) {
+      if (e.key === 'F2' && mode === 'collapsed') {
         e.preventDefault();
-        setIsEditing(true);
+        setMode('editing-name');
         setTimeout(() => inputRef.current?.focus(), 0);
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isEditing]);
+    const handleClickOutside = (e: MouseEvent) => {
+      if (mode === 'expanded' && formRef.current && !formRef.current.contains(e.target as HTMLElement)) {
+        handleSaveForm();
+      }
+    };
 
-  const handleStartEdit = () => {
-    setIsEditing(true);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [mode]);
+
+  const handleStartNameEdit = () => {
+    setMode('editing-name');
     setTimeout(() => inputRef.current?.focus(), 0);
   };
 
-  const handleFinishEdit = () => {
-    setIsEditing(false);
-    onChange(inputValue.trim() || 'Untitled Workflow');
+  const handleFinishNameEdit = () => {
+    const newName = inputValue.trim() || 'Untitled Workflow';
+    setMode('collapsed');
+    onChange(newName);
+    setFormData(prev => ({ ...prev, name: newName }));
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleExpandForm = () => {
+    setMode('expanded');
+  };
+
+  const handleSaveForm = () => {
+    setMode('collapsed');
+    onMetadataChange?.(formData);
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleFinishEdit();
+      handleFinishNameEdit();
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      setInputValue(name); // Reset to original value
-      setIsEditing(false);
+      setInputValue(name);
+      setMode('collapsed');
     }
   };
 
-  const handleBlur = () => {
-    handleFinishEdit();
+  const handleAddCategory = () => {
+    const category = newCategory.trim();
+    if (category && formData.categories.length < 5 && !formData.categories.includes(category)) {
+      setFormData(prev => ({ ...prev, categories: [...prev.categories, category] }));
+      setNewCategory('');
+    }
   };
 
-  if (isEditing) {
+  const handleCategoryKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddCategory();
+    } else if (e.key === 'Tab' && newCategory) {
+      const suggestion = categorySuggestions.find(s => 
+        s.toLowerCase().startsWith(newCategory.toLowerCase())
+      );
+      if (suggestion) {
+        e.preventDefault();
+        setNewCategory(suggestion);
+        setTimeout(() => handleAddCategory(), 0);
+      }
+    }
+  };
+
+  const handleRemoveCategory = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      categories: prev.categories.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleEditCategory = (index: number, value: string) => {
+    if (editingCategory === formData.categories[index]) {
+      setFormData(prev => ({
+        ...prev,
+        categories: prev.categories.map((cat, i) => i === index ? value : cat)
+      }));
+      setEditingCategory(null);
+    } else {
+      setEditingCategory(formData.categories[index]);
+    }
+  };
+
+  const handleAddLink = () => {
+    if (newLink.text.trim() && newLink.url.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        links: [...prev.links, { ...newLink, id: Date.now().toString() }]
+      }));
+      setNewLink({ text: '', url: '' });
+    }
+  };
+
+  const handleRemoveLink = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      links: prev.links.filter(link => link.id !== id)
+    }));
+  };
+
+  // Display mode - show card with content
+  if (mode === 'collapsed') {
+    const hasContent = formData.description || formData.links.length > 0 || formData.categories.length > 0;
+    
+    if (!hasContent) {
+      // Simple name display with chevron
+      return (
+        <div className="absolute top-4 left-4 z-50 flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm">
+          <span 
+            onClick={handleStartNameEdit}
+            className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
+            title="Click to edit workflow name (or press F2)"
+          >
+            {name || 'Untitled Workflow'}
+          </span>
+          <button
+            onClick={handleExpandForm}
+            className="w-4 h-4 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            title="Expand form"
+          >
+            <ChevronDown size={12} />
+          </button>
+        </div>
+      );
+    }
+
+    // Rich card display with content
+    return (
+      <div className="absolute top-4 left-4 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 max-w-80">
+        <div className="flex items-center justify-between mb-2">
+          <h3 
+            onClick={handleStartNameEdit}
+            className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400"
+            title="Click to edit workflow name"
+          >
+            {name || 'Untitled Workflow'}
+          </h3>
+          <button
+            onClick={handleExpandForm}
+            className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500"
+            title="Edit details"
+          >
+            <ChevronDown size={14} />
+          </button>
+        </div>
+        
+        {formData.description && (
+          <div className="mb-2">
+            <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+              {formData.description}
+            </p>
+          </div>
+        )}
+        
+        {formData.links.length > 0 && (
+          <div className="mb-2">
+            {formData.linksFormat === 'bulleted' ? (
+              <ul className="text-xs space-y-1">
+                {formData.links.map((link) => (
+                  <li key={link.id} className="flex items-center gap-1">
+                    <span className="w-1 h-1 bg-gray-400 rounded-full flex-shrink-0"></span>
+                    <a 
+                      href={link.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                    >
+                      {link.text}
+                      <ExternalLink size={10} />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-xs space-y-1">
+                {formData.links.map((link) => (
+                  <div key={link.id}>
+                    <a 
+                      href={link.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                    >
+                      {link.text}
+                      <ExternalLink size={10} />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        
+        {formData.categories.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {formData.categories.map((category) => (
+              <span 
+                key={category}
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
+              >
+                {category}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Name editing mode
+  if (mode === 'editing-name') {
     return (
       <input
         ref={inputRef}
         type="text"
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onBlur={handleBlur}
+        onKeyDown={handleNameKeyDown}
+        onBlur={handleFinishNameEdit}
         className="absolute top-4 left-4 z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm font-medium text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         style={{
           minWidth: '200px',
@@ -82,13 +316,189 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({ name, onChange })
     );
   }
 
+  // Expanded form mode
   return (
-    <div
-      onClick={handleStartEdit}
-      className="absolute top-4 left-4 z-50 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm cursor-pointer hover:bg-white dark:hover:bg-gray-800 transition-colors"
-      title="Click to edit workflow name (or press F2)"
+    <div 
+      ref={formRef}
+      className="absolute top-4 left-4 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 w-96"
     >
-      {name || 'Untitled Workflow'}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-medium text-gray-900 dark:text-gray-100">Workflow Details</h3>
+        <button
+          onClick={handleSaveForm}
+          className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500"
+        >
+          <ChevronUp size={16} />
+        </button>
+      </div>
+
+      {/* Name Field */}
+      <div className="mb-4">
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+        <input
+          type="text"
+          value={formData.name}
+          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+          className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+          placeholder="Workflow name..."
+        />
+      </div>
+
+      {/* Description Field */}
+      <div className="mb-4">
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+        <textarea
+          value={formData.description}
+          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+          className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none"
+          placeholder="Describe your workflow..."
+          rows={3}
+        />
+      </div>
+
+      {/* References & Links */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">References & Links</label>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setFormData(prev => ({ ...prev, linksFormat: 'text' }))}
+              className={`p-1 rounded transition-colors ${formData.linksFormat === 'text' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+              title="Text format"
+            >
+              <Type size={12} />
+            </button>
+            <button
+              onClick={() => setFormData(prev => ({ ...prev, linksFormat: 'bulleted' }))}
+              className={`p-1 rounded transition-colors ${formData.linksFormat === 'bulleted' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+              title="Bulleted list"
+            >
+              <List size={12} />
+            </button>
+          </div>
+        </div>
+        
+        {/* Add Link Form */}
+        <div className="space-y-2 mb-2">
+          <input
+            type="text"
+            value={newLink.text}
+            onChange={(e) => setNewLink(prev => ({ ...prev, text: e.target.value }))}
+            className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+            placeholder="Link text..."
+          />
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={newLink.url}
+              onChange={(e) => setNewLink(prev => ({ ...prev, url: e.target.value }))}
+              className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              placeholder="https://..."
+            />
+            <button
+              onClick={handleAddLink}
+              disabled={!newLink.text.trim() || !newLink.url.trim()}
+              className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+
+        {/* Links List */}
+        {formData.links.length > 0 && (
+          <div className="space-y-1 max-h-20 overflow-y-auto">
+            {formData.links.map((link) => (
+              <div key={link.id} className="flex items-center justify-between text-xs bg-gray-50 dark:bg-gray-900 p-2 rounded">
+                <a 
+                  href={link.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 truncate"
+                >
+                  {link.text}
+                  <ExternalLink size={10} />
+                </a>
+                <button
+                  onClick={() => handleRemoveLink(link.id)}
+                  className="text-gray-400 hover:text-red-500 ml-2"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Categories */}
+      <div className="mb-4">
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+        <input
+          ref={categoryRef}
+          type="text"
+          value={newCategory}
+          onChange={(e) => setNewCategory(e.target.value)}
+          onKeyDown={handleCategoryKeyDown}
+          disabled={formData.categories.length >= 5}
+          className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 disabled:opacity-50"
+          placeholder={formData.categories.length >= 5 ? "Maximum 5 categories" : "Type and press Enter..."}
+        />
+        <p className="text-xs text-gray-500 mt-1">Add multiple categories by using Enter to add another</p>
+        
+        {/* Category Chips */}
+        {formData.categories.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {formData.categories.map((category, index) => (
+              <span
+                key={index}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded cursor-pointer"
+                onClick={() => handleEditCategory(index, category)}
+              >
+                {editingCategory === category ? (
+                  <input
+                    type="text"
+                    value={category}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      categories: prev.categories.map((cat, i) => i === index ? e.target.value : cat)
+                    }))}
+                    onBlur={() => setEditingCategory(null)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setEditingCategory(null);
+                      }
+                    }}
+                    className="bg-transparent border-none outline-none text-xs w-20"
+                    autoFocus
+                  />
+                ) : (
+                  category
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveCategory(index);
+                  }}
+                  className="text-blue-600 dark:text-blue-400 hover:text-red-500"
+                >
+                  <X size={10} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Done Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleSaveForm}
+          className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          Done
+        </button>
+      </div>
     </div>
   );
 };
@@ -187,9 +597,11 @@ type Props = {
   proFeatures?: ProFeaturesConfig;
   onQuickAdd?: (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => void;
   
-  // Workflow name
+  // Workflow name and metadata
   workflowName?: string;
   onWorkflowNameChange?: (name: string) => void;
+  workflowMetadata?: WorkflowMetadata;
+  onWorkflowMetadataChange?: (metadata: WorkflowMetadata) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -886,6 +1298,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         <WorkflowNameInput 
           name={props.workflowName}
           onChange={props.onWorkflowNameChange}
+          metadata={props.workflowMetadata}
+          onMetadataChange={props.onWorkflowMetadataChange}
         />
       )}
     </div>

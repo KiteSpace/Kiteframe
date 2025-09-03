@@ -21,6 +21,21 @@ import type { Node, Edge, ProFeaturesConfig, NodeType } from '../lib/kiteframe/t
 import '../lib/kiteframe/styles/kiteframe.css';
 import { X, Plus } from 'lucide-react';
 
+// Workflow metadata types
+interface WorkflowLink {
+  id: string;
+  text: string;
+  url: string;
+}
+
+interface WorkflowMetadata {
+  name: string;
+  description: string;
+  links: WorkflowLink[];
+  linksFormat: 'bulleted' | 'text';
+  categories: string[];
+}
+
 // Type for a single workflow tab
 interface WorkflowTab {
   id: string;
@@ -33,6 +48,7 @@ interface WorkflowTab {
   history: Array<{ nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }>;
   historyIndex: number;
   showImageModal: string | null;
+  metadata: WorkflowMetadata;
 }
 
 function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: () => void }) {
@@ -204,6 +220,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   // Create default tab with random workflow
   const createDefaultTab = useCallback((): WorkflowTab => {
     const { nodes, edges } = generateRandomWorkflow();
+    const name = generateCuteName();
     const initialState = {
       nodes,
       edges,
@@ -212,18 +229,26 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     
     return {
       id: generateTabId(),
-      name: generateCuteName(),
+      name,
       ...initialState,
       selectedNodeId: '',
       selectedEdgeId: '',
       history: [initialState], // Initialize with current state
       historyIndex: 0, // Start at index 0, not -1
-      showImageModal: null
+      showImageModal: null,
+      metadata: {
+        name,
+        description: '',
+        links: [],
+        linksFormat: 'text',
+        categories: []
+      }
     };
   }, [generateTabId, generateCuteName, generateRandomWorkflow]);
 
   // Create blank tab
   const createBlankTab = useCallback((): WorkflowTab => {
+    const name = generateCuteName();
     const initialState = {
       nodes: [],
       edges: [],
@@ -232,13 +257,20 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     
     return {
       id: generateTabId(),
-      name: generateCuteName(),
+      name,
       ...initialState,
       selectedNodeId: '',
       selectedEdgeId: '',
       history: [initialState], // Initialize with current state
       historyIndex: 0, // Start at index 0, not -1
-      showImageModal: null
+      showImageModal: null,
+      metadata: {
+        name,
+        description: '',
+        links: [],
+        linksFormat: 'text',
+        categories: []
+      }
     };
   }, [generateTabId, generateCuteName]);
 
@@ -306,6 +338,13 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   const history = activeTab?.history || [];
   const historyIndex = activeTab?.historyIndex ?? 0;
   const showImageModal = activeTab?.showImageModal || null;
+  const metadata = activeTab?.metadata || {
+    name: activeTab?.name || 'Untitled Workflow',
+    description: '',
+    links: [],
+    linksFormat: 'text' as const,
+    categories: []
+  };
 
   // Update current tab
   const updateActiveTab = useCallback((updates: Partial<WorkflowTab>) => {
@@ -343,7 +382,17 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   }, [updateActiveTab]);
 
   const setWorkflowName = useCallback((name: string) => {
-    updateActiveTab({ name });
+    updateActiveTab({ 
+      name,
+      metadata: { ...metadata, name }
+    });
+  }, [updateActiveTab, metadata]);
+
+  const setWorkflowMetadata = useCallback((newMetadata: WorkflowMetadata) => {
+    updateActiveTab({ 
+      name: newMetadata.name,
+      metadata: newMetadata 
+    });
   }, [updateActiveTab]);
 
   // Tab operations
@@ -545,6 +594,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [createBlankTab, generateWorkflowFromPrompt, toast]);
 
   const handleCreateFromFile = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
+    const name = generateCuteName();
     const initialState = {
       nodes: data.nodes.map(node => ({ ...node, selected: false })),
       edges: data.edges.map(edge => ({ ...edge, selected: false })),
@@ -553,13 +603,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     
     const newTab: WorkflowTab = {
       id: generateTabId(),
-      name: generateCuteName(),
+      name,
       ...initialState,
       selectedNodeId: '',
       selectedEdgeId: '',
       history: [initialState], // Initialize with current state
       historyIndex: 0, // Start at index 0, not -1
-      showImageModal: null
+      showImageModal: null,
+      metadata: {
+        name,
+        description: '',
+        links: [],
+        linksFormat: 'text',
+        categories: []
+      }
     };
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newTab.id);
@@ -580,7 +637,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       selectedEdgeId: '',
       history: [initialState], // Initialize with current state
       historyIndex: 0, // Start at index 0, not -1
-      showImageModal: null
+      showImageModal: null,
+      metadata: {
+        name: template.name,
+        description: '',
+        links: [],
+        linksFormat: 'text',
+        categories: []
+      }
     };
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newTab.id);
@@ -1666,6 +1730,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onQuickAdd={handleQuickAdd}
               workflowName={activeTab?.name}
               onWorkflowNameChange={setWorkflowName}
+              workflowMetadata={metadata}
+              onWorkflowMetadataChange={setWorkflowMetadata}
               onEdgeReconnect={handleEdgeReconnect}
               onNodesChange={(changes) => {
                 console.log('📊 onNodesChange CALLED:', {
@@ -1703,7 +1769,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     const selectionChanges = changes.filter(c => c.type === 'select');
                     const positionChanges = changes.filter(c => c.type === 'position');
                     const removalChanges = changes.filter(c => c.type === 'remove');
-                    const otherChanges = changes.filter(c => !['select', 'position', 'remove'].includes(c.type));
+                    const otherChanges = changes.filter(c => c.type && !['select', 'position', 'remove'].includes(c.type));
 
                     // Process selection and position changes in batch (they don't change structure)
                     if (selectionChanges.length > 0 || positionChanges.length > 0) {
