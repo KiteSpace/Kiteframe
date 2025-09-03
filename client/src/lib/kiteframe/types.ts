@@ -82,6 +82,7 @@ export type Edge = {
   selected?: boolean;
   hidden?: boolean;
   interactable?: boolean;
+  reconnectable?: boolean; // Pro feature: enable endpoint reconnection
   data?: any; // Keep for backward compatibility
 };
 
@@ -111,6 +112,17 @@ export interface CopyPasteConfig {
   onPaste?: (originalNode: Node, newNode: Node) => void;
 }
 
+export interface EdgeReconnectionConfig {
+  enabled?: boolean;
+  enableAllEdges?: boolean; // If true, makes all edges reconnectable
+  visualFeedback?: {
+    handleColor?: string;
+    previewColor?: string;
+    validColor?: string;
+    invalidColor?: string;
+  };
+}
+
 export interface VersionControlConfig {
   enabled?: boolean;
   autoSaveInterval?: number;
@@ -124,6 +136,7 @@ export interface ProFeaturesConfig {
   advancedSelection?: AdvancedSelectionConfig;
   copyPaste?: CopyPasteConfig;
   versionControl?: VersionControlConfig;
+  edgeReconnection?: EdgeReconnectionConfig;
 }
 
 export interface KiteFrameProps {
@@ -137,6 +150,7 @@ export interface KiteFrameProps {
   onEdgeClick?: (event: React.MouseEvent, edge: Edge) => void;
   onCanvasClick?: (event: React.MouseEvent) => void;
   onImageButtonClick?: (nodeId: string) => void;
+  onEdgeReconnect?: (edgeId: string, newSource: string, newTarget: string) => void;
   className?: string;
   disablePan?: boolean;
   minZoom?: number;

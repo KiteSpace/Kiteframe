@@ -96,6 +96,16 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       onSnapshot: (snapshot) => {
         console.log('📸 Snapshot created:', snapshot);
       }
+    },
+    edgeReconnection: {
+      enabled: true,
+      enableAllEdges: true, // Make all edges reconnectable by default
+      visualFeedback: {
+        handleColor: '#3b82f6',
+        previewColor: '#3b82f6',
+        validColor: '#22c55e',
+        invalidColor: '#ef4444'
+      }
     }
   };
 
@@ -601,6 +611,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       proFeaturesConfig.quickAdd.onQuickAdd(sourceNode, position, newNode);
     }
   }, [proFeaturesConfig.quickAdd, saveToHistory]);
+
+  // Handle edge reconnection from pro features
+  const handleEdgeReconnect = useCallback((edgeId: string, newSource: string, newTarget: string) => {
+    console.log('🔗 Edge reconnection:', { edgeId, newSource, newTarget });
+    
+    setEdges(prev => prev.map(edge => 
+      edge.id === edgeId 
+        ? { ...edge, source: newSource, target: newTarget, selected: false }
+        : edge
+    ));
+    
+    saveToHistory();
+  }, [setEdges, saveToHistory]);
 
   // Helper function to calculate offset position for appending workflows
   const calculateWorkflowOffset = useCallback((newNodes: Node[]): { x: number; y: number } => {
@@ -1427,6 +1450,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onQuickAdd={handleQuickAdd}
               workflowName={activeTab?.name}
               onWorkflowNameChange={setWorkflowName}
+              onEdgeReconnect={handleEdgeReconnect}
               onNodesChange={(changes) => {
                 console.log('📊 onNodesChange CALLED:', {
                   changes,
