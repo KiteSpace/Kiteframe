@@ -540,6 +540,33 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     };
     
     const newHistory = [...history.slice(0, historyIndex + 1), newHistoryState];
+    
+    console.log('💾 SAVE TO HISTORY:', {
+      trigger: 'Action performed',
+      beforeSave: {
+        historyLength: history.length,
+        historyIndex: historyIndex,
+        nodeCount: nodes.length,
+        edgeCount: edges.length,
+        nodeIds: nodes.map(n => n.id),
+        edgeIds: edges.map(e => e.id)
+      },
+      afterSave: {
+        historyLength: newHistory.length,
+        newHistoryIndex: newHistory.length - 1,
+        nodeCount: newHistoryState.nodes.length,
+        edgeCount: newHistoryState.edges.length,
+        nodeIds: newHistoryState.nodes.map(n => n.id),
+        edgeIds: newHistoryState.edges.map(e => e.id)
+      },
+      historyStack: newHistory.map((state, index) => ({
+        index,
+        nodeCount: state.nodes.length,
+        edgeCount: state.edges.length,
+        isCurrent: index === newHistory.length - 1
+      }))
+    });
+    
     updateActiveTab({ 
       history: newHistory,
       historyIndex: newHistory.length - 1
@@ -788,30 +815,108 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [calculateWorkflowOffset, saveToHistory, toast]);
 
   const handleUndo = useCallback(() => {
+    console.log('🔄 UNDO BUTTON CLICKED:', {
+      canUndo: historyIndex > 0,
+      currentHistoryIndex: historyIndex,
+      totalHistoryStates: history.length,
+      currentState: {
+        nodeCount: nodes.length,
+        edgeCount: edges.length,
+        nodeIds: nodes.map(n => n.id),
+        edgeIds: edges.map(e => e.id)
+      }
+    });
+
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
-      const state = history[newIndex];
+      const currentState = history[historyIndex];
+      const targetState = history[newIndex];
+      
+      console.log('⏪ UNDO ACTION PERFORMED:', {
+        from: {
+          index: historyIndex,
+          nodeCount: currentState?.nodes?.length || nodes.length,
+          edgeCount: currentState?.edges?.length || edges.length,
+          nodeIds: currentState?.nodes?.map(n => n.id) || nodes.map(n => n.id),
+          edgeIds: currentState?.edges?.map(e => e.id) || edges.map(e => e.id)
+        },
+        to: {
+          index: newIndex,
+          nodeCount: targetState.nodes.length,
+          edgeCount: targetState.edges.length,
+          nodeIds: targetState.nodes.map(n => n.id),
+          edgeIds: targetState.edges.map(e => e.id)
+        },
+        historyStack: history.map((state, index) => ({
+          index,
+          nodeCount: state.nodes.length,
+          edgeCount: state.edges.length,
+          isActive: index === newIndex
+        }))
+      });
+
       updateActiveTab({
-        nodes: [...state.nodes],
-        edges: [...state.edges],
-        viewport: { ...state.viewport },
+        nodes: [...targetState.nodes],
+        edges: [...targetState.edges],
+        viewport: { ...targetState.viewport },
         historyIndex: newIndex
       });
+    } else {
+      console.log('⏪ UNDO NOT POSSIBLE: Already at oldest state');
     }
-  }, [historyIndex, history, updateActiveTab]);
+  }, [historyIndex, history, updateActiveTab, nodes, edges]);
 
   const handleRedo = useCallback(() => {
+    console.log('🔄 REDO BUTTON CLICKED:', {
+      canRedo: historyIndex < history.length - 1,
+      currentHistoryIndex: historyIndex,
+      totalHistoryStates: history.length,
+      currentState: {
+        nodeCount: nodes.length,
+        edgeCount: edges.length,
+        nodeIds: nodes.map(n => n.id),
+        edgeIds: edges.map(e => e.id)
+      }
+    });
+
     if (historyIndex < history.length - 1) {
       const newIndex = historyIndex + 1;
-      const state = history[newIndex];
+      const currentState = history[historyIndex];
+      const targetState = history[newIndex];
+      
+      console.log('⏩ REDO ACTION PERFORMED:', {
+        from: {
+          index: historyIndex,
+          nodeCount: currentState?.nodes?.length || nodes.length,
+          edgeCount: currentState?.edges?.length || edges.length,
+          nodeIds: currentState?.nodes?.map(n => n.id) || nodes.map(n => n.id),
+          edgeIds: currentState?.edges?.map(e => e.id) || edges.map(e => e.id)
+        },
+        to: {
+          index: newIndex,
+          nodeCount: targetState.nodes.length,
+          edgeCount: targetState.edges.length,
+          nodeIds: targetState.nodes.map(n => n.id),
+          edgeIds: targetState.edges.map(e => e.id)
+        },
+        historyStack: history.map((state, index) => ({
+          index,
+          nodeCount: state.nodes.length,
+          edgeCount: state.edges.length,
+          isActive: index === newIndex
+        }))
+      });
+
       updateActiveTab({
-        nodes: [...state.nodes],
-        edges: [...state.edges],
-        viewport: { ...state.viewport },
+        nodes: [...targetState.nodes],
+        edges: [...targetState.edges],
+        viewport: { ...targetState.viewport },
         historyIndex: newIndex
       });
+    } else {
+      console.log('⏩ REDO NOT POSSIBLE: Already at newest state');
     }
-  }, [historyIndex, history, updateActiveTab]);
+  }, [historyIndex, history, updateActiveTab, nodes, edges]);
 
   // Snapshot and Version History handlers
   const handleSnapshot = useCallback(() => {
