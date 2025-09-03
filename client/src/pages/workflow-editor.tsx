@@ -586,15 +586,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     setActiveTabId(newTab.id);
   }, [generateTabId, generateCuteName]);
 
-  // History management - Fixed to properly track state changes
+  // History management - Fixed to use current state instead of stale activeTab references
   const saveToHistory = useCallback(() => {
     if (!activeTab) return;
     
     // Use a small delay to ensure React state has updated
     setTimeout(() => {
-      const currentNodes = activeTab.nodes;
-      const currentEdges = activeTab.edges;
-      const currentViewport = activeTab.viewport;
+      // Use current state variables instead of stale activeTab references
+      const currentNodes = nodes;
+      const currentEdges = edges;
+      const currentViewport = viewport;
       
       const newHistoryState = {
         nodes: [...currentNodes],
@@ -609,7 +610,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       const newHistory = [...currentHistory.slice(0, currentHistoryIndex + 1), newHistoryState];
       const newHistoryIndex = newHistory.length - 1;
       
-      console.log('💾 SAVE TO HISTORY (FIXED):', {
+      console.log('💾 SAVE TO HISTORY (USING CURRENT STATE):', {
         trigger: 'Action performed',
         beforeSave: {
           historyLength: currentHistory.length,
@@ -640,7 +641,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         historyIndex: newHistoryIndex
       });
     }, 10); // Small delay to ensure state consistency
-  }, [activeTab, updateActiveTab]);
+  }, [activeTab, updateActiveTab, nodes, edges, viewport]);
 
   // Quick-add functionality
   const handleQuickAdd = useCallback((sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => {
