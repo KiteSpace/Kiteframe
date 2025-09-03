@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Undo, Redo, ZoomIn, LayoutGrid, GripVertical, Camera, History, Maximize2 } from 'lucide-react';
+import { Undo2, Redo2, ZoomIn, LayoutGrid, GripVertical, Camera, History, Maximize2 } from 'lucide-react';
 
 interface FloatingToolbarProps {
   onUndo: () => void;
@@ -140,20 +140,6 @@ export function FloatingToolbar({
         {/* Separator */}
         <div className="w-px h-6 bg-border mx-1" />
 
-        {/* Redo */}
-        <button
-          className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
-            canRedo 
-              ? 'text-foreground hover:bg-accent' 
-              : 'text-muted-foreground cursor-not-allowed'
-          }`}
-          onClick={onRedo}
-          disabled={!canRedo}
-          title="Redo"
-        >
-          <Redo size={16} />
-        </button>
-
         {/* Undo */}
         <button
           className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
@@ -165,7 +151,21 @@ export function FloatingToolbar({
           disabled={!canUndo}
           title="Undo"
         >
-          <Undo size={16} />
+          <Undo2 size={16} />
+        </button>
+
+        {/* Redo */}
+        <button
+          className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+            canRedo 
+              ? 'text-foreground hover:bg-accent' 
+              : 'text-muted-foreground cursor-not-allowed'
+          }`}
+          onClick={onRedo}
+          disabled={!canRedo}
+          title="Redo"
+        >
+          <Redo2 size={16} />
         </button>
 
         {/* Fit to View */}
