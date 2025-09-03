@@ -595,7 +595,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       target: newNode.id,
       type: 'bezier',
       style: {
-        strokeColor: 'hsl(221.2, 83.2%, 53.3%)',
+        strokeColor: '#3b82f6',
         strokeWidth: 2
       },
       markers: {
@@ -1061,7 +1061,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         target: newNode.id,
         type: 'step',
         animated: false,
-        style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
+        style: { strokeColor: '#3b82f6', strokeWidth: 2 },
         markers: { type: 'arrow', position: 'end' }
       };
 
@@ -1534,7 +1534,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   source: connection.source,
                   target: connection.target,
                   type: 'bezier',
-                  style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
+                  style: { strokeColor: '#3b82f6', strokeWidth: 2 },
                   markers: { type: 'arrow', position: 'end' },
                   reconnectable: true, // Enable reconnection for new edges
                   interactable: true // Make edge clickable
