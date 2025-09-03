@@ -255,6 +255,45 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     }
   }, [createBlankTab]);
 
+  // Migration effect: Fix existing tabs with invalid history state
+  useEffect(() => {
+    const hasInvalidTabs = tabs.some(tab => 
+      tab.historyIndex === -1 || 
+      tab.history.length === 0 || 
+      (tab.history.length > 0 && tab.historyIndex >= tab.history.length)
+    );
+
+    if (hasInvalidTabs) {
+      console.log('🔧 MIGRATING TABS: Fixing invalid history states');
+      
+      setTabs(prev => prev.map(tab => {
+        // If tab has invalid history state, fix it
+        if (tab.historyIndex === -1 || tab.history.length === 0 || tab.historyIndex >= tab.history.length) {
+          const currentState = {
+            nodes: tab.nodes,
+            edges: tab.edges,
+            viewport: tab.viewport
+          };
+          
+          console.log('🔧 MIGRATING TAB:', {
+            tabId: tab.id,
+            oldHistoryIndex: tab.historyIndex,
+            oldHistoryLength: tab.history.length,
+            newHistoryIndex: 0,
+            newHistoryLength: 1
+          });
+          
+          return {
+            ...tab,
+            history: [currentState],
+            historyIndex: 0
+          };
+        }
+        return tab;
+      }));
+    }
+  }, [tabs]);
+
   // Get current active tab
   const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId) || tabs[0], [tabs, activeTabId]);
 
@@ -265,7 +304,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   const selectedNodeId = activeTab?.selectedNodeId || '';
   const selectedEdgeId = activeTab?.selectedEdgeId || '';
   const history = activeTab?.history || [];
-  const historyIndex = activeTab?.historyIndex || -1;
+  const historyIndex = activeTab?.historyIndex ?? 0;
   const showImageModal = activeTab?.showImageModal || null;
 
   // Update current tab
@@ -845,12 +884,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [calculateWorkflowOffset, saveToHistory, toast]);
 
   const handleUndo = useCallback(() => {
-    const canUndo = historyIndex > 0;
+    const canUndo = historyIndex > 0 && history.length > 1;
     
     console.log('🔄 UNDO BUTTON CLICKED (FIXED):', {
       canUndo,
       currentHistoryIndex: historyIndex,
       totalHistoryStates: history.length,
+      tabId: activeTab?.id,
       currentState: {
         nodeCount: nodes.length,
         edgeCount: edges.length,
@@ -859,7 +899,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       }
     });
 
-    if (canUndo) {
+    if (canUndo && history[historyIndex - 1]) {
       const newIndex = historyIndex - 1;
       const targetState = history[newIndex];
       
@@ -894,17 +934,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         historyIndex: newIndex
       });
     } else {
-      console.log('⏪ UNDO NOT POSSIBLE: Already at oldest state (index: 0 or negative)');
+      console.log('⏪ UNDO NOT POSSIBLE: Already at oldest state or invalid history');
     }
-  }, [historyIndex, history, updateActiveTab, nodes, edges]);
+  }, [historyIndex, history, updateActiveTab, nodes, edges, activeTab]);
 
   const handleRedo = useCallback(() => {
-    const canRedo = historyIndex < history.length - 1;
+    const canRedo = historyIndex < history.length - 1 && history.length > 1;
     
     console.log('🔄 REDO BUTTON CLICKED (FIXED):', {
       canRedo,
       currentHistoryIndex: historyIndex,
       totalHistoryStates: history.length,
+      tabId: activeTab?.id,
       currentState: {
         nodeCount: nodes.length,
         edgeCount: edges.length,
@@ -913,7 +954,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       }
     });
 
-    if (canRedo) {
+    if (canRedo && history[historyIndex + 1]) {
       const newIndex = historyIndex + 1;
       const targetState = history[newIndex];
       
@@ -948,9 +989,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         historyIndex: newIndex
       });
     } else {
-      console.log('⏩ REDO NOT POSSIBLE: Already at newest state');
+      console.log('⏩ REDO NOT POSSIBLE: Already at newest state or invalid history');
     }
-  }, [historyIndex, history, updateActiveTab, nodes, edges]);
+  }, [historyIndex, history, updateActiveTab, nodes, edges, activeTab]);
 
   // Snapshot and Version History handlers
   const handleSnapshot = useCallback(() => {
