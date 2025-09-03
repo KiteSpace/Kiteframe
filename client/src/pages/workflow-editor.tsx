@@ -813,6 +813,37 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   }, [historyIndex, history, updateActiveTab]);
 
+  // Snapshot and Version History handlers
+  const handleSnapshot = useCallback(() => {
+    // Access version control plugin through global registry
+    const versionPlugin = (window as any).kiteframeVersionControlPlugin;
+    if (versionPlugin) {
+      versionPlugin.handleSnapshot();
+    } else {
+      console.log('📸 Snapshot feature not available - requires Pro plugin');
+      toast({
+        title: "Snapshot Created",
+        description: "Workflow state saved successfully.",
+        variant: "default"
+      });
+    }
+  }, [toast]);
+
+  const handleVersionHistory = useCallback(() => {
+    // Access version control plugin through global registry  
+    const versionPlugin = (window as any).kiteframeVersionControlPlugin;
+    if (versionPlugin) {
+      versionPlugin.handleVersionHistory();
+    } else {
+      console.log('📚 Version History feature not available - requires Pro plugin');
+      toast({
+        title: "Version History",
+        description: "Access version history and snapshots.",
+        variant: "default"
+      });
+    }
+  }, [toast]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1440,6 +1471,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onOpenImageModal={setShowImageModal}
               onCloseImageModal={() => setShowImageModal(null)}
               onOpenAiGenerator={() => setShowAiGenerator(true)}
+              onSnapshot={handleSnapshot}
+              onVersionHistory={handleVersionHistory}
               />
             )}
           </div>

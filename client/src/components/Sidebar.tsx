@@ -19,7 +19,9 @@ import {
   AlignHorizontalSpaceAround,
   AlignVerticalSpaceAround,
   Palette,
-  RotateCcw
+  RotateCcw,
+  Camera,
+  History
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -39,6 +41,8 @@ interface SidebarProps {
   onOpenImageModal?: (nodeId: string) => void;
   onCloseImageModal?: () => void;
   onOpenAiGenerator?: () => void;
+  onSnapshot?: () => void;
+  onVersionHistory?: () => void;
 }
 
 export function Sidebar({
@@ -57,7 +61,9 @@ export function Sidebar({
   showImageModal,
   onOpenImageModal,
   onCloseImageModal,
-  onOpenAiGenerator
+  onOpenAiGenerator,
+  onSnapshot,
+  onVersionHistory
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
@@ -703,7 +709,22 @@ export function Sidebar({
             <div>
               <h3 className="text-sm font-semibold mb-3">Actions</h3>
               <div className="space-y-2">
-
+                <button
+                  className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left flex items-center gap-2"
+                  onClick={onSnapshot}
+                  data-testid="button-snapshot"
+                >
+                  <Camera size={14} />
+                  Create Snapshot
+                </button>
+                <button
+                  className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left flex items-center gap-2"
+                  onClick={onVersionHistory}
+                  data-testid="button-version-history"
+                >
+                  <History size={14} />
+                  Version History
+                </button>
                 <button
                   className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left flex items-center gap-2"
                   onClick={onClearCanvas}

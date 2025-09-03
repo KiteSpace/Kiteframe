@@ -198,21 +198,6 @@ export function WorkflowCanvas({
         onRedo={onRedo}
         onFitView={onFitView}
         onAutoLayout={onAutoLayout}
-
-        onSnapshot={() => {
-          // Access version control plugin through global registry
-          const versionPlugin = (window as any).kiteframeVersionControlPlugin;
-          if (versionPlugin) {
-            versionPlugin.handleSnapshot();
-          }
-        }}
-        onVersionHistory={() => {
-          // Access version control plugin through global registry
-          const versionPlugin = (window as any).kiteframeVersionControlPlugin;
-          if (versionPlugin) {
-            versionPlugin.handleVersionHistory();
-          }
-        }}
         canUndo={canUndo}
         canRedo={canRedo}
       />

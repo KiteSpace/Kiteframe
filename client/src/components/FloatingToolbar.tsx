@@ -6,8 +6,6 @@ interface FloatingToolbarProps {
   onRedo: () => void;
   onFitView: () => void;
   onAutoLayout: (layoutType: string) => void;
-  onSnapshot: () => void;
-  onVersionHistory: () => void;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -17,8 +15,6 @@ export function FloatingToolbar({
   onRedo,
   onFitView,
   onAutoLayout,
-  onSnapshot,
-  onVersionHistory,
   canUndo,
   canRedo,
 }: FloatingToolbarProps) {
@@ -144,20 +140,6 @@ export function FloatingToolbar({
         {/* Separator */}
         <div className="w-px h-6 bg-border mx-1" />
 
-        {/* Undo */}
-        <button
-          className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
-            canUndo 
-              ? 'text-foreground hover:bg-accent' 
-              : 'text-muted-foreground cursor-not-allowed'
-          }`}
-          onClick={onUndo}
-          disabled={!canUndo}
-          title="Undo"
-        >
-          <Redo size={16} />
-        </button>
-
         {/* Redo */}
         <button
           className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
@@ -168,6 +150,20 @@ export function FloatingToolbar({
           onClick={onRedo}
           disabled={!canRedo}
           title="Redo"
+        >
+          <Redo size={16} />
+        </button>
+
+        {/* Undo */}
+        <button
+          className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+            canUndo 
+              ? 'text-foreground hover:bg-accent' 
+              : 'text-muted-foreground cursor-not-allowed'
+          }`}
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Undo"
         >
           <Undo size={16} />
         </button>
@@ -212,26 +208,7 @@ export function FloatingToolbar({
           )}
         </div>
 
-        {/* Separator */}
-        <div className="w-px h-6 bg-border mx-1" />
 
-        {/* Snapshot */}
-        <button
-          className="w-8 h-8 flex items-center justify-center text-foreground hover:bg-accent rounded-full transition-colors"
-          onClick={onSnapshot}
-          title="Create Snapshot (Pro)"
-        >
-          <Camera size={16} />
-        </button>
-
-        {/* Version History */}
-        <button
-          className="w-8 h-8 flex items-center justify-center text-foreground hover:bg-accent rounded-full transition-colors"
-          onClick={onVersionHistory}
-          title="Version History (Pro)"
-        >
-          <History size={16} />
-        </button>
       </div>
 
       {/* Click outside to close dropdown */}
