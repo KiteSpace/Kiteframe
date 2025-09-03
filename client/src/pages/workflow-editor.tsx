@@ -601,7 +601,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       markers: {
         type: 'arrow',
         position: 'end'
-      }
+      },
+      reconnectable: true,
+      interactable: true
     };
     
     setEdges(prev => [...prev, newEdge]);
@@ -688,7 +690,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         id: `${edge.id}-${Date.now()}`, // Ensure unique IDs
         source: `${edge.source}-${Date.now()}`,
         target: `${edge.target}-${Date.now()}`,
-        selected: false
+        selected: false,
+        reconnectable: true, // Enable reconnection for AI-generated edges
+        interactable: true // Make edges clickable
       }));
 
       // Append to existing nodes and edges
@@ -764,7 +768,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       id: `${edge.id}-imported-${Date.now()}`, // Ensure unique IDs
       source: `${edge.source}-imported-${Date.now()}`,
       target: `${edge.target}-imported-${Date.now()}`,
-      selected: false
+      selected: false,
+      reconnectable: true, // Enable reconnection for imported edges
+      interactable: true // Make edges clickable
     }));
 
     // Append to existing nodes and edges
@@ -1529,8 +1535,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   target: connection.target,
                   type: 'bezier',
                   style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
-                  markers: { type: 'arrow', position: 'end' }
+                  markers: { type: 'arrow', position: 'end' },
+                  reconnectable: true, // Enable reconnection for new edges
+                  interactable: true // Make edge clickable
                 };
+                console.log('🔗 NEW EDGE CREATED:', newEdge);
                 setEdges(prev => [...prev, newEdge]);
                 saveToHistory();
               }}
@@ -1608,6 +1617,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setSelectedNodeId('');
                 setSelectedEdgeId(edge.id);
                 setContextMenu(null);
+                
+                console.log(`🔗 EDGE SELECTED FOR RECONNECTION:`, { 
+                  edgeId: edge.id, 
+                  reconnectable: edge.reconnectable,
+                  enableAllEdges: proFeaturesConfig.edgeReconnection?.enableAllEdges,
+                  edgeReconnectionEnabled: proFeaturesConfig.edgeReconnection?.enabled
+                });
                 
                 console.log(`📝 SELECTION STATE SET:`, { 
                   selectedNodeId: '',
