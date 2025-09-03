@@ -1205,18 +1205,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   />
                 ) : (
                   <span 
-                    className="truncate text-sm font-medium max-w-32 cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setWorkflowNameInput(tab.name);
-                      setIsEditingWorkflowName(true);
-                    }}
+                    className="truncate text-sm font-medium max-w-32"
                     onDoubleClick={(e) => {
                       e.stopPropagation();
                       setWorkflowNameInput(tab.name);
                       setIsEditingWorkflowName(true);
                     }}
                     data-testid="text-workflow-name"
+                    title="Double-click to rename"
                   >
                     {tab.name}
                   </span>
