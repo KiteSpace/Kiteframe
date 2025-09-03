@@ -204,33 +204,43 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   // Create default tab with random workflow
   const createDefaultTab = useCallback((): WorkflowTab => {
     const { nodes, edges } = generateRandomWorkflow();
+    const initialState = {
+      nodes,
+      edges,
+      viewport: { x: 0, y: 0, zoom: 1 }
+    };
+    
     return {
       id: generateTabId(),
       name: generateCuteName(),
-      nodes,
-      edges,
-      viewport: { x: 0, y: 0, zoom: 1 },
+      ...initialState,
       selectedNodeId: '',
       selectedEdgeId: '',
-      history: [],
-      historyIndex: -1,
+      history: [initialState], // Initialize with current state
+      historyIndex: 0, // Start at index 0, not -1
       showImageModal: null
     };
   }, [generateTabId, generateCuteName, generateRandomWorkflow]);
 
   // Create blank tab
-  const createBlankTab = useCallback((): WorkflowTab => ({
-    id: generateTabId(),
-    name: generateCuteName(),
-    nodes: [],
-    edges: [],
-    viewport: { x: 0, y: 0, zoom: 1 },
-    selectedNodeId: '',
-    selectedEdgeId: '',
-    history: [],
-    historyIndex: -1,
-    showImageModal: null
-  }), [generateTabId, generateCuteName]);
+  const createBlankTab = useCallback((): WorkflowTab => {
+    const initialState = {
+      nodes: [],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 }
+    };
+    
+    return {
+      id: generateTabId(),
+      name: generateCuteName(),
+      ...initialState,
+      selectedNodeId: '',
+      selectedEdgeId: '',
+      history: [initialState], // Initialize with current state
+      historyIndex: 0, // Start at index 0, not -1
+      showImageModal: null
+    };
+  }, [generateTabId, generateCuteName]);
 
   // Tab management state
   const [tabs, setTabs] = useState<WorkflowTab[]>([]);
@@ -496,16 +506,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [createBlankTab, generateWorkflowFromPrompt, toast]);
 
   const handleCreateFromFile = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
+    const initialState = {
+      nodes: data.nodes.map(node => ({ ...node, selected: false })),
+      edges: data.edges.map(edge => ({ ...edge, selected: false })),
+      viewport: { x: 0, y: 0, zoom: 1 }
+    };
+    
     const newTab: WorkflowTab = {
       id: generateTabId(),
       name: generateCuteName(),
-      nodes: data.nodes.map(node => ({ ...node, selected: false })),
-      edges: data.edges.map(edge => ({ ...edge, selected: false })),
-      viewport: { x: 0, y: 0, zoom: 1 },
+      ...initialState,
       selectedNodeId: '',
       selectedEdgeId: '',
-      history: [],
-      historyIndex: -1,
+      history: [initialState], // Initialize with current state
+      historyIndex: 0, // Start at index 0, not -1
       showImageModal: null
     };
     setTabs(prev => [...prev, newTab]);
@@ -513,65 +527,81 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [generateTabId, generateCuteName]);
 
   const handleCreateFromTemplate = useCallback((template: { name: string; nodes: Node[]; edges: Edge[] }) => {
+    const initialState = {
+      nodes: template.nodes.map(node => ({ ...node, selected: false })),
+      edges: template.edges.map(edge => ({ ...edge, selected: false })),
+      viewport: { x: 0, y: 0, zoom: 1 }
+    };
+    
     const newTab: WorkflowTab = {
       id: generateTabId(),
       name: template.name,
-      nodes: template.nodes.map(node => ({ ...node, selected: false })),
-      edges: template.edges.map(edge => ({ ...edge, selected: false })),
-      viewport: { x: 0, y: 0, zoom: 1 },
+      ...initialState,
       selectedNodeId: '',
       selectedEdgeId: '',
-      history: [],
-      historyIndex: -1,
+      history: [initialState], // Initialize with current state
+      historyIndex: 0, // Start at index 0, not -1
       showImageModal: null
     };
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newTab.id);
   }, [generateTabId, generateCuteName]);
 
-  // History management
+  // History management - Fixed to properly track state changes
   const saveToHistory = useCallback(() => {
     if (!activeTab) return;
     
-    const newHistoryState = {
-      nodes: [...nodes],
-      edges: [...edges],
-      viewport: { ...viewport }
-    };
-    
-    const newHistory = [...history.slice(0, historyIndex + 1), newHistoryState];
-    
-    console.log('💾 SAVE TO HISTORY:', {
-      trigger: 'Action performed',
-      beforeSave: {
-        historyLength: history.length,
-        historyIndex: historyIndex,
-        nodeCount: nodes.length,
-        edgeCount: edges.length,
-        nodeIds: nodes.map(n => n.id),
-        edgeIds: edges.map(e => e.id)
-      },
-      afterSave: {
-        historyLength: newHistory.length,
-        newHistoryIndex: newHistory.length - 1,
-        nodeCount: newHistoryState.nodes.length,
-        edgeCount: newHistoryState.edges.length,
-        nodeIds: newHistoryState.nodes.map(n => n.id),
-        edgeIds: newHistoryState.edges.map(e => e.id)
-      },
-      historyStack: newHistory.map((state, index) => ({
-        index,
-        nodeCount: state.nodes.length,
-        edgeCount: state.edges.length,
-        isCurrent: index === newHistory.length - 1
-      }))
-    });
-    
-    updateActiveTab({ 
-      history: newHistory,
-      historyIndex: newHistory.length - 1
-    });
-  }, [activeTab, nodes, edges, viewport, history, historyIndex, updateActiveTab]);
+    // Use a small delay to ensure React state has updated
+    setTimeout(() => {
+      const currentNodes = activeTab.nodes;
+      const currentEdges = activeTab.edges;
+      const currentViewport = activeTab.viewport;
+      
+      const newHistoryState = {
+        nodes: [...currentNodes],
+        edges: [...currentEdges],
+        viewport: { ...currentViewport }
+      };
+      
+      const currentHistory = activeTab.history;
+      const currentHistoryIndex = activeTab.historyIndex;
+      
+      // Remove any future history states if we're in the middle of history
+      const newHistory = [...currentHistory.slice(0, currentHistoryIndex + 1), newHistoryState];
+      const newHistoryIndex = newHistory.length - 1;
+      
+      console.log('💾 SAVE TO HISTORY (FIXED):', {
+        trigger: 'Action performed',
+        beforeSave: {
+          historyLength: currentHistory.length,
+          historyIndex: currentHistoryIndex,
+          nodeCount: currentNodes.length,
+          edgeCount: currentEdges.length,
+          nodeIds: currentNodes.map(n => n.id),
+          edgeIds: currentEdges.map(e => e.id)
+        },
+        afterSave: {
+          historyLength: newHistory.length,
+          newHistoryIndex: newHistoryIndex,
+          nodeCount: newHistoryState.nodes.length,
+          edgeCount: newHistoryState.edges.length,
+          nodeIds: newHistoryState.nodes.map(n => n.id),
+          edgeIds: newHistoryState.edges.map(e => e.id)
+        },
+        historyStack: newHistory.map((state, index) => ({
+          index,
+          nodeCount: state.nodes.length,
+          edgeCount: state.edges.length,
+          isCurrent: index === newHistoryIndex
+        }))
+      });
+      
+      updateActiveTab({ 
+        history: newHistory,
+        historyIndex: newHistoryIndex
+      });
+    }, 10); // Small delay to ensure state consistency
+  }, [activeTab, updateActiveTab]);
 
   // Quick-add functionality
   const handleQuickAdd = useCallback((sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => {
@@ -815,8 +845,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [calculateWorkflowOffset, saveToHistory, toast]);
 
   const handleUndo = useCallback(() => {
-    console.log('🔄 UNDO BUTTON CLICKED:', {
-      canUndo: historyIndex > 0,
+    const canUndo = historyIndex > 0;
+    
+    console.log('🔄 UNDO BUTTON CLICKED (FIXED):', {
+      canUndo,
       currentHistoryIndex: historyIndex,
       totalHistoryStates: history.length,
       currentState: {
@@ -827,18 +859,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       }
     });
 
-    if (historyIndex > 0) {
+    if (canUndo) {
       const newIndex = historyIndex - 1;
-      const currentState = history[historyIndex];
       const targetState = history[newIndex];
       
-      console.log('⏪ UNDO ACTION PERFORMED:', {
+      console.log('⏪ UNDO ACTION PERFORMED (FIXED):', {
         from: {
           index: historyIndex,
-          nodeCount: currentState?.nodes?.length || nodes.length,
-          edgeCount: currentState?.edges?.length || edges.length,
-          nodeIds: currentState?.nodes?.map(n => n.id) || nodes.map(n => n.id),
-          edgeIds: currentState?.edges?.map(e => e.id) || edges.map(e => e.id)
+          nodeCount: nodes.length,
+          edgeCount: edges.length,
+          nodeIds: nodes.map(n => n.id),
+          edgeIds: edges.map(e => e.id)
         },
         to: {
           index: newIndex,
@@ -847,6 +878,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           nodeIds: targetState.nodes.map(n => n.id),
           edgeIds: targetState.edges.map(e => e.id)
         },
+        direction: 'BACKWARD (going to earlier state)',
         historyStack: history.map((state, index) => ({
           index,
           nodeCount: state.nodes.length,
@@ -862,13 +894,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         historyIndex: newIndex
       });
     } else {
-      console.log('⏪ UNDO NOT POSSIBLE: Already at oldest state');
+      console.log('⏪ UNDO NOT POSSIBLE: Already at oldest state (index: 0 or negative)');
     }
   }, [historyIndex, history, updateActiveTab, nodes, edges]);
 
   const handleRedo = useCallback(() => {
-    console.log('🔄 REDO BUTTON CLICKED:', {
-      canRedo: historyIndex < history.length - 1,
+    const canRedo = historyIndex < history.length - 1;
+    
+    console.log('🔄 REDO BUTTON CLICKED (FIXED):', {
+      canRedo,
       currentHistoryIndex: historyIndex,
       totalHistoryStates: history.length,
       currentState: {
@@ -879,18 +913,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       }
     });
 
-    if (historyIndex < history.length - 1) {
+    if (canRedo) {
       const newIndex = historyIndex + 1;
-      const currentState = history[historyIndex];
       const targetState = history[newIndex];
       
-      console.log('⏩ REDO ACTION PERFORMED:', {
+      console.log('⏩ REDO ACTION PERFORMED (FIXED):', {
         from: {
           index: historyIndex,
-          nodeCount: currentState?.nodes?.length || nodes.length,
-          edgeCount: currentState?.edges?.length || edges.length,
-          nodeIds: currentState?.nodes?.map(n => n.id) || nodes.map(n => n.id),
-          edgeIds: currentState?.edges?.map(e => e.id) || edges.map(e => e.id)
+          nodeCount: nodes.length,
+          edgeCount: edges.length,
+          nodeIds: nodes.map(n => n.id),
+          edgeIds: edges.map(e => e.id)
         },
         to: {
           index: newIndex,
@@ -899,6 +932,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           nodeIds: targetState.nodes.map(n => n.id),
           edgeIds: targetState.edges.map(e => e.id)
         },
+        direction: 'FORWARD (going to later state)',
         historyStack: history.map((state, index) => ({
           index,
           nodeCount: state.nodes.length,
