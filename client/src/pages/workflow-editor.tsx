@@ -1697,45 +1697,139 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     console.log('📊 CHANGE-BASED UPDATE:', {
                       changeTypes: changes.map((c: any) => c.type)
                     });
-                    setNodes(prev => {
-                      let newNodes = [...prev];
-                      changes.forEach(change => {
-                        if (change.type === 'position' && change.position) {
-                          const nodeIndex = newNodes.findIndex(n => n.id === change.id);
-                          if (nodeIndex >= 0) {
-                            newNodes[nodeIndex] = { ...newNodes[nodeIndex], position: change.position };
+
+                    // Separate node changes by type for better history tracking
+                    const selectionChanges = changes.filter(c => c.type === 'select');
+                    const positionChanges = changes.filter(c => c.type === 'position');
+                    const removalChanges = changes.filter(c => c.type === 'remove');
+                    const otherChanges = changes.filter(c => !['select', 'position', 'remove'].includes(c.type));
+
+                    // Process selection and position changes in batch (they don't change structure)
+                    if (selectionChanges.length > 0 || positionChanges.length > 0) {
+                      setNodes(prev => {
+                        let newNodes = [...prev];
+                        [...selectionChanges, ...positionChanges].forEach(change => {
+                          if (change.type === 'position' && change.position) {
+                            const nodeIndex = newNodes.findIndex(n => n.id === change.id);
+                            if (nodeIndex >= 0) {
+                              newNodes[nodeIndex] = { ...newNodes[nodeIndex], position: change.position };
+                            }
+                          } else if (change.type === 'select') {
+                            const nodeIndex = newNodes.findIndex(n => n.id === change.id);
+                            if (nodeIndex >= 0) {
+                              newNodes[nodeIndex] = { ...newNodes[nodeIndex], selected: change.selected };
+                            }
                           }
-                        } else if (change.type === 'select') {
-                          const nodeIndex = newNodes.findIndex(n => n.id === change.id);
-                          if (nodeIndex >= 0) {
-                            newNodes[nodeIndex] = { ...newNodes[nodeIndex], selected: change.selected };
-                          }
-                        } else if (change.type === 'remove') {
-                          newNodes = newNodes.filter(n => n.id !== change.id);
-                        }
+                        });
+                        return newNodes;
                       });
-                      return newNodes;
-                    });
-                    saveToHistory();
+                      
+                      // Only save to history for position changes (structural changes)
+                      if (positionChanges.length > 0) {
+                        saveToHistory();
+                      }
+                    }
+
+                    // Process removal changes individually
+                    if (removalChanges.length > 0) {
+                      removalChanges.forEach((change, index) => {
+                        console.log(`🗑️ NODE REMOVAL ${index + 1}/${removalChanges.length}:`, {
+                          nodeId: change.id,
+                          willSaveToHistory: true
+                        });
+                        
+                        setNodes(prev => {
+                          const newNodes = prev.filter(n => n.id !== change.id);
+                          console.log(`🗑️ NODE REMOVED:`, {
+                            removedId: change.id,
+                            nodesBefore: prev.length,
+                            nodesAfter: newNodes.length
+                          });
+                          return newNodes;
+                        });
+                        
+                        // Save to history after each node removal
+                        setTimeout(() => saveToHistory(), 10 * (index + 1));
+                      });
+                    }
+
+                    // Process other changes
+                    if (otherChanges.length > 0) {
+                      setNodes(prev => {
+                        let newNodes = [...prev];
+                        otherChanges.forEach(change => {
+                          console.log('📊 OTHER NODE CHANGE:', change);
+                          // Handle any other change types here
+                        });
+                        return newNodes;
+                      });
+                      saveToHistory();
+                    }
                   }
                 }
               }}
               onEdgesChange={(changes: any[]) => {
-                setEdges(prev => {
-                  let newEdges = [...prev];
-                  changes.forEach(change => {
-                    if (change.type === 'select') {
+                console.log('🔗 onEdgesChange CALLED:', {
+                  changes,
+                  changeTypes: changes.map(c => c.type),
+                  isArray: Array.isArray(changes),
+                  length: Array.isArray(changes) ? changes.length : 0
+                });
+
+                // Separate changes by type for individual history tracking
+                const selectionChanges = changes.filter(c => c.type === 'select');
+                const removalChanges = changes.filter(c => c.type === 'remove');
+                const otherChanges = changes.filter(c => c.type !== 'select' && c.type !== 'remove');
+
+                // Process selection changes in batch (don't save to history)
+                if (selectionChanges.length > 0) {
+                  setEdges(prev => {
+                    let newEdges = [...prev];
+                    selectionChanges.forEach(change => {
                       const edgeIndex = newEdges.findIndex(e => e.id === change.id);
                       if (edgeIndex >= 0) {
                         newEdges[edgeIndex] = { ...newEdges[edgeIndex], selected: change.selected };
                       }
-                    } else if (change.type === 'remove') {
-                      newEdges = newEdges.filter(e => e.id !== change.id);
-                    }
+                    });
+                    return newEdges;
                   });
-                  return newEdges;
-                });
-                saveToHistory();
+                }
+
+                // Process removal changes individually (save to history for each)
+                if (removalChanges.length > 0) {
+                  removalChanges.forEach((change, index) => {
+                    console.log(`🗑️ EDGE REMOVAL ${index + 1}/${removalChanges.length}:`, {
+                      edgeId: change.id,
+                      willSaveToHistory: true
+                    });
+                    
+                    setEdges(prev => {
+                      const newEdges = prev.filter(e => e.id !== change.id);
+                      console.log(`🗑️ EDGE REMOVED:`, {
+                        removedId: change.id,
+                        edgesBefore: prev.length,
+                        edgesAfter: newEdges.length
+                      });
+                      return newEdges;
+                    });
+                    
+                    // Save to history after each edge removal
+                    setTimeout(() => saveToHistory(), 10 * (index + 1)); // Stagger the saves slightly
+                  });
+                }
+
+                // Process other changes in batch
+                if (otherChanges.length > 0) {
+                  setEdges(prev => {
+                    let newEdges = [...prev];
+                    otherChanges.forEach(change => {
+                      // Handle any other change types here
+                      console.log('🔗 OTHER EDGE CHANGE:', change);
+                    });
+                    return newEdges;
+                  });
+                  saveToHistory();
+                }
               }}
               onConnect={(connection) => {
                 const newEdge: Edge = {
