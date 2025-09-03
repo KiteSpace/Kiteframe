@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Undo, Redo, ZoomIn, LayoutGrid, GripVertical, Camera, History } from 'lucide-react';
+import { Undo, Redo, ZoomIn, LayoutGrid, GripVertical, Camera, History, Maximize2 } from 'lucide-react';
 
 interface FloatingToolbarProps {
   onUndo: () => void;
@@ -155,7 +155,7 @@ export function FloatingToolbar({
           disabled={!canUndo}
           title="Undo"
         >
-          <Undo size={16} />
+          <Redo size={16} />
         </button>
 
         {/* Redo */}
@@ -169,7 +169,16 @@ export function FloatingToolbar({
           disabled={!canRedo}
           title="Redo"
         >
-          <Redo size={16} />
+          <Undo size={16} />
+        </button>
+
+        {/* Fit to View */}
+        <button
+          className="w-8 h-8 flex items-center justify-center text-foreground hover:bg-accent rounded-full transition-colors"
+          onClick={onFitView}
+          title="Fit to View"
+        >
+          <Maximize2 size={16} />
         </button>
 
         {/* Separator */}
