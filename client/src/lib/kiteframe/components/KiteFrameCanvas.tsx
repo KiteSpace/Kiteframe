@@ -1155,35 +1155,40 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 props.onNodeClick?.(e, n);
               }}
             >
-              <div 
-                className="title"
-                style={{ 
-                  backgroundColor: headerBg,
-                  color: headerText,
-                  borderTopLeftRadius: '8px',
-                  borderTopRightRadius: '8px',
-                  borderBottom: `1px solid ${border}`
-                }}
-              >
-                {n.data?.label || n.type || n.id}
-              </div>
-              <div 
-                className="body" 
-                style={{ 
-                  backgroundColor: bodyBg,
-                  color: bodyText,
-                  borderBottomLeftRadius: '8px',
-                  borderBottomRightRadius: '8px',
-                  padding: n.type === 'image' ? '0' : undefined,
-                  flex: 1, // Make the body fill remaining space
-                  display: 'flex',
-                  flexDirection: 'column',
-                  height: n.type === 'image' ? `${h - 30}px` : undefined, // Account for title height
-                  alignItems: n.type === 'image' ? 'center' : undefined,
-                  justifyContent: n.type === 'image' ? 'center' : undefined
-                }}
-              >
-                {n.type === 'image' ? (
+              {!n.data?.hideHeader && (
+                <div 
+                  className="title"
+                  style={{ 
+                    backgroundColor: headerBg,
+                    color: headerText,
+                    borderTopLeftRadius: '8px',
+                    borderTopRightRadius: '8px',
+                    borderBottom: `1px solid ${border}`
+                  }}
+                >
+                  {n.data?.label || n.type || n.id}
+                </div>
+              )}
+              {!n.data?.hideDescription && (
+                <div 
+                  className="body" 
+                  style={{ 
+                    backgroundColor: bodyBg,
+                    color: bodyText,
+                    borderBottomLeftRadius: n.data?.hideHeader ? '8px' : undefined,
+                    borderBottomRightRadius: n.data?.hideHeader ? '8px' : undefined,
+                    borderTopLeftRadius: n.data?.hideHeader ? '8px' : undefined,
+                    borderTopRightRadius: n.data?.hideHeader ? '8px' : undefined,
+                    padding: n.type === 'image' ? '0' : undefined,
+                    flex: 1, // Make the body fill remaining space
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: n.type === 'image' ? `${n.data?.hideHeader ? h : h - 30}px` : undefined, // Account for title height
+                    alignItems: n.type === 'image' ? 'center' : undefined,
+                    justifyContent: n.type === 'image' ? 'center' : undefined
+                  }}
+                >
+                  {n.type === 'image' ? (
                   n.data?.src ? 
                     <img 
                       src={n.data.src} 
@@ -1258,7 +1263,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 ) : (
                   n.data?.description || 'Drop content here…'
                 )}
-              </div>
+                </div>
+              )}
               {n.showHandles !== false && <NodeHandles 
                 node={n} 
                 onHandleConnect={(p, e)=>{

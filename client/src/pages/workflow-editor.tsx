@@ -1714,6 +1714,37 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onOpenAiGenerator={() => setShowAiGenerator(true)}
               onSnapshot={handleSnapshot}
               onVersionHistory={handleVersionHistory}
+              onApplyTheme={(theme) => {
+                // Apply theme to all nodes in the current workflow
+                setNodes(prev => prev.map(node => ({
+                  ...node,
+                  data: {
+                    ...node.data,
+                    colors: {
+                      headerBackground: theme.nodeStyles.headerBackground,
+                      headerText: theme.nodeStyles.headerText,
+                      bodyBackground: theme.nodeStyles.bodyBackground,
+                      bodyText: theme.nodeStyles.bodyText,
+                      border: theme.nodeStyles.border
+                    }
+                  }
+                })));
+
+                // Apply theme to all edges in the current workflow
+                setEdges(prev => prev.map(edge => ({
+                  ...edge,
+                  style: {
+                    ...edge.style,
+                    stroke: theme.edgeStyles.stroke
+                  },
+                  data: {
+                    ...edge.data,
+                    strokeSelected: theme.edgeStyles.strokeSelected
+                  }
+                })));
+
+                saveToHistory();
+              }}
               />
             )}
           </div>

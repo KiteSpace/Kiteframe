@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Node, Edge } from '../lib/kiteframe/types';
 import { ObjectUploader } from '@/components/ObjectUploader';
 import { LocalImageUploader } from '@/components/LocalImageUploader';
+import { workflowThemes, type WorkflowTheme } from '@/lib/themes';
 import { 
   ArrowRight, 
   Cog, 
@@ -21,7 +22,9 @@ import {
   Palette,
   RotateCcw,
   Camera,
-  History
+  History,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -43,6 +46,7 @@ interface SidebarProps {
   onOpenAiGenerator?: () => void;
   onSnapshot?: () => void;
   onVersionHistory?: () => void;
+  onApplyTheme?: (theme: WorkflowTheme) => void;
 }
 
 export function Sidebar({
@@ -63,7 +67,8 @@ export function Sidebar({
   onCloseImageModal,
   onOpenAiGenerator,
   onSnapshot,
-  onVersionHistory
+  onVersionHistory,
+  onApplyTheme
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
@@ -112,7 +117,22 @@ export function Sidebar({
             <div className="space-y-3" data-testid="node-properties">
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium mb-1">Label</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-medium">Label</label>
+                    <button
+                      onClick={() => onNodeUpdate(selectedNode.id, {
+                        data: { 
+                          ...selectedNode.data, 
+                          hideHeader: !selectedNode.data?.hideHeader 
+                        }
+                      })}
+                      className="p-1 rounded hover:bg-accent transition-colors"
+                      title={selectedNode.data?.hideHeader ? "Show header" : "Hide header"}
+                      data-testid="button-toggle-header-visibility"
+                    >
+                      {selectedNode.data?.hideHeader ? <EyeOff size={12} /> : <Eye size={12} />}
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={selectedNode.data?.label || ''}
@@ -124,7 +144,22 @@ export function Sidebar({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-1">Description</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-medium">Description</label>
+                    <button
+                      onClick={() => onNodeUpdate(selectedNode.id, {
+                        data: { 
+                          ...selectedNode.data, 
+                          hideDescription: !selectedNode.data?.hideDescription 
+                        }
+                      })}
+                      className="p-1 rounded hover:bg-accent transition-colors"
+                      title={selectedNode.data?.hideDescription ? "Show description" : "Hide description"}
+                      data-testid="button-toggle-description-visibility"
+                    >
+                      {selectedNode.data?.hideDescription ? <EyeOff size={12} /> : <Eye size={12} />}
+                    </button>
+                  </div>
                   <textarea
                     value={selectedNode.data?.description || ''}
                     onChange={(e) => onNodeUpdate(selectedNode.id, {
@@ -684,6 +719,36 @@ export function Sidebar({
                 <Sparkles size={16} />
                 AI Generate Workflow
               </button>
+            </div>
+
+            {/* Theme Selector Section */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Workflow Themes</h3>
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  {workflowThemes.slice(0, 8).map((theme) => (
+                    <button
+                      key={theme.id}
+                      onClick={() => onApplyTheme?.(theme)}
+                      className="p-2 border border-border rounded-md hover:bg-accent transition-all duration-200 text-left group"
+                      title={theme.description}
+                      data-testid={`theme-${theme.id}`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <div 
+                          className="w-3 h-3 rounded-full border"
+                          style={{ backgroundColor: theme.nodeStyles.headerBackground }}
+                        />
+                        <div 
+                          className="w-3 h-3 rounded-full border"
+                          style={{ backgroundColor: theme.nodeStyles.bodyBackground }}
+                        />
+                      </div>
+                      <div className="text-xs font-medium">{theme.name}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             
             <div>
