@@ -1,4 +1,15 @@
-.kiteframe-canvas { position: relative; overflow: hidden; background: hsl(210, 40%, 98%); width:100%; height:100%; cursor: grab; }
+/* Canvas background variables for light/dark mode support */
+:root {
+  --kiteframe-canvas-bg: hsl(210, 40%, 98%);
+  --kiteframe-grid-color: hsl(214.3, 31.8%, 91.4%);
+}
+
+.dark {
+  --kiteframe-canvas-bg: hsl(224, 71%, 4%);
+  --kiteframe-grid-color: hsl(215, 25%, 27%);
+}
+
+.kiteframe-canvas { position: relative; overflow: hidden; background: var(--kiteframe-canvas-bg); width:100%; height:100%; cursor: grab; }
 .kiteframe-canvas.grabbing { cursor: grabbing; }
 .kiteframe-world  { position: absolute; top: 0; left: 0; transform-origin: 0 0; width: 5000px; height: 5000px; }
 .kiteframe-node   { position: absolute; box-sizing: border-box; border: 1px solid hsl(214.3, 31.8%, 91.4%); background: hsl(0, 0%, 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); cursor: grab; transition: all 0.2s ease; }
@@ -35,7 +46,7 @@
 .kiteframe-grid {
     position: absolute;
     inset: 0;
-    background-image: radial-gradient(circle, hsl(214.3, 31.8%, 91.4%) 1px, transparent 1px);
+    background-image: radial-gradient(circle, var(--kiteframe-grid-color) 1px, transparent 1px);
     background-size: 10px 10px;
     opacity: 0.7;
     width: 100vw;
