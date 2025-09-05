@@ -277,6 +277,12 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   // Tab management state
   const [tabs, setTabs] = useState<WorkflowTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>('');
+  
+  // Dark mode state
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('dark-mode');
+    return saved ? JSON.parse(saved) : false;
+  });
 
   // Initialize tabs on first render
   useEffect(() => {
@@ -325,6 +331,24 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       }));
     }
   }, [tabs]);
+
+  // Dark mode effects
+  useEffect(() => {
+    // Apply/remove dark class to document element
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('dark-mode', JSON.stringify(isDarkMode));
+  }, [isDarkMode]);
+
+  // Dark mode toggle function
+  const toggleDarkMode = useCallback(() => {
+    setIsDarkMode(prev => !prev);
+  }, []);
 
   // Get current active tab
   const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId) || tabs[0], [tabs, activeTabId]);
@@ -1405,6 +1429,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         {/* Header */}
         <Toolbar
           onOpenAiSettings={() => setShowAiModal(true)}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={toggleDarkMode}
         />
         
         {/* Tab Bar */}

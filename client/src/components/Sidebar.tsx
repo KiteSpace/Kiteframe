@@ -24,7 +24,9 @@ import {
   Camera,
   History,
   Eye,
-  EyeOff
+  EyeOff,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -73,6 +75,7 @@ export function Sidebar({
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [isThemesExpanded, setIsThemesExpanded] = useState(true);
   // showImageModal is now passed as a prop
 
   const handleUrlSubmit = (nodeId: string) => {
@@ -721,35 +724,6 @@ export function Sidebar({
               </button>
             </div>
 
-            {/* Theme Selector Section */}
-            <div>
-              <h3 className="text-sm font-semibold mb-3">Workflow Themes</h3>
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  {workflowThemes.slice(0, 8).map((theme) => (
-                    <button
-                      key={theme.id}
-                      onClick={() => onApplyTheme?.(theme)}
-                      className="p-2 border border-border rounded-md hover:bg-accent transition-all duration-200 text-left group"
-                      title={theme.description}
-                      data-testid={`theme-${theme.id}`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <div 
-                          className="w-3 h-3 rounded-full border"
-                          style={{ backgroundColor: theme.nodeStyles.headerBackground }}
-                        />
-                        <div 
-                          className="w-3 h-3 rounded-full border"
-                          style={{ backgroundColor: theme.nodeStyles.bodyBackground }}
-                        />
-                      </div>
-                      <div className="text-xs font-medium">{theme.name}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
             
             <div>
               <h3 className="text-sm font-semibold mb-3">Node Types</h3>
@@ -769,6 +743,48 @@ export function Sidebar({
                   );
                 })}
               </div>
+            </div>
+
+            {/* Theme Selector Section - Collapsible */}
+            <div>
+              <div 
+                className="flex items-center justify-between cursor-pointer mb-3 hover:bg-accent rounded p-1 -m-1"
+                onClick={() => setIsThemesExpanded(!isThemesExpanded)}
+              >
+                <h3 className="text-sm font-semibold">Workflow Themes</h3>
+                {isThemesExpanded ? (
+                  <ChevronDown size={16} className="text-muted-foreground" />
+                ) : (
+                  <ChevronRight size={16} className="text-muted-foreground" />
+                )}
+              </div>
+              {isThemesExpanded && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    {workflowThemes.slice(0, 8).map((theme) => (
+                      <button
+                        key={theme.id}
+                        onClick={() => onApplyTheme?.(theme)}
+                        className="p-2 border border-border rounded-md hover:bg-accent transition-all duration-200 text-left group"
+                        title={theme.description}
+                        data-testid={`theme-${theme.id}`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <div 
+                            className="w-3 h-3 rounded-full border"
+                            style={{ backgroundColor: theme.nodeStyles.headerBackground }}
+                          />
+                          <div 
+                            className="w-3 h-3 rounded-full border"
+                            style={{ backgroundColor: theme.nodeStyles.bodyBackground }}
+                          />
+                        </div>
+                        <div className="text-xs font-medium">{theme.name}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>

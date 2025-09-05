@@ -6,14 +6,18 @@ import {
   Workflow,
   ChevronDown,
   Ship,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useState } from "react";
 
 interface ToolbarProps {
   onOpenAiSettings: () => void;
+  isDarkMode?: boolean;
+  onToggleDarkMode?: () => void;
 }
 
-export function Toolbar({ onOpenAiSettings }: ToolbarProps) {
+export function Toolbar({ onOpenAiSettings, isDarkMode, onToggleDarkMode }: ToolbarProps) {
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   return (
     <header
@@ -38,6 +42,18 @@ export function Toolbar({ onOpenAiSettings }: ToolbarProps) {
         </div>
       </div>
       <div className="flex items-center gap-3">
+        {/* Light/Dark Mode Toggle */}
+        {onToggleDarkMode && (
+          <button
+            className="p-2 rounded-md hover:bg-accent transition-colors"
+            onClick={onToggleDarkMode}
+            data-testid="button-theme-toggle"
+            title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+        )}
+        
         <div className="relative">
           <button
             className="p-2 rounded-md hover:bg-accent transition-colors"
