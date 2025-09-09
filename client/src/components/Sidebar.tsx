@@ -102,6 +102,24 @@ export function Sidebar({
   // Helper functions for bulk operations
   const selectedNodeCount = selectedNodes.length;
   const isMultiSelect = selectedNodeCount > 1;
+
+  // Helper function to determine if a color is light or dark
+  const isLightColor = (color: string): boolean => {
+    // Convert hex to RGB
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Calculate relative luminance using the formula from WCAG guidelines
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5;
+  };
+
+  // Helper function to get appropriate text color for a background
+  const getAppropriateTextColor = (backgroundColor: string): string => {
+    return isLightColor(backgroundColor) ? '#0f172a' : '#ffffff';
+  };
   
   const handleBulkUpdate = (updates: Partial<Node>) => {
     if (onBulkNodeUpdate && selectedNodes.length > 0) {
@@ -160,25 +178,35 @@ export function Sidebar({
                     <input
                       type="color"
                       value={getCommonProperty('data.colors.headerBackground') || '#f8fafc'}
-                      onChange={(e) => handleBulkUpdate({
-                        data: {
-                          colors: {
-                            headerBackground: e.target.value
+                      onChange={(e) => {
+                        const newHeaderBg = e.target.value;
+                        const newHeaderTextColor = getAppropriateTextColor(newHeaderBg);
+                        handleBulkUpdate({
+                          data: {
+                            colors: {
+                              headerBackground: newHeaderBg,
+                              headerTextColor: newHeaderTextColor
+                            }
                           }
-                        }
-                      })}
+                        });
+                      }}
                       className="w-8 h-8 rounded border border-border cursor-pointer"
                     />
                     <input
                       type="text"
                       value={getCommonProperty('data.colors.headerBackground') || '#f8fafc'}
-                      onChange={(e) => handleBulkUpdate({
-                        data: {
-                          colors: {
-                            headerBackground: e.target.value
+                      onChange={(e) => {
+                        const newHeaderBg = e.target.value;
+                        const newHeaderTextColor = getAppropriateTextColor(newHeaderBg);
+                        handleBulkUpdate({
+                          data: {
+                            colors: {
+                              headerBackground: newHeaderBg,
+                              headerTextColor: newHeaderTextColor
+                            }
                           }
-                        }
-                      })}
+                        });
+                      }}
                       className="flex-1 p-2 text-xs border border-border rounded bg-background font-mono"
                     />
                   </div>
@@ -190,25 +218,35 @@ export function Sidebar({
                     <input
                       type="color"
                       value={getCommonProperty('data.colors.bodyBackground') || 'white'}
-                      onChange={(e) => handleBulkUpdate({
-                        data: {
-                          colors: {
-                            bodyBackground: e.target.value
+                      onChange={(e) => {
+                        const newBodyBg = e.target.value;
+                        const newBodyTextColor = getAppropriateTextColor(newBodyBg);
+                        handleBulkUpdate({
+                          data: {
+                            colors: {
+                              bodyBackground: newBodyBg,
+                              bodyTextColor: newBodyTextColor
+                            }
                           }
-                        }
-                      })}
+                        });
+                      }}
                       className="w-8 h-8 rounded border border-border cursor-pointer"
                     />
                     <input
                       type="text"
                       value={getCommonProperty('data.colors.bodyBackground') || 'white'}
-                      onChange={(e) => handleBulkUpdate({
-                        data: {
-                          colors: {
-                            bodyBackground: e.target.value
+                      onChange={(e) => {
+                        const newBodyBg = e.target.value;
+                        const newBodyTextColor = getAppropriateTextColor(newBodyBg);
+                        handleBulkUpdate({
+                          data: {
+                            colors: {
+                              bodyBackground: newBodyBg,
+                              bodyTextColor: newBodyTextColor
+                            }
                           }
-                        }
-                      })}
+                        });
+                      }}
                       className="flex-1 p-2 text-xs border border-border rounded bg-background font-mono"
                     />
                   </div>
@@ -535,15 +573,20 @@ export function Sidebar({
                           <input
                             type="color"
                             value={selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc'}
-                            onChange={(e) => onNodeUpdate(selectedNode.id, {
-                              data: {
-                                ...selectedNode.data,
-                                colors: {
-                                  ...selectedNode.data?.colors,
-                                  headerBackground: e.target.value
+                            onChange={(e) => {
+                              const newHeaderBg = e.target.value;
+                              const newHeaderTextColor = getAppropriateTextColor(newHeaderBg);
+                              onNodeUpdate(selectedNode.id, {
+                                data: {
+                                  ...selectedNode.data,
+                                  colors: {
+                                    ...selectedNode.data?.colors,
+                                    headerBackground: newHeaderBg,
+                                    headerTextColor: newHeaderTextColor
+                                  }
                                 }
-                              }
-                            })}
+                              });
+                            }}
                             className="w-6 h-6 rounded-full border border-border cursor-pointer opacity-0 absolute"
                             data-testid="input-header-bg-color"
                           />
@@ -555,15 +598,20 @@ export function Sidebar({
                         <input
                           type="text"
                           value={selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc'}
-                          onChange={(e) => onNodeUpdate(selectedNode.id, {
-                            data: {
-                              ...selectedNode.data,
-                              colors: {
-                                ...selectedNode.data?.colors,
-                                headerBackground: e.target.value
+                          onChange={(e) => {
+                            const newHeaderBg = e.target.value;
+                            const newHeaderTextColor = getAppropriateTextColor(newHeaderBg);
+                            onNodeUpdate(selectedNode.id, {
+                              data: {
+                                ...selectedNode.data,
+                                colors: {
+                                  ...selectedNode.data?.colors,
+                                  headerBackground: newHeaderBg,
+                                  headerTextColor: newHeaderTextColor
+                                }
                               }
-                            }
-                          })}
+                            });
+                          }}
                           className="flex-1 p-1 text-xs border border-border rounded bg-background"
                           placeholder="#f8fafc"
                           data-testid="input-header-bg-hex"
@@ -579,15 +627,20 @@ export function Sidebar({
                           <input
                             type="color"
                             value={selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || 'white'}
-                            onChange={(e) => onNodeUpdate(selectedNode.id, {
-                              data: {
-                                ...selectedNode.data,
-                                colors: {
-                                  ...selectedNode.data?.colors,
-                                  bodyBackground: e.target.value
+                            onChange={(e) => {
+                              const newBodyBg = e.target.value;
+                              const newBodyTextColor = getAppropriateTextColor(newBodyBg);
+                              onNodeUpdate(selectedNode.id, {
+                                data: {
+                                  ...selectedNode.data,
+                                  colors: {
+                                    ...selectedNode.data?.colors,
+                                    bodyBackground: newBodyBg,
+                                    bodyTextColor: newBodyTextColor
+                                  }
                                 }
-                              }
-                            })}
+                              });
+                            }}
                             className="w-6 h-6 rounded-full border border-border cursor-pointer opacity-0 absolute"
                             data-testid="input-body-bg-color"
                           />
@@ -599,15 +652,20 @@ export function Sidebar({
                         <input
                           type="text"
                           value={selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || '#ffffff'}
-                          onChange={(e) => onNodeUpdate(selectedNode.id, {
-                            data: {
-                              ...selectedNode.data,
-                              colors: {
-                                ...selectedNode.data?.colors,
-                                bodyBackground: e.target.value
+                          onChange={(e) => {
+                            const newBodyBg = e.target.value;
+                            const newBodyTextColor = getAppropriateTextColor(newBodyBg);
+                            onNodeUpdate(selectedNode.id, {
+                              data: {
+                                ...selectedNode.data,
+                                colors: {
+                                  ...selectedNode.data?.colors,
+                                  bodyBackground: newBodyBg,
+                                  bodyTextColor: newBodyTextColor
+                                }
                               }
-                            }
-                          })}
+                            });
+                          }}
                           className="flex-1 p-1 text-xs border border-border rounded bg-background"
                           placeholder="#ffffff"
                           data-testid="input-body-bg-hex"
