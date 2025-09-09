@@ -159,8 +159,8 @@ export function Sidebar({
   ];
 
   return (
-    <aside className="w-64 p-4 bg-card border-r border-border shadow-sm" data-testid="sidebar">
-      <div className="space-y-6">
+    <aside className="w-64 p-4 bg-card border-r border-border shadow-sm flex flex-col h-full overflow-hidden" data-testid="sidebar">
+      <div className="space-y-6 flex-1 overflow-y-auto">
         {isMultiSelect ? (
           // Multi-select properties view
           <div>

@@ -45,8 +45,8 @@ export function EdgeCustomizer({ selectedEdge, onEdgeUpdate, onDeselectEdge }: E
   const currentMarkers = selectedEdge.markers || { type: 'arrow' };
 
   return (
-    <div className="w-64 p-4 bg-card border-r border-border shadow-sm" data-testid="edge-customizer">
-      <div className="space-y-6">
+    <div className="w-64 p-4 bg-card border-r border-border shadow-sm flex flex-col h-full overflow-hidden" data-testid="edge-customizer">
+      <div className="space-y-6 flex-1 overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold">Edge Properties</h3>
           <button

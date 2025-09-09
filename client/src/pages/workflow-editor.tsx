@@ -1436,7 +1436,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         
         {/* Tab Bar */}
         <div className="flex items-center bg-card border-b border-border px-4 py-2">
-          <div className="flex items-center space-x-1 flex-1 overflow-x-auto">
+          <div className="flex items-center space-x-1 flex-1 overflow-x-auto min-w-0">
             {tabs.map((tab) => (
               <div
                 key={tab.id}
@@ -1515,9 +1515,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex">
+        <div className="flex-1 flex overflow-hidden">
           {/* Sidebar or Edge Customizer */}
-          <div className="w-64 border-r border-border flex flex-col">
+          <div className="w-64 border-r border-border flex flex-col overflow-hidden">
             {selectedEdgeId ? (
               <EdgeCustomizer
                 selectedEdge={edges.find(e => e.id === selectedEdgeId)}
@@ -1808,7 +1808,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           </div>
 
           {/* Canvas Area */}
-          <div className="flex-1 relative">
+          <div className="flex-1 relative overflow-hidden">
             
             <WorkflowCanvas
               nodes={nodes}
