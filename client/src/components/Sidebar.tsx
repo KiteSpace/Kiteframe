@@ -51,6 +51,7 @@ interface SidebarProps {
   onSnapshot?: () => void;
   onVersionHistory?: () => void;
   onApplyTheme?: (theme: WorkflowTheme) => void;
+  copiedProperties?: { colors?: any; data?: Partial<Node['data']> } | null;
 }
 
 export function Sidebar({
@@ -75,6 +76,7 @@ export function Sidebar({
   onSnapshot,
   onVersionHistory,
   onApplyTheme,
+  copiedProperties,
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
@@ -271,6 +273,26 @@ export function Sidebar({
                     />
                   </div>
                 </div>
+
+                {/* Paste Properties Button */}
+                {copiedProperties && (
+                  <button
+                    onClick={() => {
+                      if (copiedProperties) {
+                        handleBulkUpdate({
+                          data: {
+                            ...copiedProperties.data,
+                            colors: copiedProperties.colors
+                          }
+                        });
+                      }
+                    }}
+                    className="w-full p-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
+                    data-testid="button-paste-properties-bulk"
+                  >
+                    Paste Properties to All Selected
+                  </button>
+                )}
 
                 <button
                   onClick={() => {

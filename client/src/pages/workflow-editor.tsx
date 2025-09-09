@@ -1785,6 +1785,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                 saveToHistory();
               }}
+              copiedProperties={copiedProperties}
               />
             )}
           </div>
