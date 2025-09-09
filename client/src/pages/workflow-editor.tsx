@@ -17,8 +17,6 @@ import { AiProvider, useAi } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import { useToast } from '@/hooks/use-toast';
 import { ObjectUploader } from '@/components/ObjectUploader';
-import { PerformanceDashboard } from '@/components/PerformanceDashboard';
-import { performanceManager } from '@/lib/performance/performanceManager';
 import type { Node, Edge, ProFeaturesConfig, NodeType } from '../lib/kiteframe/types';
 import '../lib/kiteframe/styles/kiteframe.css';
 import { X, Plus } from 'lucide-react';
@@ -1259,8 +1257,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showImportModal, setShowImportModal] = useState(false);
   const [showNewTabModal, setShowNewTabModal] = useState(false);
   const [showPluginTest, setShowPluginTest] = useState(false);
-  const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false);
-  const [performanceOverlaysEnabled, setPerformanceOverlaysEnabled] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node } | null>(null);
   const [isEditingWorkflowName, setIsEditingWorkflowName] = useState(false);
   const [workflowNameInput, setWorkflowNameInput] = useState('');
@@ -1277,14 +1273,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     };
   }, [activeTab, tabs, setTabs, setActiveTabId, updateActiveTab]);
 
-  // Initialize performance simulation when nodes/edges change
-  useEffect(() => {
-    if (nodes.length > 0 || edges.length > 0) {
-      const nodeIds = nodes.map(n => n.id);
-      const edgeIds = edges.map(e => e.id);
-      performanceManager.simulateWorkflow(nodeIds, edgeIds);
-    }
-  }, [nodes, edges]);
 
   // Auto-register demo plugins when component mounts
   useEffect(() => {
@@ -1784,9 +1772,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                 saveToHistory();
               }}
-              onOpenPerformanceDashboard={() => setShowPerformanceDashboard(true)}
-              onTogglePerformanceOverlays={() => setPerformanceOverlaysEnabled(!performanceOverlaysEnabled)}
-              performanceOverlaysEnabled={performanceOverlaysEnabled}
               />
             )}
           </div>
@@ -2343,13 +2328,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           />
         )}
 
-        {/* Performance Dashboard Modal */}
-        {showPerformanceDashboard && (
-          <PerformanceDashboard
-            isVisible={showPerformanceDashboard}
-            onClose={() => setShowPerformanceDashboard(false)}
-          />
-        )}
       </div>
   );
 }

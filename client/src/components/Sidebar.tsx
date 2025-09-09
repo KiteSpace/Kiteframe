@@ -27,13 +27,6 @@ import {
   EyeOff,
   ChevronDown,
   ChevronRight,
-  Activity,
-  TrendingUp,
-  Zap,
-  BarChart3,
-  Play,
-  Pause,
-  RotateCw
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -56,9 +49,6 @@ interface SidebarProps {
   onSnapshot?: () => void;
   onVersionHistory?: () => void;
   onApplyTheme?: (theme: WorkflowTheme) => void;
-  onOpenPerformanceDashboard?: () => void;
-  onTogglePerformanceOverlays?: () => void;
-  performanceOverlaysEnabled?: boolean;
 }
 
 export function Sidebar({
@@ -81,15 +71,11 @@ export function Sidebar({
   onSnapshot,
   onVersionHistory,
   onApplyTheme,
-  onOpenPerformanceDashboard,
-  onTogglePerformanceOverlays,
-  performanceOverlaysEnabled = false
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [isThemesExpanded, setIsThemesExpanded] = useState(true);
-  const [isPerformanceExpanded, setIsPerformanceExpanded] = useState(true);
   // showImageModal is now passed as a prop
 
   const handleUrlSubmit = (nodeId: string) => {
@@ -801,123 +787,6 @@ export function Sidebar({
               )}
             </div>
 
-            {/* Performance Controls Section - Collapsible */}
-            <div>
-              <div 
-                className="flex items-center justify-between cursor-pointer mb-3 hover:bg-accent rounded p-1 -m-1"
-                onClick={() => setIsPerformanceExpanded(!isPerformanceExpanded)}
-              >
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <Activity size={14} className="text-primary" />
-                  Performance Metrics
-                </h3>
-                {isPerformanceExpanded ? (
-                  <ChevronDown size={16} className="text-muted-foreground" />
-                ) : (
-                  <ChevronRight size={16} className="text-muted-foreground" />
-                )}
-              </div>
-              {isPerformanceExpanded && (
-                <div className="space-y-3">
-                  {/* Dashboard Button */}
-                  <button
-                    onClick={onOpenPerformanceDashboard}
-                    className="w-full p-3 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg transition-colors text-left"
-                    data-testid="button-open-performance-dashboard"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/20 rounded-md">
-                        <BarChart3 size={16} className="text-primary" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium">Performance Dashboard</div>
-                        <div className="text-xs text-muted-foreground">View detailed metrics & analytics</div>
-                      </div>
-                    </div>
-                  </button>
-
-                  {/* Performance Controls */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2 bg-background border border-border rounded-md">
-                      <div className="flex items-center gap-2">
-                        <Zap size={14} className="text-yellow-500" />
-                        <span className="text-sm font-medium">Live Overlays</span>
-                      </div>
-                      <button
-                        onClick={onTogglePerformanceOverlays}
-                        className={`w-10 h-5 rounded-full border transition-colors relative ${
-                          performanceOverlaysEnabled 
-                            ? 'bg-primary border-primary' 
-                            : 'bg-muted border-border'
-                        }`}
-                        data-testid="toggle-performance-overlays"
-                      >
-                        <div
-                          className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${
-                            performanceOverlaysEnabled ? 'translate-x-5' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Quick Actions */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => {
-                          // Will be connected to performance manager
-                          console.log('Starting performance simulation');
-                        }}
-                        className="p-2 border border-border rounded-md hover:bg-accent transition-colors text-left"
-                        data-testid="button-start-simulation"
-                      >
-                        <div className="flex items-center gap-1 mb-1">
-                          <Play size={12} className="text-green-500" />
-                          <span className="text-xs font-medium">Start</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">Begin simulation</div>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          // Will be connected to performance manager
-                          console.log('Stopping performance simulation');
-                        }}
-                        className="p-2 border border-border rounded-md hover:bg-accent transition-colors text-left"
-                        data-testid="button-stop-simulation"
-                      >
-                        <div className="flex items-center gap-1 mb-1">
-                          <Pause size={12} className="text-red-500" />
-                          <span className="text-xs font-medium">Stop</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">End simulation</div>
-                      </button>
-                    </div>
-
-                    {/* Performance Indicators */}
-                    <div className="p-2 bg-muted/50 rounded-md">
-                      <div className="text-xs font-medium mb-2 flex items-center gap-1">
-                        <TrendingUp size={12} className="text-blue-500" />
-                        Quick Stats
-                      </div>
-                      <div className="space-y-1 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Avg Execution:</span>
-                          <span className="font-mono">--ms</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Success Rate:</span>
-                          <span className="font-mono">--%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Throughput:</span>
-                          <span className="font-mono">-- ops/s</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
             <div>
               <h3 className="text-sm font-semibold mb-3">Actions</h3>
