@@ -1786,6 +1786,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 saveToHistory();
               }}
               copiedProperties={copiedProperties}
+              onApplyToWorkflow={(colors) => {
+                // Apply colors to all nodes in the current workflow
+                saveToHistory();
+                setNodes(prev => prev.map(node => ({
+                  ...node,
+                  data: {
+                    ...node.data,
+                    colors: {
+                      ...node.data?.colors,
+                      headerBackground: colors.headerBackground,
+                      bodyBackground: colors.bodyBackground,
+                      headerTextColor: colors.headerTextColor,
+                      bodyTextColor: colors.bodyTextColor
+                    }
+                  }
+                })));
+              }}
               />
             )}
           </div>

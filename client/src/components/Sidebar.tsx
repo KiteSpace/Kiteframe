@@ -52,6 +52,12 @@ interface SidebarProps {
   onVersionHistory?: () => void;
   onApplyTheme?: (theme: WorkflowTheme) => void;
   copiedProperties?: { colors?: any; data?: Partial<Node['data']> } | null;
+  onApplyToWorkflow?: (colors: {
+    headerBackground: string;
+    bodyBackground: string;
+    headerTextColor: string;
+    bodyTextColor: string;
+  }) => void;
 }
 
 export function Sidebar({
@@ -77,6 +83,7 @@ export function Sidebar({
   onVersionHistory,
   onApplyTheme,
   copiedProperties,
+  onApplyToWorkflow,
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
@@ -334,8 +341,15 @@ export function Sidebar({
 
                 <button
                   onClick={() => {
-                    // Apply to workflow functionality will be added later
-                    console.log('Apply to workflow clicked');
+                    if (onApplyToWorkflow) {
+                      const colors = {
+                        headerBackground: getCommonProperty('data.colors.headerBackground') || '#f8fafc',
+                        bodyBackground: getCommonProperty('data.colors.bodyBackground') || 'white',
+                        headerTextColor: getCommonProperty('data.colors.headerTextColor') || '#0f172a',
+                        bodyTextColor: getCommonProperty('data.colors.bodyTextColor') || '#475569',
+                      };
+                      onApplyToWorkflow(colors);
+                    }
                   }}
                   className="w-full p-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
                   data-testid="button-apply-to-workflow"
