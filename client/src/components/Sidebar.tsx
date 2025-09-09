@@ -31,6 +31,7 @@ import {
 
 interface SidebarProps {
   selectedNode?: Node;
+  selectedNodes?: Node[];
   selectedEdge?: Edge;
   onCreateNode: (type: string) => void;
   onFitView: () => void;
@@ -38,6 +39,7 @@ interface SidebarProps {
   onExport: () => void;
   onImport: () => void;
   onNodeUpdate: (nodeId: string, updates: Partial<Node>) => void;
+  onBulkNodeUpdate?: (nodeIds: string[], updates: Partial<Node>) => void;
   onEdgeUpdate?: (edgeId: string, updates: Partial<Edge>) => void;
   onDeselectNode: () => void;
   onImageUpload?: (nodeId: string, objectPath: string, filename?: string) => void;
@@ -53,6 +55,7 @@ interface SidebarProps {
 
 export function Sidebar({
   selectedNode,
+  selectedNodes = [],
   selectedEdge,
   onCreateNode,
   onFitView,
@@ -60,6 +63,7 @@ export function Sidebar({
   onExport,
   onImport,
   onNodeUpdate,
+  onBulkNodeUpdate,
   onEdgeUpdate,
   onDeselectNode,
   onImageUpload,
@@ -92,6 +96,32 @@ export function Sidebar({
     });
     setShowDeleteConfirm(null);
   };
+
+  // Helper functions for bulk operations
+  const selectedNodeCount = selectedNodes.length;
+  const isMultiSelect = selectedNodeCount > 1;
+  
+  const handleBulkUpdate = (updates: Partial<Node>) => {
+    if (onBulkNodeUpdate && selectedNodes.length > 0) {
+      onBulkNodeUpdate(selectedNodes.map(n => n.id), updates);
+    }
+  };
+
+  // Get common properties from selected nodes (for bulk editing display)
+  const getCommonProperty = (property: string) => {
+    if (selectedNodes.length === 0) return '';
+    const values = selectedNodes.map(node => {
+      const parts = property.split('.');
+      let value = node as any;
+      for (const part of parts) {
+        value = value?.[part];
+      }
+      return value;
+    });
+    const firstValue = values[0];
+    const allSame = values.every(v => v === firstValue);
+    return allSame ? firstValue : '';
+  };
   const nodeTypes = [
     { type: 'input', icon: ArrowRight, color: 'text-blue-500', label: 'Input' },
     { type: 'process', icon: Cog, color: 'text-green-500', label: 'Process' },
@@ -104,8 +134,159 @@ export function Sidebar({
   return (
     <aside className="w-64 p-4 bg-card border-r border-border shadow-sm" data-testid="sidebar">
       <div className="space-y-6">
-        {selectedNode ? (
-          // Properties view when node is selected
+        {isMultiSelect ? (
+          // Multi-select properties view
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">
+                Node Properties ({selectedNodeCount} selected)
+              </h3>
+              <button
+                onClick={onDeselectNode}
+                className="p-1 rounded-md hover:bg-accent transition-colors"
+                data-testid="button-close-properties"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-3" data-testid="node-properties">
+              {/* Multi-select bulk editing interface */}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium mb-1 block">Header Background</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      value={getCommonProperty('data.colors.headerBackground') || '#f8fafc'}
+                      onChange={(e) => handleBulkUpdate({
+                        data: {
+                          colors: {
+                            headerBackground: e.target.value
+                          }
+                        }
+                      })}
+                      className="w-8 h-8 rounded border border-border cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={getCommonProperty('data.colors.headerBackground') || '#f8fafc'}
+                      onChange={(e) => handleBulkUpdate({
+                        data: {
+                          colors: {
+                            headerBackground: e.target.value
+                          }
+                        }
+                      })}
+                      className="flex-1 p-2 text-xs border border-border rounded bg-background font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium mb-1 block">Body Background</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      value={getCommonProperty('data.colors.bodyBackground') || 'white'}
+                      onChange={(e) => handleBulkUpdate({
+                        data: {
+                          colors: {
+                            bodyBackground: e.target.value
+                          }
+                        }
+                      })}
+                      className="w-8 h-8 rounded border border-border cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={getCommonProperty('data.colors.bodyBackground') || 'white'}
+                      onChange={(e) => handleBulkUpdate({
+                        data: {
+                          colors: {
+                            bodyBackground: e.target.value
+                          }
+                        }
+                      })}
+                      className="flex-1 p-2 text-xs border border-border rounded bg-background font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium mb-1 block">Header Text Color</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      value={getCommonProperty('data.colors.headerTextColor') || '#0f172a'}
+                      onChange={(e) => handleBulkUpdate({
+                        data: {
+                          colors: {
+                            headerTextColor: e.target.value
+                          }
+                        }
+                      })}
+                      className="w-8 h-8 rounded border border-border cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={getCommonProperty('data.colors.headerTextColor') || '#0f172a'}
+                      onChange={(e) => handleBulkUpdate({
+                        data: {
+                          colors: {
+                            headerTextColor: e.target.value
+                          }
+                        }
+                      })}
+                      className="flex-1 p-2 text-xs border border-border rounded bg-background font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium mb-1 block">Body Text Color</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      value={getCommonProperty('data.colors.bodyTextColor') || '#475569'}
+                      onChange={(e) => handleBulkUpdate({
+                        data: {
+                          colors: {
+                            bodyTextColor: e.target.value
+                          }
+                        }
+                      })}
+                      className="w-8 h-8 rounded border border-border cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={getCommonProperty('data.colors.bodyTextColor') || '#475569'}
+                      onChange={(e) => handleBulkUpdate({
+                        data: {
+                          colors: {
+                            bodyTextColor: e.target.value
+                          }
+                        }
+                      })}
+                      className="flex-1 p-2 text-xs border border-border rounded bg-background font-mono"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    // Apply to workflow functionality will be added later
+                    console.log('Apply to workflow clicked');
+                  }}
+                  className="w-full p-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+                  data-testid="button-apply-to-workflow"
+                >
+                  Apply to Workflow
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : selectedNode ? (
+          // Single-select properties view
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold">Node Properties</h3>

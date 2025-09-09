@@ -1533,6 +1533,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             ) : (
               <Sidebar
                 selectedNode={nodes.find(n => n.id === selectedNodeId)}
+                selectedNodes={nodes.filter(n => n.selected)}
                 selectedEdge={edges.find(e => e.id === selectedEdgeId)}
                 onCreateNode={(type: string) => {
                 saveToHistory(); // Save current state before adding node
@@ -1657,6 +1658,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }}
               onNodeUpdate={(nodeId: string, updates: Partial<Node>) => {
                 setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, ...updates } : n));
+                saveToHistory();
+              }}
+              onBulkNodeUpdate={(nodeIds: string[], updates: Partial<Node>) => {
+                setNodes(prev => prev.map(n => 
+                  nodeIds.includes(n.id) 
+                    ? { 
+                        ...n, 
+                        ...updates,
+                        data: updates.data ? { ...n.data, ...updates.data } : n.data
+                      } 
+                    : n
+                ));
                 saveToHistory();
               }}
               onEdgeUpdate={(edgeId: string, updates: Partial<Edge>) => {
