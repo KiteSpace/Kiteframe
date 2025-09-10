@@ -1,8 +1,15 @@
-import { LogIn, LogOut, User } from 'lucide-react';
+import { LogIn, LogOut, User, ExternalLink } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useState, useEffect } from 'react';
 
 export function AuthButton() {
   const { user, loading, signIn, signOut, isAuthenticated } = useAuth();
+  const [isInIframe, setIsInIframe] = useState(false);
+
+  useEffect(() => {
+    // Check if we're running inside an iframe (like Replit preview)
+    setIsInIframe(window.top !== window);
+  }, []);
 
   if (loading) {
     return (
@@ -31,6 +38,24 @@ export function AuthButton() {
           <span>Sign Out</span>
         </button>
       </div>
+    );
+  }
+
+  if (isInIframe) {
+    // When in iframe (like Replit preview), show button to open in new tab
+    return (
+      <button
+        onClick={() => {
+          const currentUrl = window.location.href;
+          window.open(currentUrl, '_blank', 'noopener,noreferrer');
+        }}
+        className="flex items-center space-x-1 px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium transition-colors"
+        data-testid="button-open-in-tab"
+        title="Open in new tab to sign in with Google"
+      >
+        <ExternalLink size={16} />
+        <span>Open to Sign In</span>
+      </button>
     );
   }
 
