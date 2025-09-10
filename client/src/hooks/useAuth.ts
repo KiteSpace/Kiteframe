@@ -9,19 +9,25 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('🔐 useAuth: Component mounted, checking auth state...');
+    
     // Handle redirect result on page load
     handleAuthRedirect()
       .then((result) => {
         if (result?.user) {
-          console.log('User authenticated from redirect');
+          console.log('✅ User authenticated from redirect:', result.user.displayName || result.user.email);
+        } else {
+          console.log('ℹ️ No redirect result found');
         }
       })
       .catch((error) => {
+        console.error('❌ Auth redirect error:', error);
         setError(error.message);
       });
 
     // Listen for authentication state changes
     const unsubscribe = onAuthStateChange((user) => {
+      console.log('🔄 Auth state changed:', user ? `User: ${user.displayName || user.email}` : 'No user');
       setUser(user);
       setLoading(false);
       setError(null);
