@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { onAuthStateChange, signInWithGoogle, signOutUser } from '../lib/firebase';
-import { handleAuthRedirect } from '../lib/authRedirect';
+import { getRedirectResult } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -11,8 +12,8 @@ export function useAuth() {
   useEffect(() => {
     console.log('🔐 useAuth: Component mounted, checking auth state...');
     
-    // Handle redirect result on page load
-    handleAuthRedirect()
+    // Check for redirect result when component mounts
+    getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
           console.log('✅ User authenticated from redirect:', result.user.displayName || result.user.email);
@@ -39,8 +40,10 @@ export function useAuth() {
   const signIn = async () => {
     try {
       setError(null);
-      await signInWithGoogle();
+      console.log('🔑 Starting Google sign-in with redirect...');
+      await signInWithGoogle(); // This will redirect to Google
     } catch (error: any) {
+      console.error('❌ Sign-in error:', error);
       setError(error.message);
     }
   };

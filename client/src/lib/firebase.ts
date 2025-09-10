@@ -1,7 +1,7 @@
 // Firebase configuration and authentication setup
 // Based on firebase_barebones_javascript integration
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithRedirect, GoogleAuthProvider, User, onAuthStateChanged, signOut } from "firebase/auth";
+import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, User, onAuthStateChanged, signOut } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -23,7 +23,7 @@ const provider = new GoogleAuthProvider();
 
 // Authentication functions
 export function signInWithGoogle() {
-  signInWithRedirect(auth, provider);
+  return signInWithRedirect(auth, provider);
 }
 
 export function signOutUser() {
