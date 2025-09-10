@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User } from 'firebase/auth';
+import { User, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { onAuthStateChange, signInWithGoogle, signOutUser } from '../lib/firebase';
 import { getRedirectResult } from 'firebase/auth';
 import { auth } from '../lib/firebase';
@@ -17,6 +17,27 @@ export function useAuth() {
       .then((result) => {
         if (result?.user) {
           console.log('✅ User authenticated from redirect:', result.user.displayName || result.user.email);
+          
+          // Extract credential and broadcast to iframe (if this is external browser tab)
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          if (credential?.idToken && credential?.accessToken) {
+            console.log('📡 Broadcasting auth credential to iframe...');
+            const payload = {
+              type: 'FIREBASE_AUTH_CREDENTIAL',
+              idToken: credential.idToken,
+              accessToken: credential.accessToken
+            };
+            
+            try {
+              new BroadcastChannel('firebase-auth-sync').postMessage(payload);
+            } catch (e) {
+              console.log('⚠️ BroadcastChannel not available, trying postMessage fallback');
+              // Fallback: try postMessage if BroadcastChannel not supported
+              if (window.opener) {
+                window.opener.postMessage(payload, window.location.origin);
+              }
+            }
+          }
         } else {
           console.log('ℹ️ No redirect result found');
         }
@@ -26,6 +47,42 @@ export function useAuth() {
         setError(error.message);
       });
 
+    // Listen for auth credentials from external browser tab (if this is iframe)
+    const broadcastChannel = new BroadcastChannel('firebase-auth-sync');
+    broadcastChannel.onmessage = async (event) => {
+      if (event.data?.type === 'FIREBASE_AUTH_CREDENTIAL') {
+        console.log('📡 Received auth credential from external tab, signing in...');
+        try {
+          const { idToken, accessToken } = event.data;
+          const credential = GoogleAuthProvider.credential(idToken, accessToken);
+          await signInWithCredential(auth, credential);
+          console.log('✅ Successfully signed in via credential sync!');
+        } catch (error) {
+          console.error('❌ Failed to sign in with credential:', error);
+          setError('Failed to sync authentication from external browser');
+        }
+      }
+    };
+
+    // Fallback: listen for postMessage (same origin check)
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === 'FIREBASE_AUTH_CREDENTIAL') {
+        console.log('📡 Received auth credential via postMessage, signing in...');
+        try {
+          const { idToken, accessToken } = event.data;
+          const credential = GoogleAuthProvider.credential(idToken, accessToken);
+          await signInWithCredential(auth, credential);
+          console.log('✅ Successfully signed in via postMessage credential sync!');
+        } catch (error) {
+          console.error('❌ Failed to sign in with postMessage credential:', error);
+          setError('Failed to sync authentication from external browser');
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
     // Listen for authentication state changes
     const unsubscribe = onAuthStateChange((user) => {
       console.log('🔄 Auth state changed:', user ? `User: ${user.displayName || user.email}` : 'No user');
@@ -34,7 +91,11 @@ export function useAuth() {
       setError(null);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      broadcastChannel.close();
+      window.removeEventListener('message', handleMessage);
+    };
   }, []);
 
   const signIn = async () => {
