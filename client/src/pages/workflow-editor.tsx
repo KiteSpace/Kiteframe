@@ -17,6 +17,8 @@ import { AiProvider, useAi } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import { useToast } from '@/hooks/use-toast';
 import { ObjectUploader } from '@/components/ObjectUploader';
+import { useFirebaseWorkflows } from '../hooks/useFirebaseWorkflows';
+import { useAuth } from '../hooks/useAuth';
 import type { Node, Edge, ProFeaturesConfig, NodeType } from '../lib/kiteframe/types';
 import '../lib/kiteframe/styles/kiteframe.css';
 import { X, Plus } from 'lucide-react';
@@ -1803,6 +1805,37 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }
                 })));
               }}
+              currentWorkflow={activeTab ? {
+                id: activeTab.id,
+                name: activeTab.name,
+                nodes: activeTab.nodes,
+                edges: activeTab.edges
+              } : undefined}
+              onLoadWorkflow={(workflow) => {
+                // Create a new tab with the loaded workflow
+                const newTab: WorkflowTab = {
+                  id: workflow.id,
+                  name: workflow.name,
+                  nodes: workflow.nodes,
+                  edges: workflow.edges,
+                  viewport: { x: 0, y: 0, zoom: 1 },
+                  selectedNodeId: '',
+                  selectedEdgeId: '',
+                  history: [{ nodes: workflow.nodes, edges: workflow.edges, viewport: { x: 0, y: 0, zoom: 1 } }],
+                  historyIndex: 0,
+                  showImageModal: null,
+                  metadata: {
+                    name: workflow.name,
+                    description: '',
+                    links: [],
+                    linksFormat: 'bulleted',
+                    categories: []
+                  }
+                };
+                
+                setTabs(prev => [...prev, newTab]);
+                setActiveTabId(newTab.id);
+              }}
               />
             )}
           </div>
@@ -1819,8 +1852,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onQuickAdd={handleQuickAdd}
               workflowName={activeTab?.name}
               onWorkflowNameChange={setWorkflowName}
-              workflowMetadata={metadata}
-              onWorkflowMetadataChange={setWorkflowMetadata}
               onEdgeReconnect={handleEdgeReconnect}
               onNodesChange={(changes) => {
                 console.log('📊 onNodesChange CALLED:', {

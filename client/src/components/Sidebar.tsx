@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Node, Edge } from '../lib/kiteframe/types';
 import { ObjectUploader } from '@/components/ObjectUploader';
 import { LocalImageUploader } from '@/components/LocalImageUploader';
+import { WorkflowManager } from './WorkflowManager';
 import { workflowThemes, type WorkflowTheme } from '@/lib/themes';
 import { 
   ArrowRight, 
@@ -28,6 +29,13 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
+
+interface WorkflowTab {
+  id: string;
+  name: string;
+  nodes: Node[];
+  edges: Edge[];
+}
 
 interface SidebarProps {
   selectedNode?: Node;
@@ -58,6 +66,8 @@ interface SidebarProps {
     headerTextColor: string;
     bodyTextColor: string;
   }) => void;
+  currentWorkflow?: WorkflowTab;
+  onLoadWorkflow?: (workflow: WorkflowTab) => void;
 }
 
 export function Sidebar({
@@ -84,6 +94,8 @@ export function Sidebar({
   onApplyTheme,
   copiedProperties,
   onApplyToWorkflow,
+  currentWorkflow,
+  onLoadWorkflow,
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');

@@ -10,6 +10,7 @@ import {
   Moon,
 } from "lucide-react";
 import { useState } from "react";
+import { AuthButton } from "./AuthButton";
 
 interface ToolbarProps {
   onOpenAiSettings: () => void;
@@ -42,6 +43,9 @@ export function Toolbar({ onOpenAiSettings, isDarkMode, onToggleDarkMode }: Tool
         </div>
       </div>
       <div className="flex items-center gap-3">
+        {/* Authentication */}
+        <AuthButton />
+        
         {/* Light/Dark Mode Toggle */}
         {onToggleDarkMode && (
           <button
