@@ -12,16 +12,6 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Debug logging to verify configuration
-console.log('🔥 Firebase Debug Info (Enhanced):');
-console.log('  ALL ENV VARS:', import.meta.env);
-console.log('  Project ID:', import.meta.env.VITE_FIREBASE_PROJECT_ID);
-console.log('  Project ID type:', typeof import.meta.env.VITE_FIREBASE_PROJECT_ID);
-console.log('  Auth Domain:', `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`);
-console.log('  Current Origin:', window.location.origin);
-console.log('  API Key (partial):', import.meta.env.VITE_FIREBASE_API_KEY?.substring(0, 10) + '...');
-console.log('  App ID (partial):', import.meta.env.VITE_FIREBASE_APP_ID?.substring(0, 15) + '...');
-console.log('🔥 End Firebase Debug Info');
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
