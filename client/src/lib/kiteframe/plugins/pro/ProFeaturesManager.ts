@@ -1,4 +1,5 @@
-import type { Node, ProFeaturesConfig, NodeType } from '../../types';
+import type { Node, Edge, ProFeaturesConfig, NodeType, SmartGuidesConfig, SmartConnectConfig } from '../../types';
+import { calculateSnapPosition, findAlignmentGuides, SpatialIndex, type SnapGuide, type SnapSettings, defaultSnapSettings } from '../../utils/snapUtils';
 
 /**
  * ProFeaturesManager - Centralized manager for all premium features
@@ -8,19 +9,38 @@ import type { Node, ProFeaturesConfig, NodeType } from '../../types';
 export class ProFeaturesManager {
   private config: ProFeaturesConfig;
   private nodes: Node[];
+  private edges: Edge[] = [];
   private onNodesChange: (nodes: Node[]) => void;
+  private onEdgesChange?: (edges: Edge[]) => void;
   private onConnect?: (connection: { source: string; target: string }) => void;
+  
+  // Smart Guides state
+  private spatialIndex: SpatialIndex | null = null;
+  private currentGuides: SnapGuide[] = [];
+  private guideUpdateCallback: ((guides: SnapGuide[]) => void) | null = null;
+  private canvasSize = { width: 2000, height: 1500 };
+  
+  // Smart Connect state
+  private connectionPreviewCallback: ((preview: { source: string; target: string } | null) => void) | null = null;
+  private previewConnection: { source: string; target: string } | null = null;
 
   constructor(
     config: ProFeaturesConfig,
     nodes: Node[],
+    edges: Edge[],
     onNodesChange: (nodes: Node[]) => void,
+    onEdgesChange?: (edges: Edge[]) => void,
     onConnect?: (connection: { source: string; target: string }) => void
   ) {
     this.config = config;
     this.nodes = nodes;
+    this.edges = edges;
     this.onNodesChange = onNodesChange;
+    this.onEdgesChange = onEdgesChange;
     this.onConnect = onConnect;
+    
+    // Initialize smart guides spatial index
+    this.rebuildSpatialIndex();
   }
 
   // Quick Add Feature
@@ -215,9 +235,178 @@ export class ProFeaturesManager {
     return false;
   }
 
+  // Smart Guides Feature
+  isSmartGuidesEnabled(): boolean {
+    return this.config.smartGuides?.enabled !== false;
+  }
+
+  setGuideUpdateCallback(callback: (guides: SnapGuide[]) => void): void {
+    this.guideUpdateCallback = callback;
+  }
+
+  setCanvasSize(size: { width: number; height: number }): void {
+    this.canvasSize = size;
+  }
+
+  private rebuildSpatialIndex(): void {
+    if (this.nodes.length > 0) {
+      this.spatialIndex = new SpatialIndex(this.nodes);
+    }
+  }
+
+  handleDragWithSmartGuides(
+    nodeId: string, 
+    targetPosition: { x: number; y: number }
+  ): { position: { x: number; y: number }; guides: SnapGuide[] } {
+    if (!this.isSmartGuidesEnabled()) {
+      return { position: targetPosition, guides: [] };
+    }
+
+    const draggedNode = this.nodes.find(n => n.id === nodeId);
+    if (!draggedNode) {
+      return { position: targetPosition, guides: [] };
+    }
+
+    const snapSettings: SnapSettings = {
+      enabled: this.config.smartGuides?.enabled !== false,
+      threshold: this.config.smartGuides?.threshold || 10,
+      showGuides: this.config.smartGuides?.showGuides !== false,
+      snapToNodes: this.config.smartGuides?.snapToNodes !== false,
+      snapToGrid: this.config.smartGuides?.snapToGrid === true,
+      gridSize: this.config.smartGuides?.gridSize || 20,
+      snapToCanvas: this.config.smartGuides?.snapToCanvas !== false
+    };
+
+    const snapResult = calculateSnapPosition(
+      draggedNode,
+      targetPosition,
+      this.nodes,
+      this.canvasSize,
+      snapSettings,
+      this.spatialIndex || undefined
+    );
+
+    // Update guides
+    this.currentGuides = snapResult.guides;
+    if (this.guideUpdateCallback) {
+      this.guideUpdateCallback(snapResult.guides);
+    }
+
+    return { position: snapResult.position, guides: snapResult.guides };
+  }
+
+  clearGuides(): void {
+    this.currentGuides = [];
+    if (this.guideUpdateCallback) {
+      this.guideUpdateCallback([]);
+    }
+  }
+
+  getAlignmentGuides(): SnapGuide[] {
+    if (!this.isSmartGuidesEnabled()) return [];
+    return findAlignmentGuides(this.nodes, this.canvasSize);
+  }
+
+  // Smart Connect Feature
+  isSmartConnectEnabled(): boolean {
+    return this.config.smartConnect?.enabled !== false;
+  }
+
+  setConnectionPreviewCallback(callback: (preview: { source: string; target: string } | null) => void): void {
+    this.connectionPreviewCallback = callback;
+  }
+
+  checkAutoConnection(nodeId: string, targetPosition: { x: number; y: number }): void {
+    if (!this.isSmartConnectEnabled()) return;
+
+    const threshold = this.config.smartConnect?.threshold || 50;
+    const draggedNode = this.nodes.find(n => n.id === nodeId);
+    if (!draggedNode) return;
+
+    let closestConnection: { target: string; distance: number } | null = null;
+
+    // Check proximity to other nodes
+    this.nodes.forEach(targetNode => {
+      if (targetNode.id === nodeId) return; // Skip self
+      
+      // Check if connection already exists
+      if (this.connectionExists(nodeId, targetNode.id)) return;
+      
+      // Calculate distance between node centers
+      const targetWidth = targetNode.width || 200;
+      const targetHeight = targetNode.height || 100;
+      const nodeWidth = draggedNode.width || 200;
+      const nodeHeight = draggedNode.height || 100;
+      
+      const targetCenterX = targetNode.position.x + targetWidth / 2;
+      const targetCenterY = targetNode.position.y + targetHeight / 2;
+      const nodeCenterX = targetPosition.x + nodeWidth / 2;
+      const nodeCenterY = targetPosition.y + nodeHeight / 2;
+      
+      const distance = Math.sqrt(
+        Math.pow(targetCenterX - nodeCenterX, 2) + 
+        Math.pow(targetCenterY - nodeCenterY, 2)
+      );
+      
+      if (distance <= threshold) {
+        if (!closestConnection || distance < closestConnection.distance) {
+          closestConnection = { target: targetNode.id, distance };
+        }
+      }
+    });
+
+    // Update preview
+    if (closestConnection) {
+      const newPreview = { source: nodeId, target: closestConnection.target };
+      this.previewConnection = newPreview;
+      if (this.connectionPreviewCallback) {
+        this.connectionPreviewCallback(newPreview);
+      }
+    } else {
+      this.clearConnectionPreview();
+    }
+  }
+
+  executeAutoConnection(): void {
+    if (this.config.smartConnect?.autoConnect && this.previewConnection && this.onConnect) {
+      this.onConnect(this.previewConnection);
+      console.log('🔗 SmartConnect: Auto-connected', this.previewConnection.source, '→', this.previewConnection.target);
+    }
+    this.clearConnectionPreview();
+  }
+
+  private connectionExists(sourceId: string, targetId: string): boolean {
+    return this.edges.some(edge => 
+      (edge.source === sourceId && edge.target === targetId) ||
+      (edge.source === targetId && edge.target === sourceId)
+    );
+  }
+
+  clearConnectionPreview(): void {
+    this.previewConnection = null;
+    if (this.connectionPreviewCallback) {
+      this.connectionPreviewCallback(null);
+    }
+  }
+
   // Update internal state when nodes change
   updateNodes(nodes: Node[]): void {
     this.nodes = nodes;
+    this.rebuildSpatialIndex();
+    
+    // Update alignment guides if not dragging
+    if (this.isSmartGuidesEnabled() && this.currentGuides.length === 0) {
+      const alignmentGuides = this.getAlignmentGuides();
+      this.currentGuides = alignmentGuides;
+      if (this.guideUpdateCallback) {
+        this.guideUpdateCallback(alignmentGuides);
+      }
+    }
+  }
+
+  // Update edges state
+  updateEdges(edges: Edge[]): void {
+    this.edges = edges;
   }
 
   // Update configuration

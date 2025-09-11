@@ -131,12 +131,41 @@ export interface VersionControlConfig {
   onSnapshot?: (snapshot: any) => void;
 }
 
+export interface SmartGuidesConfig {
+  enabled?: boolean;
+  threshold?: number; // Distance threshold for snapping (in canvas units)
+  showGuides?: boolean;
+  snapToNodes?: boolean;
+  snapToGrid?: boolean;
+  gridSize?: number;
+  snapToCanvas?: boolean; // Snap to canvas edges
+  visualStyle?: {
+    guideColor?: string;
+    guideOpacity?: number;
+    indicatorSize?: number;
+  };
+}
+
+export interface SmartConnectConfig {
+  enabled?: boolean;
+  threshold?: number; // Distance threshold for auto-connection
+  showPreview?: boolean;
+  autoConnect?: boolean; // Automatically create connections when nodes are close
+  connectionStyle?: {
+    previewColor?: string;
+    previewOpacity?: number;
+    ghostEdgeStyle?: React.CSSProperties;
+  };
+}
+
 export interface ProFeaturesConfig {
   quickAdd?: QuickAddConfig;
   advancedSelection?: AdvancedSelectionConfig;
   copyPaste?: CopyPasteConfig;
   versionControl?: VersionControlConfig;
   edgeReconnection?: EdgeReconnectionConfig;
+  smartGuides?: SmartGuidesConfig;
+  smartConnect?: SmartConnectConfig;
 }
 
 export interface KiteFrameProps {
