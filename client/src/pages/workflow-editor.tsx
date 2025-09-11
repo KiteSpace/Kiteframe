@@ -351,7 +351,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       'Authentication Service', 'Monitoring', 'Analytics', 'Backup System'
     ];
 
-    const selectedSystems = systems.sort(() => 0.5 - Math.random()).slice(0, 7);
+    const selectedSystems = systems.sort(() => 0.5 - Math.random()).slice(0, 6);
     const layers = [
       { y: 100, label: 'Presentation Layer' },
       { y: 200, label: 'API Layer' },
@@ -379,15 +379,30 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     });
 
     const edges: Edge[] = [];
+    
+    // Guarantee base chain of connections
     for (let i = 0; i < nodes.length - 1; i++) {
-      if (Math.random() > 0.3) { // 70% chance of connection
+      edges.push({
+        id: `sys-edge-${edges.length + 1}`,
+        source: nodes[i].id,
+        target: nodes[i + 1].id,
+        type: 'step' as const,
+        animated: false,
+        style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
+        markers: { type: 'arrow' as const, position: 'end' as const }
+      });
+    }
+
+    // Add optional extra connections for complexity
+    for (let i = 0; i < nodes.length - 2; i++) {
+      if (Math.random() > 0.6) { // 40% chance of skip connections
         edges.push({
           id: `sys-edge-${edges.length + 1}`,
           source: nodes[i].id,
-          target: nodes[i + 1].id,
+          target: nodes[i + 2].id,
           type: 'step' as const,
           animated: false,
-          style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
+          style: { strokeColor: 'hsl(262.1, 83.3%, 57.8%)', strokeWidth: 1 },
           markers: { type: 'arrow' as const, position: 'end' as const }
         });
       }
@@ -409,47 +424,81 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       'Verify Information', 'Complete Task', 'Archive Records', 'Follow Up'
     ];
 
-    const selectedLanes = lanes.sort(() => 0.5 - Math.random()).slice(0, 4);
-    const selectedActivities = activities.sort(() => 0.5 - Math.random()).slice(0, 8);
+    // Generate 4-7 total nodes across 3 lanes
+    const selectedLanes = lanes.sort(() => 0.5 - Math.random()).slice(0, 3);
+    const totalNodes = 4 + Math.floor(Math.random() * 4); // 4-7 nodes
+    const selectedActivities = activities.sort(() => 0.5 - Math.random()).slice(0, totalNodes);
 
     const nodes: Node[] = [];
+    const laneNodes: { [laneIndex: number]: string[] } = {};
     const laneHeight = 150;
 
+    // Distribute activities across lanes ensuring each lane has at least 1 node
     selectedLanes.forEach((lane, laneIndex) => {
-      const activitiesPerLane = Math.ceil(selectedActivities.length / selectedLanes.length);
-      const laneActivities = selectedActivities.slice(laneIndex * activitiesPerLane, (laneIndex + 1) * activitiesPerLane);
+      laneNodes[laneIndex] = [];
+    });
 
-      laneActivities.forEach((activity, actIndex) => {
-        nodes.push({
-          id: `lane-${laneIndex}-act-${actIndex}`,
-          type: actIndex === 0 ? 'input' : actIndex === laneActivities.length - 1 ? 'output' : 'process',
-          position: { x: 200 + actIndex * 250, y: 100 + laneIndex * laneHeight },
-          data: {
-            label: activity,
-            description: `Lane: ${lane}\nActivity: ${activity}`,
-            icon: actIndex === 0 ? 'ArrowRight' : actIndex === laneActivities.length - 1 ? 'ArrowLeft' : 'Activity',
-            iconColor: `hsl(${laneIndex * 90}, 70%, 50%)`
-          },
-          width: 200,
-          height: 90
-        });
+    selectedActivities.forEach((activity, actIndex) => {
+      const laneIndex = actIndex < selectedLanes.length 
+        ? actIndex // First activities go to different lanes
+        : Math.floor(Math.random() * selectedLanes.length); // Rest distributed randomly
+      
+      const activityIndexInLane = laneNodes[laneIndex].length;
+      const nodeId = `lane-${laneIndex}-act-${activityIndexInLane}`;
+      laneNodes[laneIndex].push(nodeId);
+
+      nodes.push({
+        id: nodeId,
+        type: activityIndexInLane === 0 ? 'input' : 'process',
+        position: { x: 200 + activityIndexInLane * 250, y: 100 + laneIndex * laneHeight },
+        data: {
+          label: activity,
+          description: `Lane: ${selectedLanes[laneIndex]}\nActivity: ${activity}`,
+          icon: activityIndexInLane === 0 ? 'ArrowRight' : 'Activity',
+          iconColor: `hsl(${laneIndex * 120}, 70%, 50%)`
+        },
+        width: 200,
+        height: 90
       });
     });
 
     const edges: Edge[] = [];
-    nodes.forEach((node, index) => {
-      if (index < nodes.length - 1 && Math.random() > 0.4) {
+    
+    // Connect nodes within each lane
+    Object.keys(laneNodes).forEach(laneIndexStr => {
+      const laneIndex = parseInt(laneIndexStr);
+      const nodesInLane = laneNodes[laneIndex];
+      
+      for (let i = 0; i < nodesInLane.length - 1; i++) {
         edges.push({
-          id: `swim-edge-${edges.length + 1}`,
-          source: node.id,
-          target: nodes[index + 1].id,
+          id: `swim-edge-lane-${laneIndex}-${i}`,
+          source: nodesInLane[i],
+          target: nodesInLane[i + 1],
           type: 'step' as const,
           animated: true,
-          style: { strokeColor: 'hsl(346.8, 77.2%, 49.8%)', strokeWidth: 2 },
+          style: { strokeColor: `hsl(${laneIndex * 120}, 70%, 50%)`, strokeWidth: 2 },
           markers: { type: 'arrow' as const, position: 'end' as const }
         });
       }
     });
+
+    // Add optional cross-lane handoffs for semantic workflow
+    if (selectedLanes.length >= 2 && Math.random() > 0.4) {
+      const lane1Nodes = laneNodes[0];
+      const lane2Nodes = laneNodes[1];
+      
+      if (lane1Nodes.length > 0 && lane2Nodes.length > 0) {
+        edges.push({
+          id: 'swim-edge-handoff-1',
+          source: lane1Nodes[lane1Nodes.length - 1], // Last node in first lane
+          target: lane2Nodes[0], // First node in second lane
+          type: 'bezier' as const,
+          animated: false,
+          style: { strokeColor: 'hsl(346.8, 77.2%, 49.8%)', strokeWidth: 2, strokeDasharray: '5,5' },
+          markers: { type: 'arrow' as const, position: 'end' as const }
+        });
+      }
+    }
 
     return { nodes, edges };
   }, []);
@@ -466,8 +515,13 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       'Terms Acceptance', 'Age Verification', 'Captcha Check', 'Fraud Detection'
     ];
 
-    const selectedSteps = steps.sort(() => 0.5 - Math.random()).slice(0, 5);
-    const selectedValidations = validationSteps.sort(() => 0.5 - Math.random()).slice(0, 3);
+    // Generate 4-7 total nodes (main steps + validations)
+    const totalNodes = 4 + Math.floor(Math.random() * 4); // 4-7 nodes
+    const mainStepsCount = Math.max(3, Math.ceil(totalNodes * 0.6)); // 60% main steps, min 3
+    const validationsCount = totalNodes - mainStepsCount;
+    
+    const selectedSteps = steps.sort(() => 0.5 - Math.random()).slice(0, mainStepsCount);
+    const selectedValidations = validationSteps.sort(() => 0.5 - Math.random()).slice(0, validationsCount);
 
     const nodes = selectedSteps.map((step, index) => ({
       id: `account-${index + 1}`,
@@ -500,7 +554,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       });
     });
 
-    const edges = [];
+    const edges: Edge[] = [];
     // Main flow edges
     for (let i = 0; i < selectedSteps.length - 1; i++) {
       edges.push({
