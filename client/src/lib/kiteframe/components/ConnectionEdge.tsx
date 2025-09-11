@@ -12,8 +12,12 @@ function anchor(node: Node, toward: Node){
   const dx = tcx - cx, dy = tcy - cy;
   const angle = Math.atan2(dy, dx);
   const ha = Math.abs(angle) < Math.PI/4 || Math.abs(angle) > 3*Math.PI/4;
-  if (ha) return dx > 0 ? { x: x + w, y: cy } : { x, y: cy };
-  return dy > 0 ? { x: cx, y: y + h } : { x: cx, y };
+  
+  // Match handle positioning by adding handleOffset/2 (4px) to align with handle locations
+  const handleOffset = 4;
+  
+  if (ha) return dx > 0 ? { x: x + w + handleOffset, y: cy } : { x: x - handleOffset, y: cy };
+  return dy > 0 ? { x: cx, y: y + h + handleOffset } : { x: cx, y: y - handleOffset };
 }
 
 // Helper function to generate path based on edge type
