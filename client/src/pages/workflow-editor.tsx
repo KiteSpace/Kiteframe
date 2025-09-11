@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
+import { BlankCanvasState } from '@/components/BlankCanvasState';
 import { PluginProvider, layoutPlugin, consolePlugin, testPlugin, advancedInteractionsPlugin } from '@/lib/kiteframe';
 import { PluginTestButton } from '@/components/PluginTestButton';
 import { PluginTestPanel } from '@/components/PluginTestPanel';
@@ -429,15 +430,18 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   }, [createBlankTab]);
 
   const closeTab = useCallback((tabId: string) => {
-    if (tabs.length <= 1) return; // Don't close the last tab
-    
     setTabs(prev => {
       const newTabs = prev.filter(tab => tab.id !== tabId);
       // If we're closing the active tab, switch to the previous tab or first tab
       if (tabId === activeTabId) {
-        const closingIndex = prev.findIndex(tab => tab.id === tabId);
-        const newActiveTab = newTabs[Math.max(0, closingIndex - 1)] || newTabs[0];
-        setActiveTabId(newActiveTab.id);
+        if (newTabs.length > 0) {
+          const closingIndex = prev.findIndex(tab => tab.id === tabId);
+          const newActiveTab = newTabs[Math.max(0, closingIndex - 1)] || newTabs[0];
+          setActiveTabId(newActiveTab.id);
+        } else {
+          // No tabs remaining, clear active tab ID
+          setActiveTabId('');
+        }
       }
       return newTabs;
     });
@@ -449,12 +453,87 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     ));
   }, []);
 
-  // New tab creation handlers
-  const handleCreateBlank = useCallback(() => {
+  // Blank canvas state handlers
+  const handleCreateBlankFromCanvas = useCallback(() => {
     const newTab = createBlankTab();
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newTab.id);
   }, [createBlankTab]);
+
+  const handleCreateWithTemplate = useCallback(() => {
+    const newTab = createDefaultTab();
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+  }, [createDefaultTab]);
+
+  const handleCreateWithAI = useCallback(() => {
+    // Create blank tab first, then open AI generator
+    const newTab = createBlankTab();
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+    setShowAiGenerator(true);
+  }, [createBlankTab]);
+
+  const handleImportFromCanvas = useCallback(() => {
+    // Create blank tab first, then trigger import
+    const newTab = createBlankTab();
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+    // Create hidden file input for importing
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target?.result as string);
+          if (data.nodes && data.edges) {
+            updateActiveTab({
+              nodes: data.nodes,
+              edges: data.edges,
+              viewport: data.viewport || { x: 0, y: 0, zoom: 1 }
+            });
+            // Save to history after a small delay to ensure state is updated
+            setTimeout(() => {
+              if (activeTab) {
+                const currentNodes = data.nodes;
+                const currentEdges = data.edges;
+                const currentViewport = data.viewport || { x: 0, y: 0, zoom: 1 };
+                
+                const newHistoryState = {
+                  nodes: [...currentNodes],
+                  edges: [...currentEdges],
+                  viewport: { ...currentViewport }
+                };
+                
+                const currentHistory = activeTab.history;
+                const currentHistoryIndex = activeTab.historyIndex;
+                const newHistory = [...currentHistory.slice(0, currentHistoryIndex + 1), newHistoryState];
+                const newHistoryIndex = newHistory.length - 1;
+                
+                updateActiveTab({
+                  history: newHistory,
+                  historyIndex: newHistoryIndex
+                });
+              }
+            }, 20);
+          }
+        } catch (error) {
+          toast({
+            title: "Import Failed",
+            description: "Invalid JSON file. Please select a valid workflow file.",
+            variant: "destructive"
+          });
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }, [createBlankTab, updateActiveTab, activeTab, toast]);
 
   // Direct AI generation function
   const generateWorkflowFromPrompt = useCallback(async (prompt: string): Promise<{ nodes: Node[]; edges: Edge[] }> => {
@@ -1491,18 +1570,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     {tab.name}
                   </span>
                 )}
-                {tabs.length > 1 && (
-                  <button
-                    className="ml-1 hover:bg-background/20 rounded p-0.5"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      closeTab(tab.id);
-                    }}
-                    data-testid={`close-tab-${tab.id}`}
-                  >
-                    <X size={12} />
-                  </button>
-                )}
+                <button
+                  className="ml-1 hover:bg-background/20 rounded p-0.5"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeTab(tab.id);
+                  }}
+                  data-testid={`close-tab-${tab.id}`}
+                >
+                  <X size={12} />
+                </button>
               </div>
             ))}
             <button
@@ -1538,6 +1615,43 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 selectedNodes={nodes.filter(n => n.selected)}
                 selectedEdge={edges.find(e => e.id === selectedEdgeId)}
                 onCreateNode={(type: string) => {
+                // Create a new tab if none exist
+                if (tabs.length === 0) {
+                  const newTab = createBlankTab();
+                  setTabs([newTab]);
+                  setActiveTabId(newTab.id);
+                  // Wait for the tab to be created before adding the node
+                  setTimeout(() => {
+                    const icons = {
+                      input: { icon: 'ArrowRight', color: 'text-blue-500' },
+                      process: { icon: 'Cog', color: 'text-green-500' },
+                      condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
+                      output: { icon: 'ArrowLeft', color: 'text-red-500' },
+                      ai: { icon: 'Bot', color: 'text-purple-500' },
+                      image: { icon: 'Image', color: 'text-indigo-500' }
+                    };
+
+                    const newNode: Node = {
+                      id: `node-${Date.now()}`,
+                      type,
+                      position: { x: 400, y: 250 },
+                      data: {
+                        label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+                        description: `Configure ${type} settings`,
+                        icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
+                        iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
+                      },
+                      width: 200,
+                      height: 100
+                    };
+
+                    setNodes([newNode]);
+                    saveToHistory();
+                  }, 0);
+                  return;
+                }
+
+                // Normal case - add to existing tab
                 saveToHistory(); // Save current state before adding node
                 const icons = {
                   input: { icon: 'ArrowRight', color: 'text-blue-500' },
@@ -1843,7 +1957,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           {/* Canvas Area */}
           <div className="flex-1 relative overflow-hidden">
             
-            <WorkflowCanvas
+            {tabs.length > 0 ? (
+              <WorkflowCanvas
               nodes={nodes}
               edges={edges}
               viewport={viewport}
@@ -2185,6 +2300,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               canRedo={canRedo}
               onAutoLayout={handleAutoLayout}
             />
+            ) : (
+              <BlankCanvasState
+                onCreateBlank={handleCreateBlankFromCanvas}
+                onCreateWithTemplate={handleCreateWithTemplate}
+                onCreateWithAI={handleCreateWithAI}
+                onImportWorkflow={handleImportFromCanvas}
+              />
+            )}
           </div>
         </div>
 
