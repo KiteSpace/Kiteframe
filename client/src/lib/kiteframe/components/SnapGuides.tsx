@@ -37,14 +37,10 @@ export const SnapGuides: React.FC<SnapGuidesProps> = ({
         const isHorizontal = guide.type === 'horizontal';
         const opacity = Math.min(guideOpacity, 0.4 + (guide.strength * 0.1));
         
-        // Transform guide position based on viewport
+        // Transform guide position based on viewport (world to screen coordinates)
         const transformedPosition = isHorizontal
-          ? guide.position * viewport.zoom + viewport.y
-          : guide.position * viewport.zoom + viewport.x;
-        
-        const size = isHorizontal 
-          ? canvasSize.width * viewport.zoom
-          : canvasSize.height * viewport.zoom;
+          ? (guide.position - viewport.y) * viewport.zoom
+          : (guide.position - viewport.x) * viewport.zoom;
         
         return (
           <div
@@ -52,9 +48,9 @@ export const SnapGuides: React.FC<SnapGuidesProps> = ({
             className="absolute transition-opacity duration-200"
             style={{
               [isHorizontal ? 'top' : 'left']: `${transformedPosition}px`,
-              [isHorizontal ? 'left' : 'top']: isHorizontal ? `${viewport.x}px` : `${viewport.y}px`,
-              [isHorizontal ? 'width' : 'height']: `${size}px`,
-              [isHorizontal ? 'height' : 'width']: '1px',
+              [isHorizontal ? 'left' : 'top']: 0,
+              [isHorizontal ? 'width' : 'height']: '100%',
+              [isHorizontal ? 'height' : 'width']: '2px',
               backgroundColor: guideColor,
               opacity,
               boxShadow: `0 0 4px ${guideColor}40`,
@@ -68,7 +64,8 @@ export const SnapGuides: React.FC<SnapGuidesProps> = ({
                 height: `${indicatorSize}px`,
                 backgroundColor: guideColor,
                 [isHorizontal ? 'top' : 'left']: `-${indicatorSize / 2}px`,
-                [isHorizontal ? 'left' : 'top']: `${size / 2 - indicatorSize / 2}px`
+                [isHorizontal ? 'left' : 'top']: '50%',
+                transform: isHorizontal ? 'translateX(-50%)' : 'translateY(-50%)'
               }}
             />
             
@@ -78,7 +75,8 @@ export const SnapGuides: React.FC<SnapGuidesProps> = ({
                 className="absolute text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded font-medium shadow-sm"
                 style={{
                   [isHorizontal ? 'top' : 'left']: isHorizontal ? '-24px' : '-28px',
-                  [isHorizontal ? 'left' : 'top']: `${size / 2 - 12}px`,
+                  [isHorizontal ? 'left' : 'top']: '50%',
+                  transform: isHorizontal ? 'translateX(-50%)' : 'translateY(-50%)',
                   fontSize: '10px',
                   minWidth: '24px',
                   textAlign: 'center'

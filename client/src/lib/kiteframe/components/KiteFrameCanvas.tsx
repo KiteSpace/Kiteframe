@@ -1344,6 +1344,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         })}
       </div>
       
+      {/* Smart Guides Overlay */}
+      <SnapGuides 
+        guides={currentGuides}
+        canvasSize={{ width: 2000, height: 1500 }}
+        viewport={viewport}
+        show={currentGuides.length > 0 && props.proFeatures?.smartGuides?.showGuides !== false}
+      />
+
       {/* Selection rectangle - positioned in client coordinates, outside transformed world */}
       {selectRect && (
         <div 
