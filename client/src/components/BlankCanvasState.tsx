@@ -1,4 +1,4 @@
-import { FileText, Sparkles, Upload, Plus } from 'lucide-react';
+import { FileText, Sparkles, Upload, Plus, Zap, Grid3X3, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -16,113 +16,108 @@ export function BlankCanvasState({
   onImportWorkflow
 }: BlankCanvasStateProps) {
   return (
-    <div className="flex-1 flex items-center justify-center bg-background/50 p-8 overflow-y-auto min-h-full">
-      <div className="max-w-lg mx-auto text-center space-y-8 my-auto">
-        {/* Welcome Message */}
-        <div className="space-y-4">
-          <div className="w-24 h-24 mx-auto bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center">
-            <FileText className="w-12 h-12 text-primary/60" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-semibold text-foreground mb-2">
-              Welcome to KiteFrame
-            </h2>
-            <p className="text-muted-foreground">
-              Create your first workflow to start building amazing automation flows
-            </p>
+    <div className="flex-1 bg-background p-8 overflow-y-auto">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Create New Workflow</h1>
+          <p className="text-muted-foreground text-lg">Choose how you'd like to start building your automation</p>
+        </div>
+
+        {/* Quick Start Section */}
+        <div className="mb-12">
+          <h2 className="text-xl font-semibold text-foreground mb-6">Quick Start</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card 
+              className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border-2 hover:border-blue-200 dark:hover:border-blue-800"
+              onClick={onCreateBlank}
+            >
+              <CardContent className="p-8">
+                <div className="flex items-start space-x-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Plus className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xl font-semibold text-foreground mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      Blank Workflow
+                    </h3>
+                    <p className="text-muted-foreground text-base leading-relaxed">
+                      Start with an empty canvas and build your workflow from scratch with full creative control.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card 
+              className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border-2 hover:border-green-200 dark:hover:border-green-800"
+              onClick={onCreateWithTemplate}
+            >
+              <CardContent className="p-8">
+                <div className="flex items-start space-x-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Grid3X3 className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xl font-semibold text-foreground mb-2 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                      Template
+                    </h3>
+                    <p className="text-muted-foreground text-base leading-relaxed">
+                      Choose from pre-built workflow templates to jumpstart your automation projects.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
-        {/* Creation Options */}
-        <div className="grid gap-3">
-          <Card className="transition-all hover:shadow-md hover:scale-[1.02]">
-            <CardContent className="p-4">
-              <Button
-                onClick={onCreateBlank}
-                variant="ghost"
-                className="w-full h-auto p-4 flex items-start space-x-4 text-left"
-                data-testid="button-create-blank"
-              >
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                  <Plus className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <div className="font-medium">Create Blank Workflow</div>
-                  <div className="text-sm text-muted-foreground">
-                    Start with an empty canvas and build from scratch
+        {/* AI & Import Section */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-foreground mb-6">AI & Import</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card 
+              className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border-2 hover:border-purple-200 dark:hover:border-purple-800"
+              onClick={onCreateWithAI}
+            >
+              <CardContent className="p-8">
+                <div className="flex items-start space-x-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Bot className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xl font-semibold text-foreground mb-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                      AI Generation
+                    </h3>
+                    <p className="text-muted-foreground text-base leading-relaxed">
+                      Describe your workflow in plain language and let AI create the structure for you.
+                    </p>
                   </div>
                 </div>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="transition-all hover:shadow-md hover:scale-[1.02]">
-            <CardContent className="p-4">
-              <Button
-                onClick={onCreateWithTemplate}
-                variant="ghost"
-                className="w-full h-auto p-4 flex items-start space-x-4 text-left"
-                data-testid="button-create-template"
-              >
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <div className="font-medium">Use Template</div>
-                  <div className="text-sm text-muted-foreground">
-                    Start with a pre-built workflow template
+              </CardContent>
+            </Card>
+            
+            <Card 
+              className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border-2 hover:border-orange-200 dark:hover:border-orange-800"
+              onClick={onImportWorkflow}
+            >
+              <CardContent className="p-8">
+                <div className="flex items-start space-x-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Upload className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xl font-semibold text-foreground mb-2 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                      Import Workflow
+                    </h3>
+                    <p className="text-muted-foreground text-base leading-relaxed">
+                      Import an existing workflow from a JSON file or another source.
+                    </p>
                   </div>
                 </div>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="transition-all hover:shadow-md hover:scale-[1.02]">
-            <CardContent className="p-4">
-              <Button
-                onClick={onCreateWithAI}
-                variant="ghost"
-                className="w-full h-auto p-4 flex items-start space-x-4 text-left"
-                data-testid="button-create-ai"
-              >
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <div className="font-medium">Generate with AI</div>
-                  <div className="text-sm text-muted-foreground">
-                    Describe your workflow and let AI create it
-                  </div>
-                </div>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="transition-all hover:shadow-md hover:scale-[1.02]">
-            <CardContent className="p-4">
-              <Button
-                onClick={onImportWorkflow}
-                variant="ghost"
-                className="w-full h-auto p-4 flex items-start space-x-4 text-left"
-                data-testid="button-import-workflow"
-              >
-                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
-                  <Upload className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <div className="font-medium">Import Workflow</div>
-                  <div className="text-sm text-muted-foreground">
-                    Import an existing workflow from a file
-                  </div>
-                </div>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tip */}
-        <div className="text-xs text-muted-foreground border-t pt-4">
-          💡 Tip: You can also use the sidebar tools to create workflows once you have an active tab
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
