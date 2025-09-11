@@ -245,7 +245,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       return {
         id: `step-${index + 1}`,
         type: index === 0 ? 'input' : index === selectedSteps.length - 1 ? 'output' : 'process',
-        position: { x: 150 + index * 250, y: 150 + Math.random() * 100 },
+        position: { x: 150 + index * 350, y: 200 + Math.random() * 80 },
         data: {
           label: step,
           description: `${touchpoint}\nFeeling: ${emotion}`,
@@ -293,7 +293,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       {
         id: 'central',
         type: 'process',
-        position: { x: 500, y: 250 },
+        position: { x: 600, y: 300 },
         data: {
           label: centralTopic,
           description: 'Central topic',
@@ -308,7 +308,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     const angles = [0, 60, 120, 180, 240, 300].slice(0, selectedSubtopics.length);
     selectedSubtopics.forEach((topic, index) => {
       const angle = (angles[index] * Math.PI) / 180;
-      const radius = 300;
+      const radius = 350;
       const x = 500 + radius * Math.cos(angle);
       const y = 250 + radius * Math.sin(angle);
 
@@ -361,7 +361,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
 
     const nodes = selectedSystems.map((system, index) => {
       const layer = layers[Math.floor(index / 2) % layers.length];
-      const xOffset = (index % 2) * 300 + 200;
+      const xOffset = (index % 2) * 400 + 200;
 
       return {
         id: `sys-${index + 1}`,
@@ -450,7 +450,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       nodes.push({
         id: nodeId,
         type: activityIndexInLane === 0 ? 'input' : 'process',
-        position: { x: 200 + activityIndexInLane * 250, y: 100 + laneIndex * laneHeight },
+        position: { x: 250 + activityIndexInLane * 350, y: 150 + laneIndex * laneHeight },
         data: {
           label: activity,
           description: `Lane: ${selectedLanes[laneIndex]}\nActivity: ${activity}`,
@@ -526,7 +526,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     const nodes = selectedSteps.map((step, index) => ({
       id: `account-${index + 1}`,
       type: index === 0 ? 'input' : index === selectedSteps.length - 1 ? 'output' : 'process',
-      position: { x: 150 + index * 200, y: 150 },
+      position: { x: 200 + index * 300, y: 200 },
       data: {
         label: step,
         description: `User account creation step: ${step}`,
@@ -614,7 +614,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       nodes.push({
         id: `input-${index + 1}`,
         type: 'input',
-        position: { x: 100 + index * 150, y: 100 },
+        position: { x: 150 + index * 250, y: 150 },
         data: {
           label: input,
           description: `Input source: ${input}`,
@@ -631,7 +631,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       nodes.push({
         id: `process-${index + 1}`,
         type: index === Math.floor(selectedProcesses.length / 2) ? 'condition' : 'process',
-        position: { x: 150 + index * 200, y: 250 },
+        position: { x: 200 + index * 300, y: 300 },
         data: {
           label: process,
           description: `Processing: ${process}`,
@@ -648,7 +648,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       nodes.push({
         id: `output-${index + 1}`,
         type: 'output',
-        position: { x: 200 + index * 150, y: 400 },
+        position: { x: 250 + index * 250, y: 450 },
         data: {
           label: output,
           description: `Output destination: ${output}`,
