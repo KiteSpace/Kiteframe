@@ -23,9 +23,9 @@ export const SnapGuides: React.FC<SnapGuidesProps> = ({
   if (!show || guides.length === 0) return null;
 
   const {
-    guideColor = 'hsl(221.2, 83.2%, 53.3%)', // Primary blue from shadcn
-    guideOpacity = 0.8,
-    indicatorSize = 8
+    guideColor = 'hsl(220, 13%, 60%)', // Grey color
+    guideOpacity = 0.7,
+    indicatorSize = 6
   } = visualStyle;
 
   return (
@@ -43,7 +43,7 @@ export const SnapGuides: React.FC<SnapGuidesProps> = ({
           : guide.position * viewport.zoom + viewport.x;
         
         // Keep constant line thickness on screen regardless of zoom
-        const lineThickness = Math.max(1, 2 / viewport.zoom);
+        const lineThickness = 1;
         
         return (
           <div
@@ -54,9 +54,11 @@ export const SnapGuides: React.FC<SnapGuidesProps> = ({
               [isHorizontal ? 'left' : 'top']: 0,
               [isHorizontal ? 'width' : 'height']: '100%',
               [isHorizontal ? 'height' : 'width']: `${lineThickness}px`,
-              backgroundColor: guideColor,
+              borderTop: isHorizontal ? `${lineThickness}px dashed ${guideColor}` : 'none',
+              borderLeft: !isHorizontal ? `${lineThickness}px dashed ${guideColor}` : 'none',
               opacity,
-              boxShadow: `0 0 4px ${guideColor}40`,
+              transform: `scale(${1/viewport.zoom})`,
+              transformOrigin: isHorizontal ? 'left center' : 'center top',
             }}
           >
             {/* Guide line indicator dot */}
