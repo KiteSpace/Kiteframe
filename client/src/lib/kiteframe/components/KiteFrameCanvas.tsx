@@ -1007,8 +1007,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       
       // Handle smart connect auto-connection on drag end  
       if (dragInfo.current && !dragInfo.current.isGroupDrag && props.proFeatures?.smartConnect?.enabled !== false) {
-        // TODO: Implement smart connect auto-connection logic
-        console.log('🔗 Smart Connect: Auto-connection check (implementation pending)');
+        const draggedNode = props.nodes.find(n => n.id === dragInfo.current?.id);
+        if (draggedNode) {
+          console.log('🔗 Smart Connect: Checking auto-connection for', dragInfo.current.id);
+          // The SmartConnectPlugin handles auto-connection logic automatically through drag events
+          // No additional code needed here as the plugin is already integrated
+        }
       }
       
       // Clear guides when drag ends
