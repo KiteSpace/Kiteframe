@@ -5,7 +5,10 @@ import type { Node, Edge, NodeType, ProFeaturesConfig, QuickAddConfig } from '..
 import { clientToWorld, zoomAroundPoint } from '../utils/geometry';
 import { NodeHandles } from './NodeHandles';
 import { ConnectionEdge } from './ConnectionEdge';
+import { SnapGuides } from './SnapGuides';
 import { EdgeHandles } from './EdgeHandles';
+import { calculateSnapPosition, defaultSnapSettings, type SnapGuide } from '../utils/snapUtils';
+import { ProFeaturesManager } from '../plugins/pro/ProFeaturesManager';
 import { KiteFrameCore, kiteFrameCore } from '../core/KiteFrameCore';
 import { ChevronDown, ChevronUp, X, ExternalLink, List, Type } from 'lucide-react';
 
@@ -631,6 +634,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const selectStart = useRef<{x:number;y:number}|null>(null);
   const justCompletedSelection = useRef<boolean>(false);
   const [connecting, setConnecting] = useState<ConnectingState | null>(null);
+  
+  // Smart Guides state
+  const [currentGuides, setCurrentGuides] = useState<SnapGuide[]>([]);
 
   // Pro Features Configuration
   const quickAddConfig = props.proFeatures?.quickAdd;
@@ -937,12 +943,57 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         
 
       } else {
-        // Individual drag: move single node
+        // Individual drag: move single node with smart guides
         const id = dragInfo.current.id;
-        const updated = props.nodes.map(n => n.id === id ? { ...n, position: { x: dragInfo.current!.origin.x + dx, y: dragInfo.current!.origin.y + dy } } : n);
+        const targetPosition = { x: dragInfo.current!.origin.x + dx, y: dragInfo.current!.origin.y + dy };
+        
+        // Apply smart guides if enabled
+        let finalPosition = targetPosition;
+        let currentGuides: SnapGuide[] = [];
+        
+        if (props.proFeatures && props.proFeatures.smartGuides?.enabled !== false) {
+          console.log('🎯 Smart Guides: Enabled, processing snap...');
+          
+          const draggedNode = props.nodes.find(n => n.id === id);
+          if (draggedNode) {
+            const smartGuidesConfig = props.proFeatures.smartGuides || {};
+            const snapSettings = {
+              enabled: smartGuidesConfig.enabled !== false,
+              threshold: smartGuidesConfig.threshold || defaultSnapSettings.threshold,
+              showGuides: smartGuidesConfig.showGuides !== false,
+              snapToNodes: smartGuidesConfig.snapToNodes !== false,
+              snapToGrid: smartGuidesConfig.snapToGrid === true,
+              gridSize: smartGuidesConfig.gridSize || defaultSnapSettings.gridSize,
+              snapToCanvas: smartGuidesConfig.snapToCanvas !== false
+            };
+            
+            const canvasSize = { width: 2000, height: 1500 };
+            const snapResult = calculateSnapPosition(
+              draggedNode,
+              targetPosition,
+              props.nodes,
+              canvasSize,
+              snapSettings
+            );
+            
+            finalPosition = snapResult.position;
+            setCurrentGuides(snapResult.guides);
+            
+            console.log('🎯 Smart Guides Applied:', {
+              targetPosition,
+              finalPosition,
+              guides: snapResult.guides,
+              snapped: snapResult.snapped
+            });
+          }
+        }
+        
+        const updated = props.nodes.map(n => n.id === id ? { ...n, position: finalPosition } : n);
         console.log('🔧 INDIVIDUAL DRAG UPDATE:', {
           nodeId: id,
-          newPosition: { x: dragInfo.current!.origin.x + dx, y: dragInfo.current!.origin.y + dy },
+          targetPosition,
+          finalPosition,
+          snapApplied: finalPosition.x !== targetPosition.x || finalPosition.y !== targetPosition.y,
           updated: updated.find(n => n.id === id)
         });
         props.onNodesChange(updated);
@@ -953,6 +1004,16 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     
     const onUp = () => { 
       console.log('🔧 DRAG END:', dragInfo.current);
+      
+      // Handle smart connect auto-connection on drag end  
+      if (dragInfo.current && !dragInfo.current.isGroupDrag && props.proFeatures?.smartConnect?.enabled !== false) {
+        // TODO: Implement smart connect auto-connection logic
+        console.log('🔗 Smart Connect: Auto-connection check (implementation pending)');
+      }
+      
+      // Clear guides when drag ends
+      setCurrentGuides([]);
+      
       dragInfo.current = null;
     };
     
