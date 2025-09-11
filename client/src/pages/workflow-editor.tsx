@@ -1436,33 +1436,26 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       return { x: 0, y: 0 }; // No offset needed if canvas is empty
     }
 
-    // Find the rightmost and bottommost positions of existing nodes
-    let maxX = -Infinity;
+    // Find the bottommost position of existing nodes
     let maxY = -Infinity;
     
     nodes.forEach(node => {
-      const nodeRight = node.position.x + (node.width || 200);
       const nodeBottom = node.position.y + (node.height || 100);
-      
-      if (nodeRight > maxX) maxX = nodeRight;
       if (nodeBottom > maxY) maxY = nodeBottom;
     });
 
-    // Find the leftmost and topmost positions of new nodes
-    let minNewX = Infinity;
+    // Find the topmost position of new nodes
     let minNewY = Infinity;
     
     newNodes.forEach(node => {
-      if (node.position.x < minNewX) minNewX = node.position.x;
       if (node.position.y < minNewY) minNewY = node.position.y;
     });
 
-    // Calculate offset to place new workflow to the right with some spacing
-    const horizontalSpacing = 300;
-    const verticalSpacing = 100;
+    // Calculate offset to place new workflow underneath with some spacing
+    const verticalSpacing = 150;
     
-    const offsetX = maxX + horizontalSpacing - minNewX;
-    const offsetY = Math.max(0, (maxY + verticalSpacing) - minNewY);
+    const offsetX = 0; // Keep horizontal alignment with existing workflow
+    const offsetY = maxY + verticalSpacing - minNewY;
 
     return { x: offsetX, y: offsetY };
   }, [nodes]);
@@ -1508,7 +1501,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         x: node.position.x + offset.x,
         y: node.position.y + offset.y
       },
-      selected: false
+      selected: false,
+      // Ensure proper width/height for handle alignment
+      width: node.width || 200,
+      height: node.height || 100,
+      // Ensure handles are properly aligned
+      draggable: true,
+      selectable: true
     }));
 
     // Apply offset to new edges and update IDs
