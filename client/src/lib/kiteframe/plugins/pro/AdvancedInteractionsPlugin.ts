@@ -1,5 +1,5 @@
 import type { KiteFramePlugin, PluginHooks } from '../../core/KiteFrameCore';
-import type { Node, ProFeaturesConfig } from '../../types';
+import type { Node, Edge, ProFeaturesConfig } from '../../types';
 import { ProFeaturesManager } from './ProFeaturesManager';
 
 /**
@@ -56,7 +56,9 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
   configure(
     config: ProFeaturesConfig,
     nodes: Node[],
+    edges: Edge[],
     onNodesChange: (nodes: Node[]) => void,
+    onEdgesChange?: (edges: Edge[]) => void,
     onConnect?: (connection: { source: string; target: string }) => void
   ): void {
     this.currentNodes = nodes;
@@ -66,7 +68,9 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
     this.proFeaturesManager = new ProFeaturesManager(
       config,
       nodes,
+      edges || [],
       onNodesChange,
+      onEdgesChange,
       onConnect
     );
 

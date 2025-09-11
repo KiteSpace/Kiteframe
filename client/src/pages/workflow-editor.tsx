@@ -125,6 +125,21 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
         validColor: '#22c55e',
         invalidColor: '#ef4444'
       }
+    },
+    smartGuides: {
+      enabled: true,
+      threshold: 10,
+      showGuides: true,
+      snapToNodes: true,
+      snapToGrid: false,
+      gridSize: 20,
+      snapToCanvas: true
+    },
+    smartConnect: {
+      enabled: true,
+      threshold: 50,
+      autoConnect: true,
+      showPreview: true
     }
   };
 
