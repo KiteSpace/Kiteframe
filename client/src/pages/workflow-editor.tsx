@@ -1577,15 +1577,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             ))}
             <button
               className="flex items-center justify-center w-8 h-8 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
-              onClick={() => {
-                // Show new creation experience by temporarily clearing tabs
-                // This will trigger the BlankCanvasState to appear
-                if (tabs.length > 0) {
-                  // Store current tabs for potential recovery
-                  setTabs([]);
-                  setActiveTabId('');
-                }
-              }}
+              onClick={createNewTab}
               data-testid="button-new-tab"
               title="New Workflow Tab"
             >
