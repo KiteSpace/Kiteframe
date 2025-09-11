@@ -1071,6 +1071,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     setActiveTabId(newTab.id);
   }, [generateTabId, generateCuteName, generateUserJourneyTemplate, generateMindmapTemplate, generateSystemArchitectureTemplate, generateSwimLanesTemplate, generateUserAccountTemplate, generateIOLogicTemplate, handleCreateBlankFromCanvas]);
 
+
   // Direct AI generation function
   const generateWorkflowFromPrompt = useCallback(async (prompt: string): Promise<{ nodes: Node[]; edges: Edge[] }> => {
     const systemPrompt = `You are a workflow generator. Create a visual workflow based on the user's description. 
@@ -1465,6 +1466,75 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
     return { x: offsetX, y: offsetY };
   }, [nodes]);
+
+  // Handle template creation to current active tab
+  const handleAddTemplateToCurrentTab = useCallback((templateType: string) => {
+    let templateData;
+
+    // Generate appropriate template based on type
+    switch (templateType) {
+      case 'user-journey':
+        templateData = generateUserJourneyTemplate();
+        break;
+      case 'mindmap':
+        templateData = generateMindmapTemplate();
+        break;
+      case 'system-architecture':
+        templateData = generateSystemArchitectureTemplate();
+        break;
+      case 'swim-lanes':
+        templateData = generateSwimLanesTemplate();
+        break;
+      case 'user-account-creation':
+        templateData = generateUserAccountTemplate();
+        break;
+      case 'io-logic':
+        templateData = generateIOLogicTemplate();
+        break;
+      default:
+        console.warn('Unknown template type:', templateType);
+        return;
+    }
+
+    // Calculate offset for new nodes to avoid overlapping
+    const offset = calculateWorkflowOffset(templateData.nodes);
+    const timestamp = Date.now();
+    
+    // Apply offset to new nodes and ensure unique IDs
+    const offsetNodes = templateData.nodes.map(node => ({
+      ...node,
+      id: `${node.id}-${timestamp}`, // Ensure unique IDs
+      position: {
+        x: node.position.x + offset.x,
+        y: node.position.y + offset.y
+      },
+      selected: false
+    }));
+
+    // Apply offset to new edges and update IDs
+    const offsetEdges = templateData.edges.map(edge => ({
+      ...edge,
+      id: `${edge.id}-${timestamp}`, // Ensure unique IDs
+      source: `${edge.source}-${timestamp}`,
+      target: `${edge.target}-${timestamp}`,
+      selected: false,
+      reconnectable: true, // Enable reconnection for template edges
+      interactable: true // Make edges clickable
+    }));
+
+    // Append to existing nodes and edges
+    setNodes(prev => [...prev, ...offsetNodes]);
+    setEdges(prev => [...prev, ...offsetEdges]);
+    
+    // Save to history for undo/redo
+    saveToHistory();
+    
+    console.log(`✨ Template "${templateType}" added to current tab:`, {
+      newNodes: offsetNodes.length,
+      newEdges: offsetEdges.length,
+      offset
+    });
+  }, [generateUserJourneyTemplate, generateMindmapTemplate, generateSystemArchitectureTemplate, generateSwimLanesTemplate, generateUserAccountTemplate, generateIOLogicTemplate, calculateWorkflowOffset, setNodes, setEdges, saveToHistory]);
 
   // Function to append AI-generated workflow to existing canvas
   const appendAiWorkflowToCanvas = useCallback(async (prompt: string) => {
@@ -2492,15 +2562,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   const newTab = createBlankTab();
                   setTabs([newTab]);
                   setActiveTabId(newTab.id);
-                  // Wait for the tab to be created before generating the template
+                  // Wait for the tab to be created before adding the template
                   setTimeout(() => {
-                    handleCreateTemplateFromCanvas(templateType);
-                  }, 0);
+                    handleAddTemplateToCurrentTab(templateType);
+                  }, 50);
                   return;
                 }
 
-                // Normal case - generate template for existing tab
-                handleCreateTemplateFromCanvas(templateType);
+                // Normal case - add template to current active tab
+                handleAddTemplateToCurrentTab(templateType);
               }}
               />
             )}
