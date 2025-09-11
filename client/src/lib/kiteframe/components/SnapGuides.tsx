@@ -37,12 +37,12 @@ export const SnapGuides: React.FC<SnapGuidesProps> = ({
         const isHorizontal = guide.type === 'horizontal';
         const opacity = Math.min(guideOpacity, 0.4 + (guide.strength * 0.1));
         
-        // Transform guide position from world to screen coordinates: S = W*zoom + viewport_offset
+        // Transform guide position from world to screen coordinates with pixel snapping
         const transformedPosition = isHorizontal
-          ? guide.position * viewport.zoom + viewport.y
-          : guide.position * viewport.zoom + viewport.x;
+          ? Math.round(guide.position * viewport.zoom + viewport.y) + 0.5
+          : Math.round(guide.position * viewport.zoom + viewport.x) + 0.5;
         
-        // Keep constant line thickness on screen regardless of zoom
+        // Constant line thickness
         const lineThickness = 1;
         
         return (
@@ -57,8 +57,6 @@ export const SnapGuides: React.FC<SnapGuidesProps> = ({
               borderTop: isHorizontal ? `${lineThickness}px dashed ${guideColor}` : 'none',
               borderLeft: !isHorizontal ? `${lineThickness}px dashed ${guideColor}` : 'none',
               opacity,
-              transform: `scale(${1/viewport.zoom})`,
-              transformOrigin: isHorizontal ? 'left center' : 'center top',
             }}
           >
             {/* Guide line indicator dot */}
