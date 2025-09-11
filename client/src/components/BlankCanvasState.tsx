@@ -16,8 +16,8 @@ export function BlankCanvasState({
   onImportWorkflow
 }: BlankCanvasStateProps) {
   return (
-    <div className="flex-1 flex items-center justify-center bg-background/50 p-8">
-      <div className="max-w-lg mx-auto text-center space-y-8">
+    <div className="flex-1 flex items-center justify-center bg-background/50 p-8 overflow-y-auto min-h-full">
+      <div className="max-w-lg mx-auto text-center space-y-8 my-auto">
         {/* Welcome Message */}
         <div className="space-y-4">
           <div className="w-24 h-24 mx-auto bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center">

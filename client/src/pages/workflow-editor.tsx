@@ -492,35 +492,35 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
         try {
           const data = JSON.parse(event.target?.result as string);
           if (data.nodes && data.edges) {
-            updateActiveTab({
-              nodes: data.nodes,
-              edges: data.edges,
-              viewport: data.viewport || { x: 0, y: 0, zoom: 1 }
+            const importedNodes = data.nodes;
+            const importedEdges = data.edges;
+            const importedViewport = data.viewport || { x: 0, y: 0, zoom: 1 };
+            
+            // Create new history state for the imported workflow
+            const newHistoryState = {
+              nodes: [...importedNodes],
+              edges: [...importedEdges],
+              viewport: { ...importedViewport }
+            };
+            
+            // Directly update the specific tab that was just created
+            setTabs(prev => prev.map(tab => 
+              tab.id === newTab.id 
+                ? {
+                    ...tab,
+                    nodes: importedNodes,
+                    edges: importedEdges,
+                    viewport: importedViewport,
+                    history: [...tab.history, newHistoryState],
+                    historyIndex: tab.history.length // New index after adding the state
+                  }
+                : tab
+            ));
+            
+            toast({
+              title: "Workflow Imported",
+              description: `Successfully imported ${importedNodes.length} nodes and ${importedEdges.length} connections.`,
             });
-            // Save to history after a small delay to ensure state is updated
-            setTimeout(() => {
-              if (activeTab) {
-                const currentNodes = data.nodes;
-                const currentEdges = data.edges;
-                const currentViewport = data.viewport || { x: 0, y: 0, zoom: 1 };
-                
-                const newHistoryState = {
-                  nodes: [...currentNodes],
-                  edges: [...currentEdges],
-                  viewport: { ...currentViewport }
-                };
-                
-                const currentHistory = activeTab.history;
-                const currentHistoryIndex = activeTab.historyIndex;
-                const newHistory = [...currentHistory.slice(0, currentHistoryIndex + 1), newHistoryState];
-                const newHistoryIndex = newHistory.length - 1;
-                
-                updateActiveTab({
-                  history: newHistory,
-                  historyIndex: newHistoryIndex
-                });
-              }
-            }, 20);
           }
         } catch (error) {
           toast({
@@ -533,7 +533,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       reader.readAsText(file);
     };
     input.click();
-  }, [createBlankTab, updateActiveTab, activeTab, toast]);
+  }, [createBlankTab, toast]);
 
   // Direct AI generation function
   const generateWorkflowFromPrompt = useCallback(async (prompt: string): Promise<{ nodes: Node[]; edges: Edge[] }> => {
@@ -1955,7 +1955,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           </div>
 
           {/* Canvas Area */}
-          <div className="flex-1 relative overflow-hidden">
+          <div className={`flex-1 relative ${tabs.length > 0 ? 'overflow-hidden' : 'overflow-y-auto'}`}>
             
             {tabs.length > 0 ? (
               <WorkflowCanvas
@@ -2424,7 +2424,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           <NewTabModal
             isOpen={showNewTabModal}
             onClose={() => setShowNewTabModal(false)}
-            onCreateBlank={handleCreateBlank}
+            onCreateBlank={handleCreateBlankFromCanvas}
             onCreateFromPrompt={handleCreateFromPrompt}
             onCreateFromFile={handleCreateFromFile}
             onCreateFromTemplate={handleCreateFromTemplate}
