@@ -1101,13 +1101,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           const headerText = colors.headerTextColor || colors.textColor || n.data?.textColor || '#0f172a';
           const bodyText = colors.bodyTextColor || colors.textColor || n.data?.textColor || '#475569';
           
-          // Create ref for this specific node
-          const nodeElementRef = React.useRef<HTMLDivElement>(null);
-          
           return (
             <div
               key={n.id}
-              ref={nodeElementRef}
               data-node-id={n.id}
               className={`kiteframe-node group ${n.selected?'selected':''}`}
               style={{ 
@@ -1272,7 +1268,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               )}
               {n.showHandles !== false && <NodeHandles 
                 node={n} 
-                nodeElement={nodeElementRef.current}
                 onHandleConnect={(p, e)=>{
                   if (!containerRef.current) return;
                   const rect = containerRef.current.getBoundingClientRect();

@@ -6,15 +6,13 @@ interface NodeHandlesProps {
   onHandleConnect?: (pos: 'top'|'bottom'|'left'|'right', e: React.MouseEvent) => void;
   proFeatures?: ProFeaturesConfig;
   onQuickAdd?: (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => void;
-  nodeElement?: HTMLDivElement | null;
 }
 
 export const NodeHandles: React.FC<NodeHandlesProps> = ({ 
   node, 
   onHandleConnect, 
   proFeatures,
-  onQuickAdd,
-  nodeElement
+  onQuickAdd
 }) => {
   const [hoveredHandle, setHoveredHandle] = useState<'top'|'bottom'|'left'|'right' | null>(null);
   const [showQuickAddButton, setShowQuickAddButton] = useState<'top'|'bottom'|'left'|'right' | null>(null);
@@ -32,11 +30,14 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   // Measure actual node dimensions
   useEffect(() => {
     const measureNode = () => {
-      const targetElement = nodeElement || nodeRef.current;
-      if (targetElement) {
-        const rect = targetElement.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) {
-          setActualDimensions({ width: rect.width, height: rect.height });
+      // Find the parent node element using DOM traversal
+      if (nodeRef.current) {
+        const nodeElement = nodeRef.current.closest('.kiteframe-node');
+        if (nodeElement) {
+          const rect = nodeElement.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            setActualDimensions({ width: rect.width, height: rect.height });
+          }
         }
       }
     };
@@ -45,16 +46,18 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
     measureNode();
     
     // Use ResizeObserver if available to track size changes
-    const targetElement = nodeElement || nodeRef.current;
-    if (window.ResizeObserver && targetElement) {
-      const resizeObserver = new ResizeObserver(() => {
-        measureNode();
-      });
-      resizeObserver.observe(targetElement);
-      
-      return () => resizeObserver.disconnect();
+    if (nodeRef.current && window.ResizeObserver) {
+      const nodeElement = nodeRef.current.closest('.kiteframe-node');
+      if (nodeElement) {
+        const resizeObserver = new ResizeObserver(() => {
+          measureNode();
+        });
+        resizeObserver.observe(nodeElement);
+        
+        return () => resizeObserver.disconnect();
+      }
     }
-  }, [node.data.label, node.data.description, nodeElement]); // Re-measure when content changes
+  }, [node.data.label, node.data.description]); // Re-measure when content changes
   const size = 12, r = size/2;
   
   const isQuickAddEnabled = proFeatures?.quickAdd?.enabled !== false;
@@ -186,6 +189,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
     <>
       {/* Original node area for handles */}
       <div 
+        ref={nodeRef}
         className="absolute top-0 left-0 w-full h-full"
         onMouseEnter={() => {
           setIsMouseInNodeArea(true);
