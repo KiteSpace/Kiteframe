@@ -61,6 +61,11 @@ export function useAuth() {
           console.error('❌ Failed to sign in with credential:', error);
           setError('Failed to sync authentication from external browser');
         }
+      } else if (event.data?.type === 'FIREBASE_AUTH_SIGNOUT') {
+        console.log('📡 Received sign out signal, signing out...');
+        // Don't call our signOut function to avoid infinite loop
+        await signOutUser();
+        window.location.reload();
       }
     };
 
@@ -78,6 +83,11 @@ export function useAuth() {
           console.error('❌ Failed to sign in with postMessage credential:', error);
           setError('Failed to sync authentication from external browser');
         }
+      } else if (event.data?.type === 'FIREBASE_AUTH_SIGNOUT') {
+        console.log('📡 Received sign out signal via postMessage, signing out...');
+        // Don't call our signOut function to avoid infinite loop
+        await signOutUser();
+        window.location.reload();
       }
     };
 
@@ -145,8 +155,41 @@ export function useAuth() {
   const signOut = async () => {
     try {
       setError(null);
+      console.log('🔓 Starting complete sign out...');
+      
+      // 1. Sign out from Firebase
       await signOutUser();
+      
+      // 2. Clear any cached auth data from browser storage
+      try {
+        localStorage.removeItem('firebase:authUser:[DEFAULT]');
+        localStorage.removeItem('firebase:authUser:' + import.meta.env.VITE_FIREBASE_PROJECT_ID);
+        sessionStorage.clear();
+        
+        // Clear IndexedDB Firebase data (where we store persistence)
+        if ('indexedDB' in window) {
+          const deleteDB = indexedDB.deleteDatabase('firebase:auth');
+          deleteDB.onsuccess = () => console.log('🗑️ Cleared Firebase auth database');
+        }
+      } catch (storageError) {
+        console.log('⚠️ Could not clear some storage:', storageError);
+      }
+      
+      // 3. Broadcast sign out to any other tabs/iframes
+      try {
+        new BroadcastChannel('firebase-auth-sync').postMessage({
+          type: 'FIREBASE_AUTH_SIGNOUT'
+        });
+      } catch (e) {
+        console.log('⚠️ BroadcastChannel not available for signout');
+      }
+      
+      // 4. Force reload to ensure clean state
+      console.log('✅ Complete sign out successful, reloading...');
+      window.location.reload();
+      
     } catch (error: any) {
+      console.error('❌ Sign out error:', error);
       setError(error.message);
     }
   };
