@@ -28,6 +28,12 @@ import {
   EyeOff,
   ChevronDown,
   ChevronRight,
+  Route,
+  MapPin,
+  Network,
+  Layers,
+  UserPlus,
+  CircuitBoard,
 } from 'lucide-react';
 
 interface WorkflowTab {
@@ -68,6 +74,7 @@ interface SidebarProps {
   }) => void;
   currentWorkflow?: WorkflowTab;
   onLoadWorkflow?: (workflow: WorkflowTab) => void;
+  onCreateTemplate?: (templateType: string) => void;
 }
 
 export function Sidebar({
@@ -96,11 +103,13 @@ export function Sidebar({
   onApplyToWorkflow,
   currentWorkflow,
   onLoadWorkflow,
+  onCreateTemplate,
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [isThemesExpanded, setIsThemesExpanded] = useState(true);
+  const [isTemplatesExpanded, setIsTemplatesExpanded] = useState(false);
   // showImageModal is now passed as a prop
 
   const handleUrlSubmit = (nodeId: string) => {
@@ -168,6 +177,15 @@ export function Sidebar({
     { type: 'output', icon: ArrowLeft, color: 'text-red-500', label: 'Output' },
     { type: 'ai', icon: Bot, color: 'text-purple-500', label: 'AI Task' },
     { type: 'image', icon: Image, color: 'text-indigo-500', label: 'Image' }
+  ];
+
+  const templateTypes = [
+    { type: 'user-journey', icon: Route, color: 'text-blue-500', label: 'User Journey' },
+    { type: 'mindmap', icon: MapPin, color: 'text-green-500', label: 'Mindmap' },
+    { type: 'system-architecture', icon: Network, color: 'text-purple-500', label: 'System Architecture' },
+    { type: 'swim-lanes', icon: Layers, color: 'text-orange-500', label: 'Swim Lanes' },
+    { type: 'user-account', icon: UserPlus, color: 'text-pink-500', label: 'User Account Creation' },
+    { type: 'io-logic', icon: CircuitBoard, color: 'text-cyan-500', label: 'I/O Logic' }
   ];
 
   return (
@@ -1030,6 +1048,39 @@ export function Sidebar({
                   );
                 })}
               </div>
+            </div>
+
+            {/* Templates Section - Collapsible */}
+            <div>
+              <div 
+                className="flex items-center justify-between cursor-pointer mb-3 hover:bg-accent rounded p-1 -m-1"
+                onClick={() => setIsTemplatesExpanded(!isTemplatesExpanded)}
+              >
+                <h3 className="text-sm font-semibold">Templates</h3>
+                {isTemplatesExpanded ? (
+                  <ChevronDown size={16} className="text-muted-foreground" />
+                ) : (
+                  <ChevronRight size={16} className="text-muted-foreground" />
+                )}
+              </div>
+              {isTemplatesExpanded && (
+                <div className="grid grid-cols-2 gap-2">
+                  {templateTypes.map((template) => {
+                    const IconComponent = template.icon;
+                    return (
+                      <div
+                        key={template.type}
+                        className="p-3 border border-border rounded-md cursor-pointer text-center hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
+                        onClick={() => onCreateTemplate?.(template.type)}
+                        data-testid={`template-${template.type}`}
+                      >
+                        <IconComponent className={`${template.color} mb-1 mx-auto`} size={20} />
+                        <div className="text-xs font-medium">{template.label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Theme Selector Section - Collapsible */}

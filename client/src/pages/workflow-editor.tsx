@@ -2486,6 +2486,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setTabs(prev => [...prev, newTab]);
                 setActiveTabId(newTab.id);
               }}
+              onCreateTemplate={(templateType: string) => {
+                // Create a new tab if none exist
+                if (tabs.length === 0) {
+                  const newTab = createBlankTab();
+                  setTabs([newTab]);
+                  setActiveTabId(newTab.id);
+                  // Wait for the tab to be created before generating the template
+                  setTimeout(() => {
+                    handleCreateTemplateFromCanvas(templateType);
+                  }, 0);
+                  return;
+                }
+
+                // Normal case - generate template for existing tab
+                handleCreateTemplateFromCanvas(templateType);
+              }}
               />
             )}
           </div>
