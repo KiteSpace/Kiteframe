@@ -6,23 +6,55 @@ interface NodeHandlesProps {
   onHandleConnect?: (pos: 'top'|'bottom'|'left'|'right', e: React.MouseEvent) => void;
   proFeatures?: ProFeaturesConfig;
   onQuickAdd?: (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => void;
+  nodeElement?: HTMLDivElement | null;
 }
 
 export const NodeHandles: React.FC<NodeHandlesProps> = ({ 
   node, 
   onHandleConnect, 
   proFeatures,
-  onQuickAdd 
+  onQuickAdd,
+  nodeElement
 }) => {
   const [hoveredHandle, setHoveredHandle] = useState<'top'|'bottom'|'left'|'right' | null>(null);
   const [showQuickAddButton, setShowQuickAddButton] = useState<'top'|'bottom'|'left'|'right' | null>(null);
   const [showGhostPreview, setShowGhostPreview] = useState<'top'|'bottom'|'left'|'right' | null>(null);
   const [isMouseInNodeArea, setIsMouseInNodeArea] = useState(false);
+  const [actualDimensions, setActualDimensions] = useState<{width: number, height: number} | null>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const showTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const nodeRef = useRef<HTMLDivElement>(null);
   
-  const w = node.style?.width ?? node.width ?? 200;
-  const h = node.style?.height ?? node.height ?? 100;
+  // Use actual rendered dimensions if available, fallback to node properties
+  const w = actualDimensions?.width ?? node.style?.width ?? node.width ?? 200;
+  const h = actualDimensions?.height ?? node.style?.height ?? node.height ?? 100;
+
+  // Measure actual node dimensions
+  useEffect(() => {
+    const measureNode = () => {
+      const targetElement = nodeElement || nodeRef.current;
+      if (targetElement) {
+        const rect = targetElement.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          setActualDimensions({ width: rect.width, height: rect.height });
+        }
+      }
+    };
+
+    // Measure on mount and when content might change
+    measureNode();
+    
+    // Use ResizeObserver if available to track size changes
+    const targetElement = nodeElement || nodeRef.current;
+    if (window.ResizeObserver && targetElement) {
+      const resizeObserver = new ResizeObserver(() => {
+        measureNode();
+      });
+      resizeObserver.observe(targetElement);
+      
+      return () => resizeObserver.disconnect();
+    }
+  }, [node.data.label, node.data.description, nodeElement]); // Re-measure when content changes
   const size = 12, r = size/2;
   
   const isQuickAddEnabled = proFeatures?.quickAdd?.enabled !== false;
