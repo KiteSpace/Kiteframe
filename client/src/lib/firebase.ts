@@ -1,7 +1,7 @@
 // Firebase configuration and authentication setup
 // Based on firebase_barebones_javascript integration
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, User, onAuthStateChanged, signOut } from "firebase/auth";
+import { initializeAuth, indexedDBLocalPersistence, browserPopupRedirectResolver, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, User, onAuthStateChanged, signOut } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -15,14 +15,24 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+
+// Initialize Auth with proper persistence for storage-partitioned environments
+export const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence],
+  popupRedirectResolver: browserPopupRedirectResolver,
+});
+
 export const db = getFirestore(app);
 
 // Google Auth Provider
 const provider = new GoogleAuthProvider();
 
-// Authentication functions
-export function signInWithGoogle() {
+// Authentication functions - popup-first approach
+export function signInWithGooglePopup() {
+  return signInWithPopup(auth, provider);
+}
+
+export function signInWithGoogleRedirect() {
   return signInWithRedirect(auth, provider);
 }
 

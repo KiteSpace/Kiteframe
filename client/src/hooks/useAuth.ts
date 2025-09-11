@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
-import { onAuthStateChange, signInWithGoogle, signOutUser } from '../lib/firebase';
+import { onAuthStateChange, signInWithGooglePopup, signInWithGoogleRedirect, signOutUser } from '../lib/firebase';
 import { getRedirectResult } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
@@ -101,8 +101,41 @@ export function useAuth() {
   const signIn = async () => {
     try {
       setError(null);
-      console.log('🔑 Starting Google sign-in with redirect...');
-      await signInWithGoogle(); // This will redirect to Google
+      console.log('🔑 Starting Google sign-in with popup...');
+      
+      // Try popup first (works better with storage partitioning)
+      try {
+        const result = await signInWithGooglePopup();
+        console.log('✅ Popup sign-in successful:', result.user.displayName || result.user.email);
+        
+        // Extract and broadcast credential for iframe sync
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (credential?.idToken && credential?.accessToken) {
+          console.log('📡 Broadcasting auth credential...');
+          const payload = {
+            type: 'FIREBASE_AUTH_CREDENTIAL',
+            idToken: credential.idToken,
+            accessToken: credential.accessToken
+          };
+          
+          try {
+            new BroadcastChannel('firebase-auth-sync').postMessage(payload);
+          } catch (e) {
+            // BroadcastChannel may not be available in all browsers
+            console.log('⚠️ BroadcastChannel not available');
+          }
+        }
+      } catch (popupError: any) {
+        console.log('⚠️ Popup blocked or failed, trying redirect fallback...', popupError.code);
+        
+        if (popupError.code === 'auth/popup-blocked' || popupError.code === 'auth/popup-closed-by-user') {
+          // Fallback to redirect only if popup fails
+          console.log('🔄 Falling back to redirect...');
+          await signInWithGoogleRedirect();
+        } else {
+          throw popupError;
+        }
+      }
     } catch (error: any) {
       console.error('❌ Sign-in error:', error);
       setError(error.message);
