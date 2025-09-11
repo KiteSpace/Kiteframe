@@ -287,14 +287,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     return saved ? JSON.parse(saved) : false;
   });
 
-  // Initialize tabs on first render
-  useEffect(() => {
-    if (tabs.length === 0) {
-      const defaultTab = createBlankTab();
-      setTabs([defaultTab]);
-      setActiveTabId(defaultTab.id);
-    }
-  }, [createBlankTab]);
+  // Initialize tabs on first render - removed auto-create to show new creation experience
 
   // Migration effect: Fix existing tabs with invalid history state
   useEffect(() => {
