@@ -24,8 +24,11 @@ export const auth = initializeAuth(app, {
 
 export const db = getFirestore(app);
 
-// Google Auth Provider
+// Google Auth Provider - force account selection every time
 const provider = new GoogleAuthProvider();
+provider.setCustomParameters({
+  prompt: 'select_account' // Always show account selection screen
+});
 
 // Authentication functions - popup-first approach
 export function signInWithGooglePopup() {
