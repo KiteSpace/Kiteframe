@@ -1,14 +1,30 @@
-import { LogIn, LogOut, User, ExternalLink } from 'lucide-react';
+import { LogIn, LogOut, User, ExternalLink, ChevronDown } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export function AuthButton() {
   const { user, loading, signIn, signOut, isAuthenticated } = useAuth();
   const [isInIframe, setIsInIframe] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Check if we're running inside an iframe (like Replit preview)
     setIsInIframe(window.top !== window);
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   if (loading) {
@@ -21,22 +37,57 @@ export function AuthButton() {
 
   if (isAuthenticated && user) {
     return (
-      <div className="flex items-center space-x-2">
-        <div className="flex items-center space-x-2 px-3 py-1.5 text-sm">
-          <User size={16} className="text-muted-foreground" />
-          <span className="text-foreground font-medium truncate max-w-32" title={user.displayName || user.email || 'User'}>
-            {user.displayName || user.email || 'User'}
-          </span>
-        </div>
+      <div className="relative" ref={dropdownRef}>
         <button
-          onClick={signOut}
-          className="flex items-center space-x-1 px-3 py-1.5 rounded-md bg-muted hover:bg-muted/80 text-sm font-medium transition-colors"
-          data-testid="button-sign-out"
-          title="Sign out"
+          onClick={() => setShowDropdown(!showDropdown)}
+          className="flex items-center space-x-1 p-1.5 rounded-full hover:bg-accent transition-colors"
+          data-testid="button-user-profile"
+          title={user.displayName || user.email || 'User profile'}
         >
-          <LogOut size={16} />
-          <span>Sign Out</span>
+          {user.photoURL ? (
+            <img
+              src={user.photoURL}
+              alt="Profile"
+              className="w-8 h-8 rounded-full object-cover"
+              onError={(e) => {
+                // Fallback to generic icon if image fails to load
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+          ) : null}
+          <User 
+            size={20} 
+            className={`${user.photoURL ? 'hidden' : ''} text-muted-foreground`}
+          />
+          <ChevronDown size={14} className="text-muted-foreground" />
         </button>
+
+        {showDropdown && (
+          <div className="absolute right-0 top-full mt-1 w-48 bg-popover border rounded-md shadow-md z-50">
+            <div className="py-1">
+              <div className="px-3 py-2 text-sm border-b">
+                <div className="font-medium truncate">
+                  {user.displayName || 'User'}
+                </div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {user.email}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowDropdown(false);
+                  signOut();
+                }}
+                className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center space-x-2"
+                data-testid="button-sign-out"
+              >
+                <LogOut size={16} />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
