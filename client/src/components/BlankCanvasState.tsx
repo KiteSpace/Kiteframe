@@ -7,18 +7,23 @@ interface BlankCanvasStateProps {
   onCreateWithTemplate: () => void;
   onCreateWithAI: () => void;
   onImportWorkflow: () => void;
+  onCreateTemplate?: (templateType: string) => void;
 }
 
 export function BlankCanvasState({
   onCreateBlank,
   onCreateWithTemplate,
   onCreateWithAI,
-  onImportWorkflow
+  onImportWorkflow,
+  onCreateTemplate
 }: BlankCanvasStateProps) {
   const handleTemplateCreate = (templateType: string) => {
-    // For now, create blank and let user build the template
-    // TODO: Implement actual template creation logic
-    onCreateBlank();
+    // If we have the template creation function, use it, otherwise fall back to blank
+    if (onCreateTemplate) {
+      onCreateTemplate(templateType);
+    } else {
+      onCreateBlank();
+    }
   };
 
   return (

@@ -188,7 +188,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     });
 
     // Create edges between the nodes (linear flow: 1->2->3)
-    const edgeTypes: ('bezier' | 'straight' | 'step' | 'curved' | 'orthogonal' | 'smoothstep')[] = ['bezier', 'straight', 'step'];
+    const edgeTypes = ['bezier', 'straight', 'step'] as const;
     const colors = [
       'hsl(221.2, 83.2%, 53.3%)', 
       'hsl(142.1, 76.2%, 36.3%)',
@@ -204,7 +204,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
         type: edgeTypes[Math.floor(Math.random() * edgeTypes.length)],
         animated: Math.random() > 0.5,
         style: { strokeColor: colors[Math.floor(Math.random() * colors.length)], strokeWidth: 2 },
-        markers: { type: 'arrow', position: 'end' }
+        markers: { type: 'arrow' as const, position: 'end' as const }
       },
       {
         id: 'edge-2',
@@ -213,9 +213,439 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
         type: edgeTypes[Math.floor(Math.random() * edgeTypes.length)],
         animated: Math.random() > 0.5,
         style: { strokeColor: colors[Math.floor(Math.random() * colors.length)], strokeWidth: 2 },
-        markers: { type: 'arrow', position: 'end' }
+        markers: { type: 'arrow' as const, position: 'end' as const }
       }
     ];
+
+    return { nodes, edges };
+  }, []);
+
+  // Generate User Journey template
+  const generateUserJourneyTemplate = useCallback((): { nodes: Node[]; edges: Edge[] } => {
+    const journeySteps = [
+      'Discovery', 'Awareness', 'Research', 'Consideration', 'Decision', 
+      'Purchase', 'Onboarding', 'Usage', 'Support', 'Advocacy'
+    ];
+    
+    const touchpoints = [
+      'Website Visit', 'Social Media', 'Email Campaign', 'Product Demo', 
+      'Customer Service', 'Mobile App', 'In-Store Experience', 'Review Platform'
+    ];
+    
+    const emotions = [
+      'Curious', 'Excited', 'Overwhelmed', 'Confident', 'Satisfied', 
+      'Frustrated', 'Delighted', 'Concerned', 'Hopeful', 'Loyal'
+    ];
+
+    const selectedSteps = journeySteps.sort(() => 0.5 - Math.random()).slice(0, 5);
+    const nodes = selectedSteps.map((step, index) => {
+      const touchpoint = touchpoints[Math.floor(Math.random() * touchpoints.length)];
+      const emotion = emotions[Math.floor(Math.random() * emotions.length)];
+      
+      return {
+        id: `step-${index + 1}`,
+        type: index === 0 ? 'input' : index === selectedSteps.length - 1 ? 'output' : 'process',
+        position: { x: 150 + index * 250, y: 150 + Math.random() * 100 },
+        data: {
+          label: step,
+          description: `${touchpoint}\nFeeling: ${emotion}`,
+          icon: index === 0 ? 'ArrowRight' : index === selectedSteps.length - 1 ? 'ArrowLeft' : 'User',
+          iconColor: index === 0 ? 'text-blue-500' : index === selectedSteps.length - 1 ? 'text-red-500' : 'text-green-500'
+        },
+        width: 200,
+        height: 100
+      };
+    });
+
+    const edges: Edge[] = [];
+    for (let i = 0; i < nodes.length - 1; i++) {
+      edges.push({
+        id: `journey-edge-${i + 1}`,
+        source: nodes[i].id,
+        target: nodes[i + 1].id,
+        type: 'bezier' as const,
+        animated: true,
+        style: { strokeColor: 'hsl(142.1, 76.2%, 36.3%)', strokeWidth: 2 },
+        markers: { type: 'arrow' as const, position: 'end' as const }
+      });
+    }
+
+    return { nodes, edges };
+  }, []);
+
+  // Generate Mindmap template
+  const generateMindmapTemplate = useCallback((): { nodes: Node[]; edges: Edge[] } => {
+    const centralTopics = [
+      'Product Strategy', 'Marketing Plan', 'Business Model', 'User Research',
+      'Project Goals', 'Innovation Ideas', 'Team Structure', 'Growth Strategy'
+    ];
+    
+    const subtopics = [
+      'Market Analysis', 'Customer Segments', 'Features', 'Pricing', 'Channels',
+      'Resources', 'Timeline', 'Metrics', 'Risks', 'Opportunities', 'Partnerships',
+      'Technology', 'Design', 'Operations', 'Finance', 'Legal', 'Quality'
+    ];
+
+    const centralTopic = centralTopics[Math.floor(Math.random() * centralTopics.length)];
+    const selectedSubtopics = subtopics.sort(() => 0.5 - Math.random()).slice(0, 6);
+
+    const nodes = [
+      {
+        id: 'central',
+        type: 'process',
+        position: { x: 500, y: 250 },
+        data: {
+          label: centralTopic,
+          description: 'Central topic',
+          icon: 'Target',
+          iconColor: 'text-purple-500'
+        },
+        width: 200,
+        height: 100
+      }
+    ];
+
+    const angles = [0, 60, 120, 180, 240, 300].slice(0, selectedSubtopics.length);
+    selectedSubtopics.forEach((topic, index) => {
+      const angle = (angles[index] * Math.PI) / 180;
+      const radius = 300;
+      const x = 500 + radius * Math.cos(angle);
+      const y = 250 + radius * Math.sin(angle);
+
+      nodes.push({
+        id: `branch-${index + 1}`,
+        type: 'condition',
+        position: { x, y },
+        data: {
+          label: topic,
+          description: `Branch: ${topic}`,
+          icon: 'GitBranch',
+          iconColor: 'text-blue-500'
+        },
+        width: 180,
+        height: 90
+      });
+    });
+
+    const edges: Edge[] = [];
+    for (let i = 1; i < nodes.length; i++) {
+      edges.push({
+        id: `mind-edge-${i}`,
+        source: 'central',
+        target: nodes[i].id,
+        type: 'straight' as const,
+        animated: false,
+        style: { strokeColor: 'hsl(262.1, 83.3%, 57.8%)', strokeWidth: 2 },
+        markers: { type: 'arrow' as const, position: 'end' as const }
+      });
+    }
+
+    return { nodes, edges };
+  }, []);
+
+  // Generate System Architecture template
+  const generateSystemArchitectureTemplate = useCallback((): { nodes: Node[]; edges: Edge[] } => {
+    const systems = [
+      'Load Balancer', 'API Gateway', 'Web Server', 'Application Server',
+      'Database', 'Cache Layer', 'Message Queue', 'File Storage', 'CDN',
+      'Authentication Service', 'Monitoring', 'Analytics', 'Backup System'
+    ];
+
+    const selectedSystems = systems.sort(() => 0.5 - Math.random()).slice(0, 7);
+    const layers = [
+      { y: 100, label: 'Presentation Layer' },
+      { y: 200, label: 'API Layer' },
+      { y: 300, label: 'Business Logic' },
+      { y: 400, label: 'Data Layer' }
+    ];
+
+    const nodes = selectedSystems.map((system, index) => {
+      const layer = layers[Math.floor(index / 2) % layers.length];
+      const xOffset = (index % 2) * 300 + 200;
+
+      return {
+        id: `sys-${index + 1}`,
+        type: 'process',
+        position: { x: xOffset, y: layer.y + Math.random() * 50 },
+        data: {
+          label: system,
+          description: `${layer.label}\nComponent: ${system}`,
+          icon: 'Server',
+          iconColor: 'text-orange-500'
+        },
+        width: 200,
+        height: 100
+      };
+    });
+
+    const edges: Edge[] = [];
+    for (let i = 0; i < nodes.length - 1; i++) {
+      if (Math.random() > 0.3) { // 70% chance of connection
+        edges.push({
+          id: `sys-edge-${edges.length + 1}`,
+          source: nodes[i].id,
+          target: nodes[i + 1].id,
+          type: 'step' as const,
+          animated: false,
+          style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
+          markers: { type: 'arrow' as const, position: 'end' as const }
+        });
+      }
+    }
+
+    return { nodes, edges };
+  }, []);
+
+  // Generate Swim Lanes template
+  const generateSwimLanesTemplate = useCallback((): { nodes: Node[]; edges: Edge[] } => {
+    const lanes = [
+      'Customer', 'Sales Team', 'Marketing', 'Support', 'Development',
+      'Management', 'Finance', 'Operations', 'Legal', 'Design'
+    ];
+
+    const activities = [
+      'Submit Request', 'Review Application', 'Approve Process', 'Create Account',
+      'Send Notification', 'Generate Report', 'Schedule Meeting', 'Update Status',
+      'Verify Information', 'Complete Task', 'Archive Records', 'Follow Up'
+    ];
+
+    const selectedLanes = lanes.sort(() => 0.5 - Math.random()).slice(0, 4);
+    const selectedActivities = activities.sort(() => 0.5 - Math.random()).slice(0, 8);
+
+    const nodes: Node[] = [];
+    const laneHeight = 150;
+
+    selectedLanes.forEach((lane, laneIndex) => {
+      const activitiesPerLane = Math.ceil(selectedActivities.length / selectedLanes.length);
+      const laneActivities = selectedActivities.slice(laneIndex * activitiesPerLane, (laneIndex + 1) * activitiesPerLane);
+
+      laneActivities.forEach((activity, actIndex) => {
+        nodes.push({
+          id: `lane-${laneIndex}-act-${actIndex}`,
+          type: actIndex === 0 ? 'input' : actIndex === laneActivities.length - 1 ? 'output' : 'process',
+          position: { x: 200 + actIndex * 250, y: 100 + laneIndex * laneHeight },
+          data: {
+            label: activity,
+            description: `Lane: ${lane}\nActivity: ${activity}`,
+            icon: actIndex === 0 ? 'ArrowRight' : actIndex === laneActivities.length - 1 ? 'ArrowLeft' : 'Activity',
+            iconColor: `hsl(${laneIndex * 90}, 70%, 50%)`
+          },
+          width: 200,
+          height: 90
+        });
+      });
+    });
+
+    const edges: Edge[] = [];
+    nodes.forEach((node, index) => {
+      if (index < nodes.length - 1 && Math.random() > 0.4) {
+        edges.push({
+          id: `swim-edge-${edges.length + 1}`,
+          source: node.id,
+          target: nodes[index + 1].id,
+          type: 'step' as const,
+          animated: true,
+          style: { strokeColor: 'hsl(346.8, 77.2%, 49.8%)', strokeWidth: 2 },
+          markers: { type: 'arrow' as const, position: 'end' as const }
+        });
+      }
+    });
+
+    return { nodes, edges };
+  }, []);
+
+  // Generate User Account Creation template
+  const generateUserAccountTemplate = useCallback((): { nodes: Node[]; edges: Edge[] } => {
+    const steps = [
+      'Registration Form', 'Email Verification', 'Profile Setup', 'Preferences',
+      'Welcome Tour', 'First Login', 'Account Activation', 'Security Setup'
+    ];
+
+    const validationSteps = [
+      'Validate Email', 'Check Password Strength', 'Verify Phone', 'Duplicate Check',
+      'Terms Acceptance', 'Age Verification', 'Captcha Check', 'Fraud Detection'
+    ];
+
+    const selectedSteps = steps.sort(() => 0.5 - Math.random()).slice(0, 5);
+    const selectedValidations = validationSteps.sort(() => 0.5 - Math.random()).slice(0, 3);
+
+    const nodes = selectedSteps.map((step, index) => ({
+      id: `account-${index + 1}`,
+      type: index === 0 ? 'input' : index === selectedSteps.length - 1 ? 'output' : 'process',
+      position: { x: 150 + index * 200, y: 150 },
+      data: {
+        label: step,
+        description: `User account creation step: ${step}`,
+        icon: index === 0 ? 'UserPlus' : index === selectedSteps.length - 1 ? 'CheckCircle' : 'User',
+        iconColor: index === 0 ? 'text-green-500' : index === selectedSteps.length - 1 ? 'text-blue-500' : 'text-purple-500'
+      },
+      width: 180,
+      height: 100
+    }));
+
+    // Add validation nodes
+    selectedValidations.forEach((validation, index) => {
+      nodes.push({
+        id: `validation-${index + 1}`,
+        type: 'condition',
+        position: { x: 250 + index * 200, y: 300 },
+        data: {
+          label: validation,
+          description: `Validation: ${validation}`,
+          icon: 'Shield',
+          iconColor: 'text-yellow-500'
+        },
+        width: 160,
+        height: 80
+      });
+    });
+
+    const edges = [];
+    // Main flow edges
+    for (let i = 0; i < selectedSteps.length - 1; i++) {
+      edges.push({
+        id: `account-edge-${i + 1}`,
+        source: `account-${i + 1}`,
+        target: `account-${i + 2}`,
+        type: 'bezier' as const,
+        animated: true,
+        style: { strokeColor: 'hsl(142.1, 76.2%, 36.3%)', strokeWidth: 2 },
+        markers: { type: 'arrow' as const, position: 'end' as const }
+      });
+    }
+
+    // Validation edges
+    selectedValidations.forEach((_, index) => {
+      if (index < selectedSteps.length - 1) {
+        edges.push({
+          id: `val-edge-${index + 1}`,
+          source: `account-${index + 1}`,
+          target: `validation-${index + 1}`,
+          type: 'straight' as const,
+          animated: false,
+          style: { strokeColor: 'hsl(45, 93%, 47%)', strokeWidth: 2 },
+          markers: { type: 'arrow' as const, position: 'end' as const }
+        });
+      }
+    });
+
+    return { nodes, edges };
+  }, []);
+
+  // Generate I/O Logic template
+  const generateIOLogicTemplate = useCallback((): { nodes: Node[]; edges: Edge[] } => {
+    const inputSources = [
+      'File Upload', 'API Request', 'Database Query', 'User Input',
+      'Sensor Data', 'External Service', 'Message Queue', 'Webhook'
+    ];
+
+    const processes = [
+      'Data Validation', 'Transform Format', 'Apply Rules', 'Filter Data',
+      'Calculate Values', 'Merge Datasets', 'Aggregate Results', 'Clean Data'
+    ];
+
+    const outputDestinations = [
+      'Database Write', 'File Export', 'API Response', 'Email Notification',
+      'Dashboard Update', 'Report Generation', 'Alert System', 'Cache Update'
+    ];
+
+    const selectedInputs = inputSources.sort(() => 0.5 - Math.random()).slice(0, 2);
+    const selectedProcesses = processes.sort(() => 0.5 - Math.random()).slice(0, 3);
+    const selectedOutputs = outputDestinations.sort(() => 0.5 - Math.random()).slice(0, 2);
+
+    const nodes: Node[] = [];
+
+    // Input nodes
+    selectedInputs.forEach((input, index) => {
+      nodes.push({
+        id: `input-${index + 1}`,
+        type: 'input',
+        position: { x: 100 + index * 150, y: 100 },
+        data: {
+          label: input,
+          description: `Input source: ${input}`,
+          icon: 'ArrowRight',
+          iconColor: 'text-blue-500'
+        },
+        width: 160,
+        height: 80
+      });
+    });
+
+    // Processing nodes
+    selectedProcesses.forEach((process, index) => {
+      nodes.push({
+        id: `process-${index + 1}`,
+        type: index === Math.floor(selectedProcesses.length / 2) ? 'condition' : 'process',
+        position: { x: 150 + index * 200, y: 250 },
+        data: {
+          label: process,
+          description: `Processing: ${process}`,
+          icon: index === Math.floor(selectedProcesses.length / 2) ? 'HelpCircle' : 'Cog',
+          iconColor: index === Math.floor(selectedProcesses.length / 2) ? 'text-yellow-500' : 'text-green-500'
+        },
+        width: 180,
+        height: 90
+      });
+    });
+
+    // Output nodes
+    selectedOutputs.forEach((output, index) => {
+      nodes.push({
+        id: `output-${index + 1}`,
+        type: 'output',
+        position: { x: 200 + index * 150, y: 400 },
+        data: {
+          label: output,
+          description: `Output destination: ${output}`,
+          icon: 'ArrowLeft',
+          iconColor: 'text-red-500'
+        },
+        width: 160,
+        height: 80
+      });
+    });
+
+    const edges: Edge[] = [];
+    
+    // Connect inputs to first process
+    selectedInputs.forEach((_, index) => {
+      edges.push({
+        id: `io-edge-input-${index + 1}`,
+        source: `input-${index + 1}`,
+        target: 'process-1',
+        type: 'bezier' as const,
+        animated: true,
+        style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
+        markers: { type: 'arrow' as const, position: 'end' as const }
+      });
+    });
+
+    // Connect processes
+    for (let i = 0; i < selectedProcesses.length - 1; i++) {
+      edges.push({
+        id: `io-edge-process-${i + 1}`,
+        source: `process-${i + 1}`,
+        target: `process-${i + 2}`,
+        type: 'step' as const,
+        animated: false,
+        style: { strokeColor: 'hsl(142.1, 76.2%, 36.3%)', strokeWidth: 2 },
+        markers: { type: 'arrow' as const, position: 'end' as const }
+      });
+    }
+
+    // Connect last process to outputs
+    selectedOutputs.forEach((_, index) => {
+      edges.push({
+        id: `io-edge-output-${index + 1}`,
+        source: `process-${selectedProcesses.length}`,
+        target: `output-${index + 1}`,
+        type: 'bezier' as const,
+        animated: true,
+        style: { strokeColor: 'hsl(346.8, 77.2%, 49.8%)', strokeWidth: 2 },
+        markers: { type: 'arrow' as const, position: 'end' as const }
+      });
+    });
 
     return { nodes, edges };
   }, []);
@@ -527,6 +957,65 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     };
     input.click();
   }, [createBlankTab, toast]);
+
+  // Handle template creation from canvas
+  const handleCreateTemplateFromCanvas = useCallback((templateType: string) => {
+    let templateData;
+    const name = generateCuteName();
+
+    // Generate appropriate template based on type
+    switch (templateType) {
+      case 'user-journey':
+        templateData = generateUserJourneyTemplate();
+        break;
+      case 'mindmap':
+        templateData = generateMindmapTemplate();
+        break;
+      case 'system-architecture':
+        templateData = generateSystemArchitectureTemplate();
+        break;
+      case 'swim-lanes':
+        templateData = generateSwimLanesTemplate();
+        break;
+      case 'user-account-creation':
+        templateData = generateUserAccountTemplate();
+        break;
+      case 'io-logic':
+        templateData = generateIOLogicTemplate();
+        break;
+      default:
+        // Fallback to blank if template type is not recognized
+        handleCreateBlankFromCanvas();
+        return;
+    }
+
+    const initialState = {
+      nodes: templateData.nodes,
+      edges: templateData.edges,
+      viewport: { x: 0, y: 0, zoom: 1 }
+    };
+    
+    const newTab: WorkflowTab = {
+      id: generateTabId(),
+      name,
+      ...initialState,
+      selectedNodeId: '',
+      selectedEdgeId: '',
+      history: [initialState],
+      historyIndex: 0,
+      showImageModal: null,
+      metadata: {
+        name,
+        description: '',
+        links: [],
+        linksFormat: 'text',
+        categories: []
+      }
+    };
+
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+  }, [generateTabId, generateCuteName, generateUserJourneyTemplate, generateMindmapTemplate, generateSystemArchitectureTemplate, generateSwimLanesTemplate, generateUserAccountTemplate, generateIOLogicTemplate, handleCreateBlankFromCanvas]);
 
   // Direct AI generation function
   const generateWorkflowFromPrompt = useCallback(async (prompt: string): Promise<{ nodes: Node[]; edges: Edge[] }> => {
@@ -1434,10 +1923,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         id: `edge-${Date.now()}`,
         source: sourceNodeId,
         target: newNode.id,
-        type: 'step',
+        type: 'step' as const,
         animated: false,
         style: { strokeColor: '#3b82f6', strokeWidth: 2 },
-        markers: { type: 'arrow', position: 'end' }
+        markers: { type: 'arrow' as const, position: 'end' as const }
       };
 
       setEdges(prev => [...prev, newEdge]);
@@ -2131,9 +2620,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   id: `edge-${Date.now()}`,
                   source: connection.source,
                   target: connection.target,
-                  type: 'bezier',
+                  type: 'bezier' as const,
                   style: { strokeColor: '#3b82f6', strokeWidth: 2 },
-                  markers: { type: 'arrow', position: 'end' },
+                  markers: { type: 'arrow' as const, position: 'end' as const },
                   reconnectable: true, // Enable reconnection for new edges
                   interactable: true // Make edge clickable
                 };
@@ -2299,6 +2788,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 onCreateWithTemplate={handleCreateWithTemplate}
                 onCreateWithAI={handleCreateWithAI}
                 onImportWorkflow={handleImportFromCanvas}
+                onCreateTemplate={handleCreateTemplateFromCanvas}
               />
             )}
           </div>
