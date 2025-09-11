@@ -1268,6 +1268,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               )}
               {n.showHandles !== false && <NodeHandles 
                 node={n} 
+                scale={viewport.zoom}
                 onHandleConnect={(p, e)=>{
                   if (!containerRef.current) return;
                   const rect = containerRef.current.getBoundingClientRect();

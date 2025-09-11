@@ -3,6 +3,7 @@ import type { Node, ProFeaturesConfig } from '../types';
 
 interface NodeHandlesProps {
   node: Node;
+  scale: number;
   onHandleConnect?: (pos: 'top'|'bottom'|'left'|'right', e: React.MouseEvent) => void;
   proFeatures?: ProFeaturesConfig;
   onQuickAdd?: (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => void;
@@ -10,6 +11,7 @@ interface NodeHandlesProps {
 
 export const NodeHandles: React.FC<NodeHandlesProps> = ({ 
   node, 
+  scale,
   onHandleConnect, 
   proFeatures,
   onQuickAdd
@@ -36,7 +38,11 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
         if (nodeElement) {
           const rect = nodeElement.getBoundingClientRect();
           if (rect.width > 0 && rect.height > 0) {
-            setActualDimensions({ width: rect.width, height: rect.height });
+            // Convert viewport-scaled dimensions to node-local coordinates
+            setActualDimensions({ 
+              width: rect.width / scale, 
+              height: rect.height / scale 
+            });
           }
         }
       }
@@ -57,8 +63,12 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
         return () => resizeObserver.disconnect();
       }
     }
-  }, [node.data.label, node.data.description]); // Re-measure when content changes
+  }, [node.data.label, node.data.description, scale]); // Re-measure when content or scale changes
   const size = 12, r = size/2;
+  
+  // Scale-independent offsets for quick-add buttons and ghost previews
+  const quickAddOffset = 35 / scale; // Keep visual distance constant regardless of zoom
+  const ghostSpacing = 250 / scale;
   
   const isQuickAddEnabled = proFeatures?.quickAdd?.enabled !== false;
   
@@ -70,7 +80,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   } as const;
 
   const getQuickAddButtonPosition = (position: 'top'|'bottom'|'left'|'right') => {
-    const offset = 35;
+    const offset = quickAddOffset;
     switch (position) {
       case 'top':
         return { top: -offset, left: '50%', transform: 'translateX(-50%)' };
@@ -84,7 +94,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   };
 
   const getGhostPreviewPosition = (position: 'top'|'bottom'|'left'|'right') => {
-    const spacing = proFeatures?.quickAdd?.defaultSpacing ?? 250;
+    const spacing = proFeatures?.quickAdd?.defaultSpacing ? proFeatures.quickAdd.defaultSpacing / scale : ghostSpacing;
     switch (position) {
       case 'top':
         return { top: -spacing, left: 0 };
@@ -99,7 +109,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
 
   const getConnectionLinePoints = (position: 'top'|'bottom'|'left'|'right') => {
     const handlePos = pos[position];
-    const spacing = proFeatures?.quickAdd?.defaultSpacing ?? 250;
+    const spacing = proFeatures?.quickAdd?.defaultSpacing ? proFeatures.quickAdd.defaultSpacing / scale : ghostSpacing;
     
     switch (position) {
       case 'top':
