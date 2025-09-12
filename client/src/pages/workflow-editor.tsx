@@ -2004,6 +2004,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [activeTab, tabs, setTabs, setActiveTabId, updateActiveTab]);
 
 
+  // Reset form editing state when switching tabs
+  useEffect(() => {
+    setIsEditingWorkflowName(false);
+    setWorkflowNameInput('');
+  }, [activeTabId]);
+
   // Auto-register demo plugins when component mounts
   useEffect(() => {
     const registerPlugins = async () => {
