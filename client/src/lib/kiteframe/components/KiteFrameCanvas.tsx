@@ -621,6 +621,9 @@ type Props = {
   onWorkflowNameChange?: (name: string) => void;
   workflowMetadata?: WorkflowMetadata;
   onWorkflowMetadataChange?: (metadata: WorkflowMetadata) => void;
+  
+  // User identification for reactions and interactions
+  currentUserId?: string;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -1075,10 +1078,19 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
              (props.canvasObjects || []).find(obj => obj.id === canvasObjectDragInfo.current!.id)?.height || 150
         };
         
+        // Create a temporary node-like object for the dragged canvas object
+        const draggedObjectAsNode = {
+          id: canvasObjectDragInfo.current!.id,
+          position: newPosition,
+          width: draggedObjectSize.w,
+          height: draggedObjectSize.h
+        } as Node;
+        
         const snapResult = calculateSnapPosition(
+          draggedObjectAsNode,
           newPosition,
-          draggedObjectSize,
-          allOtherObjects,
+          props.nodes,
+          { width: 2000, height: 2000 }, // Canvas size
           defaultSnapSettings
         );
         
