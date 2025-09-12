@@ -129,8 +129,8 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
 
   const handleSaveForm = () => {
     console.log('🔧 Saving workflow form data:', formData);
-    setMode('collapsed');
-    onMetadataChange?.(formData);
+    onMetadataChange?.(formData);  // Save FIRST
+    setMode('collapsed');          // Change mode AFTER
   };
 
   const handleNameKeyDown = (e: React.KeyboardEvent) => {
