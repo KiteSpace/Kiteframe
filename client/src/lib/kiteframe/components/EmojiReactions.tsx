@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Plus, Smile } from 'lucide-react';
 import type { NodeReactions, EmojiReaction } from '../types';
@@ -49,12 +49,37 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
     setShowFullPicker(false);
   };
 
+  const handleQuickEmojiClick = (emoji: string) => {
+    handleEmojiClick(emoji);
+    setShowReactionBar(false);
+    setShowFullPicker(false);
+  };
+
   const handleExpandPickerClick = () => {
     setShowFullPicker(!showFullPicker);
   };
 
   // Filter reactions that have at least one user
   const activeReactions = Object.entries(reactions).filter(([_, reaction]) => reaction.count > 0);
+
+  // Handle outside clicks to close the reaction bar
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showReactionBar) {
+        const target = event.target as HTMLElement;
+        // Don't close if clicking inside the reaction elements
+        if (!target.closest('[data-testid*="reaction"]') && !target.closest('[data-testid*="emoji"]')) {
+          setShowReactionBar(false);
+          setShowFullPicker(false);
+        }
+      }
+    };
+
+    if (showReactionBar) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showReactionBar]);
 
   return (
     <div className="absolute inset-0 pointer-events-none">
@@ -110,7 +135,7 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
               return (
                 <button
                   key={emoji}
-                  onClick={() => handleEmojiClick(emoji)}
+                  onClick={() => handleQuickEmojiClick(emoji)}
                   className={cn(
                     "p-2 rounded-md text-lg transition-all hover:bg-gray-100 dark:hover:bg-gray-700",
                     hasReacted && "bg-blue-100 dark:bg-blue-900"

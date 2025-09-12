@@ -1,14 +1,16 @@
 import { useState, useCallback, useEffect } from 'react';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
 import { FloatingToolbar } from './FloatingToolbar';
-import type { Node, Edge, ProFeaturesConfig } from '../lib/kiteframe/types';
+import type { Node, Edge, CanvasObject, ProFeaturesConfig } from '../lib/kiteframe/types';
 import { Undo, Redo, ZoomIn, Maximize2, LayoutGrid, ChevronRight } from 'lucide-react';
 
 interface WorkflowCanvasProps {
   nodes: Node[];
   edges: Edge[];
+  canvasObjects?: CanvasObject[];
   onNodesChange: (nodes: Node[]) => void;
   onEdgesChange: (edges: Edge[]) => void;
+  onCanvasObjectsChange?: (objects: CanvasObject[]) => void;
   onConnect: (connection: { source: string; target: string }) => void;
   onNodeClick?: (e: React.MouseEvent, node: Node) => void;
   onEdgeClick?: (edge: Edge) => void;
@@ -36,8 +38,10 @@ interface WorkflowCanvasProps {
 export function WorkflowCanvas({
   nodes,
   edges,
+  canvasObjects = [],
   onNodesChange,
   onEdgesChange,
+  onCanvasObjectsChange,
   onConnect,
   onNodeClick,
   onEdgeClick,
@@ -170,8 +174,10 @@ export function WorkflowCanvas({
       <KiteFrameCanvas
         nodes={nodes}
         edges={edges}
+        canvasObjects={canvasObjects}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onCanvasObjectsChange={onCanvasObjectsChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
         onEdgeClick={(e, edge) => onEdgeClick?.(edge)}

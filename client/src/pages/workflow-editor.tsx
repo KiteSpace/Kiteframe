@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ObjectUploader } from '@/components/ObjectUploader';
 import { useFirebaseWorkflows } from '../hooks/useFirebaseWorkflows';
 import { useAuth } from '../hooks/useAuth';
-import type { Node, Edge, ProFeaturesConfig, NodeType } from '../lib/kiteframe/types';
+import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType } from '../lib/kiteframe/types';
 import '../lib/kiteframe/styles/kiteframe.css';
 import { X, Plus } from 'lucide-react';
 
@@ -45,10 +45,11 @@ interface WorkflowTab {
   name: string;
   nodes: Node[];
   edges: Edge[];
+  canvasObjects: CanvasObject[];
   viewport: { x: number; y: number; zoom: number };
   selectedNodeId: string;
   selectedEdgeId: string;
-  history: Array<{ nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }>;
+  history: Array<{ nodes: Node[]; edges: Edge[]; canvasObjects: CanvasObject[]; viewport: { x: number; y: number; zoom: number } }>;
   historyIndex: number;
   showImageModal: string | null;
   metadata: WorkflowMetadata;
@@ -726,6 +727,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     const initialState = {
       nodes,
       edges,
+      canvasObjects: [],
       viewport: { x: 0, y: 0, zoom: 1 }
     };
     
@@ -754,6 +756,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     const initialState = {
       nodes: [],
       edges: [],
+      canvasObjects: [],
       viewport: { x: 0, y: 0, zoom: 1 }
     };
     
@@ -868,6 +871,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   // Convenience getters for current tab state
   const nodes = activeTab?.nodes || [];
   const edges = activeTab?.edges || [];
+  const canvasObjects = activeTab?.canvasObjects || [];
   const viewport = activeTab?.viewport || { x: 0, y: 0, zoom: 1 };
   const selectedNodeId = activeTab?.selectedNodeId || '';
   const selectedEdgeId = activeTab?.selectedEdgeId || '';
@@ -1333,11 +1337,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       // Use current state variables instead of stale activeTab references
       const currentNodes = nodes;
       const currentEdges = edges;
+      const currentCanvasObjects = canvasObjects;
       const currentViewport = viewport;
       
       const newHistoryState = {
         nodes: [...currentNodes],
         edges: [...currentEdges],
+        canvasObjects: [...currentCanvasObjects],
         viewport: { ...currentViewport }
       };
       
@@ -1379,7 +1385,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         historyIndex: newHistoryIndex
       });
     }, 10); // Small delay to ensure state consistency
-  }, [activeTab, updateActiveTab, nodes, edges, viewport]);
+  }, [activeTab, updateActiveTab, nodes, edges, canvasObjects, viewport]);
 
   // Quick-add functionality
   const handleQuickAdd = useCallback((sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => {
@@ -1737,6 +1743,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       updateActiveTab({
         nodes: [...targetState.nodes],
         edges: [...targetState.edges],
+        canvasObjects: [...(targetState.canvasObjects || [])],
         viewport: { ...targetState.viewport },
         historyIndex: newIndex
       });
@@ -1792,6 +1799,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       updateActiveTab({
         nodes: [...targetState.nodes],
         edges: [...targetState.edges],
+        canvasObjects: [...(targetState.canvasObjects || [])],
         viewport: { ...targetState.viewport },
         historyIndex: newIndex
       });
@@ -2288,7 +2296,33 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   return;
                 }
 
-                // Normal case - add to existing tab
+                // For types like 'text', 'sticky', 'shape', create canvas objects instead of nodes
+                if (['text', 'sticky', 'shape'].includes(type)) {
+                  saveToHistory(); // Save current state before adding canvas object
+                  
+                  const newCanvasObject: CanvasObject = {
+                    id: `object-${Date.now()}`,
+                    type: type as 'text' | 'sticky' | 'shape',
+                    position: { x: 400, y: 250 },
+                    data: type === 'text' 
+                      ? { text: 'Click to edit text', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', textColor: '#000000' }
+                      : type === 'sticky'
+                      ? { text: 'Your note here...', backgroundColor: '#fef3c7', textColor: '#92400e', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }
+                      : { shapeType: 'rectangle', fillColor: '#3b82f6', strokeColor: '#1d4ed8', strokeWidth: 2, opacity: 1 },
+                    style: { width: type === 'sticky' ? 180 : 200, height: type === 'sticky' ? 180 : 100 },
+                    width: type === 'sticky' ? 180 : 200,
+                    height: type === 'sticky' ? 180 : 100,
+                    draggable: true,
+                    resizable: true
+                  };
+                  
+                  // Add to canvas objects instead of regular nodes
+                  const currentCanvasObjects = activeTab?.canvasObjects || [];
+                  updateActiveTab({ canvasObjects: [...currentCanvasObjects, newCanvasObject] });
+                  return;
+                }
+
+                // Normal case - add to existing tab (for input, process, condition, output, ai, image)
                 saveToHistory(); // Save current state before adding node
                 const icons = {
                   input: { icon: 'ArrowRight', color: 'text-blue-500' },
@@ -2616,8 +2650,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               <WorkflowCanvas
               nodes={nodes}
               edges={edges}
+              canvasObjects={canvasObjects}
               viewport={viewport}
               onViewportChange={setViewport}
+              onCanvasObjectsChange={(newCanvasObjects) => {
+                updateActiveTab({ canvasObjects: newCanvasObjects });
+                saveToHistory();
+              }}
               proFeatures={proFeaturesConfig}
               onQuickAdd={handleQuickAdd}
               workflowName={activeTab?.name}
