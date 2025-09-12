@@ -21,8 +21,9 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
   maxHeight = 600
 }) => {
   const [isResizing, setIsResizing] = useState(false);
-  const [startDimensions, setStartDimensions] = useState({ width: 0, height: 0 });
-  const [startPosition, setStartPosition] = useState({ x: 0, y: 0 });
+  const startDimensionsRef = useRef({ width: 0, height: 0 });
+  const startPositionRef = useRef({ x: 0, y: 0 });
+  const isResizingRef = useRef(false);
 
   const getPositionClasses = () => {
     const baseClasses = 'absolute w-3 h-3 bg-blue-500 border-2 border-white rounded-sm opacity-100 transition-opacity cursor-';
@@ -47,43 +48,46 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
     
     if (!nodeRef.current) return;
     
+    console.log('🔧 RESIZE HANDLE MOUSE DOWN:', { position });
+    
     const rect = nodeRef.current.getBoundingClientRect();
-    setStartDimensions({ width: rect.width, height: rect.height });
-    setStartPosition({ x: e.clientX, y: e.clientY });
+    startDimensionsRef.current = { width: rect.width, height: rect.height };
+    startPositionRef.current = { x: e.clientX, y: e.clientY };
     setIsResizing(true);
+    isResizingRef.current = true;
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
+      if (!isResizingRef.current) return;
 
-      const deltaX = e.clientX - startPosition.x;
-      const deltaY = e.clientY - startPosition.y;
+      const deltaX = e.clientX - startPositionRef.current.x;
+      const deltaY = e.clientY - startPositionRef.current.y;
 
-      let newWidth = startDimensions.width;
-      let newHeight = startDimensions.height;
+      let newWidth = startDimensionsRef.current.width;
+      let newHeight = startDimensionsRef.current.height;
 
       // Calculate new dimensions based on handle position
       switch (position) {
         case 'top-left':
-          newWidth = Math.max(minWidth, Math.min(maxWidth, startDimensions.width - deltaX));
-          newHeight = Math.max(minHeight, Math.min(maxHeight, startDimensions.height - deltaY));
+          newWidth = Math.max(minWidth, Math.min(maxWidth, startDimensionsRef.current.width - deltaX));
+          newHeight = Math.max(minHeight, Math.min(maxHeight, startDimensionsRef.current.height - deltaY));
           break;
         case 'top-right':
-          newWidth = Math.max(minWidth, Math.min(maxWidth, startDimensions.width + deltaX));
-          newHeight = Math.max(minHeight, Math.min(maxHeight, startDimensions.height - deltaY));
+          newWidth = Math.max(minWidth, Math.min(maxWidth, startDimensionsRef.current.width + deltaX));
+          newHeight = Math.max(minHeight, Math.min(maxHeight, startDimensionsRef.current.height - deltaY));
           break;
         case 'bottom-left':
-          newWidth = Math.max(minWidth, Math.min(maxWidth, startDimensions.width - deltaX));
-          newHeight = Math.max(minHeight, Math.min(maxHeight, startDimensions.height + deltaY));
+          newWidth = Math.max(minWidth, Math.min(maxWidth, startDimensionsRef.current.width - deltaX));
+          newHeight = Math.max(minHeight, Math.min(maxHeight, startDimensionsRef.current.height + deltaY));
           break;
         case 'bottom-right':
-          newWidth = Math.max(minWidth, Math.min(maxWidth, startDimensions.width + deltaX));
-          newHeight = Math.max(minHeight, Math.min(maxHeight, startDimensions.height + deltaY));
+          newWidth = Math.max(minWidth, Math.min(maxWidth, startDimensionsRef.current.width + deltaX));
+          newHeight = Math.max(minHeight, Math.min(maxHeight, startDimensionsRef.current.height + deltaY));
           break;
       }
 
       console.log('🔧 RESIZE HANDLE:', {
         position,
-        startDimensions: { width: startDimensions.width, height: startDimensions.height },
+        startDimensions: startDimensionsRef.current,
         newDimensions: { width: newWidth, height: newHeight },
         deltas: { deltaX, deltaY }
       });
@@ -91,14 +95,16 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
     };
 
     const handleMouseUp = () => {
+      console.log('🔧 RESIZE HANDLE MOUSE UP');
       setIsResizing(false);
+      isResizingRef.current = false;
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [position, nodeRef, onResize, startDimensions, startPosition, isResizing, minWidth, minHeight, maxWidth, maxHeight]);
+  }, [position, nodeRef, onResize, minWidth, minHeight, maxWidth, maxHeight]);
 
   return (
     <div
