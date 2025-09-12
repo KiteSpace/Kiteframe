@@ -72,13 +72,11 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
 
   // Update local state when props change
   useEffect(() => {
-    console.log('🔄 WorkflowNameInput: Name changed to:', name, 'Current mode:', mode);
     setInputValue(name);
     setFormData(prev => ({ ...prev, name }));
   }, [name]);
 
   useEffect(() => {
-    console.log('🔄 WorkflowNameInput: Metadata changed:', metadata, 'Current mode:', mode);
     if (metadata) {
       setFormData(metadata);
     }
@@ -121,7 +119,6 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   };
 
   const handleExpandForm = () => {
-    console.log('📝 WorkflowNameInput: Expanding form, mode -> expanded');
     setMode('expanded');
   };
 
