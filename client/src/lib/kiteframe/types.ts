@@ -15,6 +15,7 @@ export type Node = {
   position: Position;
   data: any & {
     colors?: NodeColors;
+    reactions?: NodeReactions;
   };
   style?: { width?: number; height?: number };
   draggable?: boolean;
@@ -86,7 +87,7 @@ export type Edge = {
   data?: any; // Keep for backward compatibility
 };
 
-export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image';
+export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'text' | 'sticky' | 'shape';
 
 // Pro Features Configuration Interfaces
 export interface QuickAddConfig {
@@ -166,6 +167,52 @@ export interface ProFeaturesConfig {
   edgeReconnection?: EdgeReconnectionConfig;
   smartGuides?: SmartGuidesConfig;
   smartConnect?: SmartConnectConfig;
+}
+
+// New Node Type Data Interfaces
+export interface TextNodeData {
+  label: string;
+  text: string;
+  fontSize: number;
+  fontFamily: string;
+  fontWeight: 'normal' | 'medium' | 'semibold' | 'bold';
+  textAlign: 'left' | 'center' | 'right' | 'justify';
+  lineHeight: number;
+  letterSpacing: number;
+  textColor: string;
+  textDecoration: 'none' | 'underline' | 'strikethrough';
+  textTransform: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+  backgroundColor?: string;
+  [key: string]: any;
+}
+
+export interface StickyNoteData {
+  text: string;
+  backgroundColor: string;
+  textColor: string;
+  fontSize: number;
+  fontFamily: string;
+  [key: string]: any;
+}
+
+export interface ShapeNodeData {
+  shapeType: 'rectangle' | 'circle' | 'triangle' | 'line' | 'arrow';
+  fillColor: string;
+  strokeColor: string;
+  strokeWidth: number;
+  borderRadius?: number;
+  opacity: number;
+  [key: string]: any;
+}
+
+export interface EmojiReaction {
+  emoji: string;
+  count: number;
+  userIds: string[];
+}
+
+export interface NodeReactions {
+  [emoji: string]: EmojiReaction;
 }
 
 export interface KiteFrameProps {

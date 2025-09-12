@@ -34,6 +34,14 @@ import {
   Layers,
   UserPlus,
   CircuitBoard,
+  Type,
+  StickyNote,
+  Square,
+  Bold,
+  Italic,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
 } from 'lucide-react';
 
 interface WorkflowTab {
@@ -176,7 +184,10 @@ export function Sidebar({
     { type: 'condition', icon: HelpCircle, color: 'text-yellow-500', label: 'Condition' },
     { type: 'output', icon: ArrowLeft, color: 'text-red-500', label: 'Output' },
     { type: 'ai', icon: Bot, color: 'text-purple-500', label: 'AI Task' },
-    { type: 'image', icon: Image, color: 'text-indigo-500', label: 'Image' }
+    { type: 'image', icon: Image, color: 'text-indigo-500', label: 'Image' },
+    { type: 'text', icon: Type, color: 'text-gray-500', label: 'Text' },
+    { type: 'sticky', icon: StickyNote, color: 'text-yellow-600', label: 'Sticky Note' },
+    { type: 'shape', icon: Square, color: 'text-orange-500', label: 'Shape' }
   ];
 
   const templateTypes = [
@@ -460,6 +471,246 @@ export function Sidebar({
                   />
                 </div>
                 {/* Width and Height controls for image nodes */}
+                {/* Text formatting controls for text-based nodes */}
+                {(selectedNode.type === 'text' || selectedNode.type === 'sticky' || selectedNode.type === 'shape') && (
+                  <div className="space-y-3">
+                    {/* Font Size */}
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Font Size</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min="10"
+                          max="48"
+                          value={selectedNode.data?.fontSize || 16}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: { ...selectedNode.data, fontSize: parseInt(e.target.value) }
+                          })}
+                          className="flex-1"
+                          data-testid="slider-font-size"
+                        />
+                        <input
+                          type="number"
+                          min="10"
+                          max="48"
+                          value={selectedNode.data?.fontSize || 16}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: { ...selectedNode.data, fontSize: Math.min(48, Math.max(10, parseInt(e.target.value) || 16)) }
+                          })}
+                          className="w-16 p-1 text-xs border border-border rounded bg-background"
+                          data-testid="input-font-size"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Font Weight */}
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Font Weight</label>
+                      <select
+                        value={selectedNode.data?.fontWeight || 'normal'}
+                        onChange={(e) => onNodeUpdate(selectedNode.id, {
+                          data: { ...selectedNode.data, fontWeight: e.target.value }
+                        })}
+                        className="w-full p-2 text-xs border border-border rounded bg-background"
+                        data-testid="select-font-weight"
+                      >
+                        <option value="light">Light</option>
+                        <option value="normal">Normal</option>
+                        <option value="medium">Medium</option>
+                        <option value="semibold">Semibold</option>
+                        <option value="bold">Bold</option>
+                        <option value="extrabold">Extra Bold</option>
+                      </select>
+                    </div>
+
+                    {/* Text Alignment */}
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Text Alignment</label>
+                      <div className="flex gap-1">
+                        {[
+                          { value: 'left', icon: AlignLeft, label: 'Left' },
+                          { value: 'center', icon: AlignCenter, label: 'Center' },
+                          { value: 'right', icon: AlignRight, label: 'Right' }
+                        ].map(({ value, icon: Icon, label }) => (
+                          <button
+                            key={value}
+                            onClick={() => onNodeUpdate(selectedNode.id, {
+                              data: { ...selectedNode.data, textAlign: value }
+                            })}
+                            className={`flex-1 p-2 rounded border transition-colors ${
+                              (selectedNode.data?.textAlign || 'left') === value
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'border-border hover:bg-accent'
+                            }`}
+                            title={label}
+                            data-testid={`button-align-${value}`}
+                          >
+                            <Icon size={14} className="mx-auto" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Text Color */}
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Text Color</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={selectedNode.data?.textColor || '#000000'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: { ...selectedNode.data, textColor: e.target.value }
+                          })}
+                          className="w-8 h-8 rounded border border-border"
+                          data-testid="color-picker-text"
+                        />
+                        <input
+                          type="text"
+                          value={selectedNode.data?.textColor || '#000000'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: { ...selectedNode.data, textColor: e.target.value }
+                          })}
+                          className="flex-1 p-2 text-xs border border-border rounded bg-background"
+                          placeholder="#000000"
+                          data-testid="input-text-color"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Background Color */}
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Background Color</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={selectedNode.data?.backgroundColor || (selectedNode.type === 'sticky' ? '#fef08a' : '#ffffff')}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: { ...selectedNode.data, backgroundColor: e.target.value }
+                          })}
+                          className="w-8 h-8 rounded border border-border"
+                          data-testid="color-picker-background"
+                        />
+                        <input
+                          type="text"
+                          value={selectedNode.data?.backgroundColor || (selectedNode.type === 'sticky' ? '#fef08a' : '#ffffff')}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: { ...selectedNode.data, backgroundColor: e.target.value }
+                          })}
+                          className="flex-1 p-2 text-xs border border-border rounded bg-background"
+                          placeholder={selectedNode.type === 'sticky' ? '#fef08a' : '#ffffff'}
+                          data-testid="input-background-color"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Shape-specific properties */}
+                {selectedNode.type === 'shape' && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Shape Type</label>
+                      <select
+                        value={selectedNode.data?.shapeType || 'rectangle'}
+                        onChange={(e) => onNodeUpdate(selectedNode.id, {
+                          data: { ...selectedNode.data, shapeType: e.target.value }
+                        })}
+                        className="w-full p-2 text-xs border border-border rounded bg-background"
+                        data-testid="select-shape-type"
+                      >
+                        <option value="rectangle">Rectangle</option>
+                        <option value="circle">Circle</option>
+                        <option value="triangle">Triangle</option>
+                        <option value="line">Line</option>
+                        <option value="arrow">Arrow</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Fill Color</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={selectedNode.data?.fillColor || '#3b82f6'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: { ...selectedNode.data, fillColor: e.target.value }
+                          })}
+                          className="w-8 h-8 rounded border border-border"
+                          data-testid="color-picker-fill"
+                        />
+                        <input
+                          type="text"
+                          value={selectedNode.data?.fillColor || '#3b82f6'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: { ...selectedNode.data, fillColor: e.target.value }
+                          })}
+                          className="flex-1 p-2 text-xs border border-border rounded bg-background"
+                          placeholder="#3b82f6"
+                          data-testid="input-fill-color"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Stroke Color</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={selectedNode.data?.strokeColor || '#1d4ed8'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: { ...selectedNode.data, strokeColor: e.target.value }
+                          })}
+                          className="w-8 h-8 rounded border border-border"
+                          data-testid="color-picker-stroke"
+                        />
+                        <input
+                          type="text"
+                          value={selectedNode.data?.strokeColor || '#1d4ed8'}
+                          onChange={(e) => onNodeUpdate(selectedNode.id, {
+                            data: { ...selectedNode.data, strokeColor: e.target.value }
+                          })}
+                          className="flex-1 p-2 text-xs border border-border rounded bg-background"
+                          placeholder="#1d4ed8"
+                          data-testid="input-stroke-color"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Stroke Width</label>
+                      <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={selectedNode.data?.strokeWidth || 2}
+                        onChange={(e) => onNodeUpdate(selectedNode.id, {
+                          data: { ...selectedNode.data, strokeWidth: parseInt(e.target.value) }
+                        })}
+                        className="w-full"
+                        data-testid="slider-stroke-width"
+                      />
+                      <div className="text-xs text-muted-foreground mt-1">{selectedNode.data?.strokeWidth || 2}px</div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Opacity</label>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1"
+                        step="0.1"
+                        value={selectedNode.data?.opacity || 1}
+                        onChange={(e) => onNodeUpdate(selectedNode.id, {
+                          data: { ...selectedNode.data, opacity: parseFloat(e.target.value) }
+                        })}
+                        className="w-full"
+                        data-testid="slider-opacity"
+                      />
+                      <div className="text-xs text-muted-foreground mt-1">{Math.round((selectedNode.data?.opacity || 1) * 100)}%</div>
+                    </div>
+                  </div>
+                )}
+
                 {selectedNode.type === 'image' ? (
                   <div className="space-y-3">
                     <div>

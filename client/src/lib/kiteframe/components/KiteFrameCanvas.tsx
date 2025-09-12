@@ -10,6 +10,10 @@ import { EdgeHandles } from './EdgeHandles';
 import { calculateSnapPosition, defaultSnapSettings, type SnapGuide } from '../utils/snapUtils';
 import { ProFeaturesManager } from '../plugins/pro/ProFeaturesManager';
 import { KiteFrameCore, kiteFrameCore } from '../core/KiteFrameCore';
+import { TextNode } from './TextNode';
+import { StickyNote } from './StickyNote';
+import { ShapeNode } from './ShapeNode';
+import { EmojiReactions } from './EmojiReactions';
 import { ChevronDown, ChevronUp, X, ExternalLink, List, Type } from 'lucide-react';
 
 // Floating workflow name input component
@@ -1166,6 +1170,115 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           const headerText = colors.headerTextColor || colors.textColor || n.data?.textColor || '#0f172a';
           const bodyText = colors.bodyTextColor || colors.textColor || n.data?.textColor || '#475569';
           
+          // Helper function to add reactions to nodes
+          const addReaction = (nodeId: string, emoji: string) => {
+            const updatedNodes = props.nodes.map(node => {
+              if (node.id === nodeId) {
+                const reactions = node.data?.reactions || {};
+                const reaction = reactions[emoji] || { count: 0, userIds: [] };
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    reactions: {
+                      ...reactions,
+                      [emoji]: {
+                        count: reaction.count + 1,
+                        userIds: [...reaction.userIds, 'current-user']
+                      }
+                    }
+                  }
+                };
+              }
+              return node;
+            });
+            props.onNodesChange?.(updatedNodes);
+          };
+
+          const removeReaction = (nodeId: string, emoji: string) => {
+            const updatedNodes = props.nodes.map(node => {
+              if (node.id === nodeId) {
+                const reactions = node.data?.reactions || {};
+                const reaction = reactions[emoji];
+                if (reaction) {
+                  const newUserIds = reaction.userIds.filter(id => id !== 'current-user');
+                  const newCount = Math.max(0, reaction.count - 1);
+                  return {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      reactions: {
+                        ...reactions,
+                        [emoji]: {
+                          count: newCount,
+                          userIds: newUserIds
+                        }
+                      }
+                    }
+                  };
+                }
+              }
+              return node;
+            });
+            props.onNodesChange?.(updatedNodes);
+          };
+
+          // Render new node types using their specialized components
+          if (n.type === 'text') {
+            return <TextNode 
+              key={n.id} 
+              node={n} 
+              onUpdate={(updates) => {
+                const updated = props.nodes.map(node => node.id === n.id ? { ...node, data: { ...node.data, ...updates } } : node);
+                props.onNodesChange?.(updated);
+              }} 
+              onResize={(width, height) => {
+                const updated = props.nodes.map(node => node.id === n.id ? { ...node, style: { ...node.style, width, height } } : node);
+                props.onNodesChange?.(updated);
+              }}
+              onAddReaction={addReaction}
+              onRemoveReaction={removeReaction}
+            />;
+          }
+
+          if (n.type === 'sticky') {
+            return <StickyNote 
+              key={n.id} 
+              node={n} 
+              onUpdate={(updates) => {
+                const updated = props.nodes.map(node => node.id === n.id ? { ...node, data: { ...node.data, ...updates } } : node);
+                props.onNodesChange?.(updated);
+              }} 
+              onResize={(width, height) => {
+                const updated = props.nodes.map(node => node.id === n.id ? { ...node, style: { ...node.style, width, height } } : node);
+                props.onNodesChange?.(updated);
+              }} 
+              onDelete={() => {
+                const updated = props.nodes.filter(node => node.id !== n.id);
+                props.onNodesChange?.(updated);
+              }}
+              onAddReaction={addReaction}
+              onRemoveReaction={removeReaction}
+            />;
+          }
+
+          if (n.type === 'shape') {
+            return <ShapeNode 
+              key={n.id} 
+              node={n} 
+              onUpdate={(updates) => {
+                const updated = props.nodes.map(node => node.id === n.id ? { ...node, data: { ...node.data, ...updates } } : node);
+                props.onNodesChange?.(updated);
+              }} 
+              onResize={(width, height) => {
+                const updated = props.nodes.map(node => node.id === n.id ? { ...node, style: { ...node.style, width, height } } : node);
+                props.onNodesChange?.(updated);
+              }}
+              onAddReaction={addReaction}
+              onRemoveReaction={removeReaction}
+            />;
+          }
+
           return (
             <div
               key={n.id}
@@ -1343,6 +1456,65 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 proFeatures={props.proFeatures}
                 onQuickAdd={props.onQuickAdd}
               />}
+              
+              {/* Emoji reactions */}
+              <div className="absolute bottom-0 right-0 transform translate-x-1 translate-y-1">
+                <EmojiReactions 
+                  nodeId={n.id}
+                  reactions={n.data?.reactions}
+                  onAddReaction={(nodeId, emoji) => {
+                    const updatedNodes = props.nodes.map(node => {
+                      if (node.id === nodeId) {
+                        const reactions = node.data?.reactions || {};
+                        const reaction = reactions[emoji] || { count: 0, userIds: [] };
+                        return {
+                          ...node,
+                          data: {
+                            ...node.data,
+                            reactions: {
+                              ...reactions,
+                              [emoji]: {
+                                count: reaction.count + 1,
+                                userIds: [...reaction.userIds, 'current-user']
+                              }
+                            }
+                          }
+                        };
+                      }
+                      return node;
+                    });
+                    props.onNodesChange?.(updatedNodes);
+                  }}
+                  onRemoveReaction={(nodeId, emoji) => {
+                    const updatedNodes = props.nodes.map(node => {
+                      if (node.id === nodeId) {
+                        const reactions = node.data?.reactions || {};
+                        const reaction = reactions[emoji];
+                        if (reaction) {
+                          const newUserIds = reaction.userIds.filter(id => id !== 'current-user');
+                          const newCount = Math.max(0, reaction.count - 1);
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              reactions: {
+                                ...reactions,
+                                [emoji]: {
+                                  count: newCount,
+                                  userIds: newUserIds
+                                }
+                              }
+                            }
+                          };
+                        }
+                      }
+                      return node;
+                    });
+                    props.onNodesChange?.(updatedNodes);
+                  }}
+                  position="bottom"
+                />
+              </div>
             </div>
           );
         })}
