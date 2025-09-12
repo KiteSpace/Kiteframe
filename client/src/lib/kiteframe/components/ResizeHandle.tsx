@@ -28,7 +28,7 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
   const isResizingRef = useRef(false);
 
   const getPositionClasses = () => {
-    const baseClasses = 'absolute bg-white border-2 border-blue-500 rounded-sm opacity-100 transition-opacity cursor-';
+    const baseClasses = 'absolute bg-white border-[3px] border-blue-500 rounded-sm opacity-100 transition-opacity cursor-';
     
     switch (position) {
       case 'top-left':
@@ -47,8 +47,8 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
   const getHandleStyle = () => {
     // Make handles zoom-invariant: larger when zoomed out, smaller when zoomed in
     const zoom = viewport?.zoom ?? 1;
-    const baseSize = 16; // Base size in pixels (larger than before)
-    const actualSize = Math.max(12, baseSize / zoom); // Minimum 12px
+    const baseSize = 12; // Smaller base size
+    const actualSize = Math.max(10, baseSize / zoom); // Minimum 10px
     const offset = actualSize / 2;
     
     const baseStyle = {
