@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Palette, PaintBucket, Copy, Trash2 } from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;
@@ -48,7 +49,7 @@ export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties
         onClick={onCopyProperties}
         data-testid="context-menu-copy-properties"
       >
-        <i className="fas fa-palette mr-2" />
+        <Palette size={16} className="mr-2" />
         Copy Properties
       </div>
       {hasPropertiesInClipboard && onPasteProperties && (
@@ -57,7 +58,7 @@ export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties
           onClick={onPasteProperties}
           data-testid="context-menu-paste-properties"
         >
-          <i className="fas fa-brush mr-2" />
+          <PaintBucket size={16} className="mr-2" />
           Paste Properties
         </div>
       )}
@@ -66,7 +67,7 @@ export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties
         onClick={onDuplicate}
         data-testid="context-menu-duplicate"
       >
-        <i className="fas fa-clone mr-2" />
+        <Copy size={16} className="mr-2" />
         Duplicate
       </div>
       <div className="border-t border-border my-1" />
@@ -75,7 +76,7 @@ export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties
         onClick={onDelete}
         data-testid="context-menu-delete"
       >
-        <i className="fas fa-trash mr-2" />
+        <Trash2 size={16} className="mr-2" />
         Delete
       </div>
     </div>

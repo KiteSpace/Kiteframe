@@ -170,40 +170,143 @@ export interface ProFeaturesConfig {
   smartConnect?: SmartConnectConfig;
 }
 
-// New Node Type Data Interfaces
+// Enhanced Canvas Object Data Interfaces with Comprehensive Styling
 export interface TextNodeData {
   label: string;
   text: string;
-  fontSize: number;
-  fontFamily: string;
+  // Typography styling
+  fontSize: number; // 8-72px
+  fontFamily: 'Inter' | 'Arial' | 'Times New Roman' | 'Courier New' | 'Georgia' | 'Verdana' | 'Helvetica';
   fontWeight: 'normal' | 'medium' | 'semibold' | 'bold';
+  fontStyle: 'normal' | 'italic';
   textAlign: 'left' | 'center' | 'right' | 'justify';
+  textDecoration: 'none' | 'underline' | 'line-through';
+  textTransform: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
   lineHeight: number;
   letterSpacing: number;
+  // Color styling
   textColor: string;
-  textDecoration: 'none' | 'underline' | 'strikethrough';
-  textTransform: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
   backgroundColor?: string;
+  // Border styling
+  borderColor?: string;
+  borderWidth?: number; // 0-10px
+  borderStyle?: 'solid' | 'dashed' | 'dotted';
+  borderRadius?: number; // 0-50px
+  // Effects
+  opacity?: number; // 0-1
+  shadow?: {
+    enabled: boolean;
+    color: string;
+    blur: number;
+    offsetX: number;
+    offsetY: number;
+  };
+  // Padding
+  padding?: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
   [key: string]: any;
 }
 
 export interface StickyNoteData {
   text: string;
+  // Typography styling
+  fontSize: number; // 8-24px
+  fontFamily: 'Inter' | 'Arial' | 'Times New Roman' | 'Courier New' | 'Georgia' | 'Verdana' | 'Helvetica';
+  fontWeight: 'normal' | 'medium' | 'semibold' | 'bold';
+  fontStyle: 'normal' | 'italic';
+  textAlign: 'left' | 'center' | 'right' | 'justify';
+  textDecoration: 'none' | 'underline' | 'line-through';
+  lineHeight?: number;
+  // Color styling
   backgroundColor: string;
-  textColor: string;
-  fontSize: number;
-  fontFamily: string;
+  textColor: string; // Auto-calculated based on background luminance
+  autoTextColor?: boolean; // Whether to auto-calculate text color
+  // Border styling
+  borderColor?: string;
+  borderWidth?: number; // 0-5px
+  borderStyle?: 'solid' | 'dashed' | 'dotted';
+  borderRadius?: number; // 0-25px
+  // Effects
+  opacity?: number; // 0-1
+  shadow?: {
+    enabled: boolean;
+    color: string;
+    blur: number;
+    offsetX: number;
+    offsetY: number;
+  };
+  // Padding
+  padding?: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
   [key: string]: any;
 }
 
 export interface ShapeNodeData {
   shapeType: 'rectangle' | 'circle' | 'triangle' | 'line' | 'arrow';
+  // Fill styling
   fillColor: string;
+  fillOpacity?: number; // 0-1
+  gradient?: {
+    enabled: boolean;
+    type: 'linear' | 'radial';
+    direction: number; // angle in degrees for linear
+    colors: Array<{
+      color: string;
+      position: number; // 0-1
+    }>;
+  };
+  // Stroke/Border styling
   strokeColor: string;
-  strokeWidth: number;
-  borderRadius?: number;
-  opacity: number;
+  strokeWidth: number; // 0-20px
+  strokeOpacity?: number; // 0-1
+  strokeStyle: 'solid' | 'dashed' | 'dotted';
+  // Shape-specific styling
+  borderRadius?: number; // 0-50px (for rectangles)
+  // General effects
+  opacity: number; // 0-1
+  shadow?: {
+    enabled: boolean;
+    color: string;
+    blur: number;
+    offsetX: number;
+    offsetY: number;
+  };
+  // Special properties for lines and arrows
+  lineCap?: 'butt' | 'round' | 'square'; // For lines
+  arrowSize?: number; // For arrows (1-3 multiplier)
   [key: string]: any;
+}
+
+// Styling utility types
+export interface ColorPalette {
+  primary: string[];
+  secondary: string[];
+  accent: string[];
+  neutral: string[];
+}
+
+export interface StylePreset {
+  name: string;
+  description?: string;
+  textStyles?: Partial<TextNodeData>;
+  shapeStyles?: Partial<ShapeNodeData>;
+  stickyNoteStyles?: Partial<StickyNoteData>;
+}
+
+// Color contrast utility interface
+export interface ColorContrast {
+  calculateLuminance: (color: string) => number;
+  getContrastRatio: (color1: string, color2: string) => number;
+  getOptimalTextColor: (backgroundColor: string) => string;
+  isLightColor: (color: string) => boolean;
 }
 
 // Canvas Objects - not connectable, no handles

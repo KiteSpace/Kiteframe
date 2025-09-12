@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
 import { FloatingToolbar } from './FloatingToolbar';
-import type { Node, Edge, CanvasObject, ProFeaturesConfig } from '../lib/kiteframe/types';
+import { ObjectStylingPanel } from '../lib/kiteframe/components/styling/ObjectStylingPanel';
+import type { Node, Edge, CanvasObject, ProFeaturesConfig, TextNodeData, ShapeNodeData, StickyNoteData } from '../lib/kiteframe/types';
 import { Undo, Redo, ZoomIn, Maximize2, LayoutGrid, ChevronRight } from 'lucide-react';
 
 interface WorkflowCanvasProps {
@@ -16,6 +17,7 @@ interface WorkflowCanvasProps {
   onEdgeClick?: (edge: Edge) => void;
   onCanvasClick?: () => void;
   onNodeRightClick?: (e: React.MouseEvent, node: Node) => void;
+  onCanvasObjectRightClick?: (e: React.MouseEvent, canvasObject: CanvasObject) => void;
   onImageButtonClick?: (nodeId: string) => void;
   viewport: { x: number; y: number; zoom: number };
   onViewportChange: (viewport: { x: number; y: number; zoom: number }) => void;
@@ -47,6 +49,7 @@ export function WorkflowCanvas({
   onEdgeClick,
   onCanvasClick,
   onNodeRightClick,
+  onCanvasObjectRightClick,
   onImageButtonClick,
   viewport,
   onViewportChange,
@@ -66,6 +69,19 @@ export function WorkflowCanvas({
   connectionAnimationConfig
 }: WorkflowCanvasProps) {
   const [isDraggingMinimap, setIsDraggingMinimap] = useState(false);
+  
+  // Get selected canvas objects for styling panel
+  const selectedCanvasObjects = canvasObjects.filter(obj => obj.selected);
+  
+  // Handler for updating object styling
+  const handleUpdateObjectStyling = useCallback((objectId: string, updates: Partial<TextNodeData | ShapeNodeData | StickyNoteData>) => {
+    const updatedObjects = canvasObjects.map(obj =>
+      obj.id === objectId
+        ? { ...obj, data: { ...obj.data, ...updates } }
+        : obj
+    );
+    onCanvasObjectsChange?.(updatedObjects);
+  }, [canvasObjects, onCanvasObjectsChange]);
 
   const handleMinimapMouseDown = useCallback((e: React.MouseEvent) => {
     setIsDraggingMinimap(true);
@@ -183,6 +199,7 @@ export function WorkflowCanvas({
         onEdgeClick={(e, edge) => onEdgeClick?.(edge)}
         onCanvasClick={onCanvasClick}
         onNodeRightClick={onNodeRightClick}
+        onCanvasObjectRightClick={onCanvasObjectRightClick}
         onImageButtonClick={onImageButtonClick}
         viewport={viewport}
         onViewportChange={onViewportChange}
@@ -210,6 +227,16 @@ export function WorkflowCanvas({
         canUndo={canUndo}
         canRedo={canRedo}
       />
+
+      {/* Object Styling Panel */}
+      {selectedCanvasObjects.length > 0 && (
+        <div className="absolute top-16 right-4 z-50">
+          <ObjectStylingPanel
+            selectedObjects={selectedCanvasObjects}
+            onUpdateStyling={handleUpdateObjectStyling}
+          />
+        </div>
+      )}
 
       {/* Interactive Mini-map */}
       <div className="absolute bottom-5 right-5 w-52 h-40 bg-card border border-border rounded-lg shadow-xl overflow-hidden">

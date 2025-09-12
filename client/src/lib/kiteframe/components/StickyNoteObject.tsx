@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ResizeHandle } from './ResizeHandle';
 import { EmojiReactions } from './EmojiReactions';
 import type { CanvasObject, StickyNoteData } from '../types';
+import { getOptimalTextColor } from '../utils/colorUtils';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
 
@@ -12,6 +13,7 @@ interface StickyNoteObjectProps {
   onDelete?: () => void;
   onStartDrag?: (e: React.MouseEvent) => void;
   onClick?: (e: React.MouseEvent) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;
   onRemoveReaction?: (objectId: string, emoji: string) => void;
   viewport?: { x: number; y: number; zoom: number };
@@ -25,6 +27,7 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
   onDelete,
   onStartDrag,
   onClick,
+  onContextMenu,
   onAddReaction,
   onRemoveReaction,
   viewport,
@@ -126,33 +129,71 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
     onResize?.(width, height);
   }, [onResize]);
 
+  // Apply auto text color logic if enabled
+  const displayTextColor = object.data.autoTextColor !== false 
+    ? getOptimalTextColor(object.data.backgroundColor || '#fef3c7')
+    : object.data.textColor || '#000000';
+
+  const containerStyles = {
+    position: 'absolute' as const,
+    left: object.position.x,
+    top: object.position.y,
+    width: noteSize.width,
+    height: noteSize.height,
+    // Background color
+    backgroundColor: object.data.backgroundColor || '#fef3c7',
+    // Border styling
+    borderColor: object.data.borderColor || 
+      (object.data.backgroundColor ? 
+        `color-mix(in srgb, ${object.data.backgroundColor} 80%, #000000 20%)` : 
+        '#f59e0b'),
+    borderWidth: `${object.data.borderWidth || 2}px`,
+    borderStyle: object.data.borderStyle || 'solid',
+    borderRadius: `${object.data.borderRadius || 8}px`,
+    // Effects
+    opacity: object.data.opacity || 1,
+    boxShadow: object.data.shadow?.enabled 
+      ? `${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'}`
+      : '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', // Default shadow
+    zIndex: object.selected ? 50 : 1,
+    // Padding
+    padding: object.data.padding 
+      ? `${object.data.padding.top || 12}px ${object.data.padding.right || 12}px ${object.data.padding.bottom || 12}px ${object.data.padding.left || 12}px`
+      : '12px',
+  };
+
+  const textStyles = {
+    fontSize: `${object.data.fontSize || 14}px`,
+    fontFamily: object.data.fontFamily || 'Inter, system-ui, sans-serif',
+    fontWeight: object.data.fontWeight || 'normal',
+    fontStyle: object.data.fontStyle || 'normal',
+    textAlign: object.data.textAlign as 'left' | 'center' | 'right' | 'justify' || 'left',
+    textDecoration: object.data.textDecoration || 'none',
+    lineHeight: object.data.lineHeight || 1.4,
+    color: displayTextColor,
+  };
+
   return (
     <div
       ref={objectRef}
       className={cn(
-        "group relative border-2 rounded-lg shadow-lg cursor-pointer transition-all hover:shadow-xl",
+        "group relative cursor-pointer transition-all hover:shadow-xl",
         object.selected && "outline outline-2 outline-blue-500"
       )}
-      style={{
-        position: 'absolute',
-        left: object.position.x,
-        top: object.position.y,
-        width: noteSize.width,
-        height: noteSize.height,
-        backgroundColor: object.data.backgroundColor || '#fef3c7',
-        borderColor: object.data.backgroundColor ? 
-          `color-mix(in srgb, ${object.data.backgroundColor} 80%, #000000 20%)` : 
-          '#f59e0b',
-        zIndex: object.selected ? 50 : 1,
-      }}
+      style={containerStyles}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onMouseDown={handleMouseDown}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu?.(e);
+      }}
       data-testid={`sticky-note-object-${object.id}`}
     >
 
-      {/* Content area */}
-      <div className="w-full h-full p-3 relative">
+      {/* Content area - padding removed from here as it's applied to container */}
+      <div className="w-full h-full relative flex items-stretch">
         {isEditing ? (
           <textarea
             ref={textareaRef}
@@ -161,22 +202,14 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             placeholder="Write your note..."
-            className="w-full h-full bg-transparent border-none outline-none resize-none text-sm"
-            style={{
-              fontSize: `${object.data.fontSize || 14}px`,
-              fontFamily: object.data.fontFamily || 'Inter, system-ui, sans-serif',
-              color: object.data.textColor || '#000000',
-            }}
+            className="w-full h-full bg-transparent border-none outline-none resize-none"
+            style={textStyles}
             data-testid="sticky-note-textarea"
           />
         ) : (
           <div
-            className="w-full h-full whitespace-pre-wrap break-words text-sm overflow-hidden"
-            style={{
-              fontSize: `${object.data.fontSize || 14}px`,
-              fontFamily: object.data.fontFamily || 'Inter, system-ui, sans-serif',
-              color: object.data.textColor || '#000000',
-            }}
+            className="w-full h-full whitespace-pre-wrap break-words overflow-hidden"
+            style={textStyles}
           >
             {text || object.data.text || 'Write your note...'}
           </div>

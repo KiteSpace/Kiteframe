@@ -10,6 +10,7 @@ interface ShapeObjectProps {
   onResize?: (width: number, height: number, resizeInfo?: { position: string }) => void;
   onStartDrag?: (e: React.MouseEvent) => void;
   onClick?: (e: React.MouseEvent) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;
   onRemoveReaction?: (objectId: string, emoji: string) => void;
   viewport?: { x: number; y: number; zoom: number };
@@ -22,6 +23,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   onResize,
   onStartDrag,
   onClick,
+  onContextMenu,
   onAddReaction,
   onRemoveReaction,
   viewport,
@@ -45,13 +47,37 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   };
 
   const renderShape = () => {
-    const { shapeType, fillColor, strokeColor, strokeWidth, borderRadius, opacity } = object.data;
+    const { 
+      shapeType, 
+      fillColor, 
+      strokeColor, 
+      strokeWidth, 
+      borderRadius, 
+      opacity,
+      fillOpacity,
+      strokeOpacity,
+      strokeStyle,
+      lineCap,
+      arrowSize 
+    } = object.data;
     const { width, height } = shapeSize;
 
     const commonStyles = {
       width: '100%',
       height: '100%',
       opacity: opacity || 1
+    };
+
+    // Generate stroke dash pattern based on style
+    const getStrokeDashArray = (style: string, width: number) => {
+      switch (style) {
+        case 'dashed':
+          return `${width * 4} ${width * 2}`;
+        case 'dotted':
+          return `${width} ${width}`;
+        default:
+          return 'none';
+      }
     };
 
     switch (shapeType) {
@@ -62,8 +88,12 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             style={{
               ...commonStyles,
               backgroundColor: fillColor || '#3b82f6',
-              border: `${strokeWidth || 2}px solid ${strokeColor || '#1d4ed8'}`,
-              borderRadius: borderRadius || 8
+              opacity: fillOpacity !== undefined ? fillOpacity : 1,
+              border: `${strokeWidth || 2}px ${strokeStyle || 'solid'} ${strokeColor || '#1d4ed8'}`,
+              borderRadius: borderRadius || 8,
+              boxShadow: object.data.shadow?.enabled 
+                ? `${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'}`
+                : 'none',
             }}
             data-testid="shape-rectangle"
           />
@@ -76,7 +106,11 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             style={{
               ...commonStyles,
               backgroundColor: fillColor || '#10b981',
-              border: `${strokeWidth || 2}px solid ${strokeColor || '#059669'}`
+              opacity: fillOpacity !== undefined ? fillOpacity : 1,
+              border: `${strokeWidth || 2}px ${strokeStyle || 'solid'} ${strokeColor || '#059669'}`,
+              boxShadow: object.data.shadow?.enabled 
+                ? `${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'}`
+                : 'none',
             }}
             data-testid="shape-circle"
           />
@@ -89,9 +123,15 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               points="50,10 10,90 90,90"
               style={{
                 fill: fillColor || '#f59e0b',
+                fillOpacity: fillOpacity !== undefined ? fillOpacity : 1,
                 stroke: strokeColor || '#d97706',
                 strokeWidth: (strokeWidth || 2) * (100 / Math.min(width, height)),
-                opacity: opacity || 1
+                strokeOpacity: strokeOpacity !== undefined ? strokeOpacity : 1,
+                strokeDasharray: getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2),
+                opacity: opacity || 1,
+                filter: object.data.shadow?.enabled 
+                  ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
+                  : 'none',
               }}
               data-testid="shape-triangle"
             />
@@ -109,7 +149,13 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               style={{
                 stroke: strokeColor || '#6b7280',
                 strokeWidth: (strokeWidth || 2) * (100 / Math.min(width, height)),
-                opacity: opacity || 1
+                strokeOpacity: strokeOpacity !== undefined ? strokeOpacity : 1,
+                strokeDasharray: getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2),
+                strokeLinecap: lineCap || 'round',
+                opacity: opacity || 1,
+                filter: object.data.shadow?.enabled 
+                  ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
+                  : 'none',
               }}
               data-testid="shape-line"
             />
@@ -117,22 +163,23 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         );
 
       case 'arrow':
+        const arrowMarkerSize = (arrowSize || 1) * 10;
         return (
           <svg width="100%" height="100%" viewBox="0 0 100 100" className="overflow-visible">
             <defs>
               <marker
                 id={`arrowhead-${object.id}`}
-                markerWidth="10"
-                markerHeight="7"
-                refX="9"
-                refY="3.5"
+                markerWidth={arrowMarkerSize}
+                markerHeight={arrowMarkerSize * 0.7}
+                refX={arrowMarkerSize * 0.9}
+                refY={arrowMarkerSize * 0.35}
                 orient="auto"
               >
                 <polygon
-                  points="0 0, 10 3.5, 0 7"
+                  points={`0 0, ${arrowMarkerSize} ${arrowMarkerSize * 0.35}, 0 ${arrowMarkerSize * 0.7}`}
                   style={{
                     fill: strokeColor || '#6b7280',
-                    opacity: opacity || 1
+                    opacity: strokeOpacity !== undefined ? strokeOpacity : 1
                   }}
                 />
               </marker>
@@ -145,7 +192,13 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               style={{
                 stroke: strokeColor || '#6b7280',
                 strokeWidth: (strokeWidth || 2) * (100 / Math.min(width, height)),
-                opacity: opacity || 1
+                strokeOpacity: strokeOpacity !== undefined ? strokeOpacity : 1,
+                strokeDasharray: getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2),
+                strokeLinecap: lineCap || 'round',
+                opacity: opacity || 1,
+                filter: object.data.shadow?.enabled 
+                  ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
+                  : 'none',
               }}
               markerEnd={`url(#arrowhead-${object.id})`}
               data-testid="shape-arrow"
@@ -186,6 +239,11 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       data-testid={`shape-object-${object.id}`}
       onMouseDown={handleMouseDown}
       onClick={onClick}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu?.(e);
+      }}
     >
       {/* Shape content */}
       <div className="w-full h-full">

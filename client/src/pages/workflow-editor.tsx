@@ -1986,10 +1986,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showImportModal, setShowImportModal] = useState(false);
   const [showNewTabModal, setShowNewTabModal] = useState(false);
   const [showPluginTest, setShowPluginTest] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node; canvasObject?: CanvasObject } | null>(null);
   const [isEditingWorkflowName, setIsEditingWorkflowName] = useState(false);
   const [workflowNameInput, setWorkflowNameInput] = useState('');
   const [copiedProperties, setCopiedProperties] = useState<{ colors?: any; data?: Partial<Node['data']> } | null>(null);
+  const [copiedCanvasObjectProperties, setCopiedCanvasObjectProperties] = useState<{ data?: any; style?: any } | null>(null);
 
   // Expose tab manager to global window for pro plugins
   useEffect(() => {
@@ -2945,6 +2946,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onNodeRightClick={(e: React.MouseEvent, node: Node) => {
                 setContextMenu({ x: e.clientX, y: e.clientY, node });
               }}
+              onCanvasObjectRightClick={(e: React.MouseEvent, canvasObject: CanvasObject) => {
+                setContextMenu({ x: e.clientX, y: e.clientY, canvasObject });
+              }}
               onImageButtonClick={setShowImageModal}
               onUndo={handleUndo}
               onRedo={handleRedo}
@@ -3151,7 +3155,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onClose={() => setContextMenu(null)}
             onCopyProperties={() => {
               if (contextMenu.node) {
-                // Copy properties (colors, icon, iconColor, etc.) but not label/description
+                // Copy node properties (colors, icon, iconColor, etc.) but not label/description
                 const propertiesToCopy = {
                   colors: contextMenu.node.data?.colors,
                   data: {
@@ -3160,11 +3164,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }
                 };
                 setCopiedProperties(propertiesToCopy);
-                console.log('📋 Properties copied:', propertiesToCopy);
+                console.log('📋 Node properties copied:', propertiesToCopy);
+                setContextMenu(null);
+              } else if (contextMenu.canvasObject) {
+                // Copy canvas object properties (styling and data)
+                const propertiesToCopy = {
+                  data: { ...contextMenu.canvasObject.data },
+                  style: { ...contextMenu.canvasObject.style }
+                };
+                setCopiedCanvasObjectProperties(propertiesToCopy);
+                console.log('📋 Canvas object properties copied:', propertiesToCopy);
                 setContextMenu(null);
               }
             }}
-            onPasteProperties={copiedProperties ? () => {
+            onPasteProperties={(contextMenu.node && copiedProperties) || (contextMenu.canvasObject && copiedCanvasObjectProperties) ? () => {
               if (contextMenu.node && copiedProperties) {
                 saveToHistory();
                 updateActiveTab({
@@ -3183,14 +3196,40 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 });
                 console.log('🎨 Properties pasted to node:', contextMenu.node.id);
                 setContextMenu(null);
+              } else if (contextMenu.canvasObject && copiedCanvasObjectProperties) {
+                saveToHistory();
+                const updatedObjects = canvasObjects.map(obj => 
+                  obj.id === contextMenu.canvasObject!.id 
+                    ? {
+                        ...obj,
+                        data: {
+                          ...obj.data,
+                          ...copiedCanvasObjectProperties.data
+                        },
+                        style: {
+                          ...obj.style,
+                          ...copiedCanvasObjectProperties.style
+                        }
+                      }
+                    : obj
+                );
+                updateActiveTab({ canvasObjects: updatedObjects });
+                console.log('🎨 Properties pasted to canvas object:', contextMenu.canvasObject.id);
+                setContextMenu(null);
               }
             } : undefined}
-            hasPropertiesInClipboard={!!copiedProperties}
+            hasPropertiesInClipboard={!!(copiedProperties || copiedCanvasObjectProperties)}
             onDelete={() => {
               if (contextMenu.node) {
                 saveToHistory();
                 setNodes(prev => prev.filter(n => n.id !== contextMenu.node!.id));
                 setEdges(prev => prev.filter(e => e.source !== contextMenu.node!.id && e.target !== contextMenu.node!.id));
+                setContextMenu(null);
+              } else if (contextMenu.canvasObject) {
+                saveToHistory();
+                const updatedObjects = canvasObjects.filter(obj => obj.id !== contextMenu.canvasObject!.id);
+                updateActiveTab({ canvasObjects: updatedObjects });
+                console.log('🗑️ Canvas object deleted:', contextMenu.canvasObject.id);
                 setContextMenu(null);
               }
             }}
@@ -3206,6 +3245,21 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 };
                 setNodes(prev => [...prev, newNode]);
                 saveToHistory();
+                setContextMenu(null);
+              } else if (contextMenu.canvasObject) {
+                const newObject = {
+                  ...contextMenu.canvasObject,
+                  id: `canvas-object-${Date.now()}`,
+                  position: {
+                    x: contextMenu.canvasObject.position.x + 20,
+                    y: contextMenu.canvasObject.position.y + 20
+                  },
+                  selected: false
+                };
+                const updatedObjects = [...canvasObjects, newObject];
+                updateActiveTab({ canvasObjects: updatedObjects });
+                saveToHistory();
+                console.log('📋 Canvas object duplicated:', newObject.id);
                 setContextMenu(null);
               }
             }}

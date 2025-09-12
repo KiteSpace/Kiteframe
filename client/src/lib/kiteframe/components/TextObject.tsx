@@ -10,6 +10,7 @@ interface TextObjectProps {
   onResize?: (width: number, height: number, resizeInfo?: { position: string }) => void;
   onStartDrag?: (e: React.MouseEvent) => void;
   onClick?: (e: React.MouseEvent) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;
   onRemoveReaction?: (objectId: string, emoji: string) => void;
   style?: React.CSSProperties;
@@ -25,6 +26,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
   onResize,
   onStartDrag,
   onClick,
+  onContextMenu,
   onAddReaction,
   onRemoveReaction,
   style,
@@ -215,6 +217,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
     fontSize: `${object.data.fontSize || 16}px`,
     fontFamily: object.data.fontFamily || 'Inter, system-ui, sans-serif',
     fontWeight: object.data.fontWeight || 'normal',
+    fontStyle: object.data.fontStyle || 'normal',
     textAlign: object.data.textAlign as 'left' | 'center' | 'right' | 'justify' || 'left',
     lineHeight: object.data.lineHeight || 1.5,
     letterSpacing: `${object.data.letterSpacing || 0}px`,
@@ -222,6 +225,24 @@ export const TextObject: React.FC<TextObjectProps> = ({
     textDecoration: object.data.textDecoration || 'none',
     textTransform: object.data.textTransform as 'none' | 'uppercase' | 'lowercase' | 'capitalize' || 'none',
     backgroundColor: object.data.backgroundColor || 'transparent',
+  };
+
+  const containerStyles = {
+    // Border styling
+    borderColor: object.data.borderColor || 'transparent',
+    borderWidth: `${object.data.borderWidth || 0}px`,
+    borderStyle: object.data.borderStyle || 'solid',
+    borderRadius: `${object.data.borderRadius || 0}px`,
+    // Effects
+    opacity: object.data.opacity || 1,
+    // Shadow
+    boxShadow: object.data.shadow?.enabled 
+      ? `${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'}`
+      : 'none',
+    // Padding
+    padding: object.data.padding 
+      ? `${object.data.padding.top || 8}px ${object.data.padding.right || 8}px ${object.data.padding.bottom || 8}px ${object.data.padding.left || 8}px`
+      : '8px',
   };
 
   return (
@@ -238,11 +259,17 @@ export const TextObject: React.FC<TextObjectProps> = ({
         width: textSize.width,
         height: textSize.height,
         zIndex: object.selected ? 50 : 1,
+        ...containerStyles,
         ...style
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onMouseDown={handleMouseDown}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu?.(e);
+      }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       data-testid={`text-object-${object.id}`}

@@ -1565,7 +1565,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 });
               }}
               onDoubleClick={(e)=>props.onNodeDoubleClick?.(e, n)}
-              onContextMenu={(e)=>{ e.preventDefault(); props.onNodeRightClick?.(e, n); }}
+              onContextMenu={(e)=>{ e.preventDefault(); e.stopPropagation(); props.onNodeRightClick?.(e, n); }}
               onClick={(e) => {
                 e.stopPropagation();
                 console.log(`🎯 NODE CLICK:`, { nodeId: n.id, wasSelected: n.selected, shiftKey: e.shiftKey });
@@ -1992,6 +1992,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               }}
               onStartDrag={(e) => handleCanvasObjectDragStart(obj.id, e)}
               onClick={(e) => handleCanvasObjectClick(obj.id, e)}
+              onContextMenu={(e) => { 
+                e.preventDefault(); 
+                e.stopPropagation();
+                props.onCanvasObjectRightClick?.(e, obj); 
+              }}
               onAddReaction={addCanvasObjectReaction}
               onRemoveReaction={removeCanvasObjectReaction}
               viewport={viewport}
@@ -2065,6 +2070,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               }}
               onStartDrag={(e) => handleCanvasObjectDragStart(obj.id, e)}
               onClick={(e) => handleCanvasObjectClick(obj.id, e)}
+              onContextMenu={(e) => { 
+                e.preventDefault(); 
+                e.stopPropagation();
+                props.onCanvasObjectRightClick?.(e, obj); 
+              }}
               onAddReaction={addCanvasObjectReaction}
               onRemoveReaction={removeCanvasObjectReaction}
               viewport={viewport}
@@ -2134,6 +2144,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               }}
               onStartDrag={(e) => handleCanvasObjectDragStart(obj.id, e)}
               onClick={(e) => handleCanvasObjectClick(obj.id, e)}
+              onContextMenu={(e) => { 
+                e.preventDefault(); 
+                e.stopPropagation();
+                props.onCanvasObjectRightClick?.(e, obj); 
+              }}
               onAddReaction={addCanvasObjectReaction}
               onRemoveReaction={removeCanvasObjectReaction}
               viewport={viewport}
