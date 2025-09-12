@@ -11,6 +11,7 @@ interface StickyNoteObjectProps {
   onResize?: (width: number, height: number) => void;
   onDelete?: () => void;
   onStartDrag?: (e: React.MouseEvent) => void;
+  onClick?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;
   onRemoveReaction?: (objectId: string, emoji: string) => void;
 }
@@ -21,6 +22,7 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
   onResize,
   onDelete,
   onStartDrag,
+  onClick,
   onAddReaction,
   onRemoveReaction
 }) => {
@@ -57,6 +59,8 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Call the onClick handler first for selection
+    onClick?.(e);
     // Enter edit mode on single click for sticky notes (more intuitive)
     if (!isEditing) {
       setIsEditing(true);
@@ -103,7 +107,7 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
       ref={objectRef}
       className={cn(
         "group relative border-2 rounded-lg shadow-lg cursor-pointer transition-all hover:shadow-xl",
-        object.selected && "ring-2 ring-blue-500 ring-offset-2"
+        object.selected && "outline outline-2 outline-blue-500"
       )}
       style={{
         position: 'absolute',
@@ -155,16 +159,47 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
         )}
       </div>
 
-      {/* Resize handle */}
-      <ResizeHandle
-        position="bottom-right"
-        nodeRef={objectRef}
-        onResize={handleResize}
-        minWidth={120}
-        minHeight={80}
-        maxWidth={400}
-        maxHeight={300}
-      />
+      {/* Resize handles - all four corners when selected */}
+      {object.selected && (
+        <>
+          <ResizeHandle
+            position="top-left"
+            nodeRef={objectRef}
+            onResize={handleResize}
+            minWidth={120}
+            minHeight={80}
+            maxWidth={400}
+            maxHeight={300}
+          />
+          <ResizeHandle
+            position="top-right"
+            nodeRef={objectRef}
+            onResize={handleResize}
+            minWidth={120}
+            minHeight={80}
+            maxWidth={400}
+            maxHeight={300}
+          />
+          <ResizeHandle
+            position="bottom-left"
+            nodeRef={objectRef}
+            onResize={handleResize}
+            minWidth={120}
+            minHeight={80}
+            maxWidth={400}
+            maxHeight={300}
+          />
+          <ResizeHandle
+            position="bottom-right"
+            nodeRef={objectRef}
+            onResize={handleResize}
+            minWidth={120}
+            minHeight={80}
+            maxWidth={400}
+            maxHeight={300}
+          />
+        </>
+      )}
 
       {/* Emoji Reactions */}
       <EmojiReactions

@@ -1172,6 +1172,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         if (selectStart.current || selectRect || justCompletedSelection.current) {
           return;
         }
+        
+        // Deselect all canvas objects when clicking background
+        if (props.canvasObjects && props.canvasObjects.some(obj => obj.selected)) {
+          const updatedObjects = props.canvasObjects.map(obj => ({ ...obj, selected: false }));
+          props.onCanvasObjectsChange?.(updatedObjects);
+        }
+        
         props.onCanvasClick?.();
       }}
     >
@@ -1683,6 +1690,24 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             props.onCanvasObjectsChange?.(updatedObjects);
           };
 
+          // Canvas object click handler for selection
+          const handleCanvasObjectClick = (objectId: string, e: React.MouseEvent) => {
+            e.stopPropagation();
+            
+            // Select this object and deselect others
+            const updatedObjects = (props.canvasObjects || []).map(canvasObject => ({
+              ...canvasObject,
+              selected: canvasObject.id === objectId
+            }));
+            props.onCanvasObjectsChange?.(updatedObjects);
+            
+            // Call the external handler if provided
+            const targetObject = (props.canvasObjects || []).find(obj => obj.id === objectId);
+            if (targetObject && props.onCanvasObjectClick) {
+              props.onCanvasObjectClick(e, targetObject);
+            }
+          };
+          
           // Canvas object drag handler
           const handleCanvasObjectDragStart = (objectId: string, e: React.MouseEvent) => {
             e.stopPropagation();
@@ -1693,6 +1718,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             const targetObject = (props.canvasObjects || []).find(obj => obj.id === objectId);
             
             if (targetObject) {
+              // Select the object when dragging starts
+              const updatedObjects = (props.canvasObjects || []).map(canvasObject => ({
+                ...canvasObject,
+                selected: canvasObject.id === objectId
+              }));
+              props.onCanvasObjectsChange?.(updatedObjects);
+              
               canvasObjectDragInfo.current = {
                 id: objectId,
                 start: wp,
@@ -1725,6 +1757,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 props.onCanvasObjectsChange?.(updatedObjects);
               }}
               onStartDrag={(e) => handleCanvasObjectDragStart(obj.id, e)}
+              onClick={(e) => handleCanvasObjectClick(obj.id, e)}
               onAddReaction={addCanvasObjectReaction}
               onRemoveReaction={removeCanvasObjectReaction}
             />;
@@ -1751,6 +1784,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 props.onCanvasObjectsChange?.(updatedObjects);
               }}
               onStartDrag={(e) => handleCanvasObjectDragStart(obj.id, e)}
+              onClick={(e) => handleCanvasObjectClick(obj.id, e)}
               onAddReaction={addCanvasObjectReaction}
               onRemoveReaction={removeCanvasObjectReaction}
             />;
@@ -1773,6 +1807,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 props.onCanvasObjectsChange?.(updatedObjects);
               }}
               onStartDrag={(e) => handleCanvasObjectDragStart(obj.id, e)}
+              onClick={(e) => handleCanvasObjectClick(obj.id, e)}
               onAddReaction={addCanvasObjectReaction}
               onRemoveReaction={removeCanvasObjectReaction}
             />;

@@ -9,6 +9,7 @@ interface TextObjectProps {
   onUpdate?: (updates: Partial<TextNodeData>) => void;
   onResize?: (width: number, height: number) => void;
   onStartDrag?: (e: React.MouseEvent) => void;
+  onClick?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;
   onRemoveReaction?: (objectId: string, emoji: string) => void;
   style?: React.CSSProperties;
@@ -21,6 +22,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
   onUpdate,
   onResize,
   onStartDrag,
+  onClick,
   onAddReaction,
   onRemoveReaction,
   style,
@@ -87,6 +89,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Call the onClick handler first for selection
+    onClick?.(e);
     // Single click to focus for easier editing
     if (!isEditing) {
       setIsEditing(true);
@@ -164,7 +168,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
       ref={objectRef}
       className={cn(
         "group relative cursor-text",
-        object.selected && "ring-2 ring-blue-500 ring-offset-2"
+        object.selected && "outline outline-2 outline-blue-500"
       )}
       style={{
         position: 'absolute',
@@ -228,19 +232,59 @@ export const TextObject: React.FC<TextObjectProps> = ({
         </div>
       )}
 
-      {/* Resize handle */}
-      <ResizeHandle
-        position="bottom-right"
-        nodeRef={objectRef}
-        onResize={(width, height) => {
-          setTextSize({ width, height });
-          onResize?.(width, height);
-        }}
-        minWidth={150}
-        minHeight={50}
-        maxWidth={500}
-        maxHeight={400}
-      />
+      {/* Resize handles - all four corners when selected */}
+      {object.selected && (
+        <>
+          <ResizeHandle
+            position="top-left"
+            nodeRef={objectRef}
+            onResize={(width, height) => {
+              setTextSize({ width, height });
+              onResize?.(width, height);
+            }}
+            minWidth={150}
+            minHeight={50}
+            maxWidth={500}
+            maxHeight={400}
+          />
+          <ResizeHandle
+            position="top-right"
+            nodeRef={objectRef}
+            onResize={(width, height) => {
+              setTextSize({ width, height });
+              onResize?.(width, height);
+            }}
+            minWidth={150}
+            minHeight={50}
+            maxWidth={500}
+            maxHeight={400}
+          />
+          <ResizeHandle
+            position="bottom-left"
+            nodeRef={objectRef}
+            onResize={(width, height) => {
+              setTextSize({ width, height });
+              onResize?.(width, height);
+            }}
+            minWidth={150}
+            minHeight={50}
+            maxWidth={500}
+            maxHeight={400}
+          />
+          <ResizeHandle
+            position="bottom-right"
+            nodeRef={objectRef}
+            onResize={(width, height) => {
+              setTextSize({ width, height });
+              onResize?.(width, height);
+            }}
+            minWidth={150}
+            minHeight={50}
+            maxWidth={500}
+            maxHeight={400}
+          />
+        </>
+      )}
 
       {/* Emoji Reactions */}
       <EmojiReactions

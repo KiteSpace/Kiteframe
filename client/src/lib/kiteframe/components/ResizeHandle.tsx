@@ -25,7 +25,7 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
   const [startPosition, setStartPosition] = useState({ x: 0, y: 0 });
 
   const getPositionClasses = () => {
-    const baseClasses = 'absolute w-3 h-3 bg-blue-500 border-2 border-white rounded-sm opacity-0 group-hover:opacity-100 transition-opacity cursor-';
+    const baseClasses = 'absolute w-3 h-3 bg-blue-500 border-2 border-white rounded-sm opacity-100 transition-opacity cursor-';
     
     switch (position) {
       case 'top-left':

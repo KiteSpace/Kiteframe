@@ -9,6 +9,7 @@ interface ShapeObjectProps {
   onUpdate?: (updates: Partial<ShapeNodeData>) => void;
   onResize?: (width: number, height: number) => void;
   onStartDrag?: (e: React.MouseEvent) => void;
+  onClick?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;
   onRemoveReaction?: (objectId: string, emoji: string) => void;
 }
@@ -18,6 +19,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   onUpdate,
   onResize,
   onStartDrag,
+  onClick,
   onAddReaction,
   onRemoveReaction
 }) => {
@@ -167,7 +169,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       ref={objectRef}
       className={cn(
         "group relative cursor-pointer",
-        object.selected && "ring-2 ring-blue-500 ring-offset-2"
+        object.selected && "outline outline-2 outline-blue-500"
       )}
       style={{
         position: 'absolute',
@@ -179,22 +181,54 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       }}
       data-testid={`shape-object-${object.id}`}
       onMouseDown={handleMouseDown}
+      onClick={onClick}
     >
       {/* Shape content */}
       <div className="w-full h-full">
         {renderShape()}
       </div>
 
-      {/* Resize handle */}
-      <ResizeHandle
-        position="bottom-right"
-        nodeRef={objectRef}
-        onResize={handleResize}
-        minWidth={50}
-        minHeight={50}
-        maxWidth={500}
-        maxHeight={500}
-      />
+      {/* Resize handles - all four corners when selected */}
+      {object.selected && (
+        <>
+          <ResizeHandle
+            position="top-left"
+            nodeRef={objectRef}
+            onResize={handleResize}
+            minWidth={50}
+            minHeight={50}
+            maxWidth={500}
+            maxHeight={500}
+          />
+          <ResizeHandle
+            position="top-right"
+            nodeRef={objectRef}
+            onResize={handleResize}
+            minWidth={50}
+            minHeight={50}
+            maxWidth={500}
+            maxHeight={500}
+          />
+          <ResizeHandle
+            position="bottom-left"
+            nodeRef={objectRef}
+            onResize={handleResize}
+            minWidth={50}
+            minHeight={50}
+            maxWidth={500}
+            maxHeight={500}
+          />
+          <ResizeHandle
+            position="bottom-right"
+            nodeRef={objectRef}
+            onResize={handleResize}
+            minWidth={50}
+            minHeight={50}
+            maxWidth={500}
+            maxHeight={500}
+          />
+        </>
+      )}
 
       {/* Emoji Reactions */}
       <EmojiReactions
