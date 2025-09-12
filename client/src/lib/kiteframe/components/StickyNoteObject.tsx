@@ -122,15 +122,6 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
       onMouseDown={handleMouseDown}
       data-testid={`sticky-note-object-${object.id}`}
     >
-      {/* Delete button */}
-      <button
-        onClick={handleDeleteClick}
-        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs z-10"
-        title="Delete sticky note"
-        data-testid="delete-sticky-note"
-      >
-        <X size={12} />
-      </button>
 
       {/* Content area */}
       <div className="w-full h-full p-3 relative">

@@ -163,7 +163,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
     <div
       ref={objectRef}
       className={cn(
-        "group relative bg-white border border-gray-200 rounded-lg shadow-sm cursor-text",
+        "group relative cursor-text",
         object.selected && "ring-2 ring-blue-500 ring-offset-2"
       )}
       style={{
