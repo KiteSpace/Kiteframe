@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 interface ResizeHandleProps {
   position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   nodeRef: React.RefObject<HTMLElement>;
-  onResize?: (width: number, height: number) => void;
+  onResize?: (width: number, height: number, anchor: { x: number; y: number }) => void;
   minWidth?: number;
   minHeight?: number;
   maxWidth?: number;
@@ -28,19 +28,45 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
   const isResizingRef = useRef(false);
 
   const getPositionClasses = () => {
-    const baseClasses = 'absolute w-3 h-3 bg-blue-500 border-2 border-white rounded-sm opacity-100 transition-opacity cursor-';
+    const baseClasses = 'absolute bg-white border-2 border-blue-500 rounded-sm opacity-100 transition-opacity cursor-';
     
     switch (position) {
       case 'top-left':
-        return cn(baseClasses + 'nw-resize', '-top-1.5 -left-1.5');
+        return cn(baseClasses + 'nw-resize');
       case 'top-right':
-        return cn(baseClasses + 'ne-resize', '-top-1.5 -right-1.5');
+        return cn(baseClasses + 'ne-resize');
       case 'bottom-left':
-        return cn(baseClasses + 'sw-resize', '-bottom-1.5 -left-1.5');
+        return cn(baseClasses + 'sw-resize');
       case 'bottom-right':
-        return cn(baseClasses + 'se-resize', '-bottom-1.5 -right-1.5');
+        return cn(baseClasses + 'se-resize');
       default:
         return baseClasses + 'se-resize';
+    }
+  };
+
+  const getHandleStyle = () => {
+    // Make handles zoom-invariant: larger when zoomed out, smaller when zoomed in
+    const zoom = viewport?.zoom ?? 1;
+    const baseSize = 16; // Base size in pixels (larger than before)
+    const actualSize = Math.max(12, baseSize / zoom); // Minimum 12px
+    const offset = actualSize / 2;
+    
+    const baseStyle = {
+      width: `${actualSize}px`,
+      height: `${actualSize}px`,
+    };
+    
+    switch (position) {
+      case 'top-left':
+        return { ...baseStyle, top: `-${offset}px`, left: `-${offset}px` };
+      case 'top-right':
+        return { ...baseStyle, top: `-${offset}px`, right: `-${offset}px` };
+      case 'bottom-left':
+        return { ...baseStyle, bottom: `-${offset}px`, left: `-${offset}px` };
+      case 'bottom-right':
+        return { ...baseStyle, bottom: `-${offset}px`, right: `-${offset}px` };
+      default:
+        return baseStyle;
     }
   };
 
@@ -112,7 +138,27 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
           break;
       }
 
-      onResize?.(newWidth, newHeight);
+      // Calculate anchor position based on handle position
+      if (!nodeRef.current) return;
+      const nodeRect = nodeRef.current.getBoundingClientRect();
+      let anchor = { x: 0, y: 0 };
+      
+      switch (position) {
+        case 'top-left':
+          anchor = { x: nodeRect.right, y: nodeRect.bottom }; // Keep bottom-right fixed
+          break;
+        case 'top-right':
+          anchor = { x: nodeRect.left, y: nodeRect.bottom }; // Keep bottom-left fixed
+          break;
+        case 'bottom-left':
+          anchor = { x: nodeRect.right, y: nodeRect.top }; // Keep top-right fixed
+          break;
+        case 'bottom-right':
+          anchor = { x: nodeRect.left, y: nodeRect.top }; // Keep top-left fixed
+          break;
+      }
+      
+      onResize?.(newWidth, newHeight, anchor);
     };
 
     const handleMouseUp = () => {
@@ -130,6 +176,7 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
   return (
     <div
       className={getPositionClasses()}
+      style={getHandleStyle()}
       onMouseDown={handleMouseDown}
       data-testid={`resize-handle-${position}`}
     />

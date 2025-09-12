@@ -1750,9 +1750,45 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 );
                 props.onCanvasObjectsChange?.(updatedObjects);
               }} 
-              onResize={(width, height) => {
+              onResize={(width, height, anchor) => {
+                const currentObject = (props.canvasObjects || []).find(co => co.id === obj.id);
+                if (!currentObject) return;
+                
+                const currentWidth = currentObject.style?.width || currentObject.width || 200;
+                const currentHeight = currentObject.style?.height || currentObject.height || 150;
+                const currentPos = currentObject.position;
+                
+                // Calculate position adjustment to keep anchor fixed
+                const deltaWidth = width - currentWidth;
+                const deltaHeight = height - currentHeight;
+                
+                let newPosition = { ...currentPos };
+                
+                // Convert screen anchor to world coordinates for comparison
+                const containerRect = containerRef.current?.getBoundingClientRect();
+                if (containerRect && anchor) {
+                  const worldAnchor = clientToWorld(anchor.x, anchor.y, viewport, containerRect);
+                  const objCenterX = currentPos.x + currentWidth / 2;
+                  const objCenterY = currentPos.y + currentHeight / 2;
+                  
+                  // If anchor is on the right side, move left edge
+                  if (worldAnchor.x > objCenterX) {
+                    newPosition.x -= deltaWidth;
+                  }
+                  // If anchor is on the bottom side, move top edge
+                  if (worldAnchor.y > objCenterY) {
+                    newPosition.y -= deltaHeight;
+                  }
+                }
+                
                 const updatedObjects = (props.canvasObjects || []).map(canvasObject => 
-                  canvasObject.id === obj.id ? { ...canvasObject, style: { ...canvasObject.style, width, height } } : canvasObject
+                  canvasObject.id === obj.id 
+                    ? { 
+                        ...canvasObject, 
+                        style: { ...canvasObject.style, width, height },
+                        position: newPosition
+                      } 
+                    : canvasObject
                 );
                 props.onCanvasObjectsChange?.(updatedObjects);
               }}
@@ -1774,9 +1810,45 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 );
                 props.onCanvasObjectsChange?.(updatedObjects);
               }} 
-              onResize={(width, height) => {
+              onResize={(width, height, anchor) => {
+                const currentObject = (props.canvasObjects || []).find(co => co.id === obj.id);
+                if (!currentObject) return;
+                
+                const currentWidth = currentObject.style?.width || currentObject.width || 200;
+                const currentHeight = currentObject.style?.height || currentObject.height || 150;
+                const currentPos = currentObject.position;
+                
+                // Calculate position adjustment to keep anchor fixed
+                const deltaWidth = width - currentWidth;
+                const deltaHeight = height - currentHeight;
+                
+                let newPosition = { ...currentPos };
+                
+                // Convert screen anchor to world coordinates for comparison
+                const containerRect = containerRef.current?.getBoundingClientRect();
+                if (containerRect && anchor) {
+                  const worldAnchor = clientToWorld(anchor.x, anchor.y, viewport, containerRect);
+                  const objCenterX = currentPos.x + currentWidth / 2;
+                  const objCenterY = currentPos.y + currentHeight / 2;
+                  
+                  // If anchor is on the right side, move left edge
+                  if (worldAnchor.x > objCenterX) {
+                    newPosition.x -= deltaWidth;
+                  }
+                  // If anchor is on the bottom side, move top edge
+                  if (worldAnchor.y > objCenterY) {
+                    newPosition.y -= deltaHeight;
+                  }
+                }
+                
                 const updatedObjects = (props.canvasObjects || []).map(canvasObject => 
-                  canvasObject.id === obj.id ? { ...canvasObject, style: { ...canvasObject.style, width, height } } : canvasObject
+                  canvasObject.id === obj.id 
+                    ? { 
+                        ...canvasObject, 
+                        style: { ...canvasObject.style, width, height },
+                        position: newPosition
+                      } 
+                    : canvasObject
                 );
                 props.onCanvasObjectsChange?.(updatedObjects);
               }}
@@ -1802,9 +1874,45 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 );
                 props.onCanvasObjectsChange?.(updatedObjects);
               }} 
-              onResize={(width, height) => {
+              onResize={(width, height, anchor) => {
+                const currentObject = (props.canvasObjects || []).find(co => co.id === obj.id);
+                if (!currentObject) return;
+                
+                const currentWidth = currentObject.style?.width || currentObject.width || 200;
+                const currentHeight = currentObject.style?.height || currentObject.height || 150;
+                const currentPos = currentObject.position;
+                
+                // Calculate position adjustment to keep anchor fixed
+                const deltaWidth = width - currentWidth;
+                const deltaHeight = height - currentHeight;
+                
+                let newPosition = { ...currentPos };
+                
+                // Convert screen anchor to world coordinates for comparison
+                const containerRect = containerRef.current?.getBoundingClientRect();
+                if (containerRect && anchor) {
+                  const worldAnchor = clientToWorld(anchor.x, anchor.y, viewport, containerRect);
+                  const objCenterX = currentPos.x + currentWidth / 2;
+                  const objCenterY = currentPos.y + currentHeight / 2;
+                  
+                  // If anchor is on the right side, move left edge
+                  if (worldAnchor.x > objCenterX) {
+                    newPosition.x -= deltaWidth;
+                  }
+                  // If anchor is on the bottom side, move top edge
+                  if (worldAnchor.y > objCenterY) {
+                    newPosition.y -= deltaHeight;
+                  }
+                }
+                
                 const updatedObjects = (props.canvasObjects || []).map(canvasObject => 
-                  canvasObject.id === obj.id ? { ...canvasObject, style: { ...canvasObject.style, width, height } } : canvasObject
+                  canvasObject.id === obj.id 
+                    ? { 
+                        ...canvasObject, 
+                        style: { ...canvasObject.style, width, height },
+                        position: newPosition
+                      } 
+                    : canvasObject
                 );
                 props.onCanvasObjectsChange?.(updatedObjects);
               }}

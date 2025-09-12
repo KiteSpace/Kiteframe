@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 interface TextObjectProps {
   object: CanvasObject & { data: TextNodeData };
   onUpdate?: (updates: Partial<TextNodeData>) => void;
-  onResize?: (width: number, height: number) => void;
+  onResize?: (width: number, height: number, anchor?: { x: number; y: number }) => void;
   onStartDrag?: (e: React.MouseEvent) => void;
   onClick?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;
@@ -297,57 +297,57 @@ export const TextObject: React.FC<TextObjectProps> = ({
           <ResizeHandle
             position="top-left"
             nodeRef={objectRef}
-            onResize={(width, height) => {
+            onResize={(width, height, anchor) => {
               setTextSize({ width, height });
               setIsManuallyResized(true);
               onResize?.(width, height);
             }}
             minWidth={150}
             minHeight={50}
-            maxWidth={2000}
-            maxHeight={1500}
+            maxWidth={5000}
+            maxHeight={3000}
             viewport={viewport}
           />
           <ResizeHandle
             position="top-right"
             nodeRef={objectRef}
-            onResize={(width, height) => {
+            onResize={(width, height, anchor) => {
               setTextSize({ width, height });
               setIsManuallyResized(true);
               onResize?.(width, height);
             }}
             minWidth={150}
             minHeight={50}
-            maxWidth={2000}
-            maxHeight={1500}
+            maxWidth={5000}
+            maxHeight={3000}
             viewport={viewport}
           />
           <ResizeHandle
             position="bottom-left"
             nodeRef={objectRef}
-            onResize={(width, height) => {
+            onResize={(width, height, anchor) => {
               setTextSize({ width, height });
               setIsManuallyResized(true);
               onResize?.(width, height);
             }}
             minWidth={150}
             minHeight={50}
-            maxWidth={2000}
-            maxHeight={1500}
+            maxWidth={5000}
+            maxHeight={3000}
             viewport={viewport}
           />
           <ResizeHandle
             position="bottom-right"
             nodeRef={objectRef}
-            onResize={(width, height) => {
+            onResize={(width, height, anchor) => {
               setTextSize({ width, height });
               setIsManuallyResized(true);
               onResize?.(width, height);
             }}
             minWidth={150}
             minHeight={50}
-            maxWidth={2000}
-            maxHeight={1500}
+            maxWidth={5000}
+            maxHeight={3000}
             viewport={viewport}
           />
         </>

@@ -8,7 +8,7 @@ import { X } from 'lucide-react';
 interface StickyNoteObjectProps {
   object: CanvasObject & { data: StickyNoteData };
   onUpdate?: (updates: Partial<StickyNoteData>) => void;
-  onResize?: (width: number, height: number) => void;
+  onResize?: (width: number, height: number, anchor?: { x: number; y: number }) => void;
   onDelete?: () => void;
   onStartDrag?: (e: React.MouseEvent) => void;
   onClick?: (e: React.MouseEvent) => void;
@@ -188,52 +188,48 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
             position="top-left"
             nodeRef={objectRef}
             onResize={(width, height) => {
-              // Only allow height changes for sticky notes
-              handleResize(noteSize.width, height);
+              handleResize(width, height);
             }}
-            minWidth={noteSize.width}
+            minWidth={150}
             minHeight={80}
-            maxWidth={noteSize.width}
-            maxHeight={300}
+            maxWidth={2000}
+            maxHeight={1500}
             viewport={viewport}
           />
           <ResizeHandle
             position="top-right"
             nodeRef={objectRef}
             onResize={(width, height) => {
-              // Only allow height changes for sticky notes
-              handleResize(noteSize.width, height);
+              handleResize(width, height);
             }}
-            minWidth={noteSize.width}
+            minWidth={150}
             minHeight={80}
-            maxWidth={noteSize.width}
-            maxHeight={300}
+            maxWidth={2000}
+            maxHeight={1500}
             viewport={viewport}
           />
           <ResizeHandle
             position="bottom-left"
             nodeRef={objectRef}
             onResize={(width, height) => {
-              // Only allow height changes for sticky notes
-              handleResize(noteSize.width, height);
+              handleResize(width, height);
             }}
-            minWidth={noteSize.width}
+            minWidth={150}
             minHeight={80}
-            maxWidth={noteSize.width}
-            maxHeight={300}
+            maxWidth={2000}
+            maxHeight={1500}
             viewport={viewport}
           />
           <ResizeHandle
             position="bottom-right"
             nodeRef={objectRef}
             onResize={(width, height) => {
-              // Only allow height changes for sticky notes
-              handleResize(noteSize.width, height);
+              handleResize(width, height);
             }}
-            minWidth={noteSize.width}
+            minWidth={150}
             minHeight={80}
-            maxWidth={noteSize.width}
-            maxHeight={300}
+            maxWidth={2000}
+            maxHeight={1500}
             viewport={viewport}
           />
         </>

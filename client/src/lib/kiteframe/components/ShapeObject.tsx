@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 interface ShapeObjectProps {
   object: CanvasObject & { data: ShapeNodeData };
   onUpdate?: (updates: Partial<ShapeNodeData>) => void;
-  onResize?: (width: number, height: number) => void;
+  onResize?: (width: number, height: number, anchor?: { x: number; y: number }) => void;
   onStartDrag?: (e: React.MouseEvent) => void;
   onClick?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;
@@ -199,8 +199,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             onResize={handleResize}
             minWidth={50}
             minHeight={50}
-            maxWidth={2000}
-            maxHeight={2000}
+            maxWidth={5000}
+            maxHeight={5000}
             viewport={viewport}
           />
           <ResizeHandle
@@ -209,8 +209,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             onResize={handleResize}
             minWidth={50}
             minHeight={50}
-            maxWidth={2000}
-            maxHeight={2000}
+            maxWidth={5000}
+            maxHeight={5000}
             viewport={viewport}
           />
           <ResizeHandle
@@ -219,8 +219,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             onResize={handleResize}
             minWidth={50}
             minHeight={50}
-            maxWidth={2000}
-            maxHeight={2000}
+            maxWidth={5000}
+            maxHeight={5000}
             viewport={viewport}
           />
           <ResizeHandle
@@ -229,8 +229,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             onResize={handleResize}
             minWidth={50}
             minHeight={50}
-            maxWidth={2000}
-            maxHeight={2000}
+            maxWidth={5000}
+            maxHeight={5000}
             viewport={viewport}
           />
         </>
