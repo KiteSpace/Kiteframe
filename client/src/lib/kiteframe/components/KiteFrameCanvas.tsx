@@ -65,6 +65,8 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const categoryRef = useRef<HTMLInputElement>(null);
+  const formDataRef = useRef(formData);
+  const onMetadataChangeRef = useRef(onMetadataChange);
 
   const categorySuggestions = [
     'User Experience', 'Feature Planning', 'Brainstorming', 
@@ -76,6 +78,15 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
     setInputValue(name);
     setFormData(prev => ({ ...prev, name }));
   }, [name]);
+
+  // Keep refs in sync with latest values
+  useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+
+  useEffect(() => {
+    onMetadataChangeRef.current = onMetadataChange;
+  }, [onMetadataChange]);
 
   useEffect(() => {
     if (metadata && mode === 'collapsed' && !isJustSaved) {
@@ -103,7 +114,12 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
     const handleClickOutside = (e: MouseEvent) => {
       if (mode === 'expanded' && formRef.current && !formRef.current.contains(e.target as HTMLElement)) {
         console.log('🔧 Click outside detected - auto-saving form data');
-        handleSaveForm();
+        // Use refs to get the latest values instead of stale closure
+        const latestFormData = formDataRef.current;
+        console.log('🔧 Latest formData from ref:', latestFormData);
+        onMetadataChangeRef.current?.(latestFormData);
+        setIsJustSaved(true);
+        setMode('collapsed');
       }
     };
 
