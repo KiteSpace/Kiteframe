@@ -2671,6 +2671,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onQuickAdd={handleQuickAdd}
               workflowName={activeTab?.name}
               onWorkflowNameChange={setWorkflowName}
+              workflowMetadata={metadata}
+              onWorkflowMetadataChange={setWorkflowMetadata}
               onEdgeReconnect={handleEdgeReconnect}
               connectionAnimationConfig={connectionAnimationConfig}
               onNodesChange={(changes) => {

@@ -33,6 +33,8 @@ interface WorkflowCanvasProps {
   onQuickAdd?: (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => void;
   workflowName?: string;
   onWorkflowNameChange?: (name: string) => void;
+  workflowMetadata?: any;
+  onWorkflowMetadataChange?: (metadata: any) => void;
   onEdgeReconnect?: (edgeId: string, newSource: string, newTarget: string) => void;
   connectionAnimationConfig?: any;
 }
@@ -65,6 +67,8 @@ export function WorkflowCanvas({
   onQuickAdd,
   workflowName,
   onWorkflowNameChange,
+  workflowMetadata,
+  onWorkflowMetadataChange,
   onEdgeReconnect,
   connectionAnimationConfig
 }: WorkflowCanvasProps) {
@@ -212,6 +216,8 @@ export function WorkflowCanvas({
         onQuickAdd={onQuickAdd}
         workflowName={workflowName}
         onWorkflowNameChange={onWorkflowNameChange}
+        workflowMetadata={workflowMetadata}
+        onWorkflowMetadataChange={onWorkflowMetadataChange}
         onEdgeReconnect={onEdgeReconnect}
         connectionAnimationConfig={connectionAnimationConfig}
         className="w-full h-full"
