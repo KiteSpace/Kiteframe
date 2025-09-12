@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../styles/kiteframe.css';
 import '../styles/enhanced-selection.css';
-import type { Node, Edge, NodeType, ProFeaturesConfig, QuickAddConfig } from '../types';
+import type { Node, Edge, NodeType, CanvasObject, CanvasObjectType, ProFeaturesConfig, QuickAddConfig } from '../types';
 import { clientToWorld, zoomAroundPoint } from '../utils/geometry';
 import { NodeHandles } from './NodeHandles';
 import { ConnectionEdge } from './ConnectionEdge';
@@ -13,6 +13,9 @@ import { KiteFrameCore, kiteFrameCore } from '../core/KiteFrameCore';
 import { TextNode } from './TextNode';
 import { StickyNote } from './StickyNote';
 import { ShapeNode } from './ShapeNode';
+import { TextObject } from './TextObject';
+import { StickyNoteObject } from './StickyNoteObject';
+import { ShapeObject } from './ShapeObject';
 import { EmojiReactions } from './EmojiReactions';
 import { AnimatedConnectionPreview, type AnimationConfig } from './AnimatedConnectionPreview';
 import { ChevronDown, ChevronUp, X, ExternalLink, List, Type } from 'lucide-react';
@@ -571,8 +574,10 @@ const calculateNodeHeight = (node: Node, nodeWidth: number): number => {
 type Props = {
   nodes: Node[];
   edges: Edge[];
+  canvasObjects?: CanvasObject[];
   onNodesChange: (n: Node[]) => void;
   onEdgesChange: (e: Edge[]) => void;
+  onCanvasObjectsChange?: (canvasObjects: CanvasObject[]) => void;
   onConnect?: (c: { source: string; target: string }) => void;
   gridType?: 'dots'|'lines'|'none';
   minZoom?: number;
@@ -587,6 +592,9 @@ type Props = {
   onCanvasClick?: () => void;
   onNodeDoubleClick?: (e: React.MouseEvent, node: Node) => void;
   onNodeRightClick?: (e: React.MouseEvent, node: Node) => void;
+  onCanvasObjectClick?: (e: React.MouseEvent, canvasObject: CanvasObject) => void;
+  onCanvasObjectDoubleClick?: (e: React.MouseEvent, canvasObject: CanvasObject) => void;
+  onCanvasObjectRightClick?: (e: React.MouseEvent, canvasObject: CanvasObject) => void;
   onEdgeClick?: (e: React.MouseEvent, edge: Edge) => void;
   onNodeResize?: (id: string, w: number, h: number) => void;
   onImageButtonClick?: (nodeId: string) => void;
@@ -915,10 +923,31 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     origins?: {id: string; origin: {x:number;y:number}}[];
     isGroupDrag?: boolean;
   }|null>(null);
+
+  // Canvas object dragging
+  const canvasObjectDragInfo = useRef<{ 
+    id: string; 
+    start: {x:number;y:number}; 
+    origin: {x:number;y:number}; 
+  }|null>(null);
   
   // Simple drag tracking without interference
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
+      // Handle node dragging
+      if (dragInfo.current) {
+        handleNodeDragMove(e);
+        return;
+      }
+      
+      // Handle canvas object dragging
+      if (canvasObjectDragInfo.current) {
+        handleCanvasObjectDragMove(e);
+        return;
+      }
+    };
+    
+    const handleNodeDragMove = (e: MouseEvent) => {
       if (!dragInfo.current) return;
       
       const rect = containerRef.current!.getBoundingClientRect();
@@ -1010,23 +1039,87 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       }
     };
     
-    const onUp = () => { 
-      console.log('🔧 DRAG END:', dragInfo.current);
+    const handleCanvasObjectDragMove = (e: MouseEvent) => {
+      if (!canvasObjectDragInfo.current) return;
       
-      // Handle smart connect auto-connection on drag end  
-      if (dragInfo.current && !dragInfo.current.isGroupDrag && props.proFeatures?.smartConnect?.enabled !== false) {
-        const draggedNode = props.nodes.find(n => n.id === dragInfo.current?.id);
-        if (draggedNode) {
-          console.log('🔗 Smart Connect: Checking auto-connection for', dragInfo.current.id);
-          // The SmartConnectPlugin handles auto-connection logic automatically through drag events
-          // No additional code needed here as the plugin is already integrated
+      const rect = containerRef.current!.getBoundingClientRect();
+      const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+      const dx = wp.x - canvasObjectDragInfo.current.start.x;
+      const dy = wp.y - canvasObjectDragInfo.current.start.y;
+      
+      const newPosition = {
+        x: canvasObjectDragInfo.current.origin.x + dx,
+        y: canvasObjectDragInfo.current.origin.y + dy
+      };
+      
+      // Apply smart guides if enabled
+      let finalPosition = newPosition;
+      let currentGuides: SnapGuide[] = [];
+      
+      if (props.snapToGuides !== false && props.proFeatures?.smartGuides?.enabled !== false) {
+        const allOtherObjects = [
+          ...props.nodes.map(n => ({ ...getNodeRect(n), id: n.id })),
+          ...(props.canvasObjects || []).filter(obj => obj.id !== canvasObjectDragInfo.current!.id).map(obj => ({
+            x: obj.position.x,
+            y: obj.position.y,
+            w: obj.style?.width || obj.width || 200,
+            h: obj.style?.height || obj.height || 150,
+            id: obj.id
+          }))
+        ];
+        
+        const draggedObjectSize = {
+          w: (props.canvasObjects || []).find(obj => obj.id === canvasObjectDragInfo.current!.id)?.style?.width ||
+             (props.canvasObjects || []).find(obj => obj.id === canvasObjectDragInfo.current!.id)?.width || 200,
+          h: (props.canvasObjects || []).find(obj => obj.id === canvasObjectDragInfo.current!.id)?.style?.height ||
+             (props.canvasObjects || []).find(obj => obj.id === canvasObjectDragInfo.current!.id)?.height || 150
+        };
+        
+        const snapResult = calculateSnapPosition(
+          newPosition,
+          draggedObjectSize,
+          allOtherObjects,
+          defaultSnapSettings
+        );
+        
+        finalPosition = snapResult.position;
+        currentGuides = snapResult.guides;
+        setCurrentGuides(currentGuides);
+      }
+      
+      // Update canvas object position
+      const updatedObjects = (props.canvasObjects || []).map(obj => 
+        obj.id === canvasObjectDragInfo.current!.id 
+          ? { ...obj, position: finalPosition }
+          : obj
+      );
+      props.onCanvasObjectsChange?.(updatedObjects);
+    };
+    
+    const onUp = () => { 
+      if (dragInfo.current) {
+        console.log('🔧 DRAG END:', dragInfo.current);
+        
+        // Handle smart connect auto-connection on drag end  
+        if (!dragInfo.current.isGroupDrag && props.proFeatures?.smartConnect?.enabled !== false) {
+          const draggedNode = props.nodes.find(n => n.id === dragInfo.current?.id);
+          if (draggedNode) {
+            console.log('🔗 Smart Connect: Checking auto-connection for', dragInfo.current.id);
+            // The SmartConnectPlugin handles auto-connection logic automatically through drag events
+            // No additional code needed here as the plugin is already integrated
+          }
         }
+        
+        dragInfo.current = null;
+      }
+      
+      if (canvasObjectDragInfo.current) {
+        console.log('🔧 CANVAS OBJECT DRAG END:', canvasObjectDragInfo.current);
+        canvasObjectDragInfo.current = null;
       }
       
       // Clear guides when drag ends
       setCurrentGuides([]);
-      
-      dragInfo.current = null;
     };
     
     window.addEventListener('mousemove', onMove);
@@ -1192,7 +1285,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       ...reactions,
                       [emoji]: {
                         count: reaction.count + 1,
-                        userIds: [...reaction.userIds, 'current-user']
+                        userIds: [...reaction.userIds, props.currentUserId || 'current-user']
                       }
                     }
                   }
@@ -1209,7 +1302,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 const reactions = node.data?.reactions || {};
                 const reaction = reactions[emoji];
                 if (reaction) {
-                  const newUserIds = reaction.userIds.filter((id: string) => id !== 'current-user');
+                  const newUserIds = reaction.userIds.filter((id: string) => id !== (props.currentUserId || 'current-user'));
                   const newCount = Math.max(0, reaction.count - 1);
                   return {
                     ...node,
@@ -1483,7 +1576,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                               ...reactions,
                               [emoji]: {
                                 count: reaction.count + 1,
-                                userIds: [...reaction.userIds, 'current-user']
+                                userIds: [...reaction.userIds, props.currentUserId || 'current-user']
                               }
                             }
                           }
@@ -1499,7 +1592,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         const reactions = node.data?.reactions || {};
                         const reaction = reactions[emoji];
                         if (reaction) {
-                          const newUserIds = reaction.userIds.filter((id: string) => id !== 'current-user');
+                          const newUserIds = reaction.userIds.filter((id: string) => id !== (props.currentUserId || 'current-user'));
                           const newCount = Math.max(0, reaction.count - 1);
                           return {
                             ...node,
@@ -1525,6 +1618,155 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               </div>
             </div>
           );
+        })}
+
+        {/* Canvas Objects */}
+        {(props.canvasObjects || []).filter(obj => !obj.hidden).map(obj => {
+          // Helper functions for canvas object reactions
+          const addCanvasObjectReaction = (objectId: string, emoji: string) => {
+            const updatedObjects = (props.canvasObjects || []).map(canvasObject => {
+              if (canvasObject.id === objectId) {
+                const reactions = canvasObject.reactions || {};
+                const reaction = reactions[emoji] || { emoji, count: 0, userIds: [] };
+                return {
+                  ...canvasObject,
+                  reactions: {
+                    ...reactions,
+                    [emoji]: {
+                      emoji,
+                      count: reaction.count + 1,
+                      userIds: [...reaction.userIds, props.currentUserId || 'current-user']
+                    }
+                  }
+                };
+              }
+              return canvasObject;
+            });
+            props.onCanvasObjectsChange?.(updatedObjects);
+          };
+
+          const removeCanvasObjectReaction = (objectId: string, emoji: string) => {
+            const updatedObjects = (props.canvasObjects || []).map(canvasObject => {
+              if (canvasObject.id === objectId) {
+                const reactions = canvasObject.reactions || {};
+                const reaction = reactions[emoji];
+                if (reaction) {
+                  const newUserIds = reaction.userIds.filter((id: string) => id !== (props.currentUserId || 'current-user'));
+                  const newCount = Math.max(0, reaction.count - 1);
+                  return {
+                    ...canvasObject,
+                    reactions: {
+                      ...reactions,
+                      [emoji]: {
+                        emoji,
+                        count: newCount,
+                        userIds: newUserIds
+                      }
+                    }
+                  };
+                }
+              }
+              return canvasObject;
+            });
+            props.onCanvasObjectsChange?.(updatedObjects);
+          };
+
+          // Canvas object drag handler
+          const handleCanvasObjectDragStart = (objectId: string, e: React.MouseEvent) => {
+            e.stopPropagation();
+            if (!containerRef.current) return;
+            
+            const rect = containerRef.current.getBoundingClientRect();
+            const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+            const targetObject = (props.canvasObjects || []).find(obj => obj.id === objectId);
+            
+            if (targetObject) {
+              canvasObjectDragInfo.current = {
+                id: objectId,
+                start: wp,
+                origin: { ...targetObject.position }
+              };
+              
+              console.log('🔧 CANVAS OBJECT DRAG START:', {
+                objectId,
+                worldPos: wp,
+                objectPosition: targetObject.position
+              });
+            }
+          };
+
+          // Render different canvas object types
+          if (obj.type === 'text') {
+            return <TextObject 
+              key={obj.id} 
+              object={obj as CanvasObject & { data: import('../types').TextNodeData }} 
+              onUpdate={(updates) => {
+                const updatedObjects = (props.canvasObjects || []).map(canvasObject => 
+                  canvasObject.id === obj.id ? { ...canvasObject, data: { ...canvasObject.data, ...updates } } : canvasObject
+                );
+                props.onCanvasObjectsChange?.(updatedObjects);
+              }} 
+              onResize={(width, height) => {
+                const updatedObjects = (props.canvasObjects || []).map(canvasObject => 
+                  canvasObject.id === obj.id ? { ...canvasObject, style: { ...canvasObject.style, width, height } } : canvasObject
+                );
+                props.onCanvasObjectsChange?.(updatedObjects);
+              }}
+              onStartDrag={(e) => handleCanvasObjectDragStart(obj.id, e)}
+              onAddReaction={addCanvasObjectReaction}
+              onRemoveReaction={removeCanvasObjectReaction}
+            />;
+          }
+
+          if (obj.type === 'sticky') {
+            return <StickyNoteObject 
+              key={obj.id} 
+              object={obj as CanvasObject & { data: import('../types').StickyNoteData }} 
+              onUpdate={(updates) => {
+                const updatedObjects = (props.canvasObjects || []).map(canvasObject => 
+                  canvasObject.id === obj.id ? { ...canvasObject, data: { ...canvasObject.data, ...updates } } : canvasObject
+                );
+                props.onCanvasObjectsChange?.(updatedObjects);
+              }} 
+              onResize={(width, height) => {
+                const updatedObjects = (props.canvasObjects || []).map(canvasObject => 
+                  canvasObject.id === obj.id ? { ...canvasObject, style: { ...canvasObject.style, width, height } } : canvasObject
+                );
+                props.onCanvasObjectsChange?.(updatedObjects);
+              }}
+              onDelete={() => {
+                const updatedObjects = (props.canvasObjects || []).filter(canvasObject => canvasObject.id !== obj.id);
+                props.onCanvasObjectsChange?.(updatedObjects);
+              }}
+              onStartDrag={(e) => handleCanvasObjectDragStart(obj.id, e)}
+              onAddReaction={addCanvasObjectReaction}
+              onRemoveReaction={removeCanvasObjectReaction}
+            />;
+          }
+
+          if (obj.type === 'shape') {
+            return <ShapeObject 
+              key={obj.id} 
+              object={obj as CanvasObject & { data: import('../types').ShapeNodeData }} 
+              onUpdate={(updates) => {
+                const updatedObjects = (props.canvasObjects || []).map(canvasObject => 
+                  canvasObject.id === obj.id ? { ...canvasObject, data: { ...canvasObject.data, ...updates } } : canvasObject
+                );
+                props.onCanvasObjectsChange?.(updatedObjects);
+              }} 
+              onResize={(width, height) => {
+                const updatedObjects = (props.canvasObjects || []).map(canvasObject => 
+                  canvasObject.id === obj.id ? { ...canvasObject, style: { ...canvasObject.style, width, height } } : canvasObject
+                );
+                props.onCanvasObjectsChange?.(updatedObjects);
+              }}
+              onStartDrag={(e) => handleCanvasObjectDragStart(obj.id, e)}
+              onAddReaction={addCanvasObjectReaction}
+              onRemoveReaction={removeCanvasObjectReaction}
+            />;
+          }
+
+          return null;
         })}
       </div>
       

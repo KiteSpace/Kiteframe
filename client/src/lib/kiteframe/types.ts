@@ -87,7 +87,8 @@ export type Edge = {
   data?: any; // Keep for backward compatibility
 };
 
-export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'text' | 'sticky' | 'shape';
+export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image';
+export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 
 // Pro Features Configuration Interfaces
 export interface QuickAddConfig {
@@ -205,6 +206,22 @@ export interface ShapeNodeData {
   [key: string]: any;
 }
 
+// Canvas Objects - not connectable, no handles
+export type CanvasObject = {
+  id: string;
+  type: CanvasObjectType;
+  position: Position;
+  data: TextNodeData | StickyNoteData | ShapeNodeData;
+  style?: { width?: number; height?: number };
+  selected?: boolean;
+  hidden?: boolean;
+  draggable?: boolean;
+  resizable?: boolean;
+  reactions?: NodeReactions;
+  width?: number;
+  height?: number;
+};
+
 export interface EmojiReaction {
   emoji: string;
   count: number;
@@ -218,11 +235,16 @@ export interface NodeReactions {
 export interface KiteFrameProps {
   nodes: Node[];
   edges: Edge[];
+  canvasObjects?: CanvasObject[];
   onNodesChange?: (nodes: Node[]) => void;
   onEdgesChange?: (edges: Edge[]) => void;
+  onCanvasObjectsChange?: (canvasObjects: CanvasObject[]) => void;
   onNodeClick?: (event: React.MouseEvent, node: Node) => void;
   onNodeDoubleClick?: (event: React.MouseEvent, node: Node) => void;
   onNodeRightClick?: (event: React.MouseEvent, node: Node) => void;
+  onCanvasObjectClick?: (event: React.MouseEvent, canvasObject: CanvasObject) => void;
+  onCanvasObjectDoubleClick?: (event: React.MouseEvent, canvasObject: CanvasObject) => void;
+  onCanvasObjectRightClick?: (event: React.MouseEvent, canvasObject: CanvasObject) => void;
   onEdgeClick?: (event: React.MouseEvent, edge: Edge) => void;
   onCanvasClick?: (event: React.MouseEvent) => void;
   onImageButtonClick?: (nodeId: string) => void;
