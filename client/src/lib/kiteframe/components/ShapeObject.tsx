@@ -12,6 +12,7 @@ interface ShapeObjectProps {
   onClick?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;
   onRemoveReaction?: (objectId: string, emoji: string) => void;
+  viewport?: { x: number; y: number; zoom: number };
 }
 
 export const ShapeObject: React.FC<ShapeObjectProps> = ({
@@ -21,7 +22,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   onStartDrag,
   onClick,
   onAddReaction,
-  onRemoveReaction
+  onRemoveReaction,
+  viewport
 }) => {
   const objectRef = useRef<HTMLDivElement>(null);
   const shapeSize = {
@@ -199,6 +201,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             minHeight={50}
             maxWidth={2000}
             maxHeight={2000}
+            viewport={viewport}
           />
           <ResizeHandle
             position="top-right"
@@ -208,6 +211,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             minHeight={50}
             maxWidth={2000}
             maxHeight={2000}
+            viewport={viewport}
           />
           <ResizeHandle
             position="bottom-left"
@@ -217,6 +221,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             minHeight={50}
             maxWidth={2000}
             maxHeight={2000}
+            viewport={viewport}
           />
           <ResizeHandle
             position="bottom-right"
@@ -226,6 +231,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             minHeight={50}
             maxWidth={2000}
             maxHeight={2000}
+            viewport={viewport}
           />
         </>
       )}

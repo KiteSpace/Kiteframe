@@ -15,6 +15,7 @@ interface TextObjectProps {
   style?: React.CSSProperties;
   autoFocus?: boolean;
   onExitEdit?: () => void;
+  viewport?: { x: number; y: number; zoom: number };
 }
 
 export const TextObject: React.FC<TextObjectProps> = ({
@@ -27,7 +28,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
   onRemoveReaction,
   style,
   autoFocus = false,
-  onExitEdit
+  onExitEdit,
+  viewport
 }) => {
   const [isEditing, setIsEditing] = useState(autoFocus);
   const [text, setText] = useState(object.data.text || '');
@@ -304,6 +306,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
             minHeight={50}
             maxWidth={2000}
             maxHeight={1500}
+            viewport={viewport}
           />
           <ResizeHandle
             position="top-right"
@@ -317,6 +320,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
             minHeight={50}
             maxWidth={2000}
             maxHeight={1500}
+            viewport={viewport}
           />
           <ResizeHandle
             position="bottom-left"
@@ -330,6 +334,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
             minHeight={50}
             maxWidth={2000}
             maxHeight={1500}
+            viewport={viewport}
           />
           <ResizeHandle
             position="bottom-right"
@@ -343,6 +348,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
             minHeight={50}
             maxWidth={2000}
             maxHeight={1500}
+            viewport={viewport}
           />
         </>
       )}

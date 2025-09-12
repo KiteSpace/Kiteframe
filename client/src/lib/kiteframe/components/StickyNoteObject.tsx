@@ -14,6 +14,7 @@ interface StickyNoteObjectProps {
   onClick?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;
   onRemoveReaction?: (objectId: string, emoji: string) => void;
+  viewport?: { x: number; y: number; zoom: number };
 }
 
 export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
@@ -24,7 +25,8 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
   onStartDrag,
   onClick,
   onAddReaction,
-  onRemoveReaction
+  onRemoveReaction,
+  viewport
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(object.data.text || '');
@@ -193,6 +195,7 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
             minHeight={80}
             maxWidth={noteSize.width}
             maxHeight={300}
+            viewport={viewport}
           />
           <ResizeHandle
             position="top-right"
@@ -205,6 +208,7 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
             minHeight={80}
             maxWidth={noteSize.width}
             maxHeight={300}
+            viewport={viewport}
           />
           <ResizeHandle
             position="bottom-left"
@@ -217,6 +221,7 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
             minHeight={80}
             maxWidth={noteSize.width}
             maxHeight={300}
+            viewport={viewport}
           />
           <ResizeHandle
             position="bottom-right"
@@ -229,6 +234,7 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
             minHeight={80}
             maxWidth={noteSize.width}
             maxHeight={300}
+            viewport={viewport}
           />
         </>
       )}

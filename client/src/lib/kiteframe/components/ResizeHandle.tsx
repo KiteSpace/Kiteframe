@@ -9,6 +9,7 @@ interface ResizeHandleProps {
   minHeight?: number;
   maxWidth?: number;
   maxHeight?: number;
+  viewport?: { x: number; y: number; zoom: number };
 }
 
 export const ResizeHandle: React.FC<ResizeHandleProps> = ({
@@ -18,7 +19,8 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
   minWidth = 100,
   minHeight = 50,
   maxWidth = 800,
-  maxHeight = 600
+  maxHeight = 600,
+  viewport
 }) => {
   const [isResizing, setIsResizing] = useState(false);
   const startDimensionsRef = useRef({ width: 0, height: 0 });
@@ -68,8 +70,24 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizingRef.current) return;
 
-      const deltaX = e.clientX - startPositionRef.current.x;
-      const deltaY = e.clientY - startPositionRef.current.y;
+      // Raw mouse deltas in screen space
+      const rawDeltaX = e.clientX - startPositionRef.current.x;
+      const rawDeltaY = e.clientY - startPositionRef.current.y;
+      
+      // Apply viewport zoom correction
+      const zoom = viewport?.zoom || 1;
+      const deltaX = rawDeltaX / zoom;
+      const deltaY = rawDeltaY / zoom;
+      
+      console.log('🔧 RESIZE COORDINATE DEBUG:', {
+        position,
+        screenMouse: { x: e.clientX, y: e.clientY },
+        startMouse: startPositionRef.current,
+        rawDeltas: { x: rawDeltaX, y: rawDeltaY },
+        zoom,
+        correctedDeltas: { x: deltaX, y: deltaY },
+        startDimensions: startDimensionsRef.current
+      });
 
       let newWidth = startDimensionsRef.current.width;
       let newHeight = startDimensionsRef.current.height;

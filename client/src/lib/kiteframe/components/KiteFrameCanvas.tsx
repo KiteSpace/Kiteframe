@@ -1760,6 +1760,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               onClick={(e) => handleCanvasObjectClick(obj.id, e)}
               onAddReaction={addCanvasObjectReaction}
               onRemoveReaction={removeCanvasObjectReaction}
+              viewport={viewport}
             />;
           }
 
@@ -1787,6 +1788,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               onClick={(e) => handleCanvasObjectClick(obj.id, e)}
               onAddReaction={addCanvasObjectReaction}
               onRemoveReaction={removeCanvasObjectReaction}
+              viewport={viewport}
             />;
           }
 
@@ -1810,6 +1812,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               onClick={(e) => handleCanvasObjectClick(obj.id, e)}
               onAddReaction={addCanvasObjectReaction}
               onRemoveReaction={removeCanvasObjectReaction}
+              viewport={viewport}
             />;
           }
 
