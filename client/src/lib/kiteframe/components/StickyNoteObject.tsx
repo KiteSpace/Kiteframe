@@ -57,14 +57,34 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
     setIsEditing(true);
   };
 
+  // Track clicks for proper select/edit behavior  
+  const [clickCount, setClickCount] = useState(0);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Call the onClick handler first for selection
+    
+    // Always call onClick for selection first
     onClick?.(e);
-    // Enter edit mode on single click for sticky notes (more intuitive)
-    if (!isEditing) {
-      setIsEditing(true);
+    
+    // Handle single vs double click logic
+    setClickCount(prev => prev + 1);
+    
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
     }
+    
+    clickTimeoutRef.current = setTimeout(() => {
+      if (clickCount === 0) {
+        // First click - just select (onClick already called)
+      } else if (clickCount >= 1) {
+        // Second click or more - enter edit mode  
+        if (!isEditing && object.selected) {
+          setIsEditing(true);
+        }
+      }
+      setClickCount(0);
+    }, 300);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -159,43 +179,55 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
         )}
       </div>
 
-      {/* Resize handles - all four corners when selected */}
+      {/* Resize handles - only vertical resizing (top and bottom) */}
       {object.selected && (
         <>
           <ResizeHandle
             position="top-left"
             nodeRef={objectRef}
-            onResize={handleResize}
-            minWidth={120}
+            onResize={(width, height) => {
+              // Only allow height changes for sticky notes
+              handleResize(noteSize.width, height);
+            }}
+            minWidth={noteSize.width}
             minHeight={80}
-            maxWidth={400}
+            maxWidth={noteSize.width}
             maxHeight={300}
           />
           <ResizeHandle
             position="top-right"
             nodeRef={objectRef}
-            onResize={handleResize}
-            minWidth={120}
+            onResize={(width, height) => {
+              // Only allow height changes for sticky notes
+              handleResize(noteSize.width, height);
+            }}
+            minWidth={noteSize.width}
             minHeight={80}
-            maxWidth={400}
+            maxWidth={noteSize.width}
             maxHeight={300}
           />
           <ResizeHandle
             position="bottom-left"
             nodeRef={objectRef}
-            onResize={handleResize}
-            minWidth={120}
+            onResize={(width, height) => {
+              // Only allow height changes for sticky notes
+              handleResize(noteSize.width, height);
+            }}
+            minWidth={noteSize.width}
             minHeight={80}
-            maxWidth={400}
+            maxWidth={noteSize.width}
             maxHeight={300}
           />
           <ResizeHandle
             position="bottom-right"
             nodeRef={objectRef}
-            onResize={handleResize}
-            minWidth={120}
+            onResize={(width, height) => {
+              // Only allow height changes for sticky notes
+              handleResize(noteSize.width, height);
+            }}
+            minWidth={noteSize.width}
             minHeight={80}
-            maxWidth={400}
+            maxWidth={noteSize.width}
             maxHeight={300}
           />
         </>

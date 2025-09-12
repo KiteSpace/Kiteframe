@@ -81,6 +81,12 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
           break;
       }
 
+      console.log('🔧 RESIZE HANDLE:', {
+        position,
+        startDimensions: { width: startDimensions.width, height: startDimensions.height },
+        newDimensions: { width: newWidth, height: newHeight },
+        deltas: { deltaX, deltaY }
+      });
       onResize?.(newWidth, newHeight);
     };
 

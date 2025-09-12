@@ -34,10 +34,28 @@ export const TextObject: React.FC<TextObjectProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const objectRef = useRef<HTMLDivElement>(null);
-  const [textSize, setTextSize] = useState({ 
-    width: object.style?.width || 200, 
-    height: object.style?.height || 100 
-  });
+  // Calculate initial size based on text content
+  const getInitialDimensions = useCallback(() => {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) return { width: 200, height: 50 };
+    
+    const fontSize = object.data.fontSize || 16;
+    const fontFamily = object.data.fontFamily || 'Inter, system-ui, sans-serif';
+    context.font = `${fontSize}px ${fontFamily}`;
+    
+    const text = object.data.text || 'Type here...';
+    const textMetrics = context.measureText(text);
+    const textWidth = Math.max(150, Math.min(400, textMetrics.width + 40));
+    const textHeight = Math.max(50, fontSize * 1.5 + 20);
+    
+    return {
+      width: object.style?.width || textWidth,
+      height: object.style?.height || textHeight
+    };
+  }, [object.data.text, object.data.fontSize, object.data.fontFamily, object.style?.width, object.style?.height]);
+  
+  const [textSize, setTextSize] = useState(getInitialDimensions);
   
   // Mobile touch handling
   const [touchStartTime, setTouchStartTime] = useState(0);
@@ -59,19 +77,24 @@ export const TextObject: React.FC<TextObjectProps> = ({
     }
   }, [isEditing]);
 
-  // Auto-resize based on content - using refs to avoid infinite loops
+  // Auto-resize based on content with text wrapping support
   const onResizeRef = useRef(onResize);
   onResizeRef.current = onResize;
+  
+  const [isManuallyResized, setIsManuallyResized] = useState(false);
 
   useEffect(() => {
-    if (measureRef.current) {
-      const width = Math.max(200, Math.min(400, measureRef.current.scrollWidth + 20));
-      const height = Math.max(50, measureRef.current.scrollHeight + 20);
+    if (measureRef.current && !isManuallyResized) {
+      // For auto-sizing, allow text to expand horizontally to a max width
+      const maxAutoWidth = 400;
+      const minWidth = 150;
+      
+      let width = Math.max(minWidth, Math.min(maxAutoWidth, measureRef.current.scrollWidth + 20));
+      let height = Math.max(50, measureRef.current.scrollHeight + 20);
       
       setTextSize(prevSize => {
-        // Only update if dimensions actually changed to prevent unnecessary renders
+        // Only update if dimensions actually changed
         if (prevSize.width !== width || prevSize.height !== height) {
-          // Use timeout to avoid calling onResize during render
           setTimeout(() => {
             onResizeRef.current?.(width, height);
           }, 0);
@@ -79,22 +102,56 @@ export const TextObject: React.FC<TextObjectProps> = ({
         }
         return prevSize;
       });
+    } else if (measureRef.current && isManuallyResized) {
+      // For manually resized text, only adjust height to fit content within the set width
+      const height = Math.max(50, measureRef.current.scrollHeight + 20);
+      
+      setTextSize(prevSize => {
+        if (prevSize.height !== height) {
+          setTimeout(() => {
+            onResizeRef.current?.(prevSize.width, height);
+          }, 0);
+          return { ...prevSize, height };
+        }
+        return prevSize;
+      });
     }
-  }, [text, object.data.fontSize, object.data.fontFamily]);
+  }, [text, object.data.fontSize, object.data.fontFamily, isManuallyResized]);
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsEditing(true);
   };
 
+  // Track clicks for proper select/edit behavior
+  const [clickCount, setClickCount] = useState(0);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Call the onClick handler first for selection
+    
+    // Always call onClick for selection first
     onClick?.(e);
-    // Single click to focus for easier editing
-    if (!isEditing) {
-      setIsEditing(true);
+    
+    // Handle single vs double click logic
+    setClickCount(prev => prev + 1);
+    
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
     }
+    
+    clickTimeoutRef.current = setTimeout(() => {
+      if (clickCount === 0) {
+        // First click - just select (onClick already called)
+        // Don't enter edit mode
+      } else if (clickCount >= 1) {
+        // Second click or more - enter edit mode
+        if (!isEditing && object.selected) {
+          setIsEditing(true);
+        }
+      }
+      setClickCount(0);
+    }, 300);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -196,7 +253,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
           pointerEvents: 'none',
           top: 0,
           left: 0,
-          width: 'auto',
+          width: isManuallyResized ? `${textSize.width - 20}px` : 'auto',
           height: 'auto',
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
@@ -240,6 +297,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
             nodeRef={objectRef}
             onResize={(width, height) => {
               setTextSize({ width, height });
+              setIsManuallyResized(true);
               onResize?.(width, height);
             }}
             minWidth={150}
@@ -252,6 +310,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
             nodeRef={objectRef}
             onResize={(width, height) => {
               setTextSize({ width, height });
+              setIsManuallyResized(true);
               onResize?.(width, height);
             }}
             minWidth={150}
@@ -264,6 +323,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
             nodeRef={objectRef}
             onResize={(width, height) => {
               setTextSize({ width, height });
+              setIsManuallyResized(true);
               onResize?.(width, height);
             }}
             minWidth={150}
@@ -276,6 +336,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
             nodeRef={objectRef}
             onResize={(width, height) => {
               setTextSize({ width, height });
+              setIsManuallyResized(true);
               onResize?.(width, height);
             }}
             minWidth={150}
