@@ -72,11 +72,13 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
 
   // Update local state when props change
   useEffect(() => {
+    console.log('🔄 WorkflowNameInput: Name changed to:', name, 'Current mode:', mode);
     setInputValue(name);
     setFormData(prev => ({ ...prev, name }));
   }, [name]);
 
   useEffect(() => {
+    console.log('🔄 WorkflowNameInput: Metadata changed:', metadata, 'Current mode:', mode);
     if (metadata) {
       setFormData(metadata);
     }
@@ -119,6 +121,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   };
 
   const handleExpandForm = () => {
+    console.log('📝 WorkflowNameInput: Expanding form, mode -> expanded');
     setMode('expanded');
   };
 
@@ -2188,7 +2191,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       {/* Floating workflow name input */}
       {props.workflowName !== undefined && props.onWorkflowNameChange && (
         <WorkflowNameInput 
-          key={props.workflowName}
           name={props.workflowName}
           onChange={props.onWorkflowNameChange}
           metadata={props.workflowMetadata}
