@@ -74,6 +74,8 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   useEffect(() => {
     setInputValue(name);
     setFormData(prev => ({ ...prev, name }));
+    // Reset mode to collapsed when switching workflow tabs
+    setMode('collapsed');
   }, [name]);
 
   useEffect(() => {
