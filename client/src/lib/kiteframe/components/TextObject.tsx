@@ -155,9 +155,17 @@ export const TextObject: React.FC<TextObjectProps> = ({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only start drag if not clicking on resize handle
-    // Allow dragging even when text is selected (but not when actively editing)
-    if (!e.defaultPrevented) {
+    console.log('📝 TEXT OBJECT MOUSE DOWN:', {
+      objectId: object.id,
+      isEditing,
+      selected: object.selected,
+      hasOnStartDrag: !!onStartDrag,
+      defaultPrevented: e.defaultPrevented
+    });
+    
+    // Only start drag if not clicking on resize handle and not editing
+    if (!e.defaultPrevented && !isEditing) {
+      console.log('📝 TEXT OBJECT CALLING onStartDrag');
       onStartDrag?.(e);
     }
   };
