@@ -197,8 +197,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             onResize={handleResize}
             minWidth={50}
             minHeight={50}
-            maxWidth={500}
-            maxHeight={500}
+            maxWidth={2000}
+            maxHeight={2000}
           />
           <ResizeHandle
             position="top-right"
@@ -206,8 +206,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             onResize={handleResize}
             minWidth={50}
             minHeight={50}
-            maxWidth={500}
-            maxHeight={500}
+            maxWidth={2000}
+            maxHeight={2000}
           />
           <ResizeHandle
             position="bottom-left"
@@ -215,8 +215,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             onResize={handleResize}
             minWidth={50}
             minHeight={50}
-            maxWidth={500}
-            maxHeight={500}
+            maxWidth={2000}
+            maxHeight={2000}
           />
           <ResizeHandle
             position="bottom-right"
@@ -224,8 +224,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             onResize={handleResize}
             minWidth={50}
             minHeight={50}
-            maxWidth={500}
-            maxHeight={500}
+            maxWidth={2000}
+            maxHeight={2000}
           />
         </>
       )}

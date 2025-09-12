@@ -227,8 +227,6 @@ export const TextObject: React.FC<TextObjectProps> = ({
         "group relative cursor-text",
         object.selected && "outline outline-2 outline-blue-500"
       )}
-      // Forward all mouse events for dragging even on the border
-      onMouseDownCapture={handleMouseDown}
       style={{
         position: 'absolute',
         left: object.position.x,
@@ -240,6 +238,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
+      onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       data-testid={`text-object-${object.id}`}
@@ -303,8 +302,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
             }}
             minWidth={150}
             minHeight={50}
-            maxWidth={500}
-            maxHeight={400}
+            maxWidth={2000}
+            maxHeight={1500}
           />
           <ResizeHandle
             position="top-right"
@@ -316,8 +315,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
             }}
             minWidth={150}
             minHeight={50}
-            maxWidth={500}
-            maxHeight={400}
+            maxWidth={2000}
+            maxHeight={1500}
           />
           <ResizeHandle
             position="bottom-left"
@@ -329,8 +328,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
             }}
             minWidth={150}
             minHeight={50}
-            maxWidth={500}
-            maxHeight={400}
+            maxWidth={2000}
+            maxHeight={1500}
           />
           <ResizeHandle
             position="bottom-right"
@@ -342,8 +341,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
             }}
             minWidth={150}
             minHeight={50}
-            maxWidth={500}
-            maxHeight={400}
+            maxWidth={2000}
+            maxHeight={1500}
           />
         </>
       )}
