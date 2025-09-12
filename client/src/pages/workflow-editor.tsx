@@ -2006,6 +2006,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // Reset form editing state when switching tabs
   useEffect(() => {
+    console.log('🔄 Workflow Editor: Tab switched to:', activeTabId);
+    console.log('🔄 Workflow Editor: Resetting form editing states');
     setIsEditingWorkflowName(false);
     setWorkflowNameInput('');
   }, [activeTabId]);

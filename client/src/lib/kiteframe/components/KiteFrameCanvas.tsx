@@ -72,10 +72,13 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
 
   // Update local state when props change
   useEffect(() => {
+    console.log('🔄 WorkflowNameInput: Name changed to:', name);
+    console.log('🔄 WorkflowNameInput: Current mode before reset:', mode);
     setInputValue(name);
     setFormData(prev => ({ ...prev, name }));
     // Reset mode to collapsed when switching workflow tabs
     setMode('collapsed');
+    console.log('🔄 WorkflowNameInput: Mode reset to collapsed');
   }, [name]);
 
   useEffect(() => {
@@ -109,22 +112,26 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   }, [mode]);
 
   const handleStartNameEdit = () => {
+    console.log('📝 WorkflowNameInput: Starting name edit, mode -> editing-name');
     setMode('editing-name');
     setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   const handleFinishNameEdit = () => {
     const newName = inputValue.trim() || 'Untitled Workflow';
+    console.log('📝 WorkflowNameInput: Finishing name edit, mode -> collapsed');
     setMode('collapsed');
     onChange(newName);
     setFormData(prev => ({ ...prev, name: newName }));
   };
 
   const handleExpandForm = () => {
+    console.log('📝 WorkflowNameInput: Expanding form, mode -> expanded');
     setMode('expanded');
   };
 
   const handleSaveForm = () => {
+    console.log('📝 WorkflowNameInput: Saving form, mode -> collapsed');
     setMode('collapsed');
     onMetadataChange?.(formData);
   };
