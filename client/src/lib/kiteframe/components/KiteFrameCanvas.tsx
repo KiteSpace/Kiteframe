@@ -77,10 +77,11 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   }, [name]);
 
   useEffect(() => {
-    if (metadata) {
+    if (metadata && mode === 'collapsed') {
+      // Only update formData when form is collapsed (not being actively edited)
       setFormData(metadata);
     }
-  }, [metadata]);
+  }, [metadata, mode]);
 
   // Handle keydown events for F2 and form interactions
   useEffect(() => {
