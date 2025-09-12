@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import { BlankCanvasState } from '@/components/BlankCanvasState';
 import { PluginProvider, layoutPlugin, consolePlugin, testPlugin, advancedInteractionsPlugin } from '@/lib/kiteframe';
@@ -1328,12 +1328,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     setActiveTabId(newTab.id);
   }, [generateTabId, generateCuteName]);
 
-  // History management - Fixed to use current state instead of stale activeTab references
+  // History management with debouncing to prevent excessive saves
+  const saveToHistoryTimeoutRef = useRef<NodeJS.Timeout>();
   const saveToHistory = useCallback(() => {
     if (!activeTab) return;
     
-    // Use a small delay to ensure React state has updated
-    setTimeout(() => {
+    // Clear any existing timeout to debounce the save operation
+    if (saveToHistoryTimeoutRef.current) {
+      clearTimeout(saveToHistoryTimeoutRef.current);
+    }
+    
+    saveToHistoryTimeoutRef.current = setTimeout(() => {
       // Use current state variables instead of stale activeTab references
       const currentNodes = nodes;
       const currentEdges = edges;
@@ -1350,41 +1355,39 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       const currentHistory = activeTab.history;
       const currentHistoryIndex = activeTab.historyIndex;
       
+      // Check if this state is actually different from the last saved state
+      const lastState = currentHistory[currentHistoryIndex];
+      if (lastState && 
+          lastState.nodes.length === currentNodes.length &&
+          lastState.edges.length === currentEdges.length &&
+          lastState.canvasObjects.length === currentCanvasObjects.length) {
+        // Skip saving if nothing substantial has changed
+        return;
+      }
+      
       // Remove any future history states if we're in the middle of history
       const newHistory = [...currentHistory.slice(0, currentHistoryIndex + 1), newHistoryState];
-      const newHistoryIndex = newHistory.length - 1;
       
-      console.log('💾 SAVE TO HISTORY (USING CURRENT STATE):', {
-        trigger: 'Action performed',
-        beforeSave: {
-          historyLength: currentHistory.length,
-          historyIndex: currentHistoryIndex,
-          nodeCount: currentNodes.length,
-          edgeCount: currentEdges.length,
-          nodeIds: currentNodes.map(n => n.id),
-          edgeIds: currentEdges.map(e => e.id)
-        },
-        afterSave: {
-          historyLength: newHistory.length,
-          newHistoryIndex: newHistoryIndex,
-          nodeCount: newHistoryState.nodes.length,
-          edgeCount: newHistoryState.edges.length,
-          nodeIds: newHistoryState.nodes.map(n => n.id),
-          edgeIds: newHistoryState.edges.map(e => e.id)
-        },
-        historyStack: newHistory.map((state, index) => ({
-          index,
-          nodeCount: state.nodes.length,
-          edgeCount: state.edges.length,
-          isCurrent: index === newHistoryIndex
-        }))
+      // Limit history size to prevent memory issues (keep last 20 states)
+      const maxHistorySize = 20;
+      const trimmedHistory = newHistory.length > maxHistorySize 
+        ? newHistory.slice(-maxHistorySize) 
+        : newHistory;
+      const newHistoryIndex = trimmedHistory.length - 1;
+      
+      // Minimal logging to prevent local storage overflow
+      console.log('💾 History saved:', {
+        nodes: currentNodes.length,
+        edges: currentEdges.length,
+        objects: currentCanvasObjects.length,
+        historySize: trimmedHistory.length
       });
       
       updateActiveTab({ 
-        history: newHistory,
+        history: trimmedHistory,
         historyIndex: newHistoryIndex
       });
-    }, 10); // Small delay to ensure state consistency
+    }, 200); // Debounce for 200ms to prevent excessive calls
   }, [activeTab, updateActiveTab, nodes, edges, canvasObjects, viewport]);
 
   // Quick-add functionality

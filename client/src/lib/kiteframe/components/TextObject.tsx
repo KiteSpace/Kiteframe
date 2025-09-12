@@ -155,17 +155,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    console.log('📝 TEXT OBJECT MOUSE DOWN:', {
-      objectId: object.id,
-      isEditing,
-      selected: object.selected,
-      hasOnStartDrag: !!onStartDrag,
-      defaultPrevented: e.defaultPrevented
-    });
-    
     // Only start drag if not clicking on resize handle and not editing
     if (!e.defaultPrevented && !isEditing) {
-      console.log('📝 TEXT OBJECT CALLING onStartDrag');
       onStartDrag?.(e);
     }
   };
@@ -236,6 +227,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
         "group relative cursor-text",
         object.selected && "outline outline-2 outline-blue-500"
       )}
+      // Forward all mouse events for dragging even on the border
+      onMouseDownCapture={handleMouseDown}
       style={{
         position: 'absolute',
         left: object.position.x,
@@ -247,7 +240,6 @@ export const TextObject: React.FC<TextObjectProps> = ({
       }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       data-testid={`text-object-${object.id}`}

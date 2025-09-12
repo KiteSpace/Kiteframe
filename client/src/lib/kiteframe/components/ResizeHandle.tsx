@@ -50,8 +50,17 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
     
     console.log('🔧 RESIZE HANDLE MOUSE DOWN:', { position });
     
-    const rect = nodeRef.current.getBoundingClientRect();
-    startDimensionsRef.current = { width: rect.width, height: rect.height };
+    // Get current dimensions from computed style for more accurate measurements
+    const computedStyle = window.getComputedStyle(nodeRef.current);
+    const currentWidth = parseFloat(computedStyle.width) || nodeRef.current.offsetWidth;
+    const currentHeight = parseFloat(computedStyle.height) || nodeRef.current.offsetHeight;
+    
+    startDimensionsRef.current = { width: currentWidth, height: currentHeight };
+    
+    console.log('🔧 RESIZE START:', {
+      dimensions: startDimensionsRef.current,
+      mousePos: { x: e.clientX, y: e.clientY }
+    });
     startPositionRef.current = { x: e.clientX, y: e.clientY };
     setIsResizing(true);
     isResizingRef.current = true;
@@ -85,12 +94,6 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
           break;
       }
 
-      console.log('🔧 RESIZE HANDLE:', {
-        position,
-        startDimensions: startDimensionsRef.current,
-        newDimensions: { width: newWidth, height: newHeight },
-        deltas: { deltaX, deltaY }
-      });
       onResize?.(newWidth, newHeight);
     };
 
