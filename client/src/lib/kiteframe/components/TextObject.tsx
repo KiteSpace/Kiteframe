@@ -16,6 +16,7 @@ interface TextObjectProps {
   autoFocus?: boolean;
   onExitEdit?: () => void;
   viewport?: { x: number; y: number; zoom: number };
+  selectedCanvasObjectCount?: number; // For resize handle gating
 }
 
 export const TextObject: React.FC<TextObjectProps> = ({
@@ -29,7 +30,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
   style,
   autoFocus = false,
   onExitEdit,
-  viewport
+  viewport,
+  selectedCanvasObjectCount = 0
 }) => {
   const [isEditing, setIsEditing] = useState(autoFocus);
   const [text, setText] = useState(object.data.text || '');
@@ -291,8 +293,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
         </div>
       )}
 
-      {/* Resize handles - all four corners when selected */}
-      {object.selected && (
+      {/* Resize handles - only visible when exactly one canvas object is selected */}
+      {object.selected && selectedCanvasObjectCount === 1 && (
         <>
           <ResizeHandle
             position="top-left"

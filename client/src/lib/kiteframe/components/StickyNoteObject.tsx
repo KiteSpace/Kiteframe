@@ -15,6 +15,7 @@ interface StickyNoteObjectProps {
   onAddReaction?: (objectId: string, emoji: string) => void;
   onRemoveReaction?: (objectId: string, emoji: string) => void;
   viewport?: { x: number; y: number; zoom: number };
+  selectedCanvasObjectCount?: number; // For resize handle gating
 }
 
 export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
@@ -26,7 +27,8 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
   onClick,
   onAddReaction,
   onRemoveReaction,
-  viewport
+  viewport,
+  selectedCanvasObjectCount = 0
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(object.data.text || '');
@@ -181,8 +183,8 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
         )}
       </div>
 
-      {/* Resize handles - only vertical resizing (top and bottom) */}
-      {object.selected && (
+      {/* Resize handles - only visible when exactly one canvas object is selected */}
+      {object.selected && selectedCanvasObjectCount === 1 && (
         <>
           <ResizeHandle
             position="top-left"

@@ -649,9 +649,16 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const enablePlugins = props.enablePlugins !== false; // Default to true
   const [panning, setPanning] = useState(false);
   const panStart = useRef<{x:number;y:number}|null>(null);
-  const [selectRect, setSelectRect] = useState<null | {x:number;y:number;w:number;h:number}>(null);
-  const selectStart = useRef<{x:number;y:number}|null>(null);
-  const justCompletedSelection = useRef<boolean>(false);
+  // Unified Selection State (works for both nodes and canvas objects)
+  const [unifiedSelectionRect, setUnifiedSelectionRect] = useState<null | {x:number;y:number;w:number;h:number}>(null);
+  const unifiedSelectStart = useRef<{x:number;y:number}|null>(null);
+  const justCompletedUnifiedSelection = useRef<boolean>(false);
+  
+  // Constants
+  const dragThreshold = 5; // pixels - threshold for distinguishing clicks from drags
+  
+  // Derived state for canvas object selection count
+  const selectedCanvasObjectCount = (props.canvasObjects || []).filter(obj => obj.selected).length;
   const [connecting, setConnecting] = useState<ConnectingState | null>(null);
   
   // Smart Guides state
@@ -795,8 +802,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const rect = containerRef.current!.getBoundingClientRect();
       const containerX = e.clientX - rect.left;
       const containerY = e.clientY - rect.top;
-      selectStart.current = { x: containerX, y: containerY };
-      setSelectRect({ x: containerX, y: containerY, w: 0, h: 0 });
+      
+      // Start unified selection that can select both nodes and canvas objects
+      unifiedSelectStart.current = { x: containerX, y: containerY };
+      setUnifiedSelectionRect({ x: containerX, y: containerY, w: 0, h: 0 });
     } else if (!props.disablePan) {
       setPanning(true);
       panStart.current = { x: e.clientX - viewport.x, y: e.clientY - viewport.y };
@@ -809,12 +818,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       setViewport({ ...viewport, x: e.clientX - panStartRef.x, y: e.clientY - panStartRef.y });
       return;
     }
-    if (selectStart.current) {
+    
+    // Handle unified selection rectangle
+    if (unifiedSelectStart.current) {
       const rect = containerRef.current!.getBoundingClientRect();
       const containerX = e.clientX - rect.left;
       const containerY = e.clientY - rect.top;
-      const sx = selectStart.current.x, sy = selectStart.current.y;
-      setSelectRect({ 
+      const sx = unifiedSelectStart.current.x, sy = unifiedSelectStart.current.y;
+      setUnifiedSelectionRect({ 
         x: Math.min(sx, containerX), 
         y: Math.min(sy, containerY), 
         w: Math.abs(containerX - sx), 
@@ -839,10 +850,139 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     }
   };
 
+  // Helper function to get canvas object bounding box
+  const getCanvasObjectRect = (obj: CanvasObject) => {
+    const width = obj.style?.width || obj.width || 200;
+    const height = obj.style?.height || obj.height || 150;
+    return {
+      x: obj.position.x,
+      y: obj.position.y,
+      w: width,
+      h: height,
+      x1: obj.position.x,
+      y1: obj.position.y,
+      x2: obj.position.x + width,
+      y2: obj.position.y + height
+    };
+  };
+
   const onBackgroundUp = (e: React.MouseEvent) => {
     if (panning) {
       setPanning(false); 
       panStart.current = null;
+    }
+    
+    // Handle unified selection completion (both nodes and canvas objects)
+    if (unifiedSelectStart.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = containerRef.current!.getBoundingClientRect();
+      const r = unifiedSelectionRect!;
+      
+      // Convert selection rectangle coordinates from screen space to world space
+      const startWorld = clientToWorld(r.x, r.y, viewport, rect);
+      const endWorld = clientToWorld(r.x + r.w, r.y + r.h, viewport, rect);
+      
+      const nx1 = Math.min(startWorld.x, endWorld.x);
+      const ny1 = Math.min(startWorld.y, endWorld.y);
+      const nx2 = Math.max(startWorld.x, endWorld.x);
+      const ny2 = Math.max(startWorld.y, endWorld.y);
+      
+      console.log('🎯 UNIFIED SELECTION:', {
+        screenRect: r,
+        worldRect: { x1: nx1, y1: ny1, x2: nx2, y2: ny2 },
+        viewport
+      });
+      
+      // Select nodes that intersect with selection rectangle
+      const updatedNodes = props.nodes.map(n => {
+        const w = n.style?.width ?? n.width ?? 200;
+        const h = n.style?.height ?? n.height ?? 100;
+        const nodeBounds = {
+          x1: n.position.x,
+          y1: n.position.y,
+          x2: n.position.x + w,
+          y2: n.position.y + h
+        };
+        
+        // Use overlap detection instead of complete containment
+        const overlapsX = nodeBounds.x1 < nx2 && nodeBounds.x2 > nx1;
+        const overlapsY = nodeBounds.y1 < ny2 && nodeBounds.y2 > ny1;
+        const selected = overlapsX && overlapsY;
+        
+        return { ...n, selected };
+      });
+      
+      // Select canvas objects that intersect with selection rectangle
+      const updatedObjects = (props.canvasObjects || []).map(obj => {
+        const objRect = getCanvasObjectRect(obj);
+        
+        // Use overlap detection instead of complete containment
+        const overlapsX = objRect.x1 < nx2 && objRect.x2 > nx1;
+        const overlapsY = objRect.y1 < ny2 && objRect.y2 > ny1;
+        const selected = overlapsX && overlapsY;
+        
+        return { ...obj, selected };
+      });
+      
+      console.log('🎯 UNIFIED SELECTION COMPLETE:', {
+        rect: { x1: nx1, y1: ny1, x2: nx2, y2: ny2 },
+        selectedNodeIds: updatedNodes.filter(n => n.selected).map(n => n.id),
+        selectedObjectIds: updatedObjects.filter(obj => obj.selected).map(obj => obj.id),
+        totalNodes: props.nodes.length,
+        totalObjects: (props.canvasObjects || []).length
+      });
+      
+      // Update both nodes and canvas objects
+      props.onNodesChange(updatedNodes);
+      props.onCanvasObjectsChange?.(updatedObjects);
+      
+      // Clean up unified selection state
+      setUnifiedSelectionRect(null);
+      unifiedSelectStart.current = null;
+      justCompletedUnifiedSelection.current = true;
+      setTimeout(() => { justCompletedUnifiedSelection.current = false; }, 100);
+      return; // Don't trigger onClick
+    }
+    
+    // Legacy canvas object selection completion (for compatibility)
+    if (canvasObjectSelectStart.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = containerRef.current!.getBoundingClientRect();
+      const r = canvasObjectSelectionRect!;
+      
+      // Convert client coordinates to world coordinates
+      const x1 = (r.x - viewport.x) / viewport.zoom;
+      const y1 = (r.y - viewport.y) / viewport.zoom;
+      const x2 = ((r.x + r.w) - viewport.x) / viewport.zoom;
+      const y2 = ((r.y + r.h) - viewport.y) / viewport.zoom;
+      const nx1 = Math.min(x1, x2), ny1 = Math.min(y1, y2), nx2 = Math.max(x1, x2), ny2 = Math.max(y1, y2);
+      
+      // Find canvas objects that intersect with selection rectangle
+      const updatedObjects = (props.canvasObjects || []).map(obj => {
+        const objRect = getCanvasObjectRect(obj);
+        
+        // Use overlap detection instead of complete containment
+        const overlapsX = objRect.x1 < nx2 && objRect.x2 > nx1;
+        const overlapsY = objRect.y1 < ny2 && objRect.y2 > ny1;
+        const selected = overlapsX && overlapsY;
+        
+        return { ...obj, selected };
+      });
+      
+      console.log('🎯 CANVAS OBJECT SELECTION COMPLETE:', {
+        rect: { x1: nx1, y1: ny1, x2: nx2, y2: ny2 },
+        selectedObjectIds: updatedObjects.filter(obj => obj.selected).map(obj => obj.id),
+        totalObjects: (props.canvasObjects || []).length
+      });
+      
+      props.onCanvasObjectsChange?.(updatedObjects);
+      setCanvasObjectSelectionRect(null);
+      canvasObjectSelectStart.current = null;
+      justCompletedCanvasObjectSelection.current = true;
+      setTimeout(() => { justCompletedCanvasObjectSelection.current = false; }, 100);
+      return; // Don't trigger onClick
     }
     
     if (selectStart.current) {
@@ -1202,8 +1342,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       onMouseMove={onBackgroundMove}
       onMouseUp={onBackgroundUp}
       onClick={(e) => {
-        // Don't trigger canvas click if we just finished a selection
-        if (selectStart.current || selectRect || justCompletedSelection.current) {
+        // Don't trigger canvas click if we just finished any selection
+        if (selectStart.current || selectRect || justCompletedSelection.current ||
+            canvasObjectSelectStart.current || canvasObjectSelectionRect || justCompletedCanvasObjectSelection.current) {
           return;
         }
         
@@ -1728,16 +1869,61 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           const handleCanvasObjectClick = (objectId: string, e: React.MouseEvent) => {
             e.stopPropagation();
             
-            // Select this object and deselect others
-            const updatedObjects = (props.canvasObjects || []).map(canvasObject => ({
-              ...canvasObject,
-              selected: canvasObject.id === objectId
-            }));
+            // Suppress clicks immediately after completing a unified selection
+            if (justCompletedUnifiedSelection.current) {
+              console.log('🚫 Click suppressed - just completed unified selection');
+              return;
+            }
+            
+            // Check if this click is happening too close to a drag operation
+            if (canvasObjectDragInfo.current) {
+              const dragInfo = canvasObjectDragInfo.current;
+              const rect = containerRef.current?.getBoundingClientRect();
+              if (rect) {
+                const currentPos = clientToWorld(e.clientX, e.clientY, viewport, rect);
+                const distance = Math.sqrt(
+                  Math.pow(currentPos.x - dragInfo.start.x, 2) + 
+                  Math.pow(currentPos.y - dragInfo.start.y, 2)
+                );
+                
+                // If we moved more than threshold, this is the end of a drag, not a click
+                if (distance > dragThreshold) {
+                  console.log('🚫 Click suppressed - too close to drag operation', { distance, threshold: dragThreshold });
+                  canvasObjectDragInfo.current = null;
+                  return;
+                }
+              }
+            }
+            
+            const targetObject = (props.canvasObjects || []).find(obj => obj.id === objectId);
+            if (!targetObject) return;
+            
+            let updatedObjects: CanvasObject[];
+            
+            if (e.shiftKey) {
+              // Shift+Click: Toggle selection of this object
+              updatedObjects = (props.canvasObjects || []).map(canvasObject => 
+                canvasObject.id === objectId 
+                  ? { ...canvasObject, selected: !canvasObject.selected }
+                  : canvasObject
+              );
+              console.log('✅ Shift+Click toggle:', { objectId, newSelected: !targetObject.selected });
+            } else {
+              // Regular click: Select only this object, deselect all others
+              updatedObjects = (props.canvasObjects || []).map(canvasObject => ({
+                ...canvasObject,
+                selected: canvasObject.id === objectId
+              }));
+              console.log('✅ Regular click select:', { objectId });
+            }
+            
             props.onCanvasObjectsChange?.(updatedObjects);
             
+            // Clear drag info after successful click
+            canvasObjectDragInfo.current = null;
+            
             // Call the external handler if provided
-            const targetObject = (props.canvasObjects || []).find(obj => obj.id === objectId);
-            if (targetObject && props.onCanvasObjectClick) {
+            if (props.onCanvasObjectClick) {
               props.onCanvasObjectClick(e, targetObject);
             }
           };
@@ -1778,6 +1964,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             return <TextObject 
               key={obj.id} 
               object={obj as CanvasObject & { data: import('../types').TextNodeData }} 
+              selectedCanvasObjectCount={selectedCanvasObjectCount}
               onUpdate={(updates) => {
                 const updatedObjects = (props.canvasObjects || []).map(canvasObject => 
                   canvasObject.id === obj.id ? { ...canvasObject, data: { ...canvasObject.data, ...updates } } : canvasObject
@@ -1846,6 +2033,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             return <StickyNoteObject 
               key={obj.id} 
               object={obj as CanvasObject & { data: import('../types').StickyNoteData }} 
+              selectedCanvasObjectCount={selectedCanvasObjectCount}
               onUpdate={(updates) => {
                 const updatedObjects = (props.canvasObjects || []).map(canvasObject => 
                   canvasObject.id === obj.id ? { ...canvasObject, data: { ...canvasObject.data, ...updates } } : canvasObject
@@ -1918,6 +2106,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             return <ShapeObject 
               key={obj.id} 
               object={obj as CanvasObject & { data: import('../types').ShapeNodeData }} 
+              selectedCanvasObjectCount={selectedCanvasObjectCount}
               onUpdate={(updates) => {
                 const updatedObjects = (props.canvasObjects || []).map(canvasObject => 
                   canvasObject.id === obj.id ? { ...canvasObject, data: { ...canvasObject.data, ...updates } } : canvasObject
@@ -1994,18 +2183,18 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         show={currentGuides.length > 0 && props.proFeatures?.smartGuides?.showGuides !== false}
       />
 
-      {/* Selection rectangle - positioned in client coordinates, outside transformed world */}
-      {selectRect && (
+      {/* Unified Selection rectangle (for both nodes and canvas objects) */}
+      {unifiedSelectionRect && (
         <div 
           className="kiteframe-select-rect" 
           style={{ 
             position: 'absolute',
-            left: selectRect.x, 
-            top: selectRect.y, 
-            width: selectRect.w, 
-            height: selectRect.h,
-            border: '1px dashed #3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            left: unifiedSelectionRect.x, 
+            top: unifiedSelectionRect.y, 
+            width: unifiedSelectionRect.w, 
+            height: unifiedSelectionRect.h,
+            border: '2px dashed #8b5cf6',
+            backgroundColor: 'rgba(139, 92, 246, 0.15)',
             pointerEvents: 'none',
             zIndex: 1000
           }} 

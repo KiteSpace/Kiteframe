@@ -13,6 +13,7 @@ interface ShapeObjectProps {
   onAddReaction?: (objectId: string, emoji: string) => void;
   onRemoveReaction?: (objectId: string, emoji: string) => void;
   viewport?: { x: number; y: number; zoom: number };
+  selectedCanvasObjectCount?: number; // For resize handle gating
 }
 
 export const ShapeObject: React.FC<ShapeObjectProps> = ({
@@ -23,7 +24,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   onClick,
   onAddReaction,
   onRemoveReaction,
-  viewport
+  viewport,
+  selectedCanvasObjectCount = 0
 }) => {
   const objectRef = useRef<HTMLDivElement>(null);
   const shapeSize = {
@@ -190,8 +192,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         {renderShape()}
       </div>
 
-      {/* Resize handles - all four corners when selected */}
-      {object.selected && (
+      {/* Resize handles - only visible when exactly one canvas object is selected */}
+      {object.selected && selectedCanvasObjectCount === 1 && (
         <>
           <ResizeHandle
             position="top-left"
