@@ -14,6 +14,7 @@ import { TextNode } from './TextNode';
 import { StickyNote } from './StickyNote';
 import { ShapeNode } from './ShapeNode';
 import { EmojiReactions } from './EmojiReactions';
+import { AnimatedConnectionPreview, type AnimationConfig } from './AnimatedConnectionPreview';
 import { ChevronDown, ChevronUp, X, ExternalLink, List, Type } from 'lucide-react';
 
 // Floating workflow name input component
@@ -604,6 +605,9 @@ type Props = {
   proFeatures?: ProFeaturesConfig;
   onQuickAdd?: (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => void;
   
+  // Animation configuration for connection previews
+  connectionAnimationConfig?: Partial<AnimationConfig>;
+  
   // Workflow name and metadata
   workflowName?: string;
   onWorkflowNameChange?: (name: string) => void;
@@ -1116,22 +1120,18 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             );
           })}
 
-          {/* PREVIEW EDGE while dragging a connection */}
+          {/* ANIMATED PREVIEW EDGE while dragging a connection */}
           {connecting && (() => {
             const src = props.nodes.find(n => n.id === connecting.sourceId);
             if (!src) return null;
 
             // Where to draw to: hovered node center (if exists) else cursor world position
             let tx = connecting.wx, ty = connecting.wy;
-            let stroke = '#cbd5e1';          // grey (default)
-            let dash = '6 4';                // dashed for preview
             if (connecting.hoverTargetId) {
               const tgt = props.nodes.find(n => n.id === connecting.hoverTargetId);
               if (tgt) {
                 const r = getNodeRect(tgt);
                 tx = r.cx; ty = r.cy;
-                if (connecting.eligible) stroke = '#22c55e'; // green eligible
-                else stroke = '#ef4444'; // red ineligible
               }
             }
 
@@ -1139,17 +1139,25 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             const anchor = sourceAnchorTowards(src, tx, ty);
             const sx = anchor.x, sy = anchor.y;
 
-            // Simple straight line for preview
+            // Use animated connection preview
             return (
-              <line
-                key="preview"
-                x1={sx} y1={sy}
-                x2={tx} y2={ty}
-                stroke={stroke}
-                strokeWidth="2"
-                strokeDasharray={dash}
-                markerEnd="url(#arrowhead)"
-                style={{ pointerEvents: 'none' }}
+              <AnimatedConnectionPreview
+                key="animated-preview"
+                x1={sx}
+                y1={sy}
+                x2={tx}
+                y2={ty}
+                isConnecting={true}
+                isValidTarget={connecting.hoverTargetId !== null && connecting.eligible}
+                isInvalidTarget={connecting.hoverTargetId !== null && !connecting.eligible}
+                config={{
+                  duration: 600,
+                  easing: 'ease-out',
+                  pulseOnConnection: true,
+                  showParticles: true,
+                  glowOnHover: true,
+                  ...props.connectionAnimationConfig
+                }}
               />
             );
           })()}
@@ -1201,7 +1209,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 const reactions = node.data?.reactions || {};
                 const reaction = reactions[emoji];
                 if (reaction) {
-                  const newUserIds = reaction.userIds.filter(id => id !== 'current-user');
+                  const newUserIds = reaction.userIds.filter((id: string) => id !== 'current-user');
                   const newCount = Math.max(0, reaction.count - 1);
                   return {
                     ...node,
@@ -1491,7 +1499,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         const reactions = node.data?.reactions || {};
                         const reaction = reactions[emoji];
                         if (reaction) {
-                          const newUserIds = reaction.userIds.filter(id => id !== 'current-user');
+                          const newUserIds = reaction.userIds.filter((id: string) => id !== 'current-user');
                           const newCount = Math.max(0, reaction.count - 1);
                           return {
                             ...node,

@@ -26,8 +26,8 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   const nodeRef = useRef<HTMLDivElement>(null);
   
   // Use actual rendered dimensions if available, fallback to node properties
-  const w = actualDimensions?.width ?? node.style?.width ?? node.width ?? 200;
-  const h = actualDimensions?.height ?? node.style?.height ?? node.height ?? 100;
+  const w = Number(actualDimensions?.width ?? node.style?.width ?? node.width ?? 200) || 200;
+  const h = Number(actualDimensions?.height ?? node.style?.height ?? node.height ?? 100) || 100;
 
   // Measure actual node dimensions
   useEffect(() => {

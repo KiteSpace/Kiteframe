@@ -786,6 +786,23 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     return saved ? JSON.parse(saved) : false;
   });
 
+  // Animation configuration state
+  const [connectionAnimationConfig, setConnectionAnimationConfig] = useState<any>(() => {
+    const saved = localStorage.getItem('connection-animation-config');
+    return saved ? JSON.parse(saved) : {
+      duration: 600,
+      easing: 'ease-out',
+      pulseOnConnection: true,
+      showParticles: false,
+      glowOnHover: true
+    };
+  });
+
+  // Save animation config to localStorage
+  useEffect(() => {
+    localStorage.setItem('connection-animation-config', JSON.stringify(connectionAnimationConfig));
+  }, [connectionAnimationConfig]);
+
   // Initialize tabs on first render - removed auto-create to show new creation experience
 
   // Migration effect: Fix existing tabs with invalid history state
@@ -2586,6 +2603,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 // Normal case - add template to current active tab
                 handleAddTemplateToCurrentTab(templateType);
               }}
+              connectionAnimationConfig={connectionAnimationConfig}
+              onConnectionAnimationConfigChange={setConnectionAnimationConfig}
               />
             )}
           </div>
@@ -2604,6 +2623,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               workflowName={activeTab?.name}
               onWorkflowNameChange={setWorkflowName}
               onEdgeReconnect={handleEdgeReconnect}
+              connectionAnimationConfig={connectionAnimationConfig}
               onNodesChange={(changes) => {
                 console.log('📊 onNodesChange CALLED:', {
                   changes,

@@ -42,6 +42,9 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  Zap,
+  Settings,
+  Play,
 } from 'lucide-react';
 
 interface WorkflowTab {
@@ -83,6 +86,8 @@ interface SidebarProps {
   currentWorkflow?: WorkflowTab;
   onLoadWorkflow?: (workflow: WorkflowTab) => void;
   onCreateTemplate?: (templateType: string) => void;
+  connectionAnimationConfig?: any;
+  onConnectionAnimationConfigChange?: (config: any) => void;
 }
 
 export function Sidebar({
@@ -112,12 +117,15 @@ export function Sidebar({
   currentWorkflow,
   onLoadWorkflow,
   onCreateTemplate,
+  connectionAnimationConfig = {},
+  onConnectionAnimationConfigChange,
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [isThemesExpanded, setIsThemesExpanded] = useState(true);
   const [isTemplatesExpanded, setIsTemplatesExpanded] = useState(false);
+  const [isAnimationExpanded, setIsAnimationExpanded] = useState(false);
   // showImageModal is now passed as a prop
 
   const handleUrlSubmit = (nodeId: string) => {
@@ -1376,6 +1384,129 @@ export function Sidebar({
               )}
             </div>
 
+            {/* Animation Settings Section - Collapsible */}
+            <div>
+              <div 
+                className="flex items-center justify-between cursor-pointer mb-3 hover:bg-accent rounded p-1 -m-1"
+                onClick={() => setIsAnimationExpanded(!isAnimationExpanded)}
+              >
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <Zap size={14} />
+                  Animation Settings
+                </h3>
+                {isAnimationExpanded ? (
+                  <ChevronDown size={16} className="text-muted-foreground" />
+                ) : (
+                  <ChevronRight size={16} className="text-muted-foreground" />
+                )}
+              </div>
+              {isAnimationExpanded && (
+                <div className="space-y-3">
+                  {/* Animation Duration */}
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Animation Duration</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="100"
+                        max="1000"
+                        value={connectionAnimationConfig.duration || 600}
+                        onChange={(e) => onConnectionAnimationConfigChange?.({
+                          ...connectionAnimationConfig,
+                          duration: parseInt(e.target.value)
+                        })}
+                        className="flex-1"
+                        data-testid="slider-animation-duration"
+                      />
+                      <span className="text-xs text-muted-foreground w-8">
+                        {connectionAnimationConfig.duration || 600}ms
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Animation Easing */}
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Easing</label>
+                    <select
+                      value={connectionAnimationConfig.easing || 'ease-out'}
+                      onChange={(e) => onConnectionAnimationConfigChange?.({
+                        ...connectionAnimationConfig,
+                        easing: e.target.value
+                      })}
+                      className="w-full p-2 text-xs border border-border rounded bg-background"
+                      data-testid="select-animation-easing"
+                    >
+                      <option value="linear">Linear</option>
+                      <option value="ease-in">Ease In</option>
+                      <option value="ease-out">Ease Out</option>
+                      <option value="ease-in-out">Ease In-Out</option>
+                      <option value="bounce">Bounce</option>
+                      <option value="elastic">Elastic</option>
+                    </select>
+                  </div>
+
+                  {/* Animation Effects */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium">Effects</label>
+                    
+                    <label className="flex items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={connectionAnimationConfig.pulseOnConnection !== false}
+                        onChange={(e) => onConnectionAnimationConfigChange?.({
+                          ...connectionAnimationConfig,
+                          pulseOnConnection: e.target.checked
+                        })}
+                        className="rounded"
+                        data-testid="checkbox-pulse-effect"
+                      />
+                      <span>Pulse on Connection</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={connectionAnimationConfig.showParticles === true}
+                        onChange={(e) => onConnectionAnimationConfigChange?.({
+                          ...connectionAnimationConfig,
+                          showParticles: e.target.checked
+                        })}
+                        className="rounded"
+                        data-testid="checkbox-particles-effect"
+                      />
+                      <span>Particle Effects</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={connectionAnimationConfig.glowOnHover !== false}
+                        onChange={(e) => onConnectionAnimationConfigChange?.({
+                          ...connectionAnimationConfig,
+                          glowOnHover: e.target.checked
+                        })}
+                        className="rounded"
+                        data-testid="checkbox-glow-effect"
+                      />
+                      <span>Glow on Hover</span>
+                    </label>
+                  </div>
+
+                  {/* Test Animation Button */}
+                  <button
+                    className="w-full p-2 text-xs bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded hover:from-blue-600 hover:to-purple-600 transition-all duration-200 flex items-center justify-center gap-2"
+                    onClick={() => {
+                      // Trigger a test animation (this could show a preview)
+                      console.log('🎬 Testing animation with config:', connectionAnimationConfig);
+                    }}
+                    data-testid="button-test-animation"
+                  >
+                    <Play size={12} />
+                    Test Animation
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div>
               <h3 className="text-sm font-semibold mb-3">Actions</h3>
