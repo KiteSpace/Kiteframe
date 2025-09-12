@@ -945,82 +945,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       return; // Don't trigger onClick
     }
     
-    // Legacy canvas object selection completion (for compatibility)
-    if (canvasObjectSelectStart.current) {
-      e.preventDefault();
-      e.stopPropagation();
-      const rect = containerRef.current!.getBoundingClientRect();
-      const r = canvasObjectSelectionRect!;
-      
-      // Convert client coordinates to world coordinates
-      const x1 = (r.x - viewport.x) / viewport.zoom;
-      const y1 = (r.y - viewport.y) / viewport.zoom;
-      const x2 = ((r.x + r.w) - viewport.x) / viewport.zoom;
-      const y2 = ((r.y + r.h) - viewport.y) / viewport.zoom;
-      const nx1 = Math.min(x1, x2), ny1 = Math.min(y1, y2), nx2 = Math.max(x1, x2), ny2 = Math.max(y1, y2);
-      
-      // Find canvas objects that intersect with selection rectangle
-      const updatedObjects = (props.canvasObjects || []).map(obj => {
-        const objRect = getCanvasObjectRect(obj);
-        
-        // Use overlap detection instead of complete containment
-        const overlapsX = objRect.x1 < nx2 && objRect.x2 > nx1;
-        const overlapsY = objRect.y1 < ny2 && objRect.y2 > ny1;
-        const selected = overlapsX && overlapsY;
-        
-        return { ...obj, selected };
-      });
-      
-      console.log('🎯 CANVAS OBJECT SELECTION COMPLETE:', {
-        rect: { x1: nx1, y1: ny1, x2: nx2, y2: ny2 },
-        selectedObjectIds: updatedObjects.filter(obj => obj.selected).map(obj => obj.id),
-        totalObjects: (props.canvasObjects || []).length
-      });
-      
-      props.onCanvasObjectsChange?.(updatedObjects);
-      setCanvasObjectSelectionRect(null);
-      canvasObjectSelectStart.current = null;
-      justCompletedCanvasObjectSelection.current = true;
-      setTimeout(() => { justCompletedCanvasObjectSelection.current = false; }, 100);
-      return; // Don't trigger onClick
-    }
     
-    if (selectStart.current) {
-      e.preventDefault();
-      e.stopPropagation();
-      const rect = containerRef.current!.getBoundingClientRect();
-      const r = selectRect!;
-      const x1 = (r.x - viewport.x) / viewport.zoom;
-      const y1 = (r.y - viewport.y) / viewport.zoom;
-      const x2 = ((r.x + r.w) - viewport.x) / viewport.zoom;
-      const y2 = ((r.y + r.h) - viewport.y) / viewport.zoom;
-      const nx1 = Math.min(x1,x2), ny1=Math.min(y1,y2), nx2=Math.max(x1,x2), ny2=Math.max(y1,y2);
-      
-      const updated = props.nodes.map(n => {
-        const w = n.style?.width ?? n.width ?? 200;
-        const h = n.style?.height ?? n.height ?? 100;
-        const nodeBounds = {
-          x1: n.position.x,
-          y1: n.position.y,
-          x2: n.position.x + w,
-          y2: n.position.y + h
-        };
-        
-        // Use overlap detection instead of complete containment
-        const overlapsX = nodeBounds.x1 < nx2 && nodeBounds.x2 > nx1;
-        const overlapsY = nodeBounds.y1 < ny2 && nodeBounds.y2 > ny1;
-        const selected = overlapsX && overlapsY;
-        
-        return { ...n, selected };
-      });
-      props.onNodesChange(updated);
-      setSelectRect(null); 
-      selectStart.current = null;
-      justCompletedSelection.current = true;
-      // Reset flag after a brief delay to allow click event to be skipped
-      setTimeout(() => { justCompletedSelection.current = false; }, 100);
-      return; // Don't trigger onClick
-    }
     if (connecting) {
       const { sourceId, hoverTargetId, eligible } = connecting;
 
@@ -1282,26 +1207,37 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     };
   }, [viewport, props]);
 
-  // Keyboard event handling for deleting selected canvas objects
+  // Keyboard event handling for deleting selected items (both nodes and canvas objects)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only handle delete/backspace keys
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        // Check if we have any selected canvas objects
+        const selectedNodes = props.nodes.filter(node => node.selected);
         const selectedObjects = (props.canvasObjects || []).filter(obj => obj.selected);
         
-        if (selectedObjects.length > 0) {
-          // Prevent default browser behavior
+        // If we have any selected items, prevent default and delete them
+        if (selectedNodes.length > 0 || selectedObjects.length > 0) {
           e.preventDefault();
           
-          // Remove selected objects
-          const updatedObjects = (props.canvasObjects || []).filter(obj => !obj.selected);
-          props.onCanvasObjectsChange?.(updatedObjects);
+          // Delete selected nodes
+          if (selectedNodes.length > 0) {
+            const updatedNodes = props.nodes.filter(node => !node.selected);
+            props.onNodesChange(updatedNodes);
+          }
           
-          console.log('🗑️ DELETED CANVAS OBJECTS:', {
-            deletedCount: selectedObjects.length,
-            deletedIds: selectedObjects.map(obj => obj.id),
-            remainingCount: updatedObjects.length
+          // Delete selected canvas objects
+          if (selectedObjects.length > 0) {
+            const updatedObjects = (props.canvasObjects || []).filter(obj => !obj.selected);
+            props.onCanvasObjectsChange?.(updatedObjects);
+          }
+          
+          console.log('🗑️ DELETED SELECTED ITEMS:', {
+            deletedNodes: selectedNodes.length,
+            deletedNodeIds: selectedNodes.map(node => node.id),
+            deletedObjects: selectedObjects.length,
+            deletedObjectIds: selectedObjects.map(obj => obj.id),
+            remainingNodes: props.nodes.length - selectedNodes.length,
+            remainingObjects: (props.canvasObjects || []).length - selectedObjects.length
           });
         }
       }
@@ -1314,7 +1250,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [props.canvasObjects, props.onCanvasObjectsChange]);
+  }, [props.nodes, props.canvasObjects, props.onNodesChange, props.onCanvasObjectsChange]);
 
   // Grid (optional – keep your existing grid if you have one)
   const Grid = () => {
@@ -1342,15 +1278,22 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       onMouseMove={onBackgroundMove}
       onMouseUp={onBackgroundUp}
       onClick={(e) => {
-        // Don't trigger canvas click if we just finished any selection
-        if (selectStart.current || selectRect || justCompletedSelection.current ||
-            canvasObjectSelectStart.current || canvasObjectSelectionRect || justCompletedCanvasObjectSelection.current) {
+        // Don't trigger canvas click if we just finished unified selection
+        if (unifiedSelectStart.current || unifiedSelectionRect || justCompletedUnifiedSelection.current) {
           return;
         }
         
-        // Deselect all canvas objects when clicking background
-        if (props.canvasObjects && props.canvasObjects.some(obj => obj.selected)) {
-          const updatedObjects = props.canvasObjects.map(obj => ({ ...obj, selected: false }));
+        // Deselect all items when clicking background (both nodes and canvas objects)
+        const hasSelectedNodes = props.nodes.some(node => node.selected);
+        const hasSelectedObjects = props.canvasObjects && props.canvasObjects.some(obj => obj.selected);
+        
+        if (hasSelectedNodes) {
+          const updatedNodes = props.nodes.map(node => ({ ...node, selected: false }));
+          props.onNodesChange(updatedNodes);
+        }
+        
+        if (hasSelectedObjects) {
+          const updatedObjects = props.canvasObjects!.map(obj => ({ ...obj, selected: false }));
           props.onCanvasObjectsChange?.(updatedObjects);
         }
         
@@ -1625,7 +1568,33 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               onContextMenu={(e)=>{ e.preventDefault(); props.onNodeRightClick?.(e, n); }}
               onClick={(e) => {
                 e.stopPropagation();
-                console.log(`🎯 NODE CLICK:`, { nodeId: n.id, wasSelected: n.selected });
+                console.log(`🎯 NODE CLICK:`, { nodeId: n.id, wasSelected: n.selected, shiftKey: e.shiftKey });
+                
+                // Suppress clicks immediately after completing a unified selection
+                if (justCompletedUnifiedSelection.current) {
+                  console.log('🚫 Click suppressed - just completed unified selection');
+                  return;
+                }
+                
+                if (e.shiftKey) {
+                  // Shift+Click: Toggle selection of this node without affecting canvas objects
+                  const updatedNodes = props.nodes.map(node => 
+                    node.id === n.id 
+                      ? { ...node, selected: !node.selected }
+                      : node
+                  );
+                  props.onNodesChange(updatedNodes);
+                  console.log('✅ Node Shift+Click toggle:', { nodeId: n.id, newSelected: !n.selected });
+                } else {
+                  // Regular click: Select only this node, deselect other nodes but preserve canvas object selections
+                  const updatedNodes = props.nodes.map(node => ({
+                    ...node,
+                    selected: node.id === n.id
+                  }));
+                  props.onNodesChange(updatedNodes);
+                  console.log('✅ Node Regular click select:', { nodeId: n.id });
+                }
+                
                 props.onNodeClick?.(e, n);
               }}
             >
@@ -1901,20 +1870,20 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             let updatedObjects: CanvasObject[];
             
             if (e.shiftKey) {
-              // Shift+Click: Toggle selection of this object
+              // Shift+Click: Toggle selection of this object without affecting node selections
               updatedObjects = (props.canvasObjects || []).map(canvasObject => 
                 canvasObject.id === objectId 
                   ? { ...canvasObject, selected: !canvasObject.selected }
                   : canvasObject
               );
-              console.log('✅ Shift+Click toggle:', { objectId, newSelected: !targetObject.selected });
+              console.log('✅ Canvas Object Shift+Click toggle:', { objectId, newSelected: !targetObject.selected });
             } else {
-              // Regular click: Select only this object, deselect all others
+              // Regular click: Select only this object, deselect other canvas objects but preserve node selections
               updatedObjects = (props.canvasObjects || []).map(canvasObject => ({
                 ...canvasObject,
                 selected: canvasObject.id === objectId
               }));
-              console.log('✅ Regular click select:', { objectId });
+              console.log('✅ Canvas Object Regular click select:', { objectId });
             }
             
             props.onCanvasObjectsChange?.(updatedObjects);
