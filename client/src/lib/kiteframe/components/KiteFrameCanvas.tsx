@@ -79,6 +79,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   useEffect(() => {
     if (metadata && mode === 'collapsed') {
       // Only update formData when form is collapsed (not being actively edited)
+      console.log('🔧 RESETTING formData from metadata (mode: collapsed):', metadata);
       setFormData(metadata);
     }
   }, [metadata, mode]);
@@ -367,7 +368,12 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
           value={formData.description}
           onChange={(e) => {
             console.log('🔧 Description changed to:', e.target.value);
-            setFormData(prev => ({ ...prev, description: e.target.value }));
+            console.log('🔧 Current formData before update:', formData);
+            setFormData(prev => {
+              const newData = { ...prev, description: e.target.value };
+              console.log('🔧 Updated formData:', newData);
+              return newData;
+            });
           }}
           className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none"
           placeholder="Describe your workflow..."
