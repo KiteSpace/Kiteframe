@@ -87,6 +87,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'F2' && mode === 'collapsed') {
         e.preventDefault();
+        console.log('🔧 F2 pressed - entering name edit mode');
         setMode('editing-name');
         setTimeout(() => inputRef.current?.focus(), 0);
       }
@@ -94,6 +95,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
 
     const handleClickOutside = (e: MouseEvent) => {
       if (mode === 'expanded' && formRef.current && !formRef.current.contains(e.target as HTMLElement)) {
+        console.log('🔧 Click outside detected - auto-saving form data');
         handleSaveForm();
       }
     };
@@ -119,10 +121,12 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   };
 
   const handleExpandForm = () => {
+    console.log('🔧 Expanding workflow details form');
     setMode('expanded');
   };
 
   const handleSaveForm = () => {
+    console.log('🔧 Saving workflow form data:', formData);
     setMode('collapsed');
     onMetadataChange?.(formData);
   };
