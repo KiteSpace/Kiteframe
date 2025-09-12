@@ -364,7 +364,10 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
         <textarea
           value={formData.description}
-          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+          onChange={(e) => {
+            console.log('🔧 Description changed to:', e.target.value);
+            setFormData(prev => ({ ...prev, description: e.target.value }));
+          }}
           className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none"
           placeholder="Describe your workflow..."
           rows={3}
