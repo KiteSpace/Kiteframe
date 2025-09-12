@@ -60,6 +60,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   const [newCategory, setNewCategory] = useState('');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [newLink, setNewLink] = useState({ text: '', url: '' });
+  const [isJustSaved, setIsJustSaved] = useState(false);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -77,12 +78,16 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   }, [name]);
 
   useEffect(() => {
-    if (metadata && mode === 'collapsed') {
-      // Only update formData when form is collapsed (not being actively edited)
+    if (metadata && mode === 'collapsed' && !isJustSaved) {
+      // Only update formData when form is collapsed (not being actively edited) and not just saved
       console.log('🔧 RESETTING formData from metadata (mode: collapsed):', metadata);
       setFormData(metadata);
     }
-  }, [metadata, mode]);
+    if (isJustSaved) {
+      // Clear the flag after preventing one reset
+      setIsJustSaved(false);
+    }
+  }, [metadata, mode, isJustSaved]);
 
   // Handle keydown events for F2 and form interactions
   useEffect(() => {
@@ -130,6 +135,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   const handleSaveForm = () => {
     console.log('🔧 Saving workflow form data:', formData);
     onMetadataChange?.(formData);  // Save FIRST
+    setIsJustSaved(true);          // Prevent immediate metadata reset
     setMode('collapsed');          // Change mode AFTER
   };
 
