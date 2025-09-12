@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 interface ShapeObjectProps {
   object: CanvasObject & { data: ShapeNodeData };
   onUpdate?: (updates: Partial<ShapeNodeData>) => void;
-  onResize?: (width: number, height: number, anchor?: { x: number; y: number }) => void;
+  onResize?: (width: number, height: number, resizeInfo?: { position: string }) => void;
   onStartDrag?: (e: React.MouseEvent) => void;
   onClick?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;

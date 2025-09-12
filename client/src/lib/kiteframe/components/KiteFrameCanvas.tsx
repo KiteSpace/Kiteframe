@@ -1142,6 +1142,40 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     };
   }, [viewport, props]);
 
+  // Keyboard event handling for deleting selected canvas objects
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle delete/backspace keys
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Check if we have any selected canvas objects
+        const selectedObjects = (props.canvasObjects || []).filter(obj => obj.selected);
+        
+        if (selectedObjects.length > 0) {
+          // Prevent default browser behavior
+          e.preventDefault();
+          
+          // Remove selected objects
+          const updatedObjects = (props.canvasObjects || []).filter(obj => !obj.selected);
+          props.onCanvasObjectsChange?.(updatedObjects);
+          
+          console.log('🗑️ DELETED CANVAS OBJECTS:', {
+            deletedCount: selectedObjects.length,
+            deletedIds: selectedObjects.map(obj => obj.id),
+            remainingCount: updatedObjects.length
+          });
+        }
+      }
+    };
+
+    // Add event listener
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // Cleanup
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [props.canvasObjects, props.onCanvasObjectsChange]);
+
   // Grid (optional – keep your existing grid if you have one)
   const Grid = () => {
     if (props.gridType === 'none') return null;
@@ -1750,7 +1784,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 );
                 props.onCanvasObjectsChange?.(updatedObjects);
               }} 
-              onResize={(width, height, anchor) => {
+              onResize={(width, height, resizeInfo) => {
                 const currentObject = (props.canvasObjects || []).find(co => co.id === obj.id);
                 if (!currentObject) return;
                 
@@ -1758,26 +1792,34 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 const currentHeight = currentObject.style?.height || currentObject.height || 150;
                 const currentPos = currentObject.position;
                 
-                // Calculate position adjustment to keep anchor fixed
+                // Calculate position adjustment based on handle position
                 const deltaWidth = width - currentWidth;
                 const deltaHeight = height - currentHeight;
                 
                 let newPosition = { ...currentPos };
                 
-                // Convert screen anchor to world coordinates for comparison
-                const containerRect = containerRef.current?.getBoundingClientRect();
-                if (containerRect && anchor) {
-                  const worldAnchor = clientToWorld(anchor.x, anchor.y, viewport, containerRect);
-                  const objCenterX = currentPos.x + currentWidth / 2;
-                  const objCenterY = currentPos.y + currentHeight / 2;
-                  
-                  // If anchor is on the right side, move left edge
-                  if (worldAnchor.x > objCenterX) {
-                    newPosition.x -= deltaWidth;
-                  }
-                  // If anchor is on the bottom side, move top edge
-                  if (worldAnchor.y > objCenterY) {
-                    newPosition.y -= deltaHeight;
+                // Adjust position based on which corner is being dragged
+                if (resizeInfo?.position) {
+                  switch (resizeInfo.position) {
+                    case 'top-left':
+                      // When dragging top-left, object grows/shrinks towards top-left
+                      newPosition.x -= deltaWidth;
+                      newPosition.y -= deltaHeight;
+                      break;
+                    case 'top-right':
+                      // When dragging top-right, object grows/shrinks towards top-right
+                      // x stays same, y moves up when growing
+                      newPosition.y -= deltaHeight;
+                      break;
+                    case 'bottom-left':
+                      // When dragging bottom-left, object grows/shrinks towards bottom-left
+                      // y stays same, x moves left when growing
+                      newPosition.x -= deltaWidth;
+                      break;
+                    case 'bottom-right':
+                      // When dragging bottom-right, object grows/shrinks towards bottom-right
+                      // Both x and y stay same (this is the default behavior)
+                      break;
                   }
                 }
                 
@@ -1810,7 +1852,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 );
                 props.onCanvasObjectsChange?.(updatedObjects);
               }} 
-              onResize={(width, height, anchor) => {
+              onResize={(width, height, resizeInfo) => {
                 const currentObject = (props.canvasObjects || []).find(co => co.id === obj.id);
                 if (!currentObject) return;
                 
@@ -1818,26 +1860,34 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 const currentHeight = currentObject.style?.height || currentObject.height || 150;
                 const currentPos = currentObject.position;
                 
-                // Calculate position adjustment to keep anchor fixed
+                // Calculate position adjustment based on handle position
                 const deltaWidth = width - currentWidth;
                 const deltaHeight = height - currentHeight;
                 
                 let newPosition = { ...currentPos };
                 
-                // Convert screen anchor to world coordinates for comparison
-                const containerRect = containerRef.current?.getBoundingClientRect();
-                if (containerRect && anchor) {
-                  const worldAnchor = clientToWorld(anchor.x, anchor.y, viewport, containerRect);
-                  const objCenterX = currentPos.x + currentWidth / 2;
-                  const objCenterY = currentPos.y + currentHeight / 2;
-                  
-                  // If anchor is on the right side, move left edge
-                  if (worldAnchor.x > objCenterX) {
-                    newPosition.x -= deltaWidth;
-                  }
-                  // If anchor is on the bottom side, move top edge
-                  if (worldAnchor.y > objCenterY) {
-                    newPosition.y -= deltaHeight;
+                // Adjust position based on which corner is being dragged
+                if (resizeInfo?.position) {
+                  switch (resizeInfo.position) {
+                    case 'top-left':
+                      // When dragging top-left, object grows/shrinks towards top-left
+                      newPosition.x -= deltaWidth;
+                      newPosition.y -= deltaHeight;
+                      break;
+                    case 'top-right':
+                      // When dragging top-right, object grows/shrinks towards top-right
+                      // x stays same, y moves up when growing
+                      newPosition.y -= deltaHeight;
+                      break;
+                    case 'bottom-left':
+                      // When dragging bottom-left, object grows/shrinks towards bottom-left
+                      // y stays same, x moves left when growing
+                      newPosition.x -= deltaWidth;
+                      break;
+                    case 'bottom-right':
+                      // When dragging bottom-right, object grows/shrinks towards bottom-right
+                      // Both x and y stay same (this is the default behavior)
+                      break;
                   }
                 }
                 
@@ -1874,7 +1924,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 );
                 props.onCanvasObjectsChange?.(updatedObjects);
               }} 
-              onResize={(width, height, anchor) => {
+              onResize={(width, height, resizeInfo) => {
                 const currentObject = (props.canvasObjects || []).find(co => co.id === obj.id);
                 if (!currentObject) return;
                 
@@ -1882,26 +1932,34 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 const currentHeight = currentObject.style?.height || currentObject.height || 150;
                 const currentPos = currentObject.position;
                 
-                // Calculate position adjustment to keep anchor fixed
+                // Calculate position adjustment based on handle position
                 const deltaWidth = width - currentWidth;
                 const deltaHeight = height - currentHeight;
                 
                 let newPosition = { ...currentPos };
                 
-                // Convert screen anchor to world coordinates for comparison
-                const containerRect = containerRef.current?.getBoundingClientRect();
-                if (containerRect && anchor) {
-                  const worldAnchor = clientToWorld(anchor.x, anchor.y, viewport, containerRect);
-                  const objCenterX = currentPos.x + currentWidth / 2;
-                  const objCenterY = currentPos.y + currentHeight / 2;
-                  
-                  // If anchor is on the right side, move left edge
-                  if (worldAnchor.x > objCenterX) {
-                    newPosition.x -= deltaWidth;
-                  }
-                  // If anchor is on the bottom side, move top edge
-                  if (worldAnchor.y > objCenterY) {
-                    newPosition.y -= deltaHeight;
+                // Adjust position based on which corner is being dragged
+                if (resizeInfo?.position) {
+                  switch (resizeInfo.position) {
+                    case 'top-left':
+                      // When dragging top-left, object grows/shrinks towards top-left
+                      newPosition.x -= deltaWidth;
+                      newPosition.y -= deltaHeight;
+                      break;
+                    case 'top-right':
+                      // When dragging top-right, object grows/shrinks towards top-right
+                      // x stays same, y moves up when growing
+                      newPosition.y -= deltaHeight;
+                      break;
+                    case 'bottom-left':
+                      // When dragging bottom-left, object grows/shrinks towards bottom-left
+                      // y stays same, x moves left when growing
+                      newPosition.x -= deltaWidth;
+                      break;
+                    case 'bottom-right':
+                      // When dragging bottom-right, object grows/shrinks towards bottom-right
+                      // Both x and y stay same (this is the default behavior)
+                      break;
                   }
                 }
                 

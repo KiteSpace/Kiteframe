@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 interface TextObjectProps {
   object: CanvasObject & { data: TextNodeData };
   onUpdate?: (updates: Partial<TextNodeData>) => void;
-  onResize?: (width: number, height: number, anchor?: { x: number; y: number }) => void;
+  onResize?: (width: number, height: number, resizeInfo?: { position: string }) => void;
   onStartDrag?: (e: React.MouseEvent) => void;
   onClick?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;
@@ -297,7 +297,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
           <ResizeHandle
             position="top-left"
             nodeRef={objectRef}
-            onResize={(width, height, anchor) => {
+            onResize={(width, height, resizeInfo) => {
               setTextSize({ width, height });
               setIsManuallyResized(true);
               onResize?.(width, height);
@@ -311,7 +311,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
           <ResizeHandle
             position="top-right"
             nodeRef={objectRef}
-            onResize={(width, height, anchor) => {
+            onResize={(width, height, resizeInfo) => {
               setTextSize({ width, height });
               setIsManuallyResized(true);
               onResize?.(width, height);
@@ -325,7 +325,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
           <ResizeHandle
             position="bottom-left"
             nodeRef={objectRef}
-            onResize={(width, height, anchor) => {
+            onResize={(width, height, resizeInfo) => {
               setTextSize({ width, height });
               setIsManuallyResized(true);
               onResize?.(width, height);
@@ -339,7 +339,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
           <ResizeHandle
             position="bottom-right"
             nodeRef={objectRef}
-            onResize={(width, height, anchor) => {
+            onResize={(width, height, resizeInfo) => {
               setTextSize({ width, height });
               setIsManuallyResized(true);
               onResize?.(width, height);

@@ -8,7 +8,7 @@ import { X } from 'lucide-react';
 interface StickyNoteObjectProps {
   object: CanvasObject & { data: StickyNoteData };
   onUpdate?: (updates: Partial<StickyNoteData>) => void;
-  onResize?: (width: number, height: number, anchor?: { x: number; y: number }) => void;
+  onResize?: (width: number, height: number, resizeInfo?: { position: string }) => void;
   onDelete?: () => void;
   onStartDrag?: (e: React.MouseEvent) => void;
   onClick?: (e: React.MouseEvent) => void;

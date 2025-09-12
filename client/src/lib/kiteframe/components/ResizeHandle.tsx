@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 interface ResizeHandleProps {
   position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   nodeRef: React.RefObject<HTMLElement>;
-  onResize?: (width: number, height: number, anchor: { x: number; y: number }) => void;
+  onResize?: (width: number, height: number, resizeInfo: { position: string }) => void;
   minWidth?: number;
   minHeight?: number;
   maxWidth?: number;
@@ -138,27 +138,8 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
           break;
       }
 
-      // Calculate anchor position based on handle position
-      if (!nodeRef.current) return;
-      const nodeRect = nodeRef.current.getBoundingClientRect();
-      let anchor = { x: 0, y: 0 };
-      
-      switch (position) {
-        case 'top-left':
-          anchor = { x: nodeRect.right, y: nodeRect.bottom }; // Keep bottom-right fixed
-          break;
-        case 'top-right':
-          anchor = { x: nodeRect.left, y: nodeRect.bottom }; // Keep bottom-left fixed
-          break;
-        case 'bottom-left':
-          anchor = { x: nodeRect.right, y: nodeRect.top }; // Keep top-right fixed
-          break;
-        case 'bottom-right':
-          anchor = { x: nodeRect.left, y: nodeRect.top }; // Keep top-left fixed
-          break;
-      }
-      
-      onResize?.(newWidth, newHeight, anchor);
+      // Pass the handle position for proper resize direction calculation
+      onResize?.(newWidth, newHeight, { position });
     };
 
     const handleMouseUp = () => {
