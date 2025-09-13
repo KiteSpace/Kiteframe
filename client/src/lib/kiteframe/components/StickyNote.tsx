@@ -103,11 +103,29 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
     return node.data.textColor || '#713f12'; // Dark brown for good contrast on yellow
   };
 
+  // Helper function to generate box shadow from shadow data
+  const getBoxShadow = () => {
+    if (!node.data.shadow?.enabled) return 'none';
+    
+    const { color, blur, offsetX, offsetY } = node.data.shadow;
+    return `${offsetX}px ${offsetY}px ${blur}px ${color}`;
+  };
+
   const stickyStyles: React.CSSProperties = {
     backgroundColor: getBackgroundColor(),
     color: getTextColor(),
     fontSize: node.data.fontSize || 14,
-    fontFamily: node.data.fontFamily || 'Inter, system-ui, sans-serif'
+    fontFamily: node.data.fontFamily || 'Inter, system-ui, sans-serif',
+    fontStyle: node.data.fontStyle || 'normal',
+    fontWeight: node.data.fontWeight || 'normal',
+    textAlign: node.data.textAlign || 'left',
+    lineHeight: node.data.lineHeight || 1.4,
+    borderRadius: node.data.borderRadius || 8,
+    border: node.data.borderWidth && node.data.borderWidth > 0 
+      ? `${node.data.borderWidth}px ${node.data.borderStyle || 'solid'} ${node.data.borderColor || node.data.backgroundColor}` 
+      : 'none',
+    boxShadow: getBoxShadow(),
+    opacity: node.data.opacity || 1
   };
 
   return (
@@ -161,6 +179,10 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
               style={{
                 fontSize: node.data.fontSize || 14,
                 fontFamily: node.data.fontFamily || 'Inter, system-ui, sans-serif',
+                fontStyle: node.data.fontStyle || 'normal',
+                fontWeight: node.data.fontWeight || 'normal',
+                textAlign: node.data.textAlign || 'left',
+                lineHeight: node.data.lineHeight || 1.4,
                 color: getTextColor()
               }}
               data-testid="sticky-note-textarea"
@@ -172,7 +194,11 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
               onDoubleClick={handleDoubleClick}
               style={{
                 fontSize: node.data.fontSize || 14,
-                fontFamily: node.data.fontFamily || 'Inter, system-ui, sans-serif'
+                fontFamily: node.data.fontFamily || 'Inter, system-ui, sans-serif',
+                fontStyle: node.data.fontStyle || 'normal',
+                fontWeight: node.data.fontWeight || 'normal',
+                textAlign: node.data.textAlign || 'left',
+                lineHeight: node.data.lineHeight || 1.4
               }}
               data-testid="sticky-note-content"
             >
@@ -194,6 +220,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
         {node.showHandles !== false && (
           <NodeHandles 
             node={node}
+            scale={1}
             onHandleConnect={() => {}} // Will be handled by KiteFrameCanvas
           />
         )}

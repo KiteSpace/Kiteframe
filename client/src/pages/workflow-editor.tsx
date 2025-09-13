@@ -61,7 +61,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   const { toast } = useToast();
 
   // Pro Features Configuration
-  const proFeaturesConfig: ProFeaturesConfig = {
+  const proFeaturesConfig: ProFeaturesConfig = useMemo(() => ({
     quickAdd: {
       enabled: true,
       showGhostPreview: true,
@@ -143,7 +143,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       autoConnect: true,
       showPreview: true
     }
-  };
+  }), []);
 
   // Generate unique ID for tabs
   const generateTabId = useCallback(() => `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, []);

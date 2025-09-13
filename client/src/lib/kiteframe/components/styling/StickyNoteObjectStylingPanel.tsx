@@ -33,6 +33,11 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
     { value: 'bold', label: 'Bold' }
   ];
 
+  const fontStyleOptions = [
+    { value: 'normal', label: 'Normal' },
+    { value: 'italic', label: 'Italic' }
+  ];
+
   const textAlignOptions = [
     { value: 'left', label: 'Left', icon: <AlignLeft size={14} /> },
     { value: 'center', label: 'Center', icon: <AlignCenter size={14} /> },
@@ -112,6 +117,14 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
           options={fontWeightOptions}
           onChange={(value) => onUpdate({ fontWeight: value as any })}
           data-testid="sticky-font-weight"
+        />
+
+        <DropdownControl
+          label="Font Style"
+          value={data.fontStyle || 'normal'}
+          options={fontStyleOptions}
+          onChange={(value) => onUpdate({ fontStyle: value as any })}
+          data-testid="sticky-font-style"
         />
 
         <ToggleGroupControl
@@ -232,6 +245,79 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
           unit="%"
           data-testid="sticky-opacity"
         />
+
+        {/* Shadow Controls */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium">Shadow</label>
+            <input
+              type="checkbox"
+              checked={data.shadow?.enabled || false}
+              onChange={(e) => onUpdate({ 
+                shadow: { 
+                  ...data.shadow,
+                  enabled: e.target.checked,
+                  color: data.shadow?.color || '#00000040',
+                  blur: data.shadow?.blur || 4,
+                  offsetX: data.shadow?.offsetX || 0,
+                  offsetY: data.shadow?.offsetY || 2
+                }
+              })}
+              className="rounded"
+              data-testid="sticky-shadow-enabled"
+            />
+          </div>
+          
+          {data.shadow?.enabled && (
+            <div className="space-y-2 pl-2 border-l-2 border-muted">
+              <ColorPickerControl
+                label="Shadow Color"
+                value={data.shadow?.color || '#00000040'}
+                onChange={(color) => onUpdate({ 
+                  shadow: { ...data.shadow!, color }
+                })}
+                presets={['#00000020', '#00000040', '#00000060', '#00000080']}
+                data-testid="sticky-shadow-color"
+              />
+              
+              <SliderControl
+                label="Blur"
+                value={data.shadow?.blur || 4}
+                onChange={(value) => onUpdate({ 
+                  shadow: { ...data.shadow!, blur: value }
+                })}
+                min={0}
+                max={20}
+                unit="px"
+                data-testid="sticky-shadow-blur"
+              />
+              
+              <SliderControl
+                label="Offset X"
+                value={data.shadow?.offsetX || 0}
+                onChange={(value) => onUpdate({ 
+                  shadow: { ...data.shadow!, offsetX: value }
+                })}
+                min={-10}
+                max={10}
+                unit="px"
+                data-testid="sticky-shadow-offset-x"
+              />
+              
+              <SliderControl
+                label="Offset Y"
+                value={data.shadow?.offsetY || 2}
+                onChange={(value) => onUpdate({ 
+                  shadow: { ...data.shadow!, offsetY: value }
+                })}
+                min={-10}
+                max={10}
+                unit="px"
+                data-testid="sticky-shadow-offset-y"
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
