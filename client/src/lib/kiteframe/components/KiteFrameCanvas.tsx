@@ -1694,7 +1694,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 borderColor: border,
                 background: 'transparent', // Remove default background since we'll use separate header/body
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                zIndex: n.zIndex || 0
               }}
               onMouseDown={(e)=>{
                 e.stopPropagation();

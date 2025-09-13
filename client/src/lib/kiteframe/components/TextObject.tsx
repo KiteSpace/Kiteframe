@@ -258,7 +258,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
         top: object.position.y,
         width: textSize.width,
         height: textSize.height,
-        zIndex: object.selected ? 50 : 1,
+        zIndex: object.selected ? (object.zIndex || 0) + 1000 : (object.zIndex || 0),
         ...containerStyles,
         ...style
       }}

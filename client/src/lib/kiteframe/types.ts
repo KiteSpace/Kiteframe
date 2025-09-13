@@ -28,6 +28,7 @@ export type Node = {
   smartConnect?: { enabled: boolean; threshold?: number };
   width?: number;
   height?: number;
+  zIndex?: number;
 };
 
 export type EdgeStyle = {
@@ -323,6 +324,7 @@ export type CanvasObject = {
   reactions?: NodeReactions;
   width?: number;
   height?: number;
+  zIndex?: number;
 };
 
 export interface EmojiReaction {

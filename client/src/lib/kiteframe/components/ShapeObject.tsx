@@ -234,7 +234,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         top: object.position.y,
         width: shapeSize.width,
         height: shapeSize.height,
-        zIndex: object.selected ? 50 : 1,
+        zIndex: object.selected ? (object.zIndex || 0) + 1000 : (object.zIndex || 0),
       }}
       data-testid={`shape-object-${object.id}`}
       onMouseDown={handleMouseDown}

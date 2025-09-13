@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Palette, PaintBucket, Copy, Trash2 } from 'lucide-react';
+import { Palette, PaintBucket, Copy, Trash2, ArrowUp, ArrowDown, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;
@@ -10,9 +10,13 @@ interface ContextMenuProps {
   onDuplicate: () => void;
   onDelete: () => void;
   hasPropertiesInClipboard?: boolean;
+  onBringForward?: () => void;
+  onBringToFront?: () => void;
+  onSendBackward?: () => void;
+  onSendToBack?: () => void;
 }
 
-export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties, onDuplicate, onDelete, hasPropertiesInClipboard }: ContextMenuProps) {
+export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties, onDuplicate, onDelete, hasPropertiesInClipboard, onBringForward, onBringToFront, onSendBackward, onSendToBack }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,6 +74,42 @@ export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties
         <Copy size={16} className="mr-2" />
         Duplicate
       </div>
+      
+      {/* Z-Index Controls */}
+      <div className="border-t border-border my-1" />
+      <div
+        className="px-3 py-2 hover:bg-accent cursor-pointer text-sm"
+        onClick={() => { onBringToFront?.(); onClose(); }}
+        data-testid="context-menu-bring-to-front"
+      >
+        <ArrowUp size={16} className="mr-2" />
+        Bring to Front
+      </div>
+      <div
+        className="px-3 py-2 hover:bg-accent cursor-pointer text-sm"
+        onClick={() => { onBringForward?.(); onClose(); }}
+        data-testid="context-menu-bring-forward"
+      >
+        <ChevronUp size={16} className="mr-2" />
+        Bring Forward
+      </div>
+      <div
+        className="px-3 py-2 hover:bg-accent cursor-pointer text-sm"
+        onClick={() => { onSendBackward?.(); onClose(); }}
+        data-testid="context-menu-send-backward"
+      >
+        <ChevronDown size={16} className="mr-2" />
+        Send Backward
+      </div>
+      <div
+        className="px-3 py-2 hover:bg-accent cursor-pointer text-sm"
+        onClick={() => { onSendToBack?.(); onClose(); }}
+        data-testid="context-menu-send-to-back"
+      >
+        <ArrowDown size={16} className="mr-2" />
+        Send to Back
+      </div>
+      
       <div className="border-t border-border my-1" />
       <div
         className="px-3 py-2 hover:bg-destructive/10 cursor-pointer text-sm text-destructive"

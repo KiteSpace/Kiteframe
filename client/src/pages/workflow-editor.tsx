@@ -3496,6 +3496,96 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             } : undefined}
             hasPropertiesInClipboard={!!(copiedProperties || copiedCanvasObjectProperties)}
+            onBringToFront={() => {
+              if (contextMenu.node) {
+                const maxZIndex = Math.max(...nodes.map(n => n.zIndex || 0));
+                saveToHistory();
+                updateActiveTab({
+                  nodes: nodes.map(n => 
+                    n.id === contextMenu.node!.id 
+                      ? { ...n, zIndex: maxZIndex + 1 }
+                      : n
+                  )
+                });
+              } else if (contextMenu.canvasObject) {
+                const maxZIndex = Math.max(...canvasObjects.map(obj => obj.zIndex || 0));
+                saveToHistory();
+                updateActiveTab({
+                  canvasObjects: canvasObjects.map(obj => 
+                    obj.id === contextMenu.canvasObject!.id 
+                      ? { ...obj, zIndex: maxZIndex + 1 }
+                      : obj
+                  )
+                });
+              }
+            }}
+            onBringForward={() => {
+              if (contextMenu.node) {
+                const currentZIndex = contextMenu.node.zIndex || 0;
+                saveToHistory();
+                updateActiveTab({
+                  nodes: nodes.map(n => 
+                    n.id === contextMenu.node!.id 
+                      ? { ...n, zIndex: currentZIndex + 1 }
+                      : n
+                  )
+                });
+              } else if (contextMenu.canvasObject) {
+                const currentZIndex = contextMenu.canvasObject.zIndex || 0;
+                saveToHistory();
+                updateActiveTab({
+                  canvasObjects: canvasObjects.map(obj => 
+                    obj.id === contextMenu.canvasObject!.id 
+                      ? { ...obj, zIndex: currentZIndex + 1 }
+                      : obj
+                  )
+                });
+              }
+            }}
+            onSendBackward={() => {
+              if (contextMenu.node) {
+                const currentZIndex = contextMenu.node.zIndex || 0;
+                saveToHistory();
+                updateActiveTab({
+                  nodes: nodes.map(n => 
+                    n.id === contextMenu.node!.id 
+                      ? { ...n, zIndex: Math.max(0, currentZIndex - 1) }
+                      : n
+                  )
+                });
+              } else if (contextMenu.canvasObject) {
+                const currentZIndex = contextMenu.canvasObject.zIndex || 0;
+                saveToHistory();
+                updateActiveTab({
+                  canvasObjects: canvasObjects.map(obj => 
+                    obj.id === contextMenu.canvasObject!.id 
+                      ? { ...obj, zIndex: Math.max(0, currentZIndex - 1) }
+                      : obj
+                  )
+                });
+              }
+            }}
+            onSendToBack={() => {
+              if (contextMenu.node) {
+                saveToHistory();
+                updateActiveTab({
+                  nodes: nodes.map(n => 
+                    n.id === contextMenu.node!.id 
+                      ? { ...n, zIndex: 0 }
+                      : n
+                  )
+                });
+              } else if (contextMenu.canvasObject) {
+                saveToHistory();
+                updateActiveTab({
+                  canvasObjects: canvasObjects.map(obj => 
+                    obj.id === contextMenu.canvasObject!.id 
+                      ? { ...obj, zIndex: 0 }
+                      : obj
+                  )
+                });
+              }
+            }}
             onDelete={() => {
               if (contextMenu.node) {
                 saveToHistory();
