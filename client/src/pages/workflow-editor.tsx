@@ -914,7 +914,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
 
   // Helper function to calculate viewport-centered position with sequential offset
   const getViewportCenteredPosition = useCallback(() => {
-    // Assume canvas viewport size (should match WorkflowCanvas)
+    // Use common canvas dimensions (matching WorkflowCanvas)
     const canvasWidth = 800;
     const canvasHeight = 600;
     
@@ -924,16 +924,39 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     
     // Count existing nodes and canvas objects for offset
     const existingCount = (nodes?.length || 0) + (canvasObjects?.length || 0);
-    const offsetMultiplier = existingCount % 10; // Reset offset every 10 items
     
-    // Calculate offset position (spiral pattern)
-    const offsetDistance = 50;
-    const offsetX = (offsetMultiplier % 3 - 1) * offsetDistance; // -50, 0, 50
-    const offsetY = Math.floor(offsetMultiplier / 3) * offsetDistance; // 0, 50, 100
+    // Improved spiral pattern that extends beyond 9 items
+    const offsetDistance = 50; // World space units (not affected by zoom)
+    let offsetX = 0;
+    let offsetY = 0;
+    
+    if (existingCount > 0) {
+      // Create expanding spiral pattern
+      const ringSize = 3; // 3x3 grid per ring
+      const ring = Math.floor((existingCount - 1) / (ringSize * ringSize));
+      const posInRing = (existingCount - 1) % (ringSize * ringSize);
+      
+      // Calculate position within the current ring
+      const col = posInRing % ringSize;
+      const row = Math.floor(posInRing / ringSize);
+      
+      // Apply ring multiplier and center the grid
+      const ringMultiplier = ring + 1;
+      offsetX = (col - Math.floor(ringSize / 2)) * offsetDistance * ringMultiplier;
+      offsetY = (row - Math.floor(ringSize / 2)) * offsetDistance * ringMultiplier;
+    }
+    
+    // Default node dimensions for centering (nodes are typically 200x100)
+    const nodeWidth = 200;
+    const nodeHeight = 100;
+    
+    // Center the node by subtracting half its dimensions
+    const centeredX = viewportCenterX + offsetX - nodeWidth / 2;
+    const centeredY = viewportCenterY + offsetY - nodeHeight / 2;
     
     return {
-      x: Math.round(viewportCenterX + offsetX),
-      y: Math.round(viewportCenterY + offsetY)
+      x: Math.round(centeredX),
+      y: Math.round(centeredY)
     };
   }, [viewport, nodes, canvasObjects]);
 
