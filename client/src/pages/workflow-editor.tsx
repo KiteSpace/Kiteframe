@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ObjectUploader } from '@/components/ObjectUploader';
 import { useFirebaseWorkflows } from '../hooks/useFirebaseWorkflows';
 import { useAuth } from '../hooks/useAuth';
-import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType } from '../lib/kiteframe/types';
+import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeData, ShapeNodeData, StickyNoteData } from '../lib/kiteframe/types';
 import { recalculateAllEdgeZIndexes } from '../lib/kiteframe/utils/edgeZIndex';
 import '../lib/kiteframe/styles/kiteframe.css';
 import { X, Plus } from 'lucide-react';

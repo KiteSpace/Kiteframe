@@ -46,6 +46,23 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
     }
   };
 
+  // Helper function to convert hex color to rgba with opacity
+  const hexToRgba = (hex: string, opacity: number): string => {
+    // Remove # if present
+    hex = hex.replace('#', '');
+    
+    // Handle 3-character hex codes
+    if (hex.length === 3) {
+      hex = hex.split('').map(char => char + char).join('');
+    }
+    
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  };
+
   const renderShape = () => {
     const { 
       shapeType, 
@@ -86,8 +103,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             className="w-full h-full"
             style={{
               ...commonStyles,
-              backgroundColor: fillColor || '#3b82f6',
-              opacity: fillOpacity !== undefined ? fillOpacity : 1,
+              backgroundColor: fillOpacity !== undefined ? hexToRgba(fillColor || '#3b82f6', fillOpacity) : (fillColor || '#3b82f6'),
               border: strokeWidth && strokeWidth > 0 ? `${strokeWidth}px ${strokeStyle || 'solid'} ${strokeColor || '#1d4ed8'}` : 'none',
               borderRadius: borderRadius || 8,
               boxShadow: object.data.shadow?.enabled 
@@ -104,8 +120,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             className="w-full h-full rounded-full"
             style={{
               ...commonStyles,
-              backgroundColor: fillColor || '#10b981',
-              opacity: fillOpacity !== undefined ? fillOpacity : 1,
+              backgroundColor: fillOpacity !== undefined ? hexToRgba(fillColor || '#10b981', fillOpacity) : (fillColor || '#10b981'),
               border: strokeWidth && strokeWidth > 0 ? `${strokeWidth}px ${strokeStyle || 'solid'} ${strokeColor || '#059669'}` : 'none',
               boxShadow: object.data.shadow?.enabled 
                 ? `${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'}`
