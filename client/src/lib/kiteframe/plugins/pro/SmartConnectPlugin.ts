@@ -210,7 +210,7 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     
     this.currentNodes.forEach(sourceNode => {
       this.currentNodes.forEach(targetNode => {
-        if (sourceNode.id >= targetNode.id) return; // Avoid duplicates and self-connections
+        if (sourceNode.id === targetNode.id) return; // Avoid self-connections
         if (this.connectionExists(sourceNode.id, targetNode.id)) return;
         
         // Calculate distance between nodes
