@@ -1397,21 +1397,21 @@ export function Sidebar({
                     case 'text':
                       return (
                         <TextObjectStylingPanel
-                          data={obj.data}
+                          data={obj.data as TextNodeData}
                           onUpdate={(updates) => onCanvasObjectUpdate?.(obj.id, updates)}
                         />
                       );
                     case 'shape':
                       return (
                         <ShapeObjectStylingPanel
-                          data={obj.data}
+                          data={obj.data as ShapeNodeData}
                           onUpdate={(updates) => onCanvasObjectUpdate?.(obj.id, updates)}
                         />
                       );
-                    case 'sticky-note':
+                    case 'sticky':
                       return (
                         <StickyNoteObjectStylingPanel
-                          data={obj.data}
+                          data={obj.data as StickyNoteData}
                           onUpdate={(updates) => onCanvasObjectUpdate?.(obj.id, updates)}
                         />
                       );
