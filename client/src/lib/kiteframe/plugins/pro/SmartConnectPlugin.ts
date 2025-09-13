@@ -169,7 +169,10 @@ export class SmartConnectPlugin implements KiteFramePlugin {
       // Calculate distance from nearest edges instead of centers
       const distance = this.calculateNearestEdgeDistance(nodePosition, updatedDraggedNode, targetNode);
       
+      console.log(`🔗 SmartConnect DRAG: Distance between ${nodeId} and ${targetNode.id}: ${distance.toFixed(1)}px (threshold: ${threshold}px)`);
+      
       if (distance <= threshold) {
+        console.log(`🔗 SmartConnect DRAG: Found close connection: ${nodeId} -> ${targetNode.id} at ${distance.toFixed(1)}px`);
         if (!closestConnection || distance < closestConnection.distance) {
           closestConnection = { target: targetNode.id, distance };
         }
