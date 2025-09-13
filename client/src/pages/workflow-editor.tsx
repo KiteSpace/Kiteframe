@@ -2082,7 +2082,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           {
             enabled: true,
             autoConnect: true,
-            threshold: 100,
+            threshold: 15,
             showPreview: true
           },
           nodes,
@@ -2137,7 +2137,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           {
             enabled: true,
             autoConnect: true,
-            threshold: 100,
+            threshold: 15,
             showPreview: true
           },
           nodes,
