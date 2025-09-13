@@ -80,12 +80,13 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     this.onEdgesChange = onEdgesChange;
     this.connectionPreviewCallback = connectionPreviewCallback || null;
     
-    console.log('🔧 SmartConnect configured:', {
-      enabled: this.config.enabled !== false,
-      threshold: this.config.threshold || 50,
-      autoConnect: this.config.autoConnect === true,
-      showPreview: this.config.showPreview !== false
-    });
+    // Temporarily disabled logging to fix performance
+    // console.log('🔧 SmartConnect configured:', {
+    //   enabled: this.config.enabled !== false,
+    //   threshold: this.config.threshold || 50,
+    //   autoConnect: this.config.autoConnect === true,
+    //   showPreview: this.config.showPreview !== false
+    // });
   }
 
   // Update configuration when props change

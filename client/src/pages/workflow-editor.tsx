@@ -2089,45 +2089,46 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         kiteFrameCore.use(testPlugin);
         kiteFrameCore.use(advancedInteractionsPlugin);
         kiteFrameCore.use(versionControlPlugin);
-        kiteFrameCore.use(smartConnectPlugin);
+        // Temporarily disabled SmartConnect plugin to fix performance
+        // kiteFrameCore.use(smartConnectPlugin);
         
-        // Configure SmartConnectPlugin with auto-connect functionality
-        smartConnectPlugin.configure(
-          {
-            enabled: true,
-            autoConnect: true,
-            threshold: 15,
-            showPreview: true
-          },
-          nodes,
-          edges,
-          // onConnect callback - creates new edges when auto-connect is triggered
-          (connection) => {
-            const newEdge = {
-              id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              source: connection.source,
-              target: connection.target,
-              type: 'bezier' as const,
-              animated: false,
-              strokeWidth: 2,
-              color: '#94a3b8'
-            };
-            
-            const updatedEdges = [...edges, newEdge];
-            updateActiveTab({ edges: updatedEdges });
-            
-            console.log('🚀 SmartConnect: Auto-connection created!', connection);
-          },
-          // onEdgesChange callback
-          (updatedEdges) => {
-            updateActiveTab({ edges: updatedEdges });
-          },
-          // connectionPreviewCallback - handles ghost preview during drag
-          (preview) => {
-            setConnectionPreview(preview);
-            console.log('🔗 SmartConnect: Preview updated:', preview);
-          }
-        );
+        // TEMPORARILY DISABLED: SmartConnect configuration to fix performance
+        // smartConnectPlugin.configure(
+        //   {
+        //     enabled: true,
+        //     autoConnect: true,
+        //     threshold: 15,
+        //     showPreview: true
+        //   },
+        //   nodes,
+        //   edges,
+        //   // onConnect callback - creates new edges when auto-connect is triggered
+        //   (connection) => {
+        //     const newEdge = {
+        //       id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        //       source: connection.source,
+        //       target: connection.target,
+        //       type: 'bezier' as const,
+        //       animated: false,
+        //       strokeWidth: 2,
+        //       color: '#94a3b8'
+        //     };
+        //     
+        //     const updatedEdges = [...edges, newEdge];
+        //     updateActiveTab({ edges: updatedEdges });
+        //     
+        //     console.log('🚀 SmartConnect: Auto-connection created!', connection);
+        //   },
+        //   // onEdgesChange callback
+        //   (updatedEdges) => {
+        //     updateActiveTab({ edges: updatedEdges });
+        //   },
+        //   // connectionPreviewCallback - handles ghost preview during drag
+        //   (preview) => {
+        //     setConnectionPreview(preview);
+        //     console.log('🔗 SmartConnect: Preview updated:', preview);
+        //   }
+        // );
         
         console.log('✅ Demo + Pro plugins registered successfully');
         console.log('🔌 Plugin System Ready! Check Settings → Test Plugins or watch console for activity');
@@ -2141,58 +2142,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     registerPlugins();
   }, []);
 
-  // Update SmartConnectPlugin with latest nodes and edges when they change
-  useEffect(() => {
-    const updateSmartConnectPlugin = async () => {
-      try {
-        const { smartConnectPlugin } = await import('@/lib/kiteframe');
-        // Update plugin with current state
-        smartConnectPlugin.configure(
-          {
-            enabled: true,
-            autoConnect: true,
-            threshold: 15,
-            showPreview: true
-          },
-          nodes,
-          edges,
-          // onConnect callback - creates new edges when auto-connect is triggered
-          (connection) => {
-            const newEdge = {
-              id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              source: connection.source,
-              target: connection.target,
-              type: 'bezier' as const,
-              animated: false,
-              strokeWidth: 2,
-              color: '#94a3b8'
-            };
-            
-            const updatedEdges = [...edges, newEdge];
-            updateActiveTab({ edges: updatedEdges });
-            
-            console.log('🚀 SmartConnect: Auto-connection created!', connection);
-          },
-          // onEdgesChange callback
-          (updatedEdges) => {
-            updateActiveTab({ edges: updatedEdges });
-          },
-          // connectionPreviewCallback - handles ghost preview during drag
-          (preview) => {
-            setConnectionPreview(preview);
-            console.log('🔗 SmartConnect: Preview updated:', preview);
-          }
-        );
-      } catch (error) {
-        // Plugin not loaded yet, ignore
-      }
-    };
-    
-    // Only update if we have nodes (plugin has been registered)
-    if (nodes.length > 0) {
-      updateSmartConnectPlugin();
-    }
-  }, [nodes, edges, updateActiveTab]);
+  // Removed redundant SmartConnect reconfiguration useEffect
+  // Plugin is configured once during registration and doesn't need
+  // to be reconfigured on every nodes/edges change
 
   // Handle keyboard shortcut for workflow name editing
   useEffect(() => {
