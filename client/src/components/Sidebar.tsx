@@ -224,6 +224,8 @@ export function Sidebar({
     // Only handle left mouse button
     if (e.button !== 0) return;
     
+    console.log('🎯 SIDEBAR DRAG START:', { nodeType, startPos: { x: e.clientX, y: e.clientY } });
+    
     e.preventDefault();
     e.stopPropagation();
     
@@ -243,17 +245,36 @@ export function Sidebar({
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      // Calculate final position relative to canvas
-      const canvasElement = document.querySelector('[data-testid="workflow-canvas"]');
+      console.log('🎯 SIDEBAR DRAG END:', { nodeType, endPos: { x: e.clientX, y: e.clientY } });
+      
+      // Find the canvas element - KiteFrameCanvas uses .kiteframe-canvas class
+      const canvasElement = document.querySelector('.kiteframe-canvas');
+      
+      console.log('🎯 CANVAS ELEMENT FOUND:', { canvasElement: !!canvasElement, selector: '[data-testid="workflow-canvas"]' });
+      
       if (canvasElement && onCreateNodeAtPosition) {
         const canvasRect = canvasElement.getBoundingClientRect();
         const x = e.clientX - canvasRect.left;
         const y = e.clientY - canvasRect.top;
         
+        console.log('🎯 DROP COORDINATES:', { 
+          clientX: e.clientX, 
+          clientY: e.clientY, 
+          canvasRect, 
+          relativeX: x, 
+          relativeY: y,
+          onCanvas: x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height
+        });
+        
         // Only create node if dropped on canvas
         if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
+          console.log('🎯 CALLING onCreateNodeAtPosition:', { nodeType, position: { x, y } });
           onCreateNodeAtPosition(nodeType, { x, y });
+        } else {
+          console.log('🎯 DROP OUTSIDE CANVAS - NO NODE CREATED');
         }
+      } else {
+        console.log('🎯 NO CANVAS OR HANDLER:', { canvasElement: !!canvasElement, onCreateNodeAtPosition: !!onCreateNodeAtPosition });
       }
       
       // Reset drag state
