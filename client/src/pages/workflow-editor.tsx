@@ -912,6 +912,31 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     updateActiveTab({ viewport: resolvedViewport });
   }, [viewport, updateActiveTab]);
 
+  // Helper function to calculate viewport-centered position with sequential offset
+  const getViewportCenteredPosition = useCallback(() => {
+    // Assume canvas viewport size (should match WorkflowCanvas)
+    const canvasWidth = 800;
+    const canvasHeight = 600;
+    
+    // Calculate viewport center in world coordinates
+    const viewportCenterX = (-viewport.x + canvasWidth / 2) / viewport.zoom;
+    const viewportCenterY = (-viewport.y + canvasHeight / 2) / viewport.zoom;
+    
+    // Count existing nodes and canvas objects for offset
+    const existingCount = (nodes?.length || 0) + (canvasObjects?.length || 0);
+    const offsetMultiplier = existingCount % 10; // Reset offset every 10 items
+    
+    // Calculate offset position (spiral pattern)
+    const offsetDistance = 50;
+    const offsetX = (offsetMultiplier % 3 - 1) * offsetDistance; // -50, 0, 50
+    const offsetY = Math.floor(offsetMultiplier / 3) * offsetDistance; // 0, 50, 100
+    
+    return {
+      x: Math.round(viewportCenterX + offsetX),
+      y: Math.round(viewportCenterY + offsetY)
+    };
+  }, [viewport, nodes, canvasObjects]);
+
   const setSelectedNodeId = useCallback((id: string) => {
     updateActiveTab({ selectedNodeId: id });
   }, [updateActiveTab]);
@@ -2386,7 +2411,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     const newNode: Node = {
                       id: `node-${Date.now()}`,
                       type,
-                      position: { x: 400, y: 250 },
+                      position: getViewportCenteredPosition(),
                       data: {
                         label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                         description: `Configure ${type} settings`,
@@ -2410,7 +2435,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   const newCanvasObject: CanvasObject = {
                     id: `object-${Date.now()}`,
                     type: type as 'text' | 'sticky' | 'shape',
-                    position: { x: 400, y: 250 },
+                    position: getViewportCenteredPosition(),
                     data: type === 'text' 
                       ? { text: 'Click to edit text', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', textColor: '#000000' }
                       : type === 'sticky'
@@ -2443,7 +2468,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 const newNode: Node = {
                   id: `node-${Date.now()}`,
                   type,
-                  position: { x: 400, y: 250 },
+                  position: getViewportCenteredPosition(),
                   data: {
                     label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                     description: `Configure ${type} settings`,
