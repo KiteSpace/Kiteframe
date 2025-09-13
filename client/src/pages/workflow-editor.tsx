@@ -3163,14 +3163,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     return updated;
                   });
                   
-                  // Update selectedNodeId to the most recently clicked node if selected
-                  if (!node.selected) {
-                    setSelectedNodeId(node.id);
-                  } else if (selectedNodeId === node.id) {
-                    // If deselecting the current selected node, find another selected node
-                    const otherSelected = nodes.find(n => n.selected && n.id !== node.id);
-                    setSelectedNodeId(otherSelected?.id || '');
-                  }
+                  // Don't change selectedNodeId during multi-select to preserve the selection
                 } else {
                   // Regular click - single select
                   setNodes(prev => {
@@ -3191,7 +3184,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setContextMenu(null);
                 
                 console.log(`📝 SELECTION STATE SET:`, { 
-                  selectedNodeId: node.selected && e.shiftKey ? '' : node.id,
+                  selectedNodeId: e.shiftKey ? selectedNodeId : node.id,
                   selectedEdgeId: '',
                   tabId: activeTab 
                 });

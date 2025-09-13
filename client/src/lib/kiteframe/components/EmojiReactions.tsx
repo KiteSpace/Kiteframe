@@ -83,17 +83,6 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
 
   return (
     <div className="absolute inset-0 pointer-events-none">
-      {/* Greyed smiley bubble in upper right corner */}
-      <div className="absolute top-2 right-2 z-10 pointer-events-auto">
-        <button
-          onClick={handleSmileyClick}
-          className="opacity-0 group-hover:opacity-100 transition-opacity bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 rounded-full p-1.5 shadow-sm"
-          title="Add reaction"
-          data-testid="smiley-reaction-trigger"
-        >
-          <Smile className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-        </button>
-      </div>
 
       {/* Active reactions display */}
       {activeReactions.length > 0 && (
