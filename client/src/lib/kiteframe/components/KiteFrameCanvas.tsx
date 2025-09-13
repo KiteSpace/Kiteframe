@@ -1548,6 +1548,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             const sourceAnchor = sourceAnchorTowards(sourceNode, targetRect.cx, targetRect.cy);
             const targetAnchor = sourceAnchorTowards(targetNode, sourceRect.cx, sourceRect.cy);
             
+            console.log('🎨 KiteFrameCanvas: Rendering SmartConnect preview line:', {
+              x1: sourceAnchor.x, y1: sourceAnchor.y, 
+              x2: targetAnchor.x, y2: targetAnchor.y,
+              isConnecting: true, // Changed to true to show the line
+              config: { duration: 300, easing: 'ease-out' }
+            });
+            
             return (
               <AnimatedConnectionPreview
                 key="smart-connect-preview"
@@ -1555,7 +1562,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 y1={sourceAnchor.y}
                 x2={targetAnchor.x}
                 y2={targetAnchor.y}
-                isConnecting={false}
+                isConnecting={true}  // Changed from false to true!
                 isValidTarget={true}
                 isInvalidTarget={false}
                 config={{
