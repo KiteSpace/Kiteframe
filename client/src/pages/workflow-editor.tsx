@@ -904,19 +904,37 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
 
   // Setters that update the active tab
   const setNodes = useCallback((newNodes: Node[] | ((prev: Node[]) => Node[])) => {
-    const resolvedNodes = typeof newNodes === 'function' ? newNodes(nodes) : newNodes;
-    updateActiveTab({ nodes: resolvedNodes });
-  }, [updateActiveTab]);
+    setTabs(prev => prev.map(tab => {
+      if (tab.id === activeTabId) {
+        const currentNodes = tab.nodes || [];
+        const resolvedNodes = typeof newNodes === 'function' ? newNodes(currentNodes) : newNodes;
+        return { ...tab, nodes: resolvedNodes };
+      }
+      return tab;
+    }));
+  }, [activeTabId, setTabs]);
 
   const setEdges = useCallback((newEdges: Edge[] | ((prev: Edge[]) => Edge[])) => {
-    const resolvedEdges = typeof newEdges === 'function' ? newEdges(edges) : newEdges;
-    updateActiveTab({ edges: resolvedEdges });
-  }, [updateActiveTab]);
+    setTabs(prev => prev.map(tab => {
+      if (tab.id === activeTabId) {
+        const currentEdges = tab.edges || [];
+        const resolvedEdges = typeof newEdges === 'function' ? newEdges(currentEdges) : newEdges;
+        return { ...tab, edges: resolvedEdges };
+      }
+      return tab;
+    }));
+  }, [activeTabId, setTabs]);
 
   const setViewport = useCallback((newViewport: { x: number; y: number; zoom: number } | ((prev: { x: number; y: number; zoom: number }) => { x: number; y: number; zoom: number })) => {
-    const resolvedViewport = typeof newViewport === 'function' ? newViewport(viewport) : newViewport;
-    updateActiveTab({ viewport: resolvedViewport });
-  }, [updateActiveTab]);
+    setTabs(prev => prev.map(tab => {
+      if (tab.id === activeTabId) {
+        const currentViewport = tab.viewport || { x: 0, y: 0, zoom: 1 };
+        const resolvedViewport = typeof newViewport === 'function' ? newViewport(currentViewport) : newViewport;
+        return { ...tab, viewport: resolvedViewport };
+      }
+      return tab;
+    }));
+  }, [activeTabId, setTabs]);
 
   // Symmetric selection exclusivity: deselect nodes/edges when canvas objects are selected
   useEffect(() => {

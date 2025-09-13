@@ -1537,8 +1537,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           pointerEvents: 'none',
           overflow: 'visible'
         }}
-        viewBox="-2000 -2000 4000 4000"
-        preserveAspectRatio="none">
+        viewBox="0 0 5000 5000"
+        preserveAspectRatio="xMidYMid meet">
           {(() => {
             // Recalculate edge z-indexes based on current node states
             const edgesWithZIndex = recalculateAllEdgeZIndexes(props.edges, props.nodes);
