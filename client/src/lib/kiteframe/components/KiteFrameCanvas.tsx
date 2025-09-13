@@ -1384,7 +1384,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [props.nodes, props.canvasObjects, props.onNodesChange, props.onCanvasObjectsChange]);
+  }, [props.nodes, props.canvasObjects]);
 
   // Enhanced Grid component that moves with canvas transformations
   const Grid = () => {
