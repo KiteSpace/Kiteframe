@@ -123,11 +123,9 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               style={{
                 fill: fillColor || '#f59e0b',
                 fillOpacity: fillOpacity !== undefined ? fillOpacity : 1,
-                stroke: strokeColor || '#d97706',
-                strokeWidth: (strokeWidth || 2) * (100 / Math.min(width, height)),
-                strokeOpacity: strokeOpacity !== undefined ? strokeOpacity : 1,
-                strokeDasharray: getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2),
-                opacity: opacity || 1,
+                stroke: strokeWidth && strokeWidth > 0 ? strokeColor || '#d97706' : 'none',
+                strokeWidth: strokeWidth && strokeWidth > 0 ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
+                strokeDasharray: strokeWidth && strokeWidth > 0 ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
                 filter: object.data.shadow?.enabled 
                   ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
                   : 'none',
@@ -148,10 +146,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               style={{
                 stroke: strokeColor || '#6b7280',
                 strokeWidth: (strokeWidth || 2) * (100 / Math.min(width, height)),
-                strokeOpacity: strokeOpacity !== undefined ? strokeOpacity : 1,
                 strokeDasharray: getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2),
                 strokeLinecap: lineCap || 'round',
-                opacity: opacity || 1,
                 filter: object.data.shadow?.enabled 
                   ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
                   : 'none',
@@ -177,8 +173,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
                 <polygon
                   points={`0 0, ${arrowMarkerSize} ${arrowMarkerSize * 0.35}, 0 ${arrowMarkerSize * 0.7}`}
                   style={{
-                    fill: strokeColor || '#6b7280',
-                    opacity: strokeOpacity !== undefined ? strokeOpacity : 1
+                    fill: strokeColor || '#6b7280'
                   }}
                 />
               </marker>
@@ -191,10 +186,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               style={{
                 stroke: strokeColor || '#6b7280',
                 strokeWidth: (strokeWidth || 2) * (100 / Math.min(width, height)),
-                strokeOpacity: strokeOpacity !== undefined ? strokeOpacity : 1,
                 strokeDasharray: getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2),
                 strokeLinecap: lineCap || 'round',
-                opacity: opacity || 1,
                 filter: object.data.shadow?.enabled 
                   ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
                   : 'none',
