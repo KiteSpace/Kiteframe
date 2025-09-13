@@ -1386,19 +1386,111 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     };
   }, [props.nodes, props.canvasObjects, props.onNodesChange, props.onCanvasObjectsChange]);
 
-  // Grid (optional – keep your existing grid if you have one)
+  // Enhanced Grid component that moves with canvas transformations
   const Grid = () => {
     if (props.gridType === 'none') return null;
-    return (
-      <svg className="kiteframe-grid">
-        {props.gridType === 'lines' && (
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e2e8f0" strokeWidth="1"/>
-          </pattern>
-        )}
-        <rect width="100%" height="100%" fill={props.gridType==='lines' ? 'url(#grid)' : 'none'} />
-      </svg>
-    );
+    
+    // Grid spacing in world units (scales with zoom)
+    const gridSize = 20; // World units - this will scale with zoom
+    
+    // Calculate viewport bounds in world coordinates
+    const containerRect = containerRef.current?.getBoundingClientRect();
+    if (!containerRect) return null;
+    
+    const worldLeft = -viewport.x / viewport.zoom;
+    const worldTop = -viewport.y / viewport.zoom;
+    const worldRight = worldLeft + containerRect.width / viewport.zoom;
+    const worldBottom = worldTop + containerRect.height / viewport.zoom;
+    
+    // Calculate grid bounds with padding in world units
+    const padding = Math.max(containerRect.width, containerRect.height) / viewport.zoom;
+    const startX = Math.floor((worldLeft - padding) / gridSize) * gridSize;
+    const endX = Math.ceil((worldRight + padding) / gridSize) * gridSize;
+    const startY = Math.floor((worldTop - padding) / gridSize) * gridSize;
+    const endY = Math.ceil((worldBottom + padding) / gridSize) * gridSize;
+    
+    if (props.gridType === 'lines') {
+      // Grid lines implementation
+      const lines = [];
+      
+      // Vertical lines
+      for (let x = startX; x <= endX; x += gridSize) {
+        lines.push(
+          <line
+            key={`v-${x}`}
+            x1={x} y1={startY}
+            x2={x} y2={endY}
+            stroke="var(--kiteframe-grid-color, #e2e8f0)"
+            strokeWidth={1 / viewport.zoom}
+            opacity={0.5}
+            shapeRendering="crispEdges"
+          />
+        );
+      }
+      
+      // Horizontal lines
+      for (let y = startY; y <= endY; y += gridSize) {
+        lines.push(
+          <line
+            key={`h-${y}`}
+            x1={startX} y1={y}
+            x2={endX} y2={y}
+            stroke="var(--kiteframe-grid-color, #e2e8f0)"
+            strokeWidth={1 / viewport.zoom}
+            opacity={0.5}
+          />
+        );
+      }
+      
+      return (
+        <svg 
+          style={{
+            position: 'absolute',
+            left: startX,
+            top: startY,
+            width: endX - startX,
+            height: endY - startY,
+            pointerEvents: 'none',
+            overflow: 'visible'
+          }}
+        >
+          {lines}
+        </svg>
+      );
+    } else {
+      // Grid dots implementation (default)
+      const dots = [];
+      
+      for (let x = startX; x <= endX; x += gridSize) {
+        for (let y = startY; y <= endY; y += gridSize) {
+          dots.push(
+            <circle
+              key={`${x}-${y}`}
+              cx={x} cy={y}
+              r={1 / viewport.zoom}
+              fill="var(--kiteframe-grid-color, #cbd5e1)"
+              opacity={0.6}
+            />
+          );
+        }
+      }
+      
+      return (
+        <svg 
+          style={{
+            position: 'absolute',
+            left: startX,
+            top: startY,
+            width: endX - startX,
+            height: endY - startY,
+            pointerEvents: 'none',
+            overflow: 'visible'
+          }}
+        >
+          {dots}
+        </svg>
+      );
+    }
   };
 
   const worldStyle = { transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})` };
@@ -1434,8 +1526,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         props.onCanvasClick?.();
       }}
     >
-      <Grid />
       <div className="kiteframe-world" style={worldStyle}>
+        <Grid />
         {/* Existing edges */}
         <svg className="kiteframe-edge-layer" style={{ 
           position: 'absolute',
