@@ -20,6 +20,7 @@ export class SmartConnectPlugin implements KiteFramePlugin {
   private frameRequest: number | null = null;
   private lastUpdateTime = 0;
   private readonly UPDATE_THROTTLE = 16; // ~60fps
+  private dragOffset: { dx: number; dy: number } | null = null;
 
   initialize(core: any): void {
     console.log('🔗 SmartConnect Pro Plugin v1.0: Initializing...');
@@ -103,6 +104,17 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     
     this.isDragging = true;
     this.draggedNodeId = nodeId;
+    
+    // Calculate drag offset to convert worldPos to node top-left position
+    const draggedNode = this.currentNodes.find(n => n.id === nodeId);
+    if (draggedNode) {
+      this.dragOffset = {
+        dx: worldPos.x - draggedNode.position.x,
+        dy: worldPos.y - draggedNode.position.y
+      };
+      console.log(`🔗 SmartConnect: Drag offset calculated: dx=${this.dragOffset.dx.toFixed(1)}, dy=${this.dragOffset.dy.toFixed(1)}`);
+    }
+    
     console.log('🔗 SmartConnect: Drag started for node', nodeId);
   }
 
@@ -134,6 +146,7 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     // Clear preview first
     this.clearPreview();
     this.draggedNodeId = null;
+    this.dragOffset = null;
     
     // Cancel any pending frame request
     if (this.frameRequest) {
@@ -153,11 +166,21 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     const draggedNode = this.currentNodes.find(n => n.id === nodeId);
     if (!draggedNode) return;
     
+    // Convert worldPos to node top-left position using drag offset
+    let correctedPosition = nodePosition;
+    if (this.dragOffset) {
+      correctedPosition = {
+        x: nodePosition.x - this.dragOffset.dx,
+        y: nodePosition.y - this.dragOffset.dy
+      };
+      console.log(`🔗 SmartConnect: Position corrected from worldPos(${nodePosition.x.toFixed(1)}, ${nodePosition.y.toFixed(1)}) to topLeft(${correctedPosition.x.toFixed(1)}, ${correctedPosition.y.toFixed(1)})`);
+    }
+    
     const threshold = this.config.threshold || 100; // Increased threshold
     let closestConnection: { target: string; distance: number } | null = null;
     
     // Create a temporary node with updated position for accurate calculation
-    const updatedDraggedNode = { ...draggedNode, position: nodePosition };
+    const updatedDraggedNode = { ...draggedNode, position: correctedPosition };
     
     // Check proximity to other nodes
     this.currentNodes.forEach(targetNode => {
@@ -167,7 +190,7 @@ export class SmartConnectPlugin implements KiteFramePlugin {
       if (this.connectionExists(nodeId, targetNode.id)) return;
       
       // Calculate distance from nearest edges instead of centers
-      const distance = this.calculateNearestEdgeDistance(nodePosition, updatedDraggedNode, targetNode);
+      const distance = this.calculateNearestEdgeDistance(correctedPosition, updatedDraggedNode, targetNode);
       
       console.log(`🔗 SmartConnect DRAG: Distance between ${nodeId} and ${targetNode.id}: ${distance.toFixed(1)}px (threshold: ${threshold}px)`);
       
