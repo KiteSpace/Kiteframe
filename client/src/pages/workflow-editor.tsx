@@ -21,6 +21,7 @@ import { ObjectUploader } from '@/components/ObjectUploader';
 import { useFirebaseWorkflows } from '../hooks/useFirebaseWorkflows';
 import { useAuth } from '../hooks/useAuth';
 import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType } from '../lib/kiteframe/types';
+import { recalculateAllEdgeZIndexes } from '../lib/kiteframe/utils/edgeZIndex';
 import '../lib/kiteframe/styles/kiteframe.css';
 import { X, Plus } from 'lucide-react';
 
@@ -3500,12 +3501,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               if (contextMenu.node) {
                 const maxZIndex = Math.max(...nodes.map(n => n.zIndex || 0));
                 saveToHistory();
+                const updatedNodes = nodes.map(n => 
+                  n.id === contextMenu.node!.id 
+                    ? { ...n, zIndex: maxZIndex + 1 }
+                    : n
+                );
+                // Recalculate edge z-indexes based on updated nodes
+                const updatedEdges = recalculateAllEdgeZIndexes(edges, updatedNodes);
                 updateActiveTab({
-                  nodes: nodes.map(n => 
-                    n.id === contextMenu.node!.id 
-                      ? { ...n, zIndex: maxZIndex + 1 }
-                      : n
-                  )
+                  nodes: updatedNodes,
+                  edges: updatedEdges
                 });
               } else if (contextMenu.canvasObject) {
                 const maxZIndex = Math.max(...canvasObjects.map(obj => obj.zIndex || 0));
@@ -3523,12 +3528,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               if (contextMenu.node) {
                 const currentZIndex = contextMenu.node.zIndex || 0;
                 saveToHistory();
+                const updatedNodes = nodes.map(n => 
+                  n.id === contextMenu.node!.id 
+                    ? { ...n, zIndex: currentZIndex + 1 }
+                    : n
+                );
+                // Recalculate edge z-indexes based on updated nodes
+                const updatedEdges = recalculateAllEdgeZIndexes(edges, updatedNodes);
                 updateActiveTab({
-                  nodes: nodes.map(n => 
-                    n.id === contextMenu.node!.id 
-                      ? { ...n, zIndex: currentZIndex + 1 }
-                      : n
-                  )
+                  nodes: updatedNodes,
+                  edges: updatedEdges
                 });
               } else if (contextMenu.canvasObject) {
                 const currentZIndex = contextMenu.canvasObject.zIndex || 0;
@@ -3546,12 +3555,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               if (contextMenu.node) {
                 const currentZIndex = contextMenu.node.zIndex || 0;
                 saveToHistory();
+                const updatedNodes = nodes.map(n => 
+                  n.id === contextMenu.node!.id 
+                    ? { ...n, zIndex: Math.max(0, currentZIndex - 1) }
+                    : n
+                );
+                // Recalculate edge z-indexes based on updated nodes
+                const updatedEdges = recalculateAllEdgeZIndexes(edges, updatedNodes);
                 updateActiveTab({
-                  nodes: nodes.map(n => 
-                    n.id === contextMenu.node!.id 
-                      ? { ...n, zIndex: Math.max(0, currentZIndex - 1) }
-                      : n
-                  )
+                  nodes: updatedNodes,
+                  edges: updatedEdges
                 });
               } else if (contextMenu.canvasObject) {
                 const currentZIndex = contextMenu.canvasObject.zIndex || 0;
@@ -3568,12 +3581,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onSendToBack={() => {
               if (contextMenu.node) {
                 saveToHistory();
+                const updatedNodes = nodes.map(n => 
+                  n.id === contextMenu.node!.id 
+                    ? { ...n, zIndex: 0 }
+                    : n
+                );
+                // Recalculate edge z-indexes based on updated nodes
+                const updatedEdges = recalculateAllEdgeZIndexes(edges, updatedNodes);
                 updateActiveTab({
-                  nodes: nodes.map(n => 
-                    n.id === contextMenu.node!.id 
-                      ? { ...n, zIndex: 0 }
-                      : n
-                  )
+                  nodes: updatedNodes,
+                  edges: updatedEdges
                 });
               } else if (contextMenu.canvasObject) {
                 saveToHistory();

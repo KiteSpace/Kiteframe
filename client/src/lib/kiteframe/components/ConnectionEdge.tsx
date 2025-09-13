@@ -211,10 +211,13 @@ export const ConnectionEdge: React.FC<{
   const selectionWidth = isSelected ? strokeWidth + 1 : strokeWidth;
   
   return (
-    <g className="kiteframe-edge" onClick={(e) => {
-      e.stopPropagation();
-      onEdgeClick?.(edge);
-    }}>
+    <g 
+      className="kiteframe-edge" 
+      style={{ zIndex: edge.zIndex || 0 }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onEdgeClick?.(edge);
+      }}>
       <defs>
         {/* Gradient definition */}
         {style.gradient && (

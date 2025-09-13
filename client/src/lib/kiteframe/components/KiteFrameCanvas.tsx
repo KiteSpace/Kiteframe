@@ -3,6 +3,7 @@ import '../styles/kiteframe.css';
 import '../styles/enhanced-selection.css';
 import type { Node, Edge, NodeType, CanvasObject, CanvasObjectType, ProFeaturesConfig, QuickAddConfig } from '../types';
 import { clientToWorld, zoomAroundPoint } from '../utils/geometry';
+import { recalculateAllEdgeZIndexes, sortEdgesByZIndex } from '../utils/edgeZIndex';
 import { NodeHandles } from './NodeHandles';
 import { ConnectionEdge } from './ConnectionEdge';
 import { SnapGuides } from './SnapGuides';
@@ -1447,41 +1448,54 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         }}
         viewBox="-5000 -5000 10000 10000"
         preserveAspectRatio="none">
-          {props.edges.map(e => {
-            const s = props.nodes.find(n => n.id === e.source);
-            const t = props.nodes.find(n => n.id === e.target);
-            if (!s || !t) return null;
-            return <ConnectionEdge key={e.id} edge={e} sourceNode={s} targetNode={t} onEdgeClick={(edge) => props.onEdgeClick?.(e as any, edge)} />;
-          })}
+          {(() => {
+            // Recalculate edge z-indexes based on current node states
+            const edgesWithZIndex = recalculateAllEdgeZIndexes(props.edges, props.nodes);
+            // Sort edges by z-index for proper rendering order
+            const sortedEdges = sortEdgesByZIndex(edgesWithZIndex);
+            
+            return sortedEdges.map(e => {
+              const s = props.nodes.find(n => n.id === e.source);
+              const t = props.nodes.find(n => n.id === e.target);
+              if (!s || !t) return null;
+              return <ConnectionEdge key={e.id} edge={e} sourceNode={s} targetNode={t} onEdgeClick={(edge) => props.onEdgeClick?.(e as any, edge)} />;
+            });
+          })()}
 
           {/* Edge reconnection handles for selected edges */}
-          {props.edges.map(e => {
-            // Check if edge reconnection is enabled
-            const edgeReconnectionConfig = props.proFeatures?.edgeReconnection;
-            const isReconnectionEnabled = edgeReconnectionConfig?.enabled !== false; // Default enabled
-            const isEdgeReconnectable = e.reconnectable || edgeReconnectionConfig?.enableAllEdges;
+          {(() => {
+            // Use the same sorted edges for consistency
+            const edgesWithZIndex = recalculateAllEdgeZIndexes(props.edges, props.nodes);
+            const sortedEdges = sortEdgesByZIndex(edgesWithZIndex);
             
-            // Only show handles if edge is selected and reconnection is enabled
-            if (!e.selected || !isReconnectionEnabled || !isEdgeReconnectable) return null;
-            
-            const s = props.nodes.find(n => n.id === e.source);
-            const t = props.nodes.find(n => n.id === e.target);
-            if (!s || !t) return null;
-            
-            return (
-              <EdgeHandles 
-                key={`${e.id}-handles`}
-                edge={e}
-                sourceNode={s}
-                targetNode={t}
-                nodes={props.nodes}
-                edges={props.edges}
-                onEdgeReconnect={props.onEdgeReconnect}
-                viewport={viewport}
-                visualConfig={edgeReconnectionConfig?.visualFeedback}
-              />
-            );
-          })}
+            return sortedEdges.map(e => {
+              // Check if edge reconnection is enabled
+              const edgeReconnectionConfig = props.proFeatures?.edgeReconnection;
+              const isReconnectionEnabled = edgeReconnectionConfig?.enabled !== false; // Default enabled
+              const isEdgeReconnectable = e.reconnectable || edgeReconnectionConfig?.enableAllEdges;
+              
+              // Only show handles if edge is selected and reconnection is enabled
+              if (!e.selected || !isReconnectionEnabled || !isEdgeReconnectable) return null;
+              
+              const s = props.nodes.find(n => n.id === e.source);
+              const t = props.nodes.find(n => n.id === e.target);
+              if (!s || !t) return null;
+              
+              return (
+                <EdgeHandles 
+                  key={`${e.id}-handles`}
+                  edge={e}
+                  sourceNode={s}
+                  targetNode={t}
+                  nodes={props.nodes}
+                  edges={props.edges}
+                  onEdgeReconnect={props.onEdgeReconnect}
+                  viewport={viewport}
+                  visualConfig={edgeReconnectionConfig?.visualFeedback}
+                />
+              );
+            });
+          })()}
 
           {/* ANIMATED PREVIEW EDGE while dragging a connection */}
           {connecting && (() => {

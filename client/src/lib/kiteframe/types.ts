@@ -85,6 +85,7 @@ export type Edge = {
   hidden?: boolean;
   interactable?: boolean;
   reconnectable?: boolean; // Pro feature: enable endpoint reconnection
+  zIndex?: number; // Z-index for edge layering
   data?: any; // Keep for backward compatibility
 };
 
