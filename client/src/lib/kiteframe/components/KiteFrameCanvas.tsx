@@ -1499,6 +1499,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     <div
       ref={containerRef}
       className={`kiteframe-canvas ${props.className||''} ${panning ? 'kiteframe-hand': ''}`}
+      data-testid="workflow-canvas"
       onWheel={onWheel}
       onMouseDown={onBackgroundDown}
       onMouseMove={onBackgroundMove}
