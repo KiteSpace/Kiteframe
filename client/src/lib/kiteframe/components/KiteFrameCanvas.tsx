@@ -869,6 +869,89 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       });
       return;
     }
+    // Handle node dragging (SmartConnect plugin notification)
+    if (dragInfo.current) {
+      const rect = containerRef.current!.getBoundingClientRect();
+      const wpos = clientToWorld(e.clientX, e.clientY, viewport, rect);
+      
+      // Calculate new position based on drag movement
+      const dx = wpos.x - dragInfo.current.start.x;
+      const dy = wpos.y - dragInfo.current.start.y;
+      
+      if (dragInfo.current.isGroupDrag) {
+        // Group drag - update all selected nodes
+        const selectedNodes = props.nodes.filter(node => node.selected === true);
+        const updatedNodes = props.nodes.map(node => {
+          if (node.selected) {
+            const origin = dragInfo.current!.origins.find(o => o.id === node.id)?.origin || node.position;
+            const newPosition = { x: origin.x + dx, y: origin.y + dy };
+            
+            console.log('🔧 INDIVIDUAL DRAG UPDATE:', {
+              nodeId: node.id,
+              targetPosition: { x: origin.x + dx, y: origin.y + dy },
+              finalPosition: newPosition,
+              snapApplied: false, // Simplified for now
+              updated: { ...node, position: newPosition }
+            });
+            
+            return { ...node, position: newPosition };
+          }
+          return node;
+        });
+        
+        console.log('🔧 GROUP DRAG UPDATE:', {
+          updatedNodes: updatedNodes.filter(n => n.selected),
+          totalNodes: props.nodes.length
+        });
+        
+        props.onNodesChange(updatedNodes);
+        
+        console.log('🔧 DRAG MOVE:', {
+          dragInfo: dragInfo.current,
+          worldPos: wpos,
+          delta: { dx, dy },
+          viewport,
+          isGroupDrag: dragInfo.current.isGroupDrag
+        });
+      } else {
+        // Single node drag
+        const targetNode = props.nodes.find(n => n.id === dragInfo.current!.id);
+        if (targetNode) {
+          const newPosition = { x: dragInfo.current.origin.x + dx, y: dragInfo.current.origin.y + dy };
+          const updatedNodes = props.nodes.map(node => 
+            node.id === dragInfo.current!.id ? { ...node, position: newPosition } : node
+          );
+          
+          console.log('🔧 INDIVIDUAL DRAG UPDATE:', {
+            nodeId: dragInfo.current.id,
+            targetPosition: { x: dragInfo.current.origin.x + dx, y: dragInfo.current.origin.y + dy },
+            finalPosition: newPosition,
+            snapApplied: false, // Simplified for now
+            updated: { ...targetNode, position: newPosition }
+          });
+          
+          props.onNodesChange(updatedNodes);
+          
+          console.log('🔧 DRAG MOVE:', {
+            dragInfo: dragInfo.current,
+            worldPos: wpos,
+            delta: { dx, dy },
+            viewport,
+            isGroupDrag: dragInfo.current.isGroupDrag
+          });
+          
+          // Notify SmartConnectPlugin during drag
+          if (enablePlugins && props.proFeatures?.smartConnect?.enabled !== false) {
+            const smartConnectPlugin = core.getPlugin('smart-connect-pro');
+            if (smartConnectPlugin) {
+              (smartConnectPlugin as any).handleDrag?.(dragInfo.current.id, newPosition);
+            }
+          }
+        }
+      }
+      return;
+    }
+    
     if (connecting) {
       const rect = containerRef.current!.getBoundingClientRect();
       const wpos = clientToWorld(e.clientX, e.clientY, viewport, rect);
@@ -1611,8 +1694,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   dragInfo: dragInfo.current
                 });
                 
-                // Notify SmartConnectPlugin of drag start
-                if (enablePlugins && !isGroupDrag && props.proFeatures?.smartConnect?.enabled !== false) {
+                // Notify SmartConnectPlugin of drag start (for both single and group drags)
+                if (enablePlugins && props.proFeatures?.smartConnect?.enabled !== false) {
                   const smartConnectPlugin = core.getPlugin('smart-connect-pro');
                   if (smartConnectPlugin) {
                     // Call the plugin's handleDragStart method to initialize drag tracking
