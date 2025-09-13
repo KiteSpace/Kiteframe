@@ -205,13 +205,18 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     // Update preview
     if (closestConnection) {
       const newPreview = { source: nodeId, target: closestConnection.target };
+      console.log(`🔗 SmartConnect: Creating preview: ${newPreview.source} -> ${newPreview.target}`);
       if (!this.previewConnection || 
           this.previewConnection.source !== newPreview.source || 
           this.previewConnection.target !== newPreview.target) {
         this.previewConnection = newPreview;
+        console.log(`🔗 SmartConnect: Calling updatePreview with:`, newPreview);
         this.updatePreview(newPreview);
+      } else {
+        console.log(`🔗 SmartConnect: Preview unchanged, skipping update`);
       }
     } else {
+      console.log(`🔗 SmartConnect: No close connection found, clearing preview`);
       if (this.previewConnection) {
         this.clearPreview();
       }
@@ -314,14 +319,21 @@ export class SmartConnectPlugin implements KiteFramePlugin {
   }
 
   private updatePreview(preview: { source: string; target: string }): void {
+    console.log(`🔗 SmartConnect: updatePreview called with:`, preview);
+    console.log(`🔗 SmartConnect: showPreview=${this.config.showPreview}, hasCallback=${!!this.connectionPreviewCallback}`);
     if (this.config.showPreview && this.connectionPreviewCallback) {
+      console.log(`🔗 SmartConnect: Calling preview callback with preview:`, preview);
       this.connectionPreviewCallback(preview);
+    } else {
+      console.log(`🔗 SmartConnect: Preview callback NOT called - showPreview:${this.config.showPreview}, callback:${!!this.connectionPreviewCallback}`);
     }
   }
 
   private clearPreview(): void {
+    console.log(`🔗 SmartConnect: clearPreview called`);
     this.previewConnection = null;
     if (this.connectionPreviewCallback) {
+      console.log(`🔗 SmartConnect: Calling preview callback with null`);
       this.connectionPreviewCallback(null);
     }
   }

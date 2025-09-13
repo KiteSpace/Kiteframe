@@ -1527,10 +1527,19 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
           {/* SmartConnect Preview */}
           {props.connectionPreview && (() => {
+            console.log('🎨 KiteFrameCanvas: Rendering connectionPreview:', props.connectionPreview);
             const sourceNode = props.nodes.find(n => n.id === props.connectionPreview!.source);
             const targetNode = props.nodes.find(n => n.id === props.connectionPreview!.target);
             
-            if (!sourceNode || !targetNode) return null;
+            console.log('🎨 KiteFrameCanvas: Preview nodes found:', { 
+              sourceNode: sourceNode ? { id: sourceNode.id, position: sourceNode.position } : null,
+              targetNode: targetNode ? { id: targetNode.id, position: targetNode.position } : null
+            });
+            
+            if (!sourceNode || !targetNode) {
+              console.log('🎨 KiteFrameCanvas: Missing preview nodes, returning null');
+              return null;
+            }
             
             const sourceRect = getNodeRect(sourceNode);
             const targetRect = getNodeRect(targetNode);
