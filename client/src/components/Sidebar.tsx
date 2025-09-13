@@ -31,6 +31,7 @@ import {
   EyeOff,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Route,
   MapPin,
   Network,
@@ -95,6 +96,7 @@ interface SidebarProps {
   onCreateTemplate?: (templateType: string) => void;
   connectionAnimationConfig?: any;
   onConnectionAnimationConfigChange?: (config: any) => void;
+  onToggleSidebar?: () => void;
 }
 
 export function Sidebar({
@@ -130,6 +132,7 @@ export function Sidebar({
   onCreateTemplate,
   connectionAnimationConfig = {},
   onConnectionAnimationConfigChange,
+  onToggleSidebar,
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
@@ -307,6 +310,20 @@ export function Sidebar({
   return (
     <>
       <aside className="w-64 p-4 bg-card border-r border-border shadow-sm flex flex-col h-full overflow-hidden" data-testid="sidebar">
+        {/* Sidebar Header with Collapse Button */}
+        {onToggleSidebar && (
+          <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+            <h2 className="text-sm font-semibold text-foreground">Tools</h2>
+            <button
+              onClick={onToggleSidebar}
+              className="p-1 rounded-md hover:bg-accent transition-colors"
+              data-testid="collapse-sidebar"
+              title="Collapse Sidebar"
+            >
+              <ChevronLeft size={16} />
+            </button>
+          </div>
+        )}
         <div className="space-y-6 flex-1 overflow-y-auto">
         {isMultiSelect ? (
           // Multi-select properties view

@@ -2541,6 +2541,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 selectedNode={nodes.find(n => n.id === selectedNodeId)}
                 selectedNodes={nodes.filter(n => n.selected)}
                 selectedEdge={edges.find(e => e.id === selectedEdgeId)}
+                onToggleSidebar={toggleSidebar}
                 onCreateNode={(type: string) => {
                 // Create a new tab if none exist
                 if (tabs.length === 0) {
