@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { clientToWorld } from '@/lib/kiteframe/utils/geometry';
 
 interface CollapsedSidebarProps {
   toggleSidebar: () => void;
   onCreateNode: (type: string) => void;
+  onCreateNodeAtPosition?: (type: string, position: { x: number; y: number }) => void;
   onFitView: () => void;
   onClearCanvas: () => void;
   onExport: () => void;
@@ -13,11 +15,14 @@ interface CollapsedSidebarProps {
   activePopout: 'node-types' | 'shapes' | null;
   setActivePopout: (popout: 'node-types' | 'shapes' | null) => void;
   sidebarIcons: Record<string, LucideIcon>;
+  viewport: { x: number; y: number; zoom: number };
 }
 
 export function CollapsedSidebar({
   toggleSidebar,
   onCreateNode,
+  onCreateNodeAtPosition,
+  viewport,
   onFitView,
   onClearCanvas,
   onExport,
@@ -43,10 +48,10 @@ export function CollapsedSidebar({
         setActivePopout(activePopout === 'node-types' ? null : 'node-types');
         break;
       case 'type':
-        onCreateNode('text');
+        // Text creation only happens via drag-and-drop
         break;
       case 'sticky-note':
-        onCreateNode('sticky');
+        // Sticky note creation only happens via drag-and-drop
         break;
       case 'shapes':
         setActivePopout(activePopout === 'shapes' ? null : 'shapes');
@@ -105,15 +110,17 @@ export function CollapsedSidebar({
       
       if (canvasElement) {
         const canvasRect = canvasElement.getBoundingClientRect();
-        const x = e.clientX - canvasRect.left;
-        const y = e.clientY - canvasRect.top;
+        const canvasX = e.clientX - canvasRect.left;
+        const canvasY = e.clientY - canvasRect.top;
         
         // Only create object if dropped on canvas
-        if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
-          console.log('🎯 CALLING onCreateNode from collapsed sidebar:', { iconKey, position: { x, y } });
-          // Convert icon key to node type
+        if (canvasX >= 0 && canvasX <= canvasRect.width && canvasY >= 0 && canvasY <= canvasRect.height) {
+          // Convert screen coordinates to world coordinates using viewport transformation
+          const worldPos = clientToWorld(e.clientX, e.clientY, viewport, canvasRect);
+          console.log('🎯 CALLING onCreateNodeAtPosition from collapsed sidebar:', { iconKey, worldPosition: worldPos, screenPos: { x: e.clientX, y: e.clientY }, viewport, canvasRect });
+          // Convert icon key to node type and call position-based creation
           const nodeType = iconKey === 'type' ? 'text' : iconKey === 'sticky-note' ? 'sticky' : iconKey;
-          onCreateNode(nodeType);
+          onCreateNodeAtPosition?.(nodeType, worldPos);
         } else {
           console.log('🎯 DROP OUTSIDE CANVAS - NO OBJECT CREATED');
         }

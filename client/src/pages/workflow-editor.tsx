@@ -2503,6 +2503,50 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       });
                     }
                   }}
+                  onCreateNodeAtPosition={(type: string, position: { x: number; y: number }) => {
+                    // Handle position-based creation from drag-and-drop
+                    if (['text', 'sticky', 'shape'].includes(type)) {
+                      saveToHistory();
+                      
+                      let newCanvasObject: CanvasObject;
+                      
+                      if (type === 'text') {
+                        newCanvasObject = {
+                          id: `object-${Date.now()}`,
+                          type: 'text',
+                          position,
+                          data: { text: 'Click to edit text', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', textColor: '#000000' } as any,
+                          width: 200,
+                          height: 50,
+                          selected: false
+                        };
+                      } else if (type === 'sticky') {
+                        newCanvasObject = {
+                          id: `object-${Date.now()}`,
+                          type: 'sticky',
+                          position,
+                          data: { text: 'Sticky note...', backgroundColor: '#fef3c7', textColor: '#92400e' } as any,
+                          width: 200,
+                          height: 150,
+                          selected: false
+                        };
+                      } else { // shape
+                        newCanvasObject = {
+                          id: `object-${Date.now()}`,
+                          type: 'shape',
+                          position,
+                          data: { shapeType: 'rectangle', fillColor: '#3b82f6', strokeColor: '#1e40af', strokeWidth: 2 } as any,
+                          width: 150,
+                          height: 100,
+                          selected: false
+                        };
+                      }
+                      
+                      updateActiveTab({ 
+                        canvasObjects: [...canvasObjects, newCanvasObject] 
+                      });
+                    }
+                  }}
                   onFitView={() => {
                     if (nodes.length === 0) {
                       setViewport({ x: 0, y: 0, zoom: 1 });
@@ -2540,6 +2584,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   activePopout={activePopout}
                   setActivePopout={setActivePopout}
                   sidebarIcons={sidebarIcons}
+                  viewport={viewport}
                 />
                 
                 {/* Node Types Popout */}

@@ -68,7 +68,7 @@ export function NodeTypesPopout({ isOpen, onClose, onCreateNode, onCreateNodeAtP
         if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
           console.log('🎯 CALLING onCreateNodeAtPosition from popout:', { nodeType, position: { x, y } });
           onCreateNodeAtPosition(nodeType, { x, y });
-          onClose(); // Close popout after successful drop
+          // Don't close popout after drag-and-drop - only on outside click or toggle
         } else {
           console.log('🎯 DROP OUTSIDE CANVAS - NO NODE CREATED');
         }
@@ -118,7 +118,7 @@ export function NodeTypesPopout({ isOpen, onClose, onCreateNode, onCreateNodeAtP
                 className="p-2 border border-border rounded-md cursor-pointer text-center hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
                 onClick={() => {
                   onCreateNode(nodeType.type);
-                  onClose();
+                  // Don't close popout on click - only on outside click or toggle
                 }}
                 onMouseDown={(e) => handleNodeTypeMouseDown(e, nodeType.type)}
                 data-testid={`popout-node-type-${nodeType.type}`}

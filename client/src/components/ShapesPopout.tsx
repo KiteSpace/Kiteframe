@@ -65,7 +65,7 @@ export function ShapesPopout({ isOpen, onClose, onCreateShape }: ShapesPopoutPro
         if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
           console.log('🎯 CALLING onCreateShape from popout:', { shapeType, position: { x, y } });
           onCreateShape(shapeType);
-          onClose(); // Close popout after successful drop
+          // Don't close popout after drag-and-drop - only on outside click or toggle
         } else {
           console.log('🎯 DROP OUTSIDE CANVAS - NO SHAPE CREATED');
         }
@@ -115,7 +115,7 @@ export function ShapesPopout({ isOpen, onClose, onCreateShape }: ShapesPopoutPro
                 className="p-2 border border-border rounded-md cursor-pointer text-center hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
                 onClick={() => {
                   onCreateShape(shapeType.type);
-                  onClose();
+                  // Don't close popout on click - only on outside click or toggle
                 }}
                 onMouseDown={(e) => handleShapeMouseDown(e, shapeType.type)}
                 data-testid={`popout-shape-${shapeType.type}`}
