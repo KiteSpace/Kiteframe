@@ -828,6 +828,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
           const currentState = {
             nodes: tab.nodes,
             edges: tab.edges,
+            canvasObjects: tab.canvasObjects || [],
             viewport: tab.viewport
           };
           
@@ -1064,6 +1065,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
             const newHistoryState = {
               nodes: [...importedNodes],
               edges: [...importedEdges],
+              canvasObjects: data.canvasObjects || [],
               viewport: { ...importedViewport }
             };
             
@@ -1133,6 +1135,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     const initialState = {
       nodes: templateData.nodes,
       edges: templateData.edges,
+      canvasObjects: [],
       viewport: { x: 0, y: 0, zoom: 1 }
     };
     
@@ -1327,6 +1330,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     const initialState = {
       nodes: data.nodes.map(node => ({ ...node, selected: false })),
       edges: data.edges.map(edge => ({ ...edge, selected: false })),
+      canvasObjects: [],
       viewport: { x: 0, y: 0, zoom: 1 }
     };
     
@@ -1355,6 +1359,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     const initialState = {
       nodes: template.nodes.map(node => ({ ...node, selected: false })),
       edges: template.edges.map(edge => ({ ...edge, selected: false })),
+      canvasObjects: [],
       viewport: { x: 0, y: 0, zoom: 1 }
     };
     
@@ -2088,7 +2093,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
               source: connection.source,
               target: connection.target,
-              style: 'bezier' as const,
+              type: 'bezier' as const,
               animated: false,
               strokeWidth: 2,
               color: '#94a3b8'
@@ -2143,7 +2148,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
               source: connection.source,
               target: connection.target,
-              style: 'bezier' as const,
+              type: 'bezier' as const,
               animated: false,
               strokeWidth: 2,
               color: '#94a3b8'
@@ -2455,21 +2460,45 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 if (['text', 'sticky', 'shape'].includes(type)) {
                   saveToHistory(); // Save current state before adding canvas object
                   
-                  const newCanvasObject: CanvasObject = {
-                    id: `object-${Date.now()}`,
-                    type: type as 'text' | 'sticky' | 'shape',
-                    position: getViewportCenteredPosition(),
-                    data: type === 'text' 
-                      ? { text: 'Click to edit text', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', textColor: '#000000' }
-                      : type === 'sticky'
-                      ? { text: 'Your note here...', backgroundColor: '#fef3c7', textColor: '#92400e', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' }
-                      : { shapeType: 'rectangle', fillColor: '#3b82f6', strokeColor: '#1d4ed8', strokeWidth: 2, opacity: 1 },
-                    style: { width: type === 'sticky' ? 180 : 200, height: type === 'sticky' ? 180 : 100 },
-                    width: type === 'sticky' ? 180 : 200,
-                    height: type === 'sticky' ? 180 : 100,
-                    draggable: true,
-                    resizable: true
-                  };
+                  let newCanvasObject: CanvasObject;
+                  
+                  if (type === 'text') {
+                    newCanvasObject = {
+                      id: `object-${Date.now()}`,
+                      type: 'text',
+                      position: getViewportCenteredPosition(),
+                      data: { text: 'Click to edit text', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', textColor: '#000000' } as any,
+                      style: { width: 200, height: 100 },
+                      width: 200,
+                      height: 100,
+                      draggable: true,
+                      resizable: true
+                    };
+                  } else if (type === 'sticky') {
+                    newCanvasObject = {
+                      id: `object-${Date.now()}`,
+                      type: 'sticky',
+                      position: getViewportCenteredPosition(),
+                      data: { text: 'Your note here...', backgroundColor: '#fef3c7', textColor: '#92400e', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' } as any,
+                      style: { width: 180, height: 180 },
+                      width: 180,
+                      height: 180,
+                      draggable: true,
+                      resizable: true
+                    };
+                  } else {
+                    newCanvasObject = {
+                      id: `object-${Date.now()}`,
+                      type: 'shape',
+                      position: getViewportCenteredPosition(),
+                      data: { shapeType: 'rectangle', fillColor: '#3b82f6', strokeColor: '#1d4ed8', strokeWidth: 2, strokeStyle: 'solid', opacity: 1 } as any,
+                      style: { width: 200, height: 100 },
+                      width: 200,
+                      height: 100,
+                      draggable: true,
+                      resizable: true
+                    };
+                  }
                   
                   // Add to canvas objects instead of regular nodes
                   const currentCanvasObjects = activeTab?.canvasObjects || [];
@@ -2758,10 +2787,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   name: workflow.name,
                   nodes: workflow.nodes,
                   edges: workflow.edges,
+                  canvasObjects: [],
                   viewport: { x: 0, y: 0, zoom: 1 },
                   selectedNodeId: '',
                   selectedEdgeId: '',
-                  history: [{ nodes: workflow.nodes, edges: workflow.edges, viewport: { x: 0, y: 0, zoom: 1 } }],
+                  history: [{ nodes: workflow.nodes, edges: workflow.edges, canvasObjects: [], viewport: { x: 0, y: 0, zoom: 1 } }],
                   historyIndex: 0,
                   showImageModal: null,
                   metadata: {
