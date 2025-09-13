@@ -1141,8 +1141,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         
         // Notify SmartConnectPlugin of drag movement for real-time preview
         if (enablePlugins && props.proFeatures?.smartConnect?.enabled !== false) {
-          const smartConnectPlugin = core.proFeaturesManager?.smartConnectPlugin;
+          const smartConnectPlugin = core.getPlugin('smart-connect-pro');
+          console.log('🔗 DEBUG: SmartConnect plugin found:', !!smartConnectPlugin, smartConnectPlugin?.name);
           if (smartConnectPlugin) {
+            console.log('🔗 DEBUG: Calling handleDrag method for node:', id, 'position:', finalPosition);
             // Call the plugin's handleDrag method to show connection preview
             (smartConnectPlugin as any).handleDrag?.(id, finalPosition);
           }
@@ -1226,7 +1228,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           const draggedNode = props.nodes.find(n => n.id === dragInfo.current?.id);
           if (draggedNode && enablePlugins) {
             console.log('🔗 Smart Connect: Checking auto-connection for', dragInfo.current.id);
-            const smartConnectPlugin = core.proFeaturesManager?.smartConnectPlugin;
+            const smartConnectPlugin = core.getPlugin('smart-connect-pro');
             if (smartConnectPlugin) {
               // Call the plugin's handleDragEnd method to execute auto-connection
               (smartConnectPlugin as any).handleDragEnd?.(dragInfo.current.id, draggedNode.position);
@@ -1613,7 +1615,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 
                 // Notify SmartConnectPlugin of drag start
                 if (enablePlugins && !isGroupDrag && props.proFeatures?.smartConnect?.enabled !== false) {
-                  const smartConnectPlugin = core.proFeaturesManager?.smartConnectPlugin;
+                  const smartConnectPlugin = core.getPlugin('smart-connect-pro');
                   if (smartConnectPlugin) {
                     // Call the plugin's handleDragStart method to initialize drag tracking
                     (smartConnectPlugin as any).handleDragStart?.(n.id, wp);
