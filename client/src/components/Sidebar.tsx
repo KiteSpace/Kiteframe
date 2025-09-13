@@ -140,7 +140,7 @@ export function Sidebar({
     startPos: { x: number; y: number } | null;
     currentPos: { x: number; y: number } | null;
   }>({ isDragging: false, nodeType: null, startPos: null, currentPos: null });
-  const [isThemesExpanded, setIsThemesExpanded] = useState(true);
+  const [isThemesExpanded, setIsThemesExpanded] = useState(false);
   const [isTemplatesExpanded, setIsTemplatesExpanded] = useState(false);
   const [isAnimationExpanded, setIsAnimationExpanded] = useState(false);
   // showImageModal is now passed as a prop
