@@ -1527,19 +1527,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
           {/* SmartConnect Preview */}
           {props.connectionPreview && (() => {
-            console.log('🎨 KiteFrameCanvas: Rendering connectionPreview:', props.connectionPreview);
             const sourceNode = props.nodes.find(n => n.id === props.connectionPreview!.source);
             const targetNode = props.nodes.find(n => n.id === props.connectionPreview!.target);
             
-            console.log('🎨 KiteFrameCanvas: Preview nodes found:', { 
-              sourceNode: sourceNode ? { id: sourceNode.id, position: sourceNode.position } : null,
-              targetNode: targetNode ? { id: targetNode.id, position: targetNode.position } : null
-            });
-            
-            if (!sourceNode || !targetNode) {
-              console.log('🎨 KiteFrameCanvas: Missing preview nodes, returning null');
-              return null;
-            }
+            if (!sourceNode || !targetNode) return null;
             
             const sourceRect = getNodeRect(sourceNode);
             const targetRect = getNodeRect(targetNode);
@@ -1548,31 +1539,19 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             const sourceAnchor = sourceAnchorTowards(sourceNode, targetRect.cx, targetRect.cy);
             const targetAnchor = sourceAnchorTowards(targetNode, sourceRect.cx, sourceRect.cy);
             
-            console.log('🎨 KiteFrameCanvas: Rendering SmartConnect preview line:', {
-              x1: sourceAnchor.x, y1: sourceAnchor.y, 
-              x2: targetAnchor.x, y2: targetAnchor.y,
-              isConnecting: true, // Changed to true to show the line
-              config: { duration: 300, easing: 'ease-out' }
-            });
-            
             return (
-              <AnimatedConnectionPreview
+              <line
                 key="smart-connect-preview"
                 x1={sourceAnchor.x}
                 y1={sourceAnchor.y}
                 x2={targetAnchor.x}
                 y2={targetAnchor.y}
-                isConnecting={true}  // Changed from false to true!
-                isValidTarget={true}
-                isInvalidTarget={false}
-                config={{
-                  duration: 300,
-                  easing: 'ease-out',
-                  pulseOnConnection: false,
-                  showParticles: false,
-                  glowOnHover: false,
-                  ...props.connectionAnimationConfig
-                }}
+                stroke="#9ca3af"
+                strokeWidth="2"
+                strokeDasharray="8,4"
+                strokeLinecap="round"
+                opacity={0.6}
+                data-testid="smart-connect-ghost-preview"
               />
             );
           })()}
