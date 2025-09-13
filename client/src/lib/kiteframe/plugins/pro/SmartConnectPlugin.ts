@@ -173,29 +173,25 @@ export class SmartConnectPlugin implements KiteFramePlugin {
         x: nodePosition.x - this.dragOffset.dx,
         y: nodePosition.y - this.dragOffset.dy
       };
-      console.log(`🔗 SmartConnect: Position corrected from worldPos(${nodePosition.x.toFixed(1)}, ${nodePosition.y.toFixed(1)}) to topLeft(${correctedPosition.x.toFixed(1)}, ${correctedPosition.y.toFixed(1)})`);
     }
     
-    const threshold = this.config.threshold || 100; // Increased threshold
+    const threshold = this.config.threshold || 50;
     let closestConnection: { target: string; distance: number } | null = null;
     
     // Create a temporary node with updated position for accurate calculation
     const updatedDraggedNode = { ...draggedNode, position: correctedPosition };
     
-    // Check proximity to other nodes
+    // Check proximity to other nodes (optimized to skip already connected nodes)
     this.currentNodes.forEach(targetNode => {
       if (targetNode.id === nodeId) return; // Skip self
       
-      // Check if connection already exists
+      // Performance optimization: Skip nodes already connected to dragged node
       if (this.connectionExists(nodeId, targetNode.id)) return;
       
       // Calculate distance from nearest edges instead of centers
       const distance = this.calculateNearestEdgeDistance(correctedPosition, updatedDraggedNode, targetNode);
       
-      console.log(`🔗 SmartConnect DRAG: Distance between ${nodeId} and ${targetNode.id}: ${distance.toFixed(1)}px (threshold: ${threshold}px)`);
-      
       if (distance <= threshold) {
-        console.log(`🔗 SmartConnect DRAG: Found close connection: ${nodeId} -> ${targetNode.id} at ${distance.toFixed(1)}px`);
         if (!closestConnection || distance < closestConnection.distance) {
           closestConnection = { target: targetNode.id, distance };
         }
@@ -205,18 +201,13 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     // Update preview
     if (closestConnection) {
       const newPreview = { source: nodeId, target: closestConnection.target };
-      console.log(`🔗 SmartConnect: Creating preview: ${newPreview.source} -> ${newPreview.target}`);
       if (!this.previewConnection || 
           this.previewConnection.source !== newPreview.source || 
           this.previewConnection.target !== newPreview.target) {
         this.previewConnection = newPreview;
-        console.log(`🔗 SmartConnect: Calling updatePreview with:`, newPreview);
         this.updatePreview(newPreview);
-      } else {
-        console.log(`🔗 SmartConnect: Preview unchanged, skipping update`);
       }
     } else {
-      console.log(`🔗 SmartConnect: No close connection found, clearing preview`);
       if (this.previewConnection) {
         this.clearPreview();
       }
@@ -226,18 +217,16 @@ export class SmartConnectPlugin implements KiteFramePlugin {
   private checkAutoConnections(): void {
     if (!this.config.autoConnect || this.isDragging) return;
     
-    const threshold = this.config.threshold || 100; // Increased threshold
+    const threshold = this.config.threshold || 50;
     const newConnections: { source: string; target: string }[] = [];
     
     this.currentNodes.forEach(sourceNode => {
       this.currentNodes.forEach(targetNode => {
         if (sourceNode.id === targetNode.id) return; // Avoid self-connections
-        if (this.connectionExists(sourceNode.id, targetNode.id)) return;
+        if (this.connectionExists(sourceNode.id, targetNode.id)) return; // Skip existing connections
         
         // Calculate distance from nearest edges instead of centers
         const distance = this.calculateNearestEdgeDistance(sourceNode.position, sourceNode, targetNode);
-        
-        console.log(`🔗 SmartConnect: Distance between ${sourceNode.id} and ${targetNode.id}: ${distance.toFixed(1)}px (threshold: ${threshold}px)`);
         
         if (distance <= threshold) {
           newConnections.push({ source: sourceNode.id, target: targetNode.id });
