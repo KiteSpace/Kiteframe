@@ -77,6 +77,7 @@ export const ShapeObjectStylingPanel: React.FC<ShapeObjectStylingPanelProps> = (
           label="Stroke Color"
           value={data.strokeColor || '#1d4ed8'}
           onChange={(color) => onUpdate({ strokeColor: color })}
+          disabled={(data.strokeWidth || 0) === 0}
           presets={colorPresets.primary}
           data-testid="shape-stroke-color"
         />
@@ -85,7 +86,8 @@ export const ShapeObjectStylingPanel: React.FC<ShapeObjectStylingPanelProps> = (
           label="Stroke Width"
           value={data.strokeWidth || 2}
           onChange={(value) => onUpdate({ strokeWidth: value })}
-          min={0}
+          disabled={(data.strokeWidth || 0) === 0}
+          min={1}
           max={20}
           unit="px"
           data-testid="shape-stroke-width"
@@ -95,19 +97,21 @@ export const ShapeObjectStylingPanel: React.FC<ShapeObjectStylingPanelProps> = (
           label="Stroke Style"
           value={data.strokeStyle || 'solid'}
           options={strokeStyleOptions}
+          disabled={(data.strokeWidth || 0) === 0}
           onChange={(value) => onUpdate({ strokeStyle: value as any })}
           data-testid="shape-stroke-style"
         />
 
-        <SliderControl
-          label="Stroke Opacity"
-          value={(data.strokeOpacity || 1) * 100}
-          onChange={(value) => onUpdate({ strokeOpacity: value / 100 })}
-          min={0}
-          max={100}
-          unit="%"
-          data-testid="shape-stroke-opacity"
-        />
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium">Enable Stroke</label>
+          <input
+            type="checkbox"
+            checked={(data.strokeWidth || 0) > 0}
+            onChange={(e) => onUpdate({ strokeWidth: e.target.checked ? 2 : 0 })}
+            className="rounded"
+            data-testid="shape-enable-stroke"
+          />
+        </div>
       </div>
 
       {/* Shape-specific Properties */}
@@ -161,20 +165,6 @@ export const ShapeObjectStylingPanel: React.FC<ShapeObjectStylingPanelProps> = (
         </div>
       )}
 
-      {/* Effects Section */}
-      <div className="space-y-3">
-        <h5 className="text-xs font-medium text-muted-foreground">Effects</h5>
-        
-        <SliderControl
-          label="Opacity"
-          value={data.opacity * 100}
-          onChange={(value) => onUpdate({ opacity: value / 100 })}
-          min={0}
-          max={100}
-          unit="%"
-          data-testid="shape-opacity"
-        />
-      </div>
     </div>
   );
 };

@@ -2758,9 +2758,26 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setNodes(prev => prev.map(n => ({ ...n, selected: false })));
               }}
               onCanvasObjectUpdate={(objectId: string, updates: Partial<TextNodeData | ShapeNodeData | StickyNoteData>) => {
+                const targetObj = canvasObjects.find(obj => obj.id === objectId);
+                if (!targetObj) return;
+                
+                const nextData = { ...targetObj.data, ...updates };
+                
+                // Shallow equality check to prevent unnecessary updates
+                const shallowEqual = (obj1: any, obj2: any) => {
+                  const keys1 = Object.keys(obj1);
+                  const keys2 = Object.keys(obj2);
+                  if (keys1.length !== keys2.length) return false;
+                  return keys1.every(key => obj1[key] === obj2[key]);
+                };
+                
+                if (shallowEqual(targetObj.data, nextData)) {
+                  return; // No change, skip update
+                }
+                
                 const updatedObjects = canvasObjects.map(obj =>
                   obj.id === objectId
-                    ? { ...obj, data: { ...obj.data, ...updates } }
+                    ? { ...obj, data: nextData }
                     : obj
                 );
                 updateActiveTab({ canvasObjects: updatedObjects });

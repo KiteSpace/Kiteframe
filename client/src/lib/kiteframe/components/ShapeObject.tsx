@@ -64,8 +64,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
 
     const commonStyles = {
       width: '100%',
-      height: '100%',
-      opacity: opacity || 1
+      height: '100%'
     };
 
     // Generate stroke dash pattern based on style
@@ -89,7 +88,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               ...commonStyles,
               backgroundColor: fillColor || '#3b82f6',
               opacity: fillOpacity !== undefined ? fillOpacity : 1,
-              border: `${strokeWidth || 2}px ${strokeStyle || 'solid'} ${strokeColor || '#1d4ed8'}`,
+              border: strokeWidth && strokeWidth > 0 ? `${strokeWidth}px ${strokeStyle || 'solid'} ${strokeColor || '#1d4ed8'}` : 'none',
               borderRadius: borderRadius || 8,
               boxShadow: object.data.shadow?.enabled 
                 ? `${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'}`
@@ -107,7 +106,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               ...commonStyles,
               backgroundColor: fillColor || '#10b981',
               opacity: fillOpacity !== undefined ? fillOpacity : 1,
-              border: `${strokeWidth || 2}px ${strokeStyle || 'solid'} ${strokeColor || '#059669'}`,
+              border: strokeWidth && strokeWidth > 0 ? `${strokeWidth}px ${strokeStyle || 'solid'} ${strokeColor || '#059669'}` : 'none',
               boxShadow: object.data.shadow?.enabled 
                 ? `${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'}`
                 : 'none',
