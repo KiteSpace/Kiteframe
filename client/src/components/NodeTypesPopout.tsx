@@ -105,11 +105,11 @@ export function NodeTypesPopout({ isOpen, onClose, onCreateNode, onCreateNodeAtP
       
       {/* Popout Panel */}
       <div 
-        className="absolute left-12 top-0 z-50 w-48 bg-card border border-border rounded-md shadow-lg p-3"
+        className="absolute left-12 top-16 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3"
         data-testid="node-types-popout"
       >
         <h3 className="text-sm font-semibold mb-3">Node Types</h3>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-2">
           {nodeTypes.map((nodeType) => {
             const IconComponent = nodeType.icon;
             return (
@@ -131,16 +131,31 @@ export function NodeTypesPopout({ isOpen, onClose, onCreateNode, onCreateNodeAtP
         </div>
       </div>
 
-      {/* Drag Visual Indicator */}
-      {dragState.isDragging && dragState.currentPos && (
+      {/* Drag Visual Indicator - matches expanded sidebar style */}
+      {dragState.isDragging && dragState.currentPos && dragState.nodeType && (
         <div
-          className="fixed z-[9999] pointer-events-none bg-primary text-primary-foreground px-2 py-1 rounded text-xs shadow-lg"
+          className="fixed pointer-events-none z-50 bg-white/90 dark:bg-gray-800/90 border border-border rounded-md p-2 shadow-lg backdrop-blur-sm"
           style={{
             left: dragState.currentPos.x + 10,
-            top: dragState.currentPos.y + 10,
+            top: dragState.currentPos.y - 20,
+            transform: 'translate(0, 0)',
           }}
         >
-          {nodeTypes.find(nt => nt.type === dragState.nodeType)?.label || dragState.nodeType}
+          <div className="flex items-center gap-2 text-sm">
+            {(() => {
+              const nodeTypeData = nodeTypes.find(nt => nt.type === dragState.nodeType);
+              if (nodeTypeData) {
+                const IconComponent = nodeTypeData.icon;
+                return (
+                  <>
+                    <IconComponent className={`${nodeTypeData.color}`} size={16} />
+                    <span className="font-medium">{nodeTypeData.label}</span>
+                  </>
+                );
+              }
+              return null;
+            })()} 
+          </div>
         </div>
       )}
     </>

@@ -252,16 +252,30 @@ export function CollapsedSidebar({
         </div>
       </div>
 
-      {/* Drag Visual Indicator */}
-      {dragState.isDragging && dragState.currentPos && (
+      {/* Drag Visual Indicator - matches expanded sidebar style */}
+      {dragState.isDragging && dragState.currentPos && dragState.iconType && (
         <div
-          className="fixed z-[9999] pointer-events-none bg-primary text-primary-foreground px-2 py-1 rounded text-xs shadow-lg"
+          className="fixed pointer-events-none z-50 bg-white/90 dark:bg-gray-800/90 border border-border rounded-md p-2 shadow-lg backdrop-blur-sm"
           style={{
             left: dragState.currentPos.x + 10,
-            top: dragState.currentPos.y + 10,
+            top: dragState.currentPos.y - 20,
+            transform: 'translate(0, 0)',
           }}
         >
-          {getTooltipText(dragState.iconType || '')}
+          <div className="flex items-center gap-2 text-sm">
+            {(() => {
+              const IconComponent = sidebarIcons[dragState.iconType];
+              if (IconComponent) {
+                return (
+                  <>
+                    <IconComponent className="w-4 h-4" />
+                    <span className="font-medium">{getTooltipText(dragState.iconType)}</span>
+                  </>
+                );
+              }
+              return null;
+            })()}
+          </div>
         </div>
       )}
     </TooltipProvider>

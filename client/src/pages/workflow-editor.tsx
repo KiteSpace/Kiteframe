@@ -9,6 +9,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { CollapsedSidebar } from '@/components/CollapsedSidebar';
 import { NodeTypesPopout } from '@/components/NodeTypesPopout';
 import { ShapesPopout } from '@/components/ShapesPopout';
+import { PropertiesCard } from '@/components/PropertiesCard';
 import { EdgeCustomizer } from '@/components/EdgeCustomizer';
 import { Toolbar } from '@/components/Toolbar';
 import { AiSettingsModal } from '@/components/AiSettingsModal';
@@ -2634,6 +2635,44 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     
                     updateActiveTab({ 
                       canvasObjects: [...canvasObjects, newCanvasObject] 
+                    });
+                  }}
+                />
+
+                {/* Properties Card for selected objects */}
+                <PropertiesCard
+                  selectedNode={nodes.find(n => n.id === selectedNodeId)}
+                  selectedEdge={edges.find(e => e.id === selectedEdgeId)}
+                  selectedCanvasObject={canvasObjects.find(obj => obj.selected)}
+                  onNodeUpdate={(nodeId: string, updates: Partial<Node>) => {
+                    setNodes(prev => prev.map(node => 
+                      node.id === nodeId ? { ...node, ...updates } : node
+                    ));
+                    saveToHistory();
+                  }}
+                  onEdgeUpdate={(edgeId: string, updates: Partial<Edge>) => {
+                    setEdges(prev => prev.map(edge => 
+                      edge.id === edgeId ? { ...edge, ...updates } : edge
+                    ));
+                    saveToHistory();
+                  }}
+                  onCanvasObjectUpdate={(objectId: string, updates: any) => {
+                    updateActiveTab({
+                      canvasObjects: canvasObjects.map(obj => 
+                        obj.id === objectId 
+                          ? { ...obj, data: { ...obj.data, ...updates } }
+                          : obj
+                      )
+                    });
+                    saveToHistory();
+                  }}
+                  onDeselect={() => {
+                    setSelectedNodeId('');
+                    setSelectedEdgeId('');
+                    setNodes(prev => prev.map(n => ({ ...n, selected: false })));
+                    setEdges(prev => prev.map(e => ({ ...e, selected: false })));
+                    updateActiveTab({
+                      canvasObjects: canvasObjects.map(obj => ({ ...obj, selected: false }))
                     });
                   }}
                 />

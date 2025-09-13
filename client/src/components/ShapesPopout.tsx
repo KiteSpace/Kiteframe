@@ -102,11 +102,11 @@ export function ShapesPopout({ isOpen, onClose, onCreateShape }: ShapesPopoutPro
       
       {/* Popout Panel */}
       <div 
-        className="absolute left-12 top-0 z-50 w-48 bg-card border border-border rounded-md shadow-lg p-3"
+        className="absolute left-12 top-16 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3"
         data-testid="shapes-popout"
       >
         <h3 className="text-sm font-semibold mb-3">Shapes</h3>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-2">
           {shapeTypes.map((shapeType) => {
             const IconComponent = shapeType.icon;
             return (
@@ -128,16 +128,31 @@ export function ShapesPopout({ isOpen, onClose, onCreateShape }: ShapesPopoutPro
         </div>
       </div>
 
-      {/* Drag Visual Indicator */}
-      {dragState.isDragging && dragState.currentPos && (
+      {/* Drag Visual Indicator - matches expanded sidebar style */}
+      {dragState.isDragging && dragState.currentPos && dragState.shapeType && (
         <div
-          className="fixed z-[9999] pointer-events-none bg-primary text-primary-foreground px-2 py-1 rounded text-xs shadow-lg"
+          className="fixed pointer-events-none z-50 bg-white/90 dark:bg-gray-800/90 border border-border rounded-md p-2 shadow-lg backdrop-blur-sm"
           style={{
             left: dragState.currentPos.x + 10,
-            top: dragState.currentPos.y + 10,
+            top: dragState.currentPos.y - 20,
+            transform: 'translate(0, 0)',
           }}
         >
-          {shapeTypes.find(st => st.type === dragState.shapeType)?.label || dragState.shapeType}
+          <div className="flex items-center gap-2 text-sm">
+            {(() => {
+              const shapeTypeData = shapeTypes.find(st => st.type === dragState.shapeType);
+              if (shapeTypeData) {
+                const IconComponent = shapeTypeData.icon;
+                return (
+                  <>
+                    <IconComponent className={`${shapeTypeData.color}`} size={16} />
+                    <span className="font-medium">{shapeTypeData.label}</span>
+                  </>
+                );
+              }
+              return null;
+            })()}
+          </div>
         </div>
       )}
     </>
