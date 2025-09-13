@@ -2020,9 +2020,50 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         kiteFrameCore.use(advancedInteractionsPlugin);
         kiteFrameCore.use(versionControlPlugin);
         kiteFrameCore.use(smartConnectPlugin);
+        
+        // Configure SmartConnectPlugin with auto-connect functionality
+        smartConnectPlugin.configure(
+          {
+            enabled: true,
+            autoConnect: true,
+            threshold: 50,
+            showPreview: true
+          },
+          nodes,
+          edges,
+          // onConnect callback - creates new edges when auto-connect is triggered
+          (connection) => {
+            const newEdge = {
+              id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              source: connection.source,
+              target: connection.target,
+              style: 'bezier' as const,
+              animated: false,
+              strokeWidth: 2,
+              color: '#94a3b8'
+            };
+            
+            const updatedEdges = [...edges, newEdge];
+            updateActiveTab((prev) => ({
+              ...prev,
+              edges: updatedEdges
+            }));
+            
+            console.log('🚀 SmartConnect: Auto-connection created!', connection);
+          },
+          // onEdgesChange callback
+          (updatedEdges) => {
+            updateActiveTab((prev) => ({
+              ...prev,
+              edges: updatedEdges
+            }));
+          }
+        );
+        
         console.log('✅ Demo + Pro plugins registered successfully');
         console.log('🔌 Plugin System Ready! Check Settings → Test Plugins or watch console for activity');
         console.log('🚀 Advanced Interactions Pro: Quick-add handles enabled on node hover!');
+        console.log('🔗 SmartConnect Pro: Auto-connect enabled! Drag nodes close together to auto-connect.');
       } catch (error) {
         console.error('❌ Plugin registration error:', error);
         console.log('ℹ️ Some plugins may not have loaded correctly');
@@ -2030,6 +2071,60 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     };
     registerPlugins();
   }, []);
+
+  // Update SmartConnectPlugin with latest nodes and edges when they change
+  useEffect(() => {
+    const updateSmartConnectPlugin = async () => {
+      try {
+        const { smartConnectPlugin } = await import('@/lib/kiteframe');
+        // Update plugin with current state
+        smartConnectPlugin.configure(
+          {
+            enabled: true,
+            autoConnect: true,
+            threshold: 50,
+            showPreview: true
+          },
+          nodes,
+          edges,
+          // onConnect callback - creates new edges when auto-connect is triggered
+          (connection) => {
+            const newEdge = {
+              id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              source: connection.source,
+              target: connection.target,
+              style: 'bezier' as const,
+              animated: false,
+              strokeWidth: 2,
+              color: '#94a3b8'
+            };
+            
+            const updatedEdges = [...edges, newEdge];
+            updateActiveTab((prev) => ({
+              ...prev,
+              edges: updatedEdges
+            }));
+            
+            console.log('🚀 SmartConnect: Auto-connection created!', connection);
+          },
+          // onEdgesChange callback
+          (updatedEdges) => {
+            updateActiveTab((prev) => ({
+              ...prev,
+              edges: updatedEdges
+            }));
+          }
+        );
+      } catch (error) {
+        // Plugin not loaded yet, ignore
+      }
+    };
+    
+    // Only update if we have nodes (plugin has been registered)
+    if (nodes.length > 0) {
+      updateSmartConnectPlugin();
+    }
+  }, [nodes, edges, updateActiveTab]);
 
   // Handle keyboard shortcut for workflow name editing
   useEffect(() => {
