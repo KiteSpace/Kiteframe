@@ -1142,9 +1142,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         // Notify SmartConnectPlugin of drag movement for real-time preview
         if (enablePlugins && props.proFeatures?.smartConnect?.enabled !== false) {
           const smartConnectPlugin = core.getPlugin('smart-connect-pro');
-          console.log('🔗 DEBUG: SmartConnect plugin found:', !!smartConnectPlugin, smartConnectPlugin?.name);
           if (smartConnectPlugin) {
-            console.log('🔗 DEBUG: Calling handleDrag method for node:', id, 'position:', finalPosition);
             // Call the plugin's handleDrag method to show connection preview
             (smartConnectPlugin as any).handleDrag?.(id, finalPosition);
           }

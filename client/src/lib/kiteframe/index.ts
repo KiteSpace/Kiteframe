@@ -40,6 +40,7 @@ export { consolePlugin } from './plugins/demo/ConsolePlugin';
 // Pro plugins
 export { advancedInteractionsPlugin } from './plugins/pro/AdvancedInteractionsPlugin';
 export { versionControlPlugin } from './plugins/pro/VersionControlPlugin';
+export { smartConnectPlugin } from './plugins/pro/SmartConnectPlugin';
 
 // Plugin development utilities
 export const createPlugin = (config: {

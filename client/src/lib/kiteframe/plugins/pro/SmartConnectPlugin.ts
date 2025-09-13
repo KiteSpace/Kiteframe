@@ -310,3 +310,6 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     this.clearPreview();
   }
 }
+
+// Export plugin instance for registration
+export const smartConnectPlugin = new SmartConnectPlugin();
