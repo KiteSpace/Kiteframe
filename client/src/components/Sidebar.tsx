@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import type { Node, Edge } from '../lib/kiteframe/types';
+import type { Node, Edge, CanvasObject, TextNodeData, ShapeNodeData, StickyNoteData } from '../lib/kiteframe/types';
 import { ObjectUploader } from '@/components/ObjectUploader';
 import { LocalImageUploader } from '@/components/LocalImageUploader';
 import { WorkflowManager } from './WorkflowManager';
 import { workflowThemes, type WorkflowTheme } from '@/lib/themes';
+import { TextObjectStylingPanel } from '../lib/kiteframe/components/styling/TextObjectStylingPanel';
+import { ShapeObjectStylingPanel } from '../lib/kiteframe/components/styling/ShapeObjectStylingPanel';
+import { StickyNoteObjectStylingPanel } from '../lib/kiteframe/components/styling/StickyNoteObjectStylingPanel';
 import { 
   ArrowRight, 
   Cog, 
@@ -58,6 +61,7 @@ interface SidebarProps {
   selectedNode?: Node;
   selectedNodes?: Node[];
   selectedEdge?: Edge;
+  selectedCanvasObjects?: CanvasObject[];
   onCreateNode: (type: string) => void;
   onCreateNodeAtPosition?: (type: string, position: { x: number; y: number }) => void;
   onFitView: () => void;
@@ -67,7 +71,9 @@ interface SidebarProps {
   onNodeUpdate: (nodeId: string, updates: Partial<Node>) => void;
   onBulkNodeUpdate?: (nodeIds: string[], updates: Partial<Node>) => void;
   onEdgeUpdate?: (edgeId: string, updates: Partial<Edge>) => void;
+  onCanvasObjectUpdate?: (objectId: string, updates: Partial<TextNodeData | ShapeNodeData | StickyNoteData>) => void;
   onDeselectNode: () => void;
+  onDeselectCanvasObjects?: () => void;
   onImageUpload?: (nodeId: string, objectPath: string, filename?: string) => void;
   onImageUrl?: (nodeId: string, url: string) => void;
   showImageModal?: string | null;
@@ -95,6 +101,7 @@ export function Sidebar({
   selectedNode,
   selectedNodes = [],
   selectedEdge,
+  selectedCanvasObjects = [],
   onCreateNode,
   onCreateNodeAtPosition,
   onFitView,
@@ -104,7 +111,9 @@ export function Sidebar({
   onNodeUpdate,
   onBulkNodeUpdate,
   onEdgeUpdate,
+  onCanvasObjectUpdate,
   onDeselectNode,
+  onDeselectCanvasObjects,
   onImageUpload,
   onImageUrl,
   showImageModal,
@@ -1361,8 +1370,65 @@ export function Sidebar({
               </div>
             </div>
           </div>
+        ) : selectedCanvasObjects && selectedCanvasObjects.length > 0 ? (
+          // Canvas object properties view
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">
+                {selectedCanvasObjects.length === 1 
+                  ? `${selectedCanvasObjects[0].type.charAt(0).toUpperCase() + selectedCanvasObjects[0].type.slice(1)} Properties`
+                  : `Canvas Objects (${selectedCanvasObjects.length} selected)`
+                }
+              </h3>
+              <button
+                onClick={onDeselectCanvasObjects}
+                className="p-1 rounded-md hover:bg-accent transition-colors"
+                data-testid="button-close-canvas-object-properties"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-3" data-testid="canvas-object-properties">
+              {selectedCanvasObjects.length === 1 ? (
+                // Single canvas object properties
+                (() => {
+                  const obj = selectedCanvasObjects[0];
+                  switch (obj.type) {
+                    case 'text':
+                      return (
+                        <TextObjectStylingPanel
+                          data={obj.data}
+                          onUpdate={(updates) => onCanvasObjectUpdate?.(obj.id, updates)}
+                        />
+                      );
+                    case 'shape':
+                      return (
+                        <ShapeObjectStylingPanel
+                          data={obj.data}
+                          onUpdate={(updates) => onCanvasObjectUpdate?.(obj.id, updates)}
+                        />
+                      );
+                    case 'sticky-note':
+                      return (
+                        <StickyNoteObjectStylingPanel
+                          data={obj.data}
+                          onUpdate={(updates) => onCanvasObjectUpdate?.(obj.id, updates)}
+                        />
+                      );
+                    default:
+                      return <div className="text-xs text-muted-foreground">No properties available for this object type.</div>;
+                  }
+                })()
+              ) : (
+                // Multi-select canvas objects (future enhancement)
+                <div className="text-xs text-muted-foreground p-4 text-center border border-dashed border-border rounded">
+                  Multi-select canvas object editing coming soon!
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
-          // Default view when no node or edge is selected
+          // Default view when no node, edge, or canvas object is selected
           <>
             {/* AI Generator Section */}
             <div>

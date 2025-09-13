@@ -880,6 +880,10 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   const viewport = activeTab?.viewport || { x: 0, y: 0, zoom: 1 };
   const selectedNodeId = activeTab?.selectedNodeId || '';
   const selectedEdgeId = activeTab?.selectedEdgeId || '';
+  
+  // Derive selected canvas objects from active tab state
+  const selectedCanvasObjects = useMemo(() => canvasObjects.filter(obj => obj.selected), [canvasObjects]);
+  
   const history = activeTab?.history || [];
   const historyIndex = activeTab?.historyIndex ?? 0;
   const showImageModal = activeTab?.showImageModal || null;
@@ -913,6 +917,15 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     const resolvedViewport = typeof newViewport === 'function' ? newViewport(viewport) : newViewport;
     updateActiveTab({ viewport: resolvedViewport });
   }, [viewport, updateActiveTab]);
+
+  // Symmetric selection exclusivity: deselect nodes/edges when canvas objects are selected
+  useEffect(() => {
+    if (selectedCanvasObjects.length > 0) {
+      setNodes(prev => prev.map(n => ({ ...n, selected: false })));
+      setEdges(prev => prev.map(e => ({ ...e, selected: false })));
+      updateActiveTab({ selectedNodeId: '', selectedEdgeId: '' });
+    }
+  }, [selectedCanvasObjects.length, setNodes, setEdges, updateActiveTab]);
 
   // Helper function to calculate viewport-centered position with sequential offset
   const getViewportCenteredPosition = useCallback(() => {
@@ -2744,6 +2757,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setSelectedNodeId('');
                 setNodes(prev => prev.map(n => ({ ...n, selected: false })));
               }}
+              onCanvasObjectUpdate={(objectId: string, updates: Partial<TextNodeData | ShapeNodeData | StickyNoteData>) => {
+                const updatedObjects = canvasObjects.map(obj =>
+                  obj.id === objectId
+                    ? { ...obj, data: { ...obj.data, ...updates } }
+                    : obj
+                );
+                updateActiveTab({ canvasObjects: updatedObjects });
+                saveToHistory();
+              }}
+              onDeselectCanvasObjects={() => {
+                const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
+                updateActiveTab({ canvasObjects: updatedObjects });
+              }}
+              selectedCanvasObjects={selectedCanvasObjects}
               onImageUpload={(nodeId: string, objectPath: string, filename?: string) => {
                 // Update the node with the image data and auto-size
                 const img = new Image();
@@ -3171,6 +3198,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }
                 
                 setEdges(prev => prev.map(e => ({ ...e, selected: false })));
+                const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
+                updateActiveTab({ canvasObjects: updatedObjects });
                 setSelectedEdgeId('');
                 setContextMenu(null);
                 

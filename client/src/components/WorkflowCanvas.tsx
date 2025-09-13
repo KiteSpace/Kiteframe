@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
 import { FloatingToolbar } from './FloatingToolbar';
 import { ObjectStylingPanel } from '../lib/kiteframe/components/styling/ObjectStylingPanel';
@@ -79,13 +79,33 @@ export function WorkflowCanvas({
   // Get selected canvas objects for styling panel
   const selectedCanvasObjects = canvasObjects.filter(obj => obj.selected);
   
+  // Shallow equality check to prevent unnecessary updates
+  const shallowEqual = (obj1: any, obj2: any) => {
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+    if (keys1.length !== keys2.length) return false;
+    return keys1.every(key => obj1[key] === obj2[key]);
+  };
+
   // Handler for updating object styling
   const handleUpdateObjectStyling = useCallback((objectId: string, updates: Partial<TextNodeData | ShapeNodeData | StickyNoteData>) => {
+    const targetObj = canvasObjects.find(obj => obj.id === objectId);
+    if (!targetObj) return;
+    
+    const nextData = { ...targetObj.data, ...updates };
+    
+    // Only update if data actually changed
+    if (shallowEqual(targetObj.data, nextData)) {
+      console.count('WorkflowCanvas: Prevented no-op styling update');
+      return;
+    }
+    
     const updatedObjects = canvasObjects.map(obj =>
       obj.id === objectId
-        ? { ...obj, data: { ...obj.data, ...updates } }
+        ? { ...obj, data: nextData }
         : obj
     );
+    console.count('WorkflowCanvas: Emitting styling update');
     onCanvasObjectsChange?.(updatedObjects);
   }, [canvasObjects, onCanvasObjectsChange]);
 
