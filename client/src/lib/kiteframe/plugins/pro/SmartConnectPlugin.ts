@@ -156,6 +156,9 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     const threshold = this.config.threshold || 100; // Increased threshold
     let closestConnection: { target: string; distance: number } | null = null;
     
+    // Create a temporary node with updated position for accurate calculation
+    const updatedDraggedNode = { ...draggedNode, position: nodePosition };
+    
     // Check proximity to other nodes
     this.currentNodes.forEach(targetNode => {
       if (targetNode.id === nodeId) return; // Skip self
@@ -164,7 +167,7 @@ export class SmartConnectPlugin implements KiteFramePlugin {
       if (this.connectionExists(nodeId, targetNode.id)) return;
       
       // Calculate distance from nearest edges instead of centers
-      const distance = this.calculateNearestEdgeDistance(nodePosition, draggedNode, targetNode);
+      const distance = this.calculateNearestEdgeDistance(nodePosition, updatedDraggedNode, targetNode);
       
       if (distance <= threshold) {
         if (!closestConnection || distance < closestConnection.distance) {
