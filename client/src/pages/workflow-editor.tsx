@@ -7,6 +7,8 @@ import { PluginTestPanel } from '@/components/PluginTestPanel';
 
 import { Sidebar } from '@/components/Sidebar';
 import { CollapsedSidebar } from '@/components/CollapsedSidebar';
+import { NodeTypesPopout } from '@/components/NodeTypesPopout';
+import { ShapesPopout } from '@/components/ShapesPopout';
 import { EdgeCustomizer } from '@/components/EdgeCustomizer';
 import { Toolbar } from '@/components/Toolbar';
 import { AiSettingsModal } from '@/components/AiSettingsModal';
@@ -2124,7 +2126,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     'fit-view': Maximize2,
     'clear': Trash2,
     'export': Download,
-    'import': Upload
+    'import': Upload,
+    'chevron-right': ChevronRight
   }), []);
 
   // Collapse/expand sidebar toggle
@@ -2452,90 +2455,189 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }}
               />
             ) : isSidebarCollapsed ? (
-              <CollapsedSidebar
-                toggleSidebar={toggleSidebar}
-                onCreateNode={(type: string) => {
-                  // Handle creating canvas objects for text/sticky/shape types
-                  if (['text', 'sticky', 'shape'].includes(type)) {
+              <>
+                <CollapsedSidebar
+                  toggleSidebar={toggleSidebar}
+                  onCreateNode={(type: string) => {
+                    // Handle creating canvas objects for text/sticky/shape types
+                    if (['text', 'sticky', 'shape'].includes(type)) {
+                      saveToHistory();
+                      
+                      let newCanvasObject: CanvasObject;
+                      
+                      if (type === 'text') {
+                        newCanvasObject = {
+                          id: `object-${Date.now()}`,
+                          type: 'text',
+                          position: getViewportCenteredPosition(),
+                          data: { text: 'Click to edit text', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', textColor: '#000000' } as any,
+                          width: 200,
+                          height: 50,
+                          selected: false
+                        };
+                      } else if (type === 'sticky') {
+                        newCanvasObject = {
+                          id: `object-${Date.now()}`,
+                          type: 'sticky',
+                          position: getViewportCenteredPosition(),
+                          data: { text: 'Sticky note...', backgroundColor: '#fef3c7', textColor: '#92400e' } as any,
+                          width: 200,
+                          height: 150,
+                          selected: false
+                        };
+                      } else { // shape
+                        newCanvasObject = {
+                          id: `object-${Date.now()}`,
+                          type: 'shape',
+                          position: getViewportCenteredPosition(),
+                          data: { shapeType: 'rectangle', fillColor: '#3b82f6', strokeColor: '#1e40af', strokeWidth: 2 } as any,
+                          width: 150,
+                          height: 100,
+                          selected: false
+                        };
+                      }
+                      
+                      updateActiveTab({ 
+                        canvasObjects: [...canvasObjects, newCanvasObject] 
+                      });
+                    }
+                  }}
+                  onFitView={() => {
+                    if (nodes.length === 0) {
+                      setViewport({ x: 0, y: 0, zoom: 1 });
+                      return;
+                    }
+                    // Implement fit view logic here or use existing implementation
+                    console.log('🔧 FIT VIEW TRIGGERED from collapsed sidebar');
+                  }}
+                  onClearCanvas={() => {
+                    if (window.confirm('Are you sure you want to clear the canvas? This will remove all nodes and edges.')) {
+                      setNodes([]);
+                      setEdges([]);
+                      updateActiveTab({ canvasObjects: [] });
+                      saveToHistory();
+                    }
+                  }}
+                  onExport={() => {
+                    const workflow = {
+                      name: activeTab?.name || 'My Workflow',
+                      nodes,
+                      edges,
+                      canvasObjects,
+                      viewport
+                    };
+                    const dataStr = JSON.stringify(workflow, null, 2);
+                    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                    const exportFileDefaultName = `${workflow.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_workflow.json`;
+                    const linkElement = document.createElement('a');
+                    linkElement.setAttribute('href', dataUri);
+                    linkElement.setAttribute('download', exportFileDefaultName);
+                    linkElement.click();
+                  }}
+                  onImport={() => setShowImportModal(true)}
+                  onOpenAiGenerator={() => setShowAiGenerator(true)}
+                  activePopout={activePopout}
+                  setActivePopout={setActivePopout}
+                  sidebarIcons={sidebarIcons}
+                />
+                
+                {/* Node Types Popout */}
+                <NodeTypesPopout
+                  isOpen={activePopout === 'node-types'}
+                  onClose={() => setActivePopout(null)}
+                  onCreateNode={(type: string) => {
+                    // Handle regular node creation
+                    if (tabs.length === 0) {
+                      const newTab = createBlankTab();
+                      setTabs([newTab]);
+                      setActiveTabId(newTab.id);
+                    }
+
+                    const icons = {
+                      input: { icon: 'ArrowRight', color: 'text-blue-500' },
+                      process: { icon: 'Cog', color: 'text-green-500' },
+                      condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
+                      output: { icon: 'ArrowLeft', color: 'text-red-500' },
+                      ai: { icon: 'Bot', color: 'text-purple-500' },
+                      image: { icon: 'Image', color: 'text-indigo-500' }
+                    };
+
+                    const newNode: Node = {
+                      id: `node-${Date.now()}`,
+                      type,
+                      position: getViewportCenteredPosition(),
+                      data: {
+                        label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+                        description: `Configure ${type} settings`,
+                        icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
+                        iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
+                      },
+                      width: 200,
+                      height: 100
+                    };
+
+                    setNodes(prev => [...prev, newNode]);
+                    saveToHistory();
+                  }}
+                  onCreateNodeAtPosition={(type: string, position: { x: number; y: number }) => {
+                    // Handle drag-and-drop node creation
+                    if (tabs.length === 0) {
+                      const newTab = createBlankTab();
+                      setTabs([newTab]);
+                      setActiveTabId(newTab.id);
+                    }
+
+                    const icons = {
+                      input: { icon: 'ArrowRight', color: 'text-blue-500' },
+                      process: { icon: 'Cog', color: 'text-green-500' },
+                      condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
+                      output: { icon: 'ArrowLeft', color: 'text-red-500' },
+                      ai: { icon: 'Bot', color: 'text-purple-500' },
+                      image: { icon: 'Image', color: 'text-indigo-500' }
+                    };
+
+                    const newNode: Node = {
+                      id: `node-${Date.now()}`,
+                      type,
+                      position,
+                      data: {
+                        label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+                        description: `Configure ${type} settings`,
+                        icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
+                        iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
+                      },
+                      width: 200,
+                      height: 100
+                    };
+
+                    setNodes(prev => [...prev, newNode]);
+                    saveToHistory();
+                  }}
+                />
+                
+                {/* Shapes Popout */}
+                <ShapesPopout
+                  isOpen={activePopout === 'shapes'}
+                  onClose={() => setActivePopout(null)}
+                  onCreateShape={(shapeType: string) => {
                     saveToHistory();
                     
-                    let newCanvasObject: CanvasObject;
-                    
-                    if (type === 'text') {
-                      newCanvasObject = {
-                        id: `object-${Date.now()}`,
-                        type: 'text',
-                        position: getViewportCenteredPosition(),
-                        data: { text: 'Click to edit text', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', textColor: '#000000' } as any,
-                        width: 200,
-                        height: 50,
-                        selected: false
-                      };
-                    } else if (type === 'sticky') {
-                      newCanvasObject = {
-                        id: `object-${Date.now()}`,
-                        type: 'sticky',
-                        position: getViewportCenteredPosition(),
-                        data: { text: 'Sticky note...', backgroundColor: '#fef3c7', textColor: '#92400e' } as any,
-                        width: 200,
-                        height: 150,
-                        selected: false
-                      };
-                    } else { // shape
-                      newCanvasObject = {
-                        id: `object-${Date.now()}`,
-                        type: 'shape',
-                        position: getViewportCenteredPosition(),
-                        data: { shapeType: 'rectangle', fillColor: '#3b82f6', strokeColor: '#1e40af', strokeWidth: 2 } as any,
-                        width: 150,
-                        height: 100,
-                        selected: false
-                      };
-                    }
+                    const newCanvasObject: CanvasObject = {
+                      id: `object-${Date.now()}`,
+                      type: 'shape',
+                      position: getViewportCenteredPosition(),
+                      data: { shapeType, fillColor: '#3b82f6', strokeColor: '#1e40af', strokeWidth: 2 } as any,
+                      width: 150,
+                      height: 100,
+                      selected: false
+                    };
                     
                     updateActiveTab({ 
                       canvasObjects: [...canvasObjects, newCanvasObject] 
                     });
-                  }
-                }}
-                onFitView={() => {
-                  if (nodes.length === 0) {
-                    setViewport({ x: 0, y: 0, zoom: 1 });
-                    return;
-                  }
-                  // Implement fit view logic here or use existing implementation
-                  console.log('🔧 FIT VIEW TRIGGERED from collapsed sidebar');
-                }}
-                onClearCanvas={() => {
-                  if (window.confirm('Are you sure you want to clear the canvas? This will remove all nodes and edges.')) {
-                    setNodes([]);
-                    setEdges([]);
-                    updateActiveTab({ canvasObjects: [] });
-                    saveToHistory();
-                  }
-                }}
-                onExport={() => {
-                  const workflow = {
-                    name: activeTab?.name || 'My Workflow',
-                    nodes,
-                    edges,
-                    canvasObjects,
-                    viewport
-                  };
-                  const dataStr = JSON.stringify(workflow, null, 2);
-                  const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                  const exportFileDefaultName = `${workflow.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_workflow.json`;
-                  const linkElement = document.createElement('a');
-                  linkElement.setAttribute('href', dataUri);
-                  linkElement.setAttribute('download', exportFileDefaultName);
-                  linkElement.click();
-                }}
-                onImport={() => setShowImportModal(true)}
-                onOpenAiGenerator={() => setShowAiGenerator(true)}
-                activePopout={activePopout}
-                setActivePopout={setActivePopout}
-                sidebarIcons={sidebarIcons}
-              />
+                  }}
+                />
+              </>
             ) : (
               <Sidebar
                 selectedNode={nodes.find(n => n.id === selectedNodeId)}

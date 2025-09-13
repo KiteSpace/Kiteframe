@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -26,6 +27,12 @@ export function CollapsedSidebar({
   setActivePopout,
   sidebarIcons
 }: CollapsedSidebarProps) {
+  const [dragState, setDragState] = useState<{
+    isDragging: boolean;
+    iconType: string | null;
+    startPos: { x: number; y: number } | null;
+    currentPos: { x: number; y: number } | null;
+  }>({ isDragging: false, iconType: null, startPos: null, currentPos: null });
   
   const handleIconClick = (iconKey: string) => {
     switch (iconKey) {
@@ -57,6 +64,77 @@ export function CollapsedSidebar({
         onImport();
         break;
     }
+  };
+
+  // Drag and drop handlers for draggable icons
+  const handleIconMouseDown = (
+    e: React.MouseEvent,
+    iconKey: string,
+  ) => {
+    // Only handle draggable icons
+    if (!['type', 'sticky-note'].includes(iconKey)) return;
+    
+    // Only handle left mouse button
+    if (e.button !== 0) return;
+    
+    console.log('🎯 COLLAPSED SIDEBAR DRAG START:', { iconKey, startPos: { x: e.clientX, y: e.clientY } });
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const startPos = { x: e.clientX, y: e.clientY };
+    setDragState({
+      isDragging: true,
+      iconType: iconKey,
+      startPos,
+      currentPos: startPos,
+    });
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setDragState(prev => ({
+        ...prev,
+        currentPos: { x: e.clientX, y: e.clientY }
+      }));
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      console.log('🎯 COLLAPSED SIDEBAR DRAG END:', { iconKey, endPos: { x: e.clientX, y: e.clientY } });
+      
+      // Find the canvas element
+      const canvasElement = document.querySelector('.kiteframe-canvas');
+      
+      if (canvasElement) {
+        const canvasRect = canvasElement.getBoundingClientRect();
+        const x = e.clientX - canvasRect.left;
+        const y = e.clientY - canvasRect.top;
+        
+        // Only create object if dropped on canvas
+        if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
+          console.log('🎯 CALLING onCreateNode from collapsed sidebar:', { iconKey, position: { x, y } });
+          // Convert icon key to node type
+          const nodeType = iconKey === 'type' ? 'text' : iconKey === 'sticky-note' ? 'sticky' : iconKey;
+          onCreateNode(nodeType);
+        } else {
+          console.log('🎯 DROP OUTSIDE CANVAS - NO OBJECT CREATED');
+        }
+      }
+      
+      // Reset drag state
+      setDragState({
+        isDragging: false,
+        iconType: null,
+        startPos: null,
+        currentPos: null,
+      });
+      
+      // Remove event listeners
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    // Add event listeners
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   };
 
   const getTooltipText = (iconKey: string): string => {
@@ -100,7 +178,10 @@ export function CollapsedSidebar({
               data-testid="toggle-sidebar"
               title="Expand Sidebar"
             >
-              <sidebarIcons.workflow className="w-4 h-4" />
+              {(() => {
+                const ChevronIcon = sidebarIcons['chevron-right'];
+                return ChevronIcon ? <ChevronIcon className="w-4 h-4" /> : null;
+              })()}
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">
@@ -119,6 +200,7 @@ export function CollapsedSidebar({
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => handleIconClick(iconKey)}
+                    onMouseDown={(e) => handleIconMouseDown(e, iconKey)}
                     className={`
                       w-8 h-8 rounded-md flex items-center justify-center transition-colors
                       ${isActive(iconKey) 
@@ -169,6 +251,19 @@ export function CollapsedSidebar({
           })}
         </div>
       </div>
+
+      {/* Drag Visual Indicator */}
+      {dragState.isDragging && dragState.currentPos && (
+        <div
+          className="fixed z-[9999] pointer-events-none bg-primary text-primary-foreground px-2 py-1 rounded text-xs shadow-lg"
+          style={{
+            left: dragState.currentPos.x + 10,
+            top: dragState.currentPos.y + 10,
+          }}
+        >
+          {getTooltipText(dragState.iconType || '')}
+        </div>
+      )}
     </TooltipProvider>
   );
 }

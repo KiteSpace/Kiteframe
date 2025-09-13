@@ -1,0 +1,148 @@
+import { useState } from 'react';
+import { ArrowRight, Cog, HelpCircle, ArrowLeft, Bot, Image, Type, StickyNote, Square } from 'lucide-react';
+
+interface NodeTypesPopoutProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreateNode: (type: string) => void;
+  onCreateNodeAtPosition?: (type: string, position: { x: number; y: number }) => void;
+}
+
+export function NodeTypesPopout({ isOpen, onClose, onCreateNode, onCreateNodeAtPosition }: NodeTypesPopoutProps) {
+  const [dragState, setDragState] = useState<{
+    isDragging: boolean;
+    nodeType: string | null;
+    startPos: { x: number; y: number } | null;
+    currentPos: { x: number; y: number } | null;
+  }>({ isDragging: false, nodeType: null, startPos: null, currentPos: null });
+
+  const nodeTypes = [
+    { type: 'input', icon: ArrowRight, color: 'text-blue-500', label: 'Input' },
+    { type: 'process', icon: Cog, color: 'text-green-500', label: 'Process' },
+    { type: 'condition', icon: HelpCircle, color: 'text-yellow-500', label: 'Condition' },
+    { type: 'output', icon: ArrowLeft, color: 'text-red-500', label: 'Output' },
+    { type: 'ai', icon: Bot, color: 'text-purple-500', label: 'AI Task' },
+    { type: 'image', icon: Image, color: 'text-indigo-500', label: 'Image' },
+  ];
+
+  // Drag and drop handlers
+  const handleNodeTypeMouseDown = (
+    e: React.MouseEvent,
+    nodeType: string,
+  ) => {
+    // Only handle left mouse button
+    if (e.button !== 0) return;
+    
+    console.log('🎯 POPOUT DRAG START:', { nodeType, startPos: { x: e.clientX, y: e.clientY } });
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const startPos = { x: e.clientX, y: e.clientY };
+    setDragState({
+      isDragging: true,
+      nodeType,
+      startPos,
+      currentPos: startPos,
+    });
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setDragState(prev => ({
+        ...prev,
+        currentPos: { x: e.clientX, y: e.clientY }
+      }));
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      console.log('🎯 POPOUT DRAG END:', { nodeType, endPos: { x: e.clientX, y: e.clientY } });
+      
+      // Find the canvas element
+      const canvasElement = document.querySelector('.kiteframe-canvas');
+      
+      if (canvasElement && onCreateNodeAtPosition) {
+        const canvasRect = canvasElement.getBoundingClientRect();
+        const x = e.clientX - canvasRect.left;
+        const y = e.clientY - canvasRect.top;
+        
+        // Only create node if dropped on canvas
+        if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
+          console.log('🎯 CALLING onCreateNodeAtPosition from popout:', { nodeType, position: { x, y } });
+          onCreateNodeAtPosition(nodeType, { x, y });
+          onClose(); // Close popout after successful drop
+        } else {
+          console.log('🎯 DROP OUTSIDE CANVAS - NO NODE CREATED');
+        }
+      }
+      
+      // Reset drag state
+      setDragState({
+        isDragging: false,
+        nodeType: null,
+        startPos: null,
+        currentPos: null,
+      });
+      
+      // Remove event listeners
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    // Add event listeners
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      {/* Backdrop to close popout when clicking outside */}
+      <div 
+        className="fixed inset-0 z-40" 
+        onClick={onClose}
+        data-testid="popout-backdrop"
+      />
+      
+      {/* Popout Panel */}
+      <div 
+        className="absolute left-12 top-0 z-50 w-48 bg-card border border-border rounded-md shadow-lg p-3"
+        data-testid="node-types-popout"
+      >
+        <h3 className="text-sm font-semibold mb-3">Node Types</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {nodeTypes.map((nodeType) => {
+            const IconComponent = nodeType.icon;
+            return (
+              <div
+                key={nodeType.type}
+                className="p-2 border border-border rounded-md cursor-pointer text-center hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
+                onClick={() => {
+                  onCreateNode(nodeType.type);
+                  onClose();
+                }}
+                onMouseDown={(e) => handleNodeTypeMouseDown(e, nodeType.type)}
+                data-testid={`popout-node-type-${nodeType.type}`}
+              >
+                <IconComponent className={`${nodeType.color} mb-1 mx-auto`} size={16} />
+                <div className="text-xs font-medium">{nodeType.label}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Drag Visual Indicator */}
+      {dragState.isDragging && dragState.currentPos && (
+        <div
+          className="fixed z-[9999] pointer-events-none bg-primary text-primary-foreground px-2 py-1 rounded text-xs shadow-lg"
+          style={{
+            left: dragState.currentPos.x + 10,
+            top: dragState.currentPos.y + 10,
+          }}
+        >
+          {nodeTypes.find(nt => nt.type === dragState.nodeType)?.label || dragState.nodeType}
+        </div>
+      )}
+    </>
+  );
+}
