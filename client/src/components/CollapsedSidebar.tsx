@@ -48,10 +48,12 @@ export function CollapsedSidebar({
         setActivePopout(activePopout === 'node-types' ? null : 'node-types');
         break;
       case 'type':
-        // Text creation only happens via drag-and-drop
+        // Click creates text at center, drag-and-drop creates at mouse position
+        onCreateNode('text');
         break;
       case 'sticky-note':
-        // Sticky note creation only happens via drag-and-drop
+        // Click creates sticky note at center, drag-and-drop creates at mouse position
+        onCreateNode('sticky');
         break;
       case 'shapes':
         setActivePopout(activePopout === 'shapes' ? null : 'shapes');
@@ -88,43 +90,57 @@ export function CollapsedSidebar({
     e.stopPropagation();
     
     const startPos = { x: e.clientX, y: e.clientY };
+    let hasMoved = false;
+    
     setDragState({
-      isDragging: true,
+      isDragging: false, // Don't set dragging until we actually move
       iconType: iconKey,
       startPos,
       currentPos: startPos,
     });
 
     const handleMouseMove = (e: MouseEvent) => {
-      setDragState(prev => ({
-        ...prev,
-        currentPos: { x: e.clientX, y: e.clientY }
-      }));
+      const distance = Math.sqrt(
+        Math.pow(e.clientX - startPos.x, 2) + Math.pow(e.clientY - startPos.y, 2)
+      );
+      
+      // Only start dragging if moved more than 5 pixels
+      if (distance > 5) {
+        hasMoved = true;
+        setDragState(prev => ({
+          ...prev,
+          isDragging: true,
+          currentPos: { x: e.clientX, y: e.clientY }
+        }));
+      }
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      console.log('🎯 COLLAPSED SIDEBAR DRAG END:', { iconKey, endPos: { x: e.clientX, y: e.clientY } });
+      console.log('🎯 COLLAPSED SIDEBAR DRAG END:', { iconKey, endPos: { x: e.clientX, y: e.clientY }, hasMoved });
       
-      // Find the canvas element
-      const canvasElement = document.querySelector('.kiteframe-canvas');
-      
-      if (canvasElement) {
-        const canvasRect = canvasElement.getBoundingClientRect();
-        const canvasX = e.clientX - canvasRect.left;
-        const canvasY = e.clientY - canvasRect.top;
+      if (hasMoved) {
+        // This was a drag operation - try to place at mouse position
+        const canvasElement = document.querySelector('[data-testid="workflow-canvas"]');
         
-        // Only create object if dropped on canvas
-        if (canvasX >= 0 && canvasX <= canvasRect.width && canvasY >= 0 && canvasY <= canvasRect.height) {
-          // Convert screen coordinates to world coordinates using viewport transformation
-          const worldPos = clientToWorld(e.clientX, e.clientY, viewport, canvasRect);
-          console.log('🎯 CALLING onCreateNodeAtPosition from collapsed sidebar:', { iconKey, worldPosition: worldPos, screenPos: { x: e.clientX, y: e.clientY }, viewport, canvasRect });
-          // Convert icon key to node type and call position-based creation
-          const nodeType = iconKey === 'type' ? 'text' : iconKey === 'sticky-note' ? 'sticky' : iconKey;
-          onCreateNodeAtPosition?.(nodeType, worldPos);
-        } else {
-          console.log('🎯 DROP OUTSIDE CANVAS - NO OBJECT CREATED');
+        if (canvasElement) {
+          const canvasRect = canvasElement.getBoundingClientRect();
+          const canvasX = e.clientX - canvasRect.left;
+          const canvasY = e.clientY - canvasRect.top;
+          
+          // Only create object if dropped on canvas
+          if (canvasX >= 0 && canvasX <= canvasRect.width && canvasY >= 0 && canvasY <= canvasRect.height) {
+            // Convert screen coordinates to world coordinates using viewport transformation
+            const worldPos = clientToWorld(e.clientX, e.clientY, viewport, canvasRect);
+            console.log('🎯 CALLING onCreateNodeAtPosition from collapsed sidebar:', { iconKey, worldPosition: worldPos, screenPos: { x: e.clientX, y: e.clientY }, viewport, canvasRect });
+            // Convert icon key to node type and call position-based creation
+            const nodeType = iconKey === 'type' ? 'text' : iconKey === 'sticky-note' ? 'sticky' : iconKey;
+            onCreateNodeAtPosition?.(nodeType, worldPos);
+          } else {
+            console.log('🎯 DROP OUTSIDE CANVAS - NO OBJECT CREATED');
+          }
         }
       }
+      // If not moved, the click handler will take care of center placement
       
       // Reset drag state
       setDragState({
@@ -206,7 +222,12 @@ export function CollapsedSidebar({
               <Tooltip key={iconKey}>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => handleIconClick(iconKey)}
+                    onClick={(e) => {
+                      // Only handle click if no drag occurred
+                      if (!dragState.isDragging) {
+                        handleIconClick(iconKey);
+                      }
+                    }}
                     onMouseDown={(e) => handleIconMouseDown(e, iconKey)}
                     className={`
                       w-8 h-8 rounded-md flex items-center justify-center transition-colors

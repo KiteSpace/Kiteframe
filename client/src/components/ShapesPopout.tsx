@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { Square, Circle, Triangle, Hexagon } from 'lucide-react';
+import { clientToWorld } from '@/lib/kiteframe/utils/geometry';
 
 interface ShapesPopoutProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateShape: (shapeType: string) => void;
+  onCreateShapeAtPosition?: (shapeType: string, position: { x: number; y: number }) => void;
+  viewport: { x: number; y: number; zoom: number };
 }
 
-export function ShapesPopout({ isOpen, onClose, onCreateShape }: ShapesPopoutProps) {
+export function ShapesPopout({ isOpen, onClose, onCreateShape, onCreateShapeAtPosition, viewport }: ShapesPopoutProps) {
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
     shapeType: string | null;
@@ -36,40 +39,62 @@ export function ShapesPopout({ isOpen, onClose, onCreateShape }: ShapesPopoutPro
     e.stopPropagation();
     
     const startPos = { x: e.clientX, y: e.clientY };
+    let hasMoved = false;
+    
     setDragState({
-      isDragging: true,
+      isDragging: false, // Don't set dragging until we actually move
       shapeType,
       startPos,
       currentPos: startPos,
     });
 
     const handleMouseMove = (e: MouseEvent) => {
-      setDragState(prev => ({
-        ...prev,
-        currentPos: { x: e.clientX, y: e.clientY }
-      }));
+      const distance = Math.sqrt(
+        Math.pow(e.clientX - startPos.x, 2) + Math.pow(e.clientY - startPos.y, 2)
+      );
+      
+      // Only start dragging if moved more than 5 pixels
+      if (distance > 5) {
+        hasMoved = true;
+        setDragState(prev => ({
+          ...prev,
+          isDragging: true,
+          currentPos: { x: e.clientX, y: e.clientY }
+        }));
+      }
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      console.log('🎯 SHAPE POPOUT DRAG END:', { shapeType, endPos: { x: e.clientX, y: e.clientY } });
+      console.log('🎯 SHAPE POPOUT DRAG END:', { shapeType, endPos: { x: e.clientX, y: e.clientY }, hasMoved });
       
-      // Find the canvas element
-      const canvasElement = document.querySelector('.kiteframe-canvas');
-      
-      if (canvasElement) {
-        const canvasRect = canvasElement.getBoundingClientRect();
-        const x = e.clientX - canvasRect.left;
-        const y = e.clientY - canvasRect.top;
+      if (hasMoved) {
+        // This was a drag operation - try to place at mouse position
+        const canvasElement = document.querySelector('[data-testid="workflow-canvas"]');
         
-        // Only create shape if dropped on canvas
-        if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
-          console.log('🎯 CALLING onCreateShape from popout:', { shapeType, position: { x, y } });
-          onCreateShape(shapeType);
-          // Don't close popout after drag-and-drop - only on outside click or toggle
-        } else {
-          console.log('🎯 DROP OUTSIDE CANVAS - NO SHAPE CREATED');
+        if (canvasElement) {
+          const canvasRect = canvasElement.getBoundingClientRect();
+          const canvasX = e.clientX - canvasRect.left;
+          const canvasY = e.clientY - canvasRect.top;
+          
+          // Only create shape if dropped on canvas
+          if (canvasX >= 0 && canvasX <= canvasRect.width && canvasY >= 0 && canvasY <= canvasRect.height) {
+            // Convert screen coordinates to world coordinates using viewport transformation
+            const worldPos = clientToWorld(e.clientX, e.clientY, viewport, canvasRect);
+            console.log('🎯 CALLING onCreateShapeAtPosition from popout:', { shapeType, worldPosition: worldPos, screenPos: { x: e.clientX, y: e.clientY } });
+            // Use position-based creation for drag-and-drop
+            if (onCreateShapeAtPosition) {
+              onCreateShapeAtPosition(shapeType, worldPos);
+            } else {
+              // Fallback to center creation
+              onCreateShape(shapeType);
+            }
+            // Don't close popout after drag-and-drop - only on outside click or toggle
+          } else {
+            console.log('🎯 DROP OUTSIDE CANVAS - NO SHAPE CREATED');
+          }
         }
       }
+      // If not moved, the click handler will take care of center placement
       
       // Reset drag state
       setDragState({
@@ -113,9 +138,12 @@ export function ShapesPopout({ isOpen, onClose, onCreateShape }: ShapesPopoutPro
               <div
                 key={shapeType.type}
                 className="p-2 border border-border rounded-md cursor-pointer text-center hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
-                onClick={() => {
-                  onCreateShape(shapeType.type);
-                  // Don't close popout on click - only on outside click or toggle
+                onClick={(e) => {
+                  // Only handle click if no drag occurred
+                  if (!dragState.isDragging) {
+                    onCreateShape(shapeType.type);
+                    // Don't close popout on click - only on outside click or toggle
+                  }
                 }}
                 onMouseDown={(e) => handleShapeMouseDown(e, shapeType.type)}
                 data-testid={`popout-shape-${shapeType.type}`}

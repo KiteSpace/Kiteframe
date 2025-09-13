@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { ArrowRight, Cog, HelpCircle, ArrowLeft, Bot, Image, Type, StickyNote, Square } from 'lucide-react';
+import { clientToWorld } from '@/lib/kiteframe/utils/geometry';
 
 interface NodeTypesPopoutProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateNode: (type: string) => void;
   onCreateNodeAtPosition?: (type: string, position: { x: number; y: number }) => void;
+  viewport: { x: number; y: number; zoom: number };
 }
 
-export function NodeTypesPopout({ isOpen, onClose, onCreateNode, onCreateNodeAtPosition }: NodeTypesPopoutProps) {
+export function NodeTypesPopout({ isOpen, onClose, onCreateNode, onCreateNodeAtPosition, viewport }: NodeTypesPopoutProps) {
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
     nodeType: string | null;
@@ -39,40 +41,56 @@ export function NodeTypesPopout({ isOpen, onClose, onCreateNode, onCreateNodeAtP
     e.stopPropagation();
     
     const startPos = { x: e.clientX, y: e.clientY };
+    let hasMoved = false;
+    
     setDragState({
-      isDragging: true,
+      isDragging: false, // Don't set dragging until we actually move
       nodeType,
       startPos,
       currentPos: startPos,
     });
 
     const handleMouseMove = (e: MouseEvent) => {
-      setDragState(prev => ({
-        ...prev,
-        currentPos: { x: e.clientX, y: e.clientY }
-      }));
+      const distance = Math.sqrt(
+        Math.pow(e.clientX - startPos.x, 2) + Math.pow(e.clientY - startPos.y, 2)
+      );
+      
+      // Only start dragging if moved more than 5 pixels
+      if (distance > 5) {
+        hasMoved = true;
+        setDragState(prev => ({
+          ...prev,
+          isDragging: true,
+          currentPos: { x: e.clientX, y: e.clientY }
+        }));
+      }
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      console.log('🎯 POPOUT DRAG END:', { nodeType, endPos: { x: e.clientX, y: e.clientY } });
+      console.log('🎯 POPOUT DRAG END:', { nodeType, endPos: { x: e.clientX, y: e.clientY }, hasMoved });
       
-      // Find the canvas element
-      const canvasElement = document.querySelector('.kiteframe-canvas');
-      
-      if (canvasElement && onCreateNodeAtPosition) {
-        const canvasRect = canvasElement.getBoundingClientRect();
-        const x = e.clientX - canvasRect.left;
-        const y = e.clientY - canvasRect.top;
+      if (hasMoved) {
+        // This was a drag operation - try to place at mouse position
+        const canvasElement = document.querySelector('[data-testid="workflow-canvas"]');
         
-        // Only create node if dropped on canvas
-        if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
-          console.log('🎯 CALLING onCreateNodeAtPosition from popout:', { nodeType, position: { x, y } });
-          onCreateNodeAtPosition(nodeType, { x, y });
-          // Don't close popout after drag-and-drop - only on outside click or toggle
-        } else {
-          console.log('🎯 DROP OUTSIDE CANVAS - NO NODE CREATED');
+        if (canvasElement && onCreateNodeAtPosition) {
+          const canvasRect = canvasElement.getBoundingClientRect();
+          const canvasX = e.clientX - canvasRect.left;
+          const canvasY = e.clientY - canvasRect.top;
+          
+          // Only create node if dropped on canvas
+          if (canvasX >= 0 && canvasX <= canvasRect.width && canvasY >= 0 && canvasY <= canvasRect.height) {
+            // Convert screen coordinates to world coordinates using viewport transformation
+            const worldPos = clientToWorld(e.clientX, e.clientY, viewport, canvasRect);
+            console.log('🎯 CALLING onCreateNodeAtPosition from popout:', { nodeType, worldPosition: worldPos, screenPos: { x: e.clientX, y: e.clientY } });
+            onCreateNodeAtPosition(nodeType, worldPos);
+            // Don't close popout after drag-and-drop - only on outside click or toggle
+          } else {
+            console.log('🎯 DROP OUTSIDE CANVAS - NO NODE CREATED');
+          }
         }
       }
+      // If not moved, the click handler will take care of center placement
       
       // Reset drag state
       setDragState({
@@ -116,9 +134,12 @@ export function NodeTypesPopout({ isOpen, onClose, onCreateNode, onCreateNodeAtP
               <div
                 key={nodeType.type}
                 className="p-2 border border-border rounded-md cursor-pointer text-center hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
-                onClick={() => {
-                  onCreateNode(nodeType.type);
-                  // Don't close popout on click - only on outside click or toggle
+                onClick={(e) => {
+                  // Only handle click if no drag occurred
+                  if (!dragState.isDragging) {
+                    onCreateNode(nodeType.type);
+                    // Don't close popout on click - only on outside click or toggle
+                  }
                 }}
                 onMouseDown={(e) => handleNodeTypeMouseDown(e, nodeType.type)}
                 data-testid={`popout-node-type-${nodeType.type}`}

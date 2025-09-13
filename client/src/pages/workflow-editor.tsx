@@ -2591,6 +2591,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 <NodeTypesPopout
                   isOpen={activePopout === 'node-types'}
                   onClose={() => setActivePopout(null)}
+                  viewport={viewport}
                   onCreateNode={(type: string) => {
                     // Handle regular node creation
                     if (tabs.length === 0) {
@@ -2665,6 +2666,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 <ShapesPopout
                   isOpen={activePopout === 'shapes'}
                   onClose={() => setActivePopout(null)}
+                  viewport={viewport}
                   onCreateShape={(shapeType: string) => {
                     saveToHistory();
                     
@@ -2672,6 +2674,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       id: `object-${Date.now()}`,
                       type: 'shape',
                       position: getViewportCenteredPosition(),
+                      data: { shapeType, fillColor: '#3b82f6', strokeColor: '#1e40af', strokeWidth: 2 } as any,
+                      width: 150,
+                      height: 100,
+                      selected: false
+                    };
+                    
+                    updateActiveTab({ 
+                      canvasObjects: [...canvasObjects, newCanvasObject] 
+                    });
+                  }}
+                  onCreateShapeAtPosition={(shapeType: string, position: { x: number; y: number }) => {
+                    saveToHistory();
+                    
+                    const newCanvasObject: CanvasObject = {
+                      id: `object-${Date.now()}`,
+                      type: 'shape',
+                      position, // Use the provided position instead of center
                       data: { shapeType, fillColor: '#3b82f6', strokeColor: '#1e40af', strokeWidth: 2 } as any,
                       width: 150,
                       height: 100,
