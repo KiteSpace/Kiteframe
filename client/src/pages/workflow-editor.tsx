@@ -2712,13 +2712,26 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     saveToHistory();
                   }}
                   onDeselect={() => {
-                    setSelectedNodeId('');
-                    setSelectedEdgeId('');
-                    setNodes(prev => prev.map(n => ({ ...n, selected: false })));
-                    setEdges(prev => prev.map(e => ({ ...e, selected: false })));
-                    updateActiveTab({
-                      canvasObjects: canvasObjects.map(obj => ({ ...obj, selected: false }))
-                    });
+                    // Only deselect the currently selected object, not all objects
+                    if (selectedNodeId) {
+                      setSelectedNodeId('');
+                      setNodes(prev => prev.map(n => 
+                        n.id === selectedNodeId ? { ...n, selected: false } : n
+                      ));
+                    }
+                    if (selectedEdgeId) {
+                      setSelectedEdgeId('');
+                      setEdges(prev => prev.map(e => 
+                        e.id === selectedEdgeId ? { ...e, selected: false } : e
+                      ));
+                    }
+                    // Deselect any selected canvas objects
+                    const hasSelectedCanvasObjects = canvasObjects.some(obj => obj.selected);
+                    if (hasSelectedCanvasObjects) {
+                      updateActiveTab({
+                        canvasObjects: canvasObjects.map(obj => ({ ...obj, selected: false }))
+                      });
+                    }
                   }}
                 />
               </>
@@ -3547,13 +3560,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   tabId: activeTab 
                 });
               }}
-              onCanvasClick={() => {
+              onCanvasClick={(e?: React.MouseEvent) => {
+                // Don't deselect during drag operations to keep properties card open
+                if (e && (e.target as HTMLElement)?.closest?.('.dragging')) {
+                  console.log(`📝 CANVAS CLICK: Ignoring during drag operation`);
+                  return;
+                }
+                
                 console.log(`📝 CANVAS CLICK:`, { tabId: activeTab, clearing: 'all selections' });
                 setNodes(prev => prev.map(n => ({ ...n, selected: false })));
                 setEdges(prev => prev.map(e => ({ ...e, selected: false })));
                 setSelectedNodeId('');
                 setSelectedEdgeId('');
                 setContextMenu(null);
+                // Clear canvas objects selection too
+                updateActiveTab({
+                  canvasObjects: canvasObjects.map(obj => ({ ...obj, selected: false }))
+                });
               }}
               onNodeRightClick={(e: React.MouseEvent, node: Node) => {
                 setContextMenu({ x: e.clientX, y: e.clientY, node });
