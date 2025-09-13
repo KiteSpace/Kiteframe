@@ -2044,19 +2044,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             };
             
             const updatedEdges = [...edges, newEdge];
-            updateActiveTab((prev) => ({
-              ...prev,
-              edges: updatedEdges
-            }));
+            updateActiveTab({ edges: updatedEdges });
             
             console.log('🚀 SmartConnect: Auto-connection created!', connection);
           },
           // onEdgesChange callback
           (updatedEdges) => {
-            updateActiveTab((prev) => ({
-              ...prev,
-              edges: updatedEdges
-            }));
+            updateActiveTab({ edges: updatedEdges });
           }
         );
         
@@ -2100,19 +2094,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             };
             
             const updatedEdges = [...edges, newEdge];
-            updateActiveTab((prev) => ({
-              ...prev,
-              edges: updatedEdges
-            }));
+            updateActiveTab({ edges: updatedEdges });
             
             console.log('🚀 SmartConnect: Auto-connection created!', connection);
           },
           // onEdgesChange callback
           (updatedEdges) => {
-            updateActiveTab((prev) => ({
-              ...prev,
-              edges: updatedEdges
-            }));
+            updateActiveTab({ edges: updatedEdges });
           }
         );
       } catch (error) {
