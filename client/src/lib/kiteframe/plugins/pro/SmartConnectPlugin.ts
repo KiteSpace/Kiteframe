@@ -21,6 +21,13 @@ export class SmartConnectPlugin implements KiteFramePlugin {
   private lastUpdateTime = 0;
   private readonly UPDATE_THROTTLE = 16; // ~60fps
   private dragOffset: { dx: number; dy: number } | null = null;
+  
+  // Drag distance tracking to distinguish clicks from actual drags
+  private dragStartPos: { x: number; y: number } | null = null;
+  private readonly DRAG_THRESHOLD = 10; // pixels - minimum drag distance to trigger auto-connect
+  
+  // Position tracking to only trigger auto-connect when nodes actually move
+  private previousNodePositions: Map<string, { x: number; y: number }> = new Map();
 
   initialize(core: any): void {
     console.log('🔗 SmartConnect Pro Plugin v1.0: Initializing...');
@@ -89,10 +96,17 @@ export class SmartConnectPlugin implements KiteFramePlugin {
   updateNodes(nodes: Node[]): void {
     this.currentNodes = nodes;
     
-    // Check for auto-connections if enabled and not currently dragging
+    // Check for auto-connections only if nodes actually moved (not just selection changes)
     if (this.config.autoConnect && !this.isDragging) {
-      this.checkAutoConnections();
+      const hasPositionChanges = this.hasNodePositionChanges(nodes);
+      if (hasPositionChanges) {
+        console.log('🔗 SmartConnect: Node positions changed, checking auto-connections');
+        this.checkAutoConnections();
+      }
     }
+    
+    // Update stored positions for next comparison
+    this.updateStoredPositions(nodes);
   }
 
   updateEdges(edges: Edge[]): void {
@@ -104,6 +118,7 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     
     this.isDragging = true;
     this.draggedNodeId = nodeId;
+    this.dragStartPos = { x: worldPos.x, y: worldPos.y };
     
     // Calculate drag offset to convert worldPos to node top-left position
     const draggedNode = this.currentNodes.find(n => n.id === nodeId);
@@ -143,10 +158,23 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     
     this.isDragging = false;
     
+    // Calculate drag distance to determine if this was a real drag or just a click
+    let wasActualDrag = false;
+    if (this.dragStartPos) {
+      const dragDistance = Math.sqrt(
+        Math.pow(worldPos.x - this.dragStartPos.x, 2) + 
+        Math.pow(worldPos.y - this.dragStartPos.y, 2)
+      );
+      wasActualDrag = dragDistance >= this.DRAG_THRESHOLD;
+      
+      console.log(`🔗 SmartConnect: Drag distance: ${dragDistance.toFixed(1)}px, threshold: ${this.DRAG_THRESHOLD}px, wasActualDrag: ${wasActualDrag}`);
+    }
+    
     // Clear preview first
     this.clearPreview();
     this.draggedNodeId = null;
     this.dragOffset = null;
+    this.dragStartPos = null;
     
     // Cancel any pending frame request
     if (this.frameRequest) {
@@ -154,12 +182,41 @@ export class SmartConnectPlugin implements KiteFramePlugin {
       this.frameRequest = null;
     }
     
-    // Perform final auto-connection check based on current positions
-    if (this.config.autoConnect) {
+    // Only perform auto-connection check if this was an actual drag, not just a click
+    if (this.config.autoConnect && wasActualDrag) {
+      console.log('🔗 SmartConnect: Checking auto-connections after actual drag');
       this.checkAutoConnections();
+    } else if (this.config.autoConnect) {
+      console.log('🔗 SmartConnect: Skipping auto-connections - was just a click, not a drag');
     }
     
     console.log('🔗 SmartConnect: Drag ended for node', nodeId);
+  }
+  
+  private hasNodePositionChanges(nodes: Node[]): boolean {
+    for (const node of nodes) {
+      const prevPos = this.previousNodePositions.get(node.id);
+      if (!prevPos) {
+        // New node, consider this a position change
+        continue;
+      }
+      
+      const deltaX = Math.abs(node.position.x - prevPos.x);
+      const deltaY = Math.abs(node.position.y - prevPos.y);
+      
+      // If any node moved more than 1 pixel, consider it a position change
+      if (deltaX > 1 || deltaY > 1) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  private updateStoredPositions(nodes: Node[]): void {
+    this.previousNodePositions.clear();
+    for (const node of nodes) {
+      this.previousNodePositions.set(node.id, { x: node.position.x, y: node.position.y });
+    }
   }
 
   private checkProximityConnections(nodeId: string, nodePosition: { x: number; y: number }): void {
