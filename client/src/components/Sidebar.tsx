@@ -59,6 +59,7 @@ interface SidebarProps {
   selectedNodes?: Node[];
   selectedEdge?: Edge;
   onCreateNode: (type: string) => void;
+  onCreateNodeAtPosition?: (type: string, position: { x: number; y: number }) => void;
   onFitView: () => void;
   onClearCanvas: () => void;
   onExport: () => void;
@@ -95,6 +96,7 @@ export function Sidebar({
   selectedNodes = [],
   selectedEdge,
   onCreateNode,
+  onCreateNodeAtPosition,
   onFitView,
   onClearCanvas,
   onExport,
@@ -123,6 +125,12 @@ export function Sidebar({
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [dragState, setDragState] = useState<{
+    isDragging: boolean;
+    nodeType: string | null;
+    startPos: { x: number; y: number } | null;
+    currentPos: { x: number; y: number } | null;
+  }>({ isDragging: false, nodeType: null, startPos: null, currentPos: null });
   const [isThemesExpanded, setIsThemesExpanded] = useState(true);
   const [isTemplatesExpanded, setIsTemplatesExpanded] = useState(false);
   const [isAnimationExpanded, setIsAnimationExpanded] = useState(false);
@@ -207,9 +215,69 @@ export function Sidebar({
     { type: 'io-logic', icon: CircuitBoard, color: 'text-cyan-500', label: 'I/O Logic' }
   ];
 
+  // Drag and drop handlers
+  const handleNodeTypeMouseDown = (
+    e: React.MouseEvent,
+    nodeType: string,
+    nodeTypeData: { type: string; icon: any; color: string; label: string }
+  ) => {
+    // Only handle left mouse button
+    if (e.button !== 0) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const startPos = { x: e.clientX, y: e.clientY };
+    setDragState({
+      isDragging: true,
+      nodeType,
+      startPos,
+      currentPos: startPos,
+    });
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setDragState(prev => ({
+        ...prev,
+        currentPos: { x: e.clientX, y: e.clientY }
+      }));
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      // Calculate final position relative to canvas
+      const canvasElement = document.querySelector('[data-testid="workflow-canvas"]');
+      if (canvasElement && onCreateNodeAtPosition) {
+        const canvasRect = canvasElement.getBoundingClientRect();
+        const x = e.clientX - canvasRect.left;
+        const y = e.clientY - canvasRect.top;
+        
+        // Only create node if dropped on canvas
+        if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
+          onCreateNodeAtPosition(nodeType, { x, y });
+        }
+      }
+      
+      // Reset drag state
+      setDragState({
+        isDragging: false,
+        nodeType: null,
+        startPos: null,
+        currentPos: null,
+      });
+      
+      // Remove event listeners
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    // Add event listeners
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   return (
-    <aside className="w-64 p-4 bg-card border-r border-border shadow-sm flex flex-col h-full overflow-hidden" data-testid="sidebar">
-      <div className="space-y-6 flex-1 overflow-y-auto">
+    <>
+      <aside className="w-64 p-4 bg-card border-r border-border shadow-sm flex flex-col h-full overflow-hidden" data-testid="sidebar">
+        <div className="space-y-6 flex-1 overflow-y-auto">
         {isMultiSelect ? (
           // Multi-select properties view
           <div>
@@ -1299,6 +1367,7 @@ export function Sidebar({
                       key={nodeType.type}
                       className="p-3 border border-border rounded-md cursor-pointer text-center hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
                       onClick={() => onCreateNode(nodeType.type)}
+                      onMouseDown={(e) => handleNodeTypeMouseDown(e, nodeType.type, nodeType)}
                       data-testid={`node-type-${nodeType.type}`}
                     >
                       <IconComponent className={`${nodeType.color} mb-1 mx-auto`} size={20} />
@@ -1599,12 +1668,41 @@ export function Sidebar({
             onImageUrl={onImageUrl}
           />
         )}
-      </div>
-    </aside>
+        </div>
+      </aside>
+
+      {/* Ghost Preview during drag */}
+      {dragState.isDragging && dragState.currentPos && dragState.nodeType && (
+        <div
+          className="fixed pointer-events-none z-50 bg-white/90 dark:bg-gray-800/90 border border-border rounded-md p-2 shadow-lg backdrop-blur-sm"
+          style={{
+            left: dragState.currentPos.x + 10,
+            top: dragState.currentPos.y - 20,
+            transform: 'translate(0, 0)',
+          }}
+        >
+          <div className="flex items-center gap-2 text-sm">
+            {(() => {
+              const nodeTypeData = nodeTypes.find(nt => nt.type === dragState.nodeType);
+              if (nodeTypeData) {
+                const IconComponent = nodeTypeData.icon;
+                return (
+                  <>
+                    <IconComponent className={`${nodeTypeData.color}`} size={16} />
+                    <span className="font-medium">{nodeTypeData.label}</span>
+                  </>
+                );
+              }
+              return null;
+            })()}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
-// Enhanced Image Modal Component
+// Enhanced Image Modal Component  
 interface ImageModalProps {
   nodeId: string;
   onClose: () => void;

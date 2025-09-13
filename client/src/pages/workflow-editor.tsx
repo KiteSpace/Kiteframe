@@ -2533,6 +2533,98 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                 setNodes(prev => [...prev, newNode]);
               }}
+              onCreateNodeAtPosition={(type: string, position: { x: number; y: number }) => {
+                // Create a new tab if none exist
+                if (tabs.length === 0) {
+                  const newTab = createBlankTab();
+                  setTabs([newTab]);
+                  setActiveTabId(newTab.id);
+                  return;
+                }
+
+                // Convert screen position to world position (using same logic as getViewportCenteredPosition)
+                const worldPosition = {
+                  x: Math.round((position.x - viewport.x) / viewport.zoom),
+                  y: Math.round((position.y - viewport.y) / viewport.zoom)
+                };
+                
+                // For canvas objects (text, sticky, shape)
+                if (['text', 'sticky', 'shape'].includes(type)) {
+                  saveToHistory();
+                  
+                  let newCanvasObject: CanvasObject;
+                  
+                  if (type === 'text') {
+                    newCanvasObject = {
+                      id: `object-${Date.now()}`,
+                      type: 'text',
+                      position: worldPosition,
+                      data: { text: 'Click to edit text', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', textColor: '#000000' } as any,
+                      style: { width: 200, height: 100 },
+                      width: 200,
+                      height: 100,
+                      draggable: true,
+                      resizable: true
+                    };
+                  } else if (type === 'sticky') {
+                    newCanvasObject = {
+                      id: `object-${Date.now()}`,
+                      type: 'sticky',
+                      position: worldPosition,
+                      data: { text: 'Your note here...', backgroundColor: '#fef3c7', textColor: '#92400e', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' } as any,
+                      style: { width: 180, height: 180 },
+                      width: 180,
+                      height: 180,
+                      draggable: true,
+                      resizable: true
+                    };
+                  } else {
+                    newCanvasObject = {
+                      id: `object-${Date.now()}`,
+                      type: 'shape',
+                      position: worldPosition,
+                      data: { shapeType: 'rectangle', fillColor: '#3b82f6', strokeColor: '#1d4ed8', strokeWidth: 2, strokeStyle: 'solid', opacity: 1 } as any,
+                      style: { width: 200, height: 100 },
+                      width: 200,
+                      height: 100,
+                      draggable: true,
+                      resizable: true
+                    };
+                  }
+                  
+                  const currentCanvasObjects = activeTab?.canvasObjects || [];
+                  updateActiveTab({ canvasObjects: [...currentCanvasObjects, newCanvasObject] });
+                  return;
+                }
+
+                // For regular nodes (input, process, condition, output, ai, image)
+                saveToHistory();
+                
+                const icons = {
+                  input: { icon: 'ArrowRight', color: 'text-blue-500' },
+                  process: { icon: 'Cog', color: 'text-green-500' },
+                  condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
+                  output: { icon: 'ArrowLeft', color: 'text-red-500' },
+                  ai: { icon: 'Bot', color: 'text-purple-500' },
+                  image: { icon: 'Image', color: 'text-indigo-500' }
+                };
+
+                const newNode: Node = {
+                  id: `node-${Date.now()}`,
+                  type,
+                  position: { x: worldPosition.x - 100, y: worldPosition.y - 50 }, // Center the node
+                  data: {
+                    label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+                    description: `Configure ${type} settings`,
+                    icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
+                    iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
+                  },
+                  width: 200,
+                  height: 100
+                };
+
+                setNodes(prev => [...prev, newNode]);
+              }}
               onFitView={() => {
                 if (nodes.length === 0) {
                   setViewport({ x: 0, y: 0, zoom: 1 });
@@ -2833,6 +2925,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             
             {tabs.length > 0 ? (
               <WorkflowCanvas
+              data-testid="workflow-canvas"
               nodes={nodes}
               edges={edges}
               canvasObjects={canvasObjects}
