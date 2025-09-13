@@ -62,7 +62,7 @@ export class SmartConnectPlugin implements KiteFramePlugin {
   ): void {
     this.config = { 
       enabled: true,
-      threshold: 50,
+      threshold: 25,
       showPreview: true,
       autoConnect: false,
       ...config 
@@ -175,7 +175,7 @@ export class SmartConnectPlugin implements KiteFramePlugin {
       };
     }
     
-    const threshold = this.config.threshold || 50;
+    const threshold = this.config.threshold || 25;
     let closestConnection: { target: string; distance: number } | null = null;
     
     // Create a temporary node with updated position for accurate calculation
@@ -217,7 +217,7 @@ export class SmartConnectPlugin implements KiteFramePlugin {
   private checkAutoConnections(): void {
     if (!this.config.autoConnect || this.isDragging) return;
     
-    const threshold = this.config.threshold || 50;
+    const threshold = this.config.threshold || 25;
     const newConnections: { source: string; target: string }[] = [];
     
     this.currentNodes.forEach(sourceNode => {
