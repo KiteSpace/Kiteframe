@@ -66,9 +66,14 @@ export function FloatingToolbar({
     const newX = e.clientX - containerRect.left - dragOffset.x;
     const newY = e.clientY - containerRect.top - dragOffset.y;
     
+    // Get actual toolbar dimensions
+    const toolbarRect = toolbarRef.current?.getBoundingClientRect();
+    const toolbarWidth = toolbarRect?.width || 400; // Fallback to 400 if measurement fails
+    const toolbarHeight = toolbarRect?.height || 60; // Fallback to 60 if measurement fails
+    
     // Keep toolbar within bounds
-    const maxX = containerRect.width - 400; // Approximate toolbar width
-    const maxY = containerRect.height - 60; // Toolbar height
+    const maxX = containerRect.width - toolbarWidth;
+    const maxY = containerRect.height - toolbarHeight;
     
     setPosition({
       x: Math.max(0, Math.min(maxX, newX)),

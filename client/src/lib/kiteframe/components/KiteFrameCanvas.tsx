@@ -693,6 +693,73 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const [unifiedSelectionRect, setUnifiedSelectionRect] = useState<null | {x:number;y:number;w:number;h:number}>(null);
   const unifiedSelectStart = useRef<{x:number;y:number}|null>(null);
   const justCompletedUnifiedSelection = useRef<boolean>(false);
+  const selectionInProgress = useRef<boolean>(false);
+
+  // DOM ref mapping for accurate bounds calculation
+  const nodeRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const canvasObjectRefs = useRef<Map<string, HTMLElement>>(new Map());
+
+  // Helper functions for DOM bounds
+  const registerNodeRef = (id: string, element: HTMLElement | null) => {
+    if (element) {
+      nodeRefs.current.set(id, element);
+    } else {
+      nodeRefs.current.delete(id);
+    }
+  };
+
+  const registerCanvasObjectRef = (id: string, element: HTMLElement | null) => {
+    if (element) {
+      canvasObjectRefs.current.set(id, element);
+    } else {
+      canvasObjectRefs.current.delete(id);
+    }
+  };
+
+  const getAccurateWorldBounds = (itemId: string, fallbackBounds: {x1: number, y1: number, x2: number, y2: number}) => {
+    const nodeElement = nodeRefs.current.get(itemId);
+    const objectElement = canvasObjectRefs.current.get(itemId);
+    const element = nodeElement || objectElement;
+    
+    if (element && containerRef.current) {
+      try {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+        
+        // Convert DOM bounds to world coordinates
+        const topLeft = clientToWorld(
+          elementRect.left - containerRect.left, 
+          elementRect.top - containerRect.top, 
+          viewport, 
+          containerRect
+        );
+        const bottomRight = clientToWorld(
+          elementRect.right - containerRect.left, 
+          elementRect.bottom - containerRect.top, 
+          viewport, 
+          containerRect
+        );
+        
+        return {
+          x1: topLeft.x,
+          y1: topLeft.y,
+          x2: bottomRight.x,
+          y2: bottomRight.y
+        };
+      } catch (error) {
+        console.warn('Failed to get accurate bounds for', itemId, error);
+      }
+    }
+    
+    // Fallback to stored dimensions with small margin for safety
+    const margin = 5;
+    return {
+      x1: fallbackBounds.x1 - margin,
+      y1: fallbackBounds.y1 - margin,
+      x2: fallbackBounds.x2 + margin,
+      y2: fallbackBounds.y2 + margin
+    };
+  };
   
   // Constants
   const dragThreshold = 5; // pixels - threshold for distinguishing clicks from drags
@@ -833,19 +900,25 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     setViewport({ x: newX, y: newY, zoom: newZoom });
   };
 
+  // Function to start unified selection - can be called from anywhere
+  const startUnifiedSelection = (clientX: number, clientY: number) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const containerX = clientX - rect.left;
+    const containerY = clientY - rect.top;
+    
+    unifiedSelectStart.current = { x: containerX, y: containerY };
+    setUnifiedSelectionRect({ x: containerX, y: containerY, w: 0, h: 0 });
+    selectionInProgress.current = true;
+  };
+
   // Background interactions: pan or selection (Shift+drag)
   const onBackgroundDown = (e: React.MouseEvent) => {
     const isShift = e.shiftKey;
     if (isShift) {
       e.preventDefault();
       e.stopPropagation();
-      const rect = containerRef.current!.getBoundingClientRect();
-      const containerX = e.clientX - rect.left;
-      const containerY = e.clientY - rect.top;
-      
-      // Start unified selection that can select both nodes and canvas objects
-      unifiedSelectStart.current = { x: containerX, y: containerY };
-      setUnifiedSelectionRect({ x: containerX, y: containerY, w: 0, h: 0 });
+      startUnifiedSelection(e.clientX, e.clientY);
     } else if (!props.disablePan) {
       setPanning(true);
       panStart.current = { x: e.clientX - viewport.x, y: e.clientY - viewport.y };
@@ -1019,14 +1092,18 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       
       // Select nodes that intersect with selection rectangle
       const updatedNodes = props.nodes.map(n => {
+        // Start with fallback bounds from stored dimensions
         const w = n.style?.width ?? n.width ?? 200;
         const h = n.style?.height ?? n.height ?? 100;
-        const nodeBounds = {
+        const fallbackBounds = {
           x1: n.position.x,
           y1: n.position.y,
           x2: n.position.x + w,
           y2: n.position.y + h
         };
+        
+        // Get accurate DOM bounds if available
+        const nodeBounds = getAccurateWorldBounds(n.id, fallbackBounds);
         
         // Use overlap detection instead of complete containment
         const overlapsX = nodeBounds.x1 < nx2 && nodeBounds.x2 > nx1;
@@ -1038,11 +1115,15 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       
       // Select canvas objects that intersect with selection rectangle
       const updatedObjects = (props.canvasObjects || []).map(obj => {
+        // Get fallback bounds from stored dimensions
         const objRect = getCanvasObjectRect(obj);
         
+        // Get accurate DOM bounds if available
+        const accurateBounds = getAccurateWorldBounds(obj.id, objRect);
+        
         // Use overlap detection instead of complete containment
-        const overlapsX = objRect.x1 < nx2 && objRect.x2 > nx1;
-        const overlapsY = objRect.y1 < ny2 && objRect.y2 > ny1;
+        const overlapsX = accurateBounds.x1 < nx2 && accurateBounds.x2 > nx1;
+        const overlapsY = accurateBounds.y1 < ny2 && accurateBounds.y2 > ny1;
         const selected = overlapsX && overlapsY;
         
         return { ...obj, selected };
@@ -1063,6 +1144,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       // Clean up unified selection state
       setUnifiedSelectionRect(null);
       unifiedSelectStart.current = null;
+      selectionInProgress.current = false;
       justCompletedUnifiedSelection.current = true;
       setTimeout(() => { justCompletedUnifiedSelection.current = false; }, 100);
       return; // Don't trigger onClick
@@ -1112,6 +1194,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     start: {x:number;y:number}; 
     origin: {x:number;y:number}; 
     origins?: {id: string; origin: {x:number;y:number}}[];
+    canvasObjectOrigins?: {id: string; origin: {x:number;y:number}}[];
     isGroupDrag?: boolean;
   }|null>(null);
 
@@ -1122,6 +1205,29 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     origin: {x:number;y:number}; 
   }|null>(null);
   
+  // Add capture-phase mousedown handler for shift+drag lasso from anywhere
+  useEffect(() => {
+    const handleCaptureMouseDown = (e: MouseEvent) => {
+      if (e.shiftKey && containerRef.current) {
+        // Check if target is not an input or contentEditable to avoid interfering with text editing
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
+          return;
+        }
+        
+        e.preventDefault();
+        e.stopPropagation();
+        startUnifiedSelection(e.clientX, e.clientY);
+      }
+    };
+
+    // Use document to capture shift+mousedown anywhere within the canvas area
+    document.addEventListener('mousedown', handleCaptureMouseDown, { capture: true });
+    return () => {
+      document.removeEventListener('mousedown', handleCaptureMouseDown, { capture: true });
+    };
+  }, []);
+
   // Simple drag tracking without interference
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -1156,18 +1262,34 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       
       if (dragInfo.current.isGroupDrag && dragInfo.current.origins) {
         // Group drag: move all selected nodes
-        const updated = props.nodes.map(n => {
+        const updatedNodes = props.nodes.map(n => {
           const nodeOrigin = dragInfo.current!.origins!.find(o => o.id === n.id);
           if (nodeOrigin) {
             return { ...n, position: { x: nodeOrigin.origin.x + dx, y: nodeOrigin.origin.y + dy } };
           }
           return n;
         });
-        console.log('🔧 GROUP DRAG UPDATE:', {
-          updatedNodes: updated.filter(n => dragInfo.current!.origins!.some(o => o.id === n.id)),
-          totalNodes: updated.length
+        
+        // Group drag: also move all selected canvas objects
+        const updatedCanvasObjects = (props.canvasObjects || []).map(obj => {
+          const objectOrigin = dragInfo.current!.canvasObjectOrigins?.find(o => o.id === obj.id);
+          if (objectOrigin) {
+            return { ...obj, position: { x: objectOrigin.origin.x + dx, y: objectOrigin.origin.y + dy } };
+          }
+          return obj;
         });
-        props.onNodesChange(updated);
+        
+        console.log('🔧 GROUP DRAG UPDATE:', {
+          updatedNodes: updatedNodes.filter(n => dragInfo.current!.origins!.some(o => o.id === n.id)),
+          updatedCanvasObjects: updatedCanvasObjects.filter(obj => dragInfo.current!.canvasObjectOrigins?.some(o => o.id === obj.id)),
+          totalNodes: updatedNodes.length,
+          totalCanvasObjects: updatedCanvasObjects.length
+        });
+        
+        props.onNodesChange(updatedNodes);
+        if (dragInfo.current.canvasObjectOrigins && dragInfo.current.canvasObjectOrigins.length > 0) {
+          props.onCanvasObjectsChange?.(updatedCanvasObjects);
+        }
         
 
       } else {
@@ -1794,6 +1916,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           return (
             <div
               key={n.id}
+              ref={(el) => registerNodeRef(n.id, el)}
               data-node-id={n.id}
               className={`kiteframe-node group ${n.selected?'selected':''}`}
               style={{ 
@@ -1813,20 +1936,28 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 const rect = containerRef.current.getBoundingClientRect();
                 const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
                 
-                // Check if this node is selected and if there are other selected nodes
+                // Check if this node is selected and if there are other selected nodes or canvas objects
                 const selectedNodes = props.nodes.filter(node => node.selected === true);
-                const isGroupDrag = selectedNodes.length > 1 && n.selected === true;
+                const selectedCanvasObjects = (props.canvasObjects || []).filter(obj => obj.selected === true);
+                const totalSelected = selectedNodes.length + selectedCanvasObjects.length;
+                const isGroupDrag = totalSelected > 1 && n.selected === true;
                 
                 // Prepare origins for all nodes that will be dragged
                 const origins = isGroupDrag 
                   ? selectedNodes.map(node => ({ id: node.id, origin: { ...node.position } }))
                   : [{ id: n.id, origin: { ...n.position } }];
                 
+                // Prepare origins for all canvas objects that will be dragged
+                const canvasObjectOrigins = isGroupDrag 
+                  ? selectedCanvasObjects.map(obj => ({ id: obj.id, origin: { ...obj.position } }))
+                  : [];
+                
                 dragInfo.current = { 
                   id: n.id, 
                   start: wp, 
                   origin: { ...n.position },
                   origins: origins,
+                  canvasObjectOrigins: canvasObjectOrigins,
                   isGroupDrag: isGroupDrag
                 };
                 
@@ -1854,9 +1985,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 e.stopPropagation();
                 console.log(`🎯 NODE CLICK:`, { nodeId: n.id, wasSelected: n.selected, shiftKey: e.shiftKey });
                 
-                // Suppress clicks immediately after completing a unified selection
-                if (justCompletedUnifiedSelection.current) {
-                  console.log('🚫 Click suppressed - just completed unified selection');
+                // Suppress clicks during or immediately after unified selection
+                if (selectionInProgress.current || justCompletedUnifiedSelection.current) {
+                  console.log('🚫 Click suppressed - selection in progress or just completed');
                   return;
                 }
                 
@@ -2122,9 +2253,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           const handleCanvasObjectClick = (objectId: string, e: React.MouseEvent) => {
             e.stopPropagation();
             
-            // Suppress clicks immediately after completing a unified selection
-            if (justCompletedUnifiedSelection.current) {
-              console.log('🚫 Click suppressed - just completed unified selection');
+            // Suppress clicks during or immediately after unified selection
+            if (selectionInProgress.current || justCompletedUnifiedSelection.current) {
+              console.log('🚫 Click suppressed - selection in progress or just completed');
               return;
             }
             

@@ -2164,46 +2164,46 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         kiteFrameCore.use(testPlugin);
         kiteFrameCore.use(advancedInteractionsPlugin);
         kiteFrameCore.use(versionControlPlugin);
-        // Temporarily disabled SmartConnect plugin to fix performance
-        // kiteFrameCore.use(smartConnectPlugin);
+        // Re-enabled SmartConnect plugin for auto-connect functionality
+        kiteFrameCore.use(smartConnectPlugin);
         
-        // TEMPORARILY DISABLED: SmartConnect configuration to fix performance
-        // smartConnectPlugin.configure(
-        //   {
-        //     enabled: true,
-        //     autoConnect: true,
-        //     threshold: 15,
-        //     showPreview: true
-        //   },
-        //   nodes,
-        //   edges,
-        //   // onConnect callback - creates new edges when auto-connect is triggered
-        //   (connection) => {
-        //     const newEdge = {
-        //       id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        //       source: connection.source,
-        //       target: connection.target,
-        //       type: 'bezier' as const,
-        //       animated: false,
-        //       strokeWidth: 2,
-        //       color: '#94a3b8'
-        //     };
-        //     
-        //     const updatedEdges = [...edges, newEdge];
-        //     updateActiveTab({ edges: updatedEdges });
-        //     
-        //     console.log('🚀 SmartConnect: Auto-connection created!', connection);
-        //   },
-        //   // onEdgesChange callback
-        //   (updatedEdges) => {
-        //     updateActiveTab({ edges: updatedEdges });
-        //   },
-        //   // connectionPreviewCallback - handles ghost preview during drag
-        //   (preview) => {
-        //     setConnectionPreview(preview);
-        //     console.log('🔗 SmartConnect: Preview updated:', preview);
-        //   }
-        // );
+        // Configure SmartConnect plugin with auto-connect
+        smartConnectPlugin.configure(
+          {
+            enabled: true,
+            autoConnect: true,
+            threshold: 25, // Slightly increased to reduce performance impact
+            showPreview: true
+          },
+          nodes,
+          edges,
+          // onConnect callback - creates new edges when auto-connect is triggered
+          (connection) => {
+            const newEdge = {
+              id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              source: connection.source,
+              target: connection.target,
+              type: 'bezier' as const,
+              animated: false,
+              strokeWidth: 2,
+              color: '#94a3b8'
+            };
+            
+            const updatedEdges = [...edges, newEdge];
+            updateActiveTab({ edges: updatedEdges });
+            
+            console.log('🚀 SmartConnect: Auto-connection created!', connection);
+          },
+          // onEdgesChange callback
+          (updatedEdges) => {
+            updateActiveTab({ edges: updatedEdges });
+          },
+          // connectionPreviewCallback - handles ghost preview during drag
+          (preview) => {
+            setConnectionPreview(preview);
+            console.log('🔗 SmartConnect: Preview updated:', preview);
+          }
+        );
         
         console.log('✅ Demo + Pro plugins registered successfully');
         console.log('🔌 Plugin System Ready! Check Settings → Test Plugins or watch console for activity');
