@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
 import { FloatingToolbar } from './FloatingToolbar';
-import { ObjectStylingPanel } from '../lib/kiteframe/components/styling/ObjectStylingPanel';
 import type { Node, Edge, CanvasObject, ProFeaturesConfig, TextNodeData, ShapeNodeData, StickyNoteData } from '../lib/kiteframe/types';
 import { Undo, Redo, ZoomIn, Maximize2, LayoutGrid, ChevronRight } from 'lucide-react';
 
@@ -79,35 +78,6 @@ export function WorkflowCanvas({
   // Get selected canvas objects for styling panel
   const selectedCanvasObjects = canvasObjects.filter(obj => obj.selected);
   
-  // Shallow equality check to prevent unnecessary updates
-  const shallowEqual = (obj1: any, obj2: any) => {
-    const keys1 = Object.keys(obj1);
-    const keys2 = Object.keys(obj2);
-    if (keys1.length !== keys2.length) return false;
-    return keys1.every(key => obj1[key] === obj2[key]);
-  };
-
-  // Handler for updating object styling
-  const handleUpdateObjectStyling = useCallback((objectId: string, updates: Partial<TextNodeData | ShapeNodeData | StickyNoteData>) => {
-    const targetObj = canvasObjects.find(obj => obj.id === objectId);
-    if (!targetObj) return;
-    
-    const nextData = { ...targetObj.data, ...updates };
-    
-    // Only update if data actually changed
-    if (shallowEqual(targetObj.data, nextData)) {
-      console.count('WorkflowCanvas: Prevented no-op styling update');
-      return;
-    }
-    
-    const updatedObjects = canvasObjects.map(obj =>
-      obj.id === objectId
-        ? { ...obj, data: nextData }
-        : obj
-    );
-    console.count('WorkflowCanvas: Emitting styling update');
-    onCanvasObjectsChange?.(updatedObjects);
-  }, [canvasObjects, onCanvasObjectsChange]);
 
   const handleMinimapMouseDown = useCallback((e: React.MouseEvent) => {
     setIsDraggingMinimap(true);
@@ -257,15 +227,6 @@ export function WorkflowCanvas({
         canRedo={canRedo}
       />
 
-      {/* Object Styling Panel */}
-      {selectedCanvasObjects.length > 0 && (
-        <div className="absolute top-16 right-4 z-50">
-          <ObjectStylingPanel
-            selectedObjects={selectedCanvasObjects}
-            onUpdateStyling={handleUpdateObjectStyling}
-          />
-        </div>
-      )}
 
       {/* Interactive Mini-map */}
       <div className="absolute bottom-5 right-5 w-52 h-40 bg-card border border-border rounded-lg shadow-xl overflow-hidden">
