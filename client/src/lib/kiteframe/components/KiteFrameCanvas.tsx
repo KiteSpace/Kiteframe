@@ -887,7 +887,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         const selectedNodes = props.nodes.filter(node => node.selected === true);
         const updatedNodes = props.nodes.map(node => {
           if (node.selected) {
-            const origin = dragInfo.current!.origins.find(o => o.id === node.id)?.origin || node.position;
+            const origin = dragInfo.current && dragInfo.current.origins ? dragInfo.current.origins.find(o => o.id === node.id)?.origin || node.position : node.position;
             const newPosition = { x: origin.x + dx, y: origin.y + dy };
             
             console.log('🔧 INDIVIDUAL DRAG UPDATE:', {
@@ -1537,8 +1537,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           pointerEvents: 'none',
           overflow: 'visible'
         }}
-        viewBox="0 0 5000 5000"
-        preserveAspectRatio="xMidYMid meet">
+        >
+        <defs>
+          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <rect width="20" height="20" fill="none" stroke="var(--kiteframe-grid-color)" strokeWidth="0.5" opacity="0.3"/>
+          </pattern>
+        </defs>
           {(() => {
             // Recalculate edge z-indexes based on current node states
             const edgesWithZIndex = recalculateAllEdgeZIndexes(props.edges, props.nodes);
