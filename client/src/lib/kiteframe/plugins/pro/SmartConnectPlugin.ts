@@ -131,12 +131,7 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     
     this.isDragging = false;
     
-    // Perform final auto-connection check
-    if (this.config.autoConnect && this.previewConnection) {
-      this.executeAutoConnection(this.previewConnection);
-    }
-    
-    // Clear preview
+    // Clear preview first
     this.clearPreview();
     this.draggedNodeId = null;
     
@@ -146,6 +141,11 @@ export class SmartConnectPlugin implements KiteFramePlugin {
       this.frameRequest = null;
     }
     
+    // Perform final auto-connection check based on current positions
+    if (this.config.autoConnect) {
+      this.checkAutoConnections();
+    }
+    
     console.log('🔗 SmartConnect: Drag ended for node', nodeId);
   }
 
@@ -153,7 +153,7 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     const draggedNode = this.currentNodes.find(n => n.id === nodeId);
     if (!draggedNode) return;
     
-    const threshold = this.config.threshold || 50;
+    const threshold = this.config.threshold || 100; // Increased threshold
     let closestConnection: { target: string; distance: number } | null = null;
     
     // Check proximity to other nodes
@@ -163,21 +163,8 @@ export class SmartConnectPlugin implements KiteFramePlugin {
       // Check if connection already exists
       if (this.connectionExists(nodeId, targetNode.id)) return;
       
-      // Calculate distance between node centers
-      const targetWidth = targetNode.width || 200;
-      const targetHeight = targetNode.height || 100;
-      const nodeWidth = draggedNode.width || 200;
-      const nodeHeight = draggedNode.height || 100;
-      
-      const targetCenterX = targetNode.position.x + targetWidth / 2;
-      const targetCenterY = targetNode.position.y + targetHeight / 2;
-      const nodeCenterX = nodePosition.x + nodeWidth / 2;
-      const nodeCenterY = nodePosition.y + nodeHeight / 2;
-      
-      const distance = Math.sqrt(
-        Math.pow(targetCenterX - nodeCenterX, 2) + 
-        Math.pow(targetCenterY - nodeCenterY, 2)
-      );
+      // Calculate distance from nearest edges instead of centers
+      const distance = this.calculateNearestEdgeDistance(nodePosition, draggedNode, targetNode);
       
       if (distance <= threshold) {
         if (!closestConnection || distance < closestConnection.distance) {
@@ -205,7 +192,7 @@ export class SmartConnectPlugin implements KiteFramePlugin {
   private checkAutoConnections(): void {
     if (!this.config.autoConnect || this.isDragging) return;
     
-    const threshold = this.config.threshold || 50;
+    const threshold = this.config.threshold || 100; // Increased threshold
     const newConnections: { source: string; target: string }[] = [];
     
     this.currentNodes.forEach(sourceNode => {
@@ -213,21 +200,10 @@ export class SmartConnectPlugin implements KiteFramePlugin {
         if (sourceNode.id === targetNode.id) return; // Avoid self-connections
         if (this.connectionExists(sourceNode.id, targetNode.id)) return;
         
-        // Calculate distance between nodes
-        const sourceWidth = sourceNode.width || 200;
-        const sourceHeight = sourceNode.height || 100;
-        const targetWidth = targetNode.width || 200;
-        const targetHeight = targetNode.height || 100;
+        // Calculate distance from nearest edges instead of centers
+        const distance = this.calculateNearestEdgeDistance(sourceNode.position, sourceNode, targetNode);
         
-        const sourceCenterX = sourceNode.position.x + sourceWidth / 2;
-        const sourceCenterY = sourceNode.position.y + sourceHeight / 2;
-        const targetCenterX = targetNode.position.x + targetWidth / 2;
-        const targetCenterY = targetNode.position.y + targetHeight / 2;
-        
-        const distance = Math.sqrt(
-          Math.pow(targetCenterX - sourceCenterX, 2) + 
-          Math.pow(targetCenterY - sourceCenterY, 2)
-        );
+        console.log(`🔗 SmartConnect: Distance between ${sourceNode.id} and ${targetNode.id}: ${distance.toFixed(1)}px (threshold: ${threshold}px)`);
         
         if (distance <= threshold) {
           newConnections.push({ source: sourceNode.id, target: targetNode.id });
@@ -253,6 +229,50 @@ export class SmartConnectPlugin implements KiteFramePlugin {
       (edge.source === sourceId && edge.target === targetId) ||
       (edge.source === targetId && edge.target === sourceId)
     );
+  }
+
+  private calculateNearestEdgeDistance(
+    sourcePos: { x: number; y: number }, 
+    sourceNode: any, 
+    targetNode: any
+  ): number {
+    const sourceWidth = sourceNode.width || 200;
+    const sourceHeight = sourceNode.height || 100;
+    const targetWidth = targetNode.width || 200;
+    const targetHeight = targetNode.height || 100;
+    
+    // Calculate bounding boxes
+    const sourceRect = {
+      left: sourcePos.x,
+      right: sourcePos.x + sourceWidth,
+      top: sourcePos.y,
+      bottom: sourcePos.y + sourceHeight
+    };
+    
+    const targetRect = {
+      left: targetNode.position.x,
+      right: targetNode.position.x + targetWidth,
+      top: targetNode.position.y,
+      bottom: targetNode.position.y + targetHeight
+    };
+    
+    // Calculate minimum distance between rectangles
+    let dx = 0;
+    let dy = 0;
+    
+    if (sourceRect.right < targetRect.left) {
+      dx = targetRect.left - sourceRect.right;
+    } else if (sourceRect.left > targetRect.right) {
+      dx = sourceRect.left - targetRect.right;
+    }
+    
+    if (sourceRect.bottom < targetRect.top) {
+      dy = targetRect.top - sourceRect.bottom;
+    } else if (sourceRect.top > targetRect.bottom) {
+      dy = sourceRect.top - targetRect.bottom;
+    }
+    
+    return Math.sqrt(dx * dx + dy * dy);
   }
 
   private validateConnection(sourceId: string, targetId: string): boolean {
