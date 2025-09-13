@@ -906,12 +906,12 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   const setNodes = useCallback((newNodes: Node[] | ((prev: Node[]) => Node[])) => {
     const resolvedNodes = typeof newNodes === 'function' ? newNodes(nodes) : newNodes;
     updateActiveTab({ nodes: resolvedNodes });
-  }, [nodes, updateActiveTab]);
+  }, [updateActiveTab]);
 
   const setEdges = useCallback((newEdges: Edge[] | ((prev: Edge[]) => Edge[])) => {
     const resolvedEdges = typeof newEdges === 'function' ? newEdges(edges) : newEdges;
     updateActiveTab({ edges: resolvedEdges });
-  }, [edges, updateActiveTab]);
+  }, [updateActiveTab]);
 
   const setViewport = useCallback((newViewport: { x: number; y: number; zoom: number } | ((prev: { x: number; y: number; zoom: number }) => { x: number; y: number; zoom: number })) => {
     const resolvedViewport = typeof newViewport === 'function' ? newViewport(viewport) : newViewport;
@@ -925,7 +925,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       setEdges(prev => prev.map(e => ({ ...e, selected: false })));
       updateActiveTab({ selectedNodeId: '', selectedEdgeId: '' });
     }
-  }, [selectedCanvasObjects.length, setNodes, setEdges, updateActiveTab]);
+  }, [selectedCanvasObjects.length, updateActiveTab]);
 
   // Helper function to calculate viewport-centered position with sequential offset
   const getViewportCenteredPosition = useCallback(() => {

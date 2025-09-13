@@ -1531,14 +1531,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         {/* Existing edges */}
         <svg className="kiteframe-edge-layer" style={{ 
           position: 'absolute',
-          left: '-5000px',
-          top: '-5000px',
-          width: '10000px', 
-          height: '10000px',
+          inset: '0',
+          width: '100%', 
+          height: '100%',
           pointerEvents: 'none',
           overflow: 'visible'
         }}
-        viewBox="-5000 -5000 10000 10000"
+        viewBox="-2000 -2000 4000 4000"
         preserveAspectRatio="none">
           {(() => {
             // Recalculate edge z-indexes based on current node states
