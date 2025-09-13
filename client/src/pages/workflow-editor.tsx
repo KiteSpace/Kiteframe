@@ -800,6 +800,9 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       glowOnHover: true
     };
   });
+  
+  // SmartConnect preview state
+  const [connectionPreview, setConnectionPreview] = useState<{ source: string; target: string } | null>(null);
 
   // Save animation config to localStorage
   useEffect(() => {
@@ -2051,6 +2054,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           // onEdgesChange callback
           (updatedEdges) => {
             updateActiveTab({ edges: updatedEdges });
+          },
+          // connectionPreviewCallback - handles ghost preview during drag
+          (preview) => {
+            setConnectionPreview(preview);
+            console.log('🔗 SmartConnect: Preview updated:', preview);
           }
         );
         
@@ -2101,6 +2109,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           // onEdgesChange callback
           (updatedEdges) => {
             updateActiveTab({ edges: updatedEdges });
+          },
+          // connectionPreviewCallback - handles ghost preview during drag
+          (preview) => {
+            setConnectionPreview(preview);
+            console.log('🔗 SmartConnect: Preview updated:', preview);
           }
         );
       } catch (error) {
@@ -2759,6 +2772,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onWorkflowMetadataChange={setWorkflowMetadata}
               onEdgeReconnect={handleEdgeReconnect}
               connectionAnimationConfig={connectionAnimationConfig}
+              connectionPreview={connectionPreview}
               onNodesChange={(changes) => {
                 console.log('📊 onNodesChange CALLED:', {
                   changes,

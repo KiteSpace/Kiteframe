@@ -37,6 +37,7 @@ interface WorkflowCanvasProps {
   onWorkflowMetadataChange?: (metadata: any) => void;
   onEdgeReconnect?: (edgeId: string, newSource: string, newTarget: string) => void;
   connectionAnimationConfig?: any;
+  connectionPreview?: { source: string; target: string } | null;
 }
 
 export function WorkflowCanvas({
@@ -70,7 +71,8 @@ export function WorkflowCanvas({
   workflowMetadata,
   onWorkflowMetadataChange,
   onEdgeReconnect,
-  connectionAnimationConfig
+  connectionAnimationConfig,
+  connectionPreview
 }: WorkflowCanvasProps) {
   const [isDraggingMinimap, setIsDraggingMinimap] = useState(false);
   
@@ -220,6 +222,7 @@ export function WorkflowCanvas({
         onWorkflowMetadataChange={onWorkflowMetadataChange}
         onEdgeReconnect={onEdgeReconnect}
         connectionAnimationConfig={connectionAnimationConfig}
+        connectionPreview={connectionPreview}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />
