@@ -1,0 +1,39 @@
+📚 Version Control Pro Plugin: Initializing...
+   ✅ Snapshot system enabled
+   ✅ Version comparison tools active
+   ✅ Auto-save every 2 minutes
+   ✅ Advanced rollback functionality
+📚 Version Control Pro Plugin: Ready!
+Plugin "version-control-pro" v1.0.0 initialized successfully
+✅ Demo + Pro plugins registered successfully
+🔌 Plugin System Ready! Check Settings → Test Plugins or watch console for activity
+🚀 Advanced Interactions Pro: Quick-add handles enabled on node hover!
+🔗 SmartConnect Pro: Auto-connect enabled! Drag nodes close together to auto-connect.
+🔄 Auth state changed: No user
+ℹ️ No redirect result found
+💾 Workflows saved to local storage
+📝 CANVAS CLICK: 
+Object {tabId: {…}, clearing: "all selections"}
+📝 CANVAS CLICK: 
+Object {tabId: {…}, clearing: "all selections"}
+📝 CANVAS CLICK: 
+Object {tabId: {…}, clearing: "all selections"}
+🎯 UNIFIED SELECTION: 
+Object {screenRect: {…}, worldRect: {…}, viewport: {…}}
+🎯 UNIFIED SELECTION COMPLETE: 
+Object {rect: {…}, selectedNodeIds: Array(2), selectedObjectIds: Array(3), totalNodes: 10, totalObjects: 9}
+📊 onNodesChange CALLED: 
+Object {changes: Array(10), isArray: true, length: 10, firstItem: {…}}
+📊 DIRECT NODE UPDATE (drag): 
+Object {nodeCount: 10, sample: {…}}
+Warning: Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn&#x27;t have a dependency array, or one of the dependencies changes on every render.
+    at WorkflowEditorContent (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/src/pages/workflow-editor.tsx?t=1757791120142:36:34)
+    at AiProvider (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/src/ai/AiProvider.tsx:20:30)
+    at WorkflowEditor (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/src/pages/workflow-editor.tsx?t=1757791120142:3312:26)
+    at Route (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8eae1d83:338:16)
+    at Switch (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8eae1d83:394:17)
+    at Router
+    at Provider (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-IPG7JSOJ.js?v=8eae1d83:38:15)
+    at TooltipProvider (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=8eae1d83:959:5)
+    at QueryClientProvider (https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=8eae1d83:2934:3)
+    at App
