@@ -916,7 +916,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   const setViewport = useCallback((newViewport: { x: number; y: number; zoom: number } | ((prev: { x: number; y: number; zoom: number }) => { x: number; y: number; zoom: number })) => {
     const resolvedViewport = typeof newViewport === 'function' ? newViewport(viewport) : newViewport;
     updateActiveTab({ viewport: resolvedViewport });
-  }, [viewport, updateActiveTab]);
+  }, [updateActiveTab]);
 
   // Symmetric selection exclusivity: deselect nodes/edges when canvas objects are selected
   useEffect(() => {

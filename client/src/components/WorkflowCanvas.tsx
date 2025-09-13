@@ -86,8 +86,16 @@ export function WorkflowCanvas({
 
   return (
     <div className="relative w-full h-full">
-      {/* Grid Background */}
-      <div className="kiteframe-grid absolute inset-0" />
+      {/* Fixed Grid Overlay - doesn't scale with zoom */}
+      <div 
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(circle, rgba(148, 163, 184, 0.6) 1px, transparent 1px)',
+          backgroundSize: `${10 * viewport.zoom}px ${10 * viewport.zoom}px`,
+          backgroundPosition: `${viewport.x % (10 * viewport.zoom)}px ${viewport.y % (10 * viewport.zoom)}px`,
+          opacity: Math.max(0.2, Math.min(0.8, viewport.zoom * 0.7))
+        }}
+      />
       
       <KiteFrameCanvas
         nodes={nodes}
@@ -106,7 +114,7 @@ export function WorkflowCanvas({
         viewport={viewport}
         onViewportChange={onViewportChange}
         selectedNodes={selectedNodeIds || []}
-        gridType="dots"
+        gridType="none"
         minZoom={0.1}
         maxZoom={3}
         enablePlugins={enablePlugins}
