@@ -652,6 +652,9 @@ type Props = {
   // Animation configuration for connection previews
   connectionAnimationConfig?: Partial<AnimationConfig>;
   
+  // Connection preview state for ghost preview lines
+  connectionPreview?: { source: string; target: string } | null;
+  
   // Workflow name and metadata
   workflowName?: string;
   onWorkflowNameChange?: (name: string) => void;
@@ -1516,6 +1519,43 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   pulseOnConnection: true,
                   showParticles: true,
                   glowOnHover: true,
+                  ...props.connectionAnimationConfig
+                }}
+              />
+            );
+          })()}
+
+          {/* SmartConnect Preview */}
+          {props.connectionPreview && (() => {
+            const sourceNode = props.nodes.find(n => n.id === props.connectionPreview!.source);
+            const targetNode = props.nodes.find(n => n.id === props.connectionPreview!.target);
+            
+            if (!sourceNode || !targetNode) return null;
+            
+            const sourceRect = getNodeRect(sourceNode);
+            const targetRect = getNodeRect(targetNode);
+            
+            // Calculate anchor points
+            const sourceAnchor = sourceAnchorTowards(sourceNode, targetRect.cx, targetRect.cy);
+            const targetAnchor = targetAnchorTowards(targetNode, sourceRect.cx, sourceRect.cy);
+            
+            return (
+              <AnimatedConnectionPreview
+                key="smart-connect-preview"
+                x1={sourceAnchor.x}
+                y1={sourceAnchor.y}
+                x2={targetAnchor.x}
+                y2={targetAnchor.y}
+                isConnecting={false}
+                isValidTarget={true}
+                isInvalidTarget={false}
+                config={{
+                  duration: 300,
+                  easing: 'ease-out',
+                  pulseOnConnection: false,
+                  showParticles: false,
+                  glowOnHover: false,
+                  style: 'dashed', // Ghost preview style
                   ...props.connectionAnimationConfig
                 }}
               />
