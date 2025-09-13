@@ -1139,6 +1139,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         });
         props.onNodesChange(updated);
         
+        // Notify SmartConnectPlugin of drag movement for real-time preview
+        if (enablePlugins && props.proFeatures?.smartConnect?.enabled !== false) {
+          const smartConnectPlugin = core.proFeaturesManager?.smartConnectPlugin;
+          if (smartConnectPlugin) {
+            // Call the plugin's handleDrag method to show connection preview
+            (smartConnectPlugin as any).handleDrag?.(id, finalPosition);
+          }
+        }
 
       }
     };
@@ -1216,10 +1224,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         // Handle smart connect auto-connection on drag end  
         if (!dragInfo.current.isGroupDrag && props.proFeatures?.smartConnect?.enabled !== false) {
           const draggedNode = props.nodes.find(n => n.id === dragInfo.current?.id);
-          if (draggedNode) {
+          if (draggedNode && enablePlugins) {
             console.log('🔗 Smart Connect: Checking auto-connection for', dragInfo.current.id);
-            // The SmartConnectPlugin handles auto-connection logic automatically through drag events
-            // No additional code needed here as the plugin is already integrated
+            const smartConnectPlugin = core.proFeaturesManager?.smartConnectPlugin;
+            if (smartConnectPlugin) {
+              // Call the plugin's handleDragEnd method to execute auto-connection
+              (smartConnectPlugin as any).handleDragEnd?.(dragInfo.current.id, draggedNode.position);
+            }
           }
         }
         
@@ -1599,6 +1610,15 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   isGroupDrag,
                   dragInfo: dragInfo.current
                 });
+                
+                // Notify SmartConnectPlugin of drag start
+                if (enablePlugins && !isGroupDrag && props.proFeatures?.smartConnect?.enabled !== false) {
+                  const smartConnectPlugin = core.proFeaturesManager?.smartConnectPlugin;
+                  if (smartConnectPlugin) {
+                    // Call the plugin's handleDragStart method to initialize drag tracking
+                    (smartConnectPlugin as any).handleDragStart?.(n.id, wp);
+                  }
+                }
               }}
               onDoubleClick={(e)=>props.onNodeDoubleClick?.(e, n)}
               onContextMenu={(e)=>{ e.preventDefault(); e.stopPropagation(); props.onNodeRightClick?.(e, n); }}
