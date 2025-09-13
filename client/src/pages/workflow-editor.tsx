@@ -23,7 +23,22 @@ import { useAuth } from '../hooks/useAuth';
 import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeData, ShapeNodeData, StickyNoteData } from '../lib/kiteframe/types';
 import { recalculateAllEdgeZIndexes } from '../lib/kiteframe/utils/edgeZIndex';
 import '../lib/kiteframe/styles/kiteframe.css';
-import { X, Plus } from 'lucide-react';
+import { 
+  X, 
+  Plus, 
+  Brain, 
+  Workflow, 
+  Type, 
+  Shapes, 
+  StickyNote, 
+  Maximize2, 
+  Trash2, 
+  Download, 
+  Upload, 
+  Menu, 
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react';
 
 // Workflow metadata types
 interface WorkflowLink {
@@ -2080,6 +2095,39 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [copiedProperties, setCopiedProperties] = useState<{ colors?: any; data?: Partial<Node['data']> } | null>(null);
   const [copiedCanvasObjectProperties, setCopiedCanvasObjectProperties] = useState<{ data?: any; style?: any } | null>(null);
 
+  // Sidebar collapse state
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem('sidebar-collapsed');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  // Popout state for collapsed sidebar
+  const [activePopout, setActivePopout] = useState<'node-types' | 'shapes' | null>(null);
+
+  // Save sidebar collapse state to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebar-collapsed', JSON.stringify(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
+
+  // Icon mapping for collapsed sidebar
+  const sidebarIcons = useMemo(() => ({
+    'brain': Brain,
+    'workflow': Workflow, 
+    'type': Type,
+    'shapes': Shapes,
+    'sticky-note': StickyNote,
+    'fit-view': Maximize2,
+    'clear': Trash2,
+    'export': Download,
+    'import': Upload
+  }), []);
+
+  // Collapse/expand sidebar toggle
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarCollapsed(prev => !prev);
+    setActivePopout(null); // Close any open popouts when toggling
+  }, []);
+
   // Expose tab manager to global window for pro plugins
   useEffect(() => {
     (window as any).tabManager = {
@@ -2385,7 +2433,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
           {/* Sidebar or Edge Customizer */}
-          <div className="w-64 border-r border-border flex flex-col overflow-hidden">
+          <div className={`${isSidebarCollapsed ? 'w-12' : 'w-64'} border-r border-border flex flex-col overflow-hidden transition-all duration-200`}>
             {selectedEdgeId ? (
               <EdgeCustomizer
                 selectedEdge={edges.find(e => e.id === selectedEdgeId)}
