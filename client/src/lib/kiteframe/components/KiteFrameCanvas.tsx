@@ -1537,7 +1537,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             
             // Calculate anchor points
             const sourceAnchor = sourceAnchorTowards(sourceNode, targetRect.cx, targetRect.cy);
-            const targetAnchor = targetAnchorTowards(targetNode, sourceRect.cx, sourceRect.cy);
+            const targetAnchor = sourceAnchorTowards(targetNode, sourceRect.cx, sourceRect.cy);
             
             return (
               <AnimatedConnectionPreview
@@ -1555,7 +1555,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   pulseOnConnection: false,
                   showParticles: false,
                   glowOnHover: false,
-                  style: 'dashed', // Ghost preview style
                   ...props.connectionAnimationConfig
                 }}
               />
