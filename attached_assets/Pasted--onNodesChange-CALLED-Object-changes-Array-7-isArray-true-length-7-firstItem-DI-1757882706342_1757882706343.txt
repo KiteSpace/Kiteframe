@@ -1,0 +1,66 @@
+📊 onNodesChange CALLED: 
+Object {changes: Array(7), isArray: true, length: 7, firstItem: {…}}
+📊 DIRECT NODE UPDATE (drag): 
+Object {nodeCount: 7, sample: {…}}
+🔧 INDIVIDUAL DRAG UPDATE: 
+Object {nodeId: "validation-2", targetPosition: {…}, finalPosition: {…}, snapApplied: false, updated: {…}}
+📊 onNodesChange CALLED: 
+Object {changes: Array(7), isArray: true, length: 7, firstItem: {…}}
+📊 DIRECT NODE UPDATE (drag): 
+Object {nodeCount: 7, sample: {…}}
+🔧 DRAG MOVE: 
+Object {dragInfo: {…}, worldPos: {…}, delta: {…}, viewport: {…}, isGroupDrag: false}
+🔧 DRAG MOVE: 
+Object {dragInfo: {…}, worldPos: {…}, delta: {…}, viewport: {…}, isGroupDrag: false}
+🎯 Smart Guides: Enabled, processing snap...
+🎯 Smart Guides Applied: 
+Object {targetPosition: {…}, finalPosition: {…}, guides: Array(1), snapped: true}
+🔧 INDIVIDUAL DRAG UPDATE: 
+Object {nodeId: "validation-2", targetPosition: {…}, finalPosition: {…}, snapApplied: true, updated: {…}}
+📊 onNodesChange CALLED: 
+Object {changes: Array(7), isArray: true, length: 7, firstItem: {…}}
+📊 DIRECT NODE UPDATE (drag): 
+Object {nodeCount: 7, sample: {…}}
+🔧 INDIVIDUAL DRAG UPDATE: 
+Object {nodeId: "validation-2", targetPosition: {…}, finalPosition: {…}, snapApplied: false, updated: {…}}
+📊 onNodesChange CALLED: 
+Object {changes: Array(7), isArray: true, length: 7, firstItem: {…}}
+📊 DIRECT NODE UPDATE (drag): 
+Object {nodeCount: 7, sample: {…}}
+🔧 DRAG MOVE: 
+Object {dragInfo: {…}, worldPos: {…}, delta: {…}, viewport: {…}, isGroupDrag: false}
+🔧 DRAG MOVE: 
+Object {dragInfo: {…}, worldPos: {…}, delta: {…}, viewport: {…}, isGroupDrag: false}
+🎯 Smart Guides: Enabled, processing snap...
+🎯 Smart Guides Applied: 
+Object {targetPosition: {…}, finalPosition: {…}, guides: Array(1), snapped: true}
+🔧 INDIVIDUAL DRAG UPDATE: 
+Object {nodeId: "validation-2", targetPosition: {…}, finalPosition: {…}, snapApplied: true, updated: {…}}
+📊 onNodesChange CALLED: 
+Object {changes: Array(7), isArray: true, length: 7, firstItem: {…}}
+📊 DIRECT NODE UPDATE (drag): 
+Object {nodeCount: 7, sample: {…}}
+🔧 DRAG END: 
+Object {id: "validation-2", start: {…}, origin: {…}, origins: Array(1), canvasObjectOrigins: Array(0), …}
+🔗 Smart Connect: Checking auto-connection for validation-2
+🔗 SmartConnect: Drag distance: 72.6px, threshold: 10px, wasActualDrag: true
+🔗 SmartConnect: clearPreview called
+🔗 SmartConnect: Calling preview callback with null
+🔗 SmartConnect: Preview updated: null
+🔗 SmartConnect: Checking auto-connections after actual drag
+🔗 SmartConnect: Drag ended for node validation-2
+📝 CANVAS CLICK: 
+Object {tabId: {…}, clearing: "all selections"}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLDivElement, targetTag: "DIV", targetClass: "kiteframe-world", …}
+📝 CANVAS CLICK: 
+Object {tabId: {…}, clearing: "all selections"}
+💾 Workflows saved to local storage
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLDivElement, targetTag: "DIV", targetClass: "", …}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLDivElement, targetTag: "DIV", targetClass: "", …}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLDivElement, targetTag: "DIV", targetClass: "", …}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLDivEleme
