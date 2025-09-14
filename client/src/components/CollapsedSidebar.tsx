@@ -448,9 +448,9 @@ export function CollapsedSidebar({
 
       {/* Templates Popout */}
       {activePopout === 'templates' && (
-        <div className="absolute left-full top-0 ml-2 w-64 bg-card border border-border rounded-md shadow-lg z-50 p-4">
+        <div className="absolute left-12 top-16 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3">
           <h3 className="text-sm font-semibold mb-3">Templates</h3>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2">
             {templateTypes.map((template) => {
               const IconComponent = template.icon;
               if (!IconComponent) return null;
@@ -474,9 +474,9 @@ export function CollapsedSidebar({
 
       {/* Themes Popout */}
       {activePopout === 'themes' && (
-        <div className="absolute left-full top-0 ml-2 w-64 bg-card border border-border rounded-md shadow-lg z-50 p-4">
+        <div className="absolute left-12 top-16 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3">
           <h3 className="text-sm font-semibold mb-3">Workflow Themes</h3>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2">
             {workflowThemes.slice(0, 8).map((theme) => (
               <button
                 key={theme.id}

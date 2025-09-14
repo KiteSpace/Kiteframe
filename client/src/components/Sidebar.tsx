@@ -307,6 +307,68 @@ export function Sidebar({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  // Template drag and drop handler
+  const handleTemplateMouseDown = (
+    e: React.MouseEvent,
+    templateType: string
+  ) => {
+    // Only handle left mouse button
+    if (e.button !== 0) return;
+    
+    console.log('🎯 EXPANDED SIDEBAR TEMPLATE DRAG START:', { templateType, startPos: { x: e.clientX, y: e.clientY } });
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const startPos = { x: e.clientX, y: e.clientY };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Visual feedback during drag could be added here
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      console.log('🎯 EXPANDED SIDEBAR TEMPLATE DRAG END:', { templateType, endPos: { x: e.clientX, y: e.clientY } });
+      
+      // Find the canvas element
+      const canvasElement = document.querySelector('[data-testid="workflow-canvas"]');
+      
+      console.log('🎯 TEMPLATE CANVAS ELEMENT FOUND:', { canvasElement: !!canvasElement, selector: '[data-testid="workflow-canvas"]' });
+      
+      if (canvasElement && onCreateTemplate) {
+        const canvasRect = canvasElement.getBoundingClientRect();
+        const x = e.clientX - canvasRect.left;
+        const y = e.clientY - canvasRect.top;
+        
+        console.log('🎯 TEMPLATE DROP COORDINATES:', { 
+          clientX: e.clientX, 
+          clientY: e.clientY, 
+          canvasRect, 
+          relativeX: x, 
+          relativeY: y,
+          onCanvas: x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height
+        });
+        
+        // Only create template if dropped on canvas
+        if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
+          console.log('🎯 CALLING onCreateTemplate:', { templateType });
+          onCreateTemplate(templateType);
+        } else {
+          console.log('🎯 TEMPLATE DROP OUTSIDE CANVAS - NO TEMPLATE CREATED');
+        }
+      } else {
+        console.log('🎯 NO CANVAS OR TEMPLATE HANDLER:', { canvasElement: !!canvasElement, onCreateTemplate: !!onCreateTemplate });
+      }
+      
+      // Remove event listeners
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    // Add event listeners
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   return (
     <>
       <aside className="w-64 p-4 bg-card border-r border-border shadow-sm flex flex-col h-full overflow-hidden" data-testid="sidebar">
@@ -1504,6 +1566,7 @@ export function Sidebar({
                         key={template.type}
                         className="p-3 border border-border rounded-md cursor-pointer text-center hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 select-none"
                         onClick={() => onCreateTemplate?.(template.type)}
+                        onMouseDown={(e) => handleTemplateMouseDown(e, template.type)}
                         data-testid={`template-${template.type}`}
                         style={{ userSelect: 'none' }}
                       >
