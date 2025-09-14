@@ -145,9 +145,10 @@ export function Sidebar({
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
     nodeType: string | null;
+    templateType?: string | null;
     startPos: { x: number; y: number } | null;
     currentPos: { x: number; y: number } | null;
-  }>({ isDragging: false, nodeType: null, startPos: null, currentPos: null });
+  }>({ isDragging: false, nodeType: null, templateType: null, startPos: null, currentPos: null });
   const [isThemesExpanded, setIsThemesExpanded] = useState(false);
   const [isTemplatesExpanded, setIsTemplatesExpanded] = useState(false);
   const [isAnimationExpanded, setIsAnimationExpanded] = useState(false);
@@ -336,6 +337,14 @@ export function Sidebar({
       // Track if user has moved more than 5 pixels (indicates drag)
       if (distance > 5) {
         hasMoved = true;
+        // Set drag state for visual preview
+        setDragState({
+          isDragging: true,
+          nodeType: null,
+          templateType: templateType,
+          startPos,
+          currentPos: { x: e.clientX, y: e.clientY }
+        });
       }
     };
 
@@ -376,6 +385,15 @@ export function Sidebar({
         }
       }
       // If not moved, the click handler will handle template creation
+      
+      // Reset drag state
+      setDragState({
+        isDragging: false,
+        nodeType: null,
+        templateType: null,
+        startPos: null,
+        currentPos: null,
+      });
       
       // Remove event listeners
       document.removeEventListener('mousemove', handleMouseMove);
@@ -1858,7 +1876,7 @@ export function Sidebar({
       </aside>
 
       {/* Ghost Preview during drag */}
-      {dragState.isDragging && dragState.currentPos && dragState.nodeType && (
+      {dragState.isDragging && dragState.currentPos && (dragState.nodeType || dragState.templateType) && (
         <div
           className="fixed pointer-events-none z-50 bg-white/90 dark:bg-gray-800/90 border border-border rounded-md p-2 shadow-lg backdrop-blur-sm"
           style={{
@@ -1869,15 +1887,27 @@ export function Sidebar({
         >
           <div className="flex items-center gap-2 text-sm">
             {(() => {
-              const nodeTypeData = nodeTypes.find(nt => nt.type === dragState.nodeType);
-              if (nodeTypeData) {
-                const IconComponent = nodeTypeData.icon;
-                return (
-                  <>
-                    <IconComponent className={`${nodeTypeData.color}`} size={16} />
-                    <span className="font-medium">{nodeTypeData.label}</span>
-                  </>
-                );
+              if (dragState.templateType) {
+                const template = templateTypes.find(t => t.type === dragState.templateType);
+                if (template && template.icon) {
+                  return (
+                    <>
+                      <template.icon className={`w-4 h-4 ${template.color}`} />
+                      <span className="font-medium">{template.label}</span>
+                    </>
+                  );
+                }
+              } else if (dragState.nodeType) {
+                const nodeTypeData = nodeTypes.find(nt => nt.type === dragState.nodeType);
+                if (nodeTypeData) {
+                  const IconComponent = nodeTypeData.icon;
+                  return (
+                    <>
+                      <IconComponent className={`${nodeTypeData.color}`} size={16} />
+                      <span className="font-medium">{nodeTypeData.label}</span>
+                    </>
+                  );
+                }
               }
               return null;
             })()}
