@@ -58,12 +58,16 @@ export function CollapsedSidebar({
   ];
   
   const handleIconClick = (iconKey: string) => {
+    console.log('🎯 HANDLE ICON CLICK CALLED:', { iconKey, currentActivePopout: activePopout });
+    
     switch (iconKey) {
       case 'brain':
         onOpenAiGenerator?.();
         break;
       case 'workflow':
-        setActivePopout(activePopout === 'node-types' ? null : 'node-types');
+        const newNodeTypesState = activePopout === 'node-types' ? null : 'node-types';
+        console.log('🎯 SETTING NODE TYPES POPOUT:', { from: activePopout, to: newNodeTypesState });
+        setActivePopout(newNodeTypesState);
         break;
       case 'type':
         // Click creates text at center, drag-and-drop creates at mouse position
@@ -74,13 +78,19 @@ export function CollapsedSidebar({
         onCreateNode('sticky');
         break;
       case 'shapes':
-        setActivePopout(activePopout === 'shapes' ? null : 'shapes');
+        const newShapesState = activePopout === 'shapes' ? null : 'shapes';
+        console.log('🎯 SETTING SHAPES POPOUT:', { from: activePopout, to: newShapesState });
+        setActivePopout(newShapesState);
         break;
       case 'route':
-        setActivePopout(activePopout === 'templates' ? null : 'templates');
+        const newTemplatesState = activePopout === 'templates' ? null : 'templates';
+        console.log('🎯 SETTING TEMPLATES POPOUT:', { from: activePopout, to: newTemplatesState });
+        setActivePopout(newTemplatesState);
         break;
       case 'palette':
-        setActivePopout(activePopout === 'themes' ? null : 'themes');
+        const newThemesState = activePopout === 'themes' ? null : 'themes';
+        console.log('🎯 SETTING THEMES POPOUT:', { from: activePopout, to: newThemesState });
+        setActivePopout(newThemesState);
         break;
       case 'fit-view':
         onFitView();
@@ -93,6 +103,9 @@ export function CollapsedSidebar({
         break;
       case 'import':
         onImport();
+        break;
+      default:
+        console.log('🚫 UNKNOWN ICON KEY:', iconKey);
         break;
     }
   };
@@ -378,7 +391,10 @@ export function CollapsedSidebar({
               <Tooltip key={iconKey}>
                 <TooltipTrigger asChild>
                   <button
-                    onClick={() => handleIconClick(iconKey)}
+                    onClick={(e) => {
+                      console.log('🎯 TEMPLATE/THEME ICON CLICKED:', { iconKey, activePopout });
+                      handleIconClick(iconKey);
+                    }}
                     className={`
                       w-8 h-8 rounded-md flex items-center justify-center transition-colors
                       ${isActive(iconKey) 
