@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { clientToWorld } from '@/lib/kiteframe/utils/geometry';
+import { workflowThemes, type WorkflowTheme } from '@/lib/themes';
 
 interface CollapsedSidebarProps {
   toggleSidebar: () => void;
@@ -12,8 +13,11 @@ interface CollapsedSidebarProps {
   onExport: () => void;
   onImport: () => void;
   onOpenAiGenerator?: () => void;
-  activePopout: 'node-types' | 'shapes' | null;
-  setActivePopout: (popout: 'node-types' | 'shapes' | null) => void;
+  onCreateTemplate?: (templateType: string) => void;
+  onCreateTemplateAtPosition?: (templateType: string, position: { x: number; y: number }) => void;
+  onApplyTheme?: (theme: WorkflowTheme) => void;
+  activePopout: 'node-types' | 'shapes' | 'templates' | 'themes' | null;
+  setActivePopout: (popout: 'node-types' | 'shapes' | 'templates' | 'themes' | null) => void;
   sidebarIcons: Record<string, LucideIcon>;
   viewport: { x: number; y: number; zoom: number };
 }
@@ -28,6 +32,9 @@ export function CollapsedSidebar({
   onExport,
   onImport,
   onOpenAiGenerator,
+  onCreateTemplate,
+  onCreateTemplateAtPosition,
+  onApplyTheme,
   activePopout,
   setActivePopout,
   sidebarIcons
@@ -35,9 +42,20 @@ export function CollapsedSidebar({
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
     iconType: string | null;
+    templateType?: string | null;
     startPos: { x: number; y: number } | null;
     currentPos: { x: number; y: number } | null;
-  }>({ isDragging: false, iconType: null, startPos: null, currentPos: null });
+  }>({ isDragging: false, iconType: null, templateType: null, startPos: null, currentPos: null });
+
+  // Template types (from Sidebar.tsx)
+  const templateTypes = [
+    { type: 'user-journey', icon: sidebarIcons['route'], color: 'text-blue-500', label: 'User Journey' },
+    { type: 'mindmap', icon: sidebarIcons['map-pin'], color: 'text-green-500', label: 'Mindmap' },
+    { type: 'system-architecture', icon: sidebarIcons['network'], color: 'text-purple-500', label: 'System Architecture' },
+    { type: 'swim-lanes', icon: sidebarIcons['layers'], color: 'text-orange-500', label: 'Swim Lanes' },
+    { type: 'user-account', icon: sidebarIcons['user-plus'], color: 'text-pink-500', label: 'User Account Creation' },
+    { type: 'io-logic', icon: sidebarIcons['circuit-board'], color: 'text-cyan-500', label: 'I/O Logic' }
+  ];
   
   const handleIconClick = (iconKey: string) => {
     switch (iconKey) {
@@ -57,6 +75,12 @@ export function CollapsedSidebar({
         break;
       case 'shapes':
         setActivePopout(activePopout === 'shapes' ? null : 'shapes');
+        break;
+      case 'route':
+        setActivePopout(activePopout === 'templates' ? null : 'templates');
+        break;
+      case 'palette':
+        setActivePopout(activePopout === 'themes' ? null : 'themes');
         break;
       case 'fit-view':
         onFitView();
@@ -160,6 +184,92 @@ export function CollapsedSidebar({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  // Template drag and drop handlers
+  const handleTemplateMouseDown = (
+    e: React.MouseEvent,
+    templateType: string,
+  ) => {
+    // Only handle left mouse button
+    if (e.button !== 0) return;
+    
+    console.log('🎯 COLLAPSED SIDEBAR TEMPLATE DRAG START:', { templateType, startPos: { x: e.clientX, y: e.clientY } });
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const startPos = { x: e.clientX, y: e.clientY };
+    let hasMoved = false;
+    
+    setDragState({
+      isDragging: false, // Don't set dragging until we actually move
+      iconType: 'template',
+      templateType,
+      startPos,
+      currentPos: startPos,
+    });
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const distance = Math.sqrt(
+        Math.pow(e.clientX - startPos.x, 2) + Math.pow(e.clientY - startPos.y, 2)
+      );
+      
+      // Only start dragging if moved more than 5 pixels
+      if (distance > 5) {
+        hasMoved = true;
+        setDragState(prev => ({
+          ...prev,
+          isDragging: true,
+          currentPos: { x: e.clientX, y: e.clientY }
+        }));
+      }
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      console.log('🎯 COLLAPSED SIDEBAR TEMPLATE DRAG END:', { templateType, endPos: { x: e.clientX, y: e.clientY }, hasMoved });
+      
+      if (hasMoved) {
+        // This was a drag operation - try to place at mouse position
+        const canvasElement = document.querySelector('[data-testid="workflow-canvas"]');
+        
+        if (canvasElement) {
+          const canvasRect = canvasElement.getBoundingClientRect();
+          const canvasX = e.clientX - canvasRect.left;
+          const canvasY = e.clientY - canvasRect.top;
+          
+          // Only create template if dropped on canvas
+          if (canvasX >= 0 && canvasX <= canvasRect.width && canvasY >= 0 && canvasY <= canvasRect.height) {
+            // Convert screen coordinates to world coordinates using viewport transformation
+            const worldPos = clientToWorld(e.clientX, e.clientY, viewport, canvasRect);
+            console.log('🎯 CALLING onCreateTemplateAtPosition from collapsed sidebar:', { templateType, worldPosition: worldPos, screenPos: { x: e.clientX, y: e.clientY }, viewport, canvasRect });
+            onCreateTemplateAtPosition?.(templateType, worldPos);
+          } else {
+            console.log('🎯 TEMPLATE DROP OUTSIDE CANVAS - NO TEMPLATE CREATED');
+          }
+        }
+      } else {
+        // This was a click - create template at center
+        onCreateTemplate?.(templateType);
+      }
+      
+      // Reset drag state
+      setDragState({
+        isDragging: false,
+        iconType: null,
+        templateType: null,
+        startPos: null,
+        currentPos: null,
+      });
+      
+      // Remove event listeners
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    // Add event listeners
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   const getTooltipText = (iconKey: string): string => {
     switch (iconKey) {
       case 'brain': return 'AI Assistant';
@@ -167,6 +277,8 @@ export function CollapsedSidebar({
       case 'type': return 'Text';
       case 'sticky-note': return 'Sticky Note';
       case 'shapes': return 'Shapes';
+      case 'route': return 'Templates';
+      case 'palette': return 'Themes';
       case 'fit-view': return 'Fit View';
       case 'clear': return 'Clear Canvas';
       case 'export': return 'Export';
@@ -176,17 +288,20 @@ export function CollapsedSidebar({
   };
 
   const isPopoutIcon = (iconKey: string): boolean => {
-    return iconKey === 'workflow' || iconKey === 'shapes';
+    return ['workflow', 'shapes', 'route', 'palette'].includes(iconKey);
   };
 
   const isActive = (iconKey: string): boolean => {
     if (iconKey === 'workflow') return activePopout === 'node-types';
     if (iconKey === 'shapes') return activePopout === 'shapes';
+    if (iconKey === 'route') return activePopout === 'templates';
+    if (iconKey === 'palette') return activePopout === 'themes';
     return false;
   };
 
-  // Split icons into main and action groups
+  // Split icons into main, template/theme, and action groups
   const mainIcons = ['brain', 'workflow', 'type', 'shapes', 'sticky-note'];
+  const templateThemeIcons = ['route', 'palette'];
   const actionIcons = ['fit-view', 'clear', 'export', 'import'];
 
   return (
@@ -253,6 +368,41 @@ export function CollapsedSidebar({
         {/* Divider */}
         <div className="border-b border-border mb-4"></div>
 
+        {/* Template and Theme Icons */}
+        <div className="space-y-2 mb-4">
+          {templateThemeIcons.map((iconKey) => {
+            const IconComponent = sidebarIcons[iconKey];
+            if (!IconComponent) return null;
+
+            return (
+              <Tooltip key={iconKey}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleIconClick(iconKey)}
+                    className={`
+                      w-8 h-8 rounded-md flex items-center justify-center transition-colors
+                      ${isActive(iconKey) 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'hover:bg-accent'
+                      }
+                    `}
+                    data-testid={`icon-${iconKey}`}
+                    title={getTooltipText(iconKey)}
+                  >
+                    <IconComponent className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{getTooltipText(iconKey)}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
+
+        {/* Divider */}
+        <div className="border-b border-border mb-4"></div>
+
         {/* Action Icons */}
         <div className="space-y-2 flex-1">
           {actionIcons.map((iconKey) => {
@@ -280,6 +430,61 @@ export function CollapsedSidebar({
         </div>
       </div>
 
+      {/* Templates Popout */}
+      {activePopout === 'templates' && (
+        <div className="absolute left-full top-0 ml-2 w-64 bg-card border border-border rounded-md shadow-lg z-50 p-4">
+          <h3 className="text-sm font-semibold mb-3">Templates</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {templateTypes.map((template) => {
+              const IconComponent = template.icon;
+              if (!IconComponent) return null;
+              
+              return (
+                <div
+                  key={template.type}
+                  className="p-3 border border-border rounded-md cursor-pointer text-center hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
+                  onMouseDown={(e) => handleTemplateMouseDown(e, template.type)}
+                  data-testid={`template-${template.type}`}
+                >
+                  <IconComponent className={`${template.color} mb-1 mx-auto`} size={20} />
+                  <div className="text-xs font-medium">{template.label}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Themes Popout */}
+      {activePopout === 'themes' && (
+        <div className="absolute left-full top-0 ml-2 w-64 bg-card border border-border rounded-md shadow-lg z-50 p-4">
+          <h3 className="text-sm font-semibold mb-3">Workflow Themes</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {workflowThemes.slice(0, 8).map((theme) => (
+              <button
+                key={theme.id}
+                onClick={() => onApplyTheme?.(theme)}
+                className="p-2 border border-border rounded-md hover:bg-accent transition-all duration-200 text-left group"
+                title={theme.description}
+                data-testid={`theme-${theme.id}`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <div 
+                    className="w-3 h-3 rounded-full border"
+                    style={{ backgroundColor: theme.nodeStyles.headerBackground }}
+                  />
+                  <div 
+                    className="w-3 h-3 rounded-full border"
+                    style={{ backgroundColor: theme.nodeStyles.bodyBackground }}
+                  />
+                </div>
+                <div className="text-xs font-medium">{theme.name}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Drag Visual Indicator - matches expanded sidebar style */}
       {dragState.isDragging && dragState.currentPos && dragState.iconType && (
         <div
@@ -292,14 +497,26 @@ export function CollapsedSidebar({
         >
           <div className="flex items-center gap-2 text-sm">
             {(() => {
-              const IconComponent = sidebarIcons[dragState.iconType];
-              if (IconComponent) {
-                return (
-                  <>
-                    <IconComponent className="w-4 h-4" />
-                    <span className="font-medium">{getTooltipText(dragState.iconType)}</span>
-                  </>
-                );
+              if (dragState.iconType === 'template' && dragState.templateType) {
+                const template = templateTypes.find(t => t.type === dragState.templateType);
+                if (template && template.icon) {
+                  return (
+                    <>
+                      <template.icon className={`w-4 h-4 ${template.color}`} />
+                      <span className="font-medium">{template.label}</span>
+                    </>
+                  );
+                }
+              } else {
+                const IconComponent = sidebarIcons[dragState.iconType];
+                if (IconComponent) {
+                  return (
+                    <>
+                      <IconComponent className="w-4 h-4" />
+                      <span className="font-medium">{getTooltipText(dragState.iconType)}</span>
+                    </>
+                  );
+                }
               }
               return null;
             })()}

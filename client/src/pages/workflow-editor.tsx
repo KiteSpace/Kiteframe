@@ -35,6 +35,13 @@ import {
   Type, 
   Shapes, 
   StickyNote, 
+  Route,
+  Palette,
+  MapPin,
+  Network,
+  Layers,
+  UserPlus,
+  CircuitBoard,
   Maximize2, 
   Trash2, 
   Download, 
@@ -2110,7 +2117,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   });
 
   // Popout state for collapsed sidebar
-  const [activePopout, setActivePopout] = useState<'node-types' | 'shapes' | null>(null);
+  const [activePopout, setActivePopout] = useState<'node-types' | 'shapes' | 'templates' | 'themes' | null>(null);
 
   // Save sidebar collapse state to localStorage
   useEffect(() => {
@@ -2124,6 +2131,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     'type': Type,
     'shapes': Shapes,
     'sticky-note': StickyNote,
+    'route': Route,
+    'palette': Palette,
+    'map-pin': MapPin,
+    'network': Network,
+    'layers': Layers,
+    'user-plus': UserPlus,
+    'circuit-board': CircuitBoard,
     'fit-view': Maximize2,
     'clear': Trash2,
     'export': Download,
@@ -2581,6 +2595,60 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }}
                   onImport={() => setShowImportModal(true)}
                   onOpenAiGenerator={() => setShowAiGenerator(true)}
+                  onCreateTemplate={(templateType: string) => {
+                    // Create a new tab if none exist
+                    if (tabs.length === 0) {
+                      const newTab = createBlankTab();
+                      setTabs([newTab]);
+                      setActiveTabId(newTab.id);
+                    }
+                    
+                    // Template generation at center (same logic as expanded sidebar)
+                    console.log('🎯 CREATING TEMPLATE FROM COLLAPSED SIDEBAR:', { templateType, position: 'center' });
+                    handleCreateTemplateFromCanvas(templateType);
+                  }}
+                  onCreateTemplateAtPosition={(templateType: string, position: { x: number; y: number }) => {
+                    // Create a new tab if none exist
+                    if (tabs.length === 0) {
+                      const newTab = createBlankTab();
+                      setTabs([newTab]);
+                      setActiveTabId(newTab.id);
+                    }
+                    
+                    // Template generation at specific position from drag-and-drop
+                    console.log('🎯 CREATING TEMPLATE AT POSITION FROM COLLAPSED SIDEBAR:', { templateType, position });
+                    // Note: handleCreateTemplateFromCanvas doesn't support position parameter yet
+                    // For now, use center creation - position-based template creation can be added later
+                    handleCreateTemplateFromCanvas(templateType);
+                  }}
+                  onApplyTheme={(theme) => {
+                    // Apply theme to all nodes in the current workflow
+                    setNodes(prev => prev.map(node => ({
+                      ...node,
+                      data: {
+                        ...node.data,
+                        style: {
+                          ...node.data.style,
+                          headerBackground: theme.nodeStyles.headerBackground,
+                          headerTextColor: theme.nodeStyles.headerText,
+                          bodyBackground: theme.nodeStyles.bodyBackground,
+                          bodyTextColor: theme.nodeStyles.bodyText,
+                          borderColor: theme.nodeStyles.border
+                        }
+                      }
+                    })));
+                    
+                    // Apply theme to all edges
+                    setEdges(prev => prev.map(edge => ({
+                      ...edge,
+                      style: {
+                        ...edge.style,
+                        strokeColor: theme.edgeStyles.stroke
+                      }
+                    })));
+                    
+                    saveToHistory();
+                  }}
                   activePopout={activePopout}
                   setActivePopout={setActivePopout}
                   sidebarIcons={sidebarIcons}
