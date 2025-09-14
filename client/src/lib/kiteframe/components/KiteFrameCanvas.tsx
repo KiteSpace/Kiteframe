@@ -1097,6 +1097,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       e.stopPropagation();
       const rect = containerRef.current!.getBoundingClientRect();
       const r = unifiedSelectionRect!;
+      const isShiftHeld = e.shiftKey;
       
       // Convert selection rectangle coordinates from screen space to world space
       const startWorld = clientToWorld(r.x, r.y, viewport, rect);
@@ -1110,7 +1111,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       console.log('🎯 UNIFIED SELECTION:', {
         screenRect: r,
         worldRect: { x1: nx1, y1: ny1, x2: nx2, y2: ny2 },
-        viewport
+        viewport,
+        shiftHeld: isShiftHeld,
+        additive: isShiftHeld
       });
       
       // Select nodes that intersect with selection rectangle
@@ -1131,7 +1134,17 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         // Use overlap detection instead of complete containment
         const overlapsX = nodeBounds.x1 < nx2 && nodeBounds.x2 > nx1;
         const overlapsY = nodeBounds.y1 < ny2 && nodeBounds.y2 > ny1;
-        const selected = overlapsX && overlapsY;
+        const intersectsWithLasso = overlapsX && overlapsY;
+        
+        // Handle additive vs replacement selection
+        let selected: boolean;
+        if (isShiftHeld) {
+          // Additive selection: preserve existing selection, add intersecting items
+          selected = n.selected || intersectsWithLasso;
+        } else {
+          // Replacement selection: only select intersecting items
+          selected = intersectsWithLasso;
+        }
         
         return { ...n, selected };
       });
@@ -1147,7 +1160,17 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         // Use overlap detection instead of complete containment
         const overlapsX = accurateBounds.x1 < nx2 && accurateBounds.x2 > nx1;
         const overlapsY = accurateBounds.y1 < ny2 && accurateBounds.y2 > ny1;
-        const selected = overlapsX && overlapsY;
+        const intersectsWithLasso = overlapsX && overlapsY;
+        
+        // Handle additive vs replacement selection
+        let selected: boolean;
+        if (isShiftHeld) {
+          // Additive selection: preserve existing selection, add intersecting items
+          selected = obj.selected || intersectsWithLasso;
+        } else {
+          // Replacement selection: only select intersecting items
+          selected = intersectsWithLasso;
+        }
         
         return { ...obj, selected };
       });
