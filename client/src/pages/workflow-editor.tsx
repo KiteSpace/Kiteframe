@@ -2456,7 +2456,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
           {/* Sidebar or Edge Customizer */}
-          <div className={`${selectedEdgeId ? 'w-64' : (isSidebarCollapsed ? 'w-12' : 'w-64')} border-r border-border flex flex-col overflow-hidden transition-all duration-200`}>
+          <div className={`${selectedEdgeId ? 'w-64' : (isSidebarCollapsed ? 'w-12' : 'w-64')} border-r border-border flex flex-col transition-all duration-200 ${isSidebarCollapsed ? 'overflow-visible' : 'overflow-hidden'}`}>
             {selectedEdgeId ? (
               <EdgeCustomizer
                 selectedEdge={edges.find(e => e.id === selectedEdgeId)}
