@@ -902,14 +902,37 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   // Function to start unified selection - can be called from anywhere
   const startUnifiedSelection = (clientX: number, clientY: number) => {
-    if (!containerRef.current) return;
+    console.log('🎯 startUnifiedSelection called:', {
+      clientX,
+      clientY,
+      containerExists: !!containerRef.current,
+      viewport
+    });
+    
+    if (!containerRef.current) {
+      console.log('❌ No container ref - aborting selection');
+      return;
+    }
+    
     const rect = containerRef.current.getBoundingClientRect();
     const containerX = clientX - rect.left;
     const containerY = clientY - rect.top;
     
+    console.log('📐 Client to Container conversion:', {
+      clientX, clientY,
+      containerRect: rect,
+      containerX, containerY
+    });
+    
+    console.log('✅ Setting up unified selection');
     unifiedSelectStart.current = { x: containerX, y: containerY };
     setUnifiedSelectionRect({ x: containerX, y: containerY, w: 0, h: 0 });
     selectionInProgress.current = true;
+    
+    console.log('🎯 Selection state updated:', {
+      unifiedSelectStart: unifiedSelectStart.current,
+      selectionInProgress: selectionInProgress.current
+    });
   };
 
   // Background interactions: pan or selection (Shift+drag)
@@ -1208,13 +1231,36 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   // Add capture-phase mousedown handler for shift+drag lasso from anywhere
   useEffect(() => {
     const handleCaptureMouseDown = (e: MouseEvent) => {
+      console.log('🔍 CAPTURE PHASE mousedown:', {
+        shiftKey: e.shiftKey,
+        ctrlKey: e.ctrlKey,
+        target: e.target,
+        targetTag: (e.target as HTMLElement)?.tagName,
+        targetClass: (e.target as HTMLElement)?.className,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        containerExists: !!containerRef.current
+      });
+      
       if (e.shiftKey && containerRef.current) {
         // Check if target is not an input or contentEditable to avoid interfering with text editing
         const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
+        const isTextEditable = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
+        
+        console.log('🎯 SHIFT+MOUSEDOWN detected:', {
+          target: target.tagName,
+          className: target.className,
+          isTextEditable,
+          containerRect: containerRef.current.getBoundingClientRect(),
+          willPrevent: !isTextEditable
+        });
+        
+        if (isTextEditable) {
+          console.log('🔤 Skipping shift+mousedown - text editing element');
           return;
         }
         
+        console.log('🚀 PREVENTING default and starting unified selection');
         e.preventDefault();
         e.stopPropagation();
         startUnifiedSelection(e.clientX, e.clientY);

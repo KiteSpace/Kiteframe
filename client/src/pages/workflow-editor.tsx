@@ -2708,6 +2708,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   selectedNode={nodes.find(n => n.id === selectedNodeId)}
                   selectedEdge={edges.find(e => e.id === selectedEdgeId)}
                   selectedCanvasObject={canvasObjects.find(obj => obj.selected)}
+                  selectedNodeIds={nodes.filter(n => n.selected).map(n => n.id)}
+                  selectedCanvasObjectIds={canvasObjects.filter(obj => obj.selected).map(obj => obj.id)}
                   onNodeUpdate={(nodeId: string, updates: Partial<Node>) => {
                     setNodes(prev => prev.map(node => 
                       node.id === nodeId ? { ...node, ...updates } : node

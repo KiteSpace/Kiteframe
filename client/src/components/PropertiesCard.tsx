@@ -10,6 +10,9 @@ interface PropertiesCardProps {
   selectedNode?: Node;
   selectedEdge?: Edge;
   selectedCanvasObject?: CanvasObject;
+  // Additional props to detect mixed selections
+  selectedNodeIds?: string[];
+  selectedCanvasObjectIds?: string[];
   onNodeUpdate?: (nodeId: string, updates: Partial<Node>) => void;
   onEdgeUpdate?: (edgeId: string, updates: Partial<Edge>) => void;
   onCanvasObjectUpdate?: (objectId: string, updates: Partial<any>) => void;
@@ -20,6 +23,8 @@ export function PropertiesCard({
   selectedNode, 
   selectedEdge, 
   selectedCanvasObject,
+  selectedNodeIds = [],
+  selectedCanvasObjectIds = [],
   onNodeUpdate,
   onEdgeUpdate,
   onCanvasObjectUpdate,
@@ -45,8 +50,22 @@ export function PropertiesCard({
     return isLightColor(backgroundColor) ? '#0f172a' : '#ffffff';
   };
 
+  // Check for mixed selection (both nodes and canvas objects selected)
+  const hasMixedSelection = selectedNodeIds.length > 0 && selectedCanvasObjectIds.length > 0;
+  
   // Don't render if nothing is selected
   if (!selectedNode && !selectedEdge && !selectedCanvasObject) {
+    return null;
+  }
+  
+  // Don't render if there's a mixed selection (nodes + canvas objects)
+  if (hasMixedSelection) {
+    console.log('🚫 PropertiesCard: Hidden due to mixed selection', {
+      selectedNodeIds: selectedNodeIds.length,
+      selectedCanvasObjectIds: selectedCanvasObjectIds.length,
+      nodeIds: selectedNodeIds,
+      objectIds: selectedCanvasObjectIds
+    });
     return null;
   }
 
