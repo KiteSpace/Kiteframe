@@ -53,7 +53,7 @@ export function CollapsedSidebar({
     { type: 'mindmap', icon: sidebarIcons['map-pin'], color: 'text-green-500', label: 'Mindmap' },
     { type: 'system-architecture', icon: sidebarIcons['network'], color: 'text-purple-500', label: 'System Architecture' },
     { type: 'swim-lanes', icon: sidebarIcons['layers'], color: 'text-orange-500', label: 'Swim Lanes' },
-    { type: 'user-account', icon: sidebarIcons['user-plus'], color: 'text-pink-500', label: 'User Account Creation' },
+    { type: 'user-account-creation', icon: sidebarIcons['user-plus'], color: 'text-pink-500', label: 'User Account Creation' },
     { type: 'io-logic', icon: sidebarIcons['circuit-board'], color: 'text-cyan-500', label: 'I/O Logic' }
   ];
   

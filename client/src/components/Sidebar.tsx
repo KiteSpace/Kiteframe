@@ -223,7 +223,7 @@ export function Sidebar({
     { type: 'mindmap', icon: MapPin, color: 'text-green-500', label: 'Mindmap' },
     { type: 'system-architecture', icon: Network, color: 'text-purple-500', label: 'System Architecture' },
     { type: 'swim-lanes', icon: Layers, color: 'text-orange-500', label: 'Swim Lanes' },
-    { type: 'user-account', icon: UserPlus, color: 'text-pink-500', label: 'User Account Creation' },
+    { type: 'user-account-creation', icon: UserPlus, color: 'text-pink-500', label: 'User Account Creation' },
     { type: 'io-logic', icon: CircuitBoard, color: 'text-cyan-500', label: 'I/O Logic' }
   ];
 
@@ -321,43 +321,54 @@ export function Sidebar({
     e.stopPropagation();
     
     const startPos = { x: e.clientX, y: e.clientY };
+    let hasMoved = false;
 
     const handleMouseMove = (e: MouseEvent) => {
-      // Visual feedback during drag could be added here
+      const distance = Math.sqrt(
+        Math.pow(e.clientX - startPos.x, 2) + Math.pow(e.clientY - startPos.y, 2)
+      );
+      
+      // Track if user has moved more than 5 pixels (indicates drag)
+      if (distance > 5) {
+        hasMoved = true;
+      }
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      console.log('🎯 EXPANDED SIDEBAR TEMPLATE DRAG END:', { templateType, endPos: { x: e.clientX, y: e.clientY } });
+      console.log('🎯 EXPANDED SIDEBAR TEMPLATE DRAG END:', { templateType, endPos: { x: e.clientX, y: e.clientY }, hasMoved });
       
-      // Find the canvas element
-      const canvasElement = document.querySelector('[data-testid="workflow-canvas"]');
-      
-      console.log('🎯 TEMPLATE CANVAS ELEMENT FOUND:', { canvasElement: !!canvasElement, selector: '[data-testid="workflow-canvas"]' });
-      
-      if (canvasElement && onCreateTemplate) {
-        const canvasRect = canvasElement.getBoundingClientRect();
-        const x = e.clientX - canvasRect.left;
-        const y = e.clientY - canvasRect.top;
+      if (hasMoved) {
+        // This was a drag operation - check canvas bounds
+        const canvasElement = document.querySelector('[data-testid="workflow-canvas"]');
         
-        console.log('🎯 TEMPLATE DROP COORDINATES:', { 
-          clientX: e.clientX, 
-          clientY: e.clientY, 
-          canvasRect, 
-          relativeX: x, 
-          relativeY: y,
-          onCanvas: x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height
-        });
+        console.log('🎯 TEMPLATE CANVAS ELEMENT FOUND:', { canvasElement: !!canvasElement, selector: '[data-testid="workflow-canvas"]' });
         
-        // Only create template if dropped on canvas
-        if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
-          console.log('🎯 CALLING onCreateTemplate:', { templateType });
-          onCreateTemplate(templateType);
+        if (canvasElement && onCreateTemplate) {
+          const canvasRect = canvasElement.getBoundingClientRect();
+          const x = e.clientX - canvasRect.left;
+          const y = e.clientY - canvasRect.top;
+          
+          console.log('🎯 TEMPLATE DROP COORDINATES:', { 
+            clientX: e.clientX, 
+            clientY: e.clientY, 
+            canvasRect, 
+            relativeX: x, 
+            relativeY: y,
+            onCanvas: x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height
+          });
+          
+          // Only create template if dropped on canvas
+          if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
+            console.log('🎯 CALLING onCreateTemplate from drag:', { templateType });
+            onCreateTemplate(templateType);
+          } else {
+            console.log('🎯 TEMPLATE DROP OUTSIDE CANVAS - NO TEMPLATE CREATED');
+          }
         } else {
-          console.log('🎯 TEMPLATE DROP OUTSIDE CANVAS - NO TEMPLATE CREATED');
+          console.log('🎯 NO CANVAS OR TEMPLATE HANDLER:', { canvasElement: !!canvasElement, onCreateTemplate: !!onCreateTemplate });
         }
-      } else {
-        console.log('🎯 NO CANVAS OR TEMPLATE HANDLER:', { canvasElement: !!canvasElement, onCreateTemplate: !!onCreateTemplate });
       }
+      // If not moved, the click handler will handle template creation
       
       // Remove event listeners
       document.removeEventListener('mousemove', handleMouseMove);
