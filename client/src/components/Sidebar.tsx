@@ -259,8 +259,8 @@ export function Sidebar({
     const handleMouseUp = (e: MouseEvent) => {
       console.log('🎯 SIDEBAR DRAG END:', { nodeType, endPos: { x: e.clientX, y: e.clientY } });
       
-      // Find the canvas element - KiteFrameCanvas uses .kiteframe-canvas class
-      const canvasElement = document.querySelector('.kiteframe-canvas');
+      // Find the canvas element - KiteFrameCanvas uses data-testid="workflow-canvas"
+      const canvasElement = document.querySelector('[data-testid="workflow-canvas"]');
       
       console.log('🎯 CANVAS ELEMENT FOUND:', { canvasElement: !!canvasElement, selector: '[data-testid="workflow-canvas"]' });
       

@@ -458,9 +458,10 @@ export function CollapsedSidebar({
               return (
                 <div
                   key={template.type}
-                  className="p-3 border border-border rounded-md cursor-pointer text-center hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
+                  className="p-3 border border-border rounded-md cursor-pointer text-center hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 select-none"
                   onMouseDown={(e) => handleTemplateMouseDown(e, template.type)}
                   data-testid={`template-${template.type}`}
+                  style={{ userSelect: 'none' }}
                 >
                   <IconComponent className={`${template.color} mb-1 mx-auto`} size={20} />
                   <div className="text-xs font-medium">{template.label}</div>
