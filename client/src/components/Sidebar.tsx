@@ -7,6 +7,7 @@ import { workflowThemes, type WorkflowTheme } from '@/lib/themes';
 import { TextObjectStylingPanel } from '../lib/kiteframe/components/styling/TextObjectStylingPanel';
 import { ShapeObjectStylingPanel } from '../lib/kiteframe/components/styling/ShapeObjectStylingPanel';
 import { StickyNoteObjectStylingPanel } from '../lib/kiteframe/components/styling/StickyNoteObjectStylingPanel';
+import { clientToWorld } from '@/lib/kiteframe/utils/geometry';
 import { 
   ArrowRight, 
   Cog, 
@@ -94,9 +95,11 @@ interface SidebarProps {
   currentWorkflow?: WorkflowTab;
   onLoadWorkflow?: (workflow: WorkflowTab) => void;
   onCreateTemplate?: (templateType: string) => void;
+  onCreateTemplateAtPosition?: (templateType: string, position: { x: number; y: number }) => void;
   connectionAnimationConfig?: any;
   onConnectionAnimationConfigChange?: (config: any) => void;
   onToggleSidebar?: () => void;
+  viewport: { x: number; y: number; zoom: number };
 }
 
 export function Sidebar({
@@ -130,9 +133,11 @@ export function Sidebar({
   currentWorkflow,
   onLoadWorkflow,
   onCreateTemplate,
+  onCreateTemplateAtPosition,
   connectionAnimationConfig = {},
   onConnectionAnimationConfigChange,
   onToggleSidebar,
+  viewport,
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState('');
@@ -359,8 +364,10 @@ export function Sidebar({
           
           // Only create template if dropped on canvas
           if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
-            console.log('🎯 CALLING onCreateTemplate from drag:', { templateType });
-            onCreateTemplate(templateType);
+            // Convert screen coordinates to world coordinates using viewport transformation
+            const worldPos = clientToWorld(e.clientX, e.clientY, viewport, canvasRect);
+            console.log('🎯 CALLING onCreateTemplateAtPosition from drag:', { templateType, worldPosition: worldPos, screenPos: { x: e.clientX, y: e.clientY } });
+            onCreateTemplateAtPosition?.(templateType, worldPos);
           } else {
             console.log('🎯 TEMPLATE DROP OUTSIDE CANVAS - NO TEMPLATE CREATED');
           }

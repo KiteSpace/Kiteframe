@@ -251,8 +251,10 @@ export function CollapsedSidebar({
           
           // Only create template if dropped on canvas
           if (canvasX >= 0 && canvasX <= canvasRect.width && canvasY >= 0 && canvasY <= canvasRect.height) {
-            console.log('🎯 CALLING onCreateTemplate from collapsed sidebar drag-and-drop:', { templateType, screenPos: { x: e.clientX, y: e.clientY } });
-            onCreateTemplate?.(templateType);
+            // Convert screen coordinates to world coordinates using viewport transformation
+            const worldPos = clientToWorld(e.clientX, e.clientY, viewport, canvasRect);
+            console.log('🎯 CALLING onCreateTemplateAtPosition from collapsed sidebar:', { templateType, worldPosition: worldPos, screenPos: { x: e.clientX, y: e.clientY } });
+            onCreateTemplateAtPosition?.(templateType, worldPos);
           } else {
             console.log('🎯 TEMPLATE DROP OUTSIDE CANVAS - NO TEMPLATE CREATED');
           }

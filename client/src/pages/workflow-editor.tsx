@@ -1616,7 +1616,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [nodes]);
 
   // Handle template creation to current active tab
-  const handleAddTemplateToCurrentTab = useCallback((templateType: string) => {
+  const handleAddTemplateToCurrentTab = useCallback((templateType: string, anchorPosition?: { x: number; y: number }) => {
     let templateData;
 
     // Generate appropriate template based on type
@@ -1644,8 +1644,43 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         return;
     }
 
-    // Calculate offset for new nodes to avoid overlapping
-    const offset = calculateWorkflowOffset(templateData.nodes);
+    let offset: { x: number; y: number };
+    
+    if (anchorPosition) {
+      // When a specific position is provided (from drag-and-drop), place template there
+      // Calculate the bounding box of the template
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      
+      templateData.nodes.forEach(node => {
+        if (node.position.x < minX) minX = node.position.x;
+        if (node.position.y < minY) minY = node.position.y;
+        const nodeRight = node.position.x + (node.width || 200);
+        const nodeBottom = node.position.y + (node.height || 100);
+        if (nodeRight > maxX) maxX = nodeRight;
+        if (nodeBottom > maxY) maxY = nodeBottom;
+      });
+      
+      // Calculate center of template bounding box
+      const templateCenterX = (minX + maxX) / 2;
+      const templateCenterY = (minY + maxY) / 2;
+      
+      // Offset to center template at the drop position
+      offset = {
+        x: anchorPosition.x - templateCenterX,
+        y: anchorPosition.y - templateCenterY
+      };
+      
+      console.log('✨ Template placement at position:', { 
+        templateType, 
+        anchorPosition,
+        templateCenter: { x: templateCenterX, y: templateCenterY },
+        offset 
+      });
+    } else {
+      // Use the existing offset calculation for appending workflows
+      offset = calculateWorkflowOffset(templateData.nodes);
+    }
+    
     const timestamp = Date.now();
     
     // Apply offset to new nodes and ensure unique IDs
@@ -1686,7 +1721,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     console.log(`✨ Template "${templateType}" added to current tab:`, {
       newNodes: offsetNodes.length,
       newEdges: offsetEdges.length,
-      offset
+      offset,
+      anchorPosition
     });
   }, [generateUserJourneyTemplate, generateMindmapTemplate, generateSystemArchitectureTemplate, generateSwimLanesTemplate, generateUserAccountTemplate, generateIOLogicTemplate, calculateWorkflowOffset, setNodes, setEdges, saveToHistory]);
 
@@ -2601,11 +2637,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       const newTab = createBlankTab();
                       setTabs([newTab]);
                       setActiveTabId(newTab.id);
+                      // Wait for the tab to be created before adding the template
+                      setTimeout(() => {
+                        handleAddTemplateToCurrentTab(templateType);
+                      }, 50);
+                      return;
                     }
                     
                     // Template generation at center (same logic as expanded sidebar)
                     console.log('🎯 CREATING TEMPLATE FROM COLLAPSED SIDEBAR:', { templateType, position: 'center' });
-                    handleCreateTemplateFromCanvas(templateType);
+                    handleAddTemplateToCurrentTab(templateType);
                   }}
                   onCreateTemplateAtPosition={(templateType: string, position: { x: number; y: number }) => {
                     // Create a new tab if none exist
@@ -2613,13 +2654,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       const newTab = createBlankTab();
                       setTabs([newTab]);
                       setActiveTabId(newTab.id);
+                      // Wait for the tab to be created before adding the template
+                      setTimeout(() => {
+                        handleAddTemplateToCurrentTab(templateType, position);
+                      }, 50);
+                      return;
                     }
                     
                     // Template generation at specific position from drag-and-drop
                     console.log('🎯 CREATING TEMPLATE AT POSITION FROM COLLAPSED SIDEBAR:', { templateType, position });
-                    // Note: handleCreateTemplateFromCanvas doesn't support position parameter yet
-                    // For now, use center creation - position-based template creation can be added later
-                    handleCreateTemplateFromCanvas(templateType);
+                    handleAddTemplateToCurrentTab(templateType, position);
                   }}
                   onApplyTheme={(theme) => {
                     // Apply theme to all nodes in the current workflow
@@ -3356,6 +3400,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 // Normal case - add template to current active tab
                 handleAddTemplateToCurrentTab(templateType);
               }}
+              onCreateTemplateAtPosition={(templateType: string, position: { x: number; y: number }) => {
+                // Create a new tab if none exist
+                if (tabs.length === 0) {
+                  const newTab = createBlankTab();
+                  setTabs([newTab]);
+                  setActiveTabId(newTab.id);
+                  // Wait for the tab to be created before adding the template
+                  setTimeout(() => {
+                    handleAddTemplateToCurrentTab(templateType, position);
+                  }, 50);
+                  return;
+                }
+
+                // Normal case - add template to current active tab with position
+                handleAddTemplateToCurrentTab(templateType, position);
+              }}
+              viewport={viewport}
               connectionAnimationConfig={connectionAnimationConfig}
               onConnectionAnimationConfigChange={setConnectionAnimationConfig}
               />
