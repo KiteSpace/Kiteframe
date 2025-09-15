@@ -9,6 +9,14 @@ export { NodeHandles } from './components/NodeHandles';
 export { BasicNode } from './components/BasicNode';
 export { ImageNode } from './components/ImageNode';
 
+// Edge components and utilities
+export { EdgeProperties } from './components/EdgeProperties';
+export { EdgeFactory } from './components/EdgeFactory';
+export { EdgeTemplatesList, defaultEdgeTemplates } from './components/EdgeTemplates';
+export type { EdgeTemplate } from './components/EdgeTemplates';
+export { EdgeValidator } from './utils/EdgeValidation';
+export type { EdgeValidationResult, EdgeValidationRules } from './utils/EdgeValidation';
+
 // Types
 export type { 
   Node, 
