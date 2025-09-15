@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import '../styles/kiteframe.css';
 import '../styles/enhanced-selection.css';
 import type { Node, Edge, NodeType, CanvasObject, CanvasObjectType, ProFeaturesConfig, QuickAddConfig } from '../types';
@@ -21,6 +21,7 @@ import { ShapeObject } from './ShapeObject';
 import { EmojiReactions } from './EmojiReactions';
 import { AnimatedConnectionPreview, type AnimationConfig } from './AnimatedConnectionPreview';
 import { ChevronDown, ChevronUp, X, ExternalLink, List, Type } from 'lucide-react';
+import { RenderBatchManager, VirtualizationManager, useRenderBatching } from '../utils/renderBatching';
 
 // Floating workflow name input component
 interface WorkflowLink {
@@ -784,6 +785,101 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const minZoom = props.minZoom ?? 0.1;
   const maxZoom = props.maxZoom ?? 3;
 
+  // ========== RENDER BATCHING & VIRTUALIZATION SETUP ==========
+  // Virtualization Manager for viewport-based filtering
+  const virtualizationManager = useMemo(() => new VirtualizationManager(), []);
+  
+  // Update virtualization viewport whenever viewport changes
+  useEffect(() => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      virtualizationManager.setViewport(
+        -viewport.x / viewport.zoom,
+        -viewport.y / viewport.zoom,
+        rect.width / viewport.zoom,
+        rect.height / viewport.zoom
+      );
+      virtualizationManager.setBuffer(200); // 200px buffer for smoother scrolling
+    }
+  }, [viewport, virtualizationManager]);
+
+  // Render Batch Manager for optimized updates
+  const handleBatchedUpdate = useCallback((frame: any) => {
+    // Process batched node updates
+    if (frame.nodes.size > 0) {
+      const updatedNodes = props.nodes.map(node => {
+        const updated = frame.nodes.get(node.id);
+        return updated || node;
+      });
+      props.onNodesChange(updatedNodes);
+    }
+    
+    // Process batched edge updates
+    if (frame.edges.size > 0) {
+      const updatedEdges = props.edges.map(edge => {
+        const updated = frame.edges.get(edge.id);
+        return updated || edge;
+      });
+      props.onEdgesChange(updatedEdges);
+    }
+    
+    // Process batched canvas object updates
+    if (frame.objects.size > 0 && props.onCanvasObjectsChange) {
+      const updatedObjects = (props.canvasObjects || []).map(obj => {
+        const updated = frame.objects.get(obj.id);
+        return updated || obj;
+      });
+      props.onCanvasObjectsChange(updatedObjects);
+    }
+  }, [props]);
+
+  const renderBatchManager = useRenderBatching(handleBatchedUpdate, 60);
+
+  // Filter visible nodes and edges based on viewport
+  const visibleNodes = useMemo(() => {
+    const nodeArray = props.nodes;
+    return virtualizationManager.filterVisibleNodes(nodeArray, viewport.zoom);
+  }, [props.nodes, viewport, virtualizationManager]);
+
+  const visibleEdges = useMemo(() => {
+    const nodesMap = new Map(props.nodes.map(n => [n.id, n]));
+    return virtualizationManager.filterVisibleEdges(props.edges, nodesMap, viewport.zoom);
+  }, [props.edges, props.nodes, viewport, virtualizationManager]);
+
+  const visibleCanvasObjects = useMemo(() => {
+    if (!props.canvasObjects) return [];
+    // Filter canvas objects based on viewport visibility
+    return props.canvasObjects.filter(obj => {
+      const width = obj.style?.width || obj.width || 200;
+      const height = obj.style?.height || obj.height || 150;
+      
+      // Create a pseudo-node for visibility check
+      const pseudoNode: Node = {
+        id: obj.id,
+        type: 'text' as NodeType,
+        position: obj.position,
+        data: {},
+        width,
+        height
+      };
+      
+      return virtualizationManager.isNodeVisible(pseudoNode, viewport.zoom);
+    });
+  }, [props.canvasObjects, viewport, virtualizationManager]);
+
+  // Performance metrics in development mode
+  const [showMetrics, setShowMetrics] = useState(false);
+  const [metrics, setMetrics] = useState(renderBatchManager.getMetrics());
+  
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && showMetrics) {
+      const interval = setInterval(() => {
+        setMetrics(renderBatchManager.getMetrics());
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [showMetrics, renderBatchManager]);
+
   // Pro Features: Quick Add Functions
   const createQuickAddNode = (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left'): Node => {
     const spacing = quickAddConfig?.defaultSpacing ?? 250;
@@ -827,7 +923,16 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const handleQuickAdd = (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => {
     const newNode = createQuickAddNode(sourceNode, position);
     
-    // Add the new node
+    // Queue the new node update through batch manager
+    renderBatchManager.queueUpdate({
+      id: newNode.id,
+      type: 'node',
+      operation: 'add',
+      data: newNode,
+      priority: 'high'
+    });
+    
+    // Still need to update immediately for consistency
     const updatedNodes = [...props.nodes, newNode];
     props.onNodesChange(updatedNodes);
 
@@ -1008,6 +1113,19 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           totalNodes: props.nodes.length
         });
         
+        // Queue batch updates for group drag
+        const updates = updatedNodes
+          .filter(n => n.selected)
+          .map(node => ({
+            id: node.id,
+            type: 'node' as const,
+            operation: 'update' as const,
+            data: node,
+            priority: 'high' as const
+          }));
+        renderBatchManager.queueBatch(updates);
+        
+        // Still update immediately for responsiveness
         props.onNodesChange(updatedNodes);
         
         console.log('🔧 DRAG MOVE:', {
@@ -1034,6 +1152,16 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             updated: { ...targetNode, position: newPosition }
           });
           
+          // Queue single node update through batch manager
+          renderBatchManager.queueUpdate({
+            id: dragInfo.current!.id,
+            type: 'node',
+            operation: 'update',
+            data: { ...targetNode, position: newPosition },
+            priority: 'high'
+          });
+          
+          // Still update immediately for responsiveness
           props.onNodesChange(updatedNodes);
           
           console.log('🔧 DRAG MOVE:', {
@@ -1739,7 +1867,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         </defs>
           {(() => {
             // Recalculate edge z-indexes based on current node states
-            const edgesWithZIndex = recalculateAllEdgeZIndexes(props.edges, props.nodes);
+            const edgesWithZIndex = recalculateAllEdgeZIndexes(visibleEdges, props.nodes);
             // Sort edges by z-index for proper rendering order
             const sortedEdges = sortEdgesByZIndex(edgesWithZIndex);
             
@@ -1754,7 +1882,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           {/* Edge reconnection handles for selected edges */}
           {(() => {
             // Use the same sorted edges for consistency
-            const edgesWithZIndex = recalculateAllEdgeZIndexes(props.edges, props.nodes);
+            const edgesWithZIndex = recalculateAllEdgeZIndexes(visibleEdges, props.nodes);
             const sortedEdges = sortEdgesByZIndex(edgesWithZIndex);
             
             return sortedEdges.map(e => {
@@ -1861,7 +1989,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         </svg>
 
         {/* Nodes */}
-        {props.nodes.filter(n=>!n.hidden).map(n => {
+        {visibleNodes.filter(n=>!n.hidden).map(n => {
           const w = n.style?.width ?? n.width ?? 200;
           // Use dynamic height calculation, but respect explicit style height or image node heights
           const dynamicHeight = calculateNodeHeight(n, w);
@@ -2304,7 +2432,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         })}
 
         {/* Canvas Objects */}
-        {(props.canvasObjects || []).filter(obj => !obj.hidden).map(obj => {
+        {visibleCanvasObjects.filter(obj => !obj.hidden).map(obj => {
           // Helper functions for canvas object reactions
           const addCanvasObjectReaction = (objectId: string, emoji: string) => {
             const updatedObjects = (props.canvasObjects || []).map(canvasObject => {
@@ -2713,6 +2841,48 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           metadata={props.workflowMetadata}
           onMetadataChange={props.onWorkflowMetadataChange}
         />
+      )}
+
+      {/* Performance Metrics Display (Development Mode) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div style={{
+          position: 'absolute',
+          bottom: 10,
+          right: 10,
+          padding: '8px 12px',
+          background: 'rgba(0, 0, 0, 0.8)',
+          color: '#00ff00',
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          userSelect: 'none',
+          zIndex: 9999
+        }}
+        onClick={() => setShowMetrics(!showMetrics)}
+        title="Click to toggle detailed metrics">
+          <div>📊 Performance</div>
+          {showMetrics && (
+            <>
+              <div style={{ marginTop: '4px', borderTop: '1px solid #00ff00', paddingTop: '4px' }}>
+                <div>Visible: {visibleNodes.length}/{props.nodes.length} nodes</div>
+                <div>Visible: {visibleEdges.length}/{props.edges.length} edges</div>
+                <div>Visible: {visibleCanvasObjects.length}/{(props.canvasObjects || []).length} objects</div>
+              </div>
+              <div style={{ marginTop: '4px', borderTop: '1px solid #00ff00', paddingTop: '4px' }}>
+                <div>Batches: {metrics.totalBatches}</div>
+                <div>Updates: {metrics.totalUpdates}</div>
+                <div>Avg Frame: {metrics.averageFrameTime.toFixed(2)}ms</div>
+                <div>Dropped: {metrics.droppedFrames}</div>
+              </div>
+              <div style={{ marginTop: '4px', borderTop: '1px solid #00ff00', paddingTop: '4px' }}>
+                <div>FPS Target: 60</div>
+                <div>Buffer: 200px</div>
+                <div>Zoom: {viewport.zoom.toFixed(2)}x</div>
+              </div>
+            </>
+          )}
+        </div>
       )}
     </div>
   );

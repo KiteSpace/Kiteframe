@@ -10,13 +10,40 @@ import { CSSProperties } from 'react';
 class StyleRegistry {
   private styles = new Map<string, string>();
   private styleElement: HTMLStyleElement | null = null;
+  private styleCache = new Map<string, string>();
+  private maxCacheSize = 1000; // Prevent unbounded growth
   
   constructor() {
     if (typeof document !== 'undefined') {
       this.styleElement = document.createElement('style');
       this.styleElement.setAttribute('data-kiteframe-styles', 'true');
+      
+      // Apply CSP nonce if available
+      const nonce = this.getCSPNonce();
+      if (nonce) {
+        this.styleElement.setAttribute('nonce', nonce);
+      }
+      
       document.head.appendChild(this.styleElement);
     }
+  }
+
+  /**
+   * Get CSP nonce from meta tag or global variable
+   */
+  private getCSPNonce(): string | null {
+    // Check for meta tag first
+    const metaTag = document.querySelector('meta[name="csp-nonce"]');
+    if (metaTag && metaTag.getAttribute('content')) {
+      return metaTag.getAttribute('content');
+    }
+    
+    // Check for global variable
+    if (typeof window !== 'undefined' && (window as any).__CSP_NONCE__) {
+      return (window as any).__CSP_NONCE__;
+    }
+    
+    return null;
   }
 
   /**
@@ -24,10 +51,25 @@ class StyleRegistry {
    */
   registerStyle(key: string, styles: CSSProperties): string {
     const className = `kf-${key}`;
+    
+    // Check cache first
+    if (this.styleCache.has(key)) {
+      return className;
+    }
+    
     const cssText = this.cssPropertiesToString(styles);
     
     if (!this.styles.has(key) || this.styles.get(key) !== cssText) {
       this.styles.set(key, cssText);
+      this.styleCache.set(key, className);
+      
+      // Prevent unbounded cache growth
+      if (this.styleCache.size > this.maxCacheSize) {
+        const firstKey = this.styleCache.keys().next().value;
+        this.styleCache.delete(firstKey);
+        this.styles.delete(firstKey);
+      }
+      
       this.updateStylesheet();
     }
     
@@ -64,6 +106,7 @@ class StyleRegistry {
    */
   clear() {
     this.styles.clear();
+    this.styleCache.clear();
     if (this.styleElement) {
       this.styleElement.textContent = '';
     }
@@ -78,6 +121,7 @@ class StyleRegistry {
     }
     this.styleElement = null;
     this.styles.clear();
+    this.styleCache.clear();
   }
 }
 
