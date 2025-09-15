@@ -111,3 +111,14 @@ export {
   type TelemetryEvent,
   type TelemetryConfig
 } from './utils/telemetry';
+
+// Export/Import utilities
+export {
+  exportWorkflow,
+  importWorkflow,
+  downloadWorkflow,
+  importWorkflowFromFile,
+  validateWorkflowFile,
+  CURRENT_VERSION as EXPORT_VERSION,
+  type WorkflowExport
+} from './utils/exportImport';
