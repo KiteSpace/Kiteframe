@@ -44,8 +44,9 @@ Preferred communication style: Simple, everyday language.
 
 ### Canvas and Workflow System
 - **Node Types**: Supports input, process, condition, output, AI, and image nodes with dynamic text wrapping and height adjustment.
-- **Edge Management**: Bezier, straight, and step connection types with animation support.
-- **Interactive Features**: Drag-and-drop, zoom/pan, multi-node selection (Shift+drag), context menus, and auto-layout with 5 options (Horizontal Flow, Vertical Flow, Grid, Circular, Hierarchical).
+- **Edge Management**: Comprehensive edge system with properties panel, validation, templates, and factory for creating connections.
+- **Interactive Features**: Drag-and-drop, zoom/pan, multi-node selection (Shift+drag), context menus, keyboard shortcuts, minimap, zoom controls, and canvas toolbar.
+- **Auto-Layout**: 5 layout options (Horizontal Flow, Vertical Flow, Grid, Circular, Hierarchical).
 - **Workflow Generation**: AI-generated workflows from text prompts and image analysis are appended to the canvas with smart offset positioning.
 - **Image Analysis**: Upload workflow diagrams (PNG, JPG, GIF up to 10MB) with drag-and-drop support, confidence scoring above 70% threshold, and comprehensive error handling.
 - **Image Management**: Enhanced system for uploading images via URL or local storage (base64 data URLs) with privacy notices.

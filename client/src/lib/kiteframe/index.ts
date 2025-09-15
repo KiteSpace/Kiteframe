@@ -17,6 +17,19 @@ export type { EdgeTemplate } from './components/EdgeTemplates';
 export { EdgeValidator } from './utils/EdgeValidation';
 export type { EdgeValidationResult, EdgeValidationRules } from './utils/EdgeValidation';
 
+// UI components
+export { ContextMenu } from './components/ContextMenu';
+export type { ContextMenuItem } from './components/ContextMenu';
+export { Minimap } from './components/Minimap';
+export { ZoomControls } from './components/ZoomControls';
+export { CanvasToolbar, ToolbarIcons } from './components/CanvasToolbar';
+export type { ToolbarAction } from './components/CanvasToolbar';
+
+// Hooks
+export { useContextMenu } from './hooks/useContextMenu';
+export { useKeyboardShortcuts, defaultKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+export type { KeyboardShortcut } from './hooks/useKeyboardShortcuts';
+
 // Types
 export type { 
   Node, 
