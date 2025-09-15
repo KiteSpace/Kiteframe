@@ -32,6 +32,7 @@ export type Node = {
 };
 
 export type EdgeStyle = {
+  stroke?: string;
   strokeWidth?: number;
   strokeColor?: string;
   strokeDasharray?: string;
@@ -72,6 +73,7 @@ export type Edge = {
   labelStyle?: {
     fontSize?: number;
     fontColor?: string;
+    color?: string;
     fontWeight?: string;
     backgroundColor?: string;
     padding?: number;
@@ -79,6 +81,8 @@ export type Edge = {
   };
   style?: EdgeStyle;
   markers?: EdgeMarker;
+  markerStart?: boolean | EdgeMarker;
+  markerEnd?: boolean | EdgeMarker;
   curvature?: number; // For curved edges
   cornerRadius?: number; // For step edges
   selected?: boolean;
