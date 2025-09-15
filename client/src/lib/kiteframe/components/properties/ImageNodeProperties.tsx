@@ -4,8 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Palette, Upload, ExternalLink, Image as ImageIcon } from 'lucide-react';
-import type { Node } from '../../types';
-import type { ImageNodeData } from '../ImageNode';
+import type { Node, ImageNodeData } from '../../types';
 
 interface ImageNodePropertiesProps {
   node: Node & { data: ImageNodeData };

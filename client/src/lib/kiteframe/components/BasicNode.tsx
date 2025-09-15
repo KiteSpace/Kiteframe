@@ -2,32 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
-import type { Node } from '../types';
+import type { Node, BasicNodeData, BasicNodeComponentProps } from '../types';
 
-export interface BasicNodeData {
-  label?: string;
-  description?: string;
-  colors?: {
-    headerBackground?: string;
-    bodyBackground?: string;
-    borderColor?: string;
-    headerTextColor?: string;
-    bodyTextColor?: string;
-  };
-}
 
-interface BasicNodeProps {
-  node: Node & { data: BasicNodeData };
-  onUpdate?: (nodeId: string, updates: Partial<Node>) => void;
-  onConnect?: (connection: { source: string; target: string }) => void;
-  onDoubleClick?: (e: React.MouseEvent) => void;
-  className?: string;
-  style?: React.CSSProperties;
-  showHandles?: boolean;
-  showResizeHandle?: boolean;
-}
-
-export const BasicNode: React.FC<BasicNodeProps> = ({
+export const BasicNode: React.FC<BasicNodeComponentProps> = ({
   node,
   onUpdate,
   onConnect,

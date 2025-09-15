@@ -3,8 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Palette } from 'lucide-react';
-import type { Node } from '../../types';
-import type { BasicNodeData } from '../BasicNode';
+import type { Node, BasicNodeData } from '../../types';
 
 interface BasicNodePropertiesProps {
   node: Node & { data: BasicNodeData };

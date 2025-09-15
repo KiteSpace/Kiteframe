@@ -3,39 +3,10 @@ import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
 import { Upload, Image as ImageIcon, ExternalLink, AlertCircle } from 'lucide-react';
-import type { Node } from '../types';
+import type { Node, ImageNodeData, ImageNodeComponentProps } from '../types';
 
-export interface ImageNodeData {
-  label?: string;
-  description?: string;
-  src?: string; // Image URL or data URL
-  filename?: string; // Original filename
-  sourceType?: 'upload' | 'url' | 'data';
-  isImageBroken?: boolean;
-  imageSize?: { width: number; height: number };
-  displayText?: string; // Fallback text when image is missing
-  colors?: {
-    headerBackground?: string;
-    bodyBackground?: string;
-    borderColor?: string;
-    headerTextColor?: string;
-    bodyTextColor?: string;
-  };
-}
 
-interface ImageNodeProps {
-  node: Node & { data: ImageNodeData };
-  onUpdate?: (nodeId: string, updates: Partial<Node>) => void;
-  onImageUpload?: (nodeId: string, file: File) => Promise<string>; // Returns image URL
-  onImageUrlSet?: (nodeId: string, url: string) => void;
-  onDoubleClick?: (e: React.MouseEvent) => void;
-  className?: string;
-  style?: React.CSSProperties;
-  showHandles?: boolean;
-  showResizeHandle?: boolean;
-}
-
-export const ImageNode: React.FC<ImageNodeProps> = ({
+export const ImageNode: React.FC<ImageNodeComponentProps> = ({
   node,
   onUpdate,
   onImageUpload,

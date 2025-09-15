@@ -92,6 +92,114 @@ export type Edge = {
 export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image';
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 
+// Core KiteFrame Node Data Interfaces
+export interface BasicNodeData {
+  label?: string;
+  description?: string;
+  colors?: {
+    headerBackground?: string;
+    bodyBackground?: string;
+    borderColor?: string;
+    headerTextColor?: string;
+    bodyTextColor?: string;
+  };
+}
+
+export interface ImageNodeData {
+  label?: string;
+  description?: string;
+  src?: string; // Image URL or data URL
+  filename?: string; // Original filename
+  sourceType?: 'upload' | 'url' | 'data';
+  isImageBroken?: boolean;
+  imageSize?: { width: number; height: number };
+  displayText?: string; // Fallback text when image is missing
+  colors?: {
+    headerBackground?: string;
+    bodyBackground?: string;
+    borderColor?: string;
+    headerTextColor?: string;
+    bodyTextColor?: string;
+  };
+}
+
+// Typed Node Variants for Type Safety
+export type BasicNode = Node & { 
+  type: 'basic';
+  data: BasicNodeData;
+};
+
+export type ImageNode = Node & { 
+  type: 'image';
+  data: ImageNodeData;
+};
+
+// Union type for core library nodes
+export type KiteFrameNode = BasicNode | ImageNode;
+
+// Node Creation/Factory Types
+export interface NodeTemplate<T = any> {
+  type: string;
+  defaultData: T;
+  defaultStyle?: {
+    width?: number;
+    height?: number;
+  };
+  defaultPosition?: Position;
+}
+
+export interface BasicNodeTemplate extends NodeTemplate<BasicNodeData> {
+  type: 'basic';
+}
+
+export interface ImageNodeTemplate extends NodeTemplate<ImageNodeData> {
+  type: 'image';
+}
+
+// Properties System Types
+export interface NodePropertyHandler<T = any> {
+  nodeType: string;
+  component: React.ComponentType<{
+    node: Node & { data: T };
+    onUpdate?: (nodeId: string, updates: Partial<Node>) => void;
+  }>;
+}
+
+export interface ImageUploadHandler {
+  onImageUpload?: (nodeId: string, file: File) => Promise<string>;
+  onImageUrlSet?: (nodeId: string, url: string) => void;
+}
+
+// Color Utility Types
+export interface ColorUtilities {
+  isLightColor: (color: string) => boolean;
+  getAppropriateTextColor: (backgroundColor: string) => string;
+  calculateLuminance: (color: string) => number;
+  getContrastRatio: (color1: string, color2: string) => number;
+}
+
+// Component Prop Types for Library Users
+export interface BaseNodeComponentProps<TData = any> {
+  node: Node & { data: TData };
+  onUpdate?: (nodeId: string, updates: Partial<Node>) => void;
+  onConnect?: (connection: { source: string; target: string }) => void;
+  onDoubleClick?: (e: React.MouseEvent) => void;
+  className?: string;
+  style?: React.CSSProperties;
+  showHandles?: boolean;
+  showResizeHandle?: boolean;
+}
+
+export interface BasicNodeComponentProps extends BaseNodeComponentProps<BasicNodeData> {
+  node: BasicNode;
+}
+
+export interface ImageNodeComponentProps extends BaseNodeComponentProps<ImageNodeData> {
+  node: ImageNode;
+  onImageUpload?: (nodeId: string, file: File) => Promise<string>;
+  onImageUrlSet?: (nodeId: string, url: string) => void;
+}
+
 // Pro Features Configuration Interfaces
 export interface QuickAddConfig {
   enabled?: boolean;

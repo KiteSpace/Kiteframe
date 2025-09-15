@@ -2,9 +2,7 @@ import React from 'react';
 import { PropertiesPanel } from './PropertiesPanel';
 import { BasicNodeProperties } from './BasicNodeProperties';
 import { ImageNodeProperties } from './ImageNodeProperties';
-import type { Node, Edge, CanvasObject } from '../../types';
-import type { BasicNodeData } from '../BasicNode';
-import type { ImageNodeData } from '../ImageNode';
+import type { Node, Edge, CanvasObject, BasicNodeData, ImageNodeData } from '../../types';
 
 interface PropertiesManagerProps {
   selectedNode?: Node;
