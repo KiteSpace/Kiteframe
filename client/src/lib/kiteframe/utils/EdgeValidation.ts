@@ -90,14 +90,14 @@ export class EdgeValidator {
         e => (e.source === edge.target || e.target === edge.target) && e.id !== edge.id
       ).length;
 
-      if (sourceConnections >= this.rules.maxConnectionsPerNode) {
+      if (this.rules.maxConnectionsPerNode && sourceConnections >= this.rules.maxConnectionsPerNode) {
         return {
           isValid: false,
           error: `Source node has reached maximum connections (${this.rules.maxConnectionsPerNode})`
         };
       }
 
-      if (targetConnections >= this.rules.maxConnectionsPerNode) {
+      if (this.rules.maxConnectionsPerNode && targetConnections >= this.rules.maxConnectionsPerNode) {
         return {
           isValid: false,
           error: `Target node has reached maximum connections (${this.rules.maxConnectionsPerNode})`
@@ -106,7 +106,7 @@ export class EdgeValidator {
     }
 
     // Check node type restrictions
-    if (this.rules.nodeTypeRestrictions) {
+    if (this.rules.nodeTypeRestrictions && sourceNode.type && targetNode.type) {
       const sourceRestrictions = this.rules.nodeTypeRestrictions[sourceNode.type];
       const targetRestrictions = this.rules.nodeTypeRestrictions[targetNode.type];
 
@@ -184,7 +184,8 @@ export class EdgeValidator {
     });
 
     // Check for cycles starting from each unvisited node
-    for (const nodeId of nodeIds) {
+    const nodeIdsArray = Array.from(nodeIds);
+    for (const nodeId of nodeIdsArray) {
       if (!visited.has(nodeId)) {
         if (hasCycleDFS(nodeId)) {
           return true;
