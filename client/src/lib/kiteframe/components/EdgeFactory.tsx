@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Edge } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Edge, Node } from '../types';
 import { EdgeTemplatesList, defaultEdgeTemplates, EdgeTemplate } from './EdgeTemplates';
-import { EdgeValidator, EdgeValidationRules } from '../utils/EdgeValidation';
+import { EdgeValidator, EdgeValidationRules, EdgeValidationResult } from '../utils/EdgeValidation';
 
 export interface EdgeFactoryProps {
   sourceNodeId: string;
@@ -9,6 +9,8 @@ export interface EdgeFactoryProps {
   onCreateEdge: (edge: Partial<Edge>) => void;
   onCancel: () => void;
   validationRules?: EdgeValidationRules;
+  existingEdges?: Edge[];
+  nodes?: Node[];
   position?: { x: number; y: number };
 }
 
@@ -18,6 +20,8 @@ export const EdgeFactory: React.FC<EdgeFactoryProps> = ({
   onCreateEdge,
   onCancel,
   validationRules,
+  existingEdges = [],
+  nodes = [],
   position = { x: 100, y: 100 }
 }) => {
   const [selectedTemplate, setSelectedTemplate] = useState<EdgeTemplate | null>(null);
@@ -28,6 +32,12 @@ export const EdgeFactory: React.FC<EdgeFactoryProps> = ({
     strokeWidth: 2,
     strokeColor: '#6b7280'
   });
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Initialize validator with provided rules
+  const validator = useMemo(() => {
+    return new EdgeValidator(validationRules || {});
+  }, [validationRules]);
 
   const handleTemplateSelect = (template: EdgeTemplate) => {
     setSelectedTemplate(template);
@@ -49,6 +59,7 @@ export const EdgeFactory: React.FC<EdgeFactoryProps> = ({
 
   const handleCreate = () => {
     const edgeData: Partial<Edge> = {
+      id: `edge-${Date.now()}`, // Temporary ID for validation
       source: sourceNodeId,
       target: targetNodeId,
       label: label || undefined,
@@ -68,6 +79,27 @@ export const EdgeFactory: React.FC<EdgeFactoryProps> = ({
       edgeData.markerEnd = true;
     }
 
+    // Validate the edge before creating
+    if (validationRules && nodes.length > 0) {
+      const validationResult = validator.validateEdge(
+        edgeData as Edge,
+        existingEdges,
+        nodes
+      );
+
+      if (!validationResult.isValid) {
+        setValidationError(validationResult.error || 'Invalid connection');
+        return;
+      }
+
+      // Show warnings if any
+      if (validationResult.warnings && validationResult.warnings.length > 0) {
+        console.warn('Edge validation warnings:', validationResult.warnings);
+      }
+    }
+
+    // Clear any validation errors and create the edge
+    setValidationError(null);
     onCreateEdge(edgeData);
   };
 
@@ -94,6 +126,18 @@ export const EdgeFactory: React.FC<EdgeFactoryProps> = ({
           <span className="font-medium">{targetNodeId}</span>
         </p>
       </div>
+
+      {/* Validation Error */}
+      {validationError && (
+        <div className="px-4 py-2 bg-red-50 border-b border-red-200">
+          <p className="text-sm text-red-600 flex items-center">
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {validationError}
+          </p>
+        </div>
+      )}
 
       <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
         {/* Templates */}

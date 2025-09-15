@@ -39,6 +39,7 @@ export const Minimap: React.FC<MinimapProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [scale, setScale] = useState(1);
+  const isDraggingRef = useRef(false);
 
   // Calculate scale to fit all content in minimap
   useEffect(() => {
@@ -173,6 +174,7 @@ export const Minimap: React.FC<MinimapProps> = ({
   // Handle drag to pan
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDragging(true);
+    isDraggingRef.current = true;
     e.preventDefault();
   };
 
@@ -204,7 +206,56 @@ export const Minimap: React.FC<MinimapProps> = ({
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    isDraggingRef.current = false;
   };
+
+  // Global mouse handlers for drag outside canvas
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current || !onViewportChange) return;
+
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // Convert to world coordinates
+      const worldX = (x - width / 2) / scale + 
+        (canvasBounds.minX + (canvasBounds.maxX - canvasBounds.minX) / 2);
+      const worldY = (y - height / 2) / scale + 
+        (canvasBounds.minY + (canvasBounds.maxY - canvasBounds.minY) / 2);
+
+      // Center viewport on dragged position
+      const viewportWidth = viewportBounds.width / zoom;
+      const viewportHeight = viewportBounds.height / zoom;
+      
+      onViewportChange(
+        worldX - viewportWidth / 2,
+        worldY - viewportHeight / 2
+      );
+    };
+
+    const handleGlobalMouseUp = () => {
+      if (isDraggingRef.current) {
+        setIsDragging(false);
+        isDraggingRef.current = false;
+      }
+    };
+
+    // Add global listeners
+    if (isDragging) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging, scale, width, height, canvasBounds, viewportBounds, zoom, onViewportChange]);
 
   // Position classes
   const positionClasses = {
@@ -228,7 +279,13 @@ export const Minimap: React.FC<MinimapProps> = ({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={() => {
+          // Only stop dragging if not actively dragging
+          // Global listeners will handle cleanup when dragging
+          if (!isDragging) {
+            handleMouseUp();
+          }
+        }}
         style={{ imageRendering: 'pixelated' }}
       />
       <div className="text-xs text-gray-500 text-center mt-1">
