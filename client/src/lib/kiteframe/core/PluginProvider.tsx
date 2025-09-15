@@ -32,25 +32,75 @@ export const PluginProvider: React.FC<PluginProviderProps> = ({
   const [context, setContext] = useState<PluginContext | null>(null);
 
   useEffect(() => {
+    console.log('🎯 PluginProvider: Initializing plugin system...');
+    
     // Auto-register core integration plugin
-    if (!core.getPlugin('core-node-integration')) {
+    const existingPlugin = core.getPlugin('core-node-integration');
+    if (!existingPlugin) {
+      console.log('🔌 PluginProvider: Core Node Integration plugin not found, registering now...');
       try {
         core.use(coreNodeIntegrationPlugin);
+        console.log('✅ PluginProvider: Core Node Integration plugin registered successfully');
+        
+        // Verify the plugin was registered
+        const plugin = core.getPlugin('core-node-integration');
+        if (plugin) {
+          console.log('✓ PluginProvider: Verified plugin registration');
+          console.log('  - Plugin name:', plugin.name);
+          console.log('  - Plugin version:', plugin.version);
+          
+          // Verify hooks are registered
+          const hooks = core.getHooks();
+          const nodeRenderers = hooks.nodeRenderers || {};
+          console.log('📊 PluginProvider: Current node renderers after registration:');
+          console.log('  - Total renderers:', Object.keys(nodeRenderers).length);
+          console.log('  - Renderer types:', Object.keys(nodeRenderers).join(', ') || 'none');
+          
+          if (nodeRenderers['basic'] && nodeRenderers['image']) {
+            console.log('✅ PluginProvider: Confirmed BasicNode and ImageNode are available');
+          } else {
+            console.error('⚠️ PluginProvider: WARNING - Expected node renderers not found after registration');
+            console.error('  basic:', nodeRenderers['basic'] ? 'present' : 'missing');
+            console.error('  image:', nodeRenderers['image'] ? 'present' : 'missing');
+          }
+        } else {
+          console.error('❌ PluginProvider: Plugin registration verification failed');
+        }
       } catch (error) {
-        console.error('Failed to register core node integration plugin:', error);
+        console.error('❌ PluginProvider: Failed to register core node integration plugin:', error);
+        console.error('  Error details:', error);
       }
+    } else {
+      console.log('✓ PluginProvider: Core Node Integration plugin already registered');
+      console.log('  - Plugin name:', existingPlugin.name);
+      console.log('  - Plugin version:', existingPlugin.version);
+      
+      // Still verify hooks are registered
+      const hooks = core.getHooks();
+      const nodeRenderers = hooks.nodeRenderers || {};
+      console.log('📊 PluginProvider: Current node renderers (already registered):');
+      console.log('  - Total renderers:', Object.keys(nodeRenderers).length);
+      console.log('  - Renderer types:', Object.keys(nodeRenderers).join(', ') || 'none');
     }
 
     // Initialize context when provider mounts
     try {
       const pluginContext = core.getContext();
       setContext(pluginContext);
+      console.log('✅ PluginProvider: Plugin context initialized');
     } catch (error) {
-      console.warn('Plugin context not yet initialized:', error);
+      console.warn('⚠️ PluginProvider: Plugin context not yet initialized:', error);
     }
+    
+    // Listen for core-node-integration events
+    const unsubscribe = core.on('core-node-integration:initialized', (data) => {
+      console.log('🎉 PluginProvider: Received core-node-integration:initialized event', data);
+    });
 
     // Cleanup on unmount
     return () => {
+      console.log('🔚 PluginProvider: Cleaning up plugin system...');
+      unsubscribe();
       core.cleanup();
     };
   }, [core]);

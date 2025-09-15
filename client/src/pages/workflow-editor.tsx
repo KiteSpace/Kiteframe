@@ -4259,7 +4259,9 @@ export default function WorkflowEditor() {
 
   return (
     <AiProvider client={aiClient}>
-      <WorkflowEditorContent onAiSettingsChange={updateAiClient} />
+      <PluginProvider>
+        <WorkflowEditorContent onAiSettingsChange={updateAiClient} />
+      </PluginProvider>
     </AiProvider>
   );
 }
