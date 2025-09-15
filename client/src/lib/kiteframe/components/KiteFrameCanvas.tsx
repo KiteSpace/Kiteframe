@@ -22,6 +22,7 @@ import { EmojiReactions } from './EmojiReactions';
 import { AnimatedConnectionPreview, type AnimationConfig } from './AnimatedConnectionPreview';
 import { ChevronDown, ChevronUp, X, ExternalLink, List, Type } from 'lucide-react';
 import { RenderBatchManager, VirtualizationManager, useRenderBatching } from '../utils/renderBatching';
+import { useTelemetry, TelemetryEventType } from '../utils/telemetry';
 
 // Floating workflow name input component
 interface WorkflowLink {
@@ -680,6 +681,7 @@ type ConnectingState = {
 };
 
 export const KiteFrameCanvas: React.FC<Props> = (props) => {
+  const telemetry = useTelemetry();
   const containerRef = useRef<HTMLDivElement>(null);
   const [internalViewport, setInternalViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const cleanupManager = useEventCleanup();
@@ -1007,6 +1009,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     const newX = e.clientX - rect.left - mouseWorld.x * newZoom;
     const newY = e.clientY - rect.top - mouseWorld.y * newZoom;
     setViewport({ x: newX, y: newY, zoom: newZoom });
+    
+    // Track viewport zoom
+    telemetry.track(TelemetryEventType.VIEWPORT_UPDATE, {
+      category: 'viewport',
+      action: 'zoom',
+      value: newZoom,
+      metadata: { zoom: newZoom, method: 'wheel' }
+    });
   };
 
   // Function to start unified selection - can be called from anywhere
@@ -1051,9 +1061,22 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       e.preventDefault();
       e.stopPropagation();
       startUnifiedSelection(e.clientX, e.clientY);
+      
+      // Track selection start
+      telemetry.track(TelemetryEventType.CANVAS_INTERACTION, {
+        category: 'selection',
+        action: 'start',
+        metadata: { method: 'shift-drag' }
+      });
     } else if (!props.disablePan) {
       setPanning(true);
       panStart.current = { x: e.clientX - viewport.x, y: e.clientY - viewport.y };
+      
+      // Track pan start
+      telemetry.track(TelemetryEventType.CANVAS_INTERACTION, {
+        category: 'pan',
+        action: 'start'
+      });
     }
   };
 

@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { getGlobalTelemetry, TelemetryEventType } from '../utils/telemetry';
 
 interface Props {
   children: ReactNode;
@@ -41,12 +42,29 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const { onError, componentName } = this.props;
     const { errorCount } = this.state;
+    const telemetry = getGlobalTelemetry();
 
     // Log error details
     console.error(`[ErrorBoundary${componentName ? ` - ${componentName}` : ''}] Component error:`, {
       error: error.toString(),
       componentStack: errorInfo.componentStack,
       errorCount: errorCount + 1
+    });
+    
+    // Track error in telemetry
+    telemetry.track(TelemetryEventType.ERROR, {
+      category: 'error-boundary',
+      action: 'component-error',
+      label: componentName || 'unknown',
+      error: error,
+      metadata: {
+        componentName,
+        errorCount: errorCount + 1,
+        errorMessage: error.message,
+        errorStack: error.stack,
+        componentStack: errorInfo.componentStack,
+        isIsolated: this.props.isolate
+      }
     });
 
     // Call custom error handler if provided
@@ -63,6 +81,19 @@ export class ErrorBoundary extends Component<Props, State> {
     // Auto-recovery after 5 seconds for non-critical errors
     if (this.props.isolate && errorCount < 3) {
       this.scheduleReset(5000);
+      
+      // Track auto-recovery attempt
+      telemetry.track(TelemetryEventType.USER_ACTION, {
+        category: 'error-boundary',
+        action: 'auto-recovery-scheduled',
+        label: componentName || 'unknown',
+        value: 5000,
+        metadata: {
+          componentName,
+          errorCount: errorCount + 1,
+          recoveryDelay: 5000
+        }
+      });
     }
   }
 
@@ -99,10 +130,27 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   resetErrorBoundary = () => {
+    const telemetry = getGlobalTelemetry();
+    const { componentName } = this.props;
+    const { error, errorCount } = this.state;
+    
     if (this.resetTimeoutId) {
       clearTimeout(this.resetTimeoutId);
       this.resetTimeoutId = null;
     }
+
+    // Track recovery
+    telemetry.track(TelemetryEventType.USER_ACTION, {
+      category: 'error-boundary',
+      action: 'recovered',
+      label: componentName || 'unknown',
+      metadata: {
+        componentName,
+        previousError: error?.message,
+        errorCount,
+        recoveryMethod: this.resetTimeoutId ? 'auto' : 'manual'
+      }
+    });
 
     this.setState({
       hasError: false,
@@ -186,11 +234,26 @@ export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
   errorBoundaryProps?: Omit<Props, 'children'>
 ) {
-  const WrappedComponent = (props: P) => (
-    <ErrorBoundary {...errorBoundaryProps}>
-      <Component {...props} />
-    </ErrorBoundary>
-  );
+  const WrappedComponent = (props: P) => {
+    const telemetry = getGlobalTelemetry();
+    
+    // Track HOC usage on mount
+    React.useEffect(() => {
+      telemetry.track(TelemetryEventType.USER_ACTION, {
+        category: 'error-boundary',
+        action: 'hoc-wrapped',
+        metadata: {
+          componentName: errorBoundaryProps?.componentName || Component.displayName || Component.name
+        }
+      });
+    }, []);
+    
+    return (
+      <ErrorBoundary {...errorBoundaryProps}>
+        <Component {...props} />
+      </ErrorBoundary>
+    );
+  };
 
   WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
 
@@ -199,8 +262,22 @@ export function withErrorBoundary<P extends object>(
 
 // Hook for error recovery
 export function useErrorHandler() {
+  const telemetry = getGlobalTelemetry();
+  
   return (error: Error) => {
     console.error('Error caught by useErrorHandler:', error);
+    
+    // Track error in telemetry
+    telemetry.track(TelemetryEventType.ERROR, {
+      category: 'error-handler',
+      action: 'hook-error',
+      error: error,
+      metadata: {
+        errorMessage: error.message,
+        errorStack: error.stack
+      }
+    });
+    
     // Could integrate with error reporting service here
     throw error; // Re-throw to be caught by nearest ErrorBoundary
   };

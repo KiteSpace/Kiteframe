@@ -99,3 +99,15 @@ export {
   nodeDataSchema,
   edgeDataSchema
 } from './utils/validation';
+
+// Telemetry and Monitoring
+export {
+  TelemetryManager,
+  TelemetryEventType,
+  useTelemetry,
+  getGlobalTelemetry,
+  initializeTelemetry,
+  withTelemetry,
+  type TelemetryEvent,
+  type TelemetryConfig
+} from './utils/telemetry';

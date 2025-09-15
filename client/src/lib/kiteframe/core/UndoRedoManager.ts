@@ -1,4 +1,5 @@
 import { Node, Edge } from '../types';
+import { getGlobalTelemetry, TelemetryEventType } from '../utils/telemetry';
 
 export interface Command {
   id: string;
@@ -42,11 +43,27 @@ export class UndoRedoManager {
   execute(command: Command): void {
     if (this.isExecutingCommand) return;
 
+    const telemetry = getGlobalTelemetry();
+    const startTime = performance.now();
+
     try {
       this.isExecutingCommand = true;
       
       // Execute the command
       command.execute();
+      
+      // Track command execution
+      telemetry.track(TelemetryEventType.USER_ACTION, {
+        category: 'undo-redo',
+        action: 'execute',
+        label: command.type,
+        duration: performance.now() - startTime,
+        metadata: {
+          commandId: command.id,
+          commandType: command.type,
+          description: command.description
+        }
+      });
 
       // Remove any commands after current index (for redo functionality)
       if (this.currentIndex < this.history.length - 1) {
@@ -90,15 +107,46 @@ export class UndoRedoManager {
   undo(): boolean {
     if (!this.canUndo() || this.isExecutingCommand) return false;
 
+    const telemetry = getGlobalTelemetry();
+    const startTime = performance.now();
+
     try {
       this.isExecutingCommand = true;
       const command = this.history[this.currentIndex];
       command.undo();
       this.currentIndex--;
       this.notifyHistoryChange();
+      
+      // Track undo operation
+      telemetry.track(TelemetryEventType.USER_ACTION, {
+        category: 'undo-redo',
+        action: 'undo',
+        label: command.type,
+        duration: performance.now() - startTime,
+        metadata: {
+          commandId: command.id,
+          commandType: command.type,
+          description: command.description,
+          historySize: this.history.length,
+          currentIndex: this.currentIndex
+        }
+      });
+      
       return true;
     } catch (error) {
       console.error('Error during undo:', error);
+      
+      // Track undo error
+      telemetry.track(TelemetryEventType.ERROR, {
+        category: 'undo-redo',
+        action: 'undo-failed',
+        error: error as Error,
+        metadata: {
+          currentIndex: this.currentIndex,
+          historySize: this.history.length
+        }
+      });
+      
       return false;
     } finally {
       this.isExecutingCommand = false;
@@ -111,16 +159,47 @@ export class UndoRedoManager {
   redo(): boolean {
     if (!this.canRedo() || this.isExecutingCommand) return false;
 
+    const telemetry = getGlobalTelemetry();
+    const startTime = performance.now();
+
     try {
       this.isExecutingCommand = true;
       this.currentIndex++;
       const command = this.history[this.currentIndex];
       command.redo();
       this.notifyHistoryChange();
+      
+      // Track redo operation
+      telemetry.track(TelemetryEventType.USER_ACTION, {
+        category: 'undo-redo',
+        action: 'redo',
+        label: command.type,
+        duration: performance.now() - startTime,
+        metadata: {
+          commandId: command.id,
+          commandType: command.type,
+          description: command.description,
+          historySize: this.history.length,
+          currentIndex: this.currentIndex
+        }
+      });
+      
       return true;
     } catch (error) {
       console.error('Error during redo:', error);
       this.currentIndex--;
+      
+      // Track redo error
+      telemetry.track(TelemetryEventType.ERROR, {
+        category: 'undo-redo',
+        action: 'redo-failed',
+        error: error as Error,
+        metadata: {
+          currentIndex: this.currentIndex,
+          historySize: this.history.length
+        }
+      });
+      
       return false;
     } finally {
       this.isExecutingCommand = false;
@@ -145,9 +224,22 @@ export class UndoRedoManager {
    * Clear all history
    */
   clear(): void {
+    const telemetry = getGlobalTelemetry();
+    const previousSize = this.history.length;
+    
     this.history = [];
     this.currentIndex = -1;
     this.notifyHistoryChange();
+    
+    // Track history clear
+    telemetry.track(TelemetryEventType.USER_ACTION, {
+      category: 'undo-redo',
+      action: 'clear-history',
+      value: previousSize,
+      metadata: {
+        previousSize
+      }
+    });
   }
 
   /**
