@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
+import { getDynamicClassName } from '../utils/styles';
 
 export interface ContextMenuItem {
   id: string;
@@ -23,6 +24,14 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onClose
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Get dynamic class for positioning
+  const positionClass = useMemo(() => {
+    return getDynamicClassName({
+      left: `${position.x}px`,
+      top: `${position.y}px`
+    }, 'context-menu-position');
+  }, [position.x, position.y]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -66,8 +75,12 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         adjustedY = Math.max(0, viewportHeight - rect.height);
       }
 
-      menuRef.current.style.left = `${adjustedX}px`;
-      menuRef.current.style.top = `${adjustedY}px`;
+      // Apply adjusted position using CSS classes
+      const adjustedPositionClass = getDynamicClassName({
+        left: `${adjustedX}px`,
+        top: `${adjustedY}px`
+      }, 'context-menu-adjusted');
+      menuRef.current.className = menuRef.current.className.replace(/kf-context-menu-\S+/g, '') + ' ' + adjustedPositionClass;
     }
   }, [position]);
 
@@ -81,8 +94,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   return (
     <div
       ref={menuRef}
-      className="fixed bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-[9999] min-w-[200px]"
-      style={{ left: position.x, top: position.y }}
+      className={`fixed bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-[9999] min-w-[200px] ${positionClass}`}
       data-testid="context-menu"
     >
       {items.map((item, index) => {

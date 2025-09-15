@@ -3,6 +3,7 @@ import { Edge, Node } from '../types';
 import { EdgeTemplatesList, defaultEdgeTemplates, EdgeTemplate } from './EdgeTemplates';
 import { EdgeValidator, EdgeValidationRules, EdgeValidationResult } from '../utils/EdgeValidation';
 import { sanitizeText, validateColor } from '../utils/validation';
+import { getDynamicClassName } from '../utils/styles';
 
 export interface EdgeFactoryProps {
   sourceNodeId: string;
@@ -108,10 +109,17 @@ const EdgeFactoryComponent: React.FC<EdgeFactoryProps> = ({
     onCreateEdge(edgeData);
   }, [label, customOptions, sourceNodeId, targetNodeId, selectedTemplate, validationRules, nodes, validator, existingEdges, onCreateEdge]);
 
+  // Get dynamic class for positioning
+  const positionClass = useMemo(() => {
+    return getDynamicClassName({
+      left: `${position.x}px`,
+      top: `${position.y}px`
+    }, 'edge-factory-position');
+  }, [position.x, position.y]);
+
   return (
     <div 
-      className="absolute bg-white rounded-lg shadow-2xl border border-gray-200 z-50 w-96"
-      style={{ left: position.x, top: position.y }}
+      className={`absolute bg-white rounded-lg shadow-2xl border border-gray-200 z-50 w-96 ${positionClass}`}
     >
       <div className="p-4 border-b border-gray-200">
         <div className="flex justify-between items-center">

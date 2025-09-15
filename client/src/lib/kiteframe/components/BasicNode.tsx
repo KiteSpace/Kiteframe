@@ -4,6 +4,7 @@ import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
 import type { Node, BasicNodeData, BasicNodeComponentProps } from '../types';
 import { sanitizeText, validateColor } from '../utils/validation';
+import { getDynamicClassName, getNodeStyleClasses } from '../utils/styles';
 
 
 const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
@@ -76,19 +77,39 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
     };
   }, [node.data.colors]);
 
+  // Get CSS classes for node styles
+  const styleClasses = useMemo(() => {
+    return getNodeStyleClasses({
+      headerBackground: colors.headerBg,
+      bodyBackground: colors.bodyBg,
+      borderColor: colors.borderColor,
+      headerTextColor: colors.headerTextColor,
+      bodyTextColor: colors.bodyTextColor
+    });
+  }, [colors]);
+
   const nodeWidth = node.style?.width || node.width || 200;
   const nodeHeight = node.style?.height || node.height || 120;
 
-  // Memoize node styles to prevent unnecessary recalculations
-  const nodeStyles = useMemo<React.CSSProperties>(() => ({
-    position: 'absolute',
-    left: node.position.x,
-    top: node.position.y,
-    width: nodeWidth,
-    height: nodeHeight,
-    zIndex: node.zIndex || 0,
-    ...style
-  }), [node.position.x, node.position.y, nodeWidth, nodeHeight, node.zIndex, style]);
+  // Get dynamic class for node positioning and dimensions
+  const nodePositionClass = useMemo(() => {
+    return getDynamicClassName({
+      position: 'absolute',
+      left: `${node.position.x}px`,
+      top: `${node.position.y}px`,
+      width: `${nodeWidth}px`,
+      height: `${nodeHeight}px`,
+      zIndex: node.zIndex || 0,
+      ...style
+    }, `basic-node-${node.id}`);
+  }, [node.position.x, node.position.y, nodeWidth, nodeHeight, node.zIndex, node.id, style]);
+
+  // Get dynamic class for border color
+  const borderClass = useMemo(() => {
+    return getDynamicClassName({
+      borderColor: colors.borderColor
+    }, `node-border-${node.id}`);
+  }, [colors.borderColor, node.id]);
 
   return (
     <div
@@ -99,22 +120,19 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
         'hover:shadow-lg cursor-move',
         node.selected ? 'ring-2 ring-blue-500 shadow-lg' : '',
         node.hidden ? 'opacity-0 pointer-events-none' : '',
+        nodePositionClass,
+        borderClass,
         className
       )}
-      style={{
-        ...nodeStyles,
-        borderColor: colors.borderColor,
-      }}
       onDoubleClick={handleDoubleClick}
       data-testid={`basic-node-${node.id}`}
     >
       {/* Header */}
       <div 
-        className="h-8 px-3 flex items-center justify-between rounded-t-md"
-        style={{
-          backgroundColor: colors.headerBg,
-          color: colors.headerTextColor
-        }}
+        className={cn(
+          "h-8 px-3 flex items-center justify-between rounded-t-md",
+          styleClasses.headerClass
+        )}
       >
         {isEditing ? (
           <input
@@ -124,8 +142,10 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={handleLabelSubmit}
             onKeyDown={handleKeyDown}
-            className="bg-transparent border-none outline-none text-sm font-medium w-full"
-            style={{ color: colors.headerTextColor }}
+            className={cn(
+              "bg-transparent border-none outline-none text-sm font-medium w-full",
+              getDynamicClassName({ color: colors.headerTextColor }, `input-text-${node.id}`)
+            )}
             data-testid="basic-node-label-input"
           />
         ) : (
@@ -146,12 +166,11 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
 
       {/* Body */}
       <div 
-        className="flex-1 p-3 rounded-b-md"
-        style={{
-          backgroundColor: colors.bodyBg,
-          color: colors.bodyTextColor,
-          minHeight: nodeHeight - 32 // Account for header height
-        }}
+        className={cn(
+          "flex-1 p-3 rounded-b-md",
+          styleClasses.bodyClass,
+          getDynamicClassName({ minHeight: `${nodeHeight - 32}px` }, `body-height-${node.id}`)
+        )}
       >
         {node.data.description ? (
           <p className="text-xs leading-relaxed">

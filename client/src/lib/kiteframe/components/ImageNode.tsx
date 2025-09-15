@@ -4,6 +4,7 @@ import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
 import { Upload, Image as ImageIcon, ExternalLink, AlertCircle } from 'lucide-react';
 import type { Node, ImageNodeData, ImageNodeComponentProps } from '../types';
+import { getDynamicClassName, getNodeStyleClasses } from '../utils/styles';
 
 
 const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
@@ -159,19 +160,39 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     };
   }, [node.data.colors]);
 
+  // Get CSS classes for node styles
+  const styleClasses = useMemo(() => {
+    return getNodeStyleClasses({
+      headerBackground: colors.headerBg,
+      bodyBackground: colors.bodyBg,
+      borderColor: colors.borderColor,
+      headerTextColor: colors.headerTextColor,
+      bodyTextColor: colors.bodyTextColor
+    });
+  }, [colors]);
+
   const nodeWidth = node.style?.width || node.width || 250;
   const nodeHeight = node.style?.height || node.height || 200;
 
-  // Memoize node styles to prevent unnecessary recalculations
-  const nodeStyles = useMemo<React.CSSProperties>(() => ({
-    position: 'absolute',
-    left: node.position.x,
-    top: node.position.y,
-    width: nodeWidth,
-    height: nodeHeight,
-    zIndex: node.zIndex || 0,
-    ...style
-  }), [node.position.x, node.position.y, nodeWidth, nodeHeight, node.zIndex, style]);
+  // Get dynamic class for node positioning and dimensions
+  const nodePositionClass = useMemo(() => {
+    return getDynamicClassName({
+      position: 'absolute',
+      left: `${node.position.x}px`,
+      top: `${node.position.y}px`,
+      width: `${nodeWidth}px`,
+      height: `${nodeHeight}px`,
+      zIndex: node.zIndex || 0,
+      ...style
+    }, `image-node-${node.id}`);
+  }, [node.position.x, node.position.y, nodeWidth, nodeHeight, node.zIndex, node.id, style]);
+
+  // Get dynamic class for border color
+  const borderClass = useMemo(() => {
+    return getDynamicClassName({
+      borderColor: colors.borderColor
+    }, `image-border-${node.id}`);
+  }, [colors.borderColor, node.id]);
 
   const hasImage = node.data.src && !imageError;
   const isPlaceholder = !hasImage || isUploading;
@@ -186,22 +207,19 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         node.selected ? 'ring-2 ring-blue-500 shadow-lg' : '',
         node.hidden ? 'opacity-0 pointer-events-none' : '',
         isPlaceholder ? 'cursor-pointer' : 'cursor-move',
+        nodePositionClass,
+        borderClass,
         className
       )}
-      style={{
-        ...nodeStyles,
-        borderColor: colors.borderColor,
-      }}
       onDoubleClick={handleDoubleClick}
       data-testid={`image-node-${node.id}`}
     >
       {/* Header */}
       <div 
-        className="h-8 px-3 flex items-center justify-between rounded-t-md"
-        style={{
-          backgroundColor: colors.headerBg,
-          color: colors.headerTextColor
-        }}
+        className={cn(
+          "h-8 px-3 flex items-center justify-between rounded-t-md",
+          styleClasses.headerClass
+        )}
       >
         <span className="text-sm font-medium truncate">
           {node.data.label || 'Image'}
@@ -210,10 +228,13 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         <div className="flex items-center gap-1">
           {/* Image status indicator */}
           <div 
-            className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{
-              backgroundColor: hasImage ? '#22c55e' : '#94a3b8'
-            }}
+            className={cn(
+              "w-2 h-2 rounded-full flex-shrink-0",
+              getDynamicClassName(
+                { backgroundColor: hasImage ? '#22c55e' : '#94a3b8' },
+                `status-${node.id}-${hasImage}`
+              )
+            )}
             title={hasImage ? 'Image loaded' : 'No image'}
           />
         </div>
@@ -221,11 +242,13 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
 
       {/* Body */}
       <div 
-        className="flex-1 rounded-b-md overflow-hidden"
-        style={{
-          backgroundColor: colors.bodyBg,
-          minHeight: nodeHeight - 32
-        }}
+        className={cn(
+          "flex-1 rounded-b-md overflow-hidden",
+          getDynamicClassName(
+            { backgroundColor: colors.bodyBg, minHeight: `${nodeHeight - 32}px` },
+            `image-body-${node.id}`
+          )
+        )}
       >
         {/* URL Input */}
         {showUrlInput && (
@@ -263,8 +286,13 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         ) : (
           /* Placeholder/Upload Area */
           <div 
-            className="flex flex-col items-center justify-center h-full p-4 text-center"
-            style={{ color: colors.bodyTextColor }}
+            className={cn(
+              "flex flex-col items-center justify-center h-full p-4 text-center",
+              getDynamicClassName(
+                { color: colors.bodyTextColor },
+                `placeholder-text-${node.id}`
+              )
+            )}
           >
             {isUploading ? (
               <>
