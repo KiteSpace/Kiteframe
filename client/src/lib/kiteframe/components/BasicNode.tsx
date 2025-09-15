@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
@@ -6,7 +6,7 @@ import type { Node, BasicNodeData, BasicNodeComponentProps } from '../types';
 import { sanitizeText, validateColor } from '../utils/validation';
 
 
-export const BasicNode: React.FC<BasicNodeComponentProps> = ({
+const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
   node,
   onUpdate,
   onConnect,
@@ -29,13 +29,13 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
     }
   }, [isEditing]);
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setIsEditing(true);
     onDoubleClick?.(e);
-  };
+  }, [onDoubleClick]);
 
-  const handleLabelSubmit = () => {
+  const handleLabelSubmit = useCallback(() => {
     if (onUpdate) {
       const sanitizedLabel = sanitizeText(editValue.trim() || 'Basic Node');
       onUpdate(node.id, {
@@ -43,9 +43,9 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
       });
     }
     setIsEditing(false);
-  };
+  }, [editValue, node.id, node.data, onUpdate]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       handleLabelSubmit();
@@ -54,28 +54,33 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
       setEditValue(node.data.label || '');
       setIsEditing(false);
     }
-  };
+  }, [handleLabelSubmit, node.data.label]);
 
-  const handleResize = (width: number, height: number) => {
+  const handleResize = useCallback((width: number, height: number) => {
     if (onUpdate) {
       onUpdate(node.id, {
         style: { ...node.style, width, height }
       });
     }
-  };
+  }, [node.id, node.style, onUpdate]);
 
-  // Get colors with fallbacks and validation
-  const colors = node.data.colors || {};
-  const headerBg = validateColor(colors.headerBackground || '') ? colors.headerBackground : '#f8fafc';
-  const bodyBg = validateColor(colors.bodyBackground || '') ? colors.bodyBackground : '#ffffff';
-  const borderColor = validateColor(colors.borderColor || '') ? colors.borderColor : '#e2e8f0';
-  const headerTextColor = validateColor(colors.headerTextColor || '') ? colors.headerTextColor : '#1e293b';
-  const bodyTextColor = validateColor(colors.bodyTextColor || '') ? colors.bodyTextColor : '#64748b';
+  // Get colors with fallbacks and validation - memoized for performance
+  const colors = useMemo(() => {
+    const nodeColors = node.data.colors || {};
+    return {
+      headerBg: validateColor(nodeColors.headerBackground || '') ? nodeColors.headerBackground : '#f8fafc',
+      bodyBg: validateColor(nodeColors.bodyBackground || '') ? nodeColors.bodyBackground : '#ffffff',
+      borderColor: validateColor(nodeColors.borderColor || '') ? nodeColors.borderColor : '#e2e8f0',
+      headerTextColor: validateColor(nodeColors.headerTextColor || '') ? nodeColors.headerTextColor : '#1e293b',
+      bodyTextColor: validateColor(nodeColors.bodyTextColor || '') ? nodeColors.bodyTextColor : '#64748b'
+    };
+  }, [node.data.colors]);
 
   const nodeWidth = node.style?.width || node.width || 200;
   const nodeHeight = node.style?.height || node.height || 120;
 
-  const nodeStyles: React.CSSProperties = {
+  // Memoize node styles to prevent unnecessary recalculations
+  const nodeStyles = useMemo<React.CSSProperties>(() => ({
     position: 'absolute',
     left: node.position.x,
     top: node.position.y,
@@ -83,7 +88,7 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
     height: nodeHeight,
     zIndex: node.zIndex || 0,
     ...style
-  };
+  }), [node.position.x, node.position.y, nodeWidth, nodeHeight, node.zIndex, style]);
 
   return (
     <div
@@ -98,7 +103,7 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
       )}
       style={{
         ...nodeStyles,
-        borderColor,
+        borderColor: colors.borderColor,
       }}
       onDoubleClick={handleDoubleClick}
       data-testid={`basic-node-${node.id}`}
@@ -107,8 +112,8 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
       <div 
         className="h-8 px-3 flex items-center justify-between rounded-t-md"
         style={{
-          backgroundColor: headerBg,
-          color: headerTextColor
+          backgroundColor: colors.headerBg,
+          color: colors.headerTextColor
         }}
       >
         {isEditing ? (
@@ -120,7 +125,7 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
             onBlur={handleLabelSubmit}
             onKeyDown={handleKeyDown}
             className="bg-transparent border-none outline-none text-sm font-medium w-full"
-            style={{ color: headerTextColor }}
+            style={{ color: colors.headerTextColor }}
             data-testid="basic-node-label-input"
           />
         ) : (
@@ -143,8 +148,8 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
       <div 
         className="flex-1 p-3 rounded-b-md"
         style={{
-          backgroundColor: bodyBg,
-          color: bodyTextColor,
+          backgroundColor: colors.bodyBg,
+          color: colors.bodyTextColor,
           minHeight: nodeHeight - 32 // Account for header height
         }}
       >
@@ -164,10 +169,10 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
         <NodeHandles
           node={node}
           scale={1} // Default scale, should be passed from canvas
-          onHandleConnect={(pos, e) => {
+          onHandleConnect={useCallback((pos, e) => {
             // Handle connection logic
             console.log('Handle connect:', pos, e);
-          }}
+          }, [])}
         />
       )}
 
@@ -176,7 +181,7 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
         <ResizeHandle
           position="bottom-right"
           nodeRef={nodeRef}
-          onResize={(width, height, resizeInfo) => handleResize(width, height)}
+          onResize={handleResize}
           minWidth={150}
           minHeight={80}
         />
@@ -184,6 +189,9 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
     </div>
   );
 };
+
+// Export memoized component to prevent unnecessary re-renders
+export const BasicNode = React.memo(BasicNodeComponent);
 
 // Default props for creating a basic node
 export const createBasicNode = (

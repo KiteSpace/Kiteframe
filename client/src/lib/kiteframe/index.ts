@@ -80,3 +80,22 @@ export const createPlugin = (config: {
   cleanup?: () => void;
   dependencies?: string[];
 }) => config;
+
+// Error Handling
+export { ErrorBoundary, withErrorBoundary, useErrorHandler } from './components/ErrorBoundary';
+
+// Undo/Redo System
+export { UndoRedoManager, CommandFactory } from './core/UndoRedoManager';
+export type { Command, CanvasState, UndoRedoOptions } from './core/UndoRedoManager';
+
+// Validation
+export { 
+  validateColor, 
+  sanitizeText, 
+  validateNodeData, 
+  validateEdgeData,
+  colorSchema,
+  safeTextSchema,
+  nodeDataSchema,
+  edgeDataSchema
+} from './utils/validation';

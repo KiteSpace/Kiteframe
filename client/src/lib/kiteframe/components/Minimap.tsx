@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Node, Edge } from '../types';
 
 export interface MinimapProps {
@@ -24,7 +24,7 @@ export interface MinimapProps {
   className?: string;
 }
 
-export const Minimap: React.FC<MinimapProps> = ({
+const MinimapComponent: React.FC<MinimapProps> = ({
   nodes,
   edges,
   viewportBounds,
@@ -145,7 +145,7 @@ export const Minimap: React.FC<MinimapProps> = ({
   }, [nodes, edges, viewportBounds, canvasBounds, zoom, scale, width, height]);
 
   // Handle click to pan
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!onViewportChange) return;
 
     const canvas = canvasRef.current;
@@ -169,16 +169,16 @@ export const Minimap: React.FC<MinimapProps> = ({
       worldX - viewportWidth / 2,
       worldY - viewportHeight / 2
     );
-  };
+  }, [onViewportChange, width, height, scale, canvasBounds, viewportBounds, zoom]);
 
   // Handle drag to pan
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDragging(true);
     isDraggingRef.current = true;
     e.preventDefault();
-  };
+  }, []);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDragging || !onViewportChange) return;
 
     const canvas = canvasRef.current;
@@ -202,12 +202,12 @@ export const Minimap: React.FC<MinimapProps> = ({
       worldX - viewportWidth / 2,
       worldY - viewportHeight / 2
     );
-  };
+  }, [isDragging, onViewportChange, width, height, scale, canvasBounds, viewportBounds, zoom]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     isDraggingRef.current = false;
-  };
+  }, []);
 
   // Global mouse handlers for drag outside canvas
   useEffect(() => {
@@ -257,13 +257,13 @@ export const Minimap: React.FC<MinimapProps> = ({
     };
   }, [isDragging, scale, width, height, canvasBounds, viewportBounds, zoom, onViewportChange]);
 
-  // Position classes
-  const positionClasses = {
+  // Position classes - memoized to prevent recreation
+  const positionClasses = useMemo(() => ({
     'top-left': 'top-4 left-4',
     'top-right': 'top-4 right-4',
     'bottom-left': 'bottom-4 left-4',
     'bottom-right': 'bottom-4 right-4'
-  };
+  }), []);
 
   return (
     <div
@@ -294,3 +294,6 @@ export const Minimap: React.FC<MinimapProps> = ({
     </div>
   );
 };
+
+// Export memoized component to prevent unnecessary re-renders
+export const Minimap = React.memo(MinimapComponent);

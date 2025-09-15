@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Edge, Node } from '../types';
 import { EdgeTemplatesList, defaultEdgeTemplates, EdgeTemplate } from './EdgeTemplates';
 import { EdgeValidator, EdgeValidationRules, EdgeValidationResult } from '../utils/EdgeValidation';
@@ -15,7 +15,7 @@ export interface EdgeFactoryProps {
   position?: { x: number; y: number };
 }
 
-export const EdgeFactory: React.FC<EdgeFactoryProps> = ({
+const EdgeFactoryComponent: React.FC<EdgeFactoryProps> = ({
   sourceNodeId,
   targetNodeId,
   onCreateEdge,
@@ -40,7 +40,7 @@ export const EdgeFactory: React.FC<EdgeFactoryProps> = ({
     return new EdgeValidator(validationRules || {});
   }, [validationRules]);
 
-  const handleTemplateSelect = (template: EdgeTemplate) => {
+  const handleTemplateSelect = useCallback((template: EdgeTemplate) => {
     setSelectedTemplate(template);
     
     // Apply template defaults
@@ -56,9 +56,9 @@ export const EdgeFactory: React.FC<EdgeFactoryProps> = ({
     if (template.edgeData.style?.stroke) {
       setCustomOptions(prev => ({ ...prev, strokeColor: template.edgeData.style!.stroke! }));
     }
-  };
+  }, []);
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     // Validate and sanitize inputs
     const sanitizedLabel = label ? sanitizeText(label) : undefined;
     const validatedColor = validateColor(customOptions.strokeColor) ? customOptions.strokeColor : '#6b7280';
@@ -106,7 +106,7 @@ export const EdgeFactory: React.FC<EdgeFactoryProps> = ({
     // Clear any validation errors and create the edge
     setValidationError(null);
     onCreateEdge(edgeData);
-  };
+  }, [label, customOptions, sourceNodeId, targetNodeId, selectedTemplate, validationRules, nodes, validator, existingEdges, onCreateEdge]);
 
   return (
     <div 
@@ -265,3 +265,6 @@ export const EdgeFactory: React.FC<EdgeFactoryProps> = ({
     </div>
   );
 };
+
+// Export memoized component to prevent unnecessary re-renders
+export const EdgeFactory = React.memo(EdgeFactoryComponent);

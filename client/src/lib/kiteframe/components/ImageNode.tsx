@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
@@ -6,7 +6,7 @@ import { Upload, Image as ImageIcon, ExternalLink, AlertCircle } from 'lucide-re
 import type { Node, ImageNodeData, ImageNodeComponentProps } from '../types';
 
 
-export const ImageNode: React.FC<ImageNodeComponentProps> = ({
+const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   node,
   onUpdate,
   onImageUpload,
@@ -34,20 +34,20 @@ export const ImageNode: React.FC<ImageNodeComponentProps> = ({
     }
   }, [showUrlInput]);
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (!node.data.src) {
       // If no image, trigger upload
       handleUploadClick();
     }
     onDoubleClick?.(e);
-  };
+  }, [node.data.src, handleUploadClick, onDoubleClick]);
 
-  const handleUploadClick = () => {
+  const handleUploadClick = useCallback(() => {
     fileInputRef.current?.click();
-  };
+  }, []);
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !onImageUpload) return;
 
@@ -89,9 +89,9 @@ export const ImageNode: React.FC<ImageNodeComponentProps> = ({
       // Reset input
       event.target.value = '';
     }
-  };
+  }, [node.id, node.data, onImageUpload, onUpdate]);
 
-  const handleUrlSubmit = () => {
+  const handleUrlSubmit = useCallback(() => {
     const url = urlValue.trim();
     if (url && onImageUrlSet) {
       onImageUrlSet(node.id, url);
@@ -109,9 +109,9 @@ export const ImageNode: React.FC<ImageNodeComponentProps> = ({
     }
     setShowUrlInput(false);
     setUrlValue('');
-  };
+  }, [urlValue, node.id, node.data, onImageUrlSet, onUpdate]);
 
-  const handleUrlKeyDown = (e: React.KeyboardEvent) => {
+  const handleUrlKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       handleUrlSubmit();
@@ -120,14 +120,14 @@ export const ImageNode: React.FC<ImageNodeComponentProps> = ({
       setShowUrlInput(false);
       setUrlValue('');
     }
-  };
+  }, [handleUrlSubmit]);
 
-  const handleImageLoad = () => {
+  const handleImageLoad = useCallback(() => {
     setImageLoaded(true);
     setImageError(false);
-  };
+  }, []);
 
-  const handleImageError = () => {
+  const handleImageError = useCallback(() => {
     setImageLoaded(false);
     setImageError(true);
     
@@ -137,28 +137,33 @@ export const ImageNode: React.FC<ImageNodeComponentProps> = ({
         data: { ...node.data, isImageBroken: true }
       });
     }
-  };
+  }, [node.id, node.data, onUpdate]);
 
-  const handleResize = (width: number, height: number) => {
+  const handleResize = useCallback((width: number, height: number) => {
     if (onUpdate) {
       onUpdate(node.id, {
         style: { ...node.style, width, height }
       });
     }
-  };
+  }, [node.id, node.style, onUpdate]);
 
-  // Get colors with fallbacks
-  const colors = node.data.colors || {};
-  const headerBg = colors.headerBackground || '#f8fafc';
-  const bodyBg = colors.bodyBackground || '#ffffff';
-  const borderColor = colors.borderColor || '#e2e8f0';
-  const headerTextColor = colors.headerTextColor || '#1e293b';
-  const bodyTextColor = colors.bodyTextColor || '#64748b';
+  // Get colors with fallbacks - memoized for performance
+  const colors = useMemo(() => {
+    const nodeColors = node.data.colors || {};
+    return {
+      headerBg: nodeColors.headerBackground || '#f8fafc',
+      bodyBg: nodeColors.bodyBackground || '#ffffff',
+      borderColor: nodeColors.borderColor || '#e2e8f0',
+      headerTextColor: nodeColors.headerTextColor || '#1e293b',
+      bodyTextColor: nodeColors.bodyTextColor || '#64748b'
+    };
+  }, [node.data.colors]);
 
   const nodeWidth = node.style?.width || node.width || 250;
   const nodeHeight = node.style?.height || node.height || 200;
 
-  const nodeStyles: React.CSSProperties = {
+  // Memoize node styles to prevent unnecessary recalculations
+  const nodeStyles = useMemo<React.CSSProperties>(() => ({
     position: 'absolute',
     left: node.position.x,
     top: node.position.y,
@@ -166,7 +171,7 @@ export const ImageNode: React.FC<ImageNodeComponentProps> = ({
     height: nodeHeight,
     zIndex: node.zIndex || 0,
     ...style
-  };
+  }), [node.position.x, node.position.y, nodeWidth, nodeHeight, node.zIndex, style]);
 
   const hasImage = node.data.src && !imageError;
   const isPlaceholder = !hasImage || isUploading;
@@ -185,7 +190,7 @@ export const ImageNode: React.FC<ImageNodeComponentProps> = ({
       )}
       style={{
         ...nodeStyles,
-        borderColor,
+        borderColor: colors.borderColor,
       }}
       onDoubleClick={handleDoubleClick}
       data-testid={`image-node-${node.id}`}
@@ -194,8 +199,8 @@ export const ImageNode: React.FC<ImageNodeComponentProps> = ({
       <div 
         className="h-8 px-3 flex items-center justify-between rounded-t-md"
         style={{
-          backgroundColor: headerBg,
-          color: headerTextColor
+          backgroundColor: colors.headerBg,
+          color: colors.headerTextColor
         }}
       >
         <span className="text-sm font-medium truncate">
@@ -218,7 +223,7 @@ export const ImageNode: React.FC<ImageNodeComponentProps> = ({
       <div 
         className="flex-1 rounded-b-md overflow-hidden"
         style={{
-          backgroundColor: bodyBg,
+          backgroundColor: colors.bodyBg,
           minHeight: nodeHeight - 32
         }}
       >
@@ -259,7 +264,7 @@ export const ImageNode: React.FC<ImageNodeComponentProps> = ({
           /* Placeholder/Upload Area */
           <div 
             className="flex flex-col items-center justify-center h-full p-4 text-center"
-            style={{ color: bodyTextColor }}
+            style={{ color: colors.bodyTextColor }}
           >
             {isUploading ? (
               <>
@@ -318,9 +323,9 @@ export const ImageNode: React.FC<ImageNodeComponentProps> = ({
         <NodeHandles
           node={node}
           scale={1}
-          onHandleConnect={(pos, e) => {
+          onHandleConnect={useCallback((pos, e) => {
             console.log('Handle connect:', pos, e);
-          }}
+          }, [])}
         />
       )}
 
@@ -329,7 +334,7 @@ export const ImageNode: React.FC<ImageNodeComponentProps> = ({
         <ResizeHandle
           position="bottom-right"
           nodeRef={nodeRef}
-          onResize={(width, height, resizeInfo) => handleResize(width, height)}
+          onResize={handleResize}
           minWidth={200}
           minHeight={150}
         />
@@ -337,6 +342,9 @@ export const ImageNode: React.FC<ImageNodeComponentProps> = ({
     </div>
   );
 };
+
+// Export memoized component to prevent unnecessary re-renders
+export const ImageNode = React.memo(ImageNodeComponent);
 
 // Default props for creating an image node
 export const createImageNode = (

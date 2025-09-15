@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Edge } from '../types';
 import { sanitizeText, validateColor } from '../utils/validation';
 
@@ -8,7 +8,7 @@ export interface EdgePropertiesProps {
   onClose: () => void;
 }
 
-export const EdgeProperties: React.FC<EdgePropertiesProps> = ({
+const EdgePropertiesComponent: React.FC<EdgePropertiesProps> = ({
   edge,
   onUpdate,
   onClose
@@ -37,7 +37,7 @@ export const EdgeProperties: React.FC<EdgePropertiesProps> = ({
 
   if (!edge) return null;
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     // Validate and sanitize inputs before saving
     const sanitizedLabel = label ? sanitizeText(label) : '';
     const validatedStrokeColor = validateColor(strokeColor) ? strokeColor : '#6b7280';
@@ -59,7 +59,7 @@ export const EdgeProperties: React.FC<EdgePropertiesProps> = ({
       markerStart
     });
     onClose();
-  };
+  }, [label, strokeColor, labelBgColor, strokeWidth, edge.id, edgeType, animated, markerEnd, markerStart, onUpdate, onClose]);
 
   return (
     <div className="absolute right-4 top-20 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
@@ -247,3 +247,6 @@ export const EdgeProperties: React.FC<EdgePropertiesProps> = ({
     </div>
   );
 };
+
+// Export memoized component to prevent unnecessary re-renders
+export const EdgeProperties = React.memo(EdgePropertiesComponent);
