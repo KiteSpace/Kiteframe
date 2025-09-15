@@ -1982,6 +1982,40 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             />;
           }
 
+          // Check for plugin renderers before falling back to default rendering
+          if (enablePlugins && n.type) {
+            const hooks = core.getHooks();
+            const PluginRenderer = hooks.nodeRenderers?.[n.type];
+            
+            if (PluginRenderer) {
+              console.log(`🔌 Using plugin renderer for node type: ${n.type}`, { nodeId: n.id });
+              return (
+                <PluginRenderer
+                  key={n.id}
+                  node={n}
+                  onUpdate={(nodeId: string, updates: any) => {
+                    const updated = props.nodes.map(node => node.id === nodeId ? { ...node, ...updates } : node);
+                    props.onNodesChange?.(updated);
+                  }}
+                  onConnect={(sourceId: string, targetId: string) => {
+                    // Handle connection logic
+                    console.log('Plugin node connection:', sourceId, targetId);
+                  }}
+                  onDoubleClick={(e: React.MouseEvent) => props.onNodeDoubleClick?.(e, n)}
+                  onImageUpload={props.onImageUpload}
+                  onImageUrlSet={props.onImageUrlSet}
+                  style={{
+                    position: 'absolute',
+                    left: n.position.x,
+                    top: n.position.y,
+                    zIndex: n.zIndex || 0
+                  }}
+                />
+              );
+            }
+          }
+
+          // Fallback to default rendering for unregistered node types
           return (
             <div
               key={n.id}

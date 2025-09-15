@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { KiteFrameCore, kiteFrameCore, PluginContext } from './KiteFrameCore';
+import { coreNodeIntegrationPlugin } from '../integration/CoreNodeIntegration';
 
 /**
  * Plugin Context for React components
@@ -31,6 +32,15 @@ export const PluginProvider: React.FC<PluginProviderProps> = ({
   const [context, setContext] = useState<PluginContext | null>(null);
 
   useEffect(() => {
+    // Auto-register core integration plugin
+    if (!core.getPlugin('core-node-integration')) {
+      try {
+        core.use(coreNodeIntegrationPlugin);
+      } catch (error) {
+        console.error('Failed to register core node integration plugin:', error);
+      }
+    }
+
     // Initialize context when provider mounts
     try {
       const pluginContext = core.getContext();
@@ -67,7 +77,9 @@ export const usePluginSystem = () => {
     usePlugin: (plugin: any) => {
       useEffect(() => {
         core.use(plugin);
-        return () => core.unuse(plugin.name);
+        return () => {
+          core.unuse(plugin.name);
+        };
       }, [plugin]);
     },
     /**

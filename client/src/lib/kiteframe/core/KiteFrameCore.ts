@@ -79,6 +79,7 @@ export interface PluginContext {
 export class KiteFrameCore {
   private plugins: Map<string, KiteFramePlugin> = new Map();
   private hooks: PluginHooks = {};
+  private pluginHooks: Map<string, Partial<PluginHooks>> = new Map(); // Track hooks by plugin
   private eventListeners: Map<string, Array<(data?: any) => void>> = new Map();
   private context: PluginContext | null = null;
 
@@ -128,6 +129,8 @@ export class KiteFrameCore {
     if (plugin) {
       try {
         plugin.cleanup?.();
+        // Remove hooks registered by this plugin
+        this.removePluginHooks(pluginName);
         this.plugins.delete(pluginName);
         console.log(`Plugin "${pluginName}" uninstalled successfully`);
       } catch (error) {
@@ -156,6 +159,58 @@ export class KiteFrameCore {
    */
   registerHooks(hooks: Partial<PluginHooks>): void {
     Object.assign(this.hooks, hooks);
+  }
+
+  /**
+   * Register hooks for a specific plugin
+   */
+  registerPluginHooks(pluginName: string, hooks: Partial<PluginHooks>): void {
+    // Store hooks for this plugin
+    this.pluginHooks.set(pluginName, hooks);
+    
+    // Merge hooks into global hooks, with special handling for object-based hooks
+    Object.entries(hooks).forEach(([key, value]) => {
+      if (key === 'nodeRenderers' || key === 'edgeRenderers') {
+        // For renderer hooks, merge objects
+        const currentRenderers = this.hooks[key as keyof PluginHooks] as Record<string, any> || {};
+        this.hooks[key as keyof PluginHooks] = {
+          ...currentRenderers,
+          ...value as Record<string, any>
+        } as any;
+      } else {
+        // For function hooks, directly assign (last one wins)
+        (this.hooks as any)[key] = value;
+      }
+    });
+  }
+
+  /**
+   * Remove hooks registered by a specific plugin
+   */
+  private removePluginHooks(pluginName: string): void {
+    const pluginHooks = this.pluginHooks.get(pluginName);
+    if (!pluginHooks) return;
+
+    // Rebuild hooks from remaining plugins
+    this.hooks = {};
+    this.pluginHooks.delete(pluginName);
+    
+    // Re-register all remaining plugin hooks
+    Array.from(this.pluginHooks.entries()).forEach(([name, hooks]) => {
+      Object.entries(hooks).forEach(([key, value]) => {
+        if (key === 'nodeRenderers' || key === 'edgeRenderers') {
+          // For renderer hooks, merge objects
+          const currentRenderers = this.hooks[key as keyof PluginHooks] as Record<string, any> || {};
+          this.hooks[key as keyof PluginHooks] = {
+            ...currentRenderers,
+            ...value as Record<string, any>
+          } as any;
+        } else {
+          // For function hooks, directly assign
+          (this.hooks as any)[key] = value;
+        }
+      });
+    });
   }
 
   /**
@@ -274,14 +329,16 @@ export class KiteFrameCore {
    * Cleanup all plugins
    */
   cleanup(): void {
-    for (const plugin of this.plugins.values()) {
+    Array.from(this.plugins.values()).forEach(plugin => {
       try {
         plugin.cleanup?.();
       } catch (error) {
         console.error(`Error cleaning up plugin "${plugin.name}":`, error);
       }
-    }
+    });
     this.plugins.clear();
+    this.pluginHooks.clear();
+    this.hooks = {}; // Reset all hooks
     this.eventListeners.clear();
   }
 }

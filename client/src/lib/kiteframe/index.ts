@@ -5,6 +5,10 @@ export { KiteFrameCanvas } from './components/KiteFrameCanvas';
 export { ConnectionEdge } from './components/ConnectionEdge';
 export { NodeHandles } from './components/NodeHandles';
 
+// Library node components
+export { BasicNode } from './components/BasicNode';
+export { ImageNode } from './components/ImageNode';
+
 // Types
 export type { 
   Node, 
@@ -41,6 +45,9 @@ export { consolePlugin } from './plugins/demo/ConsolePlugin';
 export { advancedInteractionsPlugin } from './plugins/pro/AdvancedInteractionsPlugin';
 export { versionControlPlugin } from './plugins/pro/VersionControlPlugin';
 export { smartConnectPlugin } from './plugins/pro/SmartConnectPlugin';
+
+// Integration plugins
+export { coreNodeIntegrationPlugin } from './integration';
 
 // Plugin development utilities
 export const createPlugin = (config: {
