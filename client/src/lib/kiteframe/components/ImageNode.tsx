@@ -211,6 +211,10 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         borderClass,
         className
       )}
+      role="article"
+      aria-label={`Image node: ${node.data.label || 'Untitled'}. ${hasImage ? `Image: ${node.data.filename || 'Uploaded image'}` : 'No image uploaded'}`}
+      aria-selected={node.selected}
+      tabIndex={node.selected ? 0 : -1}
       onDoubleClick={handleDoubleClick}
       data-testid={`image-node-${node.id}`}
     >
@@ -220,6 +224,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
           "h-8 px-3 flex items-center justify-between rounded-t-md",
           styleClasses.headerClass
         )}
+        role="heading"
+        aria-level={3}
       >
         <span className="text-sm font-medium truncate">
           {node.data.label || 'Image'}
@@ -236,6 +242,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
               )
             )}
             title={hasImage ? 'Image loaded' : 'No image'}
+            aria-hidden="true"
           />
         </div>
       </div>
@@ -249,6 +256,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
             `image-body-${node.id}`
           )
         )}
+        role="region"
+        aria-label="Image content"
       >
         {/* URL Input */}
         {showUrlInput && (
@@ -262,7 +271,12 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
               onKeyDown={handleUrlKeyDown}
               placeholder="Enter image URL..."
               className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="Image URL"
+              aria-describedby="url-format-hint"
             />
+            <span id="url-format-hint" className="sr-only">
+              Enter a valid image URL starting with http:// or https://
+            </span>
           </div>
         )}
 
@@ -271,12 +285,18 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
           <div className="relative w-full h-full">
             <img
               src={node.data.src}
-              alt={node.data.label || 'Image'}
+              alt={node.data.altText || node.data.label || node.data.filename || 'Image'}
               className="w-full h-full object-cover"
               onLoad={handleImageLoad}
               onError={handleImageError}
               draggable={false}
+              aria-describedby={node.data.description ? `${node.id}-description` : undefined}
             />
+            {node.data.description && (
+              <span id={`${node.id}-description`} className="sr-only">
+                {node.data.description}
+              </span>
+            )}
             {node.data.filename && (
               <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 truncate">
                 {node.data.filename}
@@ -306,6 +326,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                 <button
                   onClick={handleUploadClick}
                   className="mt-2 text-xs text-blue-600 hover:underline"
+                  aria-label="Try uploading image again"
                 >
                   Try uploading again
                 </button>
@@ -321,12 +342,14 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                     onClick={handleUploadClick}
                     className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                     disabled={isUploading}
+                    aria-label="Upload image from your computer"
                   >
                     Upload
                   </button>
                   <button
                     onClick={() => setShowUrlInput(true)}
                     className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                    aria-label="Add image from URL"
                   >
                     URL
                   </button>
@@ -344,6 +367,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         accept="image/*"
         onChange={handleFileSelect}
         className="hidden"
+        aria-label="Upload image file"
       />
 
       {/* Connection Handles */}

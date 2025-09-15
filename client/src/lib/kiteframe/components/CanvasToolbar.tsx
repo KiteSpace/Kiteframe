@@ -37,6 +37,9 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   return (
     <div
       className={`absolute ${positionClasses} ${alignmentClasses[alignment]} bg-white rounded-lg shadow-lg border border-gray-200 px-2 py-1 flex items-center space-x-1 ${className}`}
+      role="toolbar"
+      aria-label="Canvas toolbar"
+      aria-orientation="horizontal"
       data-testid="canvas-toolbar"
     >
       {actions.map((action, index) => {
@@ -45,6 +48,8 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
             <div
               key={`separator-${index}`}
               className="w-px h-6 bg-gray-300 mx-1"
+              role="separator"
+              aria-orientation="vertical"
             />
           );
         }
@@ -55,6 +60,10 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
             onClick={action.onClick}
             disabled={action.disabled}
             title={action.tooltip || action.label}
+            aria-label={action.label}
+            aria-pressed={action.active}
+            role="button"
+            tabIndex={action.disabled ? -1 : 0}
             className={`p-2 rounded transition-colors ${
               action.active
                 ? 'bg-blue-100 text-blue-600'
@@ -64,7 +73,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
             }`}
             data-testid={`toolbar-action-${action.id}`}
           >
-            <div className="w-5 h-5 flex items-center justify-center">
+            <div className="w-5 h-5 flex items-center justify-center" aria-hidden="true">
               {action.icon}
             </div>
           </button>

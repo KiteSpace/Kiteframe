@@ -44,6 +44,8 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
   return (
     <div
       className={`absolute ${positionClasses[position]} bg-white rounded-lg shadow-lg border border-gray-200 p-2 ${className}`}
+      role="group"
+      aria-label="Zoom controls"
       data-testid="zoom-controls"
     >
       <div className={`flex ${orientationClasses}`}>
@@ -55,6 +57,8 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
             !canZoomIn ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
           }`}
           title="Zoom In (Ctrl++)"
+          aria-label="Zoom in"
+          aria-keyshortcuts="Control+Plus"
           data-testid="zoom-in-button"
         >
           <svg
@@ -80,6 +84,8 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
             !canZoomOut ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
           }`}
           title="Zoom Out (Ctrl+-)"
+          aria-label="Zoom out"
+          aria-keyshortcuts="Control+Minus"
           data-testid="zoom-out-button"
         >
           <svg
@@ -102,6 +108,8 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
           onClick={onZoomReset}
           className="p-2 rounded hover:bg-gray-100 transition-colors cursor-pointer"
           title="Reset Zoom (Ctrl+0)"
+          aria-label="Reset zoom to 100%"
+          aria-keyshortcuts="Control+0"
           data-testid="zoom-reset-button"
         >
           <svg
@@ -125,6 +133,7 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
             onClick={onZoomToFit}
             className="p-2 rounded hover:bg-gray-100 transition-colors cursor-pointer"
             title="Fit to Screen"
+            aria-label="Fit all content to screen"
             data-testid="zoom-fit-button"
           >
             <svg
@@ -145,8 +154,14 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
       </div>
 
       {/* Zoom Level Display */}
-      <div className="text-xs text-gray-600 text-center mt-2 font-medium">
-        {zoomPercentage}%
+      <div 
+        className="text-xs text-gray-600 text-center mt-2 font-medium"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label={`Current zoom level: ${zoomPercentage} percent`}
+      >
+        <span aria-hidden="true">{zoomPercentage}%</span>
       </div>
     </div>
   );

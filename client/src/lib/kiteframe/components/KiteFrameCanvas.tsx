@@ -1839,15 +1839,37 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   const worldStyle = { transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})` };
 
+  // Get selected nodes count for screen reader announcements
+  const selectedNodes = props.nodes.filter(n => n.selected);
+  const selectedObjects = (props.canvasObjects || []).filter(obj => obj.selected);
+  
   return (
-    <div
-      ref={containerRef}
-      className={`kiteframe-canvas ${props.className||''} ${panning ? 'kiteframe-hand': ''}`}
-      data-testid="workflow-canvas"
-      onWheel={onWheel}
-      onMouseDown={onBackgroundDown}
-      onMouseMove={onBackgroundMove}
-      onMouseUp={onBackgroundUp}
+    <>
+      {/* Screen reader announcements */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {selectedNodes.length > 0 && `${selectedNodes.length} node${selectedNodes.length > 1 ? 's' : ''} selected`}
+        {selectedObjects.length > 0 && `, ${selectedObjects.length} object${selectedObjects.length > 1 ? 's' : ''} selected`}
+      </div>
+      
+      {/* Keyboard shortcuts help text for screen readers */}
+      <div id="canvas-keyboard-shortcuts" className="sr-only">
+        Keyboard shortcuts: Tab to navigate nodes, Enter to edit, Delete to remove, 
+        Control+C to copy, Control+V to paste, Control+Z to undo, Control+Y to redo,
+        Arrow keys to move selected nodes, Plus/Minus to zoom.
+      </div>
+
+      <div
+        ref={containerRef}
+        className={`kiteframe-canvas ${props.className||''} ${panning ? 'kiteframe-hand': ''}`}
+        role="application"
+        aria-label="Visual workflow canvas. Use arrow keys to navigate, Tab to select nodes, and Space to create connections."
+        aria-describedby="canvas-keyboard-shortcuts"
+        tabIndex={0}
+        data-testid="workflow-canvas"
+        onWheel={onWheel}
+        onMouseDown={onBackgroundDown}
+        onMouseMove={onBackgroundMove}
+        onMouseUp={onBackgroundUp}
       onClick={(e) => {
         // Don't trigger canvas click if we just finished unified selection
         if (unifiedSelectStart.current || unifiedSelectionRect || justCompletedUnifiedSelection.current) {
@@ -2858,12 +2880,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
       {/* Floating workflow name input */}
       {props.workflowName !== undefined && props.onWorkflowNameChange && (
-        <WorkflowNameInput 
-          name={props.workflowName}
-          onChange={props.onWorkflowNameChange}
-          metadata={props.workflowMetadata}
-          onMetadataChange={props.onWorkflowMetadataChange}
-        />
+        <div role="region" aria-label="Workflow information">
+          <WorkflowNameInput 
+            name={props.workflowName}
+            onChange={props.onWorkflowNameChange}
+            metadata={props.workflowMetadata}
+            onMetadataChange={props.onWorkflowMetadataChange}
+          />
+        </div>
       )}
 
       {/* Performance Metrics Display (Development Mode) */}
@@ -2908,5 +2932,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         </div>
       )}
     </div>
+    </>
   );
 };

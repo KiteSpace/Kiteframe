@@ -124,6 +124,10 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
         borderClass,
         className
       )}
+      role="article"
+      aria-label={`Basic node: ${node.data.label || 'Untitled'}. ${node.data.description || 'No description'}`}
+      aria-selected={node.selected}
+      tabIndex={node.selected ? 0 : -1}
       onDoubleClick={handleDoubleClick}
       data-testid={`basic-node-${node.id}`}
     >
@@ -133,6 +137,8 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
           "h-8 px-3 flex items-center justify-between rounded-t-md",
           styleClasses.headerClass
         )}
+        role="heading"
+        aria-level={3}
       >
         {isEditing ? (
           <input
@@ -146,6 +152,8 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
               "bg-transparent border-none outline-none text-sm font-medium w-full",
               getDynamicClassName({ color: colors.headerTextColor }, `input-text-${node.id}`)
             )}
+            aria-label="Node label"
+            aria-required="true"
             data-testid="basic-node-label-input"
           />
         ) : (
@@ -161,6 +169,7 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
         <div 
           className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0"
           title="Basic Node"
+          aria-hidden="true"
         />
       </div>
 
@@ -171,13 +180,15 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
           styleClasses.bodyClass,
           getDynamicClassName({ minHeight: `${nodeHeight - 32}px` }, `body-height-${node.id}`)
         )}
+        role="region"
+        aria-label="Node content"
       >
         {node.data.description ? (
-          <p className="text-xs leading-relaxed">
+          <p className="text-xs leading-relaxed" aria-label="Node description">
             {sanitizeText(node.data.description)}
           </p>
         ) : (
-          <div className="text-xs opacity-60 italic">
+          <div className="text-xs opacity-60 italic" aria-label="Empty node. Double-click to edit">
             Double-click to edit
           </div>
         )}
