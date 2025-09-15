@@ -34,6 +34,10 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     }
   }, [showUrlInput]);
 
+  const handleUploadClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (!node.data.src) {
@@ -42,10 +46,6 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     }
     onDoubleClick?.(e);
   }, [node.data.src, handleUploadClick, onDoubleClick]);
-
-  const handleUploadClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
 
   const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -323,7 +323,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         <NodeHandles
           node={node}
           scale={1}
-          onHandleConnect={useCallback((pos, e) => {
+          onHandleConnect={useCallback((pos: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => {
             console.log('Handle connect:', pos, e);
           }, [])}
         />

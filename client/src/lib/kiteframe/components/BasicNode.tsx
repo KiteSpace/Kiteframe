@@ -169,7 +169,7 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
         <NodeHandles
           node={node}
           scale={1} // Default scale, should be passed from canvas
-          onHandleConnect={useCallback((pos, e) => {
+          onHandleConnect={useCallback((pos: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => {
             // Handle connection logic
             console.log('Handle connect:', pos, e);
           }, [])}
