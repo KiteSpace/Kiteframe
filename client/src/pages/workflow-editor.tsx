@@ -2267,9 +2267,60 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     registerPlugins();
   }, []);
 
-  // Removed redundant SmartConnect reconfiguration useEffect
-  // Plugin is configured once during registration and doesn't need
-  // to be reconfigured on every nodes/edges change
+  // Reconfigure SmartConnect plugin when nodes/edges change
+  // This ensures the plugin has access to current nodes and edges for proximity detection
+  useEffect(() => {
+    const reconfigureSmartConnect = async () => {
+      try {
+        const { smartConnectPlugin } = await import('@/lib/kiteframe');
+        
+        // Configure SmartConnect plugin with current nodes and edges
+        smartConnectPlugin.configure(
+          proFeaturesConfig.smartConnect || {
+            enabled: true,
+            autoConnect: true,
+            threshold: 50,
+            showPreview: true
+          },
+          nodes,
+          edges,
+          // onConnect callback - creates new edges when auto-connect is triggered
+          (connection) => {
+            const newEdge = {
+              id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              source: connection.source,
+              target: connection.target,
+              type: 'bezier' as const,
+              animated: false,
+              strokeWidth: 2,
+              color: '#94a3b8'
+            };
+            
+            setEdges(prev => [...prev, newEdge]);
+            saveToHistory();
+            
+            console.log('🚀 SmartConnect: Auto-connection created!', connection);
+          },
+          // onEdgesChange callback
+          (updatedEdges) => {
+            setEdges(updatedEdges);
+          },
+          // connectionPreviewCallback - handles ghost preview during drag
+          (preview) => {
+            setConnectionPreview(preview);
+            console.log('🔗 SmartConnect: Preview updated:', preview);
+          }
+        );
+      } catch (error) {
+        console.error('❌ SmartConnect reconfiguration error:', error);
+      }
+    };
+    
+    // Only reconfigure if we have nodes (avoid configuring on empty initial state)
+    if (nodes.length > 0) {
+      reconfigureSmartConnect();
+    }
+  }, [nodes, edges, proFeaturesConfig.smartConnect, saveToHistory]);
 
   // Handle keyboard shortcut for workflow name editing
   useEffect(() => {
