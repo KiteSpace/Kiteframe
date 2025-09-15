@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import '../styles/kiteframe.css';
 import '../styles/enhanced-selection.css';
 import type { Node, Edge, NodeType, CanvasObject, CanvasObjectType, ProFeaturesConfig, QuickAddConfig } from '../types';
+import { useEventCleanup } from '../utils/eventCleanup';
 import { clientToWorld, zoomAroundPoint } from '../utils/geometry';
 import { recalculateAllEdgeZIndexes, sortEdgesByZIndex } from '../utils/edgeZIndex';
 import { NodeHandles } from './NodeHandles';
@@ -68,6 +69,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   const categoryRef = useRef<HTMLInputElement>(null);
   const formDataRef = useRef(formData);
   const onMetadataChangeRef = useRef(onMetadataChange);
+  const cleanupManager = useEventCleanup();
 
   const categorySuggestions = [
     'User Experience', 'Feature Planning', 'Brainstorming', 
@@ -108,7 +110,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
         e.preventDefault();
         console.log('🔧 F2 pressed - entering name edit mode');
         setMode('editing-name');
-        setTimeout(() => inputRef.current?.focus(), 0);
+        cleanupManager.setTimeout(() => inputRef.current?.focus(), 0);
       }
     };
 
@@ -124,17 +126,17 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('mousedown', handleClickOutside);
+    const cleanupKeydown = cleanupManager.addEventListener(document, 'keydown', handleKeyDown);
+    const cleanupClick = cleanupManager.addEventListener(document, 'mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('mousedown', handleClickOutside);
+      cleanupKeydown();
+      cleanupClick();
     };
   }, [mode]);
 
   const handleStartNameEdit = () => {
     setMode('editing-name');
-    setTimeout(() => inputRef.current?.focus(), 0);
+    cleanupManager.setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   const handleFinishNameEdit = () => {
@@ -186,7 +188,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
       if (suggestion) {
         e.preventDefault();
         setNewCategory(suggestion);
-        setTimeout(() => handleAddCategory(), 0);
+        cleanupManager.setTimeout(() => handleAddCategory(), 0);
       }
     }
   };
@@ -679,6 +681,8 @@ type ConnectingState = {
 export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [internalViewport, setInternalViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
+  const cleanupManager = useEventCleanup();
+  const cleanupManagerRef = useRef(cleanupManager);
   
   // Use external viewport if provided, otherwise use internal
   const viewport = props.viewport || internalViewport;
@@ -1192,7 +1196,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       unifiedSelectStart.current = null;
       selectionInProgress.current = false;
       justCompletedUnifiedSelection.current = true;
-      setTimeout(() => { justCompletedUnifiedSelection.current = false; }, 100);
+      cleanupManagerRef.current?.setTimeout(() => { justCompletedUnifiedSelection.current = false; }, 100);
       return; // Don't trigger onClick
     }
     
@@ -1291,9 +1295,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     };
 
     // Use document to capture shift+mousedown anywhere within the canvas area
-    document.addEventListener('mousedown', handleCaptureMouseDown, { capture: true });
+    const cleanupCaptureMouseDown = cleanupManagerRef.current?.addEventListener(document, 'mousedown', handleCaptureMouseDown, { capture: true });
     return () => {
-      document.removeEventListener('mousedown', handleCaptureMouseDown, { capture: true });
+      cleanupCaptureMouseDown?.();
     };
   }, []);
 
@@ -1524,11 +1528,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       setCurrentGuides([]);
     };
     
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    const cleanupMove = cleanupManager.addEventListener(window, 'mousemove', onMove);
+    const cleanupUp = cleanupManager.addEventListener(window, 'mouseup', onUp);
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      cleanupMove();
+      cleanupUp();
     };
   }, [viewport, props]);
 
@@ -1569,12 +1573,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     };
 
     // Add event listener
-    document.addEventListener('keydown', handleKeyDown);
+    const cleanupKeydown = cleanupManager.addEventListener(document, 'keydown', handleKeyDown);
     
     // Cleanup
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
+    return cleanupKeydown;
   }, [props.nodes, props.canvasObjects]);
 
   // Enhanced Grid component that moves with canvas transformations

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Node, ProFeaturesConfig } from '../types';
+import { useEventCleanup } from '../utils/eventCleanup';
 
 interface NodeHandlesProps {
   node: Node;
@@ -24,6 +25,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const showTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
+  const cleanupManager = useEventCleanup();
   
   // Use actual rendered dimensions if available, fallback to node properties
   const w = Number(actualDimensions?.width ?? node.style?.width ?? node.width ?? 200) || 200;
@@ -55,7 +57,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
     if (nodeRef.current && window.ResizeObserver) {
       const nodeElement = nodeRef.current.closest('.kiteframe-node');
       if (nodeElement) {
-        const resizeObserver = new ResizeObserver(() => {
+        const resizeObserver = cleanupManager.createResizeObserver(() => {
           measureNode();
         });
         resizeObserver.observe(nodeElement);
@@ -63,7 +65,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
         return () => resizeObserver.disconnect();
       }
     }
-  }, [node.data.label, node.data.description, scale]); // Re-measure when content or scale changes
+  }, [node.data.label, node.data.description, scale, cleanupManager]); // Re-measure when content or scale changes
   const size = 12, r = size/2;
   
   // Scale-independent offsets for quick-add buttons and ghost previews

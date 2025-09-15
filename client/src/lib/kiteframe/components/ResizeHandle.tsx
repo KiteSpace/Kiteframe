@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import { useEventCleanup } from '../utils/eventCleanup';
 
 interface ResizeHandleProps {
   position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -26,6 +27,8 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
   const startDimensionsRef = useRef({ width: 0, height: 0 });
   const startPositionRef = useRef({ x: 0, y: 0 });
   const isResizingRef = useRef(false);
+  const cleanupManager = useEventCleanup();
+  const cleanupFnRef = useRef<(() => void) | null>(null);
 
   const getPositionClasses = () => {
     const baseClasses = 'absolute bg-white border-[3px] border-blue-500 rounded-sm opacity-100 transition-opacity cursor-';
@@ -146,12 +149,22 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
       console.log('🔧 RESIZE HANDLE MOUSE UP');
       setIsResizing(false);
       isResizingRef.current = false;
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      // Clean up using stored cleanup function
+      if (cleanupFnRef.current) {
+        cleanupFnRef.current();
+        cleanupFnRef.current = null;
+      }
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    // Use cleanup manager for event listeners
+    const cleanupMove = cleanupManager.addEventListener(document, 'mousemove', handleMouseMove);
+    const cleanupUp = cleanupManager.addEventListener(document, 'mouseup', handleMouseUp);
+    
+    // Store combined cleanup function
+    cleanupFnRef.current = () => {
+      cleanupMove();
+      cleanupUp();
+    };
   }, [position, nodeRef, onResize, minWidth, minHeight, maxWidth, maxHeight]);
 
   return (

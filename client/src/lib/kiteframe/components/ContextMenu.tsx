@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { getDynamicClassName } from '../utils/styles';
+import { useEventCleanup } from '../utils/eventCleanup';
 
 export interface ContextMenuItem {
   id: string;
@@ -24,6 +25,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onClose
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const cleanupManager = useEventCleanup();
 
   // Get dynamic class for positioning
   const positionClass = useMemo(() => {
@@ -46,14 +48,15 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
+    // Use cleanup manager for event listeners
+    const cleanupClick = cleanupManager.addEventListener(document, 'mousedown', handleClickOutside);
+    const cleanupKeyboard = cleanupManager.addEventListener(document, 'keydown', handleEscape);
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
+      cleanupClick();
+      cleanupKeyboard();
     };
-  }, [onClose]);
+  }, [onClose, cleanupManager]);
 
   // Adjust position to keep menu within viewport
   useEffect(() => {

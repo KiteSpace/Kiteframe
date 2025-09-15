@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Node, Edge } from '../types';
+import { useEventCleanup } from '../utils/eventCleanup';
 
 interface EdgeHandlesProps {
   edge: Edge;
@@ -38,6 +39,7 @@ export function EdgeHandles({
 }: EdgeHandlesProps) {
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const cleanupManager = useEventCleanup();
 
   const {
     handleColor = '#3b82f6',
@@ -238,15 +240,15 @@ export function EdgeHandles({
   // Set up global mouse events when dragging starts
   useEffect(() => {
     if (dragState?.isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+      const cleanupMove = cleanupManager.addEventListener(document, 'mousemove', handleMouseMove);
+      const cleanupUp = cleanupManager.addEventListener(document, 'mouseup', handleMouseUp);
       
       return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+        cleanupMove();
+        cleanupUp();
       };
     }
-  }, [dragState?.isDragging, edge.id, edge.source, edge.target]);
+  }, [dragState?.isDragging, edge.id, edge.source, edge.target, cleanupManager]);
 
   if (!sourceNode || !targetNode) return null;
 

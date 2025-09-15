@@ -3,6 +3,7 @@ import { ResizeHandle } from './ResizeHandle';
 import { EmojiReactions } from './EmojiReactions';
 import type { CanvasObject, TextNodeData } from '../types';
 import { cn } from '@/lib/utils';
+import { useEventCleanup } from '../utils/eventCleanup';
 
 interface TextObjectProps {
   object: CanvasObject & { data: TextNodeData };
@@ -40,6 +41,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const objectRef = useRef<HTMLDivElement>(null);
+  const cleanupManager = useEventCleanup();
   // Calculate initial size based on text content
   const getInitialDimensions = useCallback(() => {
     const canvas = document.createElement('canvas');
@@ -101,7 +103,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
       setTextSize(prevSize => {
         // Only update if dimensions actually changed
         if (prevSize.width !== width || prevSize.height !== height) {
-          setTimeout(() => {
+          cleanupManager.setTimeout(() => {
             onResizeRef.current?.(width, height);
           }, 0);
           return { width, height };
@@ -114,7 +116,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
       
       setTextSize(prevSize => {
         if (prevSize.height !== height) {
-          setTimeout(() => {
+          cleanupManager.setTimeout(() => {
             onResizeRef.current?.(prevSize.width, height);
           }, 0);
           return { ...prevSize, height };

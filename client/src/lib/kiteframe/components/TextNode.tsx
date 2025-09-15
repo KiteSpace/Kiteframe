@@ -5,6 +5,7 @@ import { EmojiReactions } from './EmojiReactions';
 import { NodeHandles } from './NodeHandles';
 import type { Node, TextNodeData } from '../types';
 import { cn } from '@/lib/utils';
+import { useEventCleanup } from '../utils/eventCleanup';
 
 interface TextNodeProps {
   node: Node & { data: TextNodeData };
@@ -40,6 +41,7 @@ export const TextNode: React.FC<TextNodeProps> = ({
   // Mobile touch handling
   const [touchStartTime, setTouchStartTime] = useState(0);
   const [lastTapTime, setLastTapTime] = useState(0);
+  const cleanupManager = useEventCleanup();
 
   // Auto-focus when component mounts if autoFocus is true
   useEffect(() => {
@@ -69,8 +71,8 @@ export const TextNode: React.FC<TextNodeProps> = ({
       setTextSize(prevSize => {
         // Only update if dimensions actually changed to prevent unnecessary renders
         if (prevSize.width !== width || prevSize.height !== height) {
-          // Use timeout to avoid calling onResize during render
-          setTimeout(() => {
+          // Use cleanup manager for timeout to avoid calling onResize during render
+          cleanupManager.setTimeout(() => {
             onResizeRef.current?.(width, height);
           }, 0);
           return { width, height };
@@ -78,7 +80,7 @@ export const TextNode: React.FC<TextNodeProps> = ({
         return prevSize;
       });
     }
-  }, [text, node.data.fontSize, node.data.fontFamily, node.data.lineHeight]);
+  }, [text, node.data.fontSize, node.data.fontFamily, node.data.lineHeight, cleanupManager]);
 
   const handleTextChange = (newText: string) => {
     setText(newText);
@@ -108,7 +110,7 @@ export const TextNode: React.FC<TextNodeProps> = ({
       } else {
         setLastTapTime(now);
         // Single tap - also enter edit mode for better mobile UX
-        setTimeout(() => {
+        cleanupManager.setTimeout(() => {
           if (Date.now() - lastTapTime >= 400) {
             setIsEditing(true);
           }

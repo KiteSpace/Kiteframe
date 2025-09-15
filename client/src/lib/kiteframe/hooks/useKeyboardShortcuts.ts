@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useRef } from 'react';
+import { useEventCleanup } from '../utils/eventCleanup';
 
 export interface KeyboardShortcut {
   key: string;
@@ -22,6 +23,7 @@ export const useKeyboardShortcuts = (
 ) => {
   const { enabled = true, target = 'window' } = options;
   const shortcutsRef = useRef(shortcuts);
+  const cleanupManager = useEventCleanup();
   
   // Update shortcuts ref when they change
   useEffect(() => {
@@ -70,12 +72,11 @@ export const useKeyboardShortcuts = (
 
     if (!targetElement) return;
 
-    targetElement.addEventListener('keydown', handleKeyDown as any);
+    // Use cleanup manager for event listener
+    const cleanup = cleanupManager.addEventListener(targetElement, 'keydown', handleKeyDown as any);
 
-    return () => {
-      targetElement.removeEventListener('keydown', handleKeyDown as any);
-    };
-  }, [enabled, target, handleKeyDown]);
+    return cleanup;
+  }, [enabled, target, handleKeyDown, cleanupManager]);
 
   return {
     getShortcutDescription: (key: string, modifiers?: {

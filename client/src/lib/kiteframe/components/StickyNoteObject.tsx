@@ -5,6 +5,7 @@ import type { CanvasObject, StickyNoteData } from '../types';
 import { getOptimalTextColor } from '../utils/colorUtils';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
+import { useEventCleanup } from '../utils/eventCleanup';
 
 interface StickyNoteObjectProps {
   object: CanvasObject & { data: StickyNoteData };
@@ -37,6 +38,7 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
   const [text, setText] = useState(object.data.text || '');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const objectRef = useRef<HTMLDivElement>(null);
+  const cleanupManager = useEventCleanup();
 
   const noteSize = {
     width: object.style?.width || object.width || 200,
@@ -66,7 +68,7 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
 
   // Track clicks for proper select/edit behavior  
   const [clickCount, setClickCount] = useState(0);
-  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const clickTimeoutRef = useRef<(() => void) | null>(null);
   
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -78,10 +80,10 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
     setClickCount(prev => prev + 1);
     
     if (clickTimeoutRef.current) {
-      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current();
     }
     
-    clickTimeoutRef.current = setTimeout(() => {
+    clickTimeoutRef.current = cleanupManager.setTimeout(() => {
       if (clickCount === 0) {
         // First click - just select (onClick already called)
       } else if (clickCount >= 1) {
