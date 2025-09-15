@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Edge } from '../types';
+import { sanitizeText, validateColor } from '../utils/validation';
 
 export interface EdgePropertiesProps {
   edge: Edge | null;
@@ -37,16 +38,22 @@ export const EdgeProperties: React.FC<EdgePropertiesProps> = ({
   if (!edge) return null;
 
   const handleSave = () => {
+    // Validate and sanitize inputs before saving
+    const sanitizedLabel = label ? sanitizeText(label) : '';
+    const validatedStrokeColor = validateColor(strokeColor) ? strokeColor : '#6b7280';
+    const validatedLabelBgColor = validateColor(labelBgColor) ? labelBgColor : '#ffffff';
+    const clampedStrokeWidth = Math.min(Math.max(strokeWidth, 1), 10);
+    
     onUpdate(edge.id, {
-      label,
+      label: sanitizedLabel,
       type: edgeType,
       animated,
       style: {
-        strokeWidth,
-        stroke: strokeColor
+        strokeWidth: clampedStrokeWidth,
+        stroke: validatedStrokeColor
       },
       labelStyle: {
-        backgroundColor: labelBgColor
+        backgroundColor: validatedLabelBgColor
       },
       markerEnd,
       markerStart

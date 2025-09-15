@@ -29,6 +29,8 @@ export type { ToolbarAction } from './components/CanvasToolbar';
 export { useContextMenu } from './hooks/useContextMenu';
 export { useKeyboardShortcuts, defaultKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 export type { KeyboardShortcut } from './hooks/useKeyboardShortcuts';
+export { useUndoRedo } from './hooks/useUndoRedo';
+export type { UseUndoRedoOptions, UseUndoRedoCallbacks } from './hooks/useUndoRedo';
 
 // Types
 export type { 

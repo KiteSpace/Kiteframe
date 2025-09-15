@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Edge, Node } from '../types';
 import { EdgeTemplatesList, defaultEdgeTemplates, EdgeTemplate } from './EdgeTemplates';
 import { EdgeValidator, EdgeValidationRules, EdgeValidationResult } from '../utils/EdgeValidation';
+import { sanitizeText, validateColor } from '../utils/validation';
 
 export interface EdgeFactoryProps {
   sourceNodeId: string;
@@ -58,20 +59,24 @@ export const EdgeFactory: React.FC<EdgeFactoryProps> = ({
   };
 
   const handleCreate = () => {
+    // Validate and sanitize inputs
+    const sanitizedLabel = label ? sanitizeText(label) : undefined;
+    const validatedColor = validateColor(customOptions.strokeColor) ? customOptions.strokeColor : '#6b7280';
+    
     const edgeData: Partial<Edge> = {
       id: `edge-${Date.now()}`, // Temporary ID for validation
       source: sourceNodeId,
       target: targetNodeId,
-      label: label || undefined,
+      label: sanitizedLabel,
       ...(selectedTemplate?.edgeData || {})
     };
 
-    // Apply custom options
+    // Apply custom options with validated values
     edgeData.animated = customOptions.animated;
     edgeData.style = {
       ...edgeData.style,
-      stroke: customOptions.strokeColor,
-      strokeWidth: customOptions.strokeWidth
+      stroke: validatedColor,
+      strokeWidth: Math.min(Math.max(customOptions.strokeWidth, 1), 10) // Clamp between 1-10
     };
     
     if (customOptions.bidirectional) {

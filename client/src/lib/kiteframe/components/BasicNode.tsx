@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
 import type { Node, BasicNodeData, BasicNodeComponentProps } from '../types';
+import { sanitizeText, validateColor } from '../utils/validation';
 
 
 export const BasicNode: React.FC<BasicNodeComponentProps> = ({
@@ -36,8 +37,9 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
 
   const handleLabelSubmit = () => {
     if (onUpdate) {
+      const sanitizedLabel = sanitizeText(editValue.trim() || 'Basic Node');
       onUpdate(node.id, {
-        data: { ...node.data, label: editValue.trim() || 'Basic Node' }
+        data: { ...node.data, label: sanitizedLabel }
       });
     }
     setIsEditing(false);
@@ -62,13 +64,13 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
     }
   };
 
-  // Get colors with fallbacks
+  // Get colors with fallbacks and validation
   const colors = node.data.colors || {};
-  const headerBg = colors.headerBackground || '#f8fafc';
-  const bodyBg = colors.bodyBackground || '#ffffff';
-  const borderColor = colors.borderColor || '#e2e8f0';
-  const headerTextColor = colors.headerTextColor || '#1e293b';
-  const bodyTextColor = colors.bodyTextColor || '#64748b';
+  const headerBg = validateColor(colors.headerBackground || '') ? colors.headerBackground : '#f8fafc';
+  const bodyBg = validateColor(colors.bodyBackground || '') ? colors.bodyBackground : '#ffffff';
+  const borderColor = validateColor(colors.borderColor || '') ? colors.borderColor : '#e2e8f0';
+  const headerTextColor = validateColor(colors.headerTextColor || '') ? colors.headerTextColor : '#1e293b';
+  const bodyTextColor = validateColor(colors.bodyTextColor || '') ? colors.bodyTextColor : '#64748b';
 
   const nodeWidth = node.style?.width || node.width || 200;
   const nodeHeight = node.style?.height || node.height || 120;
@@ -126,7 +128,7 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
             className="text-sm font-medium truncate"
             title={node.data.label}
           >
-            {node.data.label || 'Basic Node'}
+            {sanitizeText(node.data.label || 'Basic Node')}
           </span>
         )}
         
@@ -148,7 +150,7 @@ export const BasicNode: React.FC<BasicNodeComponentProps> = ({
       >
         {node.data.description ? (
           <p className="text-xs leading-relaxed">
-            {node.data.description}
+            {sanitizeText(node.data.description)}
           </p>
         ) : (
           <div className="text-xs opacity-60 italic">
