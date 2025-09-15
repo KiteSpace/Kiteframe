@@ -89,7 +89,7 @@ export type Edge = {
   data?: any; // Keep for backward compatibility
 };
 
-export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image';
+export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image';
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 
 // Pro Features Configuration Interfaces
