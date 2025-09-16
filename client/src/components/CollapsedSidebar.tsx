@@ -448,7 +448,7 @@ export function CollapsedSidebar({
 
       {/* Templates Popout */}
       {activePopout === 'templates' && (
-        <div className="absolute left-12 top-16 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3">
+        <div className="absolute left-16 top-32 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3">
           <h3 className="text-sm font-semibold mb-3">Templates</h3>
           <div className="grid grid-cols-1 gap-2">
             {templateTypes.map((template) => {
@@ -474,7 +474,7 @@ export function CollapsedSidebar({
 
       {/* Themes Popout */}
       {activePopout === 'themes' && (
-        <div className="absolute left-12 top-16 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3">
+        <div className="absolute left-16 top-32 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3">
           <h3 className="text-sm font-semibold mb-3">Workflow Themes</h3>
           <div className="grid grid-cols-1 gap-2">
             {workflowThemes.slice(0, 8).map((theme) => (

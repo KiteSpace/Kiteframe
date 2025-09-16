@@ -123,7 +123,7 @@ export function NodeTypesPopout({ isOpen, onClose, onCreateNode, onCreateNodeAtP
       
       {/* Popout Panel */}
       <div 
-        className="absolute left-12 top-16 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3"
+        className="absolute left-16 top-32 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3"
         data-testid="node-types-popout"
       >
         <h3 className="text-sm font-semibold mb-3">Node Types</h3>

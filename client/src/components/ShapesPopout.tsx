@@ -127,7 +127,7 @@ export function ShapesPopout({ isOpen, onClose, onCreateShape, onCreateShapeAtPo
       
       {/* Popout Panel */}
       <div 
-        className="absolute left-12 top-16 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3"
+        className="absolute left-16 top-32 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3"
         data-testid="shapes-popout"
       >
         <h3 className="text-sm font-semibold mb-3">Shapes</h3>
