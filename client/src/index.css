@@ -110,13 +110,6 @@
   }
 }
 
-/* Sidebar Collapsed Popout Positioning */
-.sidebar-popout-position {
-  z-index: 60;
-  top: 120px;
-  left: 64px;
-}
-
 /* FontAwesome compatibility */
 .fas, .far, .fab, .fa {
   font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands";

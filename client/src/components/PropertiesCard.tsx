@@ -76,7 +76,7 @@ export function PropertiesCard({
 
   return (
     <div 
-      className="absolute sidebar-popout-position w-72 bg-card border border-border rounded-md shadow-lg"
+      className="absolute z-60 top-32 left-16 w-72 bg-card border border-border rounded-md shadow-lg"
       data-testid="properties-card"
     >
       {/* Header */}
