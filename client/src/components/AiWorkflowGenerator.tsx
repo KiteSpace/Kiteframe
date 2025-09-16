@@ -219,7 +219,7 @@ Position nodes 250px apart horizontally.`;
         cleanedResponse = cleanedResponse.substring(0, lastBraceIndex + 1);
       }
       
-      console.log('🧹 CLEANED RESPONSE:', cleanedResponse.substring(0, 200) + '...');
+      console.log('🧹 CLEANED RESPONSE:', cleanedResponse);
       
       // Try to find JSON content if wrapped in text
       const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
@@ -233,7 +233,7 @@ Position nodes 250px apart horizontally.`;
         // First attempt - parse as-is
         workflowData = JSON.parse(cleanedResponse);
       } catch (firstError) {
-        console.log('❌ FIRST PARSE FAILED, ATTEMPTING FIXES:', firstError);
+        console.log('❌ FIRST PARSE FAILED, ATTEMPTING FIXES:', firstError instanceof Error ? firstError.message : String(firstError));
         
         try {
           // Second attempt - fix common JSON issues
@@ -268,11 +268,11 @@ Position nodes 250px apart horizontally.`;
             fixedResponse += ']';
           }
           
-          console.log('🔧 ATTEMPTING FIXED PARSE:', fixedResponse.substring(0, 200) + '...');
+          console.log('🔧 ATTEMPTING FIXED PARSE:', fixedResponse);
           workflowData = JSON.parse(fixedResponse);
           
         } catch (secondError) {
-          console.log('❌ SECOND PARSE FAILED, USING FALLBACK:', secondError);
+          console.log('❌ SECOND PARSE FAILED, USING FALLBACK:', secondError instanceof Error ? secondError.message : String(secondError));
           
           // Create fallback workflow
           const fallbackWorkflow = {

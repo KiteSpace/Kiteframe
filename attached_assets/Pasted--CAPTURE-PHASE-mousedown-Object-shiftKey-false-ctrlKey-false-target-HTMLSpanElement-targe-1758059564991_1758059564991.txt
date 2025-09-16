@@ -1,0 +1,42 @@
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLSpanElement, targetTag: "SPAN", targetClass: "truncate text-sm font-medium max-w-32", …}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: SVGSVGElement, targetTag: "svg", targetClass: SVGAnimatedString, …}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLButtonElement, targetTag: "BUTTON", targetClass: "w-full px-3 py-2.5 text-sm bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-md…", …}
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLDivElement, targetTag: "DIV", targetClass: "space-y-2", …}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLInputElement, targetTag: "INPUT", targetClass: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base…", …}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLDivElement, targetTag: "DIV", targetClass: "space-y-2", …}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLButtonElement, targetTag: "BUTTON", targetClass: "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium…", …}
+🧹 CLEANED RESPONSE: {
+    "nodes": [
+        {
+            "id": "node-1",
+            "type": "input",
+            "position": {"x": 100, "y": 250},
+            "data": {"label": "Start", "description": "Backend script ...
+❌ FIRST PARSE FAILED, ATTEMPTING FIXES: 
+SyntaxError {}
+🔧 ATTEMPTING FIXED PARSE: {
+    "nodes": [
+        {
+            "id": "node-1",
+            "type": "input",
+            "position": {"x": 100, "y": 250},
+            "data": {"label": "Start", "description": "Backend script ...
+❌ SECOND PARSE FAILED, USING FALLBACK: 
+SyntaxError {}
+📝 WORKFLOW EDITOR RECEIVED AI DATA: 
+Object {hasNodes: true, nodeCount: 3, hasEdges: true, edgeCount: 2, generatedWorkflow: {…}}
+📝 AI WORKFLOW APPENDED TO CANVAS: 
+Object {addedNodes: 3, addedEdges: 2}
+💾 Workflows saved to local storage
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLDivElement, targetTag: "DIV", targetClass: "text-sm opacity-90", …}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLDivElement, targetTag: "DIV", targetClass: "", …}
