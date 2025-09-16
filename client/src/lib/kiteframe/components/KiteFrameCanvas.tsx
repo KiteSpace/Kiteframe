@@ -723,6 +723,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const [unifiedSelectionRect, setUnifiedSelectionRect] = useState<null | {x:number;y:number;w:number;h:number}>(null);
   const unifiedSelectStart = useRef<{x:number;y:number}|null>(null);
   const justCompletedUnifiedSelection = useRef<boolean>(false);
+  const justCompletedNodeDrag = useRef<boolean>(false);
   const selectionInProgress = useRef<boolean>(false);
 
   // DOM ref mapping for accurate bounds calculation
@@ -1809,6 +1810,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           }
         }
         
+        // Set flag to prevent clicks immediately after drag
+        justCompletedNodeDrag.current = true;
+        cleanupManagerRef.current?.setTimeout(() => { justCompletedNodeDrag.current = false; }, 100);
+        
         dragInfo.current = null;
       }
       
@@ -2010,9 +2015,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const handleCanvasObjectClick = (objectId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // Suppress clicks during or immediately after unified selection
-    if (selectionInProgress.current || justCompletedUnifiedSelection.current) {
-      console.log('🚫 Click suppressed - selection in progress or just completed');
+    // Suppress clicks during or immediately after unified selection or node drag
+    if (selectionInProgress.current || justCompletedUnifiedSelection.current || justCompletedNodeDrag.current) {
+      console.log('🚫 Click suppressed - selection/drag in progress or just completed');
       return;
     }
     
@@ -2499,9 +2504,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 e.stopPropagation();
                 console.log(`🎯 NODE CLICK:`, { nodeId: n.id, wasSelected: n.selected, shiftKey: e.shiftKey });
                 
-                // Suppress clicks during or immediately after unified selection
-                if (selectionInProgress.current || justCompletedUnifiedSelection.current) {
-                  console.log('🚫 Click suppressed - selection in progress or just completed');
+                // Suppress clicks during or immediately after unified selection or node drag
+                if (selectionInProgress.current || justCompletedUnifiedSelection.current || justCompletedNodeDrag.current) {
+                  console.log('🚫 Click suppressed - selection/drag in progress or just completed');
                   return;
                 }
                 
