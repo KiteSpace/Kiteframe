@@ -264,7 +264,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
 
     // Rich card display with content
     return (
-      <div className="absolute top-4 left-4 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 max-w-80">
+      <div className="absolute top-4 left-4 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 max-w-80">
         <div className="flex items-center justify-between mb-2">
           <h3 
             onClick={handleStartNameEdit}
