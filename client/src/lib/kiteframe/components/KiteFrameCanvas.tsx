@@ -1810,9 +1810,26 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           }
         }
         
-        // Set flag to prevent clicks immediately after drag
-        justCompletedNodeDrag.current = true;
-        cleanupManagerRef.current?.setTimeout(() => { justCompletedNodeDrag.current = false; }, 100);
+        // Only set flag to prevent clicks if there was actual substantial movement (like canvas objects)
+        // Calculate movement distance to determine if this was a real drag
+        const startPos = dragInfo.current.start;
+        const finalPos = props.nodes.find(n => n.id === dragInfo.current?.id)?.position;
+        
+        if (finalPos) {
+          const distance = Math.sqrt(
+            Math.pow(finalPos.x - dragInfo.current.origin.x, 2) + 
+            Math.pow(finalPos.y - dragInfo.current.origin.y, 2)
+          );
+          
+          // Only set the flag if there was substantial movement (similar to dragThreshold)
+          if (distance > dragThreshold) {
+            console.log('🔧 NODE: Setting drag completed flag due to substantial movement:', { distance, threshold: dragThreshold });
+            justCompletedNodeDrag.current = true;
+            cleanupManagerRef.current?.setTimeout(() => { justCompletedNodeDrag.current = false; }, 100);
+          } else {
+            console.log('🔧 NODE: Not setting drag flag - insufficient movement:', { distance, threshold: dragThreshold });
+          }
+        }
         
         dragInfo.current = null;
       }
