@@ -122,3 +122,39 @@ export {
   CURRENT_VERSION as EXPORT_VERSION,
   type WorkflowExport
 } from './utils/exportImport';
+
+// Error Recovery & Resilience
+export {
+  ErrorRecoveryManager,
+  errorRecovery,
+  useErrorRecovery,
+  retryWithBackoff,
+  withGracefulDegradation,
+  CircuitBreaker
+} from './utils/errorRecovery';
+
+// Scale Optimizations
+export {
+  MemoryManager,
+  memoryManager,
+  ProgressiveLoader,
+  WorkerManager,
+  workerManager,
+  useMemoryMonitor,
+  useProgressiveLoader,
+  useWorkerManager
+} from './utils/scaleOptimizations';
+
+// Security Hardening
+export {
+  RateLimiter,
+  createRateLimiter,
+  inputValidator,
+  cspManager,
+  securityMonitor,
+  useRateLimiter,
+  useSecurityMonitor,
+  useInputValidator,
+  type RateLimitConfig,
+  type SecurityEvent
+} from './utils/securityHardening';

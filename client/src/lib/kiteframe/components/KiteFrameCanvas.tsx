@@ -23,6 +23,9 @@ import { AnimatedConnectionPreview, type AnimationConfig } from './AnimatedConne
 import { ChevronDown, ChevronUp, X, ExternalLink, List, Type } from 'lucide-react';
 import { RenderBatchManager, VirtualizationManager, useRenderBatching } from '../utils/renderBatching';
 import { useTelemetry, TelemetryEventType } from '../utils/telemetry';
+import { useErrorRecovery, retryWithBackoff, withGracefulDegradation } from '../utils/errorRecovery';
+import { MemoryManager, ProgressiveLoader, WorkerManager } from '../utils/scaleOptimizations';
+import { RateLimiter, InputValidator, CSPManager, SecurityMonitor } from '../utils/securityHardening';
 
 // Floating workflow name input component
 interface WorkflowLink {
@@ -687,6 +690,24 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const cleanupManager = useEventCleanup();
   const cleanupManagerRef = useRef(cleanupManager);
   
+  // ========== PRODUCTION FEATURES INTEGRATION ==========
+  // 1. Error Recovery System
+  const { recoveryState, saveState, handleError } = useErrorRecovery();
+  const [showRecoveryNotification, setShowRecoveryNotification] = useState(false);
+  
+  // 2. Memory Management System
+  const memoryManager = useMemo(() => MemoryManager.getInstance(), []);
+  const [memoryWarning, setMemoryWarning] = useState<{ level: 'warning' | 'critical', percentage: number } | null>(null);
+  const progressiveLoader = useMemo(() => new ProgressiveLoader({ chunkSize: 50, priority: 'viewport', maxConcurrent: 3 }), []);
+  const workerManager = useMemo(() => WorkerManager.getInstance(), []);
+  
+  // 3. Security Hardening System
+  const actionRateLimiter = useMemo(() => new RateLimiter({ maxRequests: 30, windowMs: 1000 }), []);
+  const inputValidator = useMemo(() => InputValidator.getInstance(), []);
+  const cspManager = useMemo(() => CSPManager.getInstance(), []);
+  const securityMonitor = useMemo(() => SecurityMonitor.getInstance(), []);
+  const [rateLimitWarning, setRateLimitWarning] = useState(false);
+  
   // Use external viewport if provided, otherwise use internal
   const viewport = props.viewport || internalViewport;
   const setViewport = props.onViewportChange || setInternalViewport;
@@ -881,6 +902,60 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       return () => clearInterval(interval);
     }
   }, [showMetrics, renderBatchManager]);
+  
+  // ========== PRODUCTION FEATURES EFFECTS ==========
+  // 1. Memory Monitoring
+  useEffect(() => {
+    const unsubscribe = memoryManager.onMemoryUpdate((metrics) => {
+      const percentage = metrics.percentage;
+      if (percentage > 0.95) {
+        setMemoryWarning({ level: 'critical', percentage });
+      } else if (percentage > 0.8) {
+        setMemoryWarning({ level: 'warning', percentage });
+      } else {
+        setMemoryWarning(null);
+      }
+    });
+    
+    return () => {
+      unsubscribe();
+    };
+  }, [memoryManager]);
+  
+  // 2. Auto-save state for error recovery
+  useEffect(() => {
+    const saveInterval = setInterval(() => {
+      try {
+        saveState(props.nodes, props.edges, viewport);
+      } catch (error) {
+        console.error('Failed to save state:', error);
+      }
+    }, 30000); // Save every 30 seconds
+    
+    return () => clearInterval(saveInterval);
+  }, [props.nodes, props.edges, viewport, saveState]);
+  
+  // 3. Recovery state handling
+  useEffect(() => {
+    if (recoveryState) {
+      setShowRecoveryNotification(true);
+      // Auto-dismiss after 5 seconds
+      const timer = setTimeout(() => setShowRecoveryNotification(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [recoveryState]);
+  
+  // 4. Security monitoring
+  useEffect(() => {
+    const unsubscribe = securityMonitor.onSecurityEvent((event) => {
+      if (event.type === 'rate-limit' && event.blocked) {
+        setRateLimitWarning(true);
+        setTimeout(() => setRateLimitWarning(false), 3000);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [securityMonitor]);
 
   // Pro Features: Quick Add Functions
   const createQuickAddNode = (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left'): Node => {
@@ -1692,33 +1767,62 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only handle delete/backspace keys
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const selectedNodes = props.nodes.filter(node => node.selected);
-        const selectedObjects = (props.canvasObjects || []).filter(obj => obj.selected);
+        // Security: Rate limit delete operations
+        if (!actionRateLimiter.isAllowed('delete')) {
+          console.warn('⚠️ Delete rate limit exceeded');
+          setRateLimitWarning(true);
+          setTimeout(() => setRateLimitWarning(false), 2000);
+          return;
+        }
         
-        // If we have any selected items, prevent default and delete them
-        if (selectedNodes.length > 0 || selectedObjects.length > 0) {
-          e.preventDefault();
+        try {
+          const selectedNodes = props.nodes.filter(node => node.selected);
+          const selectedObjects = (props.canvasObjects || []).filter(obj => obj.selected);
           
-          // Delete selected nodes
-          if (selectedNodes.length > 0) {
-            const updatedNodes = props.nodes.filter(node => !node.selected);
-            props.onNodesChange(updatedNodes);
+          // If we have any selected items, prevent default and delete them
+          if (selectedNodes.length > 0 || selectedObjects.length > 0) {
+            e.preventDefault();
+            
+            // Save state before deletion for recovery
+            saveState(props.nodes, props.edges, viewport);
+            
+            // Delete selected nodes with error handling
+            if (selectedNodes.length > 0) {
+              const updatedNodes = props.nodes.filter(node => !node.selected);
+              props.onNodesChange(updatedNodes);
+            }
+            
+            // Delete selected canvas objects with error handling
+            if (selectedObjects.length > 0) {
+              const updatedObjects = (props.canvasObjects || []).filter(obj => !obj.selected);
+              props.onCanvasObjectsChange?.(updatedObjects);
+            }
+            
+            // Log security event
+            securityMonitor.recordEvent({
+              type: 'suspicious-activity',
+              severity: 'low',
+              details: {
+                action: 'delete',
+                deletedNodes: selectedNodes.length,
+                deletedObjects: selectedObjects.length
+              },
+              timestamp: Date.now(),
+              blocked: false
+            });
+            
+            console.log('🗑️ DELETED SELECTED ITEMS:', {
+              deletedNodes: selectedNodes.length,
+              deletedNodeIds: selectedNodes.map(node => node.id),
+              deletedObjects: selectedObjects.length,
+              deletedObjectIds: selectedObjects.map(obj => obj.id),
+              remainingNodes: props.nodes.length - selectedNodes.length,
+              remainingObjects: (props.canvasObjects || []).length - selectedObjects.length
+            });
           }
-          
-          // Delete selected canvas objects
-          if (selectedObjects.length > 0) {
-            const updatedObjects = (props.canvasObjects || []).filter(obj => !obj.selected);
-            props.onCanvasObjectsChange?.(updatedObjects);
-          }
-          
-          console.log('🗑️ DELETED SELECTED ITEMS:', {
-            deletedNodes: selectedNodes.length,
-            deletedNodeIds: selectedNodes.map(node => node.id),
-            deletedObjects: selectedObjects.length,
-            deletedObjectIds: selectedObjects.map(obj => obj.id),
-            remainingNodes: props.nodes.length - selectedNodes.length,
-            remainingObjects: (props.canvasObjects || []).length - selectedObjects.length
-          });
+        } catch (error) {
+          console.error('Failed to delete items:', error);
+          handleError(error as Error, 'delete-operation');
         }
       }
     };
@@ -2890,6 +2994,107 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         </div>
       )}
 
+      {/* ========== PRODUCTION FEATURES UI FEEDBACK ========== */}
+      {/* Memory Warning */}
+      {memoryWarning && (
+        <div style={{
+          position: 'absolute',
+          top: 60,
+          right: 20,
+          padding: '12px 16px',
+          background: memoryWarning.level === 'critical' ? '#dc2626' : '#f59e0b',
+          color: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          fontSize: '14px',
+          fontWeight: '500',
+          zIndex: 10000,
+          animation: memoryWarning.level === 'critical' ? 'pulse 1s infinite' : 'none'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '18px' }}>⚠️</span>
+            <div>
+              <div>{memoryWarning.level === 'critical' ? 'Critical' : 'High'} Memory Usage</div>
+              <div style={{ fontSize: '12px', opacity: 0.9 }}>
+                {(memoryWarning.percentage * 100).toFixed(1)}% used
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Rate Limit Warning */}
+      {rateLimitWarning && (
+        <div style={{
+          position: 'absolute',
+          top: memoryWarning ? 130 : 60,
+          right: 20,
+          padding: '12px 16px',
+          background: '#ef4444',
+          color: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          fontSize: '14px',
+          fontWeight: '500',
+          zIndex: 10000,
+          animation: 'slideInRight 0.3s ease-out'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '18px' }}>🚫</span>
+            <div>
+              <div>Rate Limit Exceeded</div>
+              <div style={{ fontSize: '12px', opacity: 0.9 }}>Please slow down</div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Recovery Notification */}
+      {showRecoveryNotification && recoveryState && (
+        <div style={{
+          position: 'absolute',
+          top: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '12px 20px',
+          background: '#10b981',
+          color: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          fontSize: '14px',
+          fontWeight: '500',
+          zIndex: 10000,
+          animation: 'slideInDown 0.3s ease-out'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '18px' }}>✅</span>
+            <div>
+              <div>Canvas Recovered</div>
+              <div style={{ fontSize: '12px', opacity: 0.9 }}>
+                Restored from {new Date(recoveryState.timestamp).toLocaleTimeString()}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowRecoveryNotification(false)}
+              style={{
+                marginLeft: '12px',
+                padding: '4px',
+                background: 'transparent',
+                border: 'none',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '16px'
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Performance Metrics Display (Development Mode) */}
       {process.env.NODE_ENV === 'development' && (
         <div style={{
@@ -2927,6 +3132,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 <div>Buffer: 200px</div>
                 <div>Zoom: {viewport.zoom.toFixed(2)}x</div>
               </div>
+              {memoryWarning && (
+                <div style={{ marginTop: '4px', borderTop: '1px solid #ff0000', paddingTop: '4px' }}>
+                  <div style={{ color: memoryWarning.level === 'critical' ? '#ff0000' : '#ffaa00' }}>
+                    Memory: {(memoryWarning.percentage * 100).toFixed(1)}% {memoryWarning.level}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
