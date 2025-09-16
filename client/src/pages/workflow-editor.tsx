@@ -2853,58 +2853,60 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }}
                 />
 
-                {/* Properties Card for selected objects */}
-                <PropertiesCard
-                  selectedNode={nodes.find(n => n.id === selectedNodeId)}
-                  selectedEdge={edges.find(e => e.id === selectedEdgeId)}
-                  selectedCanvasObject={canvasObjects.find(obj => obj.selected)}
-                  selectedNodeIds={nodes.filter(n => n.selected).map(n => n.id)}
-                  selectedCanvasObjectIds={canvasObjects.filter(obj => obj.selected).map(obj => obj.id)}
-                  onNodeUpdate={(nodeId: string, updates: Partial<Node>) => {
-                    setNodes(prev => prev.map(node => 
-                      node.id === nodeId ? { ...node, ...updates } : node
-                    ));
-                    saveToHistory();
-                  }}
-                  onEdgeUpdate={(edgeId: string, updates: Partial<Edge>) => {
-                    setEdges(prev => prev.map(edge => 
-                      edge.id === edgeId ? { ...edge, ...updates } : edge
-                    ));
-                    saveToHistory();
-                  }}
-                  onCanvasObjectUpdate={(objectId: string, updates: any) => {
-                    updateActiveTab({
-                      canvasObjects: canvasObjects.map(obj => 
-                        obj.id === objectId 
-                          ? { ...obj, data: { ...obj.data, ...updates } }
-                          : obj
-                      )
-                    });
-                    saveToHistory();
-                  }}
-                  onDeselect={() => {
-                    // Only deselect the currently selected object, not all objects
-                    if (selectedNodeId) {
-                      setSelectedNodeId('');
-                      setNodes(prev => prev.map(n => 
-                        n.id === selectedNodeId ? { ...n, selected: false } : n
+                {/* Properties Card for selected objects - only show when sidebar is collapsed */}
+                {isSidebarCollapsed && (selectedNodeId || selectedEdgeId || canvasObjects.some(obj => obj.selected)) && (
+                  <PropertiesCard
+                    selectedNode={nodes.find(n => n.id === selectedNodeId)}
+                    selectedEdge={edges.find(e => e.id === selectedEdgeId)}
+                    selectedCanvasObject={canvasObjects.find(obj => obj.selected)}
+                    selectedNodeIds={nodes.filter(n => n.selected).map(n => n.id)}
+                    selectedCanvasObjectIds={canvasObjects.filter(obj => obj.selected).map(obj => obj.id)}
+                    onNodeUpdate={(nodeId: string, updates: Partial<Node>) => {
+                      setNodes(prev => prev.map(node => 
+                        node.id === nodeId ? { ...node, ...updates } : node
                       ));
-                    }
-                    if (selectedEdgeId) {
-                      setSelectedEdgeId('');
-                      setEdges(prev => prev.map(e => 
-                        e.id === selectedEdgeId ? { ...e, selected: false } : e
+                      saveToHistory();
+                    }}
+                    onEdgeUpdate={(edgeId: string, updates: Partial<Edge>) => {
+                      setEdges(prev => prev.map(edge => 
+                        edge.id === edgeId ? { ...edge, ...updates } : edge
                       ));
-                    }
-                    // Deselect any selected canvas objects
-                    const hasSelectedCanvasObjects = canvasObjects.some(obj => obj.selected);
-                    if (hasSelectedCanvasObjects) {
+                      saveToHistory();
+                    }}
+                    onCanvasObjectUpdate={(objectId: string, updates: any) => {
                       updateActiveTab({
-                        canvasObjects: canvasObjects.map(obj => ({ ...obj, selected: false }))
+                        canvasObjects: canvasObjects.map(obj => 
+                          obj.id === objectId 
+                            ? { ...obj, data: { ...obj.data, ...updates } }
+                            : obj
+                        )
                       });
-                    }
-                  }}
-                />
+                      saveToHistory();
+                    }}
+                    onDeselect={() => {
+                      // Only deselect the currently selected object, not all objects
+                      if (selectedNodeId) {
+                        setSelectedNodeId('');
+                        setNodes(prev => prev.map(n => 
+                          n.id === selectedNodeId ? { ...n, selected: false } : n
+                        ));
+                      }
+                      if (selectedEdgeId) {
+                        setSelectedEdgeId('');
+                        setEdges(prev => prev.map(e => 
+                          e.id === selectedEdgeId ? { ...e, selected: false } : e
+                        ));
+                      }
+                      // Deselect any selected canvas objects
+                      const hasSelectedCanvasObjects = canvasObjects.some(obj => obj.selected);
+                      if (hasSelectedCanvasObjects) {
+                        updateActiveTab({
+                          canvasObjects: canvasObjects.map(obj => ({ ...obj, selected: false }))
+                        });
+                      }
+                    }}
+                  />
+                )}
               </>
             ) : (
               <Sidebar

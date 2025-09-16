@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { EdgeProperties } from '@/components/shared/EdgeProperties';
 
 interface PropertiesCardProps {
   selectedNode?: Node;
@@ -414,33 +415,12 @@ export function PropertiesCard({
         )}
 
         {/* Edge Properties */}
-        {selectedEdge && (
-          <>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Edge Type</Label>
-              <div className="flex items-center gap-2 p-2 bg-muted rounded text-sm">
-                {selectedEdge.type || 'default'}
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Label</Label>
-              <Input
-                value={selectedEdge.label || ''}
-                onChange={(e) => onEdgeUpdate?.(selectedEdge.id, { label: e.target.value })}
-                className="text-sm"
-                placeholder="Edge label..."
-                data-testid="edge-label-input"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Source → Target</Label>
-              <div className="p-2 bg-muted rounded text-sm">
-                {selectedEdge.source} → {selectedEdge.target}
-              </div>
-            </div>
-          </>
+        {selectedEdge && onEdgeUpdate && (
+          <EdgeProperties
+            selectedEdge={selectedEdge}
+            onEdgeUpdate={onEdgeUpdate}
+            compact={true}
+          />
         )}
 
         {/* Canvas Object Properties */}
