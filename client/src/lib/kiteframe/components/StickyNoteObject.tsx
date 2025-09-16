@@ -183,6 +183,8 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
         object.selected && "outline outline-2 outline-blue-500"
       )}
       style={containerStyles}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onMouseDown={handleMouseDown}

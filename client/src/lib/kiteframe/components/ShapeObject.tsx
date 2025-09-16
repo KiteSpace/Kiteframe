@@ -244,6 +244,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         zIndex: object.selected ? (object.zIndex || 0) + 1000 : (object.zIndex || 0),
       }}
       data-testid={`shape-object-${object.id}`}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
       onMouseDown={handleMouseDown}
       onClick={onClick}
       onContextMenu={(e) => {

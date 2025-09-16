@@ -1474,11 +1474,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     isGroupDrag?: boolean;
   }|null>(null);
 
-  // Canvas object dragging
+  // Canvas object dragging with threshold-based click vs drag distinction
   const canvasObjectDragInfo = useRef<{ 
     id: string; 
     start: {x:number;y:number}; 
+    last: {x:number;y:number};
     origin: {x:number;y:number}; 
+    hasMoved: boolean;
+    originalEvent: React.MouseEvent; // Store original event for proper click handling
   }|null>(null);
   
   // Add capture-phase mousedown handler for shift+drag lasso from anywhere
@@ -1664,6 +1667,31 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       
       const rect = containerRef.current!.getBoundingClientRect();
       const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+      
+      // Check movement threshold (5px in screen coordinates, zoom-invariant) to distinguish drag from click
+      const screenThreshold = 5; // pixels in screen space
+      const worldThreshold = screenThreshold / viewport.zoom; // Convert to world coordinates
+      const distance = Math.sqrt(
+        Math.pow(wp.x - canvasObjectDragInfo.current.start.x, 2) + 
+        Math.pow(wp.y - canvasObjectDragInfo.current.start.y, 2)
+      );
+      
+      // Only start actual dragging after movement threshold is exceeded
+      if (distance > worldThreshold && !canvasObjectDragInfo.current.hasMoved) {
+        canvasObjectDragInfo.current.hasMoved = true;
+        console.log('🔧 CANVAS OBJECT DRAG THRESHOLD EXCEEDED:', {
+          objectId: canvasObjectDragInfo.current.id,
+          distance,
+          worldPos: wp
+        });
+      }
+      
+      // Only update position if we're actually dragging (not just tracking potential drag)
+      if (!canvasObjectDragInfo.current.hasMoved) {
+        canvasObjectDragInfo.current.last = wp;
+        return;
+      }
+      
       const dx = wp.x - canvasObjectDragInfo.current.start.x;
       const dy = wp.y - canvasObjectDragInfo.current.start.y;
       
@@ -1671,6 +1699,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         x: canvasObjectDragInfo.current.origin.x + dx,
         y: canvasObjectDragInfo.current.origin.y + dy
       };
+      
+      console.log('🔧 CANVAS OBJECT DRAG MOVE:', {
+        objectId: canvasObjectDragInfo.current.id,
+        worldPos: wp,
+        delta: { dx, dy },
+        newPosition
+      });
       
       // Apply smart guides if enabled
       let finalPosition = newPosition;
@@ -1726,6 +1761,29 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     };
     
     const onUp = () => { 
+      // Handle canvas object drag end first (priority gate)
+      if (canvasObjectDragInfo.current) {
+        console.log('🔧 CANVAS OBJECT DRAG END:', canvasObjectDragInfo.current);
+        
+        // If no movement occurred, treat as a click and use centralized click handler
+        if (!canvasObjectDragInfo.current.hasMoved) {
+          const objectId = canvasObjectDragInfo.current.id;
+          const targetObject = (props.canvasObjects || []).find(obj => obj.id === objectId);
+          
+          if (targetObject) {
+            console.log('✅ Canvas Object Click (no drag):', { objectId });
+            
+            // Use centralized click handler with original event (preserves modifier keys)
+            handleCanvasObjectClick(objectId, canvasObjectDragInfo.current.originalEvent);
+          }
+        }
+        
+        canvasObjectDragInfo.current = null;
+        setCurrentGuides([]);
+        return; // Exit early, don't process node drag end
+      }
+      
+      // Handle node drag end only if no canvas object drag is active
       if (dragInfo.current) {
         console.log('🔧 DRAG END:', dragInfo.current);
         
@@ -1745,12 +1803,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         dragInfo.current = null;
       }
       
-      if (canvasObjectDragInfo.current) {
-        console.log('🔧 CANVAS OBJECT DRAG END:', canvasObjectDragInfo.current);
-        canvasObjectDragInfo.current = null;
-      }
-      
-      // Clear guides when drag ends
+      // Clear guides when drag ends (only for node drags, canvas object guides cleared above)
       setCurrentGuides([]);
     };
     
@@ -2694,8 +2747,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             }
           };
           
-          // Canvas object drag handler
+          // Canvas object drag handler with threshold-based interaction
           const handleCanvasObjectDragStart = (objectId: string, e: React.MouseEvent) => {
+            e.preventDefault();
             e.stopPropagation();
             if (!containerRef.current) return;
             
@@ -2704,17 +2758,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             const targetObject = (props.canvasObjects || []).find(obj => obj.id === objectId);
             
             if (targetObject) {
-              // Select the object when dragging starts
-              const updatedObjects = (props.canvasObjects || []).map(canvasObject => ({
-                ...canvasObject,
-                selected: canvasObject.id === objectId
-              }));
-              props.onCanvasObjectsChange?.(updatedObjects);
-              
+              // Initialize drag state without immediate selection - selection happens on mouseup if no movement
               canvasObjectDragInfo.current = {
                 id: objectId,
                 start: wp,
-                origin: { ...targetObject.position }
+                last: wp,
+                origin: { ...targetObject.position },
+                hasMoved: false,
+                originalEvent: e
               };
               
               console.log('🔧 CANVAS OBJECT DRAG START:', {

@@ -264,6 +264,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
         ...containerStyles,
         ...style
       }}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onMouseDown={handleMouseDown}
