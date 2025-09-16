@@ -4072,6 +4072,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   )
                 });
               }
+              setContextMenu(null);
             }}
             onBringForward={() => {
               if (contextMenu.node) {
@@ -4099,6 +4100,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   )
                 });
               }
+              setContextMenu(null);
             }}
             onSendBackward={() => {
               if (contextMenu.node) {
@@ -4126,6 +4128,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   )
                 });
               }
+              setContextMenu(null);
             }}
             onSendToBack={() => {
               if (contextMenu.node) {
@@ -4151,6 +4154,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   )
                 });
               }
+              setContextMenu(null);
             }}
             onDelete={() => {
               if (contextMenu.node) {

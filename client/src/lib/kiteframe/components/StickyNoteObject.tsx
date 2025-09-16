@@ -97,8 +97,8 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only start drag if not editing and not clicking on resize handle or delete button
-    if (!isEditing && !e.defaultPrevented) {
+    // Only start drag if not editing and not clicking on resize handle or delete button, and only on left-click
+    if (!isEditing && !e.defaultPrevented && e.button === 0) {
       onStartDrag?.(e);
     }
   };
@@ -157,7 +157,7 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
     boxShadow: object.data.shadow?.enabled 
       ? `${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'}`
       : '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', // Default shadow
-    zIndex: object.selected ? (object.zIndex || 0) + 1000 : (object.zIndex || 0),
+    zIndex: object.zIndex || 0,
     // Padding
     padding: object.data.padding 
       ? `${object.data.padding.top || 12}px ${object.data.padding.right || 12}px ${object.data.padding.bottom || 12}px ${object.data.padding.left || 12}px`

@@ -163,8 +163,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only start drag if not clicking on resize handle and not editing
-    if (!e.defaultPrevented && !isEditing) {
+    // Only start drag if not clicking on resize handle and not editing, and only on left-click
+    if (!e.defaultPrevented && !isEditing && e.button === 0) {
       onStartDrag?.(e);
     }
   };
@@ -260,7 +260,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
         top: object.position.y,
         width: textSize.width,
         height: textSize.height,
-        zIndex: object.selected ? (object.zIndex || 0) + 1000 : (object.zIndex || 0),
+        zIndex: object.zIndex || 0,
         ...containerStyles,
         ...style
       }}

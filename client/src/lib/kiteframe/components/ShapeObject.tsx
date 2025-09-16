@@ -40,8 +40,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   }, [onResize]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Start drag if not clicking on resize handle
-    if (!e.defaultPrevented) {
+    // Start drag if not clicking on resize handle, and only on left-click
+    if (!e.defaultPrevented && e.button === 0) {
       onStartDrag?.(e);
     }
   };
@@ -241,7 +241,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         top: object.position.y,
         width: shapeSize.width,
         height: shapeSize.height,
-        zIndex: object.selected ? (object.zIndex || 0) + 1000 : (object.zIndex || 0),
+        zIndex: object.zIndex || 0,
       }}
       data-testid={`shape-object-${object.id}`}
       draggable={false}
