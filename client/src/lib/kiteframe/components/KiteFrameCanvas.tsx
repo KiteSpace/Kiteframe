@@ -1783,10 +1783,28 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           }
         }
         
-        // Dispatch global canvas object drag end event
-        window.dispatchEvent(new CustomEvent('canvasObjectDragEnd', {
-          detail: { objectId: canvasObjectDragInfo.current.id }
-        }));
+        // Only dispatch drag end event if there was substantial movement (similar to nodes)
+        // Calculate movement distance to determine if this was a real drag
+        if (canvasObjectDragInfo.current) {
+          const currentObject = (props.canvasObjects || []).find(obj => obj.id === canvasObjectDragInfo.current!.id);
+          
+          if (currentObject && canvasObjectDragInfo.current.hasMoved) {
+            const distance = Math.sqrt(
+              Math.pow(currentObject.position.x - canvasObjectDragInfo.current.origin.x, 2) + 
+              Math.pow(currentObject.position.y - canvasObjectDragInfo.current.origin.y, 2)
+            );
+            
+            // Only dispatch if there was substantial movement (similar to dragThreshold)
+            if (distance > dragThreshold) {
+              console.log('🔧 CANVAS OBJECT: Dispatching drag end event due to substantial movement:', { distance, threshold: dragThreshold });
+              window.dispatchEvent(new CustomEvent('canvasObjectDragEnd', {
+                detail: { objectId: canvasObjectDragInfo.current.id }
+              }));
+            } else {
+              console.log('🔧 CANVAS OBJECT: Not dispatching drag end event - insufficient movement:', { distance, threshold: dragThreshold });
+            }
+          }
+        }
         
         canvasObjectDragInfo.current = null;
         setCurrentGuides([]);
@@ -2084,10 +2102,23 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     
     // Clear drag info after successful click
     if (canvasObjectDragInfo.current) {
-      // Dispatch global canvas object drag end event
-      window.dispatchEvent(new CustomEvent('canvasObjectDragEnd', {
-        detail: { objectId: canvasObjectDragInfo.current.id }
-      }));
+      // Only dispatch drag end event if there was substantial movement (similar to nodes)
+      if (canvasObjectDragInfo.current.hasMoved) {
+        const distance = Math.sqrt(
+          Math.pow(targetObject.position.x - canvasObjectDragInfo.current.origin.x, 2) + 
+          Math.pow(targetObject.position.y - canvasObjectDragInfo.current.origin.y, 2)
+        );
+        
+        // Only dispatch if there was substantial movement (similar to dragThreshold)
+        if (distance > dragThreshold) {
+          console.log('🔧 CANVAS OBJECT CLICK: Dispatching drag end event due to substantial movement:', { distance, threshold: dragThreshold });
+          window.dispatchEvent(new CustomEvent('canvasObjectDragEnd', {
+            detail: { objectId: canvasObjectDragInfo.current.id }
+          }));
+        } else {
+          console.log('🔧 CANVAS OBJECT CLICK: Not dispatching drag end event - insufficient movement:', { distance, threshold: dragThreshold });
+        }
+      }
       canvasObjectDragInfo.current = null;
     }
     
