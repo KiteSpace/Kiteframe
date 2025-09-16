@@ -242,6 +242,9 @@ Position nodes 250px apart horizontally.`;
           // Remove trailing commas
           fixedResponse = fixedResponse.replace(/,(\s*[}\]])/g, '$1');
           
+          // Fix missing commas between array/object elements
+          fixedResponse = fixedResponse.replace(/([}\]])\s*([{"])/g, '$1,$2');
+          
           // Fix unquoted keys
           fixedResponse = fixedResponse.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
           
@@ -253,6 +256,9 @@ Position nodes 250px apart horizontally.`;
           
           // Remove any duplicate commas
           fixedResponse = fixedResponse.replace(/,,+/g, ',');
+          
+          // Fix missing commas after object/array elements (specific to the error we're seeing)
+          fixedResponse = fixedResponse.replace(/([}\]])\s*(\{|\[)/g, '$1,$2');
           
           // Try to fix incomplete JSON by balancing brackets
           const openBraces = (fixedResponse.match(/\{/g) || []).length;
