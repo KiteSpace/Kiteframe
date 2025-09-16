@@ -14,6 +14,7 @@ interface PropertiesCardProps {
   // Additional props to detect mixed selections
   selectedNodeIds?: string[];
   selectedCanvasObjectIds?: string[];
+  nodes?: Node[]; // For EdgeProperties to lookup node labels
   onNodeUpdate?: (nodeId: string, updates: Partial<Node>) => void;
   onEdgeUpdate?: (edgeId: string, updates: Partial<Edge>) => void;
   onCanvasObjectUpdate?: (objectId: string, updates: Partial<any>) => void;
@@ -26,6 +27,7 @@ export function PropertiesCard({
   selectedCanvasObject,
   selectedNodeIds = [],
   selectedCanvasObjectIds = [],
+  nodes = [],
   onNodeUpdate,
   onEdgeUpdate,
   onCanvasObjectUpdate,
@@ -419,6 +421,7 @@ export function PropertiesCard({
           <EdgeProperties
             selectedEdge={selectedEdge}
             onEdgeUpdate={onEdgeUpdate}
+            nodes={nodes}
             compact={true}
           />
         )}

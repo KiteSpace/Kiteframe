@@ -1,4 +1,4 @@
-import { Edge } from '@/lib/kiteframe/types';
+import { Edge, Node } from '@/lib/kiteframe/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -7,10 +7,17 @@ import { Palette } from 'lucide-react';
 interface EdgePropertiesProps {
   selectedEdge: Edge;
   onEdgeUpdate: (edgeId: string, updates: Partial<Edge>) => void;
+  nodes?: Node[]; // For looking up node labels
   compact?: boolean; // For different styling between sidebar and card
 }
 
-export function EdgeProperties({ selectedEdge, onEdgeUpdate, compact = false }: EdgePropertiesProps) {
+export function EdgeProperties({ selectedEdge, onEdgeUpdate, nodes = [], compact = false }: EdgePropertiesProps) {
+  // Find source and target nodes for display
+  const sourceNode = nodes.find(node => node.id === selectedEdge.source);
+  const targetNode = nodes.find(node => node.id === selectedEdge.target);
+  const sourceLabel = sourceNode?.data?.label || selectedEdge.source;
+  const targetLabel = targetNode?.data?.label || selectedEdge.target;
+  
   return (
     <>
       {/* Connection Type */}
@@ -46,7 +53,7 @@ export function EdgeProperties({ selectedEdge, onEdgeUpdate, compact = false }: 
           <div className="flex items-center gap-2">
             <input
               type="color"
-              value={selectedEdge.style?.strokeColor || '#3b82f6'}
+              value={selectedEdge.style?.strokeColor || '#64748b'}
               onChange={(e) => onEdgeUpdate(selectedEdge.id, {
                 style: { ...(selectedEdge.style || {}), strokeColor: e.target.value }
               })}
@@ -55,12 +62,12 @@ export function EdgeProperties({ selectedEdge, onEdgeUpdate, compact = false }: 
             />
             <Input
               type="text"
-              value={selectedEdge.style?.strokeColor || '#3b82f6'}
+              value={selectedEdge.style?.strokeColor || '#64748b'}
               onChange={(e) => onEdgeUpdate(selectedEdge.id, {
                 style: { ...(selectedEdge.style || {}), strokeColor: e.target.value }
               })}
               className={compact ? "flex-1 text-xs" : "flex-1 text-xs p-1.5 border border-border rounded bg-background"}
-              placeholder="#3b82f6"
+              placeholder="#64748b"
               data-testid="input-edge-color-text"
             />
           </div>
@@ -153,7 +160,7 @@ export function EdgeProperties({ selectedEdge, onEdgeUpdate, compact = false }: 
       <div className="space-y-2">
         <Label className="text-xs font-medium">Connection</Label>
         <div className="p-2 bg-muted rounded text-sm">
-          {selectedEdge.source} → {selectedEdge.target}
+          {sourceLabel} → {targetLabel}
         </div>
       </div>
     </>

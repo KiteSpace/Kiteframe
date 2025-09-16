@@ -65,6 +65,7 @@ interface SidebarProps {
   selectedNodes?: Node[];
   selectedEdge?: Edge;
   selectedCanvasObjects?: CanvasObject[];
+  nodes?: Node[]; // For EdgeProperties to lookup node labels
   onCreateNode: (type: string) => void;
   onCreateNodeAtPosition?: (type: string, position: { x: number; y: number }) => void;
   onFitView: () => void;
@@ -108,6 +109,7 @@ export function Sidebar({
   selectedNodes = [],
   selectedEdge,
   selectedCanvasObjects = [],
+  nodes = [],
   onCreateNode,
   onCreateNodeAtPosition,
   onFitView,
@@ -1506,6 +1508,7 @@ export function Sidebar({
               <EdgeProperties
                 selectedEdge={selectedEdge}
                 onEdgeUpdate={onEdgeUpdate}
+                nodes={nodes}
                 compact={false}
               />
             </div>

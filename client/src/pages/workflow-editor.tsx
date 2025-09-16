@@ -2861,6 +2861,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     selectedCanvasObject={canvasObjects.find(obj => obj.selected)}
                     selectedNodeIds={nodes.filter(n => n.selected).map(n => n.id)}
                     selectedCanvasObjectIds={canvasObjects.filter(obj => obj.selected).map(obj => obj.id)}
+                    nodes={nodes}
                     onNodeUpdate={(nodeId: string, updates: Partial<Node>) => {
                       setNodes(prev => prev.map(node => 
                         node.id === nodeId ? { ...node, ...updates } : node
@@ -2913,6 +2914,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 selectedNode={nodes.find(n => n.id === selectedNodeId)}
                 selectedNodes={nodes.filter(n => n.selected)}
                 selectedEdge={edges.find(e => e.id === selectedEdgeId)}
+                nodes={nodes}
                 onToggleSidebar={toggleSidebar}
                 onCreateNode={(type: string) => {
                 // Create a new tab if none exist
