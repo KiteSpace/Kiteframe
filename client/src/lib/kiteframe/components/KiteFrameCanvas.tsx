@@ -110,17 +110,19 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
 
   // Handle keydown events for F2 and form interactions
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F2' && mode === 'collapsed') {
-        e.preventDefault();
+    const handleKeyDown = (e: Event) => {
+      const keyboardEvent = e as KeyboardEvent;
+      if (keyboardEvent.key === 'F2' && mode === 'collapsed') {
+        keyboardEvent.preventDefault();
         console.log('🔧 F2 pressed - entering name edit mode');
         setMode('editing-name');
         cleanupManager.setTimeout(() => inputRef.current?.focus(), 0);
       }
     };
 
-    const handleClickOutside = (e: MouseEvent) => {
-      if (mode === 'expanded' && formRef.current && !formRef.current.contains(e.target as HTMLElement)) {
+    const handleClickOutside = (e: Event) => {
+      const mouseEvent = e as MouseEvent;
+      if (mode === 'expanded' && formRef.current && !formRef.current.contains(mouseEvent.target as HTMLElement)) {
         console.log('🔧 Click outside detected - auto-saving form data');
         // Use refs to get the latest values instead of stale closure
         const latestFormData = formDataRef.current;
@@ -1486,21 +1488,22 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   
   // Add capture-phase mousedown handler for shift+drag lasso from anywhere
   useEffect(() => {
-    const handleCaptureMouseDown = (e: MouseEvent) => {
+    const handleCaptureMouseDown = (e: Event) => {
+      const mouseEvent = e as MouseEvent;
       console.log('🔍 CAPTURE PHASE mousedown:', {
-        shiftKey: e.shiftKey,
-        ctrlKey: e.ctrlKey,
-        target: e.target,
-        targetTag: (e.target as HTMLElement)?.tagName,
-        targetClass: (e.target as HTMLElement)?.className,
-        clientX: e.clientX,
-        clientY: e.clientY,
+        shiftKey: mouseEvent.shiftKey,
+        ctrlKey: mouseEvent.ctrlKey,
+        target: mouseEvent.target,
+        targetTag: (mouseEvent.target as HTMLElement)?.tagName,
+        targetClass: (mouseEvent.target as HTMLElement)?.className,
+        clientX: mouseEvent.clientX,
+        clientY: mouseEvent.clientY,
         containerExists: !!containerRef.current
       });
       
-      if (e.shiftKey && containerRef.current) {
+      if (mouseEvent.shiftKey && containerRef.current) {
         // Check if target is not an input or contentEditable to avoid interfering with text editing
-        const target = e.target as HTMLElement;
+        const target = mouseEvent.target as HTMLElement;
         const isTextEditable = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
         
         console.log('🎯 SHIFT+MOUSEDOWN detected:', {
@@ -1517,9 +1520,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         }
         
         console.log('🚀 PREVENTING default and starting unified selection');
-        e.preventDefault();
-        e.stopPropagation();
-        startUnifiedSelection(e.clientX, e.clientY);
+        mouseEvent.preventDefault();
+        mouseEvent.stopPropagation();
+        startUnifiedSelection(mouseEvent.clientX, mouseEvent.clientY);
       }
     };
 
@@ -1532,16 +1535,17 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   // Simple drag tracking without interference
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: Event) => {
+      const mouseEvent = e as MouseEvent;
       // Handle node dragging
       if (dragInfo.current) {
-        handleNodeDragMove(e);
+        handleNodeDragMove(mouseEvent);
         return;
       }
       
       // Handle canvas object dragging
       if (canvasObjectDragInfo.current) {
-        handleCanvasObjectDragMove(e);
+        handleCanvasObjectDragMove(mouseEvent);
         return;
       }
     };
@@ -1778,6 +1782,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           }
         }
         
+        // Dispatch global canvas object drag end event
+        window.dispatchEvent(new CustomEvent('canvasObjectDragEnd', {
+          detail: { objectId: canvasObjectDragInfo.current.id }
+        }));
+        
         canvasObjectDragInfo.current = null;
         setCurrentGuides([]);
         return; // Exit early, don't process node drag end
@@ -1817,9 +1826,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   // Keyboard event handling for deleting selected items (both nodes and canvas objects)
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: Event) => {
+      const keyboardEvent = e as KeyboardEvent;
       // Only handle delete/backspace keys
-      if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (keyboardEvent.key === 'Delete' || keyboardEvent.key === 'Backspace') {
         // Security: Rate limit delete operations
         if (!actionRateLimiter.isAllowed('delete')) {
           console.warn('⚠️ Delete rate limit exceeded');
@@ -1834,7 +1844,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           
           // If we have any selected items, prevent default and delete them
           if (selectedNodes.length > 0 || selectedObjects.length > 0) {
-            e.preventDefault();
+            keyboardEvent.preventDefault();
             
             // Save state before deletion for recovery
             saveState(props.nodes, props.edges, viewport);
@@ -1995,6 +2005,75 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   };
 
   const worldStyle = { transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})` };
+
+  // Canvas object click handler for selection
+  const handleCanvasObjectClick = (objectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Suppress clicks during or immediately after unified selection
+    if (selectionInProgress.current || justCompletedUnifiedSelection.current) {
+      console.log('🚫 Click suppressed - selection in progress or just completed');
+      return;
+    }
+    
+    // Check if this click is happening too close to a drag operation
+    if (canvasObjectDragInfo.current) {
+      const dragInfo = canvasObjectDragInfo.current;
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const currentPos = clientToWorld(e.clientX, e.clientY, viewport, rect);
+        const distance = Math.sqrt(
+          Math.pow(currentPos.x - dragInfo.start.x, 2) + 
+          Math.pow(currentPos.y - dragInfo.start.y, 2)
+        );
+        
+        // If we moved more than threshold, this is the end of a drag, not a click
+        if (distance > dragThreshold) {
+          console.log('🚫 Click suppressed - too close to drag operation', { distance, threshold: dragThreshold });
+          canvasObjectDragInfo.current = null;
+          return;
+        }
+      }
+    }
+    
+    const targetObject = (props.canvasObjects || []).find(obj => obj.id === objectId);
+    if (!targetObject) return;
+    
+    let updatedObjects: CanvasObject[];
+    
+    if (e.shiftKey) {
+      // Shift+Click: Toggle selection of this object without affecting node selections
+      updatedObjects = (props.canvasObjects || []).map(canvasObject => 
+        canvasObject.id === objectId 
+          ? { ...canvasObject, selected: !canvasObject.selected }
+          : canvasObject
+      );
+      console.log('✅ Canvas Object Shift+Click toggle:', { objectId, newSelected: !targetObject.selected });
+    } else {
+      // Regular click: Select only this object, deselect other canvas objects but preserve node selections
+      updatedObjects = (props.canvasObjects || []).map(canvasObject => ({
+        ...canvasObject,
+        selected: canvasObject.id === objectId
+      }));
+      console.log('✅ Canvas Object Regular click select:', { objectId });
+    }
+    
+    props.onCanvasObjectsChange?.(updatedObjects);
+    
+    // Clear drag info after successful click
+    if (canvasObjectDragInfo.current) {
+      // Dispatch global canvas object drag end event
+      window.dispatchEvent(new CustomEvent('canvasObjectDragEnd', {
+        detail: { objectId: canvasObjectDragInfo.current.id }
+      }));
+      canvasObjectDragInfo.current = null;
+    }
+    
+    // Call the external handler if provided
+    if (props.onCanvasObjectClick) {
+      props.onCanvasObjectClick(e, targetObject);
+    }
+  };
 
   // Get selected nodes count for screen reader announcements
   const selectedNodes = props.nodes.filter(n => n.selected);
@@ -2683,69 +2762,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             });
             props.onCanvasObjectsChange?.(updatedObjects);
           };
-
-          // Canvas object click handler for selection
-          const handleCanvasObjectClick = (objectId: string, e: React.MouseEvent) => {
-            e.stopPropagation();
-            
-            // Suppress clicks during or immediately after unified selection
-            if (selectionInProgress.current || justCompletedUnifiedSelection.current) {
-              console.log('🚫 Click suppressed - selection in progress or just completed');
-              return;
-            }
-            
-            // Check if this click is happening too close to a drag operation
-            if (canvasObjectDragInfo.current) {
-              const dragInfo = canvasObjectDragInfo.current;
-              const rect = containerRef.current?.getBoundingClientRect();
-              if (rect) {
-                const currentPos = clientToWorld(e.clientX, e.clientY, viewport, rect);
-                const distance = Math.sqrt(
-                  Math.pow(currentPos.x - dragInfo.start.x, 2) + 
-                  Math.pow(currentPos.y - dragInfo.start.y, 2)
-                );
-                
-                // If we moved more than threshold, this is the end of a drag, not a click
-                if (distance > dragThreshold) {
-                  console.log('🚫 Click suppressed - too close to drag operation', { distance, threshold: dragThreshold });
-                  canvasObjectDragInfo.current = null;
-                  return;
-                }
-              }
-            }
-            
-            const targetObject = (props.canvasObjects || []).find(obj => obj.id === objectId);
-            if (!targetObject) return;
-            
-            let updatedObjects: CanvasObject[];
-            
-            if (e.shiftKey) {
-              // Shift+Click: Toggle selection of this object without affecting node selections
-              updatedObjects = (props.canvasObjects || []).map(canvasObject => 
-                canvasObject.id === objectId 
-                  ? { ...canvasObject, selected: !canvasObject.selected }
-                  : canvasObject
-              );
-              console.log('✅ Canvas Object Shift+Click toggle:', { objectId, newSelected: !targetObject.selected });
-            } else {
-              // Regular click: Select only this object, deselect other canvas objects but preserve node selections
-              updatedObjects = (props.canvasObjects || []).map(canvasObject => ({
-                ...canvasObject,
-                selected: canvasObject.id === objectId
-              }));
-              console.log('✅ Canvas Object Regular click select:', { objectId });
-            }
-            
-            props.onCanvasObjectsChange?.(updatedObjects);
-            
-            // Clear drag info after successful click
-            canvasObjectDragInfo.current = null;
-            
-            // Call the external handler if provided
-            if (props.onCanvasObjectClick) {
-              props.onCanvasObjectClick(e, targetObject);
-            }
-          };
           
           // Canvas object drag handler with threshold-based interaction
           const handleCanvasObjectDragStart = (objectId: string, e: React.MouseEvent) => {
@@ -2758,6 +2774,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             const targetObject = (props.canvasObjects || []).find(obj => obj.id === objectId);
             
             if (targetObject) {
+              // Dispatch global canvas object drag start event to cancel click timers
+              window.dispatchEvent(new CustomEvent('canvasObjectDragStart', {
+                detail: { objectId }
+              }));
+              
               // Initialize drag state without immediate selection - selection happens on mouseup if no movement
               canvasObjectDragInfo.current = {
                 id: objectId,

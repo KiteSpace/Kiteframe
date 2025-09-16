@@ -2028,6 +2028,73 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [nodes, edges, setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, saveToHistory]);
 
+  // Listen for edge drag events to cancel click timers
+  useEffect(() => {
+    const handleEdgeDragStart = () => {
+      console.log('📝 EDGE DRAG START - canceling any pending click timers');
+      isDraggingRef.current = true;
+      if (clickDelayTimeoutRef.current) {
+        clearTimeout(clickDelayTimeoutRef.current);
+        clickDelayTimeoutRef.current = null;
+      }
+    };
+
+    const handleEdgeDragEnd = () => {
+      console.log('📝 EDGE DRAG END - ready for next click');
+      // Reset drag state after a short delay
+      if (dragResetTimeoutRef.current) {
+        clearTimeout(dragResetTimeoutRef.current);
+      }
+      dragResetTimeoutRef.current = setTimeout(() => {
+        isDraggingRef.current = false;
+      }, 100);
+    };
+
+    const handleCanvasObjectDragStart = () => {
+      console.log('📝 CANVAS OBJECT DRAG START - canceling any pending click timers');
+      isDraggingRef.current = true;
+      if (clickDelayTimeoutRef.current) {
+        clearTimeout(clickDelayTimeoutRef.current);
+        clickDelayTimeoutRef.current = null;
+      }
+    };
+
+    const handleCanvasObjectDragEnd = () => {
+      console.log('📝 CANVAS OBJECT DRAG END - ready for next click');
+      // Reset drag state after a short delay
+      if (dragResetTimeoutRef.current) {
+        clearTimeout(dragResetTimeoutRef.current);
+      }
+      dragResetTimeoutRef.current = setTimeout(() => {
+        isDraggingRef.current = false;
+      }, 100);
+    };
+
+    window.addEventListener('edgeHandleDragStart', handleEdgeDragStart);
+    window.addEventListener('edgeHandleDragEnd', handleEdgeDragEnd);
+    window.addEventListener('canvasObjectDragStart', handleCanvasObjectDragStart);
+    window.addEventListener('canvasObjectDragEnd', handleCanvasObjectDragEnd);
+
+    return () => {
+      window.removeEventListener('edgeHandleDragStart', handleEdgeDragStart);
+      window.removeEventListener('edgeHandleDragEnd', handleEdgeDragEnd);
+      window.removeEventListener('canvasObjectDragStart', handleCanvasObjectDragStart);
+      window.removeEventListener('canvasObjectDragEnd', handleCanvasObjectDragEnd);
+    };
+  }, []);
+
+  // Cleanup timers on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (clickDelayTimeoutRef.current) {
+        clearTimeout(clickDelayTimeoutRef.current);
+      }
+      if (dragResetTimeoutRef.current) {
+        clearTimeout(dragResetTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
 
@@ -2140,6 +2207,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [workflowNameInput, setWorkflowNameInput] = useState('');
   const [copiedProperties, setCopiedProperties] = useState<{ colors?: any; data?: Partial<Node['data']> } | null>(null);
   const [copiedCanvasObjectProperties, setCopiedCanvasObjectProperties] = useState<{ data?: any; style?: any } | null>(null);
+
+  // Click vs drag detection for properties panel
+  const clickDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDraggingRef = useRef(false);
+  const dragResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sidebar collapse state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -3513,6 +3585,26 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       nodeCount: changes.length,
                       sample: changes[0]
                     });
+                    
+                    // Mark as dragging to prevent properties panel from opening
+                    isDraggingRef.current = true;
+                    
+                    // Cancel any pending click delay timer since we're now dragging
+                    if (clickDelayTimeoutRef.current) {
+                      clearTimeout(clickDelayTimeoutRef.current);
+                      clickDelayTimeoutRef.current = null;
+                      console.log('📝 CANCELLED PROPERTIES PANEL due to drag operation');
+                    }
+                    
+                    // Reset drag state after a delay (when user stops dragging)
+                    if (dragResetTimeoutRef.current) {
+                      clearTimeout(dragResetTimeoutRef.current);
+                    }
+                    dragResetTimeoutRef.current = setTimeout(() => {
+                      isDraggingRef.current = false;
+                      console.log('📝 DRAG STATE RESET - ready for next click');
+                    }, 200); // Reset after 200ms of no drag activity
+                    
                     setNodes(changes as Node[]);
                     // Don't save to history on every drag move, only on drag end
                   } else {
@@ -3677,8 +3769,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   tabId: activeTab 
                 });
                 
+                // Clear any existing click delay timer
+                if (clickDelayTimeoutRef.current) {
+                  clearTimeout(clickDelayTimeoutRef.current);
+                  clickDelayTimeoutRef.current = null;
+                }
+                
                 if (e.shiftKey) {
-                  // Shift+click for multi-select
+                  // Shift+click for multi-select - immediate action
                   setNodes(prev => {
                     const updated = prev.map(n => {
                       if (n.id === node.id) {
@@ -3695,7 +3793,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   
                   // Don't change selectedNodeId during multi-select to preserve the selection
                 } else {
-                  // Regular click - single select
+                  // Regular click - update selection immediately but delay properties panel
                   setNodes(prev => {
                     const updated = prev.map(n => ({ ...n, selected: n.id === node.id }));
                     console.log(`📝 SINGLE SELECT UPDATE:`, { 
@@ -3704,7 +3802,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     });
                     return updated;
                   });
-                  setSelectedNodeId(node.id);
+                  
+                  // Reset drag detection
+                  isDraggingRef.current = false;
+                  
+                  // Delay opening properties panel to detect if this becomes a drag
+                  clickDelayTimeoutRef.current = setTimeout(() => {
+                    if (!isDraggingRef.current) {
+                      console.log(`📝 CLICK CONFIRMED (no drag detected) - opening properties panel for:`, node.id);
+                      setSelectedNodeId(node.id);
+                    } else {
+                      console.log(`📝 DRAG DETECTED - not opening properties panel for:`, node.id);
+                    }
+                    clickDelayTimeoutRef.current = null;
+                  }, 150); // 150ms delay to detect drag
                 }
                 
                 setEdges(prev => prev.map(e => ({ ...e, selected: false })));
@@ -3714,7 +3825,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setContextMenu(null);
                 
                 console.log(`📝 SELECTION STATE SET:`, { 
-                  selectedNodeId: e.shiftKey ? selectedNodeId : node.id,
+                  selectedNodeId: e.shiftKey ? selectedNodeId : 'delayed for drag detection',
                   selectedEdgeId: '',
                   tabId: activeTab 
                 });
@@ -3726,6 +3837,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   tabId: activeTab 
                 });
                 
+                // Clear any existing click delay timer
+                if (clickDelayTimeoutRef.current) {
+                  clearTimeout(clickDelayTimeoutRef.current);
+                  clickDelayTimeoutRef.current = null;
+                }
+                
                 setNodes(prev => prev.map(n => ({ ...n, selected: false })));
                 setEdges(prev => {
                   const updated = prev.map(e => ({ ...e, selected: e.id === edge.id }));
@@ -3736,8 +3853,21 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   return updated;
                 });
                 setSelectedNodeId('');
-                setSelectedEdgeId(edge.id);
                 setContextMenu(null);
+                
+                // Reset drag detection
+                isDraggingRef.current = false;
+                
+                // Delay opening properties panel for edges too
+                clickDelayTimeoutRef.current = setTimeout(() => {
+                  if (!isDraggingRef.current) {
+                    console.log(`📝 EDGE CLICK CONFIRMED (no drag detected) - opening properties panel for:`, edge.id);
+                    setSelectedEdgeId(edge.id);
+                  } else {
+                    console.log(`📝 EDGE DRAG DETECTED - not opening properties panel for:`, edge.id);
+                  }
+                  clickDelayTimeoutRef.current = null;
+                }, 150); // 150ms delay
                 
                 console.log(`🔗 EDGE SELECTED FOR RECONNECTION:`, { 
                   edgeId: edge.id, 
@@ -3748,7 +3878,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 
                 console.log(`📝 SELECTION STATE SET:`, { 
                   selectedNodeId: '',
-                  selectedEdgeId: edge.id,
+                  selectedEdgeId: 'delayed for drag detection',
                   tabId: activeTab 
                 });
               }}
@@ -3772,6 +3902,53 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }}
               onNodeRightClick={(e: React.MouseEvent, node: Node) => {
                 setContextMenu({ x: e.clientX, y: e.clientY, node });
+              }}
+              onCanvasObjectClick={(canvasObject: CanvasObject) => {
+                console.log(`📝 EDITOR CANVAS OBJECT CLICK HANDLER:`, { 
+                  canvasObjectId: canvasObject.id, 
+                  currentSelected: canvasObjects.find(obj => obj.selected)?.id,
+                  tabId: activeTab 
+                });
+                
+                // Clear any existing click delay timer
+                if (clickDelayTimeoutRef.current) {
+                  clearTimeout(clickDelayTimeoutRef.current);
+                  clickDelayTimeoutRef.current = null;
+                }
+                
+                // Clear node and edge selections
+                setNodes(prev => prev.map(n => ({ ...n, selected: false })));
+                setEdges(prev => prev.map(e => ({ ...e, selected: false })));
+                setSelectedNodeId('');
+                setSelectedEdgeId('');
+                setContextMenu(null);
+                
+                // Update canvas object selection immediately but delay properties panel
+                updateActiveTab({
+                  canvasObjects: canvasObjects.map(obj => ({ ...obj, selected: obj.id === canvasObject.id }))
+                });
+                
+                // Reset drag detection
+                isDraggingRef.current = false;
+                
+                // Delay opening properties panel for canvas objects too
+                clickDelayTimeoutRef.current = setTimeout(() => {
+                  if (!isDraggingRef.current) {
+                    console.log(`📝 CANVAS OBJECT CLICK CONFIRMED (no drag detected) - properties panel for:`, canvasObject.id);
+                    // Canvas object properties are shown based on selection state, not a separate ID
+                    // The properties panel will automatically show for the selected canvas object
+                  } else {
+                    console.log(`📝 CANVAS OBJECT DRAG DETECTED - not opening properties panel for:`, canvasObject.id);
+                  }
+                  clickDelayTimeoutRef.current = null;
+                }, 150); // 150ms delay
+                
+                console.log(`📝 CANVAS OBJECT SELECTION STATE SET:`, { 
+                  selectedNodeId: '',
+                  selectedEdgeId: '',
+                  selectedCanvasObjectId: canvasObject.id,
+                  tabId: activeTab 
+                });
               }}
               onCanvasObjectRightClick={(e: React.MouseEvent, canvasObject: CanvasObject) => {
                 setContextMenu({ x: e.clientX, y: e.clientY, canvasObject });
