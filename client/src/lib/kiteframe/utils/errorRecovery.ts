@@ -25,6 +25,10 @@ export class ErrorRecoveryManager {
   private errorCount = 0;
   private errorThreshold = 3;
   private recoveryCallbacks: ((state: RecoveryState) => void)[] = [];
+  private autoSaveEnabled = true;
+  private quotaExceeded = false;
+  private lastAutoSave = 0;
+  private autoSaveDebounceMs = 2000;
   
   private constructor() {
     this.setupGlobalErrorHandlers();
@@ -71,16 +75,90 @@ export class ErrorRecoveryManager {
   }
   
   /**
-   * Start automatic state saving
+   * Start automatic state saving with error handling
    */
   private startAutoSave() {
     this.autoSaveInterval = setInterval(() => {
-      // Trigger auto-save through registered callbacks
-      const currentState = this.lastKnownGoodState;
-      if (currentState) {
-        localStorage.setItem('kiteframe_autosave', JSON.stringify(currentState));
-      }
+      this.performAutoSave();
     }, 30000); // Auto-save every 30 seconds
+  }
+
+  /**
+   * Perform auto-save with quota error handling and debouncing
+   */
+  private performAutoSave() {
+    if (!this.autoSaveEnabled || this.quotaExceeded) {
+      return;
+    }
+
+    // Debounce auto-save
+    const now = Date.now();
+    if (now - this.lastAutoSave < this.autoSaveDebounceMs) {
+      return;
+    }
+
+    const currentState = this.lastKnownGoodState;
+    if (!currentState) {
+      return;
+    }
+
+    try {
+      const serialized = JSON.stringify(currentState);
+      
+      // Check payload size (limit to ~1MB)
+      if (serialized.length > 1024 * 1024) {
+        console.warn('Auto-save payload too large, cleaning up old data');
+        this.cleanupOldAutoSaves();
+        return;
+      }
+
+      localStorage.setItem('kiteframe_autosave', serialized);
+      this.lastAutoSave = now;
+      
+    } catch (error) {
+      if (error instanceof Error && error.name === 'QuotaExceededError') {
+        console.warn('localStorage quota exceeded, disabling auto-save for this session');
+        this.quotaExceeded = true;
+        this.autoSaveEnabled = false;
+        
+        // Try to clean up and retry once
+        this.cleanupOldAutoSaves();
+        this.showQuotaExceededNotification();
+        
+      } else {
+        console.error('Auto-save failed:', error);
+      }
+    }
+  }
+
+  /**
+   * Clean up old auto-save data to free space
+   */
+  private cleanupOldAutoSaves() {
+    try {
+      // Remove old KiteFrame related localStorage keys
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('kiteframe_') && key !== 'kiteframe_autosave') {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      console.log(`Cleaned up ${keysToRemove.length} old auto-save entries`);
+      
+    } catch (error) {
+      console.error('Failed to cleanup old auto-saves:', error);
+    }
+  }
+
+  /**
+   * Show notification about quota exceeded (could be integrated with toast system)
+   */
+  private showQuotaExceededNotification() {
+    // For now, just log - in a real app this would show a toast notification
+    console.warn('⚠️ Storage quota exceeded. Auto-save disabled for this session. Consider clearing browser data or reducing workflow complexity.');
   }
   
   /**
