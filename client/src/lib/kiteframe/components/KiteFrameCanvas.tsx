@@ -724,6 +724,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const unifiedSelectStart = useRef<{x:number;y:number}|null>(null);
   const justCompletedUnifiedSelection = useRef<boolean>(false);
   const justCompletedNodeDrag = useRef<boolean>(false);
+  const justCompletedCanvasObjectDrag = useRef<boolean>(false);
   const selectionInProgress = useRef<boolean>(false);
 
   // DOM ref mapping for accurate bounds calculation
@@ -1796,7 +1797,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             
             // Only dispatch if there was substantial movement (similar to dragThreshold)
             if (distance > dragThreshold) {
-              console.log('🔧 CANVAS OBJECT: Dispatching drag end event due to substantial movement:', { distance, threshold: dragThreshold });
+              console.log('🔧 CANVAS OBJECT: Setting drag completed flag due to substantial movement:', { distance, threshold: dragThreshold });
+              justCompletedCanvasObjectDrag.current = true;
+              cleanupManagerRef.current?.setTimeout(() => { justCompletedCanvasObjectDrag.current = false; }, 100);
+              
               window.dispatchEvent(new CustomEvent('canvasObjectDragEnd', {
                 detail: { objectId: canvasObjectDragInfo.current.id }
               }));
@@ -2050,8 +2054,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const handleCanvasObjectClick = (objectId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // Suppress clicks during or immediately after unified selection or node drag
-    if (selectionInProgress.current || justCompletedUnifiedSelection.current || justCompletedNodeDrag.current) {
+    // Suppress clicks during or immediately after unified selection or node/canvas object drag
+    if (selectionInProgress.current || justCompletedUnifiedSelection.current || justCompletedNodeDrag.current || justCompletedCanvasObjectDrag.current) {
       console.log('🚫 Click suppressed - selection/drag in progress or just completed');
       return;
     }
@@ -2111,7 +2115,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         
         // Only dispatch if there was substantial movement (similar to dragThreshold)
         if (distance > dragThreshold) {
-          console.log('🔧 CANVAS OBJECT CLICK: Dispatching drag end event due to substantial movement:', { distance, threshold: dragThreshold });
+          console.log('🔧 CANVAS OBJECT CLICK: Setting drag completed flag due to substantial movement:', { distance, threshold: dragThreshold });
+          justCompletedCanvasObjectDrag.current = true;
+          cleanupManagerRef.current?.setTimeout(() => { justCompletedCanvasObjectDrag.current = false; }, 100);
+          
           window.dispatchEvent(new CustomEvent('canvasObjectDragEnd', {
             detail: { objectId: canvasObjectDragInfo.current.id }
           }));
