@@ -211,8 +211,13 @@ Position nodes 250px apart horizontally.`;
         .replace(/^JSON:\s*/i, '') // Remove "JSON:" prefix
         .replace(/```json\s?|```/g, '') // Remove markdown code blocks
         .replace(/^[^{]*/, '') // Remove any text before first {
-        .replace(/[^}]*$/, '') // Remove any text after last }
         .trim();
+      
+      // Find the last closing brace to properly trim the end
+      const lastBraceIndex = cleanedResponse.lastIndexOf('}');
+      if (lastBraceIndex !== -1) {
+        cleanedResponse = cleanedResponse.substring(0, lastBraceIndex + 1);
+      }
       
       console.log('🧹 CLEANED RESPONSE:', cleanedResponse.substring(0, 200) + '...');
       
