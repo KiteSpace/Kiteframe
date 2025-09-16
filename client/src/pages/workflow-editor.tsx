@@ -10,7 +10,6 @@ import { CollapsedSidebar } from '@/components/CollapsedSidebar';
 import { NodeTypesPopout } from '@/components/NodeTypesPopout';
 import { ShapesPopout } from '@/components/ShapesPopout';
 import { PropertiesCard } from '@/components/PropertiesCard';
-import { EdgeCustomizer } from '@/components/EdgeCustomizer';
 import { Toolbar } from '@/components/Toolbar';
 import { AiSettingsModal } from '@/components/AiSettingsModal';
 import { AiWorkflowGenerator } from '@/components/AiWorkflowGenerator';
@@ -2542,21 +2541,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Sidebar or Edge Customizer */}
-          <div className={`${selectedEdgeId ? 'w-64' : (isSidebarCollapsed ? 'w-12' : 'w-64')} border-r border-border flex flex-col transition-all duration-200 ${isSidebarCollapsed ? 'overflow-visible' : 'overflow-hidden'}`}>
-            {selectedEdgeId ? (
-              <EdgeCustomizer
-                selectedEdge={edges.find(e => e.id === selectedEdgeId)}
-                onEdgeUpdate={(edgeId: string, updates: Partial<Edge>) => {
-                  setEdges(prev => prev.map(e => e.id === edgeId ? { ...e, ...updates } : e));
-                  saveToHistory();
-                }}
-                onDeselectEdge={() => {
-                  setSelectedEdgeId('');
-                  setEdges(prev => prev.map(e => ({ ...e, selected: false })));
-                }}
-              />
-            ) : isSidebarCollapsed ? (
+          {/* Sidebar */}
+          <div className={`${isSidebarCollapsed ? 'w-12' : 'w-64'} border-r border-border flex flex-col transition-all duration-200 ${isSidebarCollapsed ? 'overflow-visible' : 'overflow-hidden'}`}>
+            {isSidebarCollapsed ? (
               <>
                 <CollapsedSidebar
                   toggleSidebar={toggleSidebar}
