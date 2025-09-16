@@ -1485,6 +1485,154 @@ export function Sidebar({
               </div>
             </div>
           </div>
+        ) : selectedEdge ? (
+          // Edge properties view
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">Edge Properties</h3>
+              <button
+                onClick={() => {
+                  // Clear edge selection by calling onDeselectNode which handles all selections
+                  onDeselectNode();
+                }}
+                className="p-1 rounded-md hover:bg-accent transition-colors"
+                data-testid="button-close-edge-properties"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-4" data-testid="edge-properties">
+              {/* Edge Type */}
+              <div>
+                <label className="block text-xs font-medium mb-2">Connection Type</label>
+                <select
+                  value={selectedEdge.type || 'bezier'}
+                  onChange={(e) => onEdgeUpdate?.(selectedEdge.id, { type: e.target.value as any })}
+                  className="w-full p-2 text-xs border border-border rounded bg-background"
+                  data-testid="select-edge-type"
+                >
+                  <option value="straight">Straight</option>
+                  <option value="bezier">Bezier</option>
+                  <option value="step">Step</option>
+                  <option value="curved">Curved</option>
+                  <option value="orthogonal">Orthogonal</option>
+                  <option value="smoothstep">Smooth Step</option>
+                </select>
+              </div>
+
+              {/* Appearance */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-medium">Appearance</h4>
+                
+                {/* Color */}
+                <div>
+                  <label className="block text-xs font-medium mb-1">Color</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={selectedEdge.style?.strokeColor || '#3b82f6'}
+                      onChange={(e) => onEdgeUpdate?.(selectedEdge.id, {
+                        style: { ...selectedEdge.style, strokeColor: e.target.value }
+                      })}
+                      className="w-8 h-6 rounded border border-border cursor-pointer"
+                      data-testid="input-edge-color"
+                    />
+                    <input
+                      type="text"
+                      value={selectedEdge.style?.strokeColor || '#3b82f6'}
+                      onChange={(e) => onEdgeUpdate?.(selectedEdge.id, {
+                        style: { ...selectedEdge.style, strokeColor: e.target.value }
+                      })}
+                      className="flex-1 text-xs p-1.5 border border-border rounded bg-background"
+                      placeholder="#3b82f6"
+                      data-testid="input-edge-color-text"
+                    />
+                  </div>
+                </div>
+
+                {/* Thickness */}
+                <div>
+                  <label className="block text-xs font-medium mb-1">
+                    Thickness ({selectedEdge.style?.strokeWidth || 2}px)
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={selectedEdge.style?.strokeWidth || 2}
+                    onChange={(e) => onEdgeUpdate?.(selectedEdge.id, {
+                      style: { ...selectedEdge.style, strokeWidth: parseInt(e.target.value) }
+                    })}
+                    className="w-full"
+                    data-testid="range-edge-thickness"
+                  />
+                </div>
+
+                {/* Style */}
+                <div>
+                  <label className="block text-xs font-medium mb-2">Line Style</label>
+                  <select
+                    value={selectedEdge.style?.strokeDasharray ? 'dashed' : 'solid'}
+                    onChange={(e) => onEdgeUpdate?.(selectedEdge.id, {
+                      style: { 
+                        ...selectedEdge.style, 
+                        strokeDasharray: e.target.value === 'dashed' ? '5,5' : undefined 
+                      }
+                    })}
+                    className="w-full p-2 text-xs border border-border rounded bg-background"
+                    data-testid="select-edge-style"
+                  >
+                    <option value="solid">Solid</option>
+                    <option value="dashed">Dashed</option>
+                  </select>
+                </div>
+
+                {/* Animated */}
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium">Animated</label>
+                  <input
+                    type="checkbox"
+                    checked={selectedEdge.animated || false}
+                    onChange={(e) => onEdgeUpdate?.(selectedEdge.id, { animated: e.target.checked })}
+                    className="rounded"
+                    data-testid="checkbox-edge-animated"
+                  />
+                </div>
+              </div>
+
+              {/* Markers */}
+              <div>
+                <label className="block text-xs font-medium mb-2">Arrow Type</label>
+                <select
+                  value={selectedEdge.markers?.type || 'arrow'}
+                  onChange={(e) => onEdgeUpdate?.(selectedEdge.id, {
+                    markers: { ...selectedEdge.markers, type: e.target.value as any }
+                  })}
+                  className="w-full p-2 text-xs border border-border rounded bg-background"
+                  data-testid="select-edge-marker"
+                >
+                  <option value="arrow">Arrow</option>
+                  <option value="circle">Circle</option>
+                  <option value="square">Square</option>
+                  <option value="diamond">Diamond</option>
+                  <option value="triangle">Triangle</option>
+                </select>
+              </div>
+
+              {/* Label */}
+              <div>
+                <label className="block text-xs font-medium mb-2">Label</label>
+                <input
+                  type="text"
+                  value={selectedEdge.label || ''}
+                  onChange={(e) => onEdgeUpdate?.(selectedEdge.id, { label: e.target.value })}
+                  placeholder="Edge label..."
+                  className="w-full p-2 text-xs border border-border rounded bg-background"
+                  data-testid="input-edge-label"
+                />
+              </div>
+            </div>
+          </div>
         ) : selectedCanvasObjects && selectedCanvasObjects.length > 0 ? (
           // Canvas object properties view
           <div>
