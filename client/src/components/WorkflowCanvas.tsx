@@ -26,6 +26,8 @@ interface WorkflowCanvasProps {
   canUndo: boolean;
   canRedo: boolean;
   onAutoLayout: (layoutType: string) => void;
+  onAlign?: (alignType: string) => void;
+  onDistribute?: (distributeType: string) => void;
   selectedNodeIds?: string[];
   enablePlugins?: boolean;
   proFeatures?: ProFeaturesConfig;
@@ -61,6 +63,8 @@ export function WorkflowCanvas({
   canUndo,
   canRedo,
   onAutoLayout,
+  onAlign,
+  onDistribute,
   selectedNodeIds,
   enablePlugins,
   proFeatures,
@@ -137,6 +141,8 @@ export function WorkflowCanvas({
         onRedo={onRedo}
         onFitView={onFitView}
         onAutoLayout={onAutoLayout}
+        onAlign={onAlign}
+        onDistribute={onDistribute}
         canUndo={canUndo}
         canRedo={canRedo}
       />

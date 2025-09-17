@@ -90,6 +90,114 @@ export class LayoutPlugin implements KiteFramePlugin {
       context.updateNodes(layouted);
     });
 
+    // Listen for workflow-level align events
+    core.on('align:workflows-left', () => {
+      const nodes = context.getNodes();
+      const edges = context.getEdges();
+      const aligned = this.alignWorkflows(nodes, edges, 'left');
+      context.updateNodes(aligned);
+    });
+
+    core.on('align:workflows-center', () => {
+      const nodes = context.getNodes();
+      const edges = context.getEdges();
+      const aligned = this.alignWorkflows(nodes, edges, 'center');
+      context.updateNodes(aligned);
+    });
+
+    core.on('align:workflows-right', () => {
+      const nodes = context.getNodes();
+      const edges = context.getEdges();
+      const aligned = this.alignWorkflows(nodes, edges, 'right');
+      context.updateNodes(aligned);
+    });
+
+    core.on('align:workflows-top', () => {
+      const nodes = context.getNodes();
+      const edges = context.getEdges();
+      const aligned = this.alignWorkflows(nodes, edges, 'top');
+      context.updateNodes(aligned);
+    });
+
+    core.on('align:workflows-middle', () => {
+      const nodes = context.getNodes();
+      const edges = context.getEdges();
+      const aligned = this.alignWorkflows(nodes, edges, 'middle');
+      context.updateNodes(aligned);
+    });
+
+    core.on('align:workflows-bottom', () => {
+      const nodes = context.getNodes();
+      const edges = context.getEdges();
+      const aligned = this.alignWorkflows(nodes, edges, 'bottom');
+      context.updateNodes(aligned);
+    });
+
+    // Listen for node-level align events
+    core.on('align:nodes-left', () => {
+      const nodes = context.getNodes();
+      const aligned = this.alignNodes(nodes, 'left');
+      context.updateNodes(aligned);
+    });
+
+    core.on('align:nodes-center', () => {
+      const nodes = context.getNodes();
+      const aligned = this.alignNodes(nodes, 'center');
+      context.updateNodes(aligned);
+    });
+
+    core.on('align:nodes-right', () => {
+      const nodes = context.getNodes();
+      const aligned = this.alignNodes(nodes, 'right');
+      context.updateNodes(aligned);
+    });
+
+    core.on('align:nodes-top', () => {
+      const nodes = context.getNodes();
+      const aligned = this.alignNodes(nodes, 'top');
+      context.updateNodes(aligned);
+    });
+
+    core.on('align:nodes-middle', () => {
+      const nodes = context.getNodes();
+      const aligned = this.alignNodes(nodes, 'middle');
+      context.updateNodes(aligned);
+    });
+
+    core.on('align:nodes-bottom', () => {
+      const nodes = context.getNodes();
+      const aligned = this.alignNodes(nodes, 'bottom');
+      context.updateNodes(aligned);
+    });
+
+    // Listen for workflow-level distribute events
+    core.on('distribute:workflows-horizontal', () => {
+      const nodes = context.getNodes();
+      const edges = context.getEdges();
+      const distributed = this.distributeWorkflows(nodes, edges, 'horizontal');
+      context.updateNodes(distributed);
+    });
+
+    core.on('distribute:workflows-vertical', () => {
+      const nodes = context.getNodes();
+      const edges = context.getEdges();
+      const distributed = this.distributeWorkflows(nodes, edges, 'vertical');
+      context.updateNodes(distributed);
+    });
+
+    // Listen for node-level distribute events
+    core.on('distribute:nodes-horizontal', () => {
+      const nodes = context.getNodes();
+      const distributed = this.distributeNodes(nodes, 'horizontal');
+      context.updateNodes(distributed);
+    });
+
+    core.on('distribute:nodes-vertical', () => {
+      const nodes = context.getNodes();
+      const distributed = this.distributeNodes(nodes, 'vertical');
+      context.updateNodes(distributed);
+    });
+
     console.log('Layout Plugin initialized');
   }
 
@@ -484,6 +592,258 @@ export class LayoutPlugin implements KiteFramePlugin {
         position: {
           x: positionInLevel * nodeSpacing + (800 - (levelWidth - 1) * nodeSpacing / 2),
           y: levelIndex * levelSpacing + 100
+        }
+      };
+    });
+  }
+
+  /**
+   * Align workflows by their bounding boxes
+   */
+  alignWorkflows(nodes: Node[], edges: Edge[], alignType: string): Node[] {
+    const flows = FlowDetection.detectFlows(nodes, edges);
+    if (flows.length <= 1) return nodes;
+
+    const workflowUnits = flows.map(flow => {
+      const boundingBox = this.calculateFlowBoundingBox(flow.nodes);
+      return {
+        flow,
+        boundingBox
+      };
+    });
+
+    // Find alignment target (first workflow)
+    const targetBoundingBox = workflowUnits[0].boundingBox;
+    let alignmentValue: number;
+
+    switch (alignType) {
+      case 'left':
+        alignmentValue = targetBoundingBox.x;
+        break;
+      case 'center':
+        alignmentValue = targetBoundingBox.x + targetBoundingBox.width / 2;
+        break;
+      case 'right':
+        alignmentValue = targetBoundingBox.x + targetBoundingBox.width;
+        break;
+      case 'top':
+        alignmentValue = targetBoundingBox.y;
+        break;
+      case 'middle':
+        alignmentValue = targetBoundingBox.y + targetBoundingBox.height / 2;
+        break;
+      case 'bottom':
+        alignmentValue = targetBoundingBox.y + targetBoundingBox.height;
+        break;
+      default:
+        return nodes;
+    }
+
+    const result: Node[] = [];
+
+    workflowUnits.forEach(unit => {
+      let offsetX = 0;
+      let offsetY = 0;
+
+      switch (alignType) {
+        case 'left':
+          offsetX = alignmentValue - unit.boundingBox.x;
+          break;
+        case 'center':
+          offsetX = alignmentValue - (unit.boundingBox.x + unit.boundingBox.width / 2);
+          break;
+        case 'right':
+          offsetX = alignmentValue - (unit.boundingBox.x + unit.boundingBox.width);
+          break;
+        case 'top':
+          offsetY = alignmentValue - unit.boundingBox.y;
+          break;
+        case 'middle':
+          offsetY = alignmentValue - (unit.boundingBox.y + unit.boundingBox.height / 2);
+          break;
+        case 'bottom':
+          offsetY = alignmentValue - (unit.boundingBox.y + unit.boundingBox.height);
+          break;
+      }
+
+      const alignedNodes = unit.flow.nodes.map(node => ({
+        ...node,
+        position: {
+          x: node.position.x + offsetX,
+          y: node.position.y + offsetY
+        }
+      }));
+
+      result.push(...alignedNodes);
+    });
+
+    return result;
+  }
+
+  /**
+   * Align individual nodes
+   */
+  alignNodes(nodes: Node[], alignType: string): Node[] {
+    if (nodes.length <= 1) return nodes;
+
+    // Find alignment target (first node)
+    const targetNode = nodes[0];
+    const targetWidth = targetNode.style?.width ?? targetNode.width ?? 200;
+    const targetHeight = targetNode.style?.height ?? targetNode.height ?? 100;
+    let alignmentValue: number;
+
+    switch (alignType) {
+      case 'left':
+        alignmentValue = targetNode.position.x;
+        break;
+      case 'center':
+        alignmentValue = targetNode.position.x + targetWidth / 2;
+        break;
+      case 'right':
+        alignmentValue = targetNode.position.x + targetWidth;
+        break;
+      case 'top':
+        alignmentValue = targetNode.position.y;
+        break;
+      case 'middle':
+        alignmentValue = targetNode.position.y + targetHeight / 2;
+        break;
+      case 'bottom':
+        alignmentValue = targetNode.position.y + targetHeight;
+        break;
+      default:
+        return nodes;
+    }
+
+    return nodes.map(node => {
+      const nodeWidth = node.style?.width ?? node.width ?? 200;
+      const nodeHeight = node.style?.height ?? node.height ?? 100;
+      let newPosition = { ...node.position };
+
+      switch (alignType) {
+        case 'left':
+          newPosition.x = alignmentValue;
+          break;
+        case 'center':
+          newPosition.x = alignmentValue - nodeWidth / 2;
+          break;
+        case 'right':
+          newPosition.x = alignmentValue - nodeWidth;
+          break;
+        case 'top':
+          newPosition.y = alignmentValue;
+          break;
+        case 'middle':
+          newPosition.y = alignmentValue - nodeHeight / 2;
+          break;
+        case 'bottom':
+          newPosition.y = alignmentValue - nodeHeight;
+          break;
+      }
+
+      return {
+        ...node,
+        position: newPosition
+      };
+    });
+  }
+
+  /**
+   * Distribute workflows evenly
+   */
+  distributeWorkflows(nodes: Node[], edges: Edge[], direction: string): Node[] {
+    const flows = FlowDetection.detectFlows(nodes, edges);
+    if (flows.length <= 2) return nodes;
+
+    const workflowUnits = flows.map(flow => {
+      const boundingBox = this.calculateFlowBoundingBox(flow.nodes);
+      return {
+        flow,
+        boundingBox,
+        center: {
+          x: boundingBox.x + boundingBox.width / 2,
+          y: boundingBox.y + boundingBox.height / 2
+        }
+      };
+    });
+
+    // Sort workflows by position
+    if (direction === 'horizontal') {
+      workflowUnits.sort((a, b) => a.center.x - b.center.x);
+    } else {
+      workflowUnits.sort((a, b) => a.center.y - b.center.y);
+    }
+
+    // Calculate distribution
+    const firstCenter = workflowUnits[0].center;
+    const lastCenter = workflowUnits[workflowUnits.length - 1].center;
+    const totalDistance = direction === 'horizontal' 
+      ? lastCenter.x - firstCenter.x
+      : lastCenter.y - firstCenter.y;
+    const spacing = totalDistance / (workflowUnits.length - 1);
+
+    const result: Node[] = [];
+
+    workflowUnits.forEach((unit, index) => {
+      let targetPosition: number;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      if (direction === 'horizontal') {
+        targetPosition = firstCenter.x + (index * spacing);
+        offsetX = targetPosition - unit.center.x;
+      } else {
+        targetPosition = firstCenter.y + (index * spacing);
+        offsetY = targetPosition - unit.center.y;
+      }
+
+      const distributedNodes = unit.flow.nodes.map(node => ({
+        ...node,
+        position: {
+          x: node.position.x + offsetX,
+          y: node.position.y + offsetY
+        }
+      }));
+
+      result.push(...distributedNodes);
+    });
+
+    return result;
+  }
+
+  /**
+   * Distribute individual nodes evenly
+   */
+  distributeNodes(nodes: Node[], direction: string): Node[] {
+    if (nodes.length <= 2) return nodes;
+
+    // Sort nodes by position
+    const sortedNodes = [...nodes].sort((a, b) => {
+      if (direction === 'horizontal') {
+        return a.position.x - b.position.x;
+      } else {
+        return a.position.y - b.position.y;
+      }
+    });
+
+    const firstNode = sortedNodes[0];
+    const lastNode = sortedNodes[sortedNodes.length - 1];
+    
+    const totalDistance = direction === 'horizontal'
+      ? lastNode.position.x - firstNode.position.x
+      : lastNode.position.y - firstNode.position.y;
+    const spacing = totalDistance / (sortedNodes.length - 1);
+
+    return sortedNodes.map((node, index) => {
+      const targetPosition = direction === 'horizontal'
+        ? firstNode.position.x + (index * spacing)
+        : firstNode.position.y + (index * spacing);
+
+      return {
+        ...node,
+        position: {
+          x: direction === 'horizontal' ? targetPosition : node.position.x,
+          y: direction === 'vertical' ? targetPosition : node.position.y
         }
       };
     });

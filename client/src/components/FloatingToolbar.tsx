@@ -1,11 +1,13 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Undo2, Redo2, ZoomIn, LayoutGrid, GripVertical, Camera, History, Maximize2 } from 'lucide-react';
+import { Undo2, Redo2, ZoomIn, LayoutGrid, GripVertical, Camera, History, Maximize2, AlignLeft, ArrowLeftRight } from 'lucide-react';
 
 interface FloatingToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onFitView: () => void;
   onAutoLayout: (layoutType: string) => void;
+  onAlign?: (alignType: string) => void;
+  onDistribute?: (distributeType: string) => void;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -15,6 +17,8 @@ export function FloatingToolbar({
   onRedo,
   onFitView,
   onAutoLayout,
+  onAlign,
+  onDistribute,
   canUndo,
   canRedo,
 }: FloatingToolbarProps) {
@@ -23,6 +27,10 @@ export function FloatingToolbar({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showLayoutDropdown, setShowLayoutDropdown] = useState(false);
   const [selectedLayoutMode, setSelectedLayoutMode] = useState<'workflows' | 'nodes' | null>(null);
+  const [showAlignDropdown, setShowAlignDropdown] = useState(false);
+  const [selectedAlignMode, setSelectedAlignMode] = useState<'workflows' | 'nodes' | null>(null);
+  const [showDistributeDropdown, setShowDistributeDropdown] = useState(false);
+  const [selectedDistributeMode, setSelectedDistributeMode] = useState<'workflows' | 'nodes' | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -122,6 +130,20 @@ export function FloatingToolbar({
     { id: 'grid', label: 'Grid' },
     { id: 'circular', label: 'Circular' },
     { id: 'hierarchical', label: 'Hierarchical' },
+  ];
+
+  const alignOptions = [
+    { id: 'left', label: 'Align Left' },
+    { id: 'center', label: 'Align Center' },
+    { id: 'right', label: 'Align Right' },
+    { id: 'top', label: 'Align Top' },
+    { id: 'middle', label: 'Align Middle' },
+    { id: 'bottom', label: 'Align Bottom' },
+  ];
+
+  const distributeOptions = [
+    { id: 'horizontal', label: 'Distribute Horizontally' },
+    { id: 'vertical', label: 'Distribute Vertically' },
   ];
 
   return (
@@ -253,16 +275,143 @@ export function FloatingToolbar({
           )}
         </div>
 
+        {/* Align */}
+        {onAlign && (
+          <div className="relative">
+            <button
+              className="w-8 h-8 flex items-center justify-center text-foreground hover:bg-accent rounded-full transition-colors"
+              onClick={() => setShowAlignDropdown(!showAlignDropdown)}
+              title="Align"
+            >
+              <AlignLeft size={16} />
+            </button>
+            
+            {showAlignDropdown && (
+              <div className="absolute bottom-full mb-2 left-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-48 z-50">
+                {selectedAlignMode === null ? (
+                  <>
+                    {layoutModes.map((mode) => (
+                      <button
+                        key={mode.id}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                        onClick={() => {
+                          setSelectedAlignMode(mode.id);
+                        }}
+                      >
+                        <div className="font-medium">{mode.label.replace('Layout', 'Align')}</div>
+                        <div className="text-xs text-muted-foreground">{mode.description.replace('Arrange', 'Align')}</div>
+                      </button>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
+                      {selectedAlignMode === 'workflows' ? 'Align Workflows' : 'Align Nodes'}
+                      <button
+                        className="float-right text-xs hover:text-foreground"
+                        onClick={() => setSelectedAlignMode(null)}
+                      >
+                        ← Back
+                      </button>
+                    </div>
+                    {alignOptions.map((option) => (
+                      <button
+                        key={option.id}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                        onClick={() => {
+                          const alignId = selectedAlignMode === 'workflows' 
+                            ? `workflows-${option.id}` 
+                            : `nodes-${option.id}`;
+                          onAlign(alignId);
+                          setShowAlignDropdown(false);
+                          setSelectedAlignMode(null);
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Distribute */}
+        {onDistribute && (
+          <div className="relative">
+            <button
+              className="w-8 h-8 flex items-center justify-center text-foreground hover:bg-accent rounded-full transition-colors"
+              onClick={() => setShowDistributeDropdown(!showDistributeDropdown)}
+              title="Distribute"
+            >
+              <ArrowLeftRight size={16} />
+            </button>
+            
+            {showDistributeDropdown && (
+              <div className="absolute bottom-full mb-2 left-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-48 z-50">
+                {selectedDistributeMode === null ? (
+                  <>
+                    {layoutModes.map((mode) => (
+                      <button
+                        key={mode.id}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                        onClick={() => {
+                          setSelectedDistributeMode(mode.id);
+                        }}
+                      >
+                        <div className="font-medium">{mode.label.replace('Layout', 'Distribute')}</div>
+                        <div className="text-xs text-muted-foreground">{mode.description.replace('Arrange', 'Distribute')}</div>
+                      </button>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
+                      {selectedDistributeMode === 'workflows' ? 'Distribute Workflows' : 'Distribute Nodes'}
+                      <button
+                        className="float-right text-xs hover:text-foreground"
+                        onClick={() => setSelectedDistributeMode(null)}
+                      >
+                        ← Back
+                      </button>
+                    </div>
+                    {distributeOptions.map((option) => (
+                      <button
+                        key={option.id}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                        onClick={() => {
+                          const distributeId = selectedDistributeMode === 'workflows' 
+                            ? `workflows-${option.id}` 
+                            : `nodes-${option.id}`;
+                          onDistribute(distributeId);
+                          setShowDistributeDropdown(false);
+                          setSelectedDistributeMode(null);
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
 
-      {/* Click outside to close dropdown */}
-      {showLayoutDropdown && (
+      {/* Click outside to close dropdowns */}
+      {(showLayoutDropdown || showAlignDropdown || showDistributeDropdown) && (
         <div 
           className="absolute inset-0 z-30" 
           onClick={() => {
             setShowLayoutDropdown(false);
             setSelectedLayoutMode(null);
+            setShowAlignDropdown(false);
+            setSelectedAlignMode(null);
+            setShowDistributeDropdown(false);
+            setSelectedDistributeMode(null);
           }}
         />
       )}

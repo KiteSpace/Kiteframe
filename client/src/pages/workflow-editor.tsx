@@ -2178,6 +2178,46 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   }, [nodes, saveToHistory, core]);
 
+  // Align Handler - delegates to LayoutPlugin via KiteFrame
+  const handleAlign = useCallback((alignType: string) => {
+    if (nodes.length === 0) return;
+    
+    saveToHistory();
+    
+    const eventName = `align:${alignType}`;
+    
+    if (core) {
+      try {
+        core.emit(eventName);
+        console.log(`🔧 ALIGN EVENT EMITTED: ${eventName}`, { nodeCount: nodes.length });
+      } catch (error) {
+        console.error(`❌ Failed to emit align event: ${eventName}`, error);
+      }
+    } else {
+      console.warn(`⚠️ KiteFrame core not available for align: ${alignType}`);
+    }
+  }, [nodes, saveToHistory, core]);
+
+  // Distribute Handler - delegates to LayoutPlugin via KiteFrame
+  const handleDistribute = useCallback((distributeType: string) => {
+    if (nodes.length === 0) return;
+    
+    saveToHistory();
+    
+    const eventName = `distribute:${distributeType}`;
+    
+    if (core) {
+      try {
+        core.emit(eventName);
+        console.log(`🔧 DISTRIBUTE EVENT EMITTED: ${eventName}`, { nodeCount: nodes.length });
+      } catch (error) {
+        console.error(`❌ Failed to emit distribute event: ${eventName}`, error);
+      }
+    } else {
+      console.warn(`⚠️ KiteFrame core not available for distribute: ${distributeType}`);
+    }
+  }, [nodes, saveToHistory, core]);
+
   // Other UI state
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
@@ -3987,6 +4027,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               canUndo={canUndo}
               canRedo={canRedo}
               onAutoLayout={handleAutoLayout}
+              onAlign={handleAlign}
+              onDistribute={handleDistribute}
             />
             ) : (
               <BlankCanvasState
