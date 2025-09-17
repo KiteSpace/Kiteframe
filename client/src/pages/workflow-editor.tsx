@@ -2120,6 +2120,41 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   }, [core]);
 
+  // Connect plugin system to workflow editor state
+  useEffect(() => {
+    if (core && tabs && activeTabId) {
+      const activeTab = tabs.find(tab => tab.id === activeTabId);
+      if (activeTab) {
+        core.updateContext({
+          getNodes: () => activeTab.nodes,
+          getEdges: () => activeTab.edges,
+          updateNodes: (newNodes) => {
+            updateActiveTab({
+              nodes: newNodes
+            });
+          },
+          updateEdges: (newEdges) => {
+            updateActiveTab({
+              edges: newEdges
+            });
+          },
+          getViewport: () => activeTab.viewport,
+          setViewport: (viewport) => {
+            updateActiveTab({
+              viewport
+            });
+          },
+          getSelectedNodes: () => activeTab.selectedNodeId ? [activeTab.selectedNodeId] : [],
+          setSelectedNodes: (nodeIds) => {
+            updateActiveTab({
+              selectedNodeId: nodeIds[0] || ''
+            });
+          }
+        });
+      }
+    }
+  }, [core, tabs, activeTabId, updateActiveTab]);
+
   // Auto Layout Handler - delegates to LayoutPlugin via KiteFrame
   const handleAutoLayout = useCallback((layoutType: string) => {
     if (nodes.length === 0) return;
