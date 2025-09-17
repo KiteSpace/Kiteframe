@@ -25,7 +25,7 @@ interface WorkflowCanvasProps {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  onAutoLayout: (layoutType: string) => void;
+  onAutoLayout: (layoutType: string | { eventId: string; spacing: number }) => void;
   selectedNodeIds?: string[];
   enablePlugins?: boolean;
   proFeatures?: ProFeaturesConfig;

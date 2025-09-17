@@ -2156,25 +2156,37 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [core, tabs, activeTabId, updateActiveTab]);
 
   // Auto Layout Handler - delegates to LayoutPlugin via KiteFrame  
-  // Accepts fully-qualified events (align:*, distribute:*, layout:*) or bare layout algorithm names
-  const handleAutoLayout = useCallback((eventId: string) => {
+  // Accepts string events or objects with eventId and spacing for distribute operations
+  const handleAutoLayout = useCallback((eventData: string | { eventId: string; spacing: number }) => {
     if (nodes.length === 0) return;
     
     saveToHistory();
     
-    // Pass through fully-qualified events, otherwise add layout: prefix for backward compatibility
-    const eventName = /^(align:|distribute:|layout:)/.test(eventId) ? eventId : `layout:${eventId}`;
+    let eventName: string;
+    let payload: any = undefined;
+    
+    if (typeof eventData === 'string') {
+      // Handle string events (align, layout operations)
+      eventName = /^(align:|distribute:|layout:)/.test(eventData) ? eventData : `layout:${eventData}`;
+    } else {
+      // Handle object with spacing payload (distribute operations)
+      eventName = eventData.eventId;
+      payload = { spacing: eventData.spacing };
+    }
     
     if (core) {
       try {
-        // Emit event to the LayoutPlugin
-        core.emit(eventName);
-        console.log(`🔧 AUTO LAYOUT EVENT EMITTED: ${eventName}`, { nodeCount: nodes.length });
+        // Emit event to the LayoutPlugin with optional payload
+        core.emit(eventName, payload);
+        const logMessage = payload 
+          ? `🔧 AUTO LAYOUT EVENT EMITTED: ${eventName} with spacing: ${payload.spacing}px`
+          : `🔧 AUTO LAYOUT EVENT EMITTED: ${eventName}`;
+        console.log(logMessage, { nodeCount: nodes.length });
       } catch (error) {
         console.error(`❌ Failed to emit layout event: ${eventName}`, error);
       }
     } else {
-      console.warn(`⚠️ KiteFrame core not available for layout: ${eventId}`);
+      console.warn(`⚠️ KiteFrame core not available for layout: ${typeof eventData === 'string' ? eventData : eventData.eventId}`);
     }
   }, [nodes, saveToHistory, core]);
 

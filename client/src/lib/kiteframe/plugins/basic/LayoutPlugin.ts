@@ -158,42 +158,34 @@ export class LayoutPlugin implements KiteFramePlugin {
       context.updateNodes(aligned);
     });
 
-    // Listen for workflow-level distribute events (with optional spacing)
-    core.on(/distribute:workflows-horizontal(:.*)?$/, (eventName: string) => {
+    // Listen for workflow-level distribute events (with spacing payload)
+    core.on('distribute:workflows-horizontal', (payload?: { spacing?: number }) => {
       const nodes = context.getNodes();
       const edges = context.getEdges();
-      // Extract spacing from event name like "distribute:workflows-horizontal:15"
-      const spacingMatch = eventName.match(/:([0-9]+)$/);
-      const spacing = spacingMatch ? parseInt(spacingMatch[1]) : 100;
+      const spacing = payload?.spacing ?? 100;
       const distributed = this.distributeWorkflows(nodes, edges, 'horizontal', spacing);
       context.updateNodes(distributed);
     });
 
-    core.on(/distribute:workflows-vertical(:.*)?$/, (eventName: string) => {
+    core.on('distribute:workflows-vertical', (payload?: { spacing?: number }) => {
       const nodes = context.getNodes();
       const edges = context.getEdges();
-      // Extract spacing from event name like "distribute:workflows-vertical:20"
-      const spacingMatch = eventName.match(/:([0-9]+)$/);
-      const spacing = spacingMatch ? parseInt(spacingMatch[1]) : 100;
+      const spacing = payload?.spacing ?? 100;
       const distributed = this.distributeWorkflows(nodes, edges, 'vertical', spacing);
       context.updateNodes(distributed);
     });
 
-    // Listen for node-level distribute events (with optional spacing)
-    core.on(/distribute:nodes-horizontal(:.*)?$/, (eventName: string) => {
+    // Listen for node-level distribute events (with spacing payload)
+    core.on('distribute:nodes-horizontal', (payload?: { spacing?: number }) => {
       const nodes = context.getNodes();
-      // Extract spacing from event name 
-      const spacingMatch = eventName.match(/:([0-9]+)$/);
-      const spacing = spacingMatch ? parseInt(spacingMatch[1]) : 100;
+      const spacing = payload?.spacing ?? 100;
       const distributed = this.distributeNodes(nodes, 'horizontal', spacing);
       context.updateNodes(distributed);
     });
 
-    core.on(/distribute:nodes-vertical(:.*)?$/, (eventName: string) => {
+    core.on('distribute:nodes-vertical', (payload?: { spacing?: number }) => {
       const nodes = context.getNodes();
-      // Extract spacing from event name
-      const spacingMatch = eventName.match(/:([0-9]+)$/);
-      const spacing = spacingMatch ? parseInt(spacingMatch[1]) : 100;
+      const spacing = payload?.spacing ?? 100;
       const distributed = this.distributeNodes(nodes, 'vertical', spacing);
       context.updateNodes(distributed);
     });

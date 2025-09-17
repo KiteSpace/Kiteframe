@@ -10,7 +10,7 @@ interface FloatingToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onFitView: () => void;
-  onAutoLayout: (layoutType: string) => void;
+  onAutoLayout: (layoutType: string | { eventId: string; spacing: number }) => void;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -269,8 +269,9 @@ export function FloatingToolbar({
                                 key={option.id}
                                 className="flex flex-col items-center justify-center p-3 hover:bg-accent rounded-lg transition-colors group bg-muted/50 w-12 h-12"
                                 onClick={() => {
-                                  const eventIdWithSpacing = `${option.eventId}:${spacing}`;
-                                  onAutoLayout(eventIdWithSpacing);
+                                  // Pass spacing as payload data instead of in event name
+                                  const eventData = { eventId: option.eventId, spacing };
+                                  onAutoLayout(eventData);
                                   setShowLayoutDropdown(false);
                                 }}
                                 title={option.label}
