@@ -22,6 +22,7 @@ export function FloatingToolbar({
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showLayoutDropdown, setShowLayoutDropdown] = useState(false);
+  const [selectedLayoutMode, setSelectedLayoutMode] = useState<'workflows' | 'nodes' | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -110,6 +111,11 @@ export function FloatingToolbar({
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
+  const layoutModes = [
+    { id: 'workflows' as const, label: 'Layout Workflows', description: 'Arrange entire workflows as units' },
+    { id: 'nodes' as const, label: 'Layout Nodes', description: 'Arrange individual nodes' },
+  ];
+
   const layoutOptions = [
     { id: 'horizontal', label: 'Horizontal Flow' },
     { id: 'vertical', label: 'Vertical Flow' },
@@ -196,19 +202,53 @@ export function FloatingToolbar({
           </button>
           
           {showLayoutDropdown && (
-            <div className="absolute bottom-full mb-2 left-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-40 z-50">
-              {layoutOptions.map((option) => (
-                <button
-                  key={option.id}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
-                  onClick={() => {
-                    onAutoLayout(option.id);
-                    setShowLayoutDropdown(false);
-                  }}
-                >
-                  {option.label}
-                </button>
-              ))}
+            <div className="absolute bottom-full mb-2 left-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-48 z-50">
+              {selectedLayoutMode === null ? (
+                // Show layout mode selection (workflows vs nodes)
+                <>
+                  {layoutModes.map((mode) => (
+                    <button
+                      key={mode.id}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                      onClick={() => {
+                        setSelectedLayoutMode(mode.id);
+                      }}
+                    >
+                      <div className="font-medium">{mode.label}</div>
+                      <div className="text-xs text-muted-foreground">{mode.description}</div>
+                    </button>
+                  ))}
+                </>
+              ) : (
+                // Show layout algorithm options for selected mode
+                <>
+                  <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
+                    {selectedLayoutMode === 'workflows' ? 'Layout Workflows' : 'Layout Nodes'}
+                    <button
+                      className="float-right text-xs hover:text-foreground"
+                      onClick={() => setSelectedLayoutMode(null)}
+                    >
+                      ← Back
+                    </button>
+                  </div>
+                  {layoutOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                      onClick={() => {
+                        const layoutId = selectedLayoutMode === 'workflows' 
+                          ? `workflows-${option.id}` 
+                          : `nodes-${option.id}`;
+                        onAutoLayout(layoutId);
+                        setShowLayoutDropdown(false);
+                        setSelectedLayoutMode(null);
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
           )}
         </div>
@@ -220,7 +260,10 @@ export function FloatingToolbar({
       {showLayoutDropdown && (
         <div 
           className="absolute inset-0 z-30" 
-          onClick={() => setShowLayoutDropdown(false)}
+          onClick={() => {
+            setShowLayoutDropdown(false);
+            setSelectedLayoutMode(null);
+          }}
         />
       )}
     </div>

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { usePluginSystem } from '@/lib/kiteframe/core/PluginProvider';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import { BlankCanvasState } from '@/components/BlankCanvasState';
 import { PluginProvider, layoutPlugin, consolePlugin, testPlugin, advancedInteractionsPlugin } from '@/lib/kiteframe';
@@ -2098,103 +2099,31 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
 
-  // Auto Layout Algorithms
+  // Get access to KiteFrame core system
+  const { core } = usePluginSystem();
+
+  // Auto Layout Handler - delegates to LayoutPlugin via KiteFrame
   const handleAutoLayout = useCallback((layoutType: string) => {
     if (nodes.length === 0) return;
     
     saveToHistory();
-    let updatedNodes = [...nodes];
     
-    switch (layoutType) {
-      case 'horizontal':
-        // Arrange nodes horizontally with 250px spacing
-        updatedNodes = updatedNodes.map((node, index) => ({
-          ...node,
-          position: { x: 300 + (index * 250), y: 250 }
-        }));
-        break;
-        
-      case 'vertical':
-        // Arrange nodes vertically with 150px spacing
-        updatedNodes = updatedNodes.map((node, index) => ({
-          ...node,
-          position: { x: 400, y: 150 + (index * 150) }
-        }));
-        break;
-        
-      case 'grid':
-        // Arrange nodes in a grid pattern
-        const cols = Math.ceil(Math.sqrt(updatedNodes.length));
-        updatedNodes = updatedNodes.map((node, index) => {
-          const row = Math.floor(index / cols);
-          const col = index % cols;
-          return {
-            ...node,
-            position: { x: 200 + (col * 250), y: 150 + (row * 150) }
-          };
-        });
-        break;
-        
-      case 'circular':
-        // Arrange nodes in a circle
-        const centerX = 500;
-        const centerY = 300;
-        const radius = Math.max(150, updatedNodes.length * 30);
-        updatedNodes = updatedNodes.map((node, index) => {
-          const angle = (index / updatedNodes.length) * 2 * Math.PI;
-          return {
-            ...node,
-            position: {
-              x: centerX + Math.cos(angle) * radius,
-              y: centerY + Math.sin(angle) * radius
-            }
-          };
-        });
-        break;
-        
-      case 'hierarchy':
-        // Arrange nodes in a hierarchical tree structure
-        // Input nodes at top, outputs at bottom, process nodes in middle
-        const inputNodes = updatedNodes.filter(n => n.type === 'input');
-        const processNodes = updatedNodes.filter(n => n.type === 'process' || n.type === 'ai' || n.type === 'condition');
-        const outputNodes = updatedNodes.filter(n => n.type === 'output');
-        const otherNodes = updatedNodes.filter(n => n.type && !['input', 'process', 'ai', 'condition', 'output'].includes(n.type));
-        
-        // Position input nodes at top
-        inputNodes.forEach((node, index) => {
-          const totalWidth = Math.max(1, inputNodes.length - 1) * 250;
-          const startX = 500 - (totalWidth / 2);
-          node.position = { x: startX + (index * 250), y: 100 };
-          updatedNodes[updatedNodes.findIndex(n => n.id === node.id)] = node;
-        });
-        
-        // Position process nodes in middle
-        processNodes.forEach((node, index) => {
-          const totalWidth = Math.max(1, processNodes.length - 1) * 250;
-          const startX = 500 - (totalWidth / 2);
-          node.position = { x: startX + (index * 250), y: 250 };
-          updatedNodes[updatedNodes.findIndex(n => n.id === node.id)] = node;
-        });
-        
-        // Position output nodes at bottom
-        outputNodes.forEach((node, index) => {
-          const totalWidth = Math.max(1, outputNodes.length - 1) * 250;
-          const startX = 500 - (totalWidth / 2);
-          node.position = { x: startX + (index * 250), y: 400 };
-          updatedNodes[updatedNodes.findIndex(n => n.id === node.id)] = node;
-        });
-        
-        // Position other nodes to the side
-        otherNodes.forEach((node, index) => {
-          node.position = { x: 750, y: 150 + (index * 150) };
-          updatedNodes[updatedNodes.findIndex(n => n.id === node.id)] = node;
-        });
-        break;
+    // Emit layout event to LayoutPlugin via KiteFrame core
+    // The FloatingToolbar sends formats like: 'workflows-horizontal', 'nodes-vertical', etc.
+    const eventName = `layout:${layoutType}`;
+    
+    if (core) {
+      try {
+        // Emit event to the LayoutPlugin
+        core.emit(eventName);
+        console.log(`🔧 AUTO LAYOUT EVENT EMITTED: ${eventName}`, { nodeCount: nodes.length });
+      } catch (error) {
+        console.error(`❌ Failed to emit layout event: ${eventName}`, error);
+      }
+    } else {
+      console.warn(`⚠️ KiteFrame core not available for layout: ${layoutType}`);
     }
-    
-    setNodes(updatedNodes);
-    console.log(`🔧 AUTO LAYOUT APPLIED: ${layoutType}`, { nodeCount: updatedNodes.length });
-  }, [nodes, saveToHistory]);
+  }, [nodes, saveToHistory, core]);
 
   // Other UI state
   const [showAiModal, setShowAiModal] = useState(false);

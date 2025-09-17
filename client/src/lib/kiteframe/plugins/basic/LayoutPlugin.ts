@@ -22,39 +22,71 @@ export class LayoutPlugin implements KiteFramePlugin {
       hierarchical: this.hierarchicalLayout.bind(this)
     };
 
-    // Listen for layout events - now with per-flow support
-    core.on('layout:horizontal', () => {
+    // Listen for workflow-level layout events
+    core.on('layout:workflows-horizontal', () => {
       const nodes = context.getNodes();
       const edges = context.getEdges();
-      const layouted = this.applyLayoutPerFlow(nodes, edges, 'horizontal');
+      const layouted = this.layoutWorkflows(nodes, edges, 'horizontal');
       context.updateNodes(layouted);
     });
 
-    core.on('layout:vertical', () => {
+    core.on('layout:workflows-vertical', () => {
       const nodes = context.getNodes();
       const edges = context.getEdges();
-      const layouted = this.applyLayoutPerFlow(nodes, edges, 'vertical');
+      const layouted = this.layoutWorkflows(nodes, edges, 'vertical');
       context.updateNodes(layouted);
     });
 
-    core.on('layout:grid', () => {
+    core.on('layout:workflows-grid', () => {
       const nodes = context.getNodes();
       const edges = context.getEdges();
-      const layouted = this.applyLayoutPerFlow(nodes, edges, 'grid');
+      const layouted = this.layoutWorkflows(nodes, edges, 'grid');
       context.updateNodes(layouted);
     });
 
-    core.on('layout:circular', () => {
+    core.on('layout:workflows-circular', () => {
       const nodes = context.getNodes();
       const edges = context.getEdges();
-      const layouted = this.applyLayoutPerFlow(nodes, edges, 'circular');
+      const layouted = this.layoutWorkflows(nodes, edges, 'circular');
       context.updateNodes(layouted);
     });
 
-    core.on('layout:hierarchical', () => {
+    core.on('layout:workflows-hierarchical', () => {
       const nodes = context.getNodes();
       const edges = context.getEdges();
-      const layouted = this.applyLayoutPerFlow(nodes, edges, 'hierarchical');
+      const layouted = this.layoutWorkflows(nodes, edges, 'hierarchical');
+      context.updateNodes(layouted);
+    });
+
+    // Listen for node-level layout events (original behavior)
+    core.on('layout:nodes-horizontal', () => {
+      const nodes = context.getNodes();
+      const layouted = this.horizontalFlow(nodes);
+      context.updateNodes(layouted);
+    });
+
+    core.on('layout:nodes-vertical', () => {
+      const nodes = context.getNodes();
+      const layouted = this.verticalFlow(nodes);
+      context.updateNodes(layouted);
+    });
+
+    core.on('layout:nodes-grid', () => {
+      const nodes = context.getNodes();
+      const layouted = this.gridLayout(nodes);
+      context.updateNodes(layouted);
+    });
+
+    core.on('layout:nodes-circular', () => {
+      const nodes = context.getNodes();
+      const layouted = this.circularLayout(nodes);
+      context.updateNodes(layouted);
+    });
+
+    core.on('layout:nodes-hierarchical', () => {
+      const nodes = context.getNodes();
+      const edges = context.getEdges();
+      const layouted = this.hierarchicalLayout(nodes, edges);
       context.updateNodes(layouted);
     });
 
@@ -62,7 +94,124 @@ export class LayoutPlugin implements KiteFramePlugin {
   }
 
   /**
-   * Apply layout per-flow instead of globally
+   * Layout entire workflows as units (workflow-level layout)
+   * Moves entire workflows without rearranging internal nodes
+   */
+  layoutWorkflows(nodes: Node[], edges: Edge[], layoutType: string): Node[] {
+    // Detect separate workflows
+    const flows = FlowDetection.detectFlows(nodes, edges);
+    
+    if (flows.length <= 1) return nodes; // Nothing to rearrange
+    
+    // Create workflow units with their center points
+    const workflowUnits = flows.map(flow => {
+      const boundingBox = this.calculateFlowBoundingBox(flow.nodes);
+      return {
+        flow,
+        centerX: boundingBox.x + boundingBox.width / 2,
+        centerY: boundingBox.y + boundingBox.height / 2,
+        boundingBox
+      };
+    });
+    
+    // Calculate new positions for workflow centers based on layout type
+    const layoutedCenters = this.calculateWorkflowCenterPositions(workflowUnits, layoutType);
+    
+    // Apply offsets to move each workflow to its new center position
+    const result: Node[] = [];
+    
+    layoutedCenters.forEach((unit, index) => {
+      const originalUnit = workflowUnits[index];
+      const offsetX = unit.centerX - originalUnit.centerX;
+      const offsetY = unit.centerY - originalUnit.centerY;
+      
+      // Apply offset to all nodes in this workflow
+      const offsetNodes = unit.flow.nodes.map(node => ({
+        ...node,
+        position: {
+          x: node.position.x + offsetX,
+          y: node.position.y + offsetY
+        }
+      }));
+      
+      result.push(...offsetNodes);
+    });
+    
+    return result;
+  }
+  
+  /**
+   * Calculate new center positions for workflows based on layout algorithm
+   */
+  private calculateWorkflowCenterPositions(
+    workflowUnits: Array<{ flow: Flow; centerX: number; centerY: number; boundingBox: any }>,
+    layoutType: string
+  ): Array<{ flow: Flow; centerX: number; centerY: number }> {
+    const WORKFLOW_SPACING = 400;
+    
+    switch (layoutType) {
+      case 'horizontal':
+        return workflowUnits.map((unit, index) => ({
+          flow: unit.flow,
+          centerX: index * WORKFLOW_SPACING + 300,
+          centerY: unit.centerY // Keep original Y position
+        }));
+        
+      case 'vertical':
+        return workflowUnits.map((unit, index) => ({
+          flow: unit.flow,
+          centerX: unit.centerX, // Keep original X position
+          centerY: index * WORKFLOW_SPACING + 200
+        }));
+        
+      case 'grid': {
+        const columns = Math.ceil(Math.sqrt(workflowUnits.length));
+        return workflowUnits.map((unit, index) => {
+          const row = Math.floor(index / columns);
+          const col = index % columns;
+          return {
+            flow: unit.flow,
+            centerX: col * WORKFLOW_SPACING + 300,
+            centerY: row * WORKFLOW_SPACING + 200
+          };
+        });
+      }
+      
+      case 'circular': {
+        const radius = Math.max(300, workflowUnits.length * 50);
+        const centerX = 500;
+        const centerY = 400;
+        const angleStep = (2 * Math.PI) / workflowUnits.length;
+        
+        return workflowUnits.map((unit, index) => {
+          const angle = index * angleStep;
+          return {
+            flow: unit.flow,
+            centerX: centerX + radius * Math.cos(angle),
+            centerY: centerY + radius * Math.sin(angle)
+          };
+        });
+      }
+      
+      case 'hierarchical':
+        // For hierarchical, arrange workflows vertically for simplicity
+        return workflowUnits.map((unit, index) => ({
+          flow: unit.flow,
+          centerX: unit.centerX, // Keep original X
+          centerY: index * WORKFLOW_SPACING + 200
+        }));
+        
+      default:
+        return workflowUnits.map(unit => ({
+          flow: unit.flow,
+          centerX: unit.centerX,
+          centerY: unit.centerY
+        }));
+    }
+  }
+
+  /**
+   * Apply layout per-flow instead of globally (deprecated - kept for compatibility)
    */
   applyLayoutPerFlow(nodes: Node[], edges: Edge[], layoutType: string): Node[] {
     // Detect separate flows (connected components)
