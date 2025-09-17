@@ -704,7 +704,7 @@ export class LayoutPlugin implements KiteFramePlugin {
   }
 
   /**
-   * Distribute workflows evenly
+   * Distribute workflows with edge-to-edge spacing
    */
   distributeWorkflows(nodes: Node[], edges: Edge[], direction: string, customSpacing?: number): Node[] {
     const flows = FlowDetection.detectFlows(nodes, edges);
@@ -714,52 +714,44 @@ export class LayoutPlugin implements KiteFramePlugin {
       const boundingBox = this.calculateFlowBoundingBox(flow.nodes);
       return {
         flow,
-        boundingBox,
-        center: {
-          x: boundingBox.x + boundingBox.width / 2,
-          y: boundingBox.y + boundingBox.height / 2
-        }
+        boundingBox
       };
     });
 
-    // Sort workflows by position
+    // Sort workflows by their leading edge position
     if (direction === 'horizontal') {
-      workflowUnits.sort((a, b) => a.center.x - b.center.x);
+      workflowUnits.sort((a, b) => a.boundingBox.x - b.boundingBox.x);
     } else {
-      workflowUnits.sort((a, b) => a.center.y - b.center.y);
-    }
-
-    // Calculate distribution - use custom spacing if provided, otherwise distribute evenly
-    const firstCenter = workflowUnits[0].center;
-    let spacing: number;
-    
-    if (customSpacing !== undefined) {
-      // Use custom spacing between workflow centers
-      spacing = customSpacing + 250; // Add workflow width buffer
-    } else {
-      // Auto-distribute evenly across available space
-      const lastCenter = workflowUnits[workflowUnits.length - 1].center;
-      const totalDistance = direction === 'horizontal' 
-        ? lastCenter.x - firstCenter.x
-        : lastCenter.y - firstCenter.y;
-      spacing = totalDistance / (workflowUnits.length - 1);
+      workflowUnits.sort((a, b) => a.boundingBox.y - b.boundingBox.y);
     }
 
     const result: Node[] = [];
+    const spacing = customSpacing ?? 50; // Default 50px gap between workflow edges
 
     workflowUnits.forEach((unit, index) => {
-      let targetPosition: number;
       let offsetX = 0;
       let offsetY = 0;
 
-      if (direction === 'horizontal') {
-        targetPosition = firstCenter.x + (index * spacing);
-        offsetX = targetPosition - unit.center.x;
-      } else {
-        targetPosition = firstCenter.y + (index * spacing);
-        offsetY = targetPosition - unit.center.y;
+      if (index > 0) {
+        // Position this workflow after the previous one with specified spacing
+        const previousUnit = workflowUnits[index - 1];
+        
+        if (direction === 'horizontal') {
+          // Calculate where this workflow's left edge should be positioned
+          const targetX = previousUnit.boundingBox.x + previousUnit.boundingBox.width + spacing;
+          offsetX = targetX - unit.boundingBox.x;
+        } else {
+          // Calculate where this workflow's top edge should be positioned  
+          const targetY = previousUnit.boundingBox.y + previousUnit.boundingBox.height + spacing;
+          offsetY = targetY - unit.boundingBox.y;
+        }
+
+        // Update the current unit's bounding box for next iteration
+        unit.boundingBox.x += offsetX;
+        unit.boundingBox.y += offsetY;
       }
 
+      // Apply the offset to all nodes in this workflow
       const distributedNodes = unit.flow.nodes.map(node => ({
         ...node,
         position: {
