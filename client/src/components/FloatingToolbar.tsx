@@ -3,7 +3,7 @@ import {
   Undo2, Redo2, ZoomIn, LayoutGrid, GripVertical, Camera, History, Maximize2,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical, 
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
-  ArrowRight, ArrowDown, Grid2X2, Shuffle
+  ArrowRight, ArrowDown, Grid2X2, Shuffle, AlignVerticalSpaceBetween, AlignHorizontalSpaceBetween
 } from 'lucide-react';
 
 interface FloatingToolbarProps {
@@ -27,6 +27,7 @@ export function FloatingToolbar({
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showLayoutDropdown, setShowLayoutDropdown] = useState(false);
+  const [spacing, setSpacing] = useState(10);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -132,6 +133,14 @@ export function FloatingToolbar({
         { id: 'align-middle', label: 'Middle', icon: AlignCenterHorizontal, eventId: 'align:workflows-middle' },
         { id: 'align-bottom', label: 'Bottom', icon: AlignEndHorizontal, eventId: 'align:workflows-bottom' },
       ]
+    },
+    {
+      title: 'Distribute',
+      hasInput: true,
+      options: [
+        { id: 'distribute-vertical', label: 'Vertical Space Between', icon: AlignVerticalSpaceBetween, eventId: 'distribute:workflows-vertical' },
+        { id: 'distribute-horizontal', label: 'Horizontal Space Between', icon: AlignHorizontalSpaceBetween, eventId: 'distribute:workflows-horizontal' },
+      ]
     }
   ];
 
@@ -233,24 +242,65 @@ export function FloatingToolbar({
                   {workflowsOptions.map((section) => (
                     <div key={section.title}>
                       <div className="text-sm font-medium text-muted-foreground mb-2">{section.title}</div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {section.options.map((option) => {
-                          const IconComponent = option.icon;
-                          return (
-                            <button
-                              key={option.id}
-                              className="flex flex-col items-center justify-center p-3 hover:bg-accent rounded-lg transition-colors group bg-muted/50"
-                              onClick={() => {
-                                onAutoLayout(option.eventId);
-                                setShowLayoutDropdown(false);
+                      {section.hasInput ? (
+                        // Special layout for Distribute section with input field
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <input
+                              type="number"
+                              min="0"
+                              max="40"
+                              value={spacing}
+                              onChange={(e) => {
+                                const value = Math.min(40, Math.max(0, parseInt(e.target.value) || 0));
+                                setSpacing(value);
                               }}
-                              title={option.label}
-                            >
-                              <IconComponent size={20} className="text-muted-foreground group-hover:text-foreground" />
-                            </button>
-                          );
-                        })}
-                      </div>
+                              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                              placeholder="10"
+                            />
+                            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                              px
+                            </span>
+                          </div>
+                          {section.options.map((option) => {
+                            const IconComponent = option.icon;
+                            return (
+                              <button
+                                key={option.id}
+                                className="flex flex-col items-center justify-center p-3 hover:bg-accent rounded-lg transition-colors group bg-muted/50 w-12 h-12"
+                                onClick={() => {
+                                  const eventIdWithSpacing = `${option.eventId}:${spacing}`;
+                                  onAutoLayout(eventIdWithSpacing);
+                                  setShowLayoutDropdown(false);
+                                }}
+                                title={option.label}
+                              >
+                                <IconComponent size={20} className="text-muted-foreground group-hover:text-foreground" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        // Regular grid layout for align sections
+                        <div className="grid grid-cols-3 gap-2">
+                          {section.options.map((option) => {
+                            const IconComponent = option.icon;
+                            return (
+                              <button
+                                key={option.id}
+                                className="flex flex-col items-center justify-center p-3 hover:bg-accent rounded-lg transition-colors group bg-muted/50"
+                                onClick={() => {
+                                  onAutoLayout(option.eventId);
+                                  setShowLayoutDropdown(false);
+                                }}
+                                title={option.label}
+                              >
+                                <IconComponent size={20} className="text-muted-foreground group-hover:text-foreground" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

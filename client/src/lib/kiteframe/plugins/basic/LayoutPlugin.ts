@@ -158,31 +158,43 @@ export class LayoutPlugin implements KiteFramePlugin {
       context.updateNodes(aligned);
     });
 
-    // Listen for workflow-level distribute events
-    core.on('distribute:workflows-horizontal', () => {
+    // Listen for workflow-level distribute events (with optional spacing)
+    core.on(/distribute:workflows-horizontal(:.*)?$/, (eventName: string) => {
       const nodes = context.getNodes();
       const edges = context.getEdges();
-      const distributed = this.distributeWorkflows(nodes, edges, 'horizontal');
+      // Extract spacing from event name like "distribute:workflows-horizontal:15"
+      const spacingMatch = eventName.match(/:([0-9]+)$/);
+      const spacing = spacingMatch ? parseInt(spacingMatch[1]) : 100;
+      const distributed = this.distributeWorkflows(nodes, edges, 'horizontal', spacing);
       context.updateNodes(distributed);
     });
 
-    core.on('distribute:workflows-vertical', () => {
+    core.on(/distribute:workflows-vertical(:.*)?$/, (eventName: string) => {
       const nodes = context.getNodes();
       const edges = context.getEdges();
-      const distributed = this.distributeWorkflows(nodes, edges, 'vertical');
+      // Extract spacing from event name like "distribute:workflows-vertical:20"
+      const spacingMatch = eventName.match(/:([0-9]+)$/);
+      const spacing = spacingMatch ? parseInt(spacingMatch[1]) : 100;
+      const distributed = this.distributeWorkflows(nodes, edges, 'vertical', spacing);
       context.updateNodes(distributed);
     });
 
-    // Listen for node-level distribute events
-    core.on('distribute:nodes-horizontal', () => {
+    // Listen for node-level distribute events (with optional spacing)
+    core.on(/distribute:nodes-horizontal(:.*)?$/, (eventName: string) => {
       const nodes = context.getNodes();
-      const distributed = this.distributeNodes(nodes, 'horizontal');
+      // Extract spacing from event name 
+      const spacingMatch = eventName.match(/:([0-9]+)$/);
+      const spacing = spacingMatch ? parseInt(spacingMatch[1]) : 100;
+      const distributed = this.distributeNodes(nodes, 'horizontal', spacing);
       context.updateNodes(distributed);
     });
 
-    core.on('distribute:nodes-vertical', () => {
+    core.on(/distribute:nodes-vertical(:.*)?$/, (eventName: string) => {
       const nodes = context.getNodes();
-      const distributed = this.distributeNodes(nodes, 'vertical');
+      // Extract spacing from event name
+      const spacingMatch = eventName.match(/:([0-9]+)$/);
+      const spacing = spacingMatch ? parseInt(spacingMatch[1]) : 100;
+      const distributed = this.distributeNodes(nodes, 'vertical', spacing);
       context.updateNodes(distributed);
     });
 
@@ -702,7 +714,7 @@ export class LayoutPlugin implements KiteFramePlugin {
   /**
    * Distribute workflows evenly
    */
-  distributeWorkflows(nodes: Node[], edges: Edge[], direction: string): Node[] {
+  distributeWorkflows(nodes: Node[], edges: Edge[], direction: string, customSpacing?: number): Node[] {
     const flows = FlowDetection.detectFlows(nodes, edges);
     if (flows.length <= 2) return nodes;
 
@@ -725,13 +737,21 @@ export class LayoutPlugin implements KiteFramePlugin {
       workflowUnits.sort((a, b) => a.center.y - b.center.y);
     }
 
-    // Calculate distribution
+    // Calculate distribution - use custom spacing if provided, otherwise distribute evenly
     const firstCenter = workflowUnits[0].center;
-    const lastCenter = workflowUnits[workflowUnits.length - 1].center;
-    const totalDistance = direction === 'horizontal' 
-      ? lastCenter.x - firstCenter.x
-      : lastCenter.y - firstCenter.y;
-    const spacing = totalDistance / (workflowUnits.length - 1);
+    let spacing: number;
+    
+    if (customSpacing !== undefined) {
+      // Use custom spacing between workflow centers
+      spacing = customSpacing + 250; // Add workflow width buffer
+    } else {
+      // Auto-distribute evenly across available space
+      const lastCenter = workflowUnits[workflowUnits.length - 1].center;
+      const totalDistance = direction === 'horizontal' 
+        ? lastCenter.x - firstCenter.x
+        : lastCenter.y - firstCenter.y;
+      spacing = totalDistance / (workflowUnits.length - 1);
+    }
 
     const result: Node[] = [];
 
@@ -765,7 +785,7 @@ export class LayoutPlugin implements KiteFramePlugin {
   /**
    * Distribute individual nodes evenly
    */
-  distributeNodes(nodes: Node[], direction: string): Node[] {
+  distributeNodes(nodes: Node[], direction: string, customSpacing?: number): Node[] {
     if (nodes.length <= 2) return nodes;
 
     // Sort nodes by position
@@ -780,10 +800,18 @@ export class LayoutPlugin implements KiteFramePlugin {
     const firstNode = sortedNodes[0];
     const lastNode = sortedNodes[sortedNodes.length - 1];
     
-    const totalDistance = direction === 'horizontal'
-      ? lastNode.position.x - firstNode.position.x
-      : lastNode.position.y - firstNode.position.y;
-    const spacing = totalDistance / (sortedNodes.length - 1);
+    let spacing: number;
+    
+    if (customSpacing !== undefined) {
+      // Use custom spacing between nodes
+      spacing = customSpacing + 200; // Add node width buffer
+    } else {
+      // Auto-distribute evenly across available space
+      const totalDistance = direction === 'horizontal'
+        ? lastNode.position.x - firstNode.position.x
+        : lastNode.position.y - firstNode.position.y;
+      spacing = totalDistance / (sortedNodes.length - 1);
+    }
 
     return sortedNodes.map((node, index) => {
       const targetPosition = direction === 'horizontal'
