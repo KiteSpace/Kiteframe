@@ -219,7 +219,8 @@ Position nodes 250px apart horizontally.`;
         cleanedResponse = cleanedResponse.substring(0, lastBraceIndex + 1);
       }
       
-      console.log('🧹 CLEANED RESPONSE:', cleanedResponse);
+      console.log('🧹 CLEANED RESPONSE LENGTH:', cleanedResponse.length, 'chars');
+      console.log('🧹 FIRST 500 CHARS:', cleanedResponse.substring(0, 500));
       
       // Try to find JSON content if wrapped in text
       const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
@@ -233,7 +234,8 @@ Position nodes 250px apart horizontally.`;
         // First attempt - parse as-is
         workflowData = JSON.parse(cleanedResponse);
       } catch (firstError) {
-        console.log('❌ FIRST PARSE FAILED, ATTEMPTING FIXES:', firstError instanceof Error ? firstError.message : String(firstError));
+        const errorMsg = firstError instanceof Error ? firstError.message : String(firstError);
+        console.log('❌ FIRST PARSE FAILED:', errorMsg);
         
         try {
           // Second attempt - fix common JSON issues
@@ -274,11 +276,14 @@ Position nodes 250px apart horizontally.`;
             fixedResponse += ']';
           }
           
-          console.log('🔧 ATTEMPTING FIXED PARSE:', fixedResponse);
+          console.log('🔧 FIXED RESPONSE LENGTH:', fixedResponse.length, 'chars');
+          console.log('🔧 AROUND ERROR POSITION 2950:', fixedResponse.substring(2900, 3000));
           workflowData = JSON.parse(fixedResponse);
           
         } catch (secondError) {
-          console.log('❌ SECOND PARSE FAILED, USING FALLBACK:', secondError instanceof Error ? secondError.message : String(secondError));
+          const secondErrorMsg = secondError instanceof Error ? secondError.message : String(secondError);
+          console.log('❌ SECOND PARSE FAILED:', secondErrorMsg);
+          console.log('❌ USING FALLBACK WORKFLOW');
           
           // Create fallback workflow
           const fallbackWorkflow = {
