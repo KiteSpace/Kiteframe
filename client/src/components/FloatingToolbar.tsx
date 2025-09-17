@@ -1,9 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { 
   Undo2, Redo2, ZoomIn, LayoutGrid, GripVertical, Camera, History, Maximize2,
-  AlignLeft, AlignCenter, AlignRight, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, 
-  AlignVerticalJustifyEnd, ArrowLeftRight, ArrowUpDown, ArrowRight, ArrowDown, 
-  Grid3X3, Workflow 
+  AlignStartVertical, AlignCenterVertical, AlignEndVertical, 
+  AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
+  ArrowRight, ArrowDown, Grid2X2, Shuffle
 } from 'lucide-react';
 
 interface FloatingToolbarProps {
@@ -27,7 +27,6 @@ export function FloatingToolbar({
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showLayoutDropdown, setShowLayoutDropdown] = useState(false);
-  const [selectedLayoutMode, setSelectedLayoutMode] = useState<'workflows' | 'nodes' | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -116,43 +115,34 @@ export function FloatingToolbar({
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  const layoutModes = [
-    { id: 'workflows' as const, label: 'Layout Workflows', description: 'Arrange entire workflows as units' },
-    { id: 'nodes' as const, label: 'Layout Nodes', description: 'Arrange individual nodes' },
+  // Unified layout options matching screenshot design
+  const workflowsOptions = [
+    {
+      title: 'Horizontal Align',
+      options: [
+        { id: 'align-left', label: 'Left', icon: AlignStartVertical, eventId: 'align:workflows-left' },
+        { id: 'align-center', label: 'Center', icon: AlignCenterVertical, eventId: 'align:workflows-center' },
+        { id: 'align-right', label: 'Right', icon: AlignEndVertical, eventId: 'align:workflows-right' },
+      ]
+    },
+    {
+      title: 'Vertical Align',
+      options: [
+        { id: 'align-top', label: 'Top', icon: AlignStartHorizontal, eventId: 'align:workflows-top' },
+        { id: 'align-middle', label: 'Middle', icon: AlignCenterHorizontal, eventId: 'align:workflows-middle' },
+        { id: 'align-bottom', label: 'Bottom', icon: AlignEndHorizontal, eventId: 'align:workflows-bottom' },
+      ]
+    }
   ];
 
-  // Consolidated layout options with icons
-  const layoutSections = [
-    {
-      title: 'Horizontal',
-      options: [
-        { id: 'align-left', label: 'Align Left', icon: AlignLeft, type: 'align' },
-        { id: 'align-center', label: 'Align Center', icon: AlignCenter, type: 'align' },
-        { id: 'align-right', label: 'Align Right', icon: AlignRight, type: 'align' },
-      ]
-    },
-    {
-      title: 'Vertical',
-      options: [
-        { id: 'align-top', label: 'Align Top', icon: AlignVerticalJustifyStart, type: 'align' },
-        { id: 'align-middle', label: 'Align Middle', icon: AlignVerticalJustifyCenter, type: 'align' },
-        { id: 'align-bottom', label: 'Align Bottom', icon: AlignVerticalJustifyEnd, type: 'align' },
-      ]
-    },
-    {
-      title: 'Distribute',
-      options: [
-        { id: 'distribute-horizontal', label: 'Distribute Horizontally', icon: ArrowLeftRight, type: 'distribute' },
-        { id: 'distribute-vertical', label: 'Distribute Vertically', icon: ArrowUpDown, type: 'distribute' },
-      ]
-    },
+  const nodesOptions = [
     {
       title: 'Layout',
       options: [
-        { id: 'layout-horizontal', label: 'Horizontal Flow', icon: ArrowRight, type: 'layout' },
-        { id: 'layout-vertical', label: 'Vertical Flow', icon: ArrowDown, type: 'layout' },
-        { id: 'layout-grid', label: 'Grid Layout', icon: Grid3X3, type: 'layout' },
-        { id: 'layout-hierarchical', label: 'Hierarchical', icon: Workflow, type: 'layout' },
+        { id: 'layout-horizontal', label: 'Horizontal', icon: ArrowRight, eventId: 'layout:nodes-horizontal' },
+        { id: 'layout-vertical', label: 'Vertical', icon: ArrowDown, eventId: 'layout:nodes-vertical' },
+        { id: 'layout-grid', label: 'Grid', icon: Grid2X2, eventId: 'layout:nodes-grid' },
+        { id: 'layout-hierarchical', label: 'Hierarchical', icon: Shuffle, eventId: 'layout:nodes-hierarchical' },
       ]
     }
   ];
@@ -236,82 +226,65 @@ export function FloatingToolbar({
           
           {showLayoutDropdown && (
             <div className="absolute bottom-full mb-2 left-0 bg-card border border-border rounded-lg shadow-lg p-4 w-80 z-50">
-              {selectedLayoutMode === null ? (
-                // Show layout mode selection (workflows vs nodes)
-                <>
-                  <div className="text-sm font-medium text-foreground mb-3">Choose Layout Mode</div>
-                  {layoutModes.map((mode) => (
-                    <button
-                      key={mode.id}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors rounded-md mb-2"
-                      onClick={() => {
-                        setSelectedLayoutMode(mode.id);
-                      }}
-                    >
-                      <div className="font-medium">{mode.label}</div>
-                      <div className="text-xs text-muted-foreground">{mode.description}</div>
-                    </button>
-                  ))}
-                </>
-              ) : (
-                // Show icon grid for selected mode
-                <>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="text-sm font-medium text-foreground">
-                      {selectedLayoutMode === 'workflows' ? 'Layout Workflows' : 'Layout Nodes'}
-                    </div>
-                    <button
-                      className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-accent"
-                      onClick={() => setSelectedLayoutMode(null)}
-                    >
-                      ← Back
-                    </button>
-                  </div>
-                  
-                  {/* Icon Grid Sections */}
-                  <div className="space-y-4">
-                    {layoutSections.map((section) => (
-                      <div key={section.title}>
-                        <div className="text-xs font-medium text-muted-foreground mb-2">{section.title}</div>
-                        <div className="grid grid-cols-3 gap-2">
-                          {section.options.map((option) => {
-                            const IconComponent = option.icon;
-                            return (
-                              <button
-                                key={option.id}
-                                className="flex flex-col items-center justify-center p-3 hover:bg-accent rounded-lg transition-colors group"
-                                onClick={() => {
-                                  // Map option to correct event format
-                                  let eventId = '';
-                                  const modePrefix = selectedLayoutMode === 'workflows' ? 'workflows' : 'nodes';
-                                  
-                                  if (option.type === 'align') {
-                                    const alignType = option.id.replace('align-', '');
-                                    eventId = `align:${modePrefix}-${alignType}`;
-                                  } else if (option.type === 'distribute') {
-                                    const distributeType = option.id.replace('distribute-', '');
-                                    eventId = `distribute:${modePrefix}-${distributeType}`;
-                                  } else if (option.type === 'layout') {
-                                    const layoutType = option.id.replace('layout-', '');
-                                    eventId = `layout:${modePrefix}-${layoutType}`;
-                                  }
-                                  
-                                  onAutoLayout(eventId);
-                                  setShowLayoutDropdown(false);
-                                  setSelectedLayoutMode(null);
-                                }}
-                                title={option.label}
-                              >
-                                <IconComponent size={20} className="text-muted-foreground group-hover:text-foreground" />
-                              </button>
-                            );
-                          })}
-                        </div>
+              {/* Workflows Section */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Workflows</h3>
+                <div className="space-y-4">
+                  {workflowsOptions.map((section) => (
+                    <div key={section.title}>
+                      <div className="text-sm font-medium text-muted-foreground mb-2">{section.title}</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {section.options.map((option) => {
+                          const IconComponent = option.icon;
+                          return (
+                            <button
+                              key={option.id}
+                              className="flex flex-col items-center justify-center p-3 hover:bg-accent rounded-lg transition-colors group bg-muted/50"
+                              onClick={() => {
+                                onAutoLayout(option.eventId);
+                                setShowLayoutDropdown(false);
+                              }}
+                              title={option.label}
+                            >
+                              <IconComponent size={20} className="text-muted-foreground group-hover:text-foreground" />
+                            </button>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
-                </>
-              )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Nodes Section */}
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-4">Nodes</h3>
+                <div className="space-y-4">
+                  {nodesOptions.map((section) => (
+                    <div key={section.title}>
+                      <div className="text-sm font-medium text-muted-foreground mb-2">{section.title}</div>
+                      <div className="grid grid-cols-4 gap-2">
+                        {section.options.map((option) => {
+                          const IconComponent = option.icon;
+                          return (
+                            <button
+                              key={option.id}
+                              className="flex flex-col items-center justify-center p-3 hover:bg-accent rounded-lg transition-colors group bg-muted/50"
+                              onClick={() => {
+                                onAutoLayout(option.eventId);
+                                setShowLayoutDropdown(false);
+                              }}
+                              title={option.label}
+                            >
+                              <IconComponent size={20} className="text-muted-foreground group-hover:text-foreground" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -325,7 +298,6 @@ export function FloatingToolbar({
           className="absolute inset-0 z-30" 
           onClick={() => {
             setShowLayoutDropdown(false);
-            setSelectedLayoutMode(null);
           }}
         />
       )}
