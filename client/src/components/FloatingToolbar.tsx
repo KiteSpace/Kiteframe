@@ -249,10 +249,10 @@ export function FloatingToolbar({
                             <input
                               type="number"
                               min="0"
-                              max="40"
+                              max="100"
                               value={spacing}
                               onChange={(e) => {
-                                const value = Math.min(40, Math.max(0, parseInt(e.target.value) || 0));
+                                const value = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
                                 setSpacing(value);
                               }}
                               className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
