@@ -1,13 +1,16 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Undo2, Redo2, ZoomIn, LayoutGrid, GripVertical, Camera, History, Maximize2, AlignLeft, ArrowLeftRight } from 'lucide-react';
+import { 
+  Undo2, Redo2, ZoomIn, LayoutGrid, GripVertical, Camera, History, Maximize2,
+  AlignLeft, AlignCenter, AlignRight, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, 
+  AlignVerticalJustifyEnd, ArrowLeftRight, ArrowUpDown, ArrowRight, ArrowDown, 
+  Grid3X3, Workflow 
+} from 'lucide-react';
 
 interface FloatingToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onFitView: () => void;
   onAutoLayout: (layoutType: string) => void;
-  onAlign?: (alignType: string) => void;
-  onDistribute?: (distributeType: string) => void;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -17,8 +20,6 @@ export function FloatingToolbar({
   onRedo,
   onFitView,
   onAutoLayout,
-  onAlign,
-  onDistribute,
   canUndo,
   canRedo,
 }: FloatingToolbarProps) {
@@ -27,10 +28,6 @@ export function FloatingToolbar({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showLayoutDropdown, setShowLayoutDropdown] = useState(false);
   const [selectedLayoutMode, setSelectedLayoutMode] = useState<'workflows' | 'nodes' | null>(null);
-  const [showAlignDropdown, setShowAlignDropdown] = useState(false);
-  const [selectedAlignMode, setSelectedAlignMode] = useState<'workflows' | 'nodes' | null>(null);
-  const [showDistributeDropdown, setShowDistributeDropdown] = useState(false);
-  const [selectedDistributeMode, setSelectedDistributeMode] = useState<'workflows' | 'nodes' | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -124,26 +121,40 @@ export function FloatingToolbar({
     { id: 'nodes' as const, label: 'Layout Nodes', description: 'Arrange individual nodes' },
   ];
 
-  const layoutOptions = [
-    { id: 'horizontal', label: 'Horizontal Flow' },
-    { id: 'vertical', label: 'Vertical Flow' },
-    { id: 'grid', label: 'Grid' },
-    { id: 'circular', label: 'Circular' },
-    { id: 'hierarchical', label: 'Hierarchical' },
-  ];
-
-  const alignOptions = [
-    { id: 'left', label: 'Align Left' },
-    { id: 'center', label: 'Align Center' },
-    { id: 'right', label: 'Align Right' },
-    { id: 'top', label: 'Align Top' },
-    { id: 'middle', label: 'Align Middle' },
-    { id: 'bottom', label: 'Align Bottom' },
-  ];
-
-  const distributeOptions = [
-    { id: 'horizontal', label: 'Distribute Horizontally' },
-    { id: 'vertical', label: 'Distribute Vertically' },
+  // Consolidated layout options with icons
+  const layoutSections = [
+    {
+      title: 'Horizontal',
+      options: [
+        { id: 'align-left', label: 'Align Left', icon: AlignLeft, type: 'align' },
+        { id: 'align-center', label: 'Align Center', icon: AlignCenter, type: 'align' },
+        { id: 'align-right', label: 'Align Right', icon: AlignRight, type: 'align' },
+      ]
+    },
+    {
+      title: 'Vertical',
+      options: [
+        { id: 'align-top', label: 'Align Top', icon: AlignVerticalJustifyStart, type: 'align' },
+        { id: 'align-middle', label: 'Align Middle', icon: AlignVerticalJustifyCenter, type: 'align' },
+        { id: 'align-bottom', label: 'Align Bottom', icon: AlignVerticalJustifyEnd, type: 'align' },
+      ]
+    },
+    {
+      title: 'Distribute',
+      options: [
+        { id: 'distribute-horizontal', label: 'Distribute Horizontally', icon: ArrowLeftRight, type: 'distribute' },
+        { id: 'distribute-vertical', label: 'Distribute Vertically', icon: ArrowUpDown, type: 'distribute' },
+      ]
+    },
+    {
+      title: 'Layout',
+      options: [
+        { id: 'layout-horizontal', label: 'Horizontal Flow', icon: ArrowRight, type: 'layout' },
+        { id: 'layout-vertical', label: 'Vertical Flow', icon: ArrowDown, type: 'layout' },
+        { id: 'layout-grid', label: 'Grid Layout', icon: Grid3X3, type: 'layout' },
+        { id: 'layout-hierarchical', label: 'Hierarchical', icon: Workflow, type: 'layout' },
+      ]
+    }
   ];
 
   return (
@@ -224,14 +235,15 @@ export function FloatingToolbar({
           </button>
           
           {showLayoutDropdown && (
-            <div className="absolute bottom-full mb-2 left-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-48 z-50">
+            <div className="absolute bottom-full mb-2 left-0 bg-card border border-border rounded-lg shadow-lg p-4 w-80 z-50">
               {selectedLayoutMode === null ? (
                 // Show layout mode selection (workflows vs nodes)
                 <>
+                  <div className="text-sm font-medium text-foreground mb-3">Choose Layout Mode</div>
                   {layoutModes.map((mode) => (
                     <button
                       key={mode.id}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors rounded-md mb-2"
                       onClick={() => {
                         setSelectedLayoutMode(mode.id);
                       }}
@@ -242,176 +254,78 @@ export function FloatingToolbar({
                   ))}
                 </>
               ) : (
-                // Show layout algorithm options for selected mode
+                // Show icon grid for selected mode
                 <>
-                  <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
-                    {selectedLayoutMode === 'workflows' ? 'Layout Workflows' : 'Layout Nodes'}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-sm font-medium text-foreground">
+                      {selectedLayoutMode === 'workflows' ? 'Layout Workflows' : 'Layout Nodes'}
+                    </div>
                     <button
-                      className="float-right text-xs hover:text-foreground"
+                      className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-accent"
                       onClick={() => setSelectedLayoutMode(null)}
                     >
                       ← Back
                     </button>
                   </div>
-                  {layoutOptions.map((option) => (
-                    <button
-                      key={option.id}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
-                      onClick={() => {
-                        const layoutId = selectedLayoutMode === 'workflows' 
-                          ? `workflows-${option.id}` 
-                          : `nodes-${option.id}`;
-                        onAutoLayout(layoutId);
-                        setShowLayoutDropdown(false);
-                        setSelectedLayoutMode(null);
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                  
+                  {/* Icon Grid Sections */}
+                  <div className="space-y-4">
+                    {layoutSections.map((section) => (
+                      <div key={section.title}>
+                        <div className="text-xs font-medium text-muted-foreground mb-2">{section.title}</div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {section.options.map((option) => {
+                            const IconComponent = option.icon;
+                            return (
+                              <button
+                                key={option.id}
+                                className="flex flex-col items-center justify-center p-3 hover:bg-accent rounded-lg transition-colors group"
+                                onClick={() => {
+                                  // Map option to correct event format
+                                  let eventId = '';
+                                  const modePrefix = selectedLayoutMode === 'workflows' ? 'workflows' : 'nodes';
+                                  
+                                  if (option.type === 'align') {
+                                    const alignType = option.id.replace('align-', '');
+                                    eventId = `align:${modePrefix}-${alignType}`;
+                                  } else if (option.type === 'distribute') {
+                                    const distributeType = option.id.replace('distribute-', '');
+                                    eventId = `distribute:${modePrefix}-${distributeType}`;
+                                  } else if (option.type === 'layout') {
+                                    const layoutType = option.id.replace('layout-', '');
+                                    eventId = `layout:${modePrefix}-${layoutType}`;
+                                  }
+                                  
+                                  onAutoLayout(eventId);
+                                  setShowLayoutDropdown(false);
+                                  setSelectedLayoutMode(null);
+                                }}
+                                title={option.label}
+                              >
+                                <IconComponent size={20} className="text-muted-foreground group-hover:text-foreground" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </>
               )}
             </div>
           )}
         </div>
 
-        {/* Align */}
-        {onAlign && (
-          <div className="relative">
-            <button
-              className="w-8 h-8 flex items-center justify-center text-foreground hover:bg-accent rounded-full transition-colors"
-              onClick={() => setShowAlignDropdown(!showAlignDropdown)}
-              title="Align"
-            >
-              <AlignLeft size={16} />
-            </button>
-            
-            {showAlignDropdown && (
-              <div className="absolute bottom-full mb-2 left-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-48 z-50">
-                {selectedAlignMode === null ? (
-                  <>
-                    {layoutModes.map((mode) => (
-                      <button
-                        key={mode.id}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
-                        onClick={() => {
-                          setSelectedAlignMode(mode.id);
-                        }}
-                      >
-                        <div className="font-medium">{mode.label.replace('Layout', 'Align')}</div>
-                        <div className="text-xs text-muted-foreground">{mode.description.replace('Arrange', 'Align')}</div>
-                      </button>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
-                      {selectedAlignMode === 'workflows' ? 'Align Workflows' : 'Align Nodes'}
-                      <button
-                        className="float-right text-xs hover:text-foreground"
-                        onClick={() => setSelectedAlignMode(null)}
-                      >
-                        ← Back
-                      </button>
-                    </div>
-                    {alignOptions.map((option) => (
-                      <button
-                        key={option.id}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
-                        onClick={() => {
-                          const alignId = selectedAlignMode === 'workflows' 
-                            ? `workflows-${option.id}` 
-                            : `nodes-${option.id}`;
-                          onAlign(alignId);
-                          setShowAlignDropdown(false);
-                          setSelectedAlignMode(null);
-                        }}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Distribute */}
-        {onDistribute && (
-          <div className="relative">
-            <button
-              className="w-8 h-8 flex items-center justify-center text-foreground hover:bg-accent rounded-full transition-colors"
-              onClick={() => setShowDistributeDropdown(!showDistributeDropdown)}
-              title="Distribute"
-            >
-              <ArrowLeftRight size={16} />
-            </button>
-            
-            {showDistributeDropdown && (
-              <div className="absolute bottom-full mb-2 left-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-48 z-50">
-                {selectedDistributeMode === null ? (
-                  <>
-                    {layoutModes.map((mode) => (
-                      <button
-                        key={mode.id}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
-                        onClick={() => {
-                          setSelectedDistributeMode(mode.id);
-                        }}
-                      >
-                        <div className="font-medium">{mode.label.replace('Layout', 'Distribute')}</div>
-                        <div className="text-xs text-muted-foreground">{mode.description.replace('Arrange', 'Distribute')}</div>
-                      </button>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
-                      {selectedDistributeMode === 'workflows' ? 'Distribute Workflows' : 'Distribute Nodes'}
-                      <button
-                        className="float-right text-xs hover:text-foreground"
-                        onClick={() => setSelectedDistributeMode(null)}
-                      >
-                        ← Back
-                      </button>
-                    </div>
-                    {distributeOptions.map((option) => (
-                      <button
-                        key={option.id}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
-                        onClick={() => {
-                          const distributeId = selectedDistributeMode === 'workflows' 
-                            ? `workflows-${option.id}` 
-                            : `nodes-${option.id}`;
-                          onDistribute(distributeId);
-                          setShowDistributeDropdown(false);
-                          setSelectedDistributeMode(null);
-                        }}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
       </div>
 
-      {/* Click outside to close dropdowns */}
-      {(showLayoutDropdown || showAlignDropdown || showDistributeDropdown) && (
+      {/* Click outside to close dropdown */}
+      {showLayoutDropdown && (
         <div 
           className="absolute inset-0 z-30" 
           onClick={() => {
             setShowLayoutDropdown(false);
             setSelectedLayoutMode(null);
-            setShowAlignDropdown(false);
-            setSelectedAlignMode(null);
-            setShowDistributeDropdown(false);
-            setSelectedDistributeMode(null);
           }}
         />
       )}

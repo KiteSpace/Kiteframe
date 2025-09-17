@@ -2178,45 +2178,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   }, [nodes, saveToHistory, core]);
 
-  // Align Handler - delegates to LayoutPlugin via KiteFrame
-  const handleAlign = useCallback((alignType: string) => {
-    if (nodes.length === 0) return;
-    
-    saveToHistory();
-    
-    const eventName = `align:${alignType}`;
-    
-    if (core) {
-      try {
-        core.emit(eventName);
-        console.log(`🔧 ALIGN EVENT EMITTED: ${eventName}`, { nodeCount: nodes.length });
-      } catch (error) {
-        console.error(`❌ Failed to emit align event: ${eventName}`, error);
-      }
-    } else {
-      console.warn(`⚠️ KiteFrame core not available for align: ${alignType}`);
-    }
-  }, [nodes, saveToHistory, core]);
-
-  // Distribute Handler - delegates to LayoutPlugin via KiteFrame
-  const handleDistribute = useCallback((distributeType: string) => {
-    if (nodes.length === 0) return;
-    
-    saveToHistory();
-    
-    const eventName = `distribute:${distributeType}`;
-    
-    if (core) {
-      try {
-        core.emit(eventName);
-        console.log(`🔧 DISTRIBUTE EVENT EMITTED: ${eventName}`, { nodeCount: nodes.length });
-      } catch (error) {
-        console.error(`❌ Failed to emit distribute event: ${eventName}`, error);
-      }
-    } else {
-      console.warn(`⚠️ KiteFrame core not available for distribute: ${distributeType}`);
-    }
-  }, [nodes, saveToHistory, core]);
 
   // Other UI state
   const [showAiModal, setShowAiModal] = useState(false);
@@ -3925,53 +3886,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onNodeRightClick={(e: React.MouseEvent, node: Node) => {
                 setContextMenu({ x: e.clientX, y: e.clientY, node });
               }}
-              onCanvasObjectClick={(canvasObject: CanvasObject) => {
-                console.log(`📝 EDITOR CANVAS OBJECT CLICK HANDLER:`, { 
-                  canvasObjectId: canvasObject.id, 
-                  currentSelected: canvasObjects.find(obj => obj.selected)?.id,
-                  tabId: activeTab 
-                });
-                
-                // Clear any existing click delay timer
-                if (clickDelayTimeoutRef.current) {
-                  clearTimeout(clickDelayTimeoutRef.current);
-                  clickDelayTimeoutRef.current = null;
-                }
-                
-                // Clear node and edge selections
-                setNodes(prev => prev.map(n => ({ ...n, selected: false })));
-                setEdges(prev => prev.map(e => ({ ...e, selected: false })));
-                setSelectedNodeId('');
-                setSelectedEdgeId('');
-                setContextMenu(null);
-                
-                // Update canvas object selection immediately but delay properties panel
-                updateActiveTab({
-                  canvasObjects: canvasObjects.map(obj => ({ ...obj, selected: obj.id === canvasObject.id }))
-                });
-                
-                // Reset drag detection
-                isDraggingRef.current = false;
-                
-                // Delay opening properties panel for canvas objects too
-                clickDelayTimeoutRef.current = setTimeout(() => {
-                  if (!isDraggingRef.current) {
-                    console.log(`📝 CANVAS OBJECT CLICK CONFIRMED (no drag detected) - properties panel for:`, canvasObject.id);
-                    // Canvas object properties are shown based on selection state, not a separate ID
-                    // The properties panel will automatically show for the selected canvas object
-                  } else {
-                    console.log(`📝 CANVAS OBJECT DRAG DETECTED - not opening properties panel for:`, canvasObject.id);
-                  }
-                  clickDelayTimeoutRef.current = null;
-                }, 150); // 150ms delay
-                
-                console.log(`📝 CANVAS OBJECT SELECTION STATE SET:`, { 
-                  selectedNodeId: '',
-                  selectedEdgeId: '',
-                  selectedCanvasObjectId: canvasObject.id,
-                  tabId: activeTab 
-                });
-              }}
               onCanvasObjectRightClick={(e: React.MouseEvent, canvasObject: CanvasObject) => {
                 setContextMenu({ x: e.clientX, y: e.clientY, canvasObject });
               }}
@@ -4027,8 +3941,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               canUndo={canUndo}
               canRedo={canRedo}
               onAutoLayout={handleAutoLayout}
-              onAlign={handleAlign}
-              onDistribute={handleDistribute}
             />
             ) : (
               <BlankCanvasState

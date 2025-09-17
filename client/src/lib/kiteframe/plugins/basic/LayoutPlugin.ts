@@ -18,7 +18,6 @@ export class LayoutPlugin implements KiteFramePlugin {
       horizontalFlow: this.horizontalFlow.bind(this),
       verticalFlow: this.verticalFlow.bind(this),
       grid: this.gridLayout.bind(this),
-      circular: this.circularLayout.bind(this),
       hierarchical: this.hierarchicalLayout.bind(this)
     };
 
@@ -44,12 +43,6 @@ export class LayoutPlugin implements KiteFramePlugin {
       context.updateNodes(layouted);
     });
 
-    core.on('layout:workflows-circular', () => {
-      const nodes = context.getNodes();
-      const edges = context.getEdges();
-      const layouted = this.layoutWorkflows(nodes, edges, 'circular');
-      context.updateNodes(layouted);
-    });
 
     core.on('layout:workflows-hierarchical', () => {
       const nodes = context.getNodes();
@@ -77,11 +70,6 @@ export class LayoutPlugin implements KiteFramePlugin {
       context.updateNodes(layouted);
     });
 
-    core.on('layout:nodes-circular', () => {
-      const nodes = context.getNodes();
-      const layouted = this.circularLayout(nodes);
-      context.updateNodes(layouted);
-    });
 
     core.on('layout:nodes-hierarchical', () => {
       const nodes = context.getNodes();
@@ -285,21 +273,6 @@ export class LayoutPlugin implements KiteFramePlugin {
         });
       }
       
-      case 'circular': {
-        const radius = Math.max(300, workflowUnits.length * 50);
-        const centerX = 500;
-        const centerY = 400;
-        const angleStep = (2 * Math.PI) / workflowUnits.length;
-        
-        return workflowUnits.map((unit, index) => {
-          const angle = index * angleStep;
-          return {
-            flow: unit.flow,
-            centerX: centerX + radius * Math.cos(angle),
-            centerY: centerY + radius * Math.sin(angle)
-          };
-        });
-      }
       
       case 'hierarchical':
         // For hierarchical, arrange workflows vertically for simplicity
@@ -340,9 +313,6 @@ export class LayoutPlugin implements KiteFramePlugin {
           break;
         case 'grid':
           layoutedNodes = this.gridLayout(flow.nodes);
-          break;
-        case 'circular':
-          layoutedNodes = this.circularLayout(flow.nodes);
           break;
         case 'hierarchical':
           layoutedNodes = this.hierarchicalLayout(flow.nodes, flow.edges);
@@ -510,25 +480,6 @@ export class LayoutPlugin implements KiteFramePlugin {
     });
   }
 
-  /**
-   * Arrange nodes in circular layout
-   */
-  circularLayout(nodes: Node[], radius = 300): Node[] {
-    const centerX = 400;
-    const centerY = 300;
-    const angleStep = (2 * Math.PI) / nodes.length;
-
-    return nodes.map((node, index) => {
-      const angle = index * angleStep;
-      return {
-        ...node,
-        position: {
-          x: centerX + radius * Math.cos(angle),
-          y: centerY + radius * Math.sin(angle)
-        }
-      };
-    });
-  }
 
   /**
    * Arrange nodes in hierarchical layout based on connections
