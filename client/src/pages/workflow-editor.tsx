@@ -2101,6 +2101,24 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // Get access to KiteFrame core system
   const { core } = usePluginSystem();
+  
+  // Register required plugins in useEffect to avoid registration during render
+  useEffect(() => {
+    if (core) {
+      if (!core.getPlugin?.('layout')) {
+        core.use(layoutPlugin);
+      }
+      if (!core.getPlugin?.('console-demo')) {
+        core.use(consolePlugin);
+      }
+      if (!core.getPlugin?.('test-demo')) {
+        core.use(testPlugin);
+      }
+      if (!core.getPlugin?.('advanced-interactions-pro')) {
+        core.use(advancedInteractionsPlugin);
+      }
+    }
+  }, [core]);
 
   // Auto Layout Handler - delegates to LayoutPlugin via KiteFrame
   const handleAutoLayout = useCallback((layoutType: string) => {
