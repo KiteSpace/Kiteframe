@@ -2155,15 +2155,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   }, [core, tabs, activeTabId, updateActiveTab]);
 
-  // Auto Layout Handler - delegates to LayoutPlugin via KiteFrame
-  const handleAutoLayout = useCallback((layoutType: string) => {
+  // Auto Layout Handler - delegates to LayoutPlugin via KiteFrame  
+  // Accepts fully-qualified events (align:*, distribute:*, layout:*) or bare layout algorithm names
+  const handleAutoLayout = useCallback((eventId: string) => {
     if (nodes.length === 0) return;
     
     saveToHistory();
     
-    // Emit layout event to LayoutPlugin via KiteFrame core
-    // The FloatingToolbar sends formats like: 'workflows-horizontal', 'nodes-vertical', etc.
-    const eventName = `layout:${layoutType}`;
+    // Pass through fully-qualified events, otherwise add layout: prefix for backward compatibility
+    const eventName = /^(align:|distribute:|layout:)/.test(eventId) ? eventId : `layout:${eventId}`;
     
     if (core) {
       try {
@@ -2174,7 +2174,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         console.error(`❌ Failed to emit layout event: ${eventName}`, error);
       }
     } else {
-      console.warn(`⚠️ KiteFrame core not available for layout: ${layoutType}`);
+      console.warn(`⚠️ KiteFrame core not available for layout: ${eventId}`);
     }
   }, [nodes, saveToHistory, core]);
 
