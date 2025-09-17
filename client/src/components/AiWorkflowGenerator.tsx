@@ -262,6 +262,13 @@ Position nodes 250px apart horizontally.`;
           // Fix missing commas after object/array elements (specific to the error we're seeing)
           fixedResponse = fixedResponse.replace(/([}\]])\s*(\{|\[)/g, '$1,$2');
           
+          // Fix incomplete arrays - add missing closing brackets for common patterns
+          // Look for incomplete "edges": [... patterns and close them
+          fixedResponse = fixedResponse.replace(/("edges"\s*:\s*\[\s*[^}\]]*\{[^}]*\})\s*([,}])/g, '$1]$2');
+          
+          // Fix incomplete nodes array similarly
+          fixedResponse = fixedResponse.replace(/("nodes"\s*:\s*\[\s*[^}\]]*\{[^}]*\})\s*([,}])/g, '$1]$2');
+          
           // Try to fix incomplete JSON by balancing brackets
           const openBraces = (fixedResponse.match(/\{/g) || []).length;
           const closeBraces = (fixedResponse.match(/\}/g) || []).length;
