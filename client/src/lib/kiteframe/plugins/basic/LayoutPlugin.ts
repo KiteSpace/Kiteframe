@@ -1,5 +1,6 @@
 import type { KiteFramePlugin } from '../../core/KiteFrameCore';
-import type { Node } from '../../types';
+import type { Node, Edge } from '../../types';
+import { FlowDetection, type Flow } from '../../utils/FlowDetection';
 
 /**
  * Layout Plugin
@@ -21,39 +22,171 @@ export class LayoutPlugin implements KiteFramePlugin {
       hierarchical: this.hierarchicalLayout.bind(this)
     };
 
-    // Listen for layout events
+    // Listen for layout events - now with per-flow support
     core.on('layout:horizontal', () => {
       const nodes = context.getNodes();
-      const layouted = this.horizontalFlow(nodes);
+      const edges = context.getEdges();
+      const layouted = this.applyLayoutPerFlow(nodes, edges, 'horizontal');
       context.updateNodes(layouted);
     });
 
     core.on('layout:vertical', () => {
       const nodes = context.getNodes();
-      const layouted = this.verticalFlow(nodes);
+      const edges = context.getEdges();
+      const layouted = this.applyLayoutPerFlow(nodes, edges, 'vertical');
       context.updateNodes(layouted);
     });
 
     core.on('layout:grid', () => {
       const nodes = context.getNodes();
-      const layouted = this.gridLayout(nodes);
+      const edges = context.getEdges();
+      const layouted = this.applyLayoutPerFlow(nodes, edges, 'grid');
       context.updateNodes(layouted);
     });
 
     core.on('layout:circular', () => {
       const nodes = context.getNodes();
-      const layouted = this.circularLayout(nodes);
+      const edges = context.getEdges();
+      const layouted = this.applyLayoutPerFlow(nodes, edges, 'circular');
       context.updateNodes(layouted);
     });
 
     core.on('layout:hierarchical', () => {
       const nodes = context.getNodes();
       const edges = context.getEdges();
-      const layouted = this.hierarchicalLayout(nodes, edges);
+      const layouted = this.applyLayoutPerFlow(nodes, edges, 'hierarchical');
       context.updateNodes(layouted);
     });
 
     console.log('Layout Plugin initialized');
+  }
+
+  /**
+   * Apply layout per-flow instead of globally
+   */
+  applyLayoutPerFlow(nodes: Node[], edges: Edge[], layoutType: string): Node[] {
+    // Detect separate flows (connected components)
+    let flows = FlowDetection.detectFlows(nodes, edges);
+    flows = FlowDetection.hydrateFlows(flows, nodes);
+    
+    if (flows.length === 0) return nodes;
+    
+    // Apply layout to each flow independently
+    const layoutedFlows: Flow[] = flows.map(flow => {
+      let layoutedNodes: Node[];
+      
+      switch (layoutType) {
+        case 'horizontal':
+          layoutedNodes = this.horizontalFlow(flow.nodes);
+          break;
+        case 'vertical':
+          layoutedNodes = this.verticalFlow(flow.nodes);
+          break;
+        case 'grid':
+          layoutedNodes = this.gridLayout(flow.nodes);
+          break;
+        case 'circular':
+          layoutedNodes = this.circularLayout(flow.nodes);
+          break;
+        case 'hierarchical':
+          layoutedNodes = this.hierarchicalLayout(flow.nodes, flow.edges);
+          break;
+        default:
+          layoutedNodes = flow.nodes;
+      }
+      
+      return {
+        ...flow,
+        nodes: layoutedNodes
+      };
+    });
+    
+    // Position flows to avoid overlap
+    const positionedFlows = this.positionFlowsSpatially(layoutedFlows);
+    
+    // Merge all flow nodes back into single array
+    const result: Node[] = [];
+    positionedFlows.forEach(flow => {
+      result.push(...flow.nodes);
+    });
+    
+    return result;
+  }
+  
+  /**
+   * Position flows spatially to avoid overlap
+   */
+  private positionFlowsSpatially(flows: Flow[]): Flow[] {
+    if (flows.length <= 1) return flows;
+    
+    const FLOW_SPACING = 400; // Minimum spacing between flows
+    let currentY = 0;
+    
+    return flows.map((flow, index) => {
+      if (index === 0) {
+        // First flow stays at its original position
+        const boundingBox = this.calculateFlowBoundingBox(flow.nodes);
+        currentY = boundingBox.y + boundingBox.height + FLOW_SPACING;
+        return flow;
+      }
+      
+      // Calculate current bounding box
+      const boundingBox = this.calculateFlowBoundingBox(flow.nodes);
+      
+      // Calculate offset needed to move flow to new position
+      const offsetY = currentY - boundingBox.y;
+      
+      // Apply offset to all nodes in this flow
+      const offsetNodes = flow.nodes.map(node => ({
+        ...node,
+        position: {
+          x: node.position.x,
+          y: node.position.y + offsetY
+        }
+      }));
+      
+      // Update currentY for next flow
+      const newBoundingBox = this.calculateFlowBoundingBox(offsetNodes);
+      currentY = newBoundingBox.y + newBoundingBox.height + FLOW_SPACING;
+      
+      return {
+        ...flow,
+        nodes: offsetNodes
+      };
+    });
+  }
+  
+  /**
+   * Calculate bounding box for a flow's nodes
+   */
+  private calculateFlowBoundingBox(nodes: Node[]): {
+    x: number; y: number; width: number; height: number;
+  } {
+    if (nodes.length === 0) {
+      return { x: 0, y: 0, width: 0, height: 0 };
+    }
+    
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    
+    nodes.forEach(node => {
+      const nodeWidth = node.style?.width ?? node.width ?? 200;
+      const nodeHeight = node.style?.height ?? node.height ?? 100;
+      
+      minX = Math.min(minX, node.position.x);
+      maxX = Math.max(maxX, node.position.x + nodeWidth);
+      minY = Math.min(minY, node.position.y);
+      maxY = Math.max(maxY, node.position.y + nodeHeight);
+    });
+    
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY
+    };
   }
 
   /**
