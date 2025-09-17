@@ -13,6 +13,13 @@ export function buildMultiViewTrees(
   const leaves: Record<string,LayerLeaf> = {};
   const roots = ['structureRoot','topologyRoot','spatialRoot','linksRoot'];
 
+  // Create lookup maps for node and edge labels
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  const getNodeLabel = (nodeId: string) => {
+    const node = nodeMap.get(nodeId);
+    return node?.data?.label || node?.data?.name || nodeId;
+  };
+
   groups['structureRoot'] = { id:'structureRoot', name:'Structure', role:'root', childIds:[] };
   const workflowsById: Record<string,string[]> = {};
   Object.entries(workerResult.nodeToWorkflow).forEach(([nodeId,wf])=>{
@@ -23,11 +30,14 @@ export function buildMultiViewTrees(
     groups['structureRoot'].childIds.push(wfId);
     groups[wfId] = { id:wfId, name: wf.startsWith('wf:')?wf.slice(3):wf, role:'workflow', childIds:[] };
     (nodeIds as string[]).forEach(nid=>{
-      leaves[nid] = { id:nid, role:'node', label:nid, parentId:wfId };
+      leaves[nid] = { id:nid, role:'node', label:getNodeLabel(nid), parentId:wfId };
       groups[wfId].childIds.push(nid);
     });
     edges.filter(e=>(nodeIds as string[]).includes(e.source) && (nodeIds as string[]).includes(e.target)).forEach(e=>{
-      const id=`e:${e.id}`; leaves[id]={ id, role:'edge', label:`${e.source} → ${e.target}`, parentId:wfId };
+      const id=`e:${e.id}`; 
+      const sourceLabel = getNodeLabel(e.source);
+      const targetLabel = getNodeLabel(e.target);
+      leaves[id]={ id, role:'edge', label:`${sourceLabel} → ${targetLabel}`, parentId:wfId };
       groups[wfId].childIds.push(id);
     });
   }
@@ -40,7 +50,7 @@ export function buildMultiViewTrees(
   Array.from(byLevel.entries()).sort((a,b)=>a[0]-b[0]).forEach(([lvl, ids])=>{
     const gid=`stage:${lvl}`; groups['topologyRoot'].childIds.push(gid);
     groups[gid]={ id:gid, name:`Stage ${lvl}`, role:'stage', childIds:[...ids] };
-    ids.forEach((id:string)=>{ if(!leaves[id]) leaves[id]={ id, role:'node', label:id, parentId:gid }; });
+    ids.forEach((id:string)=>{ if(!leaves[id]) leaves[id]={ id, role:'node', label:getNodeLabel(id), parentId:gid }; });
   });
 
   groups['spatialRoot'] = { id:'spatialRoot', name:'Spatial', role:'root', childIds:[] };
@@ -48,7 +58,7 @@ export function buildMultiViewTrees(
     const gid=`row:${rowIdx}`;
     groups['spatialRoot'].childIds.push(gid);
     groups[gid]={ id:gid, name:`Row Y=${rowIdx}`, role:'spatialGroup', childIds:[...ids] };
-    ids.forEach((id:string)=>{ if(!leaves[id]) leaves[id]={ id, role:'node', label:id, parentId:gid }; });
+    ids.forEach((id:string)=>{ if(!leaves[id]) leaves[id]={ id, role:'node', label:getNodeLabel(id), parentId:gid }; });
   });
 
   groups['linksRoot'] = { id:'linksRoot', name:'Links', role:'root', childIds:[] };
