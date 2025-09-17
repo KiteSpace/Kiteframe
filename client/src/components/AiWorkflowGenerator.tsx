@@ -203,7 +203,7 @@ Position nodes 250px apart horizontally.`;
           { role: 'user', content: `Create workflow: ${prompt}` }
         ],
         temperature: 0.1,
-        maxTokens: 1000
+        maxTokens: 3000  // Increased to handle complex workflows
       });
 
       // Parse the AI response with comprehensive JSON cleaning
