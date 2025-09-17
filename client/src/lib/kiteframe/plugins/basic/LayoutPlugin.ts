@@ -66,8 +66,7 @@ export class LayoutPlugin implements KiteFramePlugin {
    */
   applyLayoutPerFlow(nodes: Node[], edges: Edge[], layoutType: string): Node[] {
     // Detect separate flows (connected components)
-    let flows = FlowDetection.detectFlows(nodes, edges);
-    flows = FlowDetection.hydrateFlows(flows, nodes);
+    const flows = FlowDetection.detectFlows(nodes, edges);
     
     if (flows.length === 0) return nodes;
     
@@ -101,8 +100,8 @@ export class LayoutPlugin implements KiteFramePlugin {
       };
     });
     
-    // Position flows to avoid overlap
-    const positionedFlows = this.positionFlowsSpatially(layoutedFlows);
+    // Position flows to avoid overlap based on layout direction
+    const positionedFlows = this.positionFlowsSpatially(layoutedFlows, layoutType);
     
     // Merge all flow nodes back into single array
     const result: Node[] = [];
@@ -114,40 +113,62 @@ export class LayoutPlugin implements KiteFramePlugin {
   }
   
   /**
-   * Position flows spatially to avoid overlap
+   * Position flows spatially to avoid overlap based on layout direction
    */
-  private positionFlowsSpatially(flows: Flow[]): Flow[] {
+  private positionFlowsSpatially(flows: Flow[], layoutType: string): Flow[] {
     if (flows.length <= 1) return flows;
     
     const FLOW_SPACING = 400; // Minimum spacing between flows
+    
+    // Determine spacing direction based on layout type
+    const useHorizontalSpacing = layoutType === 'vertical';
+    
+    let currentX = 0;
     let currentY = 0;
     
     return flows.map((flow, index) => {
       if (index === 0) {
         // First flow stays at its original position
         const boundingBox = this.calculateFlowBoundingBox(flow.nodes);
-        currentY = boundingBox.y + boundingBox.height + FLOW_SPACING;
+        if (useHorizontalSpacing) {
+          currentX = boundingBox.x + boundingBox.width + FLOW_SPACING;
+        } else {
+          currentY = boundingBox.y + boundingBox.height + FLOW_SPACING;
+        }
         return flow;
       }
       
       // Calculate current bounding box
       const boundingBox = this.calculateFlowBoundingBox(flow.nodes);
       
-      // Calculate offset needed to move flow to new position
-      const offsetY = currentY - boundingBox.y;
+      // Calculate offset needed based on layout direction
+      let offsetX = 0;
+      let offsetY = 0;
+      
+      if (useHorizontalSpacing) {
+        // Horizontal spacing for vertical layouts
+        offsetX = currentX - boundingBox.x;
+      } else {
+        // Vertical spacing for horizontal layouts
+        offsetY = currentY - boundingBox.y;
+      }
       
       // Apply offset to all nodes in this flow
       const offsetNodes = flow.nodes.map(node => ({
         ...node,
         position: {
-          x: node.position.x,
+          x: node.position.x + offsetX,
           y: node.position.y + offsetY
         }
       }));
       
-      // Update currentY for next flow
+      // Update position for next flow
       const newBoundingBox = this.calculateFlowBoundingBox(offsetNodes);
-      currentY = newBoundingBox.y + newBoundingBox.height + FLOW_SPACING;
+      if (useHorizontalSpacing) {
+        currentX = newBoundingBox.x + newBoundingBox.width + FLOW_SPACING;
+      } else {
+        currentY = newBoundingBox.y + newBoundingBox.height + FLOW_SPACING;
+      }
       
       return {
         ...flow,

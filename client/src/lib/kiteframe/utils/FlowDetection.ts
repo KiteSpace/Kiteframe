@@ -32,7 +32,11 @@ export class FlowDetection {
     // Find all connected components using DFS
     for (const node of nodes) {
       if (!visited.has(node.id)) {
-        const flowNodes = this.dfsTraversal(node.id, adjacencyList, visited);
+        const flowNodeIds = this.dfsTraversal(node.id, adjacencyList, visited);
+        // Get actual node objects for this flow
+        const flowNodes = flowNodeIds.map(stubNode => 
+          nodes.find(n => n.id === stubNode.id)!
+        );
         const flowEdges = this.getFlowEdges(flowNodes, edges);
         const boundingBox = this.calculateBoundingBox(flowNodes);
         
@@ -156,15 +160,4 @@ export class FlowDetection {
     };
   }
   
-  /**
-   * Update flow detection result with actual node objects
-   */
-  static hydrateFlows(flows: Flow[], allNodes: Node[]): Flow[] {
-    const nodeMap = new Map(allNodes.map(node => [node.id, node]));
-    
-    return flows.map(flow => ({
-      ...flow,
-      nodes: flow.nodes.map(node => nodeMap.get(node.id)).filter(Boolean) as Node[]
-    }));
-  }
 }
