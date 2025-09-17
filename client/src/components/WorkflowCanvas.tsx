@@ -1,7 +1,10 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
 import { FloatingToolbar } from './FloatingToolbar';
 import type { Node, Edge, CanvasObject, ProFeaturesConfig, TextNodeData, ShapeNodeData, StickyNoteData } from '../lib/kiteframe/types';
+import { VLStore } from '@/components/layers/visibilityLockStore';
+import { AncestorsStore } from '@/components/layers/ancestorsStore';
+import { isEffectivelyOn } from '@/components/layers/triStateUtils';
 import { Undo, Redo, ZoomIn, Maximize2, LayoutGrid, ChevronRight } from 'lucide-react';
 
 interface WorkflowCanvasProps {
@@ -77,6 +80,30 @@ export function WorkflowCanvas({
   
   // Get selected canvas objects for styling panel
   const selectedCanvasObjects = canvasObjects.filter(obj => obj.selected);
+
+  const ancestorsForId = useCallback((id:string) => {
+    return AncestorsStore.get()[id] ?? [];
+  }, []);
+
+  const [, force] = React.useReducer(x=>x+1, 0);
+  useEffect(()=>VLStore.subscribe(force),[]);
+  const { hidden, locked } = VLStore.get();
+
+  const hiddenNodeIds = new Set(
+    nodes.filter((n:any) => isEffectivelyOn(n.id, ancestorsForId(n.id), hidden)).map((n:any)=>n.id)
+  );
+  const visibleNodes = nodes.filter((n:any) => !hiddenNodeIds.has(n.id));
+  const visibleEdges = edges.filter((e:any) => !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target));
+
+  const isLocked = (id:string) => isEffectivelyOn(id, ancestorsForId(id), locked);
+  const onNodesChangeGuarded = useCallback((changes:any[])=>{
+    const filtered = changes.filter(ch => !(ch.type==='position' && isLocked(ch.id)));
+    onNodesChange?.(filtered);
+  }, [onNodesChange, locked]);
+  const onConnectGuarded = useCallback((conn:any)=>{
+    if (isLocked(conn.source) || isLocked(conn.target)) return;
+    onConnect?.(conn);
+  }, [onConnect, locked]);
   
 
   // Minimap handlers removed for performance
@@ -98,13 +125,13 @@ export function WorkflowCanvas({
       />
       
       <KiteFrameCanvas
-        nodes={nodes}
-        edges={edges}
+        nodes={visibleNodes}
+        edges={visibleEdges}
         canvasObjects={canvasObjects}
-        onNodesChange={onNodesChange}
+        onNodesChange={onNodesChangeGuarded}
         onEdgesChange={onEdgesChange}
         onCanvasObjectsChange={onCanvasObjectsChange}
-        onConnect={onConnect}
+        onConnect={onConnectGuarded}
         onNodeClick={onNodeClick}
         onEdgeClick={(e, edge) => onEdgeClick?.(edge)}
         onCanvasClick={onCanvasClick}

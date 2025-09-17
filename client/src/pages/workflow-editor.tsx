@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { usePluginSystem } from '@/lib/kiteframe/core/PluginProvider';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
+import FloatingLayersWidget from '@/components/layers/FloatingLayersWidget';
 import { BlankCanvasState } from '@/components/BlankCanvasState';
 import { PluginProvider, layoutPlugin, consolePlugin, testPlugin, advancedInteractionsPlugin } from '@/lib/kiteframe';
 import { PluginTestButton } from '@/components/PluginTestButton';
@@ -3536,17 +3537,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           <div className={`flex-1 relative ${tabs.length > 0 ? 'overflow-hidden' : 'overflow-y-auto'}`}>
             
             {tabs.length > 0 ? (
-              <WorkflowCanvas
-              data-testid="workflow-canvas"
-              nodes={nodes}
-              edges={edges}
-              canvasObjects={canvasObjects}
-              viewport={viewport}
-              onViewportChange={setViewport}
-              onCanvasObjectsChange={(newCanvasObjects) => {
-                updateActiveTab({ canvasObjects: newCanvasObjects });
-                saveToHistory();
-              }}
+              <>
+                <WorkflowCanvas
+                data-testid="workflow-canvas"
+                nodes={nodes}
+                edges={edges}
+                canvasObjects={canvasObjects}
+                viewport={viewport}
+                onViewportChange={setViewport}
+                onCanvasObjectsChange={(newCanvasObjects) => {
+                  updateActiveTab({ canvasObjects: newCanvasObjects });
+                  saveToHistory();
+                }}
               proFeatures={proFeaturesConfig}
               onQuickAdd={handleQuickAdd}
               workflowName={activeTab?.name}
@@ -3954,6 +3956,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               canRedo={canRedo}
               onAutoLayout={handleAutoLayout}
             />
+                
+                <FloatingLayersWidget
+                  nodes={nodes}
+                  edges={edges}
+                  frames={[]}
+                />
+              </>
             ) : (
               <BlankCanvasState
                 onCreateBlank={handleCreateBlankFromCanvas}
