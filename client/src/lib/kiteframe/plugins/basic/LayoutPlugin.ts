@@ -708,7 +708,17 @@ export class LayoutPlugin implements KiteFramePlugin {
    */
   distributeWorkflows(nodes: Node[], edges: Edge[], direction: string, customSpacing?: number): Node[] {
     const flows = FlowDetection.detectFlows(nodes, edges);
-    if (flows.length <= 2) return nodes;
+    console.log(`🔍 DISTRIBUTE WORKFLOWS: Detected ${flows.length} flows from ${nodes.length} nodes and ${edges.length} edges`);
+    
+    // Log flow details for debugging
+    flows.forEach((flow, index) => {
+      console.log(`  Flow ${index + 1}: ${flow.nodes.length} nodes - [${flow.nodes.map(n => n.id).join(', ')}]`);
+    });
+    
+    if (flows.length <= 2) {
+      console.log(`⚠️ DISTRIBUTE WORKFLOWS: Not enough flows (${flows.length}) to distribute, returning original nodes`);
+      return nodes;
+    }
 
     const workflowUnits = flows.map(flow => {
       const boundingBox = this.calculateFlowBoundingBox(flow.nodes);
