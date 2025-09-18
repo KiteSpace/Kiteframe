@@ -1,0 +1,517 @@
+# Kiteframe Color Picker Patch — Drop‑in Files
+
+Copy these files into your Replit project (preserve paths). Then follow the steps at the end.
+
+---
+
+## `src/components/FigmaStyleColorPicker.tsx`
+```tsx
+import React, { useEffect, useState } from "react";
+import { HexColorPicker } from "react-colorful";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Palette, Droplet, Square } from "lucide-react";
+
+const primarySwatches = [
+  "#0D9488", "#EA580C", "#06B6D4", "#DB2777", "#10B981", "#4338CA",
+  "#111827", "#64748B", "#14B8A6", "#2563EB"
+];
+const pastelSwatches = [
+  "#A7F3D0", "#FDE68A", "#F9A8D4", "#C7D2FE", "#BAE6FD", "#FBCFE8",
+  "#F5D0FE", "#FFE4E6", "#E9D5FF", "#D1FAE5"
+];
+
+function clamp(n: number, min: number, max: number) { return Math.min(max, Math.max(min, n)); }
+function hexToRgb(hex: string) {
+  const h = hex.replace('#','').trim();
+  const short = h.length === 3;
+  const r = parseInt(short ? h[0]+h[0] : h.substring(0,2), 16);
+  const g = parseInt(short ? h[1]+h[1] : h.substring(2,4), 16);
+  const b = parseInt(short ? h[2]+h[2] : h.substring(4,6), 16);
+  return { r, g, b };
+}
+function rgbaString(hex: string, opacity: number) {
+  try {
+    const { r, g, b } = hexToRgb(hex);
+    const a = clamp(typeof opacity === 'number' ? opacity : 100, 0, 100) / 100;
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+  } catch {
+    return hex; // fallback
+  }
+}
+
+export interface FigmaStyleColorPickerProps {
+  label?: string;
+  showFill?: boolean;
+  showStroke?: boolean;
+  fillColor?: string;
+  fillOpacity?: number;
+  onFillColorChange?: (hex: string) => void;
+  onFillOpacityChange?: (value: number) => void;
+  strokeColor?: string;
+  strokeOpacity?: number;
+  onStrokeColorChange?: (hex: string) => void;
+  onStrokeOpacityChange?: (value: number) => void;
+  className?: string;
+  testIdScope?: string;
+}
+
+export default function FigmaStyleColorPicker({
+  label = "Colors",
+  showFill = true,
+  showStroke = false,
+  fillColor = "#0D9488",
+  fillOpacity = 100,
+  onFillColorChange,
+  onFillOpacityChange,
+  strokeColor = "#111827",
+  strokeOpacity = 100,
+  onStrokeColorChange,
+  onStrokeOpacityChange,
+  className,
+  testIdScope
+}: FigmaStyleColorPickerProps) {
+  // Controlled-only dev warnings
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      if (showFill) {
+        if (typeof fillColor !== 'string') console.warn('[FigmaStyleColorPicker] fillColor must be a string HEX');
+        if (typeof fillOpacity !== 'number') console.warn('[FigmaStyleColorPicker] fillOpacity must be a number 0–100');
+        if (!onFillColorChange) console.warn('[FigmaStyleColorPicker] onFillColorChange is required when showFill=true');
+        if (!onFillOpacityChange) console.warn('[FigmaStyleColorPicker] onFillOpacityChange is required when showFill=true');
+      }
+      if (showStroke) {
+        if (typeof strokeColor !== 'string') console.warn('[FigmaStyleColorPicker] strokeColor must be a string HEX');
+        if (typeof strokeOpacity !== 'number') console.warn('[FigmaStyleColorPicker] strokeOpacity must be a number 0–100');
+        if (!onStrokeColorChange) console.warn('[FigmaStyleColorPicker] onStrokeColorChange is required when showStroke=true');
+        if (!onStrokeOpacityChange) console.warn('[FigmaStyleColorPicker] onStrokeOpacityChange is required when showStroke=true');
+      }
+    }
+  }, [showFill, fillColor, fillOpacity, onFillColorChange, onFillOpacityChange, showStroke, strokeColor, strokeOpacity, onStrokeColorChange, onStrokeOpacityChange]);
+
+  const [target, setTarget] = useState<"fill" | "stroke">(showFill ? "fill" : "stroke");
+
+  const normalizeHex = (hex: string) => {
+    if (!hex) return "#000000";
+    const v = String(hex).trim();
+    const prefixed = v.startsWith('#') ? v : `#${v}`;
+    const body = prefixed.slice(1);
+    if (![3,6].includes(body.length) || /[^0-9a-fA-F]/.test(body)) return "#000000";
+    return prefixed.toUpperCase();
+  };
+
+  const currentHex = normalizeHex(target === "fill" ? (fillColor ?? "#000000") : (strokeColor ?? "#000000"));
+  const setCurrentHex = (hex: string) => {
+    const safe = normalizeHex(hex);
+    if (target === "fill" && onFillColorChange) onFillColorChange(safe);
+    if (target === "stroke" && onStrokeColorChange) onStrokeColorChange(safe);
+  };
+
+  const currentOpacity = target === "fill" ? (fillOpacity ?? 100) : (strokeOpacity ?? 100);
+  const setCurrentOpacity = (val: number) => {
+    const v = clamp(Number.isFinite(val) ? (val as number) : 100, 0, 100);
+    if (target === "fill" && onFillOpacityChange) onFillOpacityChange(v);
+    if (target === "stroke" && onStrokeOpacityChange) onStrokeOpacityChange(v);
+  };
+
+  // Derived preview
+  const previewFillHex = target === "fill" ? currentHex : (fillColor ?? "#0D9488");
+  const previewFillOpacity = target === "fill" ? currentOpacity : (fillOpacity ?? 100);
+  const previewStrokeHex = target === "stroke" ? currentHex : (strokeColor ?? "#111827");
+  const previewStrokeOpacity = target === "stroke" ? currentOpacity : (strokeOpacity ?? 100);
+
+  return (
+    <Card className={`shadow-sm rounded-xl ${className || ''}`} data-testid={testIdScope ? `${testIdScope}-picker` : undefined}>
+      <CardContent className="p-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2"><Palette className="w-4 h-4" /><span className="text-xs font-medium">{label}</span></div>
+          <div className="flex gap-2">
+            {showFill && (
+              <Button size="sm" variant={target === 'fill' ? 'default' : 'outline'} onClick={() => setTarget('fill')} className="h-7 px-2 gap-1">
+                <Droplet className="w-3 h-3"/> Fill
+              </Button>
+            )}
+            {showStroke && (
+              <Button size="sm" variant={target === 'stroke' ? 'default' : 'outline'} onClick={() => setTarget('stroke')} className="h-7 px-2 gap-1">
+                <Square className="w-3 h-3"/> Stroke
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <HexColorPicker color={currentHex} onChange={setCurrentHex} />
+
+        {/* Swatches */}
+        <div className="space-y-2">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Swatches</div>
+          <div className="grid grid-cols-10 gap-1.5">
+            {primarySwatches.map((sw) => (
+              <button key={sw} className="w-6 h-6 rounded-md border border-border" style={{ backgroundColor: sw }} onClick={() => setCurrentHex(sw)} aria-label={`swatch ${sw}`} />
+            ))}
+          </div>
+          <div className="grid grid-cols-10 gap-1.5">
+            {pastelSwatches.map((sw) => (
+              <button key={sw} className="w-6 h-6 rounded-md border border-border" style={{ backgroundColor: sw }} onClick={() => setCurrentHex(sw)} aria-label={`swatch ${sw}`} />
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Input value={currentHex} onChange={(e) => setCurrentHex(e.target.value)} className="font-mono h-8" />
+            <span className="text-[10px] text-muted-foreground">HEX</span>
+          </div>
+          <div>
+            <div className="flex justify-between text-xs mb-1"><span>Opacity ({target})</span><span>{currentOpacity}%</span></div>
+            <Slider value={[currentOpacity]} onValueChange={(val) => setCurrentOpacity(val[0])} max={100} step={1} />
+          </div>
+        </div>
+
+        {/* Inline preview */}
+        <div className="flex items-center gap-3 pt-1">
+          <div className="w-10 h-10 rounded-md border" style={{ background: rgbaString(previewFillHex, previewFillOpacity), outline: `3px solid ${rgbaString(previewStrokeHex, previewStrokeOpacity)}`, outlineOffset: -1 }} />
+          <div className="text-[11px] text-muted-foreground font-mono leading-tight">
+            <div>fill: {rgbaString(previewFillHex, previewFillOpacity)}</div>
+            <div>stroke: {rgbaString(previewStrokeHex, previewStrokeOpacity)}</div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+---
+
+## `src/components/properties/PropertiesCard.tsx` (sample integration)
+```tsx
+import React from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { X, Palette, Square, Circle, Triangle, Hexagon } from "lucide-react";
+import FigmaStyleColorPicker from "@/components/FigmaStyleColorPicker";
+import type { Node, Edge, CanvasObject } from "@/lib/kiteframe/types";
+
+function isLight(hex: string) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0,2),16);
+  const g = parseInt(h.slice(2,4),16);
+  const b = parseInt(h.slice(4,6),16);
+  return (0.299*r + 0.587*g + 0.114*b)/255 > 0.5;
+}
+const textOn = (hex: string) => (isLight(hex) ? "#0f172a" : "#ffffff");
+
+interface PropertiesCardProps {
+  selectedNode?: Node;
+  selectedEdge?: Edge;
+  selectedCanvasObject?: CanvasObject;
+  selectedNodeIds?: string[];
+  selectedCanvasObjectIds?: string[];
+  nodes?: Node[];
+  onNodeUpdate?: (nodeId: string, updates: Partial<Node>) => void;
+  onEdgeUpdate?: (edgeId: string, updates: Partial<Edge>) => void;
+  onCanvasObjectUpdate?: (objectId: string, updates: Partial<any>) => void;
+  onDeselect: () => void;
+}
+
+export default function PropertiesCard({
+  selectedNode,
+  selectedEdge,
+  selectedCanvasObject,
+  selectedNodeIds = [],
+  selectedCanvasObjectIds = [],
+  nodes = [],
+  onNodeUpdate,
+  onEdgeUpdate,
+  onCanvasObjectUpdate,
+  onDeselect
+}: PropertiesCardProps) {
+  const hasMixed = selectedNodeIds.length > 0 && selectedCanvasObjectIds.length > 0;
+  if (!selectedNode && !selectedEdge && !selectedCanvasObject) return null;
+  if (hasMixed) return null;
+
+  return (
+    <Card className="absolute z-50 top-28 left-16 w-[360px] bg-card border border-border rounded-xl shadow-xl">
+      <div className="flex items-center justify-between p-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <Square className="w-4 h-4" />
+          <h3 className="text-sm font-semibold">Properties</h3>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onDeselect} className="h-6 w-6 p-0">
+          <X className="w-3 h-3" />
+        </Button>
+      </div>
+
+      <Tabs defaultValue={selectedNode ? 'node' : selectedEdge ? 'edge' : 'object'}>
+        <TabsList className="grid grid-cols-3 m-3">
+          <TabsTrigger value="node" disabled={!selectedNode}>Node</TabsTrigger>
+          <TabsTrigger value="edge" disabled={!selectedEdge}>Edge</TabsTrigger>
+          <TabsTrigger value="object" disabled={!selectedCanvasObject}>Canvas</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="node">
+          {selectedNode && (
+            <ScrollArea className="max-h-[420px]">
+              <div className="p-3 space-y-4">
+                <section className="space-y-2">
+                  <Label className="text-xs font-medium">Label</Label>
+                  <Input value={selectedNode.data.label || ''} onChange={(e) => onNodeUpdate?.(selectedNode.id, { data: { ...selectedNode.data, label: e.target.value } })} className="text-sm" placeholder="Node label..." />
+                  <Label className="text-xs font-medium mt-2">Description</Label>
+                  <Input value={selectedNode.data.description || ''} onChange={(e) => onNodeUpdate?.(selectedNode.id, { data: { ...selectedNode.data, description: e.target.value } })} className="text-sm" placeholder="Node description..." />
+                </section>
+
+                <Separator />
+
+                <section className="space-y-3">
+                  <div className="flex items-center gap-2"><Palette className="w-4 h-4" /><Label className="text-xs font-semibold">Colors</Label></div>
+
+                  <FigmaStyleColorPicker
+                    label="Header Background"
+                    showFill
+                    fillColor={selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc'}
+                    fillOpacity={selectedNode.data?.colors?.headerBackgroundOpacity ?? 100}
+                    onFillColorChange={(hex) => {
+                      const headerTextColor = textOn(hex);
+                      onNodeUpdate?.(selectedNode.id, { data: { ...selectedNode.data, colors: { ...selectedNode.data?.colors, headerBackground: hex, headerBackgroundOpacity: selectedNode.data?.colors?.headerBackgroundOpacity ?? 100, headerTextColor } } });
+                    }}
+                    onFillOpacityChange={(val) => onNodeUpdate?.(selectedNode.id, { data: { ...selectedNode.data, colors: { ...selectedNode.data?.colors, headerBackgroundOpacity: val } } })}
+                  />
+
+                  <FigmaStyleColorPicker
+                    label="Header Text"
+                    showFill
+                    fillColor={selectedNode.data?.colors?.headerTextColor || selectedNode.data?.textColor || '#0f172a'}
+                    fillOpacity={100}
+                    onFillColorChange={(hex) => onNodeUpdate?.(selectedNode.id, { data: { ...selectedNode.data, colors: { ...selectedNode.data?.colors, headerTextColor: hex } } })}
+                    onFillOpacityChange={() => {}}
+                  />
+
+                  <FigmaStyleColorPicker
+                    label="Body Background"
+                    showFill
+                    fillColor={selectedNode.data?.colors?.bodyBackground || '#ffffff'}
+                    fillOpacity={selectedNode.data?.colors?.bodyBackgroundOpacity ?? 100}
+                    onFillColorChange={(hex) => {
+                      const bodyTextColor = textOn(hex);
+                      onNodeUpdate?.(selectedNode.id, { data: { ...selectedNode.data, colors: { ...selectedNode.data?.colors, bodyBackground: hex, bodyBackgroundOpacity: selectedNode.data?.colors?.bodyBackgroundOpacity ?? 100, bodyTextColor } } });
+                    }}
+                    onFillOpacityChange={(val) => onNodeUpdate?.(selectedNode.id, { data: { ...selectedNode.data, colors: { ...selectedNode.data?.colors, bodyBackgroundOpacity: val } } })}
+                  />
+
+                  <FigmaStyleColorPicker
+                    label="Body Text"
+                    showFill
+                    fillColor={selectedNode.data?.colors?.bodyTextColor || '#334155'}
+                    fillOpacity={100}
+                    onFillColorChange={(hex) => onNodeUpdate?.(selectedNode.id, { data: { ...selectedNode.data, colors: { ...selectedNode.data?.colors, bodyTextColor: hex } } })}
+                    onFillOpacityChange={() => {}}
+                  />
+
+                  <FigmaStyleColorPicker
+                    label="Border"
+                    showStroke
+                    strokeColor={selectedNode.data?.colors?.borderColor || (selectedNode as any).data?.borderColor || '#e2e8f0'}
+                    strokeOpacity={selectedNode.data?.colors?.borderOpacity ?? 100}
+                    onStrokeColorChange={(hex) => onNodeUpdate?.(selectedNode.id, { data: { ...selectedNode.data, colors: { ...selectedNode.data?.colors, borderColor: hex } } })}
+                    onStrokeOpacityChange={(val) => onNodeUpdate?.(selectedNode.id, { data: { ...selectedNode.data, colors: { ...selectedNode.data?.colors, borderOpacity: val } } })}
+                  />
+                </section>
+
+                <Separator />
+
+                <section className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1"><Label className="text-xs font-medium">X</Label><Input type="number" value={Math.round(selectedNode.position.x)} onChange={(e) => onNodeUpdate?.(selectedNode.id, { position: { ...selectedNode.position, x: Number(e.target.value) } })} className="text-sm" /></div>
+                  <div className="space-y-1"><Label className="text-xs font-medium">Y</Label><Input type="number" value={Math.round(selectedNode.position.y)} onChange={(e) => onNodeUpdate?.(selectedNode.id, { position: { ...selectedNode.position, y: Number(e.target.value) } })} className="text-sm" /></div>
+                </section>
+              </div>
+            </ScrollArea>
+          )}
+        </TabsContent>
+
+        <TabsContent value="edge">
+          {selectedEdge && (
+            <ScrollArea className="max-h-[420px] p-3">
+              <FigmaStyleColorPicker
+                label="Edge Color"
+                showStroke
+                strokeColor={(selectedEdge as any)?.style?.stroke || '#64748B'}
+                strokeOpacity={100}
+                onStrokeColorChange={(hex) => onEdgeUpdate?.(selectedEdge.id, { style: { ...(selectedEdge as any).style, stroke: hex } })}
+                onStrokeOpacityChange={() => {}}
+              />
+            </ScrollArea>
+          )}
+        </TabsContent>
+
+        <TabsContent value="object">
+          {selectedCanvasObject && (
+            <ScrollArea className="max-h-[420px]">
+              <div className="p-3 space-y-4">
+                {selectedCanvasObject.type === 'shape' && (
+                  <section className="space-y-3">
+                    <FigmaStyleColorPicker
+                      label="Shape Colors"
+                      showFill
+                      showStroke
+                      fillColor={selectedCanvasObject.data?.fillColor || '#3b82f6'}
+                      fillOpacity={selectedCanvasObject.data?.fillOpacity ?? 100}
+                      onFillColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, { data: { ...selectedCanvasObject.data, fillColor: hex } })}
+                      onFillOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, { data: { ...selectedCanvasObject.data, fillOpacity: val } })}
+                      strokeColor={selectedCanvasObject.data?.strokeColor || '#1e40af'}
+                      strokeOpacity={selectedCanvasObject.data?.strokeOpacity ?? 100}
+                      onStrokeColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, { data: { ...selectedCanvasObject.data, strokeColor: hex } })}
+                      onStrokeOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, { data: { ...selectedCanvasObject.data, strokeOpacity: val } })}
+                    />
+                  </section>
+                )}
+              </div>
+            </ScrollArea>
+          )}
+        </TabsContent>
+      </Tabs>
+    </Card>
+  );
+}
+```
+
+---
+
+## `src/pages/PickerPlayground.tsx`
+```tsx
+import React, { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import FigmaStyleColorPicker from "@/components/FigmaStyleColorPicker";
+
+export default function PickerPlayground() {
+  const [fill, setFill] = useState("#0D9488");
+  const [fillOpacity, setFillOpacity] = useState(100);
+  const [stroke, setStroke] = useState("#111827");
+  const [strokeOpacity, setStrokeOpacity] = useState(100);
+
+  return (
+    <div className="p-6 grid md:grid-cols-2 gap-6">
+      <FigmaStyleColorPicker
+        label="Shape Colors"
+        showFill
+        showStroke
+        fillColor={fill}
+        fillOpacity={fillOpacity}
+        onFillColorChange={setFill}
+        onFillOpacityChange={setFillOpacity}
+        strokeColor={stroke}
+        strokeOpacity={strokeOpacity}
+        onStrokeColorChange={setStroke}
+        onStrokeOpacityChange={setStrokeOpacity}
+      />
+      <Card>
+        <CardContent className="p-6 flex items-center justify-center">
+          <div
+            className="w-40 h-40 rounded-xl border"
+            style={{
+              backgroundColor: `rgba(${parseInt(fill.slice(1,3),16)}, ${parseInt(fill.slice(3,5),16)}, ${parseInt(fill.slice(5,7),16)}, ${fillOpacity/100})`,
+              outline: `8px solid rgba(${parseInt(stroke.slice(1,3),16)}, ${parseInt(stroke.slice(3,5),16)}, ${parseInt(stroke.slice(5,7),16)}, ${strokeOpacity/100})`,
+              outlineOffset: "-6px"
+            }}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+```
+
+---
+
+## `src/__tests__/FigmaStyleColorPicker.test.tsx`
+```tsx
+import React from "react";
+import { render, fireEvent, screen } from "@testing-library/react";
+import FigmaStyleColorPicker from "@/components/FigmaStyleColorPicker";
+
+describe("FigmaStyleColorPicker", () => {
+  test("renders with defaults", () => {
+    render(<FigmaStyleColorPicker showFill />);
+    expect(screen.getByText("Colors")).toBeInTheDocument();
+  });
+
+  test("updates fill color via swatch", () => {
+    const onFill = jest.fn();
+    render(<FigmaStyleColorPicker showFill onFillColorChange={onFill} />);
+    const swatch = screen.getAllByRole("button")[1];
+    fireEvent.click(swatch);
+    expect(onFill).toHaveBeenCalled();
+  });
+
+  test("independent fill/stroke modes", () => {
+    const onFill = jest.fn();
+    const onStroke = jest.fn();
+    render(<FigmaStyleColorPicker showFill showStroke onFillColorChange={onFill} onStrokeColorChange={onStroke} />);
+    fireEvent.click(screen.getByText(/Stroke/i));
+    const swatch = screen.getAllByRole("button")[1];
+    fireEvent.click(swatch);
+    expect(onStroke).toHaveBeenCalled();
+    expect(onFill).not.toHaveBeenCalled();
+  });
+
+  test("opacity label present", () => {
+    render(<FigmaStyleColorPicker showFill />);
+    expect(screen.getByText(/Opacity/i)).toBeInTheDocument();
+  });
+});
+```
+
+---
+
+## Replit Instructions
+
+1) **Install dependencies**
+   ```bash
+   npm install react-colorful lucide-react @testing-library/react @testing-library/jest-dom @testing-library/user-event
+   ```
+   Ensure your `@/components/ui/*` primitives exist (from shadcn/ui or your design system).
+
+2) **Add a preview route** (React Router example):
+   ```tsx
+   // src/App.tsx
+   import { BrowserRouter, Routes, Route } from "react-router-dom";
+   import PickerPlayground from "@/pages/PickerPlayground";
+
+   export default function App() {
+     return (
+       <BrowserRouter>
+         <Routes>
+           <Route path="/" element={<div>Home</div>} />
+           <Route path="/playground" element={<PickerPlayground />} />
+         </Routes>
+       </BrowserRouter>
+     );
+   }
+   ```
+
+3) **Run it**
+   ```bash
+   npm run dev
+   ```
+   Open `/playground` to validate the picker’s Fill/Stroke + Opacity behavior.
+
+4) **Wire into your actual properties panels**
+   Replace your old color inputs with `FigmaStyleColorPicker` and pass controlled props from your node/edge/canvas object state.
+
+5) **Run tests**
+   ```bash
+   npm test
+   ```
+
+---
+
+### Notes
+- This fixes the earlier syntax error by correcting `rgbaString` (removed stray token and duplicates).
+- The picker is **controlled-only** (best practice): the parent is the single source of truth.
+- Use **HEX + numeric opacity** in your model for maintainability and Tailwind compatibility.

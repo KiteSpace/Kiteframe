@@ -1,218 +1,175 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import { colorPresets } from '@/lib/kiteframe/utils/colorUtils';
+import React, { useEffect, useState } from "react";
+import { HexColorPicker } from "react-colorful";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Palette, Droplet, Square } from "lucide-react";
 
-interface FigmaStyleColorPickerProps {
-  fillColor?: string;
-  strokeColor?: string;
-  onFillColorChange?: (color: string) => void;
-  onStrokeColorChange?: (color: string) => void;
-  showFill?: boolean;
-  showStroke?: boolean;
-  label?: string;
-  testIdScope?: string;
-  className?: string;
-}
-
-// Shared recent colors across all instances
-let globalRecentColors: string[] = [
-  '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#a855f7', '#06b6d4'
+const primarySwatches = [
+  "#0D9488", "#EA580C", "#06B6D4", "#DB2777", "#10B981", "#4338CA",
+  "#111827", "#64748B", "#14B8A6", "#2563EB"
+];
+const pastelSwatches = [
+  "#A7F3D0", "#FDE68A", "#F9A8D4", "#C7D2FE", "#BAE6FD", "#FBCFE8",
+  "#F5D0FE", "#FFE4E6", "#E9D5FF", "#D1FAE5"
 ];
 
-const validateHexColor = (color: string): string => {
-  // Remove # if present and convert to lowercase
-  let hex = color.replace('#', '').toLowerCase();
-  
-  // Handle 3-character hex codes
-  if (hex.length === 3 && /^[0-9a-f]{3}$/.test(hex)) {
-    hex = hex.split('').map(char => char + char).join('');
+function clamp(n: number, min: number, max: number) { return Math.min(max, Math.max(min, n)); }
+function hexToRgb(hex: string) {
+  const h = hex.replace('#','').trim();
+  const short = h.length === 3;
+  const r = parseInt(short ? h[0]+h[0] : h.substring(0,2), 16);
+  const g = parseInt(short ? h[1]+h[1] : h.substring(2,4), 16);
+  const b = parseInt(short ? h[2]+h[2] : h.substring(4,6), 16);
+  return { r, g, b };
+}
+function rgbaString(hex: string, opacity: number) {
+  try {
+    const { r, g, b } = hexToRgb(hex);
+    const a = clamp(typeof opacity === 'number' ? opacity : 100, 0, 100) / 100;
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+  } catch {
+    return hex; // fallback
   }
-  
-  // Validate 6-character hex codes
-  if (hex.length === 6 && /^[0-9a-f]{6}$/.test(hex)) {
-    return '#' + hex;
-  }
-  
-  // Return unchanged if invalid (let browser handle)
-  return color;
-};
+}
 
-export const FigmaStyleColorPicker: React.FC<FigmaStyleColorPickerProps> = ({
-  fillColor = '#3b82f6',
-  strokeColor = '#1e40af',
-  onFillColorChange,
-  onStrokeColorChange,
+export interface FigmaStyleColorPickerProps {
+  label?: string;
+  showFill?: boolean;
+  showStroke?: boolean;
+  fillColor?: string;
+  fillOpacity?: number;
+  onFillColorChange?: (hex: string) => void;
+  onFillOpacityChange?: (value: number) => void;
+  strokeColor?: string;
+  strokeOpacity?: number;
+  onStrokeColorChange?: (hex: string) => void;
+  onStrokeOpacityChange?: (value: number) => void;
+  className?: string;
+  testIdScope?: string;
+}
+
+export default function FigmaStyleColorPicker({
+  label = "Colors",
   showFill = true,
-  showStroke = true,
-  label,
-  testIdScope = 'color-picker',
-  className = ''
-}) => {
-  const [recentColors, setRecentColors] = useState<string[]>(globalRecentColors);
+  showStroke = false,
+  fillColor = "#0D9488",
+  fillOpacity = 100,
+  onFillColorChange,
+  onFillOpacityChange,
+  strokeColor = "#111827",
+  strokeOpacity = 100,
+  onStrokeColorChange,
+  onStrokeOpacityChange,
+  className,
+  testIdScope
+}: FigmaStyleColorPickerProps) {
+  // Controlled-only dev warnings
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      if (showFill) {
+        if (typeof fillColor !== 'string') console.warn('[FigmaStyleColorPicker] fillColor must be a string HEX');
+        if (typeof fillOpacity !== 'number') console.warn('[FigmaStyleColorPicker] fillOpacity must be a number 0–100');
+        if (!onFillColorChange) console.warn('[FigmaStyleColorPicker] onFillColorChange is required when showFill=true');
+        if (!onFillOpacityChange) console.warn('[FigmaStyleColorPicker] onFillOpacityChange is required when showFill=true');
+      }
+      if (showStroke) {
+        if (typeof strokeColor !== 'string') console.warn('[FigmaStyleColorPicker] strokeColor must be a string HEX');
+        if (typeof strokeOpacity !== 'number') console.warn('[FigmaStyleColorPicker] strokeOpacity must be a number 0–100');
+        if (!onStrokeColorChange) console.warn('[FigmaStyleColorPicker] onStrokeColorChange is required when showStroke=true');
+        if (!onStrokeOpacityChange) console.warn('[FigmaStyleColorPicker] onStrokeOpacityChange is required when showStroke=true');
+      }
+    }
+  }, [showFill, fillColor, fillOpacity, onFillColorChange, onFillOpacityChange, showStroke, strokeColor, strokeOpacity, onStrokeColorChange, onStrokeOpacityChange]);
 
-  const addToRecentColors = (color: string) => {
-    const validColor = validateHexColor(color);
-    const filtered = globalRecentColors.filter(c => c !== validColor);
-    globalRecentColors = [validColor, ...filtered].slice(0, 6);
-    setRecentColors([...globalRecentColors]);
+  const [target, setTarget] = useState<"fill" | "stroke">(showFill ? "fill" : "stroke");
+
+  const normalizeHex = (hex: string) => {
+    if (!hex) return "#000000";
+    const v = String(hex).trim();
+    const prefixed = v.startsWith('#') ? v : `#${v}`;
+    const body = prefixed.slice(1);
+    if (![3,6].includes(body.length) || /[^0-9a-fA-F]/.test(body)) return "#000000";
+    return prefixed.toUpperCase();
   };
 
-  const handleFillColorChange = (color: string) => {
-    const validColor = validateHexColor(color);
-    onFillColorChange?.(validColor);
-    addToRecentColors(validColor);
+  const currentHex = normalizeHex(target === "fill" ? (fillColor ?? "#000000") : (strokeColor ?? "#000000"));
+  const setCurrentHex = (hex: string) => {
+    const safe = normalizeHex(hex);
+    if (target === "fill" && onFillColorChange) onFillColorChange(safe);
+    if (target === "stroke" && onStrokeColorChange) onStrokeColorChange(safe);
   };
 
-  const handleStrokeColorChange = (color: string) => {
-    const validColor = validateHexColor(color);
-    onStrokeColorChange?.(validColor);
-    addToRecentColors(validColor);
+  const currentOpacity = target === "fill" ? (fillOpacity ?? 100) : (strokeOpacity ?? 100);
+  const setCurrentOpacity = (val: number) => {
+    const v = clamp(Number.isFinite(val) ? (val as number) : 100, 0, 100);
+    if (target === "fill" && onFillOpacityChange) onFillOpacityChange(v);
+    if (target === "stroke" && onStrokeOpacityChange) onStrokeOpacityChange(v);
   };
 
-  const ColorSection = ({ 
-    sectionLabel, 
-    value, 
-    onChange,
-    testIdPrefix 
-  }: { 
-    sectionLabel: string; 
-    value: string; 
-    onChange: (color: string) => void;
-    testIdPrefix: string;
-  }) => (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Label className="text-xs font-medium">{sectionLabel}</Label>
-        <div className="flex items-center gap-2">
-          {/* Color preview and picker */}
-          <div className="relative">
-            <input
-              type="color"
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              className="w-6 h-6 rounded border border-border cursor-pointer opacity-0 absolute inset-0"
-              data-testid={`${testIdScope}-${testIdPrefix}-color-picker`}
-            />
-            <div 
-              className="w-6 h-6 rounded border border-border cursor-pointer"
-              style={{ backgroundColor: value }}
-              title={`Click to change ${sectionLabel.toLowerCase()}`}
-            />
+  // Derived preview
+  const previewFillHex = target === "fill" ? currentHex : (fillColor ?? "#0D9488");
+  const previewFillOpacity = target === "fill" ? currentOpacity : (fillOpacity ?? 100);
+  const previewStrokeHex = target === "stroke" ? currentHex : (strokeColor ?? "#111827");
+  const previewStrokeOpacity = target === "stroke" ? currentOpacity : (strokeOpacity ?? 100);
+
+  return (
+    <Card className={`shadow-sm rounded-xl ${className || ''}`} data-testid={testIdScope ? `${testIdScope}-picker` : undefined}>
+      <CardContent className="p-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2"><Palette className="w-4 h-4" /><span className="text-xs font-medium">{label}</span></div>
+          <div className="flex gap-2">
+            {showFill && (
+              <Button size="sm" variant={target === 'fill' ? 'default' : 'outline'} onClick={() => setTarget('fill')} className="h-7 px-2 gap-1">
+                <Droplet className="w-3 h-3"/> Fill
+              </Button>
+            )}
+            {showStroke && (
+              <Button size="sm" variant={target === 'stroke' ? 'default' : 'outline'} onClick={() => setTarget('stroke')} className="h-7 px-2 gap-1">
+                <Square className="w-3 h-3"/> Stroke
+              </Button>
+            )}
           </div>
-          
-          {/* Hex input */}
-          <Input
-            type="text"
-            value={value}
-            onChange={(e) => onChange(validateHexColor(e.target.value))}
-            className="w-20 h-6 px-2 text-xs"
-            placeholder="#000000"
-            data-testid={`${testIdScope}-${testIdPrefix}-hex-input`}
-          />
         </div>
-      </div>
 
-      {/* Preset Colors */}
-      <div className="space-y-2">
-        <Label className="text-xs font-medium text-muted-foreground">Presets</Label>
-        <div className="grid grid-cols-6 gap-1">
-          {colorPresets.primary.concat(
-            colorPresets.success, 
-            colorPresets.warning, 
-            colorPresets.danger
-          ).slice(0, 12).map((color, index) => (
-            <button
-              key={color}
-              onClick={() => onChange(color)}
-              className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
-              style={{ backgroundColor: color }}
-              title={color}
-              data-testid={`${testIdScope}-${testIdPrefix}-preset-${index}`}
-            />
-          ))}
-        </div>
-      </div>
+        <HexColorPicker color={currentHex} onChange={setCurrentHex} />
 
-      {/* Recent Colors */}
-      {recentColors.length > 0 && (
+        {/* Swatches */}
         <div className="space-y-2">
-          <Label className="text-xs font-medium text-muted-foreground">Recent</Label>
-          <div className="flex gap-1">
-            {recentColors.map((color, index) => (
-              <button
-                key={`${color}-${index}`}
-                onClick={() => onChange(color)}
-                className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
-                style={{ backgroundColor: color }}
-                title={color}
-                data-testid={`${testIdScope}-${testIdPrefix}-recent-${index}`}
-              />
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Swatches</div>
+          <div className="grid grid-cols-10 gap-1.5">
+            {primarySwatches.map((sw) => (
+              <button key={sw} className="w-6 h-6 rounded-md border border-border" style={{ backgroundColor: sw }} onClick={() => setCurrentHex(sw)} aria-label={`swatch ${sw}`} />
+            ))}
+          </div>
+          <div className="grid grid-cols-10 gap-1.5">
+            {pastelSwatches.map((sw) => (
+              <button key={sw} className="w-6 h-6 rounded-md border border-border" style={{ backgroundColor: sw }} onClick={() => setCurrentHex(sw)} aria-label={`swatch ${sw}`} />
             ))}
           </div>
         </div>
-      )}
-    </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Input value={currentHex} onChange={(e) => setCurrentHex(e.target.value)} className="font-mono h-8" />
+            <span className="text-[10px] text-muted-foreground">HEX</span>
+          </div>
+          <div>
+            <div className="flex justify-between text-xs mb-1"><span>Opacity ({target})</span><span>{currentOpacity}%</span></div>
+            <Slider value={[currentOpacity]} onValueChange={(val) => setCurrentOpacity(val[0])} max={100} step={1} />
+          </div>
+        </div>
+
+        {/* Inline preview */}
+        <div className="flex items-center gap-3 pt-1">
+          <div className="w-10 h-10 rounded-md border" style={{ background: rgbaString(previewFillHex, previewFillOpacity), outline: `3px solid ${rgbaString(previewStrokeHex, previewStrokeOpacity)}`, outlineOffset: -1 }} />
+          <div className="text-[11px] text-muted-foreground font-mono leading-tight">
+            <div>fill: {rgbaString(previewFillHex, previewFillOpacity)}</div>
+            <div>stroke: {rgbaString(previewStrokeHex, previewStrokeOpacity)}</div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
-
-  // If only one type is shown, render directly without tabs
-  if ((showFill && !showStroke) || (!showFill && showStroke)) {
-    const singleType = showFill ? {
-      sectionLabel: label || 'Fill',
-      value: fillColor,
-      onChange: handleFillColorChange,
-      testIdPrefix: 'fill'
-    } : {
-      sectionLabel: label || 'Stroke',
-      value: strokeColor,
-      onChange: handleStrokeColorChange,
-      testIdPrefix: 'stroke'
-    };
-
-    return (
-      <div className={`space-y-3 ${className}`} data-testid={`${testIdScope}-figma-color-picker`}>
-        <ColorSection {...singleType} />
-      </div>
-    );
-  }
-
-  // Render with Fill/Stroke tabs when both are shown
-  return (
-    <div className={`space-y-3 ${className}`} data-testid={`${testIdScope}-figma-color-picker`}>
-      {label && (
-        <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
-      )}
-      <Tabs defaultValue="fill" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-8">
-          <TabsTrigger value="fill" className="text-xs" data-testid={`${testIdScope}-fill-tab`}>
-            Fill
-          </TabsTrigger>
-          <TabsTrigger value="stroke" className="text-xs" data-testid={`${testIdScope}-stroke-tab`}>
-            Stroke
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="fill" className="mt-3">
-          <ColorSection
-            sectionLabel="Fill Color"
-            value={fillColor}
-            onChange={handleFillColorChange}
-            testIdPrefix="fill"
-          />
-        </TabsContent>
-        
-        <TabsContent value="stroke" className="mt-3">
-          <ColorSection
-            sectionLabel="Stroke Color"
-            value={strokeColor}
-            onChange={handleStrokeColorChange}
-            testIdPrefix="stroke"
-          />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-};
+}

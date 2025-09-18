@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { EdgeProperties } from '@/components/shared/EdgeProperties';
-import { FigmaStyleColorPicker } from '@/components/FigmaStyleColorPicker';
+import FigmaStyleColorPicker from '@/components/FigmaStyleColorPicker';
 
 interface PropertiesCardProps {
   selectedNode?: Node;
@@ -136,110 +136,139 @@ export function PropertiesCard({
                 <Label className="text-xs font-semibold">Node Colors</Label>
               </div>
               
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3">
                 {/* Header Background */}
                 <FigmaStyleColorPicker
+                  label="Header Background"
+                  showFill={true}
                   fillColor={selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc'}
-                  onFillColorChange={(color) => {
-                    const newHeaderTextColor = getAppropriateTextColor(color);
+                  fillOpacity={selectedNode.data?.colors?.headerBackgroundOpacity ?? 100}
+                  onFillColorChange={(hex) => {
+                    const newHeaderTextColor = getAppropriateTextColor(hex);
                     onNodeUpdate?.(selectedNode.id, {
                       data: {
                         ...selectedNode.data,
                         colors: {
                           ...selectedNode.data?.colors,
-                          headerBackground: color,
+                          headerBackground: hex,
                           headerTextColor: newHeaderTextColor
                         }
                       }
                     });
                   }}
-                  showFill={true}
-                  showStroke={false}
-                  label="Header Background"
+                  onFillOpacityChange={(val) => onNodeUpdate?.(selectedNode.id, {
+                    data: {
+                      ...selectedNode.data,
+                      colors: {
+                        ...selectedNode.data?.colors,
+                        headerBackgroundOpacity: val
+                      }
+                    }
+                  })}
                   testIdScope="node-header-bg"
                   className="space-y-1"
                 />
 
                 {/* Body Background */}
                 <FigmaStyleColorPicker
+                  label="Body Background"
+                  showFill={true}
                   fillColor={selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || '#ffffff'}
-                  onFillColorChange={(color) => {
-                    const newBodyTextColor = getAppropriateTextColor(color);
+                  fillOpacity={selectedNode.data?.colors?.bodyBackgroundOpacity ?? 100}
+                  onFillColorChange={(hex) => {
+                    const newBodyTextColor = getAppropriateTextColor(hex);
                     onNodeUpdate?.(selectedNode.id, {
                       data: {
                         ...selectedNode.data,
                         colors: {
                           ...selectedNode.data?.colors,
-                          bodyBackground: color,
+                          bodyBackground: hex,
                           bodyTextColor: newBodyTextColor
                         }
                       }
                     });
                   }}
-                  showFill={true}
-                  showStroke={false}
-                  label="Body Background"
+                  onFillOpacityChange={(val) => onNodeUpdate?.(selectedNode.id, {
+                    data: {
+                      ...selectedNode.data,
+                      colors: {
+                        ...selectedNode.data?.colors,
+                        bodyBackgroundOpacity: val
+                      }
+                    }
+                  })}
                   testIdScope="node-body-bg"
                   className="space-y-1"
                 />
 
                 {/* Border Color */}
                 <FigmaStyleColorPicker
-                  fillColor={selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0'}
-                  onFillColorChange={(color) => onNodeUpdate?.(selectedNode.id, {
+                  label="Border"
+                  showStroke={true}
+                  strokeColor={selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0'}
+                  strokeOpacity={selectedNode.data?.colors?.borderOpacity ?? 100}
+                  onStrokeColorChange={(hex) => onNodeUpdate?.(selectedNode.id, {
                     data: {
                       ...selectedNode.data,
                       colors: {
                         ...selectedNode.data?.colors,
-                        borderColor: color
+                        borderColor: hex
                       }
                     }
                   })}
-                  showFill={true}
-                  showStroke={false}
-                  label="Border Color"
+                  onStrokeOpacityChange={(val) => onNodeUpdate?.(selectedNode.id, {
+                    data: {
+                      ...selectedNode.data,
+                      colors: {
+                        ...selectedNode.data?.colors,
+                        borderOpacity: val
+                      }
+                    }
+                  })}
                   testIdScope="node-border"
                   className="space-y-1"
                 />
 
                 {/* Header Text */}
                 <FigmaStyleColorPicker
+                  label="Header Text"
+                  showFill={true}
                   fillColor={selectedNode.data?.colors?.headerTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#0f172a'}
-                  onFillColorChange={(color) => onNodeUpdate?.(selectedNode.id, {
+                  fillOpacity={100}
+                  onFillColorChange={(hex) => onNodeUpdate?.(selectedNode.id, {
                     data: {
                       ...selectedNode.data,
                       colors: {
                         ...selectedNode.data?.colors,
-                        headerTextColor: color
+                        headerTextColor: hex
                       }
                     }
                   })}
-                  showFill={true}
-                  showStroke={false}
-                  label="Header Text"
+                  onFillOpacityChange={() => {}}
                   testIdScope="node-header-text"
                   className="space-y-1"
                 />
-              </div>
 
-              {/* Body Text - Full Width */}
-              <FigmaStyleColorPicker
-                fillColor={selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569'}
-                onFillColorChange={(color) => onNodeUpdate?.(selectedNode.id, {
-                  data: {
-                    ...selectedNode.data,
-                    colors: {
-                      ...selectedNode.data?.colors,
-                      bodyTextColor: color
+                {/* Body Text */}
+                <FigmaStyleColorPicker
+                  label="Body Text"
+                  showFill={true}
+                  fillColor={selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569'}
+                  fillOpacity={100}
+                  onFillColorChange={(hex) => onNodeUpdate?.(selectedNode.id, {
+                    data: {
+                      ...selectedNode.data,
+                      colors: {
+                        ...selectedNode.data?.colors,
+                        bodyTextColor: hex
+                      }
                     }
-                  }
-                })}
-                showFill={true}
-                showStroke={false}
-                label="Body Text"
-                testIdScope="node-body-text"
-                className="space-y-1"
-              />
+                  })}
+                  onFillOpacityChange={() => {}}
+                  testIdScope="node-body-text"
+                  className="space-y-1"
+                />
+              </div>
             </div>
 
             <Separator />
@@ -344,16 +373,22 @@ export function PropertiesCard({
                 </div>
 
                 <FigmaStyleColorPicker
+                  label="Background"
+                  showFill={true}
                   fillColor={selectedCanvasObject.data?.backgroundColor || '#fef3c7'}
-                  onFillColorChange={(color) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                  fillOpacity={selectedCanvasObject.data?.backgroundOpacity ?? 100}
+                  onFillColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                     data: {
                       ...selectedCanvasObject.data,
-                      backgroundColor: color
+                      backgroundColor: hex
                     }
                   })}
-                  showFill={true}
-                  showStroke={false}
-                  label="Background"
+                  onFillOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      backgroundOpacity: val
+                    }
+                  })}
                   testIdScope="sticky-bg"
                 />
               </>
@@ -398,23 +433,37 @@ export function PropertiesCard({
                 </div>
 
                 <FigmaStyleColorPicker
-                  fillColor={selectedCanvasObject.data?.fillColor || '#3b82f6'}
-                  strokeColor={selectedCanvasObject.data?.strokeColor || '#1e40af'}
-                  onFillColorChange={(color) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                    data: {
-                      ...selectedCanvasObject.data,
-                      fillColor: color
-                    }
-                  })}
-                  onStrokeColorChange={(color) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                    data: {
-                      ...selectedCanvasObject.data,
-                      strokeColor: color
-                    }
-                  })}
+                  label="Shape Colors"
                   showFill={true}
                   showStroke={true}
-                  label="Shape Colors"
+                  fillColor={selectedCanvasObject.data?.fillColor || '#3b82f6'}
+                  fillOpacity={selectedCanvasObject.data?.fillOpacity ?? 100}
+                  onFillColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      fillColor: hex
+                    }
+                  })}
+                  onFillOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      fillOpacity: val
+                    }
+                  })}
+                  strokeColor={selectedCanvasObject.data?.strokeColor || '#1e40af'}
+                  strokeOpacity={selectedCanvasObject.data?.strokeOpacity ?? 100}
+                  onStrokeColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      strokeColor: hex
+                    }
+                  })}
+                  onStrokeOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      strokeOpacity: val
+                    }
+                  })}
                   testIdScope="shape-colors"
                 />
               </>
