@@ -77,7 +77,7 @@ export function PropertiesCard({
 
   return (
     <div 
-      className="absolute z-50 top-32 left-16 w-72 bg-card border border-border rounded-md shadow-lg"
+      className="absolute z-50 top-32 left-16 w-[360px] bg-card border border-border rounded-md shadow-lg"
       data-testid="properties-card"
     >
       {/* Header */}
@@ -98,7 +98,7 @@ export function PropertiesCard({
       </div>
 
       {/* Content */}
-      <div className="p-3 space-y-3 max-h-96 overflow-y-auto">
+      <div className="p-3 space-y-3 h-[calc(100vh-180px)] overflow-y-auto">
         {/* Node Properties */}
         {selectedNode && (
           <>
