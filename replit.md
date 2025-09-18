@@ -1,7 +1,7 @@
-# KiteFrame Workflow Editor
+# Kiteframe Workflow Editor
 
 ## Overview
-KiteFrame is a visual workflow editor built as a full-stack application with React and Express. It provides an interactive canvas for creating and managing workflow diagrams with various node types (input, process, condition, output, AI tasks, and images). The editor supports node creation, connection with edges, and AI integration for workflow processing, featuring a modern UI with drag-and-drop functionality and real-time canvas interactions. The project focuses on core workflow editing capabilities with advanced features like version control and enhanced interactions available through a plugin architecture.
+Kiteframe is a visual workflow editor built as a full-stack application with React and Express. It provides an interactive canvas for creating and managing workflow diagrams with various node types (input, process, condition, output, AI tasks, and images). The editor supports node creation, connection with edges, and AI integration for workflow processing, featuring a modern UI with drag-and-drop functionality and real-time canvas interactions. The project focuses on core workflow editing capabilities with advanced features like version control and enhanced interactions available through a plugin architecture.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -102,7 +102,7 @@ Preferred communication style: Simple, everyday language.
 - **Process Management**: Express server with custom Vite middleware.
 
 ### Workflow Canvas
-- **Custom Library**: KiteFrame components for canvas interactions.
+- **Custom Library**: Kiteframe components for canvas interactions.
 - **Geometry Utils**: Custom utilities for coordinate transformations.
 - **Event Handling**: Mouse/touch event processing.
 - **Rendering**: SVG-based edge rendering.
