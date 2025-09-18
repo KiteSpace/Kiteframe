@@ -127,7 +127,8 @@ export function ShapesPopout({ isOpen, onClose, onCreateShape, onCreateShapeAtPo
       
       {/* Popout Panel */}
       <div 
-        className="absolute left-16 top-32 z-60 w-40 bg-card border border-border rounded-md shadow-lg p-3"
+        className="absolute left-16 top-32 w-40 bg-card border border-border rounded-md shadow-lg p-3"
+        style={{ zIndex: 60 }}
         data-testid="shapes-popout"
       >
         <h3 className="text-sm font-semibold mb-3">Shapes</h3>
@@ -159,8 +160,9 @@ export function ShapesPopout({ isOpen, onClose, onCreateShape, onCreateShapeAtPo
       {/* Drag Visual Indicator - matches expanded sidebar style */}
       {dragState.isDragging && dragState.currentPos && dragState.shapeType && (
         <div
-          className="fixed pointer-events-none z-60 bg-white/90 dark:bg-gray-800/90 border border-border rounded-md p-2 shadow-lg backdrop-blur-sm"
+          className="fixed pointer-events-none bg-white/90 dark:bg-gray-800/90 border border-border rounded-md p-2 shadow-lg backdrop-blur-sm"
           style={{
+            zIndex: 60,
             left: dragState.currentPos.x + 10,
             top: dragState.currentPos.y - 20,
             transform: 'translate(0, 0)',
