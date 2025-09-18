@@ -2893,8 +2893,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       type: 'shape',
                       position: getViewportCenteredPosition(),
                       data: { shapeType, fillColor: '#3b82f6', strokeColor: '#1e40af', strokeWidth: 2 } as any,
-                      width: 150,
-                      height: 100,
+                      width: 200,
+                      height: shapeType === 'rectangle' ? 200 : 100,
                       selected: false
                     };
                     
@@ -2910,8 +2910,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       type: 'shape',
                       position, // Use the provided position instead of center
                       data: { shapeType, fillColor: '#3b82f6', strokeColor: '#1e40af', strokeWidth: 2 } as any,
-                      width: 150,
-                      height: 100,
+                      width: 200,
+                      height: shapeType === 'rectangle' ? 200 : 100,
                       selected: false
                     };
                     

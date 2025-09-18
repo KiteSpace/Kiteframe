@@ -364,7 +364,7 @@ export interface StickyNoteData {
 }
 
 export interface ShapeNodeData {
-  shapeType: 'rectangle' | 'circle' | 'triangle' | 'line' | 'arrow';
+  shapeType: 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'line' | 'arrow';
   // Fill styling
   fillColor: string;
   fillOpacity?: number; // 0-1

@@ -32,7 +32,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   const objectRef = useRef<HTMLDivElement>(null);
   const shapeSize = {
     width: object.style?.width || object.width || 200,
-    height: object.style?.height || object.height || 100
+    height: object.style?.height || object.height || (object.data?.shapeType === 'rectangle' ? 200 : 100)
   };
 
   const handleResize = useCallback((width: number, height: number) => {
@@ -115,19 +115,28 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         );
 
       case 'circle':
+        const radius = Math.min(width, height) / 2 - (strokeWidth || 0) / 2;
+        const centerX = width / 2;
+        const centerY = height / 2;
         return (
-          <div
-            className="w-full h-full rounded-full"
-            style={{
-              ...commonStyles,
-              backgroundColor: fillOpacity !== undefined ? hexToRgba(fillColor || '#10b981', fillOpacity) : (fillColor || '#10b981'),
-              border: strokeWidth && strokeWidth > 0 ? `${strokeWidth}px ${strokeStyle || 'solid'} ${strokeColor || '#059669'}` : 'none',
-              boxShadow: object.data.shadow?.enabled 
-                ? `${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'}`
-                : 'none',
-            }}
-            data-testid="shape-circle"
-          />
+          <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+            <circle
+              cx={centerX}
+              cy={centerY}
+              r={radius}
+              style={{
+                fill: fillColor || '#10b981',
+                fillOpacity: fillOpacity !== undefined ? fillOpacity : 1,
+                stroke: strokeWidth && strokeWidth > 0 ? strokeColor || '#059669' : 'none',
+                strokeWidth: strokeWidth || 0,
+                strokeDasharray: strokeWidth && strokeWidth > 0 ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
+                filter: object.data.shadow?.enabled 
+                  ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
+                  : 'none',
+              }}
+              data-testid="shape-circle"
+            />
+          </svg>
         );
 
       case 'triangle':
@@ -146,6 +155,26 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
                   : 'none',
               }}
               data-testid="shape-triangle"
+            />
+          </svg>
+        );
+
+      case 'hexagon':
+        return (
+          <svg width="100%" height="100%" viewBox="0 0 100 100" className="overflow-visible">
+            <polygon
+              points="50,5 85,25 85,75 50,95 15,75 15,25"
+              style={{
+                fill: fillColor || '#8b5cf6',
+                fillOpacity: fillOpacity !== undefined ? fillOpacity : 1,
+                stroke: strokeWidth && strokeWidth > 0 ? strokeColor || '#7c3aed' : 'none',
+                strokeWidth: strokeWidth && strokeWidth > 0 ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
+                strokeDasharray: strokeWidth && strokeWidth > 0 ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
+                filter: object.data.shadow?.enabled 
+                  ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
+                  : 'none',
+              }}
+              data-testid="shape-hexagon"
             />
           </svg>
         );
