@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { EdgeProperties } from '@/components/shared/EdgeProperties';
+import { FigmaStyleColorPicker } from '@/components/FigmaStyleColorPicker';
 
 interface PropertiesCardProps {
   selectedNode?: Node;
@@ -137,245 +138,108 @@ export function PropertiesCard({
               
               <div className="grid grid-cols-2 gap-3">
                 {/* Header Background */}
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Header BG</Label>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <input
-                        type="color"
-                        value={selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc'}
-                        onChange={(e) => {
-                          const newHeaderBg = e.target.value;
-                          const newHeaderTextColor = getAppropriateTextColor(newHeaderBg);
-                          onNodeUpdate?.(selectedNode.id, {
-                            data: {
-                              ...selectedNode.data,
-                              colors: {
-                                ...selectedNode.data?.colors,
-                                headerBackground: newHeaderBg,
-                                headerTextColor: newHeaderTextColor
-                              }
-                            }
-                          });
-                        }}
-                        className="w-6 h-6 rounded border border-border cursor-pointer opacity-0 absolute"
-                        data-testid="header-bg-color"
-                      />
-                      <div 
-                        className="w-6 h-6 rounded border border-border cursor-pointer"
-                        style={{ backgroundColor: selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc' }}
-                      />
-                    </div>
-                    <Input
-                      type="text"
-                      value={selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc'}
-                      onChange={(e) => {
-                        const newHeaderBg = e.target.value;
-                        const newHeaderTextColor = getAppropriateTextColor(newHeaderBg);
-                        onNodeUpdate?.(selectedNode.id, {
-                          data: {
-                            ...selectedNode.data,
-                            colors: {
-                              ...selectedNode.data?.colors,
-                              headerBackground: newHeaderBg,
-                              headerTextColor: newHeaderTextColor
-                            }
-                          }
-                        });
-                      }}
-                      className="flex-1 text-xs"
-                      placeholder="#f8fafc"
-                      data-testid="header-bg-hex"
-                    />
-                  </div>
-                </div>
-
-                {/* Body Background */}
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Body BG</Label>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <input
-                        type="color"
-                        value={selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || '#ffffff'}
-                        onChange={(e) => {
-                          const newBodyBg = e.target.value;
-                          const newBodyTextColor = getAppropriateTextColor(newBodyBg);
-                          onNodeUpdate?.(selectedNode.id, {
-                            data: {
-                              ...selectedNode.data,
-                              colors: {
-                                ...selectedNode.data?.colors,
-                                bodyBackground: newBodyBg,
-                                bodyTextColor: newBodyTextColor
-                              }
-                            }
-                          });
-                        }}
-                        className="w-6 h-6 rounded border border-border cursor-pointer opacity-0 absolute"
-                        data-testid="body-bg-color"
-                      />
-                      <div 
-                        className="w-6 h-6 rounded border border-border cursor-pointer"
-                        style={{ backgroundColor: selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || '#ffffff' }}
-                      />
-                    </div>
-                    <Input
-                      type="text"
-                      value={selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || '#ffffff'}
-                      onChange={(e) => {
-                        const newBodyBg = e.target.value;
-                        const newBodyTextColor = getAppropriateTextColor(newBodyBg);
-                        onNodeUpdate?.(selectedNode.id, {
-                          data: {
-                            ...selectedNode.data,
-                            colors: {
-                              ...selectedNode.data?.colors,
-                              bodyBackground: newBodyBg,
-                              bodyTextColor: newBodyTextColor
-                            }
-                          }
-                        });
-                      }}
-                      className="flex-1 text-xs"
-                      placeholder="#ffffff"
-                      data-testid="body-bg-hex"
-                    />
-                  </div>
-                </div>
-
-                {/* Border Color */}
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Border</Label>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <input
-                        type="color"
-                        value={selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0'}
-                        onChange={(e) => onNodeUpdate?.(selectedNode.id, {
-                          data: {
-                            ...selectedNode.data,
-                            colors: {
-                              ...selectedNode.data?.colors,
-                              borderColor: e.target.value
-                            }
-                          }
-                        })}
-                        className="w-6 h-6 rounded border border-border cursor-pointer opacity-0 absolute"
-                        data-testid="border-color"
-                      />
-                      <div 
-                        className="w-6 h-6 rounded border border-border cursor-pointer"
-                        style={{ backgroundColor: selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0' }}
-                      />
-                    </div>
-                    <Input
-                      type="text"
-                      value={selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0'}
-                      onChange={(e) => onNodeUpdate?.(selectedNode.id, {
-                        data: {
-                          ...selectedNode.data,
-                          colors: {
-                            ...selectedNode.data?.colors,
-                            borderColor: e.target.value
-                          }
-                        }
-                      })}
-                      className="flex-1 text-xs"
-                      placeholder="#e2e8f0"
-                      data-testid="border-hex"
-                    />
-                  </div>
-                </div>
-
-                {/* Header Text */}
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Header Text</Label>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <input
-                        type="color"
-                        value={selectedNode.data?.colors?.headerTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#0f172a'}
-                        onChange={(e) => onNodeUpdate?.(selectedNode.id, {
-                          data: {
-                            ...selectedNode.data,
-                            colors: {
-                              ...selectedNode.data?.colors,
-                              headerTextColor: e.target.value
-                            }
-                          }
-                        })}
-                        className="w-6 h-6 rounded border border-border cursor-pointer opacity-0 absolute"
-                        data-testid="header-text-color"
-                      />
-                      <div 
-                        className="w-6 h-6 rounded border border-border cursor-pointer"
-                        style={{ backgroundColor: selectedNode.data?.colors?.headerTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#0f172a' }}
-                      />
-                    </div>
-                    <Input
-                      type="text"
-                      value={selectedNode.data?.colors?.headerTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#0f172a'}
-                      onChange={(e) => onNodeUpdate?.(selectedNode.id, {
-                        data: {
-                          ...selectedNode.data,
-                          colors: {
-                            ...selectedNode.data?.colors,
-                            headerTextColor: e.target.value
-                          }
-                        }
-                      })}
-                      className="flex-1 text-xs"
-                      placeholder="#0f172a"
-                      data-testid="header-text-hex"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Body Text - Full Width */}
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">Body Text</Label>
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <input
-                      type="color"
-                      value={selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569'}
-                      onChange={(e) => onNodeUpdate?.(selectedNode.id, {
-                        data: {
-                          ...selectedNode.data,
-                          colors: {
-                            ...selectedNode.data?.colors,
-                            bodyTextColor: e.target.value
-                          }
-                        }
-                      })}
-                      className="w-6 h-6 rounded border border-border cursor-pointer opacity-0 absolute"
-                      data-testid="body-text-color"
-                    />
-                    <div 
-                      className="w-6 h-6 rounded border border-border cursor-pointer"
-                      style={{ backgroundColor: selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569' }}
-                    />
-                  </div>
-                  <Input
-                    type="text"
-                    value={selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569'}
-                    onChange={(e) => onNodeUpdate?.(selectedNode.id, {
+                <FigmaStyleColorPicker
+                  fillColor={selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc'}
+                  onFillColorChange={(color) => {
+                    const newHeaderTextColor = getAppropriateTextColor(color);
+                    onNodeUpdate?.(selectedNode.id, {
                       data: {
                         ...selectedNode.data,
                         colors: {
                           ...selectedNode.data?.colors,
-                          bodyTextColor: e.target.value
+                          headerBackground: color,
+                          headerTextColor: newHeaderTextColor
                         }
                       }
-                    })}
-                    className="flex-1 text-xs"
-                    placeholder="#475569"
-                    data-testid="body-text-hex"
-                  />
-                </div>
+                    });
+                  }}
+                  showFill={true}
+                  showStroke={false}
+                  label="Header Background"
+                  testIdScope="node-header-bg"
+                  className="space-y-1"
+                />
+
+                {/* Body Background */}
+                <FigmaStyleColorPicker
+                  fillColor={selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || '#ffffff'}
+                  onFillColorChange={(color) => {
+                    const newBodyTextColor = getAppropriateTextColor(color);
+                    onNodeUpdate?.(selectedNode.id, {
+                      data: {
+                        ...selectedNode.data,
+                        colors: {
+                          ...selectedNode.data?.colors,
+                          bodyBackground: color,
+                          bodyTextColor: newBodyTextColor
+                        }
+                      }
+                    });
+                  }}
+                  showFill={true}
+                  showStroke={false}
+                  label="Body Background"
+                  testIdScope="node-body-bg"
+                  className="space-y-1"
+                />
+
+                {/* Border Color */}
+                <FigmaStyleColorPicker
+                  fillColor={selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0'}
+                  onFillColorChange={(color) => onNodeUpdate?.(selectedNode.id, {
+                    data: {
+                      ...selectedNode.data,
+                      colors: {
+                        ...selectedNode.data?.colors,
+                        borderColor: color
+                      }
+                    }
+                  })}
+                  showFill={true}
+                  showStroke={false}
+                  label="Border Color"
+                  testIdScope="node-border"
+                  className="space-y-1"
+                />
+
+                {/* Header Text */}
+                <FigmaStyleColorPicker
+                  fillColor={selectedNode.data?.colors?.headerTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#0f172a'}
+                  onFillColorChange={(color) => onNodeUpdate?.(selectedNode.id, {
+                    data: {
+                      ...selectedNode.data,
+                      colors: {
+                        ...selectedNode.data?.colors,
+                        headerTextColor: color
+                      }
+                    }
+                  })}
+                  showFill={true}
+                  showStroke={false}
+                  label="Header Text"
+                  testIdScope="node-header-text"
+                  className="space-y-1"
+                />
               </div>
+
+              {/* Body Text - Full Width */}
+              <FigmaStyleColorPicker
+                fillColor={selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569'}
+                onFillColorChange={(color) => onNodeUpdate?.(selectedNode.id, {
+                  data: {
+                    ...selectedNode.data,
+                    colors: {
+                      ...selectedNode.data?.colors,
+                      bodyTextColor: color
+                    }
+                  }
+                })}
+                showFill={true}
+                showStroke={false}
+                label="Body Text"
+                testIdScope="node-body-text"
+                className="space-y-1"
+              />
             </div>
 
             <Separator />
@@ -479,21 +343,19 @@ export function PropertiesCard({
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Background Color</Label>
-                  <Input
-                    type="color"
-                    value={selectedCanvasObject.data?.backgroundColor || '#fef3c7'}
-                    onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                      data: {
-                        ...selectedCanvasObject.data,
-                        backgroundColor: e.target.value
-                      }
-                    })}
-                    className="text-sm h-8"
-                    data-testid="sticky-bg-color-input"
-                  />
-                </div>
+                <FigmaStyleColorPicker
+                  fillColor={selectedCanvasObject.data?.backgroundColor || '#fef3c7'}
+                  onFillColorChange={(color) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      backgroundColor: color
+                    }
+                  })}
+                  showFill={true}
+                  showStroke={false}
+                  label="Background"
+                  testIdScope="sticky-bg"
+                />
               </>
             )}
 
@@ -535,37 +397,26 @@ export function PropertiesCard({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Fill Color</Label>
-                  <Input
-                    type="color"
-                    value={selectedCanvasObject.data?.fillColor || '#3b82f6'}
-                    onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                      data: {
-                        ...selectedCanvasObject.data,
-                        fillColor: e.target.value
-                      }
-                    })}
-                    className="text-sm h-8"
-                    data-testid="shape-fill-color-input"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Stroke Color</Label>
-                  <Input
-                    type="color"
-                    value={selectedCanvasObject.data?.strokeColor || '#1e40af'}
-                    onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                      data: {
-                        ...selectedCanvasObject.data,
-                        strokeColor: e.target.value
-                      }
-                    })}
-                    className="text-sm h-8"
-                    data-testid="shape-stroke-color-input"
-                  />
-                </div>
+                <FigmaStyleColorPicker
+                  fillColor={selectedCanvasObject.data?.fillColor || '#3b82f6'}
+                  strokeColor={selectedCanvasObject.data?.strokeColor || '#1e40af'}
+                  onFillColorChange={(color) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      fillColor: color
+                    }
+                  })}
+                  onStrokeColorChange={(color) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      strokeColor: color
+                    }
+                  })}
+                  showFill={true}
+                  showStroke={true}
+                  label="Shape Colors"
+                  testIdScope="shape-colors"
+                />
               </>
             )}
 
