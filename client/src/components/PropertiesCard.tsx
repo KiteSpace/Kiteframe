@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
-import { X, Palette, Square } from 'lucide-react';
+import { X, Palette, Square, Circle, Triangle, Hexagon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -500,6 +500,41 @@ export function PropertiesCard({
             {/* Shape Properties */}
             {selectedCanvasObject.type === 'shape' && (
               <>
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Shape Type</Label>
+                  <div className="flex gap-2">
+                    {[
+                      { type: 'rectangle', icon: Square, color: 'text-blue-500', label: 'Rectangle' },
+                      { type: 'circle', icon: Circle, color: 'text-green-500', label: 'Circle' },
+                      { type: 'triangle', icon: Triangle, color: 'text-yellow-500', label: 'Triangle' },
+                      { type: 'hexagon', icon: Hexagon, color: 'text-purple-500', label: 'Hexagon' },
+                    ].map((shapeType) => {
+                      const IconComponent = shapeType.icon;
+                      const isSelected = selectedCanvasObject.data?.shapeType === shapeType.type;
+                      
+                      return (
+                        <Button
+                          key={shapeType.type}
+                          variant="outline"
+                          size="sm"
+                          className={`p-2 h-8 w-8 ${isSelected ? 'bg-accent text-accent-foreground border-accent' : 'hover:bg-accent/50'}`}
+                          onClick={() => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                            data: {
+                              ...selectedCanvasObject.data,
+                              shapeType: shapeType.type
+                            }
+                          })}
+                          data-testid={`shape-type-${shapeType.type}`}
+                          title={shapeType.label}
+                          aria-pressed={isSelected}
+                        >
+                          <IconComponent className={`${shapeType.color}`} size={14} />
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label className="text-xs font-medium">Fill Color</Label>
                   <Input
