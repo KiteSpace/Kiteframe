@@ -8,12 +8,68 @@ import { buildMultiViewTrees } from './multiViewBuilder';
 import { AncestorsStore } from './ancestorsStore';
 import { useWorkflowNames, generateDefaultWorkflowNames } from '@/stores/workflowNameStore';
 import { focusBus } from '@/stores/focusBus';
+import { Search } from 'lucide-react';
+
+// Collapse state management
+class CollapseStore {
+  private subscribers = new Set<() => void>();
+  private collapsed = new Map<string, boolean>();
+  
+  constructor() {
+    // Load from localStorage
+    const saved = localStorage.getItem('layers-collapsed-state');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        this.collapsed = new Map(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.warn('Failed to load collapse state:', e);
+      }
+    }
+  }
+  
+  get(id: string): boolean {
+    return this.collapsed.get(id) ?? false;
+  }
+  
+  toggle(id: string) {
+    const current = this.get(id);
+    this.collapsed.set(id, !current);
+    this.save();
+    this.notify();
+  }
+  
+  private save() {
+    try {
+      const entries: [string, boolean][] = [];
+      this.collapsed.forEach((value, key) => {
+        entries.push([key, value]);
+      });
+      localStorage.setItem('layers-collapsed-state', JSON.stringify(entries));
+    } catch (e) {
+      console.warn('Failed to save collapse state:', e);
+    }
+  }
+  
+  private notify() {
+    this.subscribers.forEach(callback => callback());
+  }
+  
+  subscribe(callback: () => void): () => void {
+    this.subscribers.add(callback);
+    return () => this.subscribers.delete(callback);
+  }
+}
+
+const collapseStore = new CollapseStore();
 
 export function LayersPanel({ nodes, edges, frames }:{
   nodes:any[]; edges:any[]; frames?:any[];
 }) {
   const [mode, setMode] = useState<LayerMode>('structure');
   const [tree, setTree] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [collapseVersion, forceCollapseUpdate] = React.useReducer((x: number) => x + 1, 0);
 
   useEffect(()=>{
     const w = new Worker(new URL('./graphWorker.ts', import.meta.url), { type:'module' });
@@ -42,6 +98,42 @@ export function LayersPanel({ nodes, edges, frames }:{
     
     const idx: Record<string,string[]> = {};
     const out:any[]=[];
+    
+    // Helper to check if item matches search query (memoized lowercased)
+    const lowerQuery = searchQuery.toLowerCase().trim();
+    const matchesSearch = (label: string) => {
+      if (!lowerQuery) return true;
+      return label.toLowerCase().includes(lowerQuery);
+    };
+    
+    // Recursive helper to check if any descendant matches search
+    const hasMatchingDescendant = (groupId: string): boolean => {
+      const group = tree.groups[groupId];
+      if (!group) return false;
+      
+      for (const cid of group.childIds) {
+        if (tree.groups[cid]) {
+          // Child is a group - resolve its name and check recursively
+          const childGroup = tree.groups[cid];
+          let childDisplayName = childGroup.name;
+          if (childGroup.role === 'workflow' && cid.startsWith('wf:')) {
+            childDisplayName = workflowNames.get(cid) || generatedDefaults[cid] || childGroup.name;
+          }
+          
+          if (matchesSearch(childDisplayName) || hasMatchingDescendant(cid)) {
+            return true;
+          }
+        } else {
+          // Child is a leaf - check its label
+          const leaf = tree.leaves[cid];
+          if (leaf && matchesSearch(leaf.label || cid)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+    
     const walk=(id:string, depth:number, ancestors:string[])=>{
       const g = tree.groups[id]; if(!g) return;
       g.childIds.forEach((cid: string)=>{ idx[cid] = ancestors.concat(id); });
@@ -61,18 +153,33 @@ export function LayersPanel({ nodes, edges, frames }:{
         }
       }
       
-      out.push({ type:'group', id, label:displayName, depth, childIds:g.childIds, role:g.role });
-      for (const cid of g.childIds) {
-        if (tree.groups[cid]) walk(cid, depth+1, ancestors.concat(id));
-        else {
-          const leaf = tree.leaves[cid];
-          out.push({ type:'leaf', id:cid, label:leaf?.label ?? cid, depth:depth+1, role:leaf?.role });
+      // Check if this group matches or has any matching descendants
+      const groupMatches = matchesSearch(displayName);
+      const hasMatchingChildren = hasMatchingDescendant(id);
+      
+      // Include this group if no search query OR it matches OR has matching descendants
+      if (!lowerQuery || groupMatches || hasMatchingChildren) {
+        out.push({ type:'group', id, label:displayName, depth, childIds:g.childIds, role:g.role, collapsed: collapseStore.get(id) });
+        
+        // Show children if not collapsed OR when searching (ignore collapse during search)
+        const isCollapsed = collapseStore.get(id);
+        if (!isCollapsed || lowerQuery) {
+          for (const cid of g.childIds) {
+            if (tree.groups[cid]) {
+              walk(cid, depth+1, ancestors.concat(id));
+            } else {
+              const leaf = tree.leaves[cid];
+              if (leaf && (!lowerQuery || matchesSearch(leaf.label || cid))) {
+                out.push({ type:'leaf', id:cid, label:leaf.label ?? cid, depth:depth+1, role:leaf.role });
+              }
+            }
+          }
         }
       }
     };
     walk(rootId, 0, []);
     return { rows: out, ancestorsIndex: idx, defaultNames: generatedDefaults };
-  }, [tree, rootId, workflowNames, nodes]);
+  }, [tree, rootId, workflowNames, nodes, searchQuery, collapseVersion]);
 
   useEffect(()=>{ AncestorsStore.set(ancestorsIndex); }, [ancestorsIndex]);
 
@@ -81,15 +188,37 @@ export function LayersPanel({ nodes, edges, frames }:{
     const unsubscribe = VLStore.subscribe(force); 
     return () => { unsubscribe(); };
   },[]);
+  
+  useEffect(() => {
+    const unsubscribe = collapseStore.subscribe(forceCollapseUpdate);
+    return unsubscribe;
+  }, []);
+  
   const flags = VLStore.get();
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900" role="tree" aria-label="Layers">
       <LayerModeTabs mode={mode} setMode={setMode} />
+      
+      {/* Search Bar */}
+      <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search layers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none transition-colors"
+            data-testid="input-layers-search"
+          />
+        </div>
+      </div>
+      
       <div className="flex-1 overflow-hidden bg-gray-50/30 dark:bg-gray-800/30">
         <VirtualTree
           rows={rows}
-          Row={({type,id,label,depth,childIds,role}:{type:'group'|'leaf';id:string;label:string;depth:number;childIds?:string[];role?:string})=>{
+          Row={({type,id,label,depth,childIds,role,collapsed}:{type:'group'|'leaf';id:string;label:string;depth:number;childIds?:string[];role?:string;collapsed?:boolean})=>{
             if (type==='group') {
               const triHidden:Tri = computeTri(childIds ?? [], flags.hidden);
               const triLocked:Tri = computeTri(childIds ?? [], flags.locked);
@@ -115,6 +244,10 @@ export function LayersPanel({ nodes, edges, frames }:{
                 workflowNames.set(id, newName);
               } : undefined;
               
+              const handleToggleCollapse = () => {
+                collapseStore.toggle(id);
+              };
+              
               return <GroupRow 
                 id={id} depth={depth} label={label} childIds={childIds ?? []}
                 triHidden={triHidden} triLocked={triLocked}
@@ -122,6 +255,8 @@ export function LayersPanel({ nodes, edges, frames }:{
                 onClick={handleClick}
                 onNameChange={handleNameChange}
                 role={role}
+                collapsed={collapsed}
+                onToggleCollapse={handleToggleCollapse}
               />;
             } else {
               const ancestors = ancestorsIndex[id] ?? [];

@@ -1874,6 +1874,17 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const keyboardEvent = e as KeyboardEvent;
       // Only handle delete/backspace keys
       if (keyboardEvent.key === 'Delete' || keyboardEvent.key === 'Backspace') {
+        // Check if we're focused on an input field - if so, don't interfere
+        const activeElement = document.activeElement as HTMLElement;
+        if (activeElement && (
+          activeElement.tagName === 'INPUT' || 
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.isContentEditable
+        )) {
+          // Let the input handle the delete/backspace normally
+          return;
+        }
+        
         // Security: Rate limit delete operations
         if (!actionRateLimiter.isAllowed('delete')) {
           console.warn('⚠️ Delete rate limit exceeded');

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Eye, EyeOff, Lock, Unlock, MinusSquare, Edit2 } from 'lucide-react';
+import { Eye, EyeOff, Lock, Unlock, MinusSquare, Edit2, ChevronRight, ChevronDown } from 'lucide-react';
 import type { Tri } from './triStateUtils';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -8,12 +8,14 @@ export function GroupRow({
   id, depth, label, childIds,
   triHidden, triLocked,
   onToggleHidden, onToggleLocked,
-  onClick, onNameChange, role
+  onClick, onNameChange, role,
+  collapsed, onToggleCollapse
 }:{
   id:string; depth:number; label:string; childIds:string[];
   triHidden:Tri; triLocked:Tri;
   onToggleHidden:()=>void; onToggleLocked:()=>void;
   onClick?:()=>void; onNameChange?:(newName:string)=>void; role?:string;
+  collapsed?:boolean; onToggleCollapse?:()=>void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(label);
@@ -71,8 +73,24 @@ export function GroupRow({
   };
 
   return (
-    <div role="treeitem" aria-level={depth+1} aria-expanded className={getRowStyles()}>
-      <div style={{paddingLeft: depth*14}} className="flex items-center gap-2 flex-1">
+    <div role="treeitem" aria-level={depth+1} aria-expanded={!collapsed} className={getRowStyles()}>
+      <div style={{paddingLeft: depth*14}} className="flex items-center gap-1 flex-1">
+        {/* Collapse/Expand Chevron - only show for groups with children */}
+        {childIds.length > 0 && onToggleCollapse ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleCollapse();
+            }}
+            className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors duration-150 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            title={collapsed ? 'Expand' : 'Collapse'}
+            data-testid={`button-collapse-${id}`}
+          >
+            {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+          </button>
+        ) : (
+          <div className="w-6" /> /* Spacer for alignment */
+        )}
         {isEditing && role === 'workflow' ? (
           <input
             data-testid={`input-workflow-name-${id}`}

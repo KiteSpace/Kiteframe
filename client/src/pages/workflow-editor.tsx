@@ -2000,7 +2000,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       if (e.key === 'Delete' || e.key === 'Backspace') {
         // Check if we're not in an input field
         const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
           return;
         }
         
