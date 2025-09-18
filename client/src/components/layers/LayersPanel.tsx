@@ -138,53 +138,62 @@ export function LayersPanel({ nodes, edges, frames }:{
       const g = tree.groups[id]; if(!g) return;
       g.childIds.forEach((cid: string)=>{ idx[cid] = ancestors.concat(id); });
       
-      // Resolve display name for workflow groups
-      let displayName = g.name;
-      if (g.role === 'workflow' && id.startsWith('wf:')) {
-        displayName = workflowNames.get(id) || generatedDefaults[id] || g.name;
-      } else if (g.role === 'linkGroup' && id.startsWith('links:')) {
-        // Resolve workflow names in link group labels
-        const match = id.match(/links:(.+)\|(.+)/);
-        if (match) {
-          const [, wfA, wfB] = match;
-          const nameA = workflowNames.get(`wf:${wfA}`) || generatedDefaults[`wf:${wfA}`] || wfA;
-          const nameB = workflowNames.get(`wf:${wfB}`) || generatedDefaults[`wf:${wfB}`] || wfB;
-          displayName = `Between ${nameA} ↔ ${nameB}`;
+      // Skip rendering the structureRoot itself - only render its children (workflows)
+      const shouldRenderGroup = id !== 'structureRoot';
+      
+      if (shouldRenderGroup) {
+        // Resolve display name for workflow groups
+        let displayName = g.name;
+        if (g.role === 'workflow' && id.startsWith('wf:')) {
+          displayName = workflowNames.get(id) || generatedDefaults[id] || g.name;
+        } else if (g.role === 'linkGroup' && id.startsWith('links:')) {
+          // Resolve workflow names in link group labels
+          const match = id.match(/links:(.+)\|(.+)/);
+          if (match) {
+            const [, wfA, wfB] = match;
+            const nameA = workflowNames.get(`wf:${wfA}`) || generatedDefaults[`wf:${wfA}`] || wfA;
+            const nameB = workflowNames.get(`wf:${wfB}`) || generatedDefaults[`wf:${wfB}`] || wfB;
+            displayName = `Between ${nameA} ↔ ${nameB}`;
+          }
+        }
+        
+        // Check if this group matches or has any matching descendants
+        const groupMatches = matchesSearch(displayName);
+        const hasMatchingChildren = hasMatchingDescendant(id);
+        
+        // Include this group if no search query OR it matches OR has matching descendants
+        if (!lowerQuery || groupMatches || hasMatchingChildren) {
+          out.push({ type:'group', id, label:displayName, depth, childIds:g.childIds, role:g.role, collapsed: collapseStore.get(id) });
         }
       }
       
-      // Check if this group matches or has any matching descendants
-      const groupMatches = matchesSearch(displayName);
-      const hasMatchingChildren = hasMatchingDescendant(id);
-      
-      // Include this group if no search query OR it matches OR has matching descendants
-      if (!lowerQuery || groupMatches || hasMatchingChildren) {
-        out.push({ type:'group', id, label:displayName, depth, childIds:g.childIds, role:g.role, collapsed: collapseStore.get(id) });
-        
-        // Show children if not collapsed OR when searching (ignore collapse during search)
-        const isCollapsed = collapseStore.get(id);
-        if (!isCollapsed || lowerQuery) {
-          for (const cid of g.childIds) {
-            if (tree.groups[cid]) {
-              walk(cid, depth+1, ancestors.concat(id));
-            } else {
-              const leaf = tree.leaves[cid];
-              if (leaf && (!lowerQuery || matchesSearch(leaf.label || cid))) {
-                out.push({ 
-                  type:'leaf', 
-                  id:cid, 
-                  label:leaf.label ?? cid, 
-                  depth:depth+1, 
-                  role:leaf.role,
-                  nodeType: leaf.role === 'node' ? nodes.find(n => n.id === cid)?.type : undefined
-                });
-              }
+      // Always process children (whether we render the group or not)
+      const isCollapsed = shouldRenderGroup ? collapseStore.get(id) : false; // Root is never collapsed
+      if (!isCollapsed || lowerQuery) { // Show children if not collapsed OR when searching
+        for (const cid of g.childIds) {
+          if (tree.groups[cid]) {
+            // For structureRoot children (workflows), they should render at depth 0
+            const childDepth = shouldRenderGroup ? depth + 1 : depth;
+            walk(cid, childDepth, ancestors.concat(id));
+          } else {
+            const leaf = tree.leaves[cid];
+            if (leaf && (!lowerQuery || matchesSearch(leaf.label || cid))) {
+              const leafDepth = shouldRenderGroup ? depth + 1 : depth + 1; // Leaves are always one level deeper
+              out.push({ 
+                type:'leaf', 
+                id:cid, 
+                label:leaf.label ?? cid, 
+                depth:leafDepth, 
+                role:leaf.role,
+                nodeType: leaf.role === 'node' ? nodes.find(n => n.id === cid)?.type : undefined
+              });
             }
           }
         }
       }
     };
     walk(rootId, 0, []);
+    
     return { rows: out, ancestorsIndex: idx, defaultNames: generatedDefaults };
   }, [tree, rootId, workflowNames, nodes, searchQuery, collapseVersion]);
 
