@@ -170,7 +170,14 @@ export function LayersPanel({ nodes, edges, frames }:{
             } else {
               const leaf = tree.leaves[cid];
               if (leaf && (!lowerQuery || matchesSearch(leaf.label || cid))) {
-                out.push({ type:'leaf', id:cid, label:leaf.label ?? cid, depth:depth+1, role:leaf.role });
+                out.push({ 
+                  type:'leaf', 
+                  id:cid, 
+                  label:leaf.label ?? cid, 
+                  depth:depth+1, 
+                  role:leaf.role,
+                  nodeType: leaf.role === 'node' ? nodes.find(n => n.id === cid)?.type : undefined
+                });
               }
             }
           }
@@ -218,7 +225,7 @@ export function LayersPanel({ nodes, edges, frames }:{
       <div className="flex-1 overflow-hidden bg-gray-50/30 dark:bg-gray-800/30">
         <VirtualTree
           rows={rows}
-          Row={({type,id,label,depth,childIds,role,collapsed}:{type:'group'|'leaf';id:string;label:string;depth:number;childIds?:string[];role?:string;collapsed?:boolean})=>{
+          Row={({type,id,label,depth,childIds,role,collapsed,nodeType}:{type:'group'|'leaf';id:string;label:string;depth:number;childIds?:string[];role?:string;collapsed?:boolean;nodeType?:string})=>{
             if (type==='group') {
               const triHidden:Tri = computeTri(childIds ?? [], flags.hidden);
               const triLocked:Tri = computeTri(childIds ?? [], flags.locked);
@@ -279,6 +286,8 @@ export function LayersPanel({ nodes, edges, frames }:{
                 id={id} depth={depth} label={label} 
                 effHidden={effHidden} effLocked={effLocked}
                 onClick={handleClick}
+                role={role}
+                nodeType={role === 'node' ? nodes.find(n => n.id === id)?.type : undefined}
               />;
             }
           }}
