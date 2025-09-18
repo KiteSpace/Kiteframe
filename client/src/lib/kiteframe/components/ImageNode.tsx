@@ -5,6 +5,7 @@ import { ResizeHandle } from './ResizeHandle';
 import { Upload, Image as ImageIcon, ExternalLink, AlertCircle } from 'lucide-react';
 import type { Node, ImageNodeData, ImageNodeComponentProps } from '../types';
 import { getDynamicClassName, getNodeStyleClasses } from '../utils/styles';
+import { sanitizeText } from '../utils/validation';
 
 
 const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
@@ -23,10 +24,13 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   const [urlValue, setUrlValue] = useState('');
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isEditingLabel, setIsEditingLabel] = useState(false);
+  const [editLabelValue, setEditLabelValue] = useState(node.data.label || '');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
+  const labelInputRef = useRef<HTMLInputElement>(null);
 
   // Focus URL input when shown
   useEffect(() => {
@@ -34,6 +38,14 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       urlInputRef.current.focus();
     }
   }, [showUrlInput]);
+
+  // Focus label input when entering edit mode
+  useEffect(() => {
+    if (isEditingLabel && labelInputRef.current) {
+      labelInputRef.current.focus();
+      labelInputRef.current.select();
+    }
+  }, [isEditingLabel]);
 
   const handleUploadClick = useCallback(() => {
     fileInputRef.current?.click();
@@ -122,6 +134,32 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       setUrlValue('');
     }
   }, [handleUrlSubmit]);
+
+  const handleLabelSubmit = useCallback(() => {
+    if (onUpdate) {
+      const sanitizedLabel = sanitizeText(editLabelValue.trim() || 'Image');
+      onUpdate(node.id, {
+        data: { ...node.data, label: sanitizedLabel }
+      });
+    }
+    setIsEditingLabel(false);
+  }, [editLabelValue, node.id, node.data, onUpdate]);
+
+  const handleLabelKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleLabelSubmit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setEditLabelValue(node.data.label || '');
+      setIsEditingLabel(false);
+    }
+  }, [handleLabelSubmit, node.data.label]);
+
+  const handleLabelDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingLabel(true);
+  }, []);
 
   const handleImageLoad = useCallback(() => {
     setImageLoaded(true);
@@ -226,10 +264,29 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         )}
         role="heading"
         aria-level={3}
+        onDoubleClick={handleLabelDoubleClick}
       >
-        <span className="text-sm font-medium truncate">
-          {node.data.label || 'Image'}
-        </span>
+        {isEditingLabel ? (
+          <input
+            ref={labelInputRef}
+            type="text"
+            value={editLabelValue}
+            onChange={(e) => setEditLabelValue(e.target.value)}
+            onBlur={handleLabelSubmit}
+            onKeyDown={handleLabelKeyDown}
+            className={cn(
+              "bg-transparent border-none outline-none text-sm font-medium w-full",
+              getDynamicClassName({ color: colors.headerTextColor }, `label-input-${node.id}`)
+            )}
+            placeholder="Enter label..."
+            aria-label="Image node label"
+            data-testid="image-node-label-input"
+          />
+        ) : (
+          <span className="text-sm font-medium truncate">
+            {sanitizeText(node.data.label || 'Image')}
+          </span>
+        )}
         
         <div className="flex items-center gap-1">
           {/* Image status indicator */}

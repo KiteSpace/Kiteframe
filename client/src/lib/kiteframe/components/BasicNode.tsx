@@ -19,7 +19,10 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(node.data.label || '');
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editDescriptionValue, setEditDescriptionValue] = useState(node.data.description || '');
   const inputRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
 
   // Focus input when entering edit mode
@@ -29,6 +32,14 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
       inputRef.current.select();
     }
   }, [isEditing]);
+
+  // Focus description textarea when entering description edit mode
+  useEffect(() => {
+    if (isEditingDescription && descriptionRef.current) {
+      descriptionRef.current.focus();
+      descriptionRef.current.select();
+    }
+  }, [isEditingDescription]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -46,6 +57,16 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
     setIsEditing(false);
   }, [editValue, node.id, node.data, onUpdate]);
 
+  const handleDescriptionSubmit = useCallback(() => {
+    if (onUpdate) {
+      const sanitizedDescription = sanitizeText(editDescriptionValue.trim());
+      onUpdate(node.id, {
+        data: { ...node.data, description: sanitizedDescription }
+      });
+    }
+    setIsEditingDescription(false);
+  }, [editDescriptionValue, node.id, node.data, onUpdate]);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -56,6 +77,22 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
       setIsEditing(false);
     }
   }, [handleLabelSubmit, node.data.label]);
+
+  const handleDescriptionKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleDescriptionSubmit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setEditDescriptionValue(node.data.description || '');
+      setIsEditingDescription(false);
+    }
+  }, [handleDescriptionSubmit, node.data.description]);
+
+  const handleDescriptionDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingDescription(true);
+  }, []);
 
   const handleResize = useCallback((width: number, height: number) => {
     if (onUpdate) {
@@ -182,8 +219,25 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
         )}
         role="region"
         aria-label="Node content"
+        onDoubleClick={handleDescriptionDoubleClick}
       >
-        {node.data.description ? (
+        {isEditingDescription ? (
+          <textarea
+            ref={descriptionRef}
+            value={editDescriptionValue}
+            onChange={(e) => setEditDescriptionValue(e.target.value)}
+            onBlur={handleDescriptionSubmit}
+            onKeyDown={handleDescriptionKeyDown}
+            className={cn(
+              "w-full h-full resize-none bg-transparent border-none outline-none text-xs leading-relaxed",
+              "focus:ring-1 focus:ring-blue-500 focus:ring-opacity-50 rounded p-1 -m-1",
+              getDynamicClassName({ color: colors.bodyTextColor }, `description-textarea-${node.id}`)
+            )}
+            placeholder="Enter description..."
+            aria-label="Node description"
+            data-testid="basic-node-description-textarea"
+          />
+        ) : node.data.description ? (
           <p className="text-xs leading-relaxed" aria-label="Node description">
             {sanitizeText(node.data.description)}
           </p>
