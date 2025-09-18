@@ -27,6 +27,7 @@ import { useFirebaseWorkflows } from '../hooks/useFirebaseWorkflows';
 import { useAuth } from '../hooks/useAuth';
 import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeData, ShapeNodeData, StickyNoteData } from '../lib/kiteframe/types';
 import { recalculateAllEdgeZIndexes } from '../lib/kiteframe/utils/edgeZIndex';
+import { applyThemeToNode, applyThemeToEdge } from '../lib/themes';
 import '../lib/kiteframe/styles/kiteframe.css';
 import { 
   X, 
@@ -2772,30 +2773,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     handleAddTemplateToCurrentTab(templateType, position);
                   }}
                   onApplyTheme={(theme) => {
-                    // Apply theme to all nodes in the current workflow
+                    // Apply theme to all nodes using the enhanced helper function
                     setNodes(prev => prev.map(node => ({
                       ...node,
-                      data: {
-                        ...node.data,
-                        style: {
-                          ...node.data.style,
-                          headerBackground: theme.nodeStyles.headerBackground,
-                          headerTextColor: theme.nodeStyles.headerText,
-                          bodyBackground: theme.nodeStyles.bodyBackground,
-                          bodyTextColor: theme.nodeStyles.bodyText,
-                          borderColor: theme.nodeStyles.border
-                        }
-                      }
+                      data: applyThemeToNode(node.data, theme)
                     })));
                     
-                    // Apply theme to all edges
-                    setEdges(prev => prev.map(edge => ({
-                      ...edge,
-                      style: {
-                        ...edge.style,
-                        strokeColor: theme.edgeStyles.stroke
-                      }
-                    })));
+                    // Apply theme to all edges using the enhanced helper function
+                    setEdges(prev => prev.map(edge => applyThemeToEdge(edge, theme)));
                     
                     saveToHistory();
                   }}
@@ -3414,33 +3399,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onSnapshot={handleSnapshot}
               onVersionHistory={handleVersionHistory}
               onApplyTheme={(theme) => {
-                // Apply theme to all nodes in the current workflow
+                // Apply theme to all nodes using the enhanced helper function
                 setNodes(prev => prev.map(node => ({
                   ...node,
-                  data: {
-                    ...node.data,
-                    colors: {
-                      headerBackground: theme.nodeStyles.headerBackground,
-                      headerText: theme.nodeStyles.headerText,
-                      bodyBackground: theme.nodeStyles.bodyBackground,
-                      bodyText: theme.nodeStyles.bodyText,
-                      border: theme.nodeStyles.border
-                    }
-                  }
+                  data: applyThemeToNode(node.data, theme)
                 })));
 
-                // Apply theme to all edges in the current workflow
-                setEdges(prev => prev.map(edge => ({
-                  ...edge,
-                  style: {
-                    ...edge.style,
-                    stroke: theme.edgeStyles.stroke
-                  },
-                  data: {
-                    ...edge.data,
-                    strokeSelected: theme.edgeStyles.strokeSelected
-                  }
-                })));
+                // Apply theme to all edges using the enhanced helper function
+                setEdges(prev => prev.map(edge => applyThemeToEdge(edge, theme)));
 
                 saveToHistory();
               }}

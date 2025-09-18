@@ -150,23 +150,68 @@ export function getThemeById(themeId: string): WorkflowTheme | undefined {
   return workflowThemes.find(theme => theme.id === themeId);
 }
 
+/**
+ * Calculate if a color is light or dark for intelligent text color selection
+ */
+export function isLightColor(color: string): boolean {
+  try {
+    // Remove # if present
+    const hex = color.replace('#', '');
+    
+    // Handle 3-char hex codes
+    let r, g, b;
+    if (hex.length === 3) {
+      r = parseInt(hex[0] + hex[0], 16);
+      g = parseInt(hex[1] + hex[1], 16);
+      b = parseInt(hex[2] + hex[2], 16);
+    } else {
+      r = parseInt(hex.substr(0, 2), 16);
+      g = parseInt(hex.substr(2, 2), 16);
+      b = parseInt(hex.substr(4, 2), 16);
+    }
+    
+    // Calculate luminance using standard formula
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5;
+  } catch {
+    return true; // Default to light if parsing fails
+  }
+}
+
+/**
+ * Get appropriate text color based on background brightness
+ */
+export function getContrastTextColor(backgroundColor: string): string {
+  return isLightColor(backgroundColor) ? '#0f172a' : '#ffffff';
+}
+
 export function applyThemeToNode(nodeData: any, theme: WorkflowTheme): any {
+  // Use theme's predefined text colors, but fall back to intelligent contrast if needed
+  const headerTextColor = theme.nodeStyles.headerText || getContrastTextColor(theme.nodeStyles.headerBackground);
+  const bodyTextColor = theme.nodeStyles.bodyText || getContrastTextColor(theme.nodeStyles.bodyBackground);
+  
   return {
     ...nodeData,
     colors: {
       headerBackground: theme.nodeStyles.headerBackground,
-      headerText: theme.nodeStyles.headerText,
-      bodyBackground: theme.nodeStyles.bodyBackground,
-      bodyText: theme.nodeStyles.bodyText,
-      border: theme.nodeStyles.border
+      headerTextColor: headerTextColor,
+      bodyBackground: theme.nodeStyles.bodyBackground, 
+      bodyTextColor: bodyTextColor,
+      borderColor: theme.nodeStyles.border
     }
   };
 }
 
-export function applyThemeToEdge(edgeData: any, theme: WorkflowTheme): any {
+export function applyThemeToEdge(edge: any, theme: WorkflowTheme): any {
   return {
-    ...edgeData,
-    stroke: theme.edgeStyles.stroke,
-    strokeSelected: theme.edgeStyles.strokeSelected
+    ...edge,
+    style: {
+      ...edge.style,
+      strokeColor: theme.edgeStyles.stroke
+    },
+    data: {
+      ...edge.data,
+      strokeSelected: theme.edgeStyles.strokeSelected
+    }
   };
 }
