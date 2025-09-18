@@ -3955,6 +3955,39 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               canUndo={canUndo}
               canRedo={canRedo}
               onAutoLayout={handleAutoLayout}
+              onSelectionChange={(nodeIds: string[], edgeIds: string[]) => {
+                console.log('🎯 Selection changed from FocusBus:', { nodeIds, edgeIds });
+                
+                // Update nodes selection
+                if (nodeIds.length > 0) {
+                  setNodes(prev => prev.map(node => ({
+                    ...node,
+                    selected: nodeIds.includes(node.id)
+                  })));
+                  setSelectedNodeId(nodeIds[0] || '');
+                } else {
+                  setNodes(prev => prev.map(node => ({
+                    ...node,
+                    selected: false
+                  })));
+                  setSelectedNodeId('');
+                }
+                
+                // Update edges selection
+                if (edgeIds.length > 0) {
+                  setEdges(prev => prev.map(edge => ({
+                    ...edge,
+                    selected: edgeIds.includes(edge.id)
+                  })));
+                  setSelectedEdgeId(edgeIds[0] || '');
+                } else {
+                  setEdges(prev => prev.map(edge => ({
+                    ...edge,
+                    selected: false
+                  })));
+                  setSelectedEdgeId('');
+                }
+              }}
             />
                 
                 <FloatingLayersWidget

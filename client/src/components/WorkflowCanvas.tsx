@@ -6,6 +6,7 @@ import { VLStore } from '@/components/layers/visibilityLockStore';
 import { AncestorsStore } from '@/components/layers/ancestorsStore';
 import { isEffectivelyOn } from '@/components/layers/triStateUtils';
 import { Undo, Redo, ZoomIn, Maximize2, LayoutGrid, ChevronRight } from 'lucide-react';
+import { focusBus, type FocusEvent } from '@/stores/focusBus';
 
 interface WorkflowCanvasProps {
   nodes: Node[];
@@ -30,6 +31,7 @@ interface WorkflowCanvasProps {
   canRedo: boolean;
   onAutoLayout: (layoutType: string | { eventId: string; spacing: number }) => void;
   selectedNodeIds?: string[];
+  onSelectionChange?: (nodeIds: string[], edgeIds: string[]) => void;
   enablePlugins?: boolean;
   proFeatures?: ProFeaturesConfig;
   onQuickAdd?: (sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => void;
@@ -65,6 +67,7 @@ export function WorkflowCanvas({
   canRedo,
   onAutoLayout,
   selectedNodeIds,
+  onSelectionChange,
   enablePlugins,
   proFeatures,
   onQuickAdd,
@@ -104,6 +107,128 @@ export function WorkflowCanvas({
     if (isLocked(conn.source) || isLocked(conn.target)) return;
     onConnect?.(conn);
   }, [onConnect, locked]);
+
+  // Canvas container ref for accurate dimensions
+  const canvasRef = useRef<HTMLDivElement>(null);
+  
+  // Focus and viewport utilities
+  const fitToNodes = useCallback((nodeIds: string[], options: { padding?: number; animate?: boolean } = {}) => {
+    if (nodeIds.length === 0) return;
+    
+    const { padding = 100, animate = true } = options;
+    const targetNodes = nodes.filter(node => nodeIds.includes(node.id));
+    
+    if (targetNodes.length === 0) return;
+    
+    // Get actual canvas container dimensions
+    const containerRect = canvasRef.current?.getBoundingClientRect();
+    const containerWidth = containerRect?.width || window.innerWidth;
+    const containerHeight = containerRect?.height || window.innerHeight;
+    
+    // Calculate bounding box
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    targetNodes.forEach(node => {
+      const { x, y } = node.position;
+      const width = node.width || 200;
+      const height = node.height || 100;
+      
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + width);
+      maxY = Math.max(maxY, y + height);
+    });
+    
+    // Ensure minimum bounding box to avoid division by zero
+    const contentWidth = Math.max(maxX - minX, 100);
+    const contentHeight = Math.max(maxY - minY, 100);
+    
+    // Calculate zoom to fit with padding
+    const zoomX = (containerWidth - 2 * padding) / contentWidth;
+    const zoomY = (containerHeight - 2 * padding) / contentHeight;
+    const fitZoom = Math.min(zoomX, zoomY);
+    const zoom = Math.max(0.1, Math.min(fitZoom, 2)); // Properly clamp between 0.1 and 2
+    
+    // Calculate center position
+    const centerX = minX + (maxX - minX) / 2;
+    const centerY = minY + (maxY - minY) / 2;
+    
+    // Calculate viewport position to center the content
+    const x = containerWidth / 2 - centerX * zoom;
+    const y = containerHeight / 2 - centerY * zoom;
+    
+    const targetViewport = { x, y, zoom };
+    
+    if (animate) {
+      // Smooth animation to target viewport
+      const startViewport = viewport;
+      const startTime = Date.now();
+      const duration = 300; // 300ms animation
+      
+      const animateStep = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function (ease-out)
+        const eased = 1 - Math.pow(1 - progress, 3);
+        
+        const currentViewport = {
+          x: startViewport.x + (targetViewport.x - startViewport.x) * eased,
+          y: startViewport.y + (targetViewport.y - startViewport.y) * eased,
+          zoom: startViewport.zoom + (targetViewport.zoom - startViewport.zoom) * eased
+        };
+        
+        onViewportChange(currentViewport);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateStep);
+        }
+      };
+      
+      animateStep();
+    } else {
+      onViewportChange(targetViewport);
+    }
+  }, [nodes, onViewportChange, viewport]);
+  
+  // FocusBus integration
+  useEffect(() => {
+    const handleFocusEvent = (event: FocusEvent) => {
+      let targetNodeIds: string[] = [];
+      
+      if (event.nodeIds && event.nodeIds.length > 0) {
+        targetNodeIds = event.nodeIds;
+      } else if (event.edgeIds && event.edgeIds.length > 0) {
+        // For edge focus, find the endpoint nodes
+        const edgeEndpoints = new Set<string>();
+        event.edgeIds.forEach(edgeId => {
+          const edge = edges.find(e => e.id === edgeId);
+          if (edge) {
+            edgeEndpoints.add(edge.source);
+            edgeEndpoints.add(edge.target);
+          }
+        });
+        targetNodeIds = Array.from(edgeEndpoints);
+      }
+      
+      if (targetNodeIds.length > 0) {
+        fitToNodes(targetNodeIds, { 
+          padding: event.padding || 100, 
+          animate: event.animate !== false 
+        });
+      }
+      
+      // Handle selection changes
+      if (onSelectionChange) {
+        const nodeIds = event.selectNodes || [];
+        const edgeIds = event.selectEdges || [];
+        onSelectionChange(nodeIds, edgeIds);
+      }
+    };
+    
+    const unsubscribe = focusBus.subscribe(handleFocusEvent);
+    return unsubscribe;
+  }, [fitToNodes, onSelectionChange, edges]);
   
 
   // Minimap handlers removed for performance
@@ -112,7 +237,7 @@ export function WorkflowCanvas({
 
 
   return (
-    <div className="relative w-full h-full">
+    <div ref={canvasRef} className="relative w-full h-full">
       {/* Fixed Grid Overlay - doesn't scale with zoom */}
       <div 
         className="absolute inset-0 pointer-events-none"
