@@ -444,7 +444,10 @@ export function PropertiesCard({
                   <Input
                     value={selectedCanvasObject.data?.text || ''}
                     onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                      text: e.target.value
+                      data: {
+                        ...selectedCanvasObject.data,
+                        text: e.target.value
+                      }
                     })}
                     className="text-sm"
                     placeholder="Text content..."
@@ -458,7 +461,10 @@ export function PropertiesCard({
                     type="number"
                     value={selectedCanvasObject.data?.fontSize || 16}
                     onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                      fontSize: Number(e.target.value)
+                      data: {
+                        ...selectedCanvasObject.data,
+                        fontSize: Number(e.target.value)
+                      }
                     })}
                     className="text-sm"
                     min="8"
@@ -477,7 +483,10 @@ export function PropertiesCard({
                   <Input
                     value={selectedCanvasObject.data?.text || ''}
                     onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                      text: e.target.value
+                      data: {
+                        ...selectedCanvasObject.data,
+                        text: e.target.value
+                      }
                     })}
                     className="text-sm"
                     placeholder="Note content..."
@@ -491,7 +500,10 @@ export function PropertiesCard({
                     type="color"
                     value={selectedCanvasObject.data?.backgroundColor || '#fef3c7'}
                     onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                      backgroundColor: e.target.value
+                      data: {
+                        ...selectedCanvasObject.data,
+                        backgroundColor: e.target.value
+                      }
                     })}
                     className="text-sm h-8"
                     data-testid="sticky-bg-color-input"
@@ -516,7 +528,10 @@ export function PropertiesCard({
                     type="color"
                     value={selectedCanvasObject.data?.fillColor || '#3b82f6'}
                     onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                      fillColor: e.target.value
+                      data: {
+                        ...selectedCanvasObject.data,
+                        fillColor: e.target.value
+                      }
                     })}
                     className="text-sm h-8"
                     data-testid="shape-fill-color-input"
@@ -529,7 +544,10 @@ export function PropertiesCard({
                     type="color"
                     value={selectedCanvasObject.data?.strokeColor || '#1e40af'}
                     onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                      strokeColor: e.target.value
+                      data: {
+                        ...selectedCanvasObject.data,
+                        strokeColor: e.target.value
+                      }
                     })}
                     className="text-sm h-8"
                     data-testid="shape-stroke-color-input"
