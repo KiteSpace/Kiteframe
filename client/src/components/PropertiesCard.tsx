@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
-import { X, Edit, Eye, EyeOff, Palette, Type, Move, Square } from 'lucide-react';
+import { X, Palette, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -101,14 +101,6 @@ export function PropertiesCard({
         {/* Node Properties */}
         {selectedNode && (
           <>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Node Type</Label>
-              <div className="flex items-center gap-2 p-2 bg-muted rounded text-sm">
-                <div className={`w-2 h-2 rounded-full ${selectedNode.data.iconColor || 'bg-gray-500'}`} />
-                {selectedNode.type || 'Unknown'}
-              </div>
-            </div>
-            
             <div className="space-y-2">
               <Label className="text-xs font-medium">Label</Label>
               <Input
@@ -429,13 +421,6 @@ export function PropertiesCard({
         {/* Canvas Object Properties */}
         {selectedCanvasObject && (
           <>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Object Type</Label>
-              <div className="flex items-center gap-2 p-2 bg-muted rounded text-sm">
-                {selectedCanvasObject.type}
-              </div>
-            </div>
-
             {/* Text Object Properties */}
             {selectedCanvasObject.type === 'text' && (
               <>
@@ -515,13 +500,6 @@ export function PropertiesCard({
             {/* Shape Properties */}
             {selectedCanvasObject.type === 'shape' && (
               <>
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Shape Type</Label>
-                  <div className="flex items-center gap-2 p-2 bg-muted rounded text-sm">
-                    {selectedCanvasObject.data?.shapeType || 'rectangle'}
-                  </div>
-                </div>
-
                 <div className="space-y-2">
                   <Label className="text-xs font-medium">Fill Color</Label>
                   <Input
