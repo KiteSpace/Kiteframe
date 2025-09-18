@@ -16,23 +16,6 @@ const pastelSwatches = [
 ];
 
 function clamp(n: number, min: number, max: number) { return Math.min(max, Math.max(min, n)); }
-function hexToRgb(hex: string) {
-  const h = hex.replace('#','').trim();
-  const short = h.length === 3;
-  const r = parseInt(short ? h[0]+h[0] : h.substring(0,2), 16);
-  const g = parseInt(short ? h[1]+h[1] : h.substring(2,4), 16);
-  const b = parseInt(short ? h[2]+h[2] : h.substring(4,6), 16);
-  return { r, g, b };
-}
-function rgbaString(hex: string, opacity: number) {
-  try {
-    const { r, g, b } = hexToRgb(hex);
-    const a = clamp(typeof opacity === 'number' ? opacity : 100, 0, 100) / 100;
-    return `rgba(${r}, ${g}, ${b}, ${a})`;
-  } catch {
-    return hex; // fallback
-  }
-}
 
 export interface FigmaStyleColorPickerProps {
   label?: string;
@@ -108,11 +91,6 @@ export default function FigmaStyleColorPicker({
     if (target === "stroke" && onStrokeOpacityChange) onStrokeOpacityChange(v);
   };
 
-  // Derived preview
-  const previewFillHex = target === "fill" ? currentHex : (fillColor ?? "#0D9488");
-  const previewFillOpacity = target === "fill" ? currentOpacity : (fillOpacity ?? 100);
-  const previewStrokeHex = target === "stroke" ? currentHex : (strokeColor ?? "#111827");
-  const previewStrokeOpacity = target === "stroke" ? currentOpacity : (strokeOpacity ?? 100);
 
   return (
     <Card className={`shadow-sm rounded-xl ${className || ''}`} data-testid={testIdScope ? `${testIdScope}-picker` : undefined}>
@@ -161,14 +139,6 @@ export default function FigmaStyleColorPicker({
           </div>
         </div>
 
-        {/* Inline preview */}
-        <div className="flex items-center gap-3 pt-1">
-          <div className="w-10 h-10 rounded-md border" style={{ background: rgbaString(previewFillHex, previewFillOpacity), outline: `3px solid ${rgbaString(previewStrokeHex, previewStrokeOpacity)}`, outlineOffset: -1 }} />
-          <div className="text-[11px] text-muted-foreground font-mono leading-tight">
-            <div>fill: {rgbaString(previewFillHex, previewFillOpacity)}</div>
-            <div>stroke: {rgbaString(previewStrokeHex, previewStrokeOpacity)}</div>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
