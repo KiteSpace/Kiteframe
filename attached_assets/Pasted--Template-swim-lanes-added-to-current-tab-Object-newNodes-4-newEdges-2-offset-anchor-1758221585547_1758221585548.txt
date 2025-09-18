@@ -1,0 +1,43 @@
+✨ Template "swim-lanes" added to current tab: 
+Object {newNodes: 4, newEdges: 2, offset: {…}, anchorPosition: undefined}
+💾 Workflows saved to local storage
+🔄 Auto-snapshot created successfully
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: SVGSVGElement, targetTag: "svg", targetClass: SVGAnimatedString, …}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLButtonElement, targetTag: "BUTTON", targetClass: "flex items-center justify-center w-8 h-8 rounded-md bg-muted/50 hover:bg-muted…", …}
+🔧 RESETTING formData from metadata (mode: collapsed): 
+Object {name: "Cozy Flow", description: "", links: Array(0), linksFormat: "text", categories: Array(0)}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLButtonElement, targetTag: "BUTTON", targetClass: "ml-1 hover:bg-background/20 rounded p-0.5", …}
+🔧 RESETTING formData from metadata (mode: collapsed): 
+Object {name: "Sparkly Project", description: "", links: Array(0), linksFormat: "text", categories: Array(0)}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLButtonElement, targetTag: "BUTTON", targetClass: "ml-1 hover:bg-background/20 rounded p-0.5", …}
+🔧 RESETTING formData from metadata (mode: collapsed): 
+Object {name: "Fresh Adventure", description: "", links: Array(0), linksFormat: "text", categories: Array(0)}
+💾 Workflows saved to local storage
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: SVGSVGElement, targetTag: "svg", targetClass: SVGAnimatedString, …}
+🎯 EXPANDED SIDEBAR TEMPLATE DRAG START: 
+Object {templateType: "user-journey", startPos: {…}}
+🎯 EXPANDED SIDEBAR TEMPLATE DRAG START: 
+Object {templateType: "user-journey", startPos: {…}}
+🎯 EXPANDED SIDEBAR TEMPLATE DRAG END: 
+Object {templateType: "user-journey", endPos: {…}, hasMoved: true}
+🎯 TEMPLATE CANVAS ELEMENT FOUND: 
+Object {canvasElement: false, selector: "[data-testid="workflow-canvas"]"}
+🎯 NO CANVAS OR TEMPLATE HANDLER: 
+Object {canvasElement: false, onCreateTemplate: true}
+🎯 EXPANDED SIDEBAR TEMPLATE DRAG END: 
+Object {templateType: "user-journey", endPos: {…}, hasMoved: false}
+🔧 RESETTING formData from metadata (mode: collapsed): 
+Object {name: "Fresh Journey", description: "", links: Array(0), linksFormat: "text", categories: Array(0)}
+✨ Template "user-journey" added to current tab: 
+Object {newNodes: 5, newEdges: 4, offset: {…}, anchorPosition: undefined}
+💾 Workflows saved to local storage
+🔄 Auto-snapshot created successfully
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLDivElement, targetTag: "DIV", targetClass: "", …}
+🔍 CAPTURE PHASE mousedown: 
+Object {shiftKey: false, ctrlKey: false, target: HTMLDivElement, targetTag: "DIV", targetClass: "", …}
