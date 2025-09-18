@@ -123,7 +123,7 @@ export function NodeTypesPopout({ isOpen, onClose, onCreateNode, onCreateNodeAtP
       
       {/* Popout Panel */}
       <div 
-        className="absolute left-16 top-32 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3"
+        className="absolute left-16 top-32 z-60 w-40 bg-card border border-border rounded-md shadow-lg p-3"
         data-testid="node-types-popout"
       >
         <h3 className="text-sm font-semibold mb-3">Node Types</h3>
@@ -155,7 +155,7 @@ export function NodeTypesPopout({ isOpen, onClose, onCreateNode, onCreateNodeAtP
       {/* Drag Visual Indicator - matches expanded sidebar style */}
       {dragState.isDragging && dragState.currentPos && dragState.nodeType && (
         <div
-          className="fixed pointer-events-none z-50 bg-white/90 dark:bg-gray-800/90 border border-border rounded-md p-2 shadow-lg backdrop-blur-sm"
+          className="fixed pointer-events-none z-60 bg-white/90 dark:bg-gray-800/90 border border-border rounded-md p-2 shadow-lg backdrop-blur-sm"
           style={{
             left: dragState.currentPos.x + 10,
             top: dragState.currentPos.y - 20,

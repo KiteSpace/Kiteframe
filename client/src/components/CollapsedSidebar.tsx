@@ -448,7 +448,7 @@ export function CollapsedSidebar({
 
       {/* Templates Popout */}
       {activePopout === 'templates' && (
-        <div className="absolute left-16 top-32 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3">
+        <div className="absolute left-16 top-32 z-60 w-40 bg-card border border-border rounded-md shadow-lg p-3">
           <h3 className="text-sm font-semibold mb-3">Templates</h3>
           <div className="grid grid-cols-1 gap-2">
             {templateTypes.map((template) => {
@@ -474,7 +474,7 @@ export function CollapsedSidebar({
 
       {/* Themes Popout */}
       {activePopout === 'themes' && (
-        <div className="absolute left-16 top-32 z-50 w-40 bg-card border border-border rounded-md shadow-lg p-3">
+        <div className="absolute left-16 top-32 z-60 w-40 bg-card border border-border rounded-md shadow-lg p-3">
           <h3 className="text-sm font-semibold mb-3">Workflow Themes</h3>
           <div className="grid grid-cols-1 gap-2">
             {workflowThemes.slice(0, 8).map((theme) => (
@@ -505,7 +505,7 @@ export function CollapsedSidebar({
       {/* Drag Visual Indicator - matches expanded sidebar style */}
       {dragState.isDragging && dragState.currentPos && dragState.iconType && (
         <div
-          className="fixed pointer-events-none z-50 bg-white/90 dark:bg-gray-800/90 border border-border rounded-md p-2 shadow-lg backdrop-blur-sm"
+          className="fixed pointer-events-none z-60 bg-white/90 dark:bg-gray-800/90 border border-border rounded-md p-2 shadow-lg backdrop-blur-sm"
           style={{
             left: dragState.currentPos.x + 10,
             top: dragState.currentPos.y - 20,
