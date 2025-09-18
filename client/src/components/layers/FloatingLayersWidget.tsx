@@ -9,7 +9,7 @@ type Props = {
 export function FloatingLayersWidget({ nodes, edges, frames }: Props){
   const [open, setOpen] = React.useState(false);
   return (
-    <div className="fixed top-4 right-4 z-50">
+    <div className="absolute top-4 right-4 z-50">
       <button
         onClick={()=>setOpen(o=>!o)}
         className="flex items-center gap-2 bg-card border border-border rounded-full shadow-lg px-2 py-2 hover:shadow-xl transition-shadow select-none"

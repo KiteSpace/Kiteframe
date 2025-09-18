@@ -24,7 +24,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     position: 'absolute',
     left: position.x,
     top: position.y,
-    zIndex: 60,
+    zIndex: 100,
     ...style
   };
 
