@@ -1,6 +1,6 @@
 # KitelineAI Deployment Guide
 
-Complete step-by-step guide to deploy KitelineAI as the AI backend for Driftline.
+Complete step-by-step guide to deploy KitelineAI as the AI backend for Kiteframe.
 
 ## 🚀 Step 1: Create KitelineAI Project
 
@@ -60,11 +60,11 @@ curl -X POST https://kitelineai.replit.app/v1/chat/completions \
 ```
 **Expected**: JSON response with AI-generated text
 
-## 🔗 Step 5: Connect Driftline
+## 🔗 Step 5: Connect Kiteframe
 
-Update your Driftline application to use KitelineAI:
+Update your Kiteframe application to use KitelineAI:
 - Change Kiteframe endpoint from placeholder to `https://kitelineai.replit.app`
-- Test "Kiteframe" provider in Driftline AI settings
+- Test "Kiteframe" provider in Kiteframe AI settings
 - Generate a workflow to verify the connection
 
 ## 💰 Cost Optimization

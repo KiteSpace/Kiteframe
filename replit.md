@@ -9,10 +9,10 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Multi-Service Architecture
-- **Driftline (Main Application)**: The visual workflow editor.
-- **KitelineAI (AI Service)**: A dedicated Ollama service for privacy-focused AI processing. Driftline communicates with KitelineAI for AI workflow generation.
+- **Kiteframe (Main Application)**: The visual workflow editor.
+- **KitelineAI (AI Service)**: A dedicated Ollama service for privacy-focused AI processing. Kiteframe communicates with KitelineAI for AI workflow generation.
 
-### Frontend Architecture (Driftline)
+### Frontend Architecture (Kiteframe)
 - **Framework**: React 18 with TypeScript and Vite.
 - **UI Components**: Radix UI primitives with shadcn/ui design system.
 - **Styling**: Tailwind CSS with CSS custom properties.
@@ -20,7 +20,7 @@ Preferred communication style: Simple, everyday language.
 - **Canvas System**: Custom KiteFrame library for interactive workflow canvas with node/edge management.
 - **Routing**: Wouter for lightweight client-side routing.
 
-### Backend Architecture (Driftline)
+### Backend Architecture (Kiteframe)
 - **Runtime**: Node.js with Express.js.
 - **Language**: TypeScript with ES modules.
 - **API Structure**: RESTful API with `/api` prefix routing.

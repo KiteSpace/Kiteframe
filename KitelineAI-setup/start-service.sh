@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# KitelineAI - Ollama Service for Driftline
+# KitelineAI - Ollama Service for Kiteframe
 # Optimized for Replit Autoscale deployment
 set -e
 
 echo "🚀 Starting KitelineAI Service..."
-echo "   Privacy-focused AI for Driftline workflows"
+echo "   Privacy-focused AI for Kiteframe workflows"
 
 # Install Ollama if not present
 if ! command -v ollama &> /dev/null; then
@@ -56,7 +56,7 @@ fi
 
 echo ""
 echo "🔐 Privacy: Data processed only, never stored"
-echo "⚡ Ready to serve Driftline workflow requests"
+echo "⚡ Ready to serve Kiteframe workflow requests"
 
 # Keep service running
 wait $OLLAMA_PID

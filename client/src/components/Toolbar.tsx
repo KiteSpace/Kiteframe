@@ -39,7 +39,7 @@ export function Toolbar({ onOpenAiSettings, isDarkMode, onToggleDarkMode }: Tool
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <Ship className="text-primary" size={24} />
-          <h1 className="text-lg font-semibold">Driftline</h1>
+          <h1 className="text-lg font-semibold">Kiteframe</h1>
         </div>
       </div>
       <div className="flex items-center gap-3">
