@@ -18,14 +18,10 @@ export function BlankCanvasState({
   onCreateTemplate
 }: BlankCanvasStateProps) {
   const handleTemplateCreate = (templateType: string) => {
-    console.log('🎯 BLANK CANVAS TEMPLATE CLICKED:', { templateType, hasOnCreateTemplate: !!onCreateTemplate });
-    
     // If we have the template creation function, use it, otherwise fall back to blank
     if (onCreateTemplate) {
-      console.log('🎯 CALLING onCreateTemplate with:', templateType);
       onCreateTemplate(templateType);
     } else {
-      console.log('🎯 No onCreateTemplate, falling back to blank');
       onCreateBlank();
     }
   };
