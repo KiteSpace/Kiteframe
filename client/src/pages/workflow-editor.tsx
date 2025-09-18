@@ -1162,8 +1162,11 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
 
   // Handle template creation from canvas
   const handleCreateTemplateFromCanvas = useCallback((templateType: string) => {
+    console.log('🎯 HANDLE CREATE TEMPLATE FROM CANVAS:', { templateType });
+    
     let templateData;
     const name = generateCuteName();
+    console.log('🎯 Generated name:', name);
 
     // Generate appropriate template based on type
     switch (templateType) {
@@ -1186,10 +1189,17 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
         templateData = generateIOLogicTemplate();
         break;
       default:
+        console.log('🎯 Unknown template type, falling back to blank:', templateType);
         // Fallback to blank if template type is not recognized
         handleCreateBlankFromCanvas();
         return;
     }
+
+    console.log('🎯 Template data generated:', { 
+      nodeCount: templateData?.nodes?.length, 
+      edgeCount: templateData?.edges?.length,
+      firstNode: templateData?.nodes?.[0]
+    });
 
     const initialState = {
       nodes: templateData.nodes,
@@ -1216,8 +1226,17 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       }
     };
 
+    console.log('🎯 New tab created:', { 
+      id: newTab.id, 
+      name: newTab.name, 
+      nodeCount: newTab.nodes.length,
+      edgeCount: newTab.edges.length 
+    });
+
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newTab.id);
+    
+    console.log('🎯 Tab creation completed, tabs updated');
   }, [generateTabId, generateCuteName, generateUserJourneyTemplate, generateMindmapTemplate, generateSystemArchitectureTemplate, generateSwimLanesTemplate, generateUserAccountTemplate, generateIOLogicTemplate, handleCreateBlankFromCanvas]);
 
 
