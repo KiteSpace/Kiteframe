@@ -5,11 +5,11 @@ import {
   Settings,
   Workflow,
   ChevronDown,
-  Ship,
   Sun,
   Moon,
 } from "lucide-react";
 import { useState } from "react";
+import kiteframeIcon from "@assets/kiteframe@2x_1758226635607.png";
 import { AuthButton } from "./AuthButton";
 
 interface ToolbarProps {
@@ -38,7 +38,11 @@ export function Toolbar({ onOpenAiSettings, isDarkMode, onToggleDarkMode }: Tool
     >
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <Ship className="text-primary" size={24} />
+          <img 
+            src={kiteframeIcon} 
+            alt="Kiteframe" 
+            className="w-6 h-6" 
+          />
           <h1 className="text-lg font-semibold">Kiteframe</h1>
         </div>
       </div>
