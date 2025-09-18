@@ -77,13 +77,16 @@ export function LayersPanel({ nodes, edges, frames }:{
   useEffect(()=>{ AncestorsStore.set(ancestorsIndex); }, [ancestorsIndex]);
 
   const [, force] = React.useReducer(x=>x+1, 0);
-  useEffect(()=>{ const unsubscribe = VLStore.subscribe(force); return unsubscribe; },[]);
+  useEffect(()=>{ 
+    const unsubscribe = VLStore.subscribe(force); 
+    return () => { unsubscribe(); };
+  },[]);
   const flags = VLStore.get();
 
   return (
-    <div className="flex flex-col h-full bg-white" role="tree" aria-label="Layers">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900" role="tree" aria-label="Layers">
       <LayerModeTabs mode={mode} setMode={setMode} />
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden bg-gray-50/30 dark:bg-gray-800/30">
         <VirtualTree
           rows={rows}
           Row={({type,id,label,depth,childIds,role}:{type:'group'|'leaf';id:string;label:string;depth:number;childIds?:string[];role?:string})=>{

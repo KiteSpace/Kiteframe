@@ -50,9 +50,29 @@ export function GroupRow({
     }
   };
 
+  // Professional styling based on role and hierarchy
+  const getTextStyles = () => {
+    if (role === 'workflow') {
+      return "text-base font-semibold text-gray-900 cursor-pointer flex-1 leading-tight";
+    } else if (role === 'linkGroup') {
+      return "text-sm font-medium text-blue-700 cursor-pointer flex-1 leading-tight";
+    } else {
+      return "text-sm font-medium text-gray-700 cursor-pointer flex-1 leading-tight";
+    }
+  };
+
+  const getRowStyles = () => {
+    const baseStyles = "flex items-center gap-2 px-3 transition-colors duration-150";
+    if (role === 'workflow') {
+      return `${baseStyles} h-8 hover:bg-blue-50 border-l-2 border-transparent hover:border-l-blue-300`;
+    } else {
+      return `${baseStyles} h-7 hover:bg-gray-50`;
+    }
+  };
+
   return (
-    <div role="treeitem" aria-level={depth+1} aria-expanded className="flex items-center gap-2 px-2 h-7 hover:bg-gray-50">
-      <div style={{paddingLeft: depth*12}} className="flex items-center gap-2 flex-1">
+    <div role="treeitem" aria-level={depth+1} aria-expanded className={getRowStyles()}>
+      <div style={{paddingLeft: depth*14}} className="flex items-center gap-2 flex-1">
         {isEditing && role === 'workflow' ? (
           <input
             data-testid={`input-workflow-name-${id}`}
@@ -61,13 +81,13 @@ export function GroupRow({
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={handleNameSubmit}
             onKeyDown={handleKeyDown}
-            className="text-sm font-medium bg-white border border-gray-300 rounded px-1 py-0.5 min-w-0 flex-1"
+            className="text-base font-semibold bg-white border border-blue-300 rounded px-2 py-1 min-w-0 flex-1 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none"
             autoFocus
             maxLength={50}
           />
         ) : (
           <span 
-            className="font-medium cursor-pointer flex-1"
+            className={getTextStyles()}
             onClick={onClick}
             data-testid={`text-${role || 'group'}-${id}`}
           >
@@ -81,10 +101,10 @@ export function GroupRow({
               e.stopPropagation();
               setIsEditing(true);
             }}
-            className="opacity-50 hover:opacity-100 hover:bg-gray-200 p-0.5 rounded"
+            className="opacity-60 hover:opacity-100 hover:bg-blue-100 p-1 rounded transition-colors duration-150 text-gray-600 hover:text-blue-700"
             title="Edit workflow name"
           >
-            <Edit2 size={12} />
+            <Edit2 size={13} />
           </button>
         )}
       </div>
@@ -93,17 +113,17 @@ export function GroupRow({
           data-testid={`button-visibility-${id}`}
           onClick={onToggleHidden} 
           title={`visibility: ${triHidden}`}
-          className="hover:bg-gray-200 p-0.5 rounded"
+          className="hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded transition-colors duration-150 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
         >
-          <EyeGlyph size={16}/>
+          <EyeGlyph size={15}/>
         </button>
         <button 
           data-testid={`button-lock-${id}`}
           onClick={onToggleLocked} 
           title={`lock: ${triLocked}`}
-          className="hover:bg-gray-200 p-0.5 rounded"
+          className="hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded transition-colors duration-150 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
         >
-          <LockGlyph size={16}/>
+          <LockGlyph size={15}/>
         </button>
       </span>
     </div>
@@ -116,13 +136,24 @@ export function LeafRow({
   id:string; depth:number; label:string; effHidden:boolean; effLocked:boolean;
   onClick?:()=>void;
 }) {
+  const leafStyles = `px-3 h-6 flex items-center hover:bg-gray-50 cursor-pointer transition-colors duration-150 ${effHidden ? 'opacity-50' : ''}`;
+  
   return (
     <div role="treeitem" aria-level={depth+1}
-         className={`px-2 h-7 flex items-center hover:bg-gray-50 cursor-pointer ${effHidden?'opacity-50':''}`}
+         className={leafStyles}
          onClick={onClick}
          data-testid={`row-layer-${id}`}>
-      <span style={{paddingLeft: depth*12}}>{label}</span>
-      {effLocked && <span className="ml-2 text-xs opacity-70">[locked]</span>}
+      <span 
+        style={{paddingLeft: depth*14}} 
+        className="text-sm text-gray-600 leading-tight flex-1"
+      >
+        {label}
+      </span>
+      {effLocked && (
+        <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full font-medium">
+          locked
+        </span>
+      )}
     </div>
   );
 }
