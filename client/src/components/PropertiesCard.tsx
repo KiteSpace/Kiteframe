@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { EdgeProperties } from '@/components/shared/EdgeProperties';
 import FigmaStyleColorPicker from '@/components/FigmaStyleColorPicker';
+import { TabbedColorPicker, ColorProperty } from '@/components/TabbedColorPicker';
 
 interface PropertiesCardProps {
   selectedNode?: Node;
@@ -20,6 +21,172 @@ interface PropertiesCardProps {
   onEdgeUpdate?: (edgeId: string, updates: Partial<Edge>) => void;
   onCanvasObjectUpdate?: (objectId: string, updates: Partial<any>) => void;
   onDeselect: () => void;
+}
+
+// Helper function to create color properties for different node types
+function createNodeColorProperties(selectedNode: Node): ColorProperty[] {
+  // Type-aware property mapping based on node type
+  const commonProperties: ColorProperty[] = [
+    {
+      key: 'border',
+      label: 'Border',
+      value: selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0',
+      opacity: selectedNode.data?.colors?.borderOpacity ?? 100,
+      hasOpacity: true,
+      type: 'stroke' as const
+    }
+  ];
+
+  // Different node types have different color properties
+  switch (selectedNode.type) {
+    case 'input':
+    case 'process':
+    case 'condition':
+    case 'output':
+    case 'ai':
+      // Basic nodes with header and body
+      return [
+        {
+          key: 'headerBg',
+          label: 'Header BG',
+          value: selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc',
+          opacity: selectedNode.data?.colors?.headerBackgroundOpacity ?? 100,
+          hasOpacity: true,
+          type: 'fill' as const
+        },
+        {
+          key: 'bodyBg', 
+          label: 'Body BG',
+          value: selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || '#ffffff',
+          opacity: selectedNode.data?.colors?.bodyBackgroundOpacity ?? 100,
+          hasOpacity: true,
+          type: 'fill' as const
+        },
+        ...commonProperties,
+        {
+          key: 'headerText',
+          label: 'Header Text',
+          value: selectedNode.data?.colors?.headerTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#0f172a',
+          opacity: 100,
+          hasOpacity: false,
+          type: 'fill' as const
+        },
+        {
+          key: 'bodyText',
+          label: 'Body Text', 
+          value: selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569',
+          opacity: 100,
+          hasOpacity: false,
+          type: 'fill' as const
+        }
+      ];
+      
+    case 'image':
+      // Image nodes only have border color
+      return [
+        {
+          key: 'border',
+          label: 'Border',
+          value: selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0',
+          opacity: selectedNode.data?.colors?.borderOpacity ?? 100,
+          hasOpacity: true,
+          type: 'stroke' as const
+        }
+      ];
+      
+    default:
+      // Fallback for unknown node types - basic node properties
+      return [
+        {
+          key: 'headerBg',
+          label: 'Header BG',
+          value: selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc',
+          opacity: selectedNode.data?.colors?.headerBackgroundOpacity ?? 100,
+          hasOpacity: true,
+          type: 'fill' as const
+        },
+        {
+          key: 'bodyBg', 
+          label: 'Body BG',
+          value: selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || '#ffffff',
+          opacity: selectedNode.data?.colors?.bodyBackgroundOpacity ?? 100,
+          hasOpacity: true,
+          type: 'fill' as const
+        },
+        ...commonProperties
+      ];
+  }
+}
+
+// Helper function to handle color updates for nodes
+function handleNodeColorUpdate(
+  propertyKey: string,
+  color: string,
+  selectedNode: Node,
+  onNodeUpdate: (nodeId: string, updates: Partial<Node>) => void,
+  getAppropriateTextColor: (bgColor: string) => string
+) {
+  const updates: Partial<Node> = {
+    data: {
+      ...selectedNode.data,
+      colors: {
+        ...selectedNode.data?.colors
+      }
+    }
+  };
+
+  switch (propertyKey) {
+    case 'headerBg':
+      updates.data!.colors!.headerBackground = color;
+      updates.data!.colors!.headerTextColor = getAppropriateTextColor(color);
+      break;
+    case 'bodyBg':
+      updates.data!.colors!.bodyBackground = color;
+      updates.data!.colors!.bodyTextColor = getAppropriateTextColor(color);
+      break;
+    case 'border':
+      updates.data!.colors!.borderColor = color;
+      break;
+    case 'headerText':
+      updates.data!.colors!.headerTextColor = color;
+      break;
+    case 'bodyText':
+      updates.data!.colors!.bodyTextColor = color;
+      break;
+  }
+
+  onNodeUpdate(selectedNode.id, updates);
+}
+
+// Helper function to handle opacity updates for nodes
+function handleNodeOpacityUpdate(
+  propertyKey: string,
+  opacity: number,
+  selectedNode: Node,
+  onNodeUpdate: (nodeId: string, updates: Partial<Node>) => void
+) {
+  const updates: Partial<Node> = {
+    data: {
+      ...selectedNode.data,
+      colors: {
+        ...selectedNode.data?.colors
+      }
+    }
+  };
+
+  switch (propertyKey) {
+    case 'headerBg':
+      updates.data!.colors!.headerBackgroundOpacity = opacity;
+      break;
+    case 'bodyBg':
+      updates.data!.colors!.bodyBackgroundOpacity = opacity;
+      break;
+    case 'border':
+      updates.data!.colors!.borderOpacity = opacity;
+      break;
+  }
+
+  onNodeUpdate(selectedNode.id, updates);
 }
 
 export function PropertiesCard({ 
@@ -128,148 +295,23 @@ export function PropertiesCard({
               />
             </div>
 
-            {/* Node Color Customization */}
+            {/* Node Color Customization - Tabbed Interface */}
             <Separator />
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Palette className="w-4 h-4" />
-                <Label className="text-xs font-semibold">Node Colors</Label>
-              </div>
-              
-              <div className="space-y-3">
-                {/* Header Background */}
-                <FigmaStyleColorPicker
-                  label="Header Background"
-                  showFill={true}
-                  fillColor={selectedNode.data?.colors?.headerBackground || selectedNode.data?.color || '#f8fafc'}
-                  fillOpacity={selectedNode.data?.colors?.headerBackgroundOpacity ?? 100}
-                  onFillColorChange={(hex) => {
-                    const newHeaderTextColor = getAppropriateTextColor(hex);
-                    onNodeUpdate?.(selectedNode.id, {
-                      data: {
-                        ...selectedNode.data,
-                        colors: {
-                          ...selectedNode.data?.colors,
-                          headerBackground: hex,
-                          headerTextColor: newHeaderTextColor
-                        }
-                      }
-                    });
-                  }}
-                  onFillOpacityChange={(val) => onNodeUpdate?.(selectedNode.id, {
-                    data: {
-                      ...selectedNode.data,
-                      colors: {
-                        ...selectedNode.data?.colors,
-                        headerBackgroundOpacity: val
-                      }
-                    }
-                  })}
-                  testIdScope="node-header-bg"
-                  className="space-y-1"
-                />
-
-                {/* Body Background */}
-                <FigmaStyleColorPicker
-                  label="Body Background"
-                  showFill={true}
-                  fillColor={selectedNode.data?.colors?.bodyBackground || selectedNode.data?.color || '#ffffff'}
-                  fillOpacity={selectedNode.data?.colors?.bodyBackgroundOpacity ?? 100}
-                  onFillColorChange={(hex) => {
-                    const newBodyTextColor = getAppropriateTextColor(hex);
-                    onNodeUpdate?.(selectedNode.id, {
-                      data: {
-                        ...selectedNode.data,
-                        colors: {
-                          ...selectedNode.data?.colors,
-                          bodyBackground: hex,
-                          bodyTextColor: newBodyTextColor
-                        }
-                      }
-                    });
-                  }}
-                  onFillOpacityChange={(val) => onNodeUpdate?.(selectedNode.id, {
-                    data: {
-                      ...selectedNode.data,
-                      colors: {
-                        ...selectedNode.data?.colors,
-                        bodyBackgroundOpacity: val
-                      }
-                    }
-                  })}
-                  testIdScope="node-body-bg"
-                  className="space-y-1"
-                />
-
-                {/* Border Color */}
-                <FigmaStyleColorPicker
-                  label="Border"
-                  showStroke={true}
-                  strokeColor={selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0'}
-                  strokeOpacity={selectedNode.data?.colors?.borderOpacity ?? 100}
-                  onStrokeColorChange={(hex) => onNodeUpdate?.(selectedNode.id, {
-                    data: {
-                      ...selectedNode.data,
-                      colors: {
-                        ...selectedNode.data?.colors,
-                        borderColor: hex
-                      }
-                    }
-                  })}
-                  onStrokeOpacityChange={(val) => onNodeUpdate?.(selectedNode.id, {
-                    data: {
-                      ...selectedNode.data,
-                      colors: {
-                        ...selectedNode.data?.colors,
-                        borderOpacity: val
-                      }
-                    }
-                  })}
-                  testIdScope="node-border"
-                  className="space-y-1"
-                />
-
-                {/* Header Text */}
-                <FigmaStyleColorPicker
-                  label="Header Text"
-                  showFill={true}
-                  fillColor={selectedNode.data?.colors?.headerTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#0f172a'}
-                  fillOpacity={100}
-                  onFillColorChange={(hex) => onNodeUpdate?.(selectedNode.id, {
-                    data: {
-                      ...selectedNode.data,
-                      colors: {
-                        ...selectedNode.data?.colors,
-                        headerTextColor: hex
-                      }
-                    }
-                  })}
-                  onFillOpacityChange={() => {}}
-                  testIdScope="node-header-text"
-                  className="space-y-1"
-                />
-
-                {/* Body Text */}
-                <FigmaStyleColorPicker
-                  label="Body Text"
-                  showFill={true}
-                  fillColor={selectedNode.data?.colors?.bodyTextColor || selectedNode.data?.colors?.textColor || selectedNode.data?.textColor || '#475569'}
-                  fillOpacity={100}
-                  onFillColorChange={(hex) => onNodeUpdate?.(selectedNode.id, {
-                    data: {
-                      ...selectedNode.data,
-                      colors: {
-                        ...selectedNode.data?.colors,
-                        bodyTextColor: hex
-                      }
-                    }
-                  })}
-                  onFillOpacityChange={() => {}}
-                  testIdScope="node-body-text"
-                  className="space-y-1"
-                />
-              </div>
-            </div>
+            <TabbedColorPicker
+              colorProperties={createNodeColorProperties(selectedNode)}
+              onColorChange={(propertyKey, color) => {
+                if (onNodeUpdate) {
+                  handleNodeColorUpdate(propertyKey, color, selectedNode, onNodeUpdate, getAppropriateTextColor);
+                }
+              }}
+              onOpacityChange={(propertyKey, opacity) => {
+                if (onNodeUpdate) {
+                  handleNodeOpacityUpdate(propertyKey, opacity, selectedNode, onNodeUpdate);
+                }
+              }}
+              testIdScope="node-colors"
+              className="space-y-1"
+            />
 
             <Separator />
             <div className="grid grid-cols-2 gap-2">
