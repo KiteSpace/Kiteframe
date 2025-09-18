@@ -244,7 +244,7 @@ export function PropertiesCard({
 
   return (
     <div 
-      className="absolute z-50 top-32 left-16 w-[360px] bg-card border border-border rounded-md shadow-lg"
+      className="absolute z-[100] top-32 left-16 w-[360px] bg-card border border-border rounded-md shadow-lg"
       data-testid="properties-card"
     >
       {/* Header */}
