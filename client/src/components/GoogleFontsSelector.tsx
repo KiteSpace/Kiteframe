@@ -73,7 +73,7 @@ export const GoogleFontsSelector = ({
             style={{ fontFamily: value }}
           />
         </SelectTrigger>
-        <SelectContent className="max-h-60">
+        <SelectContent className="max-h-60 z-[9999]">
           {GOOGLE_FONTS.map((font) => (
             <SelectItem 
               key={font.value} 

@@ -45,7 +45,14 @@ const FONT_WEIGHTS = [
   { value: 'bold', label: 'Bold' }
 ];
 
-const FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72];
+const FONT_SIZES = [
+  { label: 'Extra small', value: 10 },
+  { label: 'Small', value: 14 },
+  { label: 'Normal', value: 18 },
+  { label: 'Large', value: 24 },
+  { label: 'Extra Large', value: 40 },
+  { label: 'Custom', value: 'custom' }
+];
 
 export const TypographyPanel = ({
   textContent,
@@ -66,6 +73,12 @@ export const TypographyPanel = ({
   onVerticalAlignChange,
   className = ''
 }: TypographyPanelProps) => {
+  const [showCustomSize, setShowCustomSize] = useState(false);
+  const [customSize, setCustomSize] = useState(fontSize);
+
+  // Check if current fontSize matches one of the preset sizes
+  const currentPresetSize = FONT_SIZES.find(size => size.value === fontSize);
+  const isCustomSize = !currentPresetSize;
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -105,7 +118,7 @@ export const TypographyPanel = ({
             <SelectTrigger className="h-9 text-sm" data-testid="font-weight-selector">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[9999]">
               {FONT_WEIGHTS.map((weight) => (
                 <SelectItem key={weight.value} value={weight.value}>
                   {weight.label}
@@ -118,20 +131,55 @@ export const TypographyPanel = ({
         <div className="space-y-2">
           <Label className="text-xs font-medium">Size</Label>
           <Select 
-            value={fontSize.toString()} 
-            onValueChange={(value) => onFontSizeChange(Number(value))}
+            value={isCustomSize ? 'custom' : fontSize.toString()} 
+            onValueChange={(value) => {
+              if (value === 'custom') {
+                setShowCustomSize(true);
+                setCustomSize(fontSize);
+              } else {
+                setShowCustomSize(false);
+                onFontSizeChange(Number(value));
+              }
+            }}
           >
             <SelectTrigger className="h-9 text-sm" data-testid="font-size-selector">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[9999]">
               {FONT_SIZES.map((size) => (
-                <SelectItem key={size} value={size.toString()}>
-                  {size}
+                <SelectItem key={size.value} value={size.value.toString()}>
+                  {size.label} {size.value !== 'custom' && `(${size.value}px)`}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          
+          {/* Custom Size Input */}
+          {(showCustomSize || isCustomSize) && (
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min="8"
+                max="200"
+                value={customSize}
+                onChange={(e) => setCustomSize(Number(e.target.value))}
+                onBlur={() => {
+                  onFontSizeChange(customSize);
+                  setShowCustomSize(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    onFontSizeChange(customSize);
+                    setShowCustomSize(false);
+                  }
+                }}
+                className="text-sm"
+                placeholder="Custom size"
+                data-testid="custom-font-size-input"
+              />
+              <span className="text-xs text-muted-foreground">px</span>
+            </div>
+          )}
         </div>
       </div>
 
