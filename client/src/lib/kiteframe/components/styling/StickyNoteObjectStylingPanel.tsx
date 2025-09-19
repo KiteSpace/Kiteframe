@@ -6,7 +6,7 @@ import { DropdownControl } from './DropdownControl';
 import { ToggleGroupControl } from './ToggleGroupControl';
 import { colorPresets, getOptimalTextColor } from '../../utils/colorUtils';
 import { StickyNoteData } from '../../types';
-import { StickyNote, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { StickyNote, AlignLeft, AlignCenter, AlignRight, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd } from 'lucide-react';
 import { getAvailableWeightOptions, findFallbackWeight, GOOGLE_FONTS, loadGoogleFont } from '../../../../lib/fontUtils';
 
 interface StickyNoteObjectStylingPanelProps {
@@ -51,6 +51,18 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
     { value: 'left', label: 'Left', icon: <AlignLeft size={14} /> },
     { value: 'center', label: 'Center', icon: <AlignCenter size={14} /> },
     { value: 'right', label: 'Right', icon: <AlignRight size={14} /> }
+  ];
+
+  const textDecorationOptions = [
+    { value: 'none', label: 'None' },
+    { value: 'underline', label: 'Underline' },
+    { value: 'line-through', label: 'Strikethrough' }
+  ];
+
+  const verticalAlignOptions = [
+    { value: 'top', label: 'Top', icon: <AlignVerticalJustifyStart size={14} /> },
+    { value: 'middle', label: 'Middle', icon: <AlignVerticalJustifyCenter size={14} /> },
+    { value: 'bottom', label: 'Bottom', icon: <AlignVerticalJustifyEnd size={14} /> }
   ];
 
   const borderStyleOptions = [
@@ -141,6 +153,22 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
           data-testid="sticky-text-align"
         />
 
+        <DropdownControl
+          label="Text Decoration"
+          value={data.textDecoration || 'none'}
+          options={textDecorationOptions}
+          onChange={(value) => onUpdate({ textDecoration: value as any })}
+          data-testid="sticky-text-decoration"
+        />
+
+        <ToggleGroupControl
+          label="Vertical Align"
+          value={data.verticalAlign || 'top'}
+          options={verticalAlignOptions}
+          onChange={(value) => onUpdate({ verticalAlign: value as any })}
+          data-testid="sticky-vertical-align"
+        />
+
         <SliderControl
           label="Line Height"
           value={data.lineHeight || 1.4}
@@ -149,6 +177,17 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
           max={2}
           step={0.1}
           data-testid="sticky-line-height"
+        />
+
+        <SliderControl
+          label="Letter Spacing"
+          value={data.letterSpacing || 0}
+          onChange={(value) => onUpdate({ letterSpacing: value })}
+          min={-2}
+          max={5}
+          step={0.1}
+          unit="px"
+          data-testid="sticky-letter-spacing"
         />
       </div>
 

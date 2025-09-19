@@ -336,6 +336,7 @@ export interface StickyNoteData {
   verticalAlign?: 'top' | 'middle' | 'bottom';
   textDecoration: 'none' | 'underline' | 'line-through';
   lineHeight?: number;
+  letterSpacing?: number;
   // Color styling
   backgroundColor: string;
   textColor: string; // Auto-calculated based on background luminance

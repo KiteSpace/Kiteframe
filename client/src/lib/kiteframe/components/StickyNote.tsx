@@ -120,7 +120,9 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
     fontStyle: node.data.fontStyle || 'normal',
     fontWeight: toNumericWeight(node.data.fontWeight),
     textAlign: node.data.textAlign || 'left',
+    textDecoration: node.data.textDecoration || 'none',
     lineHeight: node.data.lineHeight || 1.4,
+    letterSpacing: node.data.letterSpacing || 0,
     borderRadius: node.data.borderRadius || 8,
     border: node.data.borderWidth && node.data.borderWidth > 0 
       ? `${node.data.borderWidth}px ${node.data.borderStyle || 'solid'} ${node.data.borderColor || node.data.backgroundColor}` 
@@ -187,7 +189,9 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
                 fontStyle: node.data.fontStyle || 'normal',
                 fontWeight: toNumericWeight(node.data.fontWeight),
                 textAlign: node.data.textAlign || 'left',
+                textDecoration: node.data.textDecoration || 'none',
                 lineHeight: node.data.lineHeight || 1.4,
+                letterSpacing: node.data.letterSpacing || 0,
                 color: getTextColor(),
                 minHeight: 'auto',
                 height: 'auto',
@@ -206,7 +210,9 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
                 fontStyle: node.data.fontStyle || 'normal',
                 fontWeight: toNumericWeight(node.data.fontWeight),
                 textAlign: node.data.textAlign || 'left',
+                textDecoration: node.data.textDecoration || 'none',
                 lineHeight: node.data.lineHeight || 1.4,
+                letterSpacing: node.data.letterSpacing || 0,
                 flex: node.data.verticalAlign === 'middle' || node.data.verticalAlign === 'bottom' ? '0 0 auto' : '1 1 auto'
               }}
               data-testid="sticky-note-content"
