@@ -194,6 +194,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               y2="50"
               style={{
                 stroke: strokeColor || '#6b7280',
+                strokeOpacity: strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
                 strokeWidth: (strokeWidth || 2) * (100 / Math.min(width, height)),
                 strokeDasharray: getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2),
                 strokeLinecap: lineCap || 'round',
@@ -222,7 +223,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
                 <polygon
                   points={`0 0, ${arrowMarkerSize} ${arrowMarkerSize * 0.35}, 0 ${arrowMarkerSize * 0.7}`}
                   style={{
-                    fill: strokeColor || '#6b7280'
+                    fill: strokeColor || '#6b7280',
+                    fillOpacity: strokeOpacity !== undefined ? strokeOpacity / 100 : 1
                   }}
                 />
               </marker>
@@ -234,6 +236,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               y2="50"
               style={{
                 stroke: strokeColor || '#6b7280',
+                strokeOpacity: strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
                 strokeWidth: (strokeWidth || 2) * (100 / Math.min(width, height)),
                 strokeDasharray: getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2),
                 strokeLinecap: lineCap || 'round',
