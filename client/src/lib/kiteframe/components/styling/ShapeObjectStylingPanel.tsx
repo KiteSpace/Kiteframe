@@ -129,6 +129,17 @@ export const ShapeObjectStylingPanel: React.FC<ShapeObjectStylingPanelProps> = (
           data-testid="shape-stroke-style"
         />
 
+        <SliderControl
+          label="Stroke Opacity"
+          value={(data.strokeOpacity || 1) * 100}
+          onChange={(value) => onUpdate({ strokeOpacity: value / 100 })}
+          disabled={(data.strokeWidth || 0) === 0}
+          min={0}
+          max={100}
+          unit="%"
+          data-testid="shape-stroke-opacity"
+        />
+
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium">Enable Stroke</label>
           <input

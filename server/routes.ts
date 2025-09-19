@@ -25,22 +25,62 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
     return { isValid: false, errors, warnings };
   }
 
-  // Check version
-  if (!data.version) {
-    warnings.push('Missing version field, will default to 1.0.0');
-  }
+  // Helper function to extract nodes/edges/viewport from various formats
+  const extractWorkflowData = (data: any) => {
+    const paths = [
+      // Comprehensive format variations
+      { nodes: data.canvas?.nodes, edges: data.canvas?.edges, viewport: data.canvas?.viewport, type: 'comprehensive' },
+      { nodes: data.workflow?.canvas?.nodes, edges: data.workflow?.canvas?.edges, viewport: data.workflow?.canvas?.viewport, type: 'workflow.canvas' },
+      { nodes: data.flow?.nodes, edges: data.flow?.edges, viewport: data.flow?.viewport, type: 'flow' },
+      // Legacy format
+      { nodes: data.nodes, edges: data.edges, viewport: data.viewport, type: 'legacy' }
+    ];
+    
+    for (const path of paths) {
+      if (Array.isArray(path.nodes) || Array.isArray(path.edges)) {
+        return {
+          nodes: path.nodes || [],
+          edges: path.edges || [],
+          viewport: path.viewport,
+          format: path.type
+        };
+      }
+    }
+    
+    // Fallback to empty arrays
+    return {
+      nodes: [],
+      edges: [],
+      viewport: null,
+      format: 'unknown'
+    };
+  };
 
-  // Check metadata
-  if (!data.metadata || typeof data.metadata !== 'object') {
-    warnings.push('Missing or invalid metadata, will use defaults');
+  const extracted = extractWorkflowData(data);
+  const { nodes, edges, viewport, format } = extracted;
+  
+  // Format-specific metadata validation
+  if (format === 'comprehensive' || format === 'workflow.canvas') {
+    if (!data.workflow || typeof data.workflow !== 'object') {
+      warnings.push('Missing or invalid workflow metadata, will use defaults');
+    }
+  } else if (format === 'legacy') {
+    if (!data.version) {
+      warnings.push('Missing version field, will default to 1.0.0');
+    }
+    if (!data.metadata || typeof data.metadata !== 'object') {
+      warnings.push('Missing or invalid metadata, will use defaults');
+    }
+  } else if (format === 'unknown') {
+    warnings.push('Unknown workflow format, attempting to validate anyway');
   }
 
   // Check nodes array
-  if (!Array.isArray(data.nodes)) {
+  if (!Array.isArray(nodes)) {
     errors.push('Nodes must be an array');
   } else {
     const nodeIds = new Set<string>();
-    data.nodes.forEach((node: any, index: number) => {
+    nodes.forEach((node: any, index: number) => {
       if (!node.id) {
         errors.push(`Node at index ${index} is missing required 'id' field`);
       } else if (nodeIds.has(node.id)) {
@@ -69,11 +109,11 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
   }
 
   // Check edges array
-  if (!Array.isArray(data.edges)) {
+  if (!Array.isArray(edges)) {
     errors.push('Edges must be an array');
   } else {
-    const nodeIds = new Set(data.nodes?.map((n: any) => n.id) || []);
-    data.edges.forEach((edge: any, index: number) => {
+    const nodeIds = new Set(nodes.map((n: any) => n.id) || []);
+    edges.forEach((edge: any, index: number) => {
       if (!edge.id) {
         warnings.push(`Edge at index ${index} missing ID, will auto-generate`);
       }
@@ -97,11 +137,11 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
   }
 
   // Check viewport
-  if (!data.viewport || typeof data.viewport !== 'object') {
+  if (!viewport || typeof viewport !== 'object') {
     warnings.push('Missing viewport data, will use defaults');
   } else {
-    if (typeof data.viewport.x !== 'number' || typeof data.viewport.y !== 'number' || 
-        typeof data.viewport.zoom !== 'number') {
+    if (typeof viewport.x !== 'number' || typeof viewport.y !== 'number' || 
+        typeof viewport.zoom !== 'number') {
       warnings.push('Invalid viewport data, will use defaults');
     }
   }
