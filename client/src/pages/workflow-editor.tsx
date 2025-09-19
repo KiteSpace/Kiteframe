@@ -89,7 +89,28 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   const ai = useAi();
   const { toast } = useToast();
 
-  // Pro Features Configuration
+  // Editor Settings State with persistence
+  const [editorSettings, setEditorSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kiteframe-editor-settings');
+      return saved ? JSON.parse(saved) : {
+        nodeAutoConnect: true,
+        snapToGuides: true
+      };
+    } catch {
+      return {
+        nodeAutoConnect: true,
+        snapToGuides: true
+      };
+    }
+  });
+
+  // Save editor settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('kiteframe-editor-settings', JSON.stringify(editorSettings));
+  }, [editorSettings]);
+
+  // Pro Features Configuration (now reactive to editor settings)
   const proFeaturesConfig: ProFeaturesConfig = useMemo(() => ({
     quickAdd: {
       enabled: true,
@@ -158,21 +179,21 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       }
     },
     smartGuides: {
-      enabled: true,
+      enabled: editorSettings.snapToGuides,
       threshold: 10,
-      showGuides: true,
-      snapToNodes: true,
+      showGuides: editorSettings.snapToGuides,
+      snapToNodes: editorSettings.snapToGuides,
       snapToGrid: false,
       gridSize: 20,
-      snapToCanvas: true
+      snapToCanvas: editorSettings.snapToGuides
     },
     smartConnect: {
-      enabled: true,
+      enabled: editorSettings.nodeAutoConnect,
       threshold: 50,
-      autoConnect: true,
-      showPreview: true
+      autoConnect: editorSettings.nodeAutoConnect,
+      showPreview: editorSettings.nodeAutoConnect
     }
-  }), []);
+  }), [editorSettings]);
 
   // Generate unique ID for tabs
   const generateTabId = useCallback(() => `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, []);
@@ -2259,6 +2280,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showBugReportModal, setShowBugReportModal] = useState(false);
   const [showNewTabModal, setShowNewTabModal] = useState(false);
   const [showPluginTest, setShowPluginTest] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node; canvasObject?: CanvasObject } | null>(null);
@@ -2590,6 +2612,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           onOpenAiSettings={() => setShowAiModal(true)}
           isDarkMode={isDarkMode}
           onToggleDarkMode={toggleDarkMode}
+          editorSettings={editorSettings}
+          onEditorSettingsChange={setEditorSettings}
+          onOpenBugReport={() => setShowBugReportModal(true)}
         />
         
         {/* Tab Bar */}
