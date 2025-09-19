@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { GOOGLE_FONTS, loadGoogleFont } from '@/lib/fontUtils';
 
 interface GoogleFontsSelectorProps {
   value: string;
@@ -9,35 +10,6 @@ interface GoogleFontsSelectorProps {
   className?: string;
   'data-testid'?: string;
 }
-
-const GOOGLE_FONTS = [
-  { value: 'Inter', label: 'Inter', weight: '300;400;500;600;700' },
-  { value: 'Roboto', label: 'Roboto', weight: '300;400;500;700' },
-  { value: 'Open Sans', label: 'Open Sans', weight: '300;400;600;700' },
-  { value: 'Lato', label: 'Lato', weight: '300;400;700' },
-  { value: 'Montserrat', label: 'Montserrat', weight: '300;400;500;600;700' },
-  { value: 'Poppins', label: 'Poppins', weight: '300;400;500;600;700' },
-  { value: 'Playfair Display', label: 'Playfair Display', weight: '400;500;600;700' },
-  { value: 'Source Sans Pro', label: 'Source Sans Pro', weight: '300;400;600;700' },
-  { value: 'Arial', label: 'Arial', weight: '' },
-  { value: 'Georgia', label: 'Georgia', weight: '' },
-  { value: 'Times New Roman', label: 'Times New Roman', weight: '' },
-  { value: 'Courier New', label: 'Courier New', weight: '' },
-  { value: 'Verdana', label: 'Verdana', weight: '' },
-  { value: 'Helvetica', label: 'Helvetica', weight: '' }
-];
-
-// Load Google Fonts dynamically
-const loadGoogleFont = (fontFamily: string, weights: string) => {
-  if (!weights || document.querySelector(`link[href*="${fontFamily.replace(/\s+/g, '+')}"]`)) {
-    return; // Already loaded or no weights specified
-  }
-  
-  const link = document.createElement('link');
-  link.href = `https://fonts.googleapis.com/css2?family=${fontFamily.replace(/\s+/g, '+')}:wght@${weights}&display=swap`;
-  link.rel = 'stylesheet';
-  document.head.appendChild(link);
-};
 
 export const GoogleFontsSelector = ({ 
   value, 

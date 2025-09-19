@@ -7,6 +7,7 @@ import { ToggleGroupControl } from './ToggleGroupControl';
 import { colorPresets, getOptimalTextColor } from '../../utils/colorUtils';
 import { StickyNoteData } from '../../types';
 import { StickyNote, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { getAvailableWeightOptions, findFallbackWeight, GOOGLE_FONTS, loadGoogleFont } from '../../../../lib/fontUtils';
 
 interface StickyNoteObjectStylingPanelProps {
   data: StickyNoteData;
@@ -17,22 +18,29 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
   data,
   onUpdate
 }) => {
-  const fontFamilyOptions = [
-    { value: 'Inter', label: 'Inter' },
-    { value: 'Arial', label: 'Arial' },
-    { value: 'Times New Roman', label: 'Times New Roman' },
-    { value: 'Courier New', label: 'Courier New' },
-    { value: 'Georgia', label: 'Georgia' },
-    { value: 'Verdana', label: 'Verdana' },
-    { value: 'Helvetica', label: 'Helvetica' }
-  ];
+  const fontFamilyOptions = GOOGLE_FONTS.map(font => ({
+    value: font.value,
+    label: font.label
+  }));
 
-  const fontWeightOptions = [
-    { value: 'normal', label: 'Normal' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'semibold', label: 'Semibold' },
-    { value: 'bold', label: 'Bold' }
-  ];
+  // Get available font weights for the current font family
+  const availableWeights = getAvailableWeightOptions(data.fontFamily || 'Inter');
+
+  // Handle font family change with weight fallback
+  const handleFontFamilyChange = (newFontFamily: string) => {
+    const fallbackWeight = findFallbackWeight(data.fontWeight || 'normal', newFontFamily);
+    const updates: Partial<StickyNoteData> = { fontFamily: newFontFamily as any };
+    
+    // Update weight if it changed due to fallback
+    if (fallbackWeight !== (data.fontWeight || 'normal')) {
+      updates.fontWeight = fallbackWeight as any;
+    }
+    
+    // Load Google Font if it's not a system font
+    loadGoogleFont(newFontFamily);
+    
+    onUpdate(updates);
+  };
 
   const fontStyleOptions = [
     { value: 'normal', label: 'Normal' },
@@ -98,7 +106,7 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
           label="Font Family"
           value={data.fontFamily || 'Inter'}
           options={fontFamilyOptions}
-          onChange={(value) => onUpdate({ fontFamily: value as any })}
+          onChange={handleFontFamilyChange}
           data-testid="sticky-font-family"
         />
 
@@ -112,7 +120,7 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
         <DropdownControl
           label="Font Weight"
           value={data.fontWeight || 'normal'}
-          options={fontWeightOptions}
+          options={availableWeights}
           onChange={(value) => onUpdate({ fontWeight: value as any })}
           data-testid="sticky-font-weight"
         />

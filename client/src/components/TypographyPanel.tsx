@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { GoogleFontsSelector } from './GoogleFontsSelector';
 import FigmaStyleColorPicker from './FigmaStyleColorPicker';
+import { getAvailableWeightOptions, findFallbackWeight } from '@/lib/fontUtils';
 import { 
   AlignLeft, 
   AlignCenter, 
@@ -38,12 +39,7 @@ interface TypographyPanelProps {
   className?: string;
 }
 
-const FONT_WEIGHTS = [
-  { value: 'normal', label: 'Regular' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'semibold', label: 'Semibold' },
-  { value: 'bold', label: 'Bold' }
-];
+// Dynamic font weights will be calculated based on selected font
 
 const FONT_SIZES = [
   { label: 'Extra small', value: 10 },
@@ -115,6 +111,20 @@ export const TypographyPanel = ({
   const currentPresetSize = FONT_SIZES.find(size => size.value === fontSize);
   const isCustomSize = !currentPresetSize;
 
+  // Get available font weights for the current font family
+  const availableWeights = getAvailableWeightOptions(fontFamily);
+
+  // Handle font family change with weight fallback
+  const handleFontFamilyChange = useCallback((newFontFamily: string) => {
+    const fallbackWeight = findFallbackWeight(fontWeight, newFontFamily);
+    onFontFamilyChange(newFontFamily);
+    
+    // Update weight if it changed due to fallback
+    if (fallbackWeight !== fontWeight) {
+      onFontWeightChange(fallbackWeight);
+    }
+  }, [fontWeight, onFontFamilyChange, onFontWeightChange]);
+
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Typography Header */}
@@ -140,7 +150,7 @@ export const TypographyPanel = ({
       {/* Font Family with Google Fonts */}
       <GoogleFontsSelector
         value={fontFamily}
-        onChange={onFontFamilyChange}
+        onChange={handleFontFamilyChange}
         label="Font Family"
         data-testid="font-family-selector"
       />
@@ -154,7 +164,7 @@ export const TypographyPanel = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="z-[9999]">
-              {FONT_WEIGHTS.map((weight) => (
+              {availableWeights.map((weight) => (
                 <SelectItem key={weight.value} value={weight.value}>
                   {weight.label}
                 </SelectItem>

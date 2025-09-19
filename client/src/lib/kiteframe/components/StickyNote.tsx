@@ -6,6 +6,7 @@ import { NodeHandles } from './NodeHandles';
 import type { Node, StickyNoteData } from '../types';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
+import { toNumericWeight } from '@/lib/fontUtils';
 
 interface StickyNoteProps {
   node: Node & { data: StickyNoteData };
@@ -117,7 +118,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
     fontSize: node.data.fontSize || 14,
     fontFamily: node.data.fontFamily || 'Inter, system-ui, sans-serif',
     fontStyle: node.data.fontStyle || 'normal',
-    fontWeight: node.data.fontWeight || 'normal',
+    fontWeight: toNumericWeight(node.data.fontWeight),
     textAlign: node.data.textAlign || 'left',
     lineHeight: node.data.lineHeight || 1.4,
     borderRadius: node.data.borderRadius || 8,
@@ -184,7 +185,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
                 fontSize: node.data.fontSize || 14,
                 fontFamily: node.data.fontFamily || 'Inter, system-ui, sans-serif',
                 fontStyle: node.data.fontStyle || 'normal',
-                fontWeight: node.data.fontWeight || 'normal',
+                fontWeight: toNumericWeight(node.data.fontWeight),
                 textAlign: node.data.textAlign || 'left',
                 lineHeight: node.data.lineHeight || 1.4,
                 color: getTextColor(),
@@ -203,7 +204,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
                 fontSize: node.data.fontSize || 14,
                 fontFamily: node.data.fontFamily || 'Inter, system-ui, sans-serif',
                 fontStyle: node.data.fontStyle || 'normal',
-                fontWeight: node.data.fontWeight || 'normal',
+                fontWeight: toNumericWeight(node.data.fontWeight),
                 textAlign: node.data.textAlign || 'left',
                 lineHeight: node.data.lineHeight || 1.4,
                 flex: node.data.verticalAlign === 'middle' || node.data.verticalAlign === 'bottom' ? '0 0 auto' : '1 1 auto'

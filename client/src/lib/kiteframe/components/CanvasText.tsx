@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { ExternalLink, Edit, X } from 'lucide-react';
+import { toNumericWeight } from '@/lib/fontUtils';
 
 export interface CanvasTextData {
   id: string;
@@ -31,18 +32,6 @@ interface CanvasTextProps {
   onClick?: (id: string) => void;
 }
 
-// Helper function to get CSS font-weight from our weight value
-const getFontWeightCSS = (weight: 'light' | 'normal' | 'medium' | 'semibold' | 'bold' | 'extrabold'): number => {
-  const weightMap = {
-    light: 300,
-    normal: 400,
-    medium: 500,
-    semibold: 600,
-    bold: 700,
-    extrabold: 800
-  };
-  return weightMap[weight];
-};
 
 export function CanvasText({
   data,
@@ -245,7 +234,7 @@ export function CanvasText({
   const textStyle: React.CSSProperties = {
     fontSize: (data.fontSize || 16) * viewport.zoom,
     fontFamily: data.fontFamily || 'Inter, system-ui, sans-serif',
-    fontWeight: getFontWeightCSS(data.fontWeight || 'normal'),
+    fontWeight: toNumericWeight(data.fontWeight),
     textAlign: data.textAlign || 'left',
     color: finalTextColor,
     lineHeight: '1.2',
