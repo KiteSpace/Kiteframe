@@ -448,7 +448,14 @@ export function CollapsedSidebar({
 
       {/* Templates Popout */}
       {activePopout === 'templates' && (
-        <div className="absolute left-16 top-32 w-40 bg-card border border-border rounded-md shadow-lg p-3" style={{ zIndex: 60 }}>
+        <>
+          {/* Backdrop to close popout when clicking outside */}
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setActivePopout(null)}
+            data-testid="templates-popout-backdrop"
+          />
+          <div className="absolute left-16 top-32 w-40 bg-card border border-border rounded-md shadow-lg p-3" style={{ zIndex: 60 }}>
           <h3 className="text-sm font-semibold mb-3">Templates</h3>
           <div className="grid grid-cols-1 gap-2">
             {templateTypes.map((template) => {
@@ -469,12 +476,20 @@ export function CollapsedSidebar({
               );
             })}
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       {/* Themes Popout */}
       {activePopout === 'themes' && (
-        <div className="absolute left-16 top-32 w-40 bg-card border border-border rounded-md shadow-lg p-3" style={{ zIndex: 60 }}>
+        <>
+          {/* Backdrop to close popout when clicking outside */}
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setActivePopout(null)}
+            data-testid="themes-popout-backdrop"
+          />
+          <div className="absolute left-16 top-32 w-40 bg-card border border-border rounded-md shadow-lg p-3" style={{ zIndex: 60 }}>
           <h3 className="text-sm font-semibold mb-3">Workflow Themes</h3>
           <div className="grid grid-cols-1 gap-2">
             {workflowThemes.slice(0, 8).map((theme) => (
@@ -499,7 +514,8 @@ export function CollapsedSidebar({
               </button>
             ))}
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       {/* Drag Visual Indicator - matches expanded sidebar style */}
