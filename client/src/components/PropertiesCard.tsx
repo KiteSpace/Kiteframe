@@ -8,6 +8,8 @@ import { Separator } from '@/components/ui/separator';
 import { EdgeProperties } from '@/components/shared/EdgeProperties';
 import FigmaStyleColorPicker from '@/components/FigmaStyleColorPicker';
 import { TabbedColorPicker, ColorProperty } from '@/components/TabbedColorPicker';
+import { ColorPickerControl } from '@/lib/kiteframe/components/styling/ColorPickerControl';
+import { DropdownControl } from '@/lib/kiteframe/components/styling/DropdownControl';
 
 interface PropertiesCardProps {
   selectedNode?: Node;
@@ -392,6 +394,57 @@ export function PropertiesCard({
                     data-testid="font-size-input"
                   />
                 </div>
+
+                <ColorPickerControl
+                  label="Text Color"
+                  value={selectedCanvasObject.data?.textColor || '#000000'}
+                  onChange={(color) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      textColor: color
+                    }
+                  })}
+                  data-testid="text-color"
+                />
+
+                <DropdownControl
+                  label="Font Family"
+                  value={selectedCanvasObject.data?.fontFamily || 'Inter'}
+                  options={[
+                    { value: 'Inter', label: 'Inter' },
+                    { value: 'Arial', label: 'Arial' },
+                    { value: 'Times New Roman', label: 'Times New Roman' },
+                    { value: 'Courier New', label: 'Courier New' },
+                    { value: 'Georgia', label: 'Georgia' },
+                    { value: 'Verdana', label: 'Verdana' },
+                    { value: 'Helvetica', label: 'Helvetica' }
+                  ]}
+                  onChange={(value) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      fontFamily: value
+                    }
+                  })}
+                  data-testid="text-font-family"
+                />
+
+                <DropdownControl
+                  label="Font Weight"
+                  value={selectedCanvasObject.data?.fontWeight || 'normal'}
+                  options={[
+                    { value: 'normal', label: 'Normal' },
+                    { value: 'medium', label: 'Medium' },
+                    { value: 'semibold', label: 'Semibold' },
+                    { value: 'bold', label: 'Bold' }
+                  ]}
+                  onChange={(value) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      fontWeight: value
+                    }
+                  })}
+                  data-testid="text-font-weight"
+                />
               </>
             )}
 

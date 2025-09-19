@@ -2931,7 +2931,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       updateActiveTab({
                         canvasObjects: canvasObjects.map(obj => 
                           obj.id === objectId 
-                            ? { ...obj, data: { ...obj.data, ...updates } }
+                            ? { 
+                                ...obj, 
+                                ...updates,
+                                // If updates contains data, merge it with existing data
+                                ...(updates.data && { data: { ...obj.data, ...updates.data } })
+                              }
                             : obj
                         )
                       });
