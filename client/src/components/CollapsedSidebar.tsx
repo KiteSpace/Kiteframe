@@ -315,7 +315,7 @@ export function CollapsedSidebar({
   // Split icons into main, template/theme, and action groups
   const mainIcons = ['brain', 'workflow', 'type', 'shapes', 'sticky-note'];
   const templateThemeIcons = ['route', 'palette'];
-  const actionIcons = ['fit-view', 'clear', 'export', 'import'];
+  const actionIcons = ['clear', 'export', 'import'];
 
   return (
     <TooltipProvider>

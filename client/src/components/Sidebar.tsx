@@ -2248,14 +2248,6 @@ export function Sidebar({
                   </button>
                   <button
                     className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left flex items-center gap-2"
-                    onClick={onVersionHistory}
-                    data-testid="button-version-history"
-                  >
-                    <History size={14} />
-                    Version History
-                  </button>
-                  <button
-                    className="w-full p-2 text-sm border border-border rounded-md hover:bg-accent transition-colors text-left flex items-center gap-2"
                     onClick={onClearCanvas}
                     data-testid="button-clear-canvas"
                   >
