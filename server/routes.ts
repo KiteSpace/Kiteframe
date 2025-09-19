@@ -13,6 +13,7 @@ import {
   workflowComments 
 } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
+import { handleBugReport } from "./bug-report";
 
 // Workflow validation utility
 function validateWorkflowStructure(data: any): { isValid: boolean; errors: string[]; warnings: string[] } {
@@ -999,6 +1000,9 @@ Respond with only the corrected JSON data:`;
       cb(null, true);
     },
   });
+
+  // Bug Report endpoint
+  app.post('/api/bug-report', handleBugReport);
 
   // AI Image-to-Workflow Analysis endpoint
   app.post("/api/ai/analyze-workflow-image", upload.single('image'), async (req, res) => {

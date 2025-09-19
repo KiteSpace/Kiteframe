@@ -16,6 +16,7 @@ import { Toolbar } from '@/components/Toolbar';
 import { AiSettingsModal } from '@/components/AiSettingsModal';
 import { AiWorkflowGenerator } from '@/components/AiWorkflowGenerator';
 import { WorkflowImportModal } from '@/components/WorkflowImportModal';
+import { BugReportModal } from '@/components/BugReportModal';
 import { ContextMenu } from '@/components/ContextMenu';
 import { MissingImagesModal } from '@/components/MissingImagesModal';
 import { NewTabModal } from '@/components/NewTabModal';
@@ -4330,6 +4331,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               // Image analysis is now handled directly in the modal
               console.log('Image file received:', imageFile);
             }}
+          />
+        )}
+
+        {/* Bug Report Modal */}
+        {showBugReportModal && (
+          <BugReportModal
+            onClose={() => setShowBugReportModal(false)}
           />
         )}
 
