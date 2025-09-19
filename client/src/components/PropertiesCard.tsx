@@ -10,6 +10,7 @@ import FigmaStyleColorPicker from '@/components/FigmaStyleColorPicker';
 import { TabbedColorPicker, ColorProperty } from '@/components/TabbedColorPicker';
 import { ColorPickerControl } from '@/lib/kiteframe/components/styling/ColorPickerControl';
 import { DropdownControl } from '@/lib/kiteframe/components/styling/DropdownControl';
+import FillStrokeColorPicker from '@/components/FillStrokeColorPicker';
 
 interface PropertiesCardProps {
   selectedNode?: Node;
@@ -467,9 +468,7 @@ export function PropertiesCard({
                   />
                 </div>
 
-                <FigmaStyleColorPicker
-                  label="Background"
-                  showFill={true}
+                <FillStrokeColorPicker
                   fillColor={selectedCanvasObject.data?.backgroundColor || '#fef3c7'}
                   fillOpacity={selectedCanvasObject.data?.backgroundOpacity ?? 100}
                   onFillColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
@@ -484,7 +483,21 @@ export function PropertiesCard({
                       backgroundOpacity: val
                     }
                   })}
-                  testIdScope="sticky-bg"
+                  strokeColor={selectedCanvasObject.data?.borderColor || '#d97706'}
+                  strokeOpacity={selectedCanvasObject.data?.borderOpacity ?? 100}
+                  onStrokeColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      borderColor: hex
+                    }
+                  })}
+                  onStrokeOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      borderOpacity: val
+                    }
+                  })}
+                  testIdScope="sticky-colors"
                 />
               </>
             )}
@@ -527,10 +540,7 @@ export function PropertiesCard({
                   </div>
                 </div>
 
-                <FigmaStyleColorPicker
-                  label="Shape Colors"
-                  showFill={true}
-                  showStroke={true}
+                <FillStrokeColorPicker
                   fillColor={selectedCanvasObject.data?.fillColor || '#3b82f6'}
                   fillOpacity={selectedCanvasObject.data?.fillOpacity ?? 100}
                   onFillColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {

@@ -6,13 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Palette, Droplet, Square } from "lucide-react";
 
-const primarySwatches = [
-  "#0D9488", "#EA580C", "#06B6D4", "#DB2777", "#10B981", "#4338CA",
-  "#111827", "#64748B", "#14B8A6", "#2563EB"
+// Updated color swatches as requested: Red Orange Yellow Green Teal Blue Purple Violet White Grey Black
+const vividSwatches = [
+  "#EF4444", "#F97316", "#EAB308", "#22C55E", "#06B6D4", "#3B82F6", "#8B5CF6", "#A855F7", "#FFFFFF", "#64748B", "#000000"
 ];
 const pastelSwatches = [
-  "#A7F3D0", "#FDE68A", "#F9A8D4", "#C7D2FE", "#BAE6FD", "#FBCFE8",
-  "#F5D0FE", "#FFE4E6", "#E9D5FF", "#D1FAE5"
+  "#FCA5A5", "#FDBA74", "#FDE047", "#86EFAC", "#67E8F9", "#93C5FD", "#C4B5FD", "#D8B4FE", "#F8FAFC", "#CBD5E1", "#374151"
 ];
 
 function clamp(n: number, min: number, max: number) { return Math.min(max, Math.max(min, n)); }
@@ -111,28 +110,42 @@ export default function FigmaStyleColorPicker({
           </div>
         </div>
 
-        <HexColorPicker color={currentHex} onChange={setCurrentHex} />
+        {/* Color picker hidden as requested */}
+        {/* <HexColorPicker color={currentHex} onChange={setCurrentHex} /> */}
 
-        {/* Swatches */}
+        {/* Swatches - made circular as requested */}
         <div className="space-y-2">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Swatches</div>
-          <div className="grid grid-cols-10 gap-1.5">
-            {primarySwatches.map((sw) => (
-              <button key={sw} className="w-6 h-6 rounded-md border border-border" style={{ backgroundColor: sw }} onClick={() => setCurrentHex(sw)} aria-label={`swatch ${sw}`} />
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Colors</div>
+          <div className="grid grid-cols-11 gap-1.5">
+            {vividSwatches.map((sw) => (
+              <button 
+                key={sw} 
+                className="w-6 h-6 rounded-full border border-border" 
+                style={{ backgroundColor: sw }} 
+                onClick={() => setCurrentHex(sw)} 
+                aria-label={`swatch ${sw}`} 
+              />
             ))}
           </div>
-          <div className="grid grid-cols-10 gap-1.5">
+          <div className="grid grid-cols-11 gap-1.5">
             {pastelSwatches.map((sw) => (
-              <button key={sw} className="w-6 h-6 rounded-md border border-border" style={{ backgroundColor: sw }} onClick={() => setCurrentHex(sw)} aria-label={`swatch ${sw}`} />
+              <button 
+                key={sw} 
+                className="w-6 h-6 rounded-full border border-border" 
+                style={{ backgroundColor: sw }} 
+                onClick={() => setCurrentHex(sw)} 
+                aria-label={`swatch ${sw}`} 
+              />
             ))}
           </div>
         </div>
 
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
+          {/* Hide hex input as requested */}
+          {/* <div className="flex items-center gap-2">
             <Input value={currentHex} onChange={(e) => setCurrentHex(e.target.value)} className="font-mono h-8" />
             <span className="text-[10px] text-muted-foreground">HEX</span>
-          </div>
+          </div> */}
           <div>
             <div className="flex justify-between text-xs mb-1"><span>Opacity ({target})</span><span>{currentOpacity}%</span></div>
             <Slider value={[currentOpacity]} onValueChange={(val) => setCurrentOpacity(val[0])} max={100} step={1} />

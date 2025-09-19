@@ -103,8 +103,10 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             className="w-full h-full"
             style={{
               ...commonStyles,
-              backgroundColor: fillOpacity !== undefined ? hexToRgba(fillColor || '#3b82f6', fillOpacity) : (fillColor || '#3b82f6'),
-              border: strokeWidth && strokeWidth > 0 ? `${strokeWidth}px ${strokeStyle || 'solid'} ${strokeColor || '#1d4ed8'}` : 'none',
+              backgroundColor: fillOpacity !== undefined ? hexToRgba(fillColor || '#3b82f6', fillOpacity / 100) : (fillColor || '#3b82f6'),
+              border: strokeWidth && strokeWidth > 0 
+                ? `${strokeWidth}px ${strokeStyle || 'solid'} ${strokeOpacity !== undefined ? hexToRgba(strokeColor || '#1d4ed8', strokeOpacity / 100) : (strokeColor || '#1d4ed8')}` 
+                : 'none',
               borderRadius: borderRadius || 8,
               boxShadow: object.data.shadow?.enabled 
                 ? `${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'}`
@@ -126,8 +128,9 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               r={radius}
               style={{
                 fill: fillColor || '#10b981',
-                fillOpacity: fillOpacity !== undefined ? fillOpacity : 1,
+                fillOpacity: fillOpacity !== undefined ? fillOpacity / 100 : 1,
                 stroke: strokeWidth && strokeWidth > 0 ? strokeColor || '#059669' : 'none',
+                strokeOpacity: strokeWidth && strokeWidth > 0 && strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
                 strokeWidth: strokeWidth || 0,
                 strokeDasharray: strokeWidth && strokeWidth > 0 ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
                 filter: object.data.shadow?.enabled 
@@ -146,8 +149,9 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               points="50,10 10,90 90,90"
               style={{
                 fill: fillColor || '#f59e0b',
-                fillOpacity: fillOpacity !== undefined ? fillOpacity : 1,
+                fillOpacity: fillOpacity !== undefined ? fillOpacity / 100 : 1,
                 stroke: strokeWidth && strokeWidth > 0 ? strokeColor || '#d97706' : 'none',
+                strokeOpacity: strokeWidth && strokeWidth > 0 && strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
                 strokeWidth: strokeWidth && strokeWidth > 0 ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
                 strokeDasharray: strokeWidth && strokeWidth > 0 ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
                 filter: object.data.shadow?.enabled 
@@ -166,8 +170,9 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               points="50,5 85,25 85,75 50,95 15,75 15,25"
               style={{
                 fill: fillColor || '#8b5cf6',
-                fillOpacity: fillOpacity !== undefined ? fillOpacity : 1,
+                fillOpacity: fillOpacity !== undefined ? fillOpacity / 100 : 1,
                 stroke: strokeWidth && strokeWidth > 0 ? strokeColor || '#7c3aed' : 'none',
+                strokeOpacity: strokeWidth && strokeWidth > 0 && strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
                 strokeWidth: strokeWidth && strokeWidth > 0 ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
                 strokeDasharray: strokeWidth && strokeWidth > 0 ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
                 filter: object.data.shadow?.enabled 

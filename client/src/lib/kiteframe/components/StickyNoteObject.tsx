@@ -40,6 +40,13 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
   const objectRef = useRef<HTMLDivElement>(null);
   const cleanupManager = useEventCleanup();
 
+  // Sync local text state with external updates
+  useEffect(() => {
+    if (!isEditing && object.data.text !== text) {
+      setText(object.data.text || '');
+    }
+  }, [object.data.text, isEditing, text]);
+
   const noteSize = {
     width: object.style?.width || object.width || 200,
     height: object.style?.height || object.height || 150
@@ -131,6 +138,23 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
     onResize?.(width, height);
   }, [onResize]);
 
+  // Helper function to convert hex to rgb components
+  const hexToRgb = (hex: string): string => {
+    // Remove # if present
+    hex = hex.replace('#', '');
+    
+    // Handle 3-character hex codes
+    if (hex.length === 3) {
+      hex = hex.split('').map(char => char + char).join('');
+    }
+    
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    return `${r}, ${g}, ${b}`;
+  };
+
   // Apply auto text color logic if enabled
   const displayTextColor = object.data.autoTextColor !== false 
     ? getOptimalTextColor(object.data.backgroundColor || '#fef3c7')
@@ -142,18 +166,19 @@ export const StickyNoteObject: React.FC<StickyNoteObjectProps> = ({
     top: object.position.y,
     width: noteSize.width,
     height: noteSize.height,
-    // Background color
-    backgroundColor: object.data.backgroundColor || '#fef3c7',
-    // Border styling
-    borderColor: object.data.borderColor || 
-      (object.data.backgroundColor ? 
-        `color-mix(in srgb, ${object.data.backgroundColor} 80%, #000000 20%)` : 
-        '#f59e0b'),
+    // Background color with opacity
+    backgroundColor: object.data.backgroundOpacity !== undefined 
+      ? `rgba(${hexToRgb(object.data.backgroundColor || '#fef3c7')}, ${object.data.backgroundOpacity / 100})` 
+      : (object.data.backgroundColor || '#fef3c7'),
+    // Border styling with opacity
+    borderColor: object.data.borderOpacity !== undefined 
+      ? `rgba(${hexToRgb(object.data.borderColor || '#d97706')}, ${object.data.borderOpacity / 100})` 
+      : (object.data.borderColor || '#d97706'),
     borderWidth: `${object.data.borderWidth || 2}px`,
     borderStyle: object.data.borderStyle || 'solid',
     borderRadius: `${object.data.borderRadius || 8}px`,
     // Effects
-    opacity: object.data.opacity || 1,
+    // opacity handled through backgroundColor and borderColor opacity
     boxShadow: object.data.shadow?.enabled 
       ? `${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'}`
       : '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', // Default shadow
