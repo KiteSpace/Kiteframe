@@ -10,15 +10,17 @@ export function FloatingLayersWidget({ nodes, edges, frames }: Props){
   const [open, setOpen] = React.useState(false);
   return (
     <div className="absolute top-4 right-4 z-50">
-      <button
-        onClick={()=>setOpen(o=>!o)}
-        className="flex items-center gap-2 bg-card border border-border rounded-full shadow-lg px-2 py-2 hover:shadow-xl transition-shadow select-none"
-        title="Layers"
-        data-testid="button-layers"
-      >
-        <ListTree size={16}/>
-        <span className="text-sm font-medium">Layers</span>
-      </button>
+      {!open && (
+        <button
+          onClick={()=>setOpen(o=>!o)}
+          className="flex items-center gap-2 bg-card border border-border rounded-full shadow-lg px-2 py-2 hover:shadow-xl transition-shadow select-none"
+          title="Layers"
+          data-testid="button-layers"
+        >
+          <ListTree size={16}/>
+          <span className="text-sm font-medium">Layers</span>
+        </button>
+      )}
       {open && (
         <div className="mt-2 w-[380px] h-[560px] rounded-xl shadow-2xl border bg-white overflow-hidden">
           <div className="flex items-center justify-between px-3 py-2 border-b">
