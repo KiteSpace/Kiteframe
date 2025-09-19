@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { ChevronDown } from 'lucide-react';
 
 interface GoogleFontsSelectorProps {
   value: string;
@@ -73,7 +72,6 @@ export const GoogleFontsSelector = ({
             placeholder="Select font..."
             style={{ fontFamily: value }}
           />
-          <ChevronDown className="h-4 w-4 opacity-50" />
         </SelectTrigger>
         <SelectContent className="max-h-60">
           {GOOGLE_FONTS.map((font) => (

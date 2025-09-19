@@ -10,6 +10,10 @@ import {
   AlignLeft, 
   AlignCenter, 
   AlignRight, 
+  AlignJustify,
+  AlignVerticalSpaceAround,
+  AlignVerticalSpaceBetween,
+  AlignVerticalDistributeStart,
   Underline,
   Type
 } from 'lucide-react';
@@ -22,6 +26,7 @@ interface TypographyPanelProps {
   textColor: string;
   textAlign?: string;
   textDecoration?: string;
+  verticalAlign?: string;
   onTextContentChange: (value: string) => void;
   onFontSizeChange: (value: number) => void;
   onFontFamilyChange: (value: string) => void;
@@ -29,6 +34,7 @@ interface TypographyPanelProps {
   onTextColorChange: (value: string) => void;
   onTextAlignChange?: (value: string) => void;
   onTextDecorationChange?: (value: string) => void;
+  onVerticalAlignChange?: (value: string) => void;
   className?: string;
 }
 
@@ -49,6 +55,7 @@ export const TypographyPanel = ({
   textColor,
   textAlign = 'left',
   textDecoration = 'none',
+  verticalAlign = 'top',
   onTextContentChange,
   onFontSizeChange,
   onFontFamilyChange,
@@ -56,9 +63,9 @@ export const TypographyPanel = ({
   onTextColorChange,
   onTextAlignChange,
   onTextDecorationChange,
+  onVerticalAlignChange,
   className = ''
 }: TypographyPanelProps) => {
-  const [showColorPicker, setShowColorPicker] = useState(false);
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -75,7 +82,7 @@ export const TypographyPanel = ({
           value={textContent}
           onChange={(e) => onTextContentChange(e.target.value)}
           className="text-sm"
-          placeholder="Enter text..."
+          placeholder="Click to add text"
           data-testid="text-content-input"
         />
       </div>
@@ -156,28 +163,23 @@ export const TypographyPanel = ({
           </div>
 
           {/* Color Indicator - shows current color */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-12 p-0 border-2"
+          <div
+            className="h-8 w-12 border-2 border-border rounded"
             style={{ backgroundColor: textColor }}
-            onClick={() => setShowColorPicker(!showColorPicker)}
-            data-testid="text-color-trigger"
+            data-testid="text-color-display"
           />
         </div>
 
-        {/* Color Picker */}
-        {showColorPicker && (
-          <div className="p-3 border rounded-lg bg-background">
-            <FigmaStyleColorPicker
-              fillColor={textColor}
-              onFillColorChange={onTextColorChange}
-              showFill={true}
-              showStroke={false}
-              testIdScope="text-color"
-            />
-          </div>
-        )}
+        {/* Color Picker - Always Visible */}
+        <div className="p-3 border rounded-lg bg-background">
+          <FigmaStyleColorPicker
+            fillColor={textColor}
+            onFillColorChange={onTextColorChange}
+            showFill={true}
+            showStroke={false}
+            testIdScope="text-color"
+          />
+        </div>
       </div>
 
       <Separator />
@@ -185,7 +187,7 @@ export const TypographyPanel = ({
       {/* Text Alignment */}
       {onTextAlignChange && (
         <div className="space-y-3">
-          <Label className="text-xs font-medium">Alignment</Label>
+          <Label className="text-xs font-medium">Horizontal Alignment</Label>
           <div className="flex gap-1">
             {[
               { value: 'left', icon: AlignLeft, label: 'Left' },
@@ -201,6 +203,34 @@ export const TypographyPanel = ({
                   className="h-8 w-12 p-0"
                   onClick={() => onTextAlignChange(align.value)}
                   data-testid={`align-${align.value}`}
+                >
+                  <IconComponent className="w-4 h-4" />
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Vertical Alignment */}
+      {onVerticalAlignChange && (
+        <div className="space-y-3">
+          <Label className="text-xs font-medium">Vertical Alignment</Label>
+          <div className="flex gap-1">
+            {[
+              { value: 'top', icon: AlignVerticalDistributeStart, label: 'Top' },
+              { value: 'middle', icon: AlignVerticalSpaceAround, label: 'Middle' },
+              { value: 'bottom', icon: AlignVerticalSpaceBetween, label: 'Bottom' }
+            ].map((align) => {
+              const IconComponent = align.icon;
+              return (
+                <Button
+                  key={align.value}
+                  variant={verticalAlign === align.value ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-8 w-12 p-0"
+                  onClick={() => onVerticalAlignChange(align.value)}
+                  data-testid={`vertical-align-${align.value}`}
                 >
                   <IconComponent className="w-4 h-4" />
                 </Button>

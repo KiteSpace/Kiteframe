@@ -317,33 +317,6 @@ export function PropertiesCard({
               className="space-y-1"
             />
 
-            <Separator />
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">X Position</Label>
-                <Input
-                  type="number"
-                  value={Math.round(selectedNode.position.x)}
-                  onChange={(e) => onNodeUpdate?.(selectedNode.id, {
-                    position: { ...selectedNode.position, x: Number(e.target.value) }
-                  })}
-                  className="text-sm"
-                  data-testid="node-x-input"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">Y Position</Label>
-                <Input
-                  type="number"
-                  value={Math.round(selectedNode.position.y)}
-                  onChange={(e) => onNodeUpdate?.(selectedNode.id, {
-                    position: { ...selectedNode.position, y: Number(e.target.value) }
-                  })}
-                  className="text-sm"
-                  data-testid="node-y-input"
-                />
-              </div>
-            </div>
           </>
         )}
 
@@ -370,6 +343,7 @@ export function PropertiesCard({
                 textColor={selectedCanvasObject.data?.textColor || '#000000'}
                 textAlign={selectedCanvasObject.data?.textAlign}
                 textDecoration={selectedCanvasObject.data?.textDecoration}
+                verticalAlign={selectedCanvasObject.data?.verticalAlign}
                 onTextContentChange={(value) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                   data: {
                     ...selectedCanvasObject.data,
@@ -410,6 +384,12 @@ export function PropertiesCard({
                   data: {
                     ...selectedCanvasObject.data,
                     textDecoration: value
+                  }
+                })}
+                onVerticalAlignChange={(value) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                  data: {
+                    ...selectedCanvasObject.data,
+                    verticalAlign: value
                   }
                 })}
               />
@@ -540,32 +520,6 @@ export function PropertiesCard({
               </>
             )}
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">X Position</Label>
-                <Input
-                  type="number"
-                  value={Math.round(selectedCanvasObject.position.x)}
-                  onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                    position: { ...selectedCanvasObject.position, x: Number(e.target.value) }
-                  })}
-                  className="text-sm"
-                  data-testid="object-x-input"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">Y Position</Label>
-                <Input
-                  type="number"
-                  value={Math.round(selectedCanvasObject.position.y)}
-                  onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                    position: { ...selectedCanvasObject.position, y: Number(e.target.value) }
-                  })}
-                  className="text-sm"
-                  data-testid="object-y-input"
-                />
-              </div>
-            </div>
           </>
         )}
       </div>
