@@ -26,6 +26,7 @@ import { ObjectUploader } from '@/components/ObjectUploader';
 import { useFirebaseWorkflows } from '../hooks/useFirebaseWorkflows';
 import { useAuth } from '../hooks/useAuth';
 import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeData, ShapeNodeData, StickyNoteData } from '../lib/kiteframe/types';
+import { DEFAULT_SHAPE_NODE_DATA } from '../lib/kiteframe/constants/defaults';
 import { recalculateAllEdgeZIndexes } from '../lib/kiteframe/utils/edgeZIndex';
 import { applyThemeToNode, applyThemeToEdge } from '../lib/themes';
 import '../lib/kiteframe/styles/kiteframe.css';
@@ -1802,53 +1803,114 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [generateWorkflowFromPrompt, calculateWorkflowOffset, saveToHistory, toast]);
 
   // Function to append imported workflow to existing canvas
-  const appendImportedWorkflowToCanvas = useCallback((importedWorkflow: { nodes: Node[]; edges: Edge[]; viewport?: any }) => {
-    if (!importedWorkflow.nodes || !importedWorkflow.edges) {
+  const appendImportedWorkflowToCanvas = useCallback((importedData: any) => {
+    try {
+      let nodes: Node[] = [];
+      let edges: Edge[] = [];
+      let canvasObjectsToImport: CanvasObject[] = [];
+      
+      // Handle comprehensive format
+      if (importedData.version && importedData.canvas) {
+        const { canvas } = importedData;
+        nodes = canvas.nodes || [];
+        edges = canvas.edges || [];
+        canvasObjectsToImport = canvas.canvasObjects || [];
+        
+        toast({
+          title: "Importing Comprehensive Workflow",
+          description: `Importing "${importedData.workflow?.name || 'workflow'}" with all content and styling`,
+        });
+      } else {
+        // Legacy format fallback
+        nodes = importedData.nodes || [];
+        edges = importedData.edges || [];
+        canvasObjectsToImport = importedData.canvasObjects || [];
+        
+        toast({
+          title: "Importing Legacy Workflow",
+          description: "Importing workflow with legacy format",
+        });
+      }
+
+      if (!nodes.length && !edges.length && !canvasObjectsToImport.length) {
+        toast({
+          title: "Import Failed",
+          description: "No valid content found in the workflow file.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Calculate offset for new content
+      const offset = calculateWorkflowOffset(nodes);
+      
+      // Apply offset to imported nodes with unique IDs
+      const offsetNodes = nodes.map(node => ({
+        ...node,
+        id: `${node.id}-imported-${Date.now()}`, // Ensure unique IDs
+        position: {
+          x: node.position.x + offset.x,
+          y: node.position.y + offset.y
+        },
+        selected: false,
+        // Preserve all styling and data
+        data: { ...node.data },
+        style: node.style || {}
+      }));
+
+      // Apply offset to imported edges and update IDs
+      const offsetEdges = edges.map(edge => ({
+        ...edge,
+        id: `${edge.id}-imported-${Date.now()}`, // Ensure unique IDs
+        source: `${edge.source}-imported-${Date.now()}`,
+        target: `${edge.target}-imported-${Date.now()}`,
+        selected: false,
+        // Preserve all styling and data
+        style: edge.style || {},
+        data: edge.data || {}
+      }));
+
+      // Apply offset to imported canvas objects
+      const offsetCanvasObjects = canvasObjectsToImport.map(obj => ({
+        ...obj,
+        id: `${obj.id}-imported-${Date.now()}`,
+        position: {
+          x: obj.position.x + offset.x,
+          y: obj.position.y + offset.y
+        },
+        selected: false,
+        // Preserve all styling and data
+        data: { ...obj.data },
+        style: obj.style || {}
+      }));
+
+      // Append to existing content
+      setNodes(prev => [...prev, ...offsetNodes]);
+      setEdges(prev => [...prev, ...offsetEdges]);
+      
+      if (offsetCanvasObjects.length > 0) {
+        updateActiveTab({
+          canvasObjects: [...canvasObjects, ...offsetCanvasObjects]
+        });
+      }
+      
+      // Save to history after state updates
+      setTimeout(() => saveToHistory(), 0);
+      
+      toast({
+        title: "Workflow Imported Successfully",
+        description: `Added ${offsetNodes.length} nodes, ${offsetEdges.length} connections, and ${offsetCanvasObjects.length} canvas objects.`,
+        variant: "default"
+      });
+      
+    } catch (error) {
+      console.error('Import failed:', error);
       toast({
         title: "Import Failed",
-        description: "Invalid workflow format. Must contain nodes and edges.",
+        description: "An error occurred while importing the workflow. Please check the file format.",
         variant: "destructive"
       });
-      return;
     }
-
-    // Calculate offset for new nodes
-    const offset = calculateWorkflowOffset(importedWorkflow.nodes);
-    
-    // Apply offset to imported nodes
-    const offsetNodes = importedWorkflow.nodes.map(node => ({
-      ...node,
-      id: `${node.id}-imported-${Date.now()}`, // Ensure unique IDs
-      position: {
-        x: node.position.x + offset.x,
-        y: node.position.y + offset.y
-      },
-      selected: false
-    }));
-
-    // Apply offset to imported edges and update IDs
-    const offsetEdges = importedWorkflow.edges.map(edge => ({
-      ...edge,
-      id: `${edge.id}-imported-${Date.now()}`, // Ensure unique IDs
-      source: `${edge.source}-imported-${Date.now()}`,
-      target: `${edge.target}-imported-${Date.now()}`,
-      selected: false,
-      reconnectable: true, // Enable reconnection for imported edges
-      interactable: true // Make edges clickable
-    }));
-
-    // Append to existing nodes and edges
-    setNodes(prev => [...prev, ...offsetNodes]);
-    setEdges(prev => [...prev, ...offsetEdges]);
-    
-    // Save to history after state updates
-    setTimeout(() => saveToHistory(), 0);
-    
-    toast({
-      title: "Workflow Imported",
-      description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections to canvas.`,
-      variant: "default"
-    });
   }, [calculateWorkflowOffset, saveToHistory, toast]);
 
   const handleUndo = useCallback(() => {
@@ -2721,20 +2783,53 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }
                   }}
                   onExport={() => {
-                    const workflow = {
-                      name: activeTab?.name || 'My Workflow',
-                      nodes,
-                      edges,
-                      canvasObjects,
-                      viewport
+                    const comprehensiveWorkflow = {
+                      version: "1.0",
+                      timestamp: new Date().toISOString(),
+                      workflow: {
+                        id: activeTab?.id || `workflow-${Date.now()}`,
+                        name: activeTab?.name || 'My Workflow',
+                        description: activeTab?.metadata?.description || '',
+                        links: activeTab?.metadata?.links || [],
+                        categories: activeTab?.metadata?.categories || []
+                      },
+                      canvas: {
+                        nodes: nodes.map(node => ({
+                          ...node,
+                          // Preserve all styling and data
+                          data: { ...node.data },
+                          style: node.style || {}
+                        })),
+                        edges: edges.map(edge => ({
+                          ...edge,
+                          // Preserve all styling and data
+                          style: edge.style || {},
+                          data: edge.data || {}
+                        })),
+                        canvasObjects: canvasObjects.map(obj => ({
+                          ...obj,
+                          // Preserve all styling and data
+                          data: { ...obj.data },
+                          style: obj.style || {}
+                        })),
+                        viewport: { ...viewport }
+                      }
                     };
-                    const dataStr = JSON.stringify(workflow, null, 2);
+                    
+                    const dataStr = JSON.stringify(comprehensiveWorkflow, null, 2);
                     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                    const exportFileDefaultName = `${workflow.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_workflow.json`;
+                    const safeFileName = comprehensiveWorkflow.workflow.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                    const exportFileDefaultName = `${safeFileName}_complete_workflow.json`;
+                    
                     const linkElement = document.createElement('a');
                     linkElement.setAttribute('href', dataUri);
                     linkElement.setAttribute('download', exportFileDefaultName);
                     linkElement.click();
+                    
+                    toast({
+                      title: "Workflow Exported",
+                      description: `"${comprehensiveWorkflow.workflow.name}" exported with all content and styling`,
+                    });
                   }}
                   onImport={() => setShowImportModal(true)}
                   onOpenAiGenerator={() => setShowAiGenerator(true)}
@@ -2877,7 +2972,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       id: `object-${Date.now()}`,
                       type: 'shape',
                       position: getViewportCenteredPosition(),
-                      data: { shapeType, fillColor: '#3b82f6', strokeColor: '#1e40af', strokeWidth: 2 } as any,
+                      data: { ...DEFAULT_SHAPE_NODE_DATA, shapeType } as any,
                       width: 200,
                       height: shapeType === 'rectangle' ? 200 : 100,
                       selected: false
@@ -2894,7 +2989,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       id: `object-${Date.now()}`,
                       type: 'shape',
                       position, // Use the provided position instead of center
-                      data: { shapeType, fillColor: '#3b82f6', strokeColor: '#1e40af', strokeWidth: 2 } as any,
+                      data: { ...DEFAULT_SHAPE_NODE_DATA, shapeType } as any,
                       width: 200,
                       height: shapeType === 'rectangle' ? 200 : 100,
                       selected: false
@@ -3234,19 +3329,50 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setSelectedEdgeId('');
               }}
               onExport={() => {
-                const workflow = {
-                  name: activeTab?.name || 'My Workflow',
-                  nodes,
-                  edges,
-                  viewport
+                const comprehensiveWorkflow = {
+                  version: "1.0",
+                  timestamp: new Date().toISOString(),
+                  workflow: {
+                    id: activeTab?.id || `workflow-${Date.now()}`,
+                    name: activeTab?.name || 'My Workflow',
+                    description: activeTab?.metadata?.description || '',
+                    links: activeTab?.metadata?.links || [],
+                    categories: activeTab?.metadata?.categories || []
+                  },
+                  canvas: {
+                    nodes: nodes.map(node => ({
+                      ...node,
+                      data: { ...node.data },
+                      style: node.style || {}
+                    })),
+                    edges: edges.map(edge => ({
+                      ...edge,
+                      style: edge.style || {},
+                      data: edge.data || {}
+                    })),
+                    canvasObjects: canvasObjects.map(obj => ({
+                      ...obj,
+                      data: { ...obj.data },
+                      style: obj.style || {}
+                    })),
+                    viewport: { ...viewport }
+                  }
                 };
-                const dataStr = JSON.stringify(workflow, null, 2);
+                
+                const dataStr = JSON.stringify(comprehensiveWorkflow, null, 2);
                 const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                const exportFileDefaultName = `${workflow.name}.json`;
+                const safeFileName = comprehensiveWorkflow.workflow.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                const exportFileDefaultName = `${safeFileName}_complete_workflow.json`;
+                
                 const linkElement = document.createElement('a');
                 linkElement.setAttribute('href', dataUri);
                 linkElement.setAttribute('download', exportFileDefaultName);
                 linkElement.click();
+                
+                toast({
+                  title: "Workflow Exported",
+                  description: `"${comprehensiveWorkflow.workflow.name}" exported with all content and styling`,
+                });
               }}
               onImport={() => {
                 // Create hidden file input for importing and appending to existing workflow
@@ -4072,16 +4198,95 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         {showImportModal && (
           <WorkflowImportModal
             onClose={() => setShowImportModal(false)}
-            onImport={(importedWorkflow: any) => {
-              // Handle imported workflow
-              if (importedWorkflow.nodes) {
-                setNodes(importedWorkflow.nodes);
-              }
-              if (importedWorkflow.edges) {
-                setEdges(importedWorkflow.edges);
-              }
-              if (importedWorkflow.viewport) {
-                setViewport(importedWorkflow.viewport);
+            onImport={(importedData: any) => {
+              try {
+                // Handle comprehensive workflow format
+                if (importedData.version && importedData.canvas && importedData.workflow) {
+                  // New comprehensive format
+                  const { workflow, canvas } = importedData;
+                  
+                  // Restore workflow metadata
+                  if (activeTab) {
+                    updateActiveTab({
+                      name: workflow.name,
+                      metadata: {
+                        name: workflow.name,
+                        description: workflow.description || '',
+                        links: workflow.links || [],
+                        linksFormat: activeTab.metadata.linksFormat || 'text',
+                        categories: workflow.categories || []
+                      }
+                    });
+                  }
+                  
+                  // Restore canvas content with all styling
+                  if (canvas.nodes) {
+                    setNodes(canvas.nodes.map((node: any) => ({
+                      ...node,
+                      data: { ...node.data },
+                      style: node.style || {}
+                    })));
+                  }
+                  
+                  if (canvas.edges) {
+                    setEdges(canvas.edges.map((edge: any) => ({
+                      ...edge,
+                      style: edge.style || {},
+                      data: edge.data || {}
+                    })));
+                  }
+                  
+                  if (canvas.canvasObjects) {
+                    updateActiveTab({
+                      canvasObjects: canvas.canvasObjects.map((obj: any) => ({
+                        ...obj,
+                        data: { ...obj.data },
+                        style: obj.style || {}
+                      }))
+                    });
+                  }
+                  
+                  if (canvas.viewport) {
+                    setViewport(canvas.viewport);
+                  }
+                  
+                  toast({
+                    title: "Workflow Imported",
+                    description: `"${workflow.name}" imported with all content, styling, and metadata`,
+                  });
+                } else {
+                  // Legacy format fallback
+                  if (importedData.nodes) {
+                    setNodes(importedData.nodes);
+                  }
+                  if (importedData.edges) {
+                    setEdges(importedData.edges);
+                  }
+                  if (importedData.canvasObjects) {
+                    updateActiveTab({ canvasObjects: importedData.canvasObjects });
+                  }
+                  if (importedData.viewport) {
+                    setViewport(importedData.viewport);
+                  }
+                  
+                  toast({
+                    title: "Workflow Imported",
+                    description: "Legacy workflow format imported successfully",
+                  });
+                }
+                
+                // Clear selections and save to history
+                setSelectedNodeId('');
+                setSelectedEdgeId('');
+                saveToHistory();
+                
+              } catch (error) {
+                console.error('Import failed:', error);
+                toast({
+                  title: "Import Failed",
+                  description: "Failed to import workflow. Please check the file format.",
+                  variant: "destructive"
+                });
               }
               saveToHistory();
               setShowImportModal(false);
