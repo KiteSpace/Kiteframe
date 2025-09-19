@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -75,6 +75,41 @@ export const TypographyPanel = ({
 }: TypographyPanelProps) => {
   const [showCustomSize, setShowCustomSize] = useState(false);
   const [customSize, setCustomSize] = useState(fontSize);
+  
+  // Local state for text content input with debouncing
+  const [localTextContent, setLocalTextContent] = useState(textContent);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync local state with prop changes (when canvas text is edited directly)
+  useEffect(() => {
+    setLocalTextContent(textContent);
+  }, [textContent]);
+
+  // Debounced text content change handler
+  const debouncedTextContentChange = useCallback((value: string) => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    debounceTimeoutRef.current = setTimeout(() => {
+      onTextContentChange(value);
+    }, 150); // 150ms debounce delay for responsive feel
+  }, [onTextContentChange]);
+
+  // Handle text input changes with immediate local update and debounced prop update
+  const handleTextContentChange = useCallback((value: string) => {
+    setLocalTextContent(value); // Immediate local update for responsiveness
+    debouncedTextContentChange(value); // Debounced prop update
+  }, [debouncedTextContentChange]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Check if current fontSize matches one of the preset sizes
   const currentPresetSize = FONT_SIZES.find(size => size.value === fontSize);
@@ -92,8 +127,8 @@ export const TypographyPanel = ({
       <div className="space-y-2">
         <Label className="text-xs font-medium">Content</Label>
         <Input
-          value={textContent}
-          onChange={(e) => onTextContentChange(e.target.value)}
+          value={localTextContent}
+          onChange={(e) => handleTextContentChange(e.target.value)}
           className="text-sm"
           placeholder="Click to add text"
           data-testid="text-content-input"

@@ -69,6 +69,11 @@ export const TextObject: React.FC<TextObjectProps> = ({
   const [touchStartTime, setTouchStartTime] = useState(0);
   const [lastTapTime, setLastTapTime] = useState(0);
 
+  // Sync local text state with prop changes (important for TypographyPanel updates)
+  useEffect(() => {
+    setText(object.data.text || '');
+  }, [object.data.text]);
+
   // Auto-focus when component mounts if autoFocus is true
   useEffect(() => {
     if (autoFocus && textareaRef.current) {
