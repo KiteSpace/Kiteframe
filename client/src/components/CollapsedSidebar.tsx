@@ -320,25 +320,6 @@ export function CollapsedSidebar({
   return (
     <TooltipProvider>
       <div className="h-full flex flex-col bg-card border-r border-border p-2" data-testid="collapsed-sidebar">
-        {/* Toggle Button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={toggleSidebar}
-              className="p-2 rounded-md hover:bg-accent transition-colors mb-4"
-              data-testid="toggle-sidebar"
-              title="Expand Sidebar"
-            >
-              {(() => {
-                const ChevronIcon = sidebarIcons['chevron-right'];
-                return ChevronIcon ? <ChevronIcon className="w-4 h-4" /> : null;
-              })()}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            <p>Expand Sidebar</p>
-          </TooltipContent>
-        </Tooltip>
 
         {/* Main Icons */}
         <div className="space-y-2 mb-4">
@@ -359,9 +340,11 @@ export function CollapsedSidebar({
                     onMouseDown={(e) => handleIconMouseDown(e, iconKey)}
                     className={`
                       w-8 h-8 rounded-md flex items-center justify-center transition-colors
-                      ${isActive(iconKey) 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'hover:bg-accent'
+                      ${iconKey === 'brain'
+                        ? 'bg-gradient-to-br from-purple-500 to-blue-600 text-white hover:from-purple-600 hover:to-blue-700'
+                        : isActive(iconKey) 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'hover:bg-accent'
                       }
                     `}
                     data-testid={`icon-${iconKey}`}

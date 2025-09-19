@@ -2276,9 +2276,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('sidebar-collapsed');
-      return saved ? JSON.parse(saved) : false;
+      return saved ? JSON.parse(saved) : true;
     } catch {
-      return false;
+      return true;
     }
   });
 
