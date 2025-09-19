@@ -89,21 +89,21 @@ export const DEFAULT_STICKY_NOTE_DATA: StickyNoteData = {
 export const DEFAULT_SHAPE_NODE_DATA: ShapeNodeData = {
   shapeType: 'rectangle',
   // Fill styling
-  fillColor: '#3b82f6', // Blue primary color
-  fillOpacity: 1,
+  fillColor: '#e5e7eb', // Light gray color
+  fillOpacity: 0.7, // 70% opacity
   gradient: {
     enabled: false,
     type: 'linear',
     direction: 0,
     colors: [
-      { color: '#3b82f6', position: 0 },
-      { color: '#1d4ed8', position: 1 }
+      { color: '#e5e7eb', position: 0 },
+      { color: '#d1d5db', position: 1 }
     ]
   },
   // Stroke/Border styling
-  strokeColor: '#1d4ed8', // Darker blue
+  strokeColor: '#374151', // Dark gray color
   strokeWidth: 2,
-  strokeOpacity: 1,
+  strokeOpacity: 1, // 100% opacity
   strokeStyle: 'solid',
   // Shape-specific styling
   borderRadius: 8, // For rectangles
