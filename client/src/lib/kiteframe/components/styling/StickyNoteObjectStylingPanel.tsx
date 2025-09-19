@@ -1,6 +1,7 @@
 import React from 'react';
 import { ColorPickerControl } from './ColorPickerControl';
 import { SliderControl } from './SliderControl';
+import { FigJamFontSizeSelector } from '../../../../components/FigJamFontSizeSelector';
 import { DropdownControl } from './DropdownControl';
 import { ToggleGroupControl } from './ToggleGroupControl';
 import { colorPresets, getOptimalTextColor } from '../../utils/colorUtils';
@@ -101,13 +102,10 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
           data-testid="sticky-font-family"
         />
 
-        <SliderControl
+        <FigJamFontSizeSelector
           label="Font Size"
           value={data.fontSize || 14}
           onChange={(value) => onUpdate({ fontSize: value })}
-          min={8}
-          max={24}
-          unit="px"
           data-testid="sticky-font-size"
         />
 

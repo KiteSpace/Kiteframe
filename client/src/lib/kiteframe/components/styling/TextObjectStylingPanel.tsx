@@ -1,6 +1,7 @@
 import React from 'react';
 import { ColorPickerControl } from './ColorPickerControl';
 import { SliderControl } from './SliderControl';
+import { FigJamFontSizeSelector } from '../../../../components/FigJamFontSizeSelector';
 import { DropdownControl } from './DropdownControl';
 import { ToggleGroupControl } from './ToggleGroupControl';
 import { colorPresets } from '../../utils/colorUtils';
@@ -70,13 +71,10 @@ export const TextObjectStylingPanel: React.FC<TextObjectStylingPanelProps> = ({
           data-testid="text-font-family"
         />
 
-        <SliderControl
+        <FigJamFontSizeSelector
           label="Font Size"
           value={data.fontSize || 16}
           onChange={(value) => onUpdate({ fontSize: value })}
-          min={8}
-          max={72}
-          unit="px"
           data-testid="text-font-size"
         />
 
