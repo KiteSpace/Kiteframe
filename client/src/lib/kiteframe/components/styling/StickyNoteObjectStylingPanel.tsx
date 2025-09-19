@@ -6,17 +6,21 @@ import { DropdownControl } from './DropdownControl';
 import { ToggleGroupControl } from './ToggleGroupControl';
 import { colorPresets, getOptimalTextColor } from '../../utils/colorUtils';
 import { StickyNoteData } from '../../types';
-import { StickyNote, AlignLeft, AlignCenter, AlignRight, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd } from 'lucide-react';
+import { partialResetHelpers } from '../../constants/defaults';
+import { Button } from '../../../../components/ui/button';
+import { StickyNote, AlignLeft, AlignCenter, AlignRight, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, RotateCcw } from 'lucide-react';
 import { getAvailableWeightOptions, findFallbackWeight, GOOGLE_FONTS, loadGoogleFont } from '../../../../lib/fontUtils';
 
 interface StickyNoteObjectStylingPanelProps {
   data: StickyNoteData;
   onUpdate: (updates: Partial<StickyNoteData>) => void;
+  onResetToDefaults?: () => void;
 }
 
 export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanelProps> = ({
   data,
-  onUpdate
+  onUpdate,
+  onResetToDefaults
 }) => {
   const fontFamilyOptions = GOOGLE_FONTS.map(font => ({
     value: font.value,
@@ -103,12 +107,35 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
     onUpdate(updates);
   };
 
+  // Handle reset to defaults with content preservation
+  const handleResetToDefaults = () => {
+    if (onResetToDefaults) {
+      onResetToDefaults();
+    } else {
+      // Use partial reset to preserve text content while resetting styling
+      const stylingReset = partialResetHelpers.sticky(data);
+      onUpdate(stylingReset);
+    }
+  };
+
   return (
     <div className="space-y-4 p-4">
-      <h4 className="text-sm font-semibold flex items-center gap-2">
-        <StickyNote size={16} />
-        Sticky Note Styling
-      </h4>
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold flex items-center gap-2">
+          <StickyNote size={16} />
+          Sticky Note Styling
+        </h4>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleResetToDefaults}
+          className="h-8 px-2 text-xs"
+          data-testid="sticky-reset-button"
+        >
+          <RotateCcw className="w-3 h-3 mr-1" />
+          Reset
+        </Button>
+      </div>
 
       {/* Typography Section */}
       <div className="space-y-3">

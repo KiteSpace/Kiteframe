@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { GoogleFontsSelector } from './GoogleFontsSelector';
 import FigmaStyleColorPicker from './FigmaStyleColorPicker';
 import { getAvailableWeightOptions, findFallbackWeight } from '@/lib/fontUtils';
+import { DEFAULT_TEXT_NODE_DATA } from '@/lib/kiteframe/constants/defaults';
 import { 
   AlignLeft, 
   AlignCenter, 
@@ -16,7 +17,8 @@ import {
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
   Underline,
-  Type
+  Type,
+  RotateCcw
 } from 'lucide-react';
 
 interface TypographyPanelProps {
@@ -28,6 +30,8 @@ interface TypographyPanelProps {
   textAlign?: string;
   textDecoration?: string;
   verticalAlign?: string;
+  lineHeight?: number;
+  letterSpacing?: number;
   onTextContentChange: (value: string) => void;
   onFontSizeChange: (value: number) => void;
   onFontFamilyChange: (value: string) => void;
@@ -36,6 +40,9 @@ interface TypographyPanelProps {
   onTextAlignChange?: (value: string) => void;
   onTextDecorationChange?: (value: string) => void;
   onVerticalAlignChange?: (value: string) => void;
+  onLineHeightChange?: (value: number) => void;
+  onLetterSpacingChange?: (value: number) => void;
+  onResetToDefaults?: () => void;
   className?: string;
 }
 
@@ -59,6 +66,8 @@ export const TypographyPanel = ({
   textAlign = 'left',
   textDecoration = 'none',
   verticalAlign = 'top',
+  lineHeight = 1.4,
+  letterSpacing = 0,
   onTextContentChange,
   onFontSizeChange,
   onFontFamilyChange,
@@ -67,6 +76,9 @@ export const TypographyPanel = ({
   onTextAlignChange,
   onTextDecorationChange,
   onVerticalAlignChange,
+  onLineHeightChange,
+  onLetterSpacingChange,
+  onResetToDefaults,
   className = ''
 }: TypographyPanelProps) => {
   const [showCustomSize, setShowCustomSize] = useState(false);
@@ -125,12 +137,44 @@ export const TypographyPanel = ({
     }
   }, [fontWeight, onFontFamilyChange, onFontWeightChange]);
 
+  // Handle reset to defaults - now includes all typography properties
+  const handleResetToDefaults = useCallback(() => {
+    if (onResetToDefaults) {
+      onResetToDefaults();
+    } else {
+      // Fallback to individual property resets if no unified reset handler
+      const defaults = DEFAULT_TEXT_NODE_DATA;
+      onTextContentChange(defaults.text);
+      onFontSizeChange(defaults.fontSize);
+      onFontFamilyChange(defaults.fontFamily);
+      onFontWeightChange(defaults.fontWeight);
+      onTextColorChange(defaults.textColor);
+      onTextAlignChange?.(defaults.textAlign);
+      onTextDecorationChange?.(defaults.textDecoration);
+      onVerticalAlignChange?.(defaults.verticalAlign || 'top');
+      onLineHeightChange?.(defaults.lineHeight);
+      onLetterSpacingChange?.(defaults.letterSpacing);
+    }
+  }, [onResetToDefaults, onTextContentChange, onFontSizeChange, onFontFamilyChange, onFontWeightChange, onTextColorChange, onTextAlignChange, onTextDecorationChange, onVerticalAlignChange, onLineHeightChange, onLetterSpacingChange]);
+
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Typography Header */}
-      <div className="flex items-center gap-2">
-        <Type className="w-4 h-4" />
-        <h3 className="text-sm font-semibold">Typography</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Type className="w-4 h-4" />
+          <h3 className="text-sm font-semibold">Typography</h3>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleResetToDefaults}
+          className="h-8 px-2 text-xs"
+          data-testid="typography-reset-button"
+        >
+          <RotateCcw className="w-3 h-3 mr-1" />
+          Reset
+        </Button>
       </div>
 
       {/* Text Content */}

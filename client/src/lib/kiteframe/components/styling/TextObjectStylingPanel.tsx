@@ -6,17 +6,21 @@ import { DropdownControl } from './DropdownControl';
 import { ToggleGroupControl } from './ToggleGroupControl';
 import { colorPresets } from '../../utils/colorUtils';
 import { TextNodeData } from '../../types';
-import { Type, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-react';
+import { partialResetHelpers } from '../../constants/defaults';
+import { Button } from '../../../../components/ui/button';
+import { Type, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, AlignJustify, RotateCcw } from 'lucide-react';
 import { getAvailableWeightOptions, findFallbackWeight, GOOGLE_FONTS, loadGoogleFont } from '../../../../lib/fontUtils';
 
 interface TextObjectStylingPanelProps {
   data: TextNodeData;
   onUpdate: (updates: Partial<TextNodeData>) => void;
+  onResetToDefaults?: () => void;
 }
 
 export const TextObjectStylingPanel: React.FC<TextObjectStylingPanelProps> = ({
   data,
-  onUpdate
+  onUpdate,
+  onResetToDefaults
 }) => {
   const fontFamilyOptions = GOOGLE_FONTS.map(font => ({
     value: font.value,
@@ -42,6 +46,17 @@ export const TextObjectStylingPanel: React.FC<TextObjectStylingPanelProps> = ({
     onUpdate(updates);
   };
 
+  // Handle reset to defaults with content preservation
+  const handleResetToDefaults = () => {
+    if (onResetToDefaults) {
+      onResetToDefaults();
+    } else {
+      // Use partial reset to preserve label and text content while resetting styling
+      const stylingReset = partialResetHelpers.text(data);
+      onUpdate(stylingReset);
+    }
+  };
+
   const textAlignOptions = [
     { value: 'left', label: 'Left', icon: <AlignLeft size={14} /> },
     { value: 'center', label: 'Center', icon: <AlignCenter size={14} /> },
@@ -62,10 +77,22 @@ export const TextObjectStylingPanel: React.FC<TextObjectStylingPanelProps> = ({
 
   return (
     <div className="space-y-4 p-4">
-      <h4 className="text-sm font-semibold flex items-center gap-2">
-        <Type size={16} />
-        Text Styling
-      </h4>
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold flex items-center gap-2">
+          <Type size={16} />
+          Text Styling
+        </h4>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleResetToDefaults}
+          className="h-8 px-2 text-xs"
+          data-testid="text-reset-button"
+        >
+          <RotateCcw className="w-3 h-3 mr-1" />
+          Reset
+        </Button>
+      </div>
 
       {/* Typography Section */}
       <div className="space-y-3">
