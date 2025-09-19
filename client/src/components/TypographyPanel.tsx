@@ -11,9 +11,9 @@ import {
   AlignCenter, 
   AlignRight, 
   AlignJustify,
-  AlignVerticalSpaceAround,
-  AlignVerticalSpaceBetween,
-  AlignVerticalDistributeStart,
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
   Underline,
   Type
 } from 'lucide-react';
@@ -301,9 +301,9 @@ export const TypographyPanel = ({
           <Label className="text-xs font-medium">Vertical Alignment</Label>
           <div className="flex gap-1">
             {[
-              { value: 'top', icon: AlignVerticalDistributeStart, label: 'Top' },
-              { value: 'middle', icon: AlignVerticalSpaceAround, label: 'Middle' },
-              { value: 'bottom', icon: AlignVerticalSpaceBetween, label: 'Bottom' }
+              { value: 'top', icon: AlignVerticalJustifyStart, label: 'Top' },
+              { value: 'middle', icon: AlignVerticalJustifyCenter, label: 'Middle' },
+              { value: 'bottom', icon: AlignVerticalJustifyEnd, label: 'Bottom' }
             ].map((align) => {
               const IconComponent = align.icon;
               return (

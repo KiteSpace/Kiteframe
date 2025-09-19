@@ -165,8 +165,12 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
           <X className="w-3 h-3" />
         </button>
 
-        {/* Content area */}
-        <div className="p-4 pt-8 h-full">
+        {/* Content area with vertical alignment */}
+        <div className="p-4 pt-8 h-full" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: node.data.verticalAlign === 'middle' ? 'center' : node.data.verticalAlign === 'bottom' ? 'flex-end' : 'flex-start'
+        }}>
           {isEditing ? (
             <textarea
               ref={textareaRef}
@@ -175,7 +179,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
               onBlur={handleBlur}
               onKeyDown={handleKeyDown}
               placeholder="Write your note..."
-              className="w-full h-full bg-transparent border-none outline-none resize-none placeholder-current placeholder-opacity-60 leading-relaxed"
+              className="w-full bg-transparent border-none outline-none resize-none placeholder-current placeholder-opacity-60 leading-relaxed"
               style={{
                 fontSize: node.data.fontSize || 14,
                 fontFamily: node.data.fontFamily || 'Inter, system-ui, sans-serif',
@@ -183,13 +187,16 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
                 fontWeight: node.data.fontWeight || 'normal',
                 textAlign: node.data.textAlign || 'left',
                 lineHeight: node.data.lineHeight || 1.4,
-                color: getTextColor()
+                color: getTextColor(),
+                minHeight: 'auto',
+                height: 'auto',
+                flex: node.data.verticalAlign === 'middle' || node.data.verticalAlign === 'bottom' ? '0 0 auto' : '1 1 auto'
               }}
               data-testid="sticky-note-textarea"
             />
           ) : (
             <div
-              className="w-full h-full cursor-text leading-relaxed whitespace-pre-wrap break-words"
+              className="w-full cursor-text leading-relaxed whitespace-pre-wrap break-words"
               onClick={handleClick}
               onDoubleClick={handleDoubleClick}
               style={{
@@ -198,7 +205,8 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
                 fontStyle: node.data.fontStyle || 'normal',
                 fontWeight: node.data.fontWeight || 'normal',
                 textAlign: node.data.textAlign || 'left',
-                lineHeight: node.data.lineHeight || 1.4
+                lineHeight: node.data.lineHeight || 1.4,
+                flex: node.data.verticalAlign === 'middle' || node.data.verticalAlign === 'bottom' ? '0 0 auto' : '1 1 auto'
               }}
               data-testid="sticky-note-content"
             >

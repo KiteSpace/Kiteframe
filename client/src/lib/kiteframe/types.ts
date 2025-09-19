@@ -333,6 +333,7 @@ export interface StickyNoteData {
   fontWeight: 'normal' | 'medium' | 'semibold' | 'bold';
   fontStyle: 'normal' | 'italic';
   textAlign: 'left' | 'center' | 'right' | 'justify';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
   textDecoration: 'none' | 'underline' | 'line-through';
   lineHeight?: number;
   // Color styling

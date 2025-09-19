@@ -10,6 +10,7 @@ export interface CanvasTextData {
   fontFamily?: string;
   fontWeight?: 'light' | 'normal' | 'medium' | 'semibold' | 'bold' | 'extrabold';
   textAlign?: 'left' | 'center' | 'right';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
   color?: string;
   backgroundColor?: string;
   width?: number;
@@ -194,6 +195,27 @@ export function CanvasText({
   // Calculate actual text dimensions
   const actualWidth = data.width || Math.max(100, (data.text.length * (data.fontSize || 16) * 0.6));
   const actualHeight = data.height || Math.max(24, Math.ceil(data.text.split('\n').length * (data.fontSize || 16) * 1.2));
+  
+  // Calculate text height based on content and font size
+  const textHeight = Math.ceil(data.text.split('\n').length * (data.fontSize || 16) * 1.2);
+  
+  // Get flexbox justifyContent value based on vertical alignment
+  const getFlexJustifyContent = () => {
+    const verticalAlign = data.verticalAlign || 'top';
+    
+    switch (verticalAlign) {
+      case 'top':
+        return 'flex-start';
+      case 'middle':
+        return 'center';
+      case 'bottom':
+        return 'flex-end';
+      default:
+        return 'flex-start';
+    }
+  };
+  
+  const flexJustifyContent = getFlexJustifyContent();
 
   // Get adaptive text color - theme-aware by default
   const getDefaultTextColor = () => {
@@ -203,26 +225,37 @@ export function CanvasText({
   
   const finalTextColor = data.color || getDefaultTextColor();
 
-  const style: React.CSSProperties = {
+  // Wrapper style - positioned at exact data.position.y with flexbox for internal alignment
+  const wrapperStyle: React.CSSProperties = {
     position: 'absolute',
     left: data.position.x * viewport.zoom + viewport.x,
     top: data.position.y * viewport.zoom + viewport.y,
-    fontSize: (data.fontSize || 16) * viewport.zoom,
-    fontFamily: data.fontFamily || 'Inter, system-ui, sans-serif',
-    fontWeight: getFontWeightCSS(data.fontWeight || 'normal'),
-    textAlign: data.textAlign || 'left',
-    color: finalTextColor,
     width: actualWidth * viewport.zoom,
     height: actualHeight * viewport.zoom,
     cursor: isDragging ? 'grabbing' : 'grab',
     userSelect: isEditing ? 'text' : 'none',
     pointerEvents: 'auto',
-    backgroundColor: data.backgroundColor || 'transparent'
+    backgroundColor: data.backgroundColor || 'transparent',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: flexJustifyContent
+  };
+  
+  // Text content style - for internal text styling
+  const textStyle: React.CSSProperties = {
+    fontSize: (data.fontSize || 16) * viewport.zoom,
+    fontFamily: data.fontFamily || 'Inter, system-ui, sans-serif',
+    fontWeight: getFontWeightCSS(data.fontWeight || 'normal'),
+    textAlign: data.textAlign || 'left',
+    color: finalTextColor,
+    lineHeight: '1.2',
+    margin: 0,
+    padding: 0
   };
 
   if (isEditing) {
     return (
-      <div style={style} className="pointer-events-auto z-10">
+      <div style={wrapperStyle} className="pointer-events-auto z-10">
         <textarea
           ref={textRef}
           value={editText}
@@ -235,17 +268,12 @@ export function CanvasText({
             "focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
           )}
           style={{
-            fontSize: (data.fontSize || 16) * viewport.zoom,
-            fontFamily: data.fontFamily || 'Inter, system-ui, sans-serif',
-            fontWeight: getFontWeightCSS(data.fontWeight || 'normal'),
-            textAlign: data.textAlign || 'left',
-            color: finalTextColor,
-            width: actualWidth * viewport.zoom,
-            height: actualHeight * viewport.zoom,
-            minWidth: actualWidth * viewport.zoom,
-            minHeight: actualHeight * viewport.zoom,
+            ...textStyle,
+            width: '100%',
+            minHeight: textHeight * viewport.zoom,
+            maxHeight: actualHeight * viewport.zoom,
             overflow: 'hidden',
-            lineHeight: '1.2'
+            backgroundColor: 'transparent'
           }}
           data-testid="canvas-text-textarea"
         />
@@ -256,7 +284,7 @@ export function CanvasText({
   return (
     <div
       ref={containerRef}
-      style={style}
+      style={wrapperStyle}
       className={cn(
         "pointer-events-auto select-none z-10",
         data.selected ? 'ring-2 ring-blue-500 ring-opacity-50' : '',
@@ -266,11 +294,13 @@ export function CanvasText({
       onClick={handleClick}
       data-testid="canvas-text-display"
     >
-      {data.text || (
-        <span className="text-gray-400 italic text-sm">
-          Click to edit...
-        </span>
-      )}
+      <div style={textStyle}>
+        {data.text || (
+          <span className="text-gray-400 italic text-sm">
+            Click to edit...
+          </span>
+        )}
+      </div>
 
       {/* URL Popover */}
       {showUrlPopover && data.url && (
