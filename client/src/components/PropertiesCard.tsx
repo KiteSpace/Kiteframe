@@ -11,6 +11,7 @@ import { TabbedColorPicker, ColorProperty } from '@/components/TabbedColorPicker
 import { ColorPickerControl } from '@/lib/kiteframe/components/styling/ColorPickerControl';
 import { DropdownControl } from '@/lib/kiteframe/components/styling/DropdownControl';
 import FillStrokeColorPicker from '@/components/FillStrokeColorPicker';
+import { TypographyPanel } from '@/components/TypographyPanel';
 
 interface PropertiesCardProps {
   selectedNode?: Node;
@@ -361,92 +362,57 @@ export function PropertiesCard({
           <>
             {/* Text Object Properties */}
             {selectedCanvasObject.type === 'text' && (
-              <>
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Text Content</Label>
-                  <Input
-                    value={selectedCanvasObject.data?.text || ''}
-                    onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                      data: {
-                        ...selectedCanvasObject.data,
-                        text: e.target.value
-                      }
-                    })}
-                    className="text-sm"
-                    placeholder="Text content..."
-                    data-testid="text-content-input"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Font Size</Label>
-                  <Input
-                    type="number"
-                    value={selectedCanvasObject.data?.fontSize || 16}
-                    onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                      data: {
-                        ...selectedCanvasObject.data,
-                        fontSize: Number(e.target.value)
-                      }
-                    })}
-                    className="text-sm"
-                    min="8"
-                    max="72"
-                    data-testid="font-size-input"
-                  />
-                </div>
-
-                <ColorPickerControl
-                  label="Text Color"
-                  value={selectedCanvasObject.data?.textColor || '#000000'}
-                  onChange={(color) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                    data: {
-                      ...selectedCanvasObject.data,
-                      textColor: color
-                    }
-                  })}
-                  data-testid="text-color"
-                />
-
-                <DropdownControl
-                  label="Font Family"
-                  value={selectedCanvasObject.data?.fontFamily || 'Inter'}
-                  options={[
-                    { value: 'Inter', label: 'Inter' },
-                    { value: 'Arial', label: 'Arial' },
-                    { value: 'Times New Roman', label: 'Times New Roman' },
-                    { value: 'Courier New', label: 'Courier New' },
-                    { value: 'Georgia', label: 'Georgia' },
-                    { value: 'Verdana', label: 'Verdana' },
-                    { value: 'Helvetica', label: 'Helvetica' }
-                  ]}
-                  onChange={(value) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                    data: {
-                      ...selectedCanvasObject.data,
-                      fontFamily: value
-                    }
-                  })}
-                  data-testid="text-font-family"
-                />
-
-                <DropdownControl
-                  label="Font Weight"
-                  value={selectedCanvasObject.data?.fontWeight || 'normal'}
-                  options={[
-                    { value: 'normal', label: 'Normal' },
-                    { value: 'medium', label: 'Medium' },
-                    { value: 'semibold', label: 'Semibold' },
-                    { value: 'bold', label: 'Bold' }
-                  ]}
-                  onChange={(value) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                    data: {
-                      ...selectedCanvasObject.data,
-                      fontWeight: value
-                    }
-                  })}
-                  data-testid="text-font-weight"
-                />
-              </>
+              <TypographyPanel
+                textContent={selectedCanvasObject.data?.text || ''}
+                fontSize={selectedCanvasObject.data?.fontSize || 16}
+                fontFamily={selectedCanvasObject.data?.fontFamily || 'Inter'}
+                fontWeight={selectedCanvasObject.data?.fontWeight || 'normal'}
+                textColor={selectedCanvasObject.data?.textColor || '#000000'}
+                textAlign={selectedCanvasObject.data?.textAlign}
+                textDecoration={selectedCanvasObject.data?.textDecoration}
+                onTextContentChange={(value) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                  data: {
+                    ...selectedCanvasObject.data,
+                    text: value
+                  }
+                })}
+                onFontSizeChange={(value) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                  data: {
+                    ...selectedCanvasObject.data,
+                    fontSize: value
+                  }
+                })}
+                onFontFamilyChange={(value) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                  data: {
+                    ...selectedCanvasObject.data,
+                    fontFamily: value
+                  }
+                })}
+                onFontWeightChange={(value) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                  data: {
+                    ...selectedCanvasObject.data,
+                    fontWeight: value
+                  }
+                })}
+                onTextColorChange={(color) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                  data: {
+                    ...selectedCanvasObject.data,
+                    textColor: color
+                  }
+                })}
+                onTextAlignChange={(value) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                  data: {
+                    ...selectedCanvasObject.data,
+                    textAlign: value
+                  }
+                })}
+                onTextDecorationChange={(value) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                  data: {
+                    ...selectedCanvasObject.data,
+                    textDecoration: value
+                  }
+                })}
+              />
             )}
 
             {/* Sticky Note Properties */}
