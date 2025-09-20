@@ -418,7 +418,7 @@ export function PropertiesCard({
 
                 <FillStrokeColorPicker
                   fillColor={selectedCanvasObject.data?.backgroundColor || '#fef3c7'}
-                  fillOpacity={selectedCanvasObject.data?.backgroundOpacity ?? 100}
+                  fillOpacity={selectedCanvasObject.data?.backgroundOpacity !== undefined ? selectedCanvasObject.data.backgroundOpacity * 100 : 100}
                   onFillColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                     data: {
                       ...selectedCanvasObject.data,
@@ -428,11 +428,11 @@ export function PropertiesCard({
                   onFillOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                     data: {
                       ...selectedCanvasObject.data,
-                      backgroundOpacity: val
+                      backgroundOpacity: val / 100
                     }
                   })}
                   strokeColor={selectedCanvasObject.data?.borderColor || '#d97706'}
-                  strokeOpacity={selectedCanvasObject.data?.borderOpacity ?? 100}
+                  strokeOpacity={selectedCanvasObject.data?.borderOpacity !== undefined ? selectedCanvasObject.data.borderOpacity * 100 : 100}
                   onStrokeColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                     data: {
                       ...selectedCanvasObject.data,
@@ -442,7 +442,7 @@ export function PropertiesCard({
                   onStrokeOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                     data: {
                       ...selectedCanvasObject.data,
-                      borderOpacity: val
+                      borderOpacity: val / 100
                     }
                   })}
                   testIdScope="sticky-colors"
