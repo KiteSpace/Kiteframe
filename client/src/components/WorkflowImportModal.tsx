@@ -10,7 +10,7 @@ import { Upload, FileText, Bot, Loader2, AlertTriangle, CheckCircle2 } from 'luc
 
 interface WorkflowImportModalProps {
   onClose: () => void;
-  onImport: (nodes: Node[], edges: Edge[], viewport?: { x: number; y: number; zoom: number }, workflowName?: string) => void;
+  onImport: (importData: { nodes: Node[], edges: Edge[], viewport?: { x: number; y: number; zoom: number }, workflowName?: string }) => void;
 }
 
 interface ValidationResult {
@@ -221,7 +221,7 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
       
       // Allow close after successful import
       setAllowClose(true);
-      onImport(nodes, edges, viewport, workflowName);
+      onImport({ nodes, edges, viewport, workflowName });
       
       toast({
         title: "Import Successful",
