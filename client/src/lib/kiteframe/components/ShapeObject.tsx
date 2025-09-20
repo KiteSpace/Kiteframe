@@ -1,9 +1,9 @@
 import React, { useRef, useCallback, useState } from 'react';
 import { ResizeHandle } from './ResizeHandle';
 import { EmojiReactions } from './EmojiReactions';
-import { InlineTextEditor } from './InlineTextEditor';
+// import { InlineTextEditor } from './InlineTextEditor'; // Disabled for shapes
 import type { CanvasObject, ShapeNodeData } from '../types';
-import { getInnerTextRect } from '../utils/geometry';
+import { DISABLE_SHAPE_TEXT } from '../constants/defaults';
 import { cn } from '@/lib/utils';
 
 interface ShapeObjectProps {
@@ -34,7 +34,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   selectedCanvasObjectCount = 0
 }) => {
   const objectRef = useRef<HTMLDivElement>(null);
-  const [isEditingText, setIsEditingText] = useState(false);
+  // Text editing disabled for shapes\n  // const [isEditingText, setIsEditingText] = useState(false);
   // Use style dimensions if available, otherwise fall back to object dimensions
   const shapeSize = {
     width: object.style?.width || object.width || 200,
@@ -337,17 +337,21 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       onMouseDown={handleMouseDown}
       onClick={onClick}
       onDoubleClick={(e) => {
-        console.log('🖱️ SHAPE OBJECT: Double click - entering text edit mode', {
-          objectId: object.id,
-          shapeType: object.data.shapeType,
-          currentText: object.data.text,
-          shapeSize,
-          isCurrentlyEditing: isEditingText
-        });
+        // Text editing disabled for shapes
+        if (DISABLE_SHAPE_TEXT) {
+          console.log('⚠️ SHAPE OBJECT: Text editing disabled for shapes', {
+            objectId: object.id,
+            shapeType: object.data.shapeType
+          });
+          e.preventDefault();
+          e.stopPropagation();
+          onDoubleClick?.(e);
+          return;
+        }
         
+        // Legacy text editing code (disabled)
         e.preventDefault();
         e.stopPropagation();
-        setIsEditingText(true);
         onDoubleClick?.(e);
       }}
       onContextMenu={(e) => {
@@ -360,9 +364,9 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       <div className="w-full h-full relative">
         {renderShape()}
         
-        {/* Text content overlay - shape-aware positioning */}
+        {/* Text content disabled for shapes */}
         {(() => {
-          if (isEditingText || !object.data.text) return null;
+          if (DISABLE_SHAPE_TEXT || !object.data.text) return null;
           
           // Calculate inner text area for the specific shape type
           const innerRect = getInnerTextRect(
@@ -445,8 +449,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
           );
         })()}
         
-        {/* Text editor overlay */}
-        {isEditingText && (
+        {/* Text editor disabled for shapes */}
+        {!DISABLE_SHAPE_TEXT && false && (
           <div className="absolute inset-0 flex items-center justify-center p-2">
             <InlineTextEditor
               initialValue={object.data.text || ''}
