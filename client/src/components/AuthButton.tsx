@@ -97,30 +97,24 @@ export function AuthButton() {
     return (
       <div className="flex items-center space-x-2">
         <button
-          onClick={() => {
-            const currentUrl = window.location.href;
-            window.open(currentUrl, '_blank', 'noopener,noreferrer');
-          }}
-          className="flex items-center space-x-1 px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium transition-colors"
+          disabled
+          className="flex items-center space-x-1 px-3 py-1.5 rounded-md bg-muted text-muted-foreground cursor-not-allowed text-sm font-medium transition-colors"
           data-testid="button-open-in-tab"
-          title="Open in external browser tab to sign in with Google"
+          title="Profiles coming soon"
         >
-          <ExternalLink size={16} />
-          <span>Open to Sign In</span>
+          <LogIn size={16} />
+          <span>Sign In</span>
         </button>
-        <div className="text-xs text-muted-foreground max-w-48">
-          Opens in browser where Google Auth works
-        </div>
       </div>
     );
   }
 
   return (
     <button
-      onClick={signIn}
-      className="flex items-center space-x-1 px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-colors"
+      disabled
+      className="flex items-center space-x-1 px-3 py-1.5 rounded-md bg-muted text-muted-foreground cursor-not-allowed text-sm font-medium transition-colors"
       data-testid="button-sign-in"
-      title="Sign in with Google"
+      title="Profiles coming soon"
     >
       <LogIn size={16} />
       <span>Sign In</span>
