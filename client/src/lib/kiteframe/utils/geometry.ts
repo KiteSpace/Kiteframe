@@ -90,23 +90,23 @@ export function getInnerTextRect(
     }
 
     case 'circle': {
-      // For circle, use the largest centered square that fits inside
-      // r = min(width, height) / 2 - stroke/2
-      // inner square side = r * sqrt(2) ≈ r * 1.414 ≈ 0.7071 * diameter
+      // Balanced circle calculation with proper clip-path
       const diameter = Math.min(width, height) - effectiveStroke * 2;
       const radius = diameter / 2;
-      const innerSquareSide = radius * Math.sqrt(2) - totalPadding * 2;
+      // Use 80% of inscribed square for good text space without bleeding
+      const innerSquareSide = Math.max(0, radius * Math.sqrt(2) * 0.8 - padding);
       
       console.log('⭕ GEOMETRY: Circle calculation steps', {
         input: { width, height },
         diameter,
         radius,
         innerSquareSideBeforeCheck: innerSquareSide,
-        sqrtOf2: Math.sqrt(2),
-        totalPadding
+        totalPadding,
+        approach: '80% of inscribed square for balance',
+        version: 'FIXED_v2.0'
       });
       
-      if (innerSquareSide <= 0) {
+      if (innerSquareSide <= 20) { // Minimum usable text area
         console.log('🚫 GEOMETRY: Circle inner square too small', { innerSquareSide });
         return null;
       }
@@ -120,6 +120,7 @@ export function getInnerTextRect(
         y: centerY - halfSide,
         width: innerSquareSide,
         height: innerSquareSide,
+        // Proper clip-path that matches text area
         clipPath: `circle(${radius}px at ${centerX}px ${centerY}px)`
       };
       
@@ -129,42 +130,43 @@ export function getInnerTextRect(
         reductionPercent: {
           width: Math.round(((width - innerSquareSide) / width) * 100),
           height: Math.round(((height - innerSquareSide) / height) * 100)
-        }
+        },
+        improvement: 'Balanced approach with proper clip-path'
       });
       
       return result;
     }
 
     case 'triangle': {
-      // Conservative inner rectangle for isosceles triangle (apex top, base bottom)
-      // Use 60% width, 50% height to avoid edge intrusion
-      const innerWidth = Math.max(0, width * 0.6 - totalPadding * 2);
-      const innerHeight = Math.max(0, height * 0.5 - totalPadding * 2);
+      // Balanced triangle calculation - 70% width, 60% height with proper clipping
+      const innerWidth = Math.max(0, width * 0.7 - totalPadding * 2);
+      const innerHeight = Math.max(0, height * 0.6 - totalPadding * 2);
       
-      if (innerWidth <= 0 || innerHeight <= 0) return null;
+      if (innerWidth <= 20 || innerHeight <= 15) return null;
       
       return {
         x: (width - innerWidth) / 2,
-        y: (height - innerHeight) / 2 + height * 0.05, // Slight bias downward
+        y: (height - innerHeight) / 2 + height * 0.1, // Center with slight downward bias
         width: innerWidth,
         height: innerHeight,
+        // Proper triangle clip-path to prevent text bleeding
         clipPath: `polygon(50% 0%, 0% 100%, 100% 100%)`
       };
     }
 
     case 'hexagon': {
-      // Regular hexagon with flat top
-      // Use 80% width, 70% height for safe inner area
-      const innerWidth = Math.max(0, width * 0.8 - totalPadding * 2);
-      const innerHeight = Math.max(0, height * 0.7 - totalPadding * 2);
+      // Balanced hexagon calculation - 85% width, 75% height with proper clipping
+      const innerWidth = Math.max(0, width * 0.85 - totalPadding * 2);
+      const innerHeight = Math.max(0, height * 0.75 - totalPadding * 2);
       
-      if (innerWidth <= 0 || innerHeight <= 0) return null;
+      if (innerWidth <= 20 || innerHeight <= 15) return null;
       
       return {
         x: (width - innerWidth) / 2,
         y: (height - innerHeight) / 2,
         width: innerWidth,
         height: innerHeight,
+        // Proper hexagon clip-path to prevent text bleeding
         clipPath: `polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)`
       };
     }

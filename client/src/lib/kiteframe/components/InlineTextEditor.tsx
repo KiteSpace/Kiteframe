@@ -35,6 +35,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   const [isEditing, setIsEditing] = useState(true);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const originalValueRef = useRef(initialValue);
+  const savedRef = useRef(false); // Prevent double saves
 
   console.log('📝 TEXT EDITOR: Component mounted', {
     initialValue,
@@ -54,50 +55,75 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
-        console.log('🖱️ TEXT EDITOR: Click outside detected', {
+      // More robust outside click detection
+      const target = event.target as Element;
+      const inputElement = inputRef.current;
+      
+      console.log('🖱️ TEXT EDITOR: Click event detected', {
+        target: target?.tagName || 'unknown',
+        targetClass: target?.className || 'none',
+        inputElement: inputElement?.tagName || 'none',
+        inputClass: inputElement?.className || 'none',
+        isEditing,
+        currentValue: value
+      });
+      
+      if (inputElement && target && !inputElement.contains(target)) {
+        console.log('🖱️ TEXT EDITOR: Click outside detected - triggering save', {
           currentValue: value,
           originalValue: originalValueRef.current,
-          target: event.target,
-          inputElement: inputRef.current,
-          isEditing
+          isEditing,
+          willSave: isEditing
         });
         
-        // Add a small delay to ensure event propagation is complete
-        setTimeout(() => {
+        // Immediate save without timeout to avoid race conditions
+        if (isEditing && !savedRef.current) {
           handleSave();
-        }, 0);
+        }
       }
     };
 
     const handleEscape = (event: KeyboardEvent) => {
+      console.log('⌨️ TEXT EDITOR: Escape key detected in document listener');
       if (event.key === 'Escape') {
         handleCancel();
       }
     };
 
     if (isEditing) {
-      document.addEventListener('mousedown', handleClickOutside);
+      // Use capture phase to catch events before they're handled by other elements
+      document.addEventListener('mousedown', handleClickOutside, true);
       document.addEventListener('keydown', handleEscape);
+      
+      console.log('👂 TEXT EDITOR: Event listeners attached', {
+        isEditing,
+        inputRef: !!inputRef.current
+      });
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside, true);
       document.removeEventListener('keydown', handleEscape);
+      
+      if (isEditing) {
+        console.log('🧹 TEXT EDITOR: Event listeners removed');
+      }
     };
-  }, [isEditing]);
+  }, [isEditing, value]);
 
   const handleSave = () => {
-    if (!isEditing) return;
+    if (!isEditing || savedRef.current) return;
     
     console.log('💾 TEXT EDITOR: Save triggered', {
       originalValue: originalValueRef.current,
       currentValue: value,
       trimmedValue: value.trim(),
       wasEditing: isEditing,
+      alreadySaved: savedRef.current,
       source: 'handleSave'
     });
     
+    savedRef.current = true;
     setIsEditing(false);
     onSave(value.trim());
   };
@@ -167,7 +193,13 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
-        onBlur={handleSave}
+        onBlur={() => {
+          // Don't save on blur if document listener is active to prevent double saves
+          if (!savedRef.current) {
+            console.log('💾 TEXT EDITOR: Blur save (backup)');
+            handleSave();
+          }
+        }}
         placeholder={placeholder}
         className={`inline-text-editor ${className}`}
         style={inputStyle}
@@ -184,7 +216,13 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={handleKeyDown}
-      onBlur={handleSave}
+      onBlur={() => {
+        // Don't save on blur if document listener is active to prevent double saves
+        if (!savedRef.current) {
+          console.log('💾 TEXT EDITOR: Blur save (backup)');
+          handleSave();
+        }
+      }}
       placeholder={placeholder}
       className={`inline-text-editor ${className}`}
       style={inputStyle}

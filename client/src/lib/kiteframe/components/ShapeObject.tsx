@@ -35,10 +35,15 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
 }) => {
   const objectRef = useRef<HTMLDivElement>(null);
   const [isEditingText, setIsEditingText] = useState(false);
+  // Use style dimensions if available, otherwise fall back to object dimensions
   const shapeSize = {
     width: object.style?.width || object.width || 200,
     height: object.style?.height || object.height || (object.data?.shapeType === 'rectangle' ? 200 : 100)
   };
+
+  // Check for size mismatch between style and object dimensions
+  const hasSizeMismatch = (object.style?.width && object.style.width !== object.width) || 
+                         (object.style?.height && object.style.height !== object.height);
 
   console.log('📏 SHAPE OBJECT: Size calculations', {
     objectId: object.id,
@@ -49,14 +54,34 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       height: object.height
     },
     styleSize: object.style,
+    sizeMismatch: hasSizeMismatch ? {
+      style: object.style,
+      base: { width: object.width || 200, height: object.height || 100 },
+      difference: {
+        width: (object.style?.width || object.width || 200) - (object.width || 200),
+        height: (object.style?.height || object.height || 100) - (object.height || 100)
+      },
+      needsSync: true
+    } : false,
     hasText: !!object.data.text,
     textContent: object.data.text,
     isSelected: object.selected
   });
 
   const handleResize = useCallback((width: number, height: number) => {
+    console.log('🔄 SHAPE OBJECT: Resize triggered - syncing dimensions', {
+      objectId: object.id,
+      newSize: { width, height },
+      currentBoundingBox: { width: object.width, height: object.height },
+      currentStyle: object.style
+    });
+    
+    // Sync both style and base dimensions to prevent mismatch
+    onUpdate?.({
+      style: { ...object.style, width, height }
+    });
     onResize?.(width, height);
-  }, [onResize]);
+  }, [onResize, onUpdate, object.id, object.width, object.height, object.style]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Start drag if not clicking on resize handle, and only on left-click
