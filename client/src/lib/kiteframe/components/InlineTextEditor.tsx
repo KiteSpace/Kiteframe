@@ -46,7 +46,10 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
-        handleSave();
+        // Add a small delay to ensure event propagation is complete
+        setTimeout(() => {
+          handleSave();
+        }, 0);
       }
     };
 

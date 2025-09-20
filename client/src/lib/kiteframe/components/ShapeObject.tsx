@@ -317,16 +317,31 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
           <div 
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
             style={{
-              color: object.data.textColor || '#374151',
-              fontSize: `${object.data.fontSize || 14}px`,
-              fontFamily: object.data.fontFamily || 'Inter',
-              fontWeight: object.data.fontWeight || 'normal',
-              fontStyle: object.data.fontStyle || 'normal',
-              textAlign: object.data.textAlign || 'center',
               padding: '8px'
             }}
           >
-            <span>{object.data.text}</span>
+            <div
+              style={{
+                color: object.data.textColor || '#374151',
+                fontSize: `${object.data.fontSize || 14}px`,
+                fontFamily: object.data.fontFamily || 'Inter',
+                fontWeight: object.data.fontWeight || 'normal',
+                fontStyle: object.data.fontStyle || 'normal',
+                textAlign: object.data.textAlign || 'center',
+                lineHeight: '1.2',
+                wordWrap: 'break-word',
+                overflowWrap: 'break-word',
+                overflow: 'hidden',
+                display: '-webkit-box' as any,
+                WebkitBoxOrient: 'vertical' as any,
+                WebkitLineClamp: Math.max(1, Math.floor((shapeSize.height - 16) / ((object.data.fontSize || 14) * 1.2))),
+                width: '100%',
+                maxWidth: '100%',
+                maxHeight: `${shapeSize.height - 16}px` // Fallback for non-WebKit browsers
+              }}
+            >
+              {object.data.text}
+            </div>
           </div>
         )}
         
