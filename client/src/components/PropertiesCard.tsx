@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { EdgeProperties } from '@/components/shared/EdgeProperties';
 import FigmaStyleColorPicker from '@/components/FigmaStyleColorPicker';
 import { TabbedColorPicker, ColorProperty } from '@/components/TabbedColorPicker';
@@ -339,7 +341,7 @@ export function PropertiesCard({
                 textContent={selectedCanvasObject.data?.text || ''}
                 fontSize={selectedCanvasObject.data?.fontSize || 16}
                 fontFamily={selectedCanvasObject.data?.fontFamily || 'Inter'}
-                fontWeight={selectedCanvasObject.data?.fontWeight || 'normal'}
+                fontWeight={String(selectedCanvasObject.data?.fontWeight || 'normal')}
                 textColor={selectedCanvasObject.data?.textColor || '#000000'}
                 textAlign={selectedCanvasObject.data?.textAlign}
                 textDecoration={selectedCanvasObject.data?.textDecoration}
@@ -488,7 +490,7 @@ export function PropertiesCard({
 
                 <FillStrokeColorPicker
                   fillColor={selectedCanvasObject.data?.fillColor || '#3b82f6'}
-                  fillOpacity={selectedCanvasObject.data?.fillOpacity ?? 100}
+                  fillOpacity={(selectedCanvasObject.data?.fillOpacity ?? 0.7) * 100}
                   onFillColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                     data: {
                       ...selectedCanvasObject.data,
@@ -498,11 +500,11 @@ export function PropertiesCard({
                   onFillOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                     data: {
                       ...selectedCanvasObject.data,
-                      fillOpacity: val
+                      fillOpacity: val / 100
                     }
                   })}
                   strokeColor={selectedCanvasObject.data?.strokeColor || '#1e40af'}
-                  strokeOpacity={selectedCanvasObject.data?.strokeOpacity ?? 100}
+                  strokeOpacity={(selectedCanvasObject.data?.strokeOpacity ?? 1.0) * 100}
                   onStrokeColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                     data: {
                       ...selectedCanvasObject.data,
@@ -512,11 +514,74 @@ export function PropertiesCard({
                   onStrokeOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                     data: {
                       ...selectedCanvasObject.data,
-                      strokeOpacity: val
+                      strokeOpacity: val / 100
                     }
                   })}
                   testIdScope="shape-colors"
                 />
+
+                {/* Text/Label Input */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Label</Label>
+                  <Input
+                    value={selectedCanvasObject.data?.text || ''}
+                    onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                      data: {
+                        ...selectedCanvasObject.data,
+                        text: e.target.value
+                      }
+                    })}
+                    placeholder="Add text to shape..."
+                    className="text-sm"
+                    data-testid="shape-text-input"
+                  />
+                </div>
+
+                {/* Stroke Style Control */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Stroke Style</Label>
+                  <Select 
+                    value={selectedCanvasObject.data?.strokeStyle || 'solid'}
+                    onValueChange={(value) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                      data: {
+                        ...selectedCanvasObject.data,
+                        strokeStyle: value
+                      }
+                    })}
+                  >
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="Select stroke style" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="solid">Solid</SelectItem>
+                      <SelectItem value="dashed">Dashed</SelectItem>
+                      <SelectItem value="dotted">Dotted</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Stroke Width Control */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label className="text-xs font-medium">Stroke Width</Label>
+                    <span className="text-xs text-muted-foreground">{selectedCanvasObject.data?.strokeWidth ?? 2}px</span>
+                  </div>
+                  <Slider
+                    value={[selectedCanvasObject.data?.strokeWidth ?? 2]}
+                    onValueChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                      data: {
+                        ...selectedCanvasObject.data,
+                        strokeWidth: val[0]
+                      }
+                    })}
+                    min={0}
+                    max={20}
+                    step={1}
+                    className="w-full"
+                    data-testid="shape-stroke-width"
+                  />
+                </div>
               </>
             )}
 
