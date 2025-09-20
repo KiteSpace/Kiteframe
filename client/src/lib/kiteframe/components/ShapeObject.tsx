@@ -339,10 +339,6 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       onDoubleClick={(e) => {
         // Text editing disabled for shapes
         if (DISABLE_SHAPE_TEXT) {
-          console.log('⚠️ SHAPE OBJECT: Text editing disabled for shapes', {
-            objectId: object.id,
-            shapeType: object.data.shapeType
-          });
           e.preventDefault();
           e.stopPropagation();
           onDoubleClick?.(e);

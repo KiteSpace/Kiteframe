@@ -41,21 +41,12 @@ export function getInnerTextRect(
 ): InnerTextRect | null {
   // Early return if shape text is disabled
   if (DISABLE_SHAPE_TEXT && shapeType !== 'line' && shapeType !== 'arrow') {
-    console.log('⚠️ GEOMETRY: Shape text disabled', { shapeType, DISABLE_SHAPE_TEXT });
-    return null;
+      return null;
   }
 
-  console.log('🔧 GEOMETRY: Computing inner text rect', {
-    shapeType,
-    inputDimensions: { width, height },
-    strokeWidth,
-    padding,
-    timestamp: Date.now()
-  });
 
   // Shapes that don't support text
   if (shapeType === 'line' || shapeType === 'arrow') {
-    console.log('🚫 GEOMETRY: Shape does not support text', { shapeType });
     return null;
   }
 
