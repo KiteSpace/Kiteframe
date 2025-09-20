@@ -1,3 +1,5 @@
+import { DISABLE_SHAPE_TEXT } from '../constants/defaults';
+
 export function clamp(v:number, min:number, max:number){ return Math.max(min, Math.min(max, v)); }
 
 export function clientToWorld(clientX:number, clientY:number, viewport:{x:number;y:number;zoom:number}, rect:DOMRect){
@@ -37,6 +39,12 @@ export function getInnerTextRect(
   strokeWidth: number = 0,
   padding: number = 8
 ): InnerTextRect | null {
+  // Early return if shape text is disabled
+  if (DISABLE_SHAPE_TEXT && shapeType !== 'line' && shapeType !== 'arrow') {
+    console.log('⚠️ GEOMETRY: Shape text disabled', { shapeType, DISABLE_SHAPE_TEXT });
+    return null;
+  }
+
   console.log('🔧 GEOMETRY: Computing inner text rect', {
     shapeType,
     inputDimensions: { width, height },
