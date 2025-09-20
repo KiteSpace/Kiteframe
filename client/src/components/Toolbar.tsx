@@ -62,6 +62,12 @@ export function Toolbar({
             className="w-6 h-6" 
           />
           <h1 className="text-lg font-semibold">Kiteframe</h1>
+          <span 
+            className="px-2 py-0.5 text-xs font-medium text-white rounded"
+            style={{ backgroundColor: '#64bce3' }}
+          >
+            Beta
+          </span>
         </div>
       </div>
       <div className="flex items-center gap-3">
