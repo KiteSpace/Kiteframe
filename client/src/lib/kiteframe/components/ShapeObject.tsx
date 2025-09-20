@@ -40,6 +40,20 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
     height: object.style?.height || object.height || (object.data?.shapeType === 'rectangle' ? 200 : 100)
   };
 
+  console.log('📏 SHAPE OBJECT: Size calculations', {
+    objectId: object.id,
+    shapeType: object.data.shapeType,
+    calculatedSize: shapeSize,
+    boundingBoxSize: {
+      width: object.width,
+      height: object.height
+    },
+    styleSize: object.style,
+    hasText: !!object.data.text,
+    textContent: object.data.text,
+    isSelected: object.selected
+  });
+
   const handleResize = useCallback((width: number, height: number) => {
     onResize?.(width, height);
   }, [onResize]);
@@ -298,6 +312,14 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       onMouseDown={handleMouseDown}
       onClick={onClick}
       onDoubleClick={(e) => {
+        console.log('🖱️ SHAPE OBJECT: Double click - entering text edit mode', {
+          objectId: object.id,
+          shapeType: object.data.shapeType,
+          currentText: object.data.text,
+          shapeSize,
+          isCurrentlyEditing: isEditingText
+        });
+        
         e.preventDefault();
         e.stopPropagation();
         setIsEditingText(true);
@@ -326,12 +348,40 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             8 // padding
           );
           
+          console.log('🎯 SHAPE OBJECT: Text positioning calculation', {
+            objectId: object.id,
+            shapeType: object.data.shapeType,
+            fullShapeSize: shapeSize,
+            strokeWidth: object.data.strokeWidth || 0,
+            innerTextRect: innerRect,
+            textContent: object.data.text,
+            sizeComparison: innerRect ? {
+              widthReduction: `${Math.round(((shapeSize.width - innerRect.width) / shapeSize.width) * 100)}%`,
+              heightReduction: `${Math.round(((shapeSize.height - innerRect.height) / shapeSize.height) * 100)}%`
+            } : 'No inner rect'
+          });
+          
           // Don't render text for shapes that don't support it (line, arrow)
-          if (!innerRect) return null;
+          if (!innerRect) {
+            console.log('❌ SHAPE OBJECT: Shape does not support text', {
+              objectId: object.id,
+              shapeType: object.data.shapeType
+            });
+            return null;
+          }
           
           const fontSize = object.data.fontSize || 14;
           const lineHeight = 1.2;
           const maxLines = Math.max(1, Math.floor(innerRect.height / (fontSize * lineHeight)));
+          
+          console.log('📝 SHAPE OBJECT: Text rendering parameters', {
+            objectId: object.id,
+            fontSize,
+            lineHeight,
+            maxLines,
+            innerRectHeight: innerRect.height,
+            calculatedLineCapacity: innerRect.height / (fontSize * lineHeight)
+          });
           
           return (
             <div 
@@ -377,10 +427,26 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               initialValue={object.data.text || ''}
               placeholder="Add text..."
               onSave={(text) => {
+                console.log('💾 SHAPE OBJECT: Text save from editor', {
+                  objectId: object.id,
+                  shapeType: object.data.shapeType,
+                  previousText: object.data.text,
+                  newText: text,
+                  textChanged: object.data.text !== text
+                });
+                
                 onUpdate?.({ text });
                 setIsEditingText(false);
               }}
-              onCancel={() => setIsEditingText(false)}
+              onCancel={() => {
+                console.log('❌ SHAPE OBJECT: Text edit cancelled', {
+                  objectId: object.id,
+                  shapeType: object.data.shapeType,
+                  existingText: object.data.text
+                });
+                
+                setIsEditingText(false);
+              }}
               fontSize={object.data.fontSize || 14}
               fontFamily={object.data.fontFamily || 'Inter'}
               fontWeight={object.data.fontWeight || 'normal'}

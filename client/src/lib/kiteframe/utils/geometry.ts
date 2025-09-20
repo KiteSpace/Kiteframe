@@ -37,14 +37,31 @@ export function getInnerTextRect(
   strokeWidth: number = 0,
   padding: number = 8
 ): InnerTextRect | null {
+  console.log('🔧 GEOMETRY: Computing inner text rect', {
+    shapeType,
+    inputDimensions: { width, height },
+    strokeWidth,
+    padding,
+    timestamp: Date.now()
+  });
+
   // Shapes that don't support text
   if (shapeType === 'line' || shapeType === 'arrow') {
+    console.log('🚫 GEOMETRY: Shape does not support text', { shapeType });
     return null;
   }
 
   // Account for stroke and padding
   const effectiveStroke = strokeWidth / 2;
   const totalPadding = padding + effectiveStroke;
+  
+  console.log('📐 GEOMETRY: Padding calculation', {
+    shapeType,
+    strokeWidth,
+    effectiveStroke,
+    padding,
+    totalPadding
+  });
 
   switch (shapeType) {
     case 'rectangle': {
@@ -52,12 +69,24 @@ export function getInnerTextRect(
       const innerWidth = Math.max(0, width - (totalPadding * 2));
       const innerHeight = Math.max(0, height - (totalPadding * 2));
       
-      return {
+      const result = {
         x: totalPadding,
         y: totalPadding,
         width: innerWidth,
         height: innerHeight
       };
+      
+      console.log('📦 GEOMETRY: Rectangle calculation', {
+        input: { width, height },
+        totalPadding,
+        result,
+        reductionPercent: {
+          width: Math.round(((width - innerWidth) / width) * 100),
+          height: Math.round(((height - innerHeight) / height) * 100)
+        }
+      });
+      
+      return result;
     }
 
     case 'circle': {
@@ -68,19 +97,42 @@ export function getInnerTextRect(
       const radius = diameter / 2;
       const innerSquareSide = radius * Math.sqrt(2) - totalPadding * 2;
       
-      if (innerSquareSide <= 0) return null;
+      console.log('⭕ GEOMETRY: Circle calculation steps', {
+        input: { width, height },
+        diameter,
+        radius,
+        innerSquareSideBeforeCheck: innerSquareSide,
+        sqrtOf2: Math.sqrt(2),
+        totalPadding
+      });
+      
+      if (innerSquareSide <= 0) {
+        console.log('🚫 GEOMETRY: Circle inner square too small', { innerSquareSide });
+        return null;
+      }
       
       const centerX = width / 2;
       const centerY = height / 2;
       const halfSide = innerSquareSide / 2;
       
-      return {
+      const result = {
         x: centerX - halfSide,
         y: centerY - halfSide,
         width: innerSquareSide,
         height: innerSquareSide,
         clipPath: `circle(${radius}px at ${centerX}px ${centerY}px)`
       };
+      
+      console.log('⭕ GEOMETRY: Circle result', {
+        result,
+        center: { centerX, centerY },
+        reductionPercent: {
+          width: Math.round(((width - innerSquareSide) / width) * 100),
+          height: Math.round(((height - innerSquareSide) / height) * 100)
+        }
+      });
+      
+      return result;
     }
 
     case 'triangle': {

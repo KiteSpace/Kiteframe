@@ -69,7 +69,22 @@ export const ShapeObjectStylingPanel: React.FC<ShapeObjectStylingPanelProps> = (
           label="Shape Type"
           value={data.shapeType || 'rectangle'}
           options={shapeTypeOptions}
-          onChange={(value) => onUpdate({ shapeType: value as any })}
+          onChange={(value) => {
+            console.log('🔄 SHAPE STYLING: Shape type change initiated', {
+              previousShapeType: data.shapeType,
+              newShapeType: value,
+              hasTextContent: !!data.text,
+              currentText: data.text,
+              currentDimensions: {
+                fillColor: data.fillColor,
+                strokeWidth: data.strokeWidth,
+                fontSize: data.fontSize
+              },
+              availableOptions: shapeTypeOptions.map(opt => opt.value)
+            });
+            
+            onUpdate({ shapeType: value as any });
+          }}
           data-testid="shape-type"
         />
       </div>

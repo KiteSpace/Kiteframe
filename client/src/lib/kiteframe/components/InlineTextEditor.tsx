@@ -36,6 +36,15 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const originalValueRef = useRef(initialValue);
 
+  console.log('📝 TEXT EDITOR: Component mounted', {
+    initialValue,
+    placeholder,
+    multiline,
+    fontSize,
+    fontFamily,
+    autoFocus
+  });
+
   useEffect(() => {
     if (autoFocus && inputRef.current) {
       inputRef.current.focus();
@@ -46,6 +55,14 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
+        console.log('🖱️ TEXT EDITOR: Click outside detected', {
+          currentValue: value,
+          originalValue: originalValueRef.current,
+          target: event.target,
+          inputElement: inputRef.current,
+          isEditing
+        });
+        
         // Add a small delay to ensure event propagation is complete
         setTimeout(() => {
           handleSave();
@@ -72,25 +89,53 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
 
   const handleSave = () => {
     if (!isEditing) return;
+    
+    console.log('💾 TEXT EDITOR: Save triggered', {
+      originalValue: originalValueRef.current,
+      currentValue: value,
+      trimmedValue: value.trim(),
+      wasEditing: isEditing,
+      source: 'handleSave'
+    });
+    
     setIsEditing(false);
     onSave(value.trim());
   };
 
   const handleCancel = () => {
     if (!isEditing) return;
+    
+    console.log('❌ TEXT EDITOR: Cancel triggered', {
+      originalValue: originalValueRef.current,
+      currentValue: value,
+      wasEditing: isEditing,
+      source: 'handleCancel'
+    });
+    
     setIsEditing(false);
     setValue(originalValueRef.current);
     onCancel();
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
+    console.log('⌨️ TEXT EDITOR: Key pressed', {
+      key: event.key,
+      multiline,
+      ctrlKey: event.ctrlKey,
+      currentValue: value,
+      originalValue: originalValueRef.current
+    });
+
     if (event.key === 'Enter' && !multiline) {
+      console.log('🔄 TEXT EDITOR: Enter key save (single line)');
       event.preventDefault();
       handleSave();
     } else if (event.key === 'Enter' && multiline && event.ctrlKey) {
+      console.log('🔄 TEXT EDITOR: Ctrl+Enter save (multiline)');
       event.preventDefault();
       handleSave();
     } else if (event.key === 'Escape') {
+      console.log('🔄 TEXT EDITOR: Escape key cancel');
       event.preventDefault();
       handleCancel();
     }
