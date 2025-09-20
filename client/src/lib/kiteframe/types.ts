@@ -107,6 +107,9 @@ export interface BasicNodeData {
     headerTextColor?: string;
     bodyTextColor?: string;
   };
+  // Border styling for nodes
+  borderStyle?: 'solid' | 'dashed' | 'dotted' | 'none';
+  borderWidth?: number;
 }
 
 export interface ImageNodeData {
@@ -304,7 +307,7 @@ export interface TextNodeData {
   // Border styling
   borderColor?: string;
   borderWidth?: number; // 0-10px
-  borderStyle?: 'solid' | 'dashed' | 'dotted';
+  borderStyle?: 'solid' | 'dashed' | 'dotted' | 'none';
   borderRadius?: number; // 0-50px
   // Effects
   opacity?: number; // 0-1
@@ -344,7 +347,7 @@ export interface StickyNoteData {
   // Border styling
   borderColor?: string;
   borderWidth?: number; // 0-5px
-  borderStyle?: 'solid' | 'dashed' | 'dotted';
+  borderStyle?: 'solid' | 'dashed' | 'dotted' | 'none';
   borderRadius?: number; // 0-25px
   // Effects
   opacity?: number; // 0-1
@@ -383,7 +386,15 @@ export interface ShapeNodeData {
   strokeColor: string;
   strokeWidth: number; // 0-20px
   strokeOpacity?: number; // 0-1
-  strokeStyle: 'solid' | 'dashed' | 'dotted';
+  strokeStyle: 'solid' | 'dashed' | 'dotted' | 'none';
+  // Text content
+  text?: string;
+  textColor?: string;
+  fontSize?: number;
+  fontFamily?: 'Inter' | 'Arial' | 'Times New Roman' | 'Courier New' | 'Georgia' | 'Verdana' | 'Helvetica';
+  fontWeight?: 'normal' | 'medium' | 'semibold' | 'bold';
+  fontStyle?: 'normal' | 'italic';
+  textAlign?: 'left' | 'center' | 'right';
   // Shape-specific styling
   borderRadius?: number; // 0-50px (for rectangles)
   // General effects

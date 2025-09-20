@@ -105,6 +105,14 @@ export const DEFAULT_SHAPE_NODE_DATA: ShapeNodeData = {
   strokeWidth: 2,
   strokeOpacity: 100, // 100% opacity
   strokeStyle: 'solid',
+  // Text content
+  text: '',
+  textColor: '#374151',
+  fontSize: 14,
+  fontFamily: 'Inter',
+  fontWeight: 'normal',
+  fontStyle: 'normal',
+  textAlign: 'center',
   // Shape-specific styling
   borderRadius: 8, // For rectangles
   // General effects
