@@ -12,8 +12,6 @@ import { ColorPickerControl } from '@/lib/kiteframe/components/styling/ColorPick
 import { DropdownControl } from '@/lib/kiteframe/components/styling/DropdownControl';
 import FillStrokeColorPicker from '@/components/FillStrokeColorPicker';
 import { TypographyPanel } from '@/components/TypographyPanel';
-import { ShapeObjectStylingPanel } from '@/lib/kiteframe/components/styling/ShapeObjectStylingPanel';
-import { ShapeNodeData } from '@/lib/kiteframe/types';
 
 interface PropertiesCardProps {
   selectedNode?: Node;
@@ -341,7 +339,7 @@ export function PropertiesCard({
                 textContent={selectedCanvasObject.data?.text || ''}
                 fontSize={selectedCanvasObject.data?.fontSize || 16}
                 fontFamily={selectedCanvasObject.data?.fontFamily || 'Inter'}
-                fontWeight={selectedCanvasObject.data?.fontWeight || 400}
+                fontWeight={selectedCanvasObject.data?.fontWeight || 'normal'}
                 textColor={selectedCanvasObject.data?.textColor || '#000000'}
                 textAlign={selectedCanvasObject.data?.textAlign}
                 textDecoration={selectedCanvasObject.data?.textDecoration}
@@ -418,7 +416,7 @@ export function PropertiesCard({
 
                 <FillStrokeColorPicker
                   fillColor={selectedCanvasObject.data?.backgroundColor || '#fef3c7'}
-                  fillOpacity={selectedCanvasObject.data?.backgroundOpacity !== undefined ? selectedCanvasObject.data.backgroundOpacity * 100 : 100}
+                  fillOpacity={selectedCanvasObject.data?.backgroundOpacity ?? 100}
                   onFillColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                     data: {
                       ...selectedCanvasObject.data,
@@ -428,11 +426,11 @@ export function PropertiesCard({
                   onFillOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                     data: {
                       ...selectedCanvasObject.data,
-                      backgroundOpacity: val / 100
+                      backgroundOpacity: val
                     }
                   })}
                   strokeColor={selectedCanvasObject.data?.borderColor || '#d97706'}
-                  strokeOpacity={selectedCanvasObject.data?.borderOpacity !== undefined ? selectedCanvasObject.data.borderOpacity * 100 : 100}
+                  strokeOpacity={selectedCanvasObject.data?.borderOpacity ?? 100}
                   onStrokeColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                     data: {
                       ...selectedCanvasObject.data,
@@ -442,7 +440,7 @@ export function PropertiesCard({
                   onStrokeOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
                     data: {
                       ...selectedCanvasObject.data,
-                      borderOpacity: val / 100
+                      borderOpacity: val
                     }
                   })}
                   testIdScope="sticky-colors"
@@ -452,19 +450,74 @@ export function PropertiesCard({
 
             {/* Shape Properties */}
             {selectedCanvasObject.type === 'shape' && (
-              <div className="max-h-96 overflow-y-auto">
-                <ShapeObjectStylingPanel
-                  data={selectedCanvasObject.data as ShapeNodeData}
-                  onUpdate={(updates: Partial<ShapeNodeData>) => {
-                    onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                      data: {
-                        ...selectedCanvasObject.data,
-                        ...updates
-                      }
-                    });
-                  }}
+              <>
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Shape Type</Label>
+                  <div className="flex gap-2">
+                    {[
+                      { type: 'rectangle', icon: Square, color: 'text-blue-500', label: 'Rectangle' },
+                      { type: 'circle', icon: Circle, color: 'text-green-500', label: 'Circle' },
+                      { type: 'triangle', icon: Triangle, color: 'text-yellow-500', label: 'Triangle' },
+                      { type: 'hexagon', icon: Hexagon, color: 'text-purple-500', label: 'Hexagon' },
+                    ].map((shapeType) => {
+                      const IconComponent = shapeType.icon;
+                      const isSelected = selectedCanvasObject.data?.shapeType === shapeType.type;
+                      
+                      return (
+                        <Button
+                          key={shapeType.type}
+                          variant="outline"
+                          size="sm"
+                          className={`p-2 h-8 w-8 ${isSelected ? 'bg-accent text-accent-foreground border-accent' : 'hover:bg-accent/50'}`}
+                          onClick={() => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                            data: {
+                              ...selectedCanvasObject.data,
+                              shapeType: shapeType.type
+                            }
+                          })}
+                          data-testid={`shape-type-${shapeType.type}`}
+                          title={shapeType.label}
+                          aria-pressed={isSelected}
+                        >
+                          <IconComponent className={`${shapeType.color}`} size={14} />
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <FillStrokeColorPicker
+                  fillColor={selectedCanvasObject.data?.fillColor || '#3b82f6'}
+                  fillOpacity={selectedCanvasObject.data?.fillOpacity ?? 100}
+                  onFillColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      fillColor: hex
+                    }
+                  })}
+                  onFillOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      fillOpacity: val
+                    }
+                  })}
+                  strokeColor={selectedCanvasObject.data?.strokeColor || '#1e40af'}
+                  strokeOpacity={selectedCanvasObject.data?.strokeOpacity ?? 100}
+                  onStrokeColorChange={(hex) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      strokeColor: hex
+                    }
+                  })}
+                  onStrokeOpacityChange={(val) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                    data: {
+                      ...selectedCanvasObject.data,
+                      strokeOpacity: val
+                    }
+                  })}
+                  testIdScope="shape-colors"
                 />
-              </div>
+              </>
             )}
 
           </>
