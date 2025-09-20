@@ -177,16 +177,47 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
       const workflowData = JSON.parse(importData);
       console.log('Importing workflow data:', workflowData);
       
-      // Extract nodes, edges, and viewport
-      const nodes = workflowData.nodes || [];
-      const edges = workflowData.edges || [];
-      const viewport = workflowData.viewport || { x: 0, y: 0, zoom: 1 };
+      // Extract nodes, edges, and viewport using the same logic as server validation
+      const extractWorkflowData = (data: any) => {
+        const paths = [
+          // Comprehensive format variations
+          { nodes: data.canvas?.nodes, edges: data.canvas?.edges, viewport: data.canvas?.viewport, type: 'comprehensive' },
+          { nodes: data.workflow?.canvas?.nodes, edges: data.workflow?.canvas?.edges, viewport: data.workflow?.canvas?.viewport, type: 'workflow.canvas' },
+          { nodes: data.flow?.nodes, edges: data.flow?.edges, viewport: data.flow?.viewport, type: 'flow' },
+          // Legacy format
+          { nodes: data.nodes, edges: data.edges, viewport: data.viewport, type: 'legacy' }
+        ];
+        
+        for (const path of paths) {
+          if (Array.isArray(path.nodes) || Array.isArray(path.edges)) {
+            return {
+              nodes: path.nodes || [],
+              edges: path.edges || [],
+              viewport: path.viewport || { x: 0, y: 0, zoom: 1 },
+              format: path.type
+            };
+          }
+        }
+        
+        // Fallback to empty arrays
+        return {
+          nodes: [],
+          edges: [],
+          viewport: { x: 0, y: 0, zoom: 1 },
+          format: 'unknown'
+        };
+      };
+
+      const extracted = extractWorkflowData(workflowData);
+      const nodes = extracted.nodes;
+      const edges = extracted.edges;
+      const viewport = extracted.viewport;
       
       console.log('Extracted data:', { nodes, edges, viewport });
       console.log('Calling onImport with:', nodes.length, 'nodes and', edges.length, 'edges');
 
-      // Extract workflow name from metadata or legacy format
-      const workflowName = workflowData.metadata?.name || workflowData.workflowName || '';
+      // Extract workflow name from multiple possible formats  
+      const workflowName = workflowData.metadata?.name || workflowData.workflowName || workflowData.workflow?.name || '';
       
       // Allow close after successful import
       setAllowClose(true);
