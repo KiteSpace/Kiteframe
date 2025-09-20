@@ -14,6 +14,7 @@ import { ColorPickerControl } from '@/lib/kiteframe/components/styling/ColorPick
 import { DropdownControl } from '@/lib/kiteframe/components/styling/DropdownControl';
 import FillStrokeColorPicker from '@/components/FillStrokeColorPicker';
 import { TypographyPanel } from '@/components/TypographyPanel';
+import { DISABLE_SHAPE_TEXT } from '@/lib/kiteframe/constants/defaults';
 
 interface PropertiesCardProps {
   selectedNode?: Node;
@@ -520,22 +521,24 @@ export function PropertiesCard({
                   testIdScope="shape-colors"
                 />
 
-                {/* Text/Label Input */}
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Label</Label>
-                  <Input
-                    value={selectedCanvasObject.data?.text || ''}
-                    onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
-                      data: {
-                        ...selectedCanvasObject.data,
-                        text: e.target.value
-                      }
-                    })}
-                    placeholder="Add text to shape..."
-                    className="text-sm"
-                    data-testid="shape-text-input"
-                  />
-                </div>
+                {/* Text/Label Input - disabled for shapes */}
+                {!DISABLE_SHAPE_TEXT && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium">Label</Label>
+                    <Input
+                      value={selectedCanvasObject.data?.text || ''}
+                      onChange={(e) => onCanvasObjectUpdate?.(selectedCanvasObject.id, {
+                        data: {
+                          ...selectedCanvasObject.data,
+                          text: e.target.value
+                        }
+                      })}
+                      placeholder="Add text to shape..."
+                      className="text-sm"
+                      data-testid="shape-text-input"
+                    />
+                  </div>
+                )}
 
                 {/* Stroke Style Control */}
                 <div className="space-y-2">
