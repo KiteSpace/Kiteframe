@@ -72,7 +72,8 @@ export const TextObjectStylingPanel: React.FC<TextObjectStylingPanelProps> = ({
   const borderStyleOptions = [
     { value: 'solid', label: 'Solid' },
     { value: 'dashed', label: 'Dashed' },
-    { value: 'dotted', label: 'Dotted' }
+    { value: 'dotted', label: 'Dotted' },
+    { value: 'none', label: 'None' }
   ];
 
   return (

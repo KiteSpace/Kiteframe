@@ -1,6 +1,7 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import { ResizeHandle } from './ResizeHandle';
 import { EmojiReactions } from './EmojiReactions';
+import { InlineTextEditor } from './InlineTextEditor';
 import type { CanvasObject, ShapeNodeData } from '../types';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +11,7 @@ interface ShapeObjectProps {
   onResize?: (width: number, height: number, resizeInfo?: { position: string }) => void;
   onStartDrag?: (e: React.MouseEvent) => void;
   onClick?: (e: React.MouseEvent) => void;
+  onDoubleClick?: (e: React.MouseEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;
   onRemoveReaction?: (objectId: string, emoji: string) => void;
@@ -23,6 +25,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   onResize,
   onStartDrag,
   onClick,
+  onDoubleClick,
   onContextMenu,
   onAddReaction,
   onRemoveReaction,
@@ -30,6 +33,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   selectedCanvasObjectCount = 0
 }) => {
   const objectRef = useRef<HTMLDivElement>(null);
+  const [isEditingText, setIsEditingText] = useState(false);
   const shapeSize = {
     width: object.style?.width || object.width || 200,
     height: object.style?.height || object.height || (object.data?.shapeType === 'rectangle' ? 200 : 100)
@@ -91,9 +95,16 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
           return `${width * 4} ${width * 2}`;
         case 'dotted':
           return `${width} ${width}`;
+        case 'none':
+          return 'none';
         default:
           return 'none';
       }
+    };
+
+    // Check if stroke should be rendered
+    const shouldRenderStroke = (style: string, width: number) => {
+      return style !== 'none' && width && width > 0;
     };
 
     switch (shapeType) {
@@ -104,8 +115,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             style={{
               ...commonStyles,
               backgroundColor: fillOpacity !== undefined ? hexToRgba(fillColor || '#3b82f6', fillOpacity / 100) : (fillColor || '#3b82f6'),
-              border: strokeWidth && strokeWidth > 0 
-                ? `${strokeWidth}px ${strokeStyle || 'solid'} ${strokeOpacity !== undefined ? hexToRgba(strokeColor || '#1d4ed8', strokeOpacity / 100) : (strokeColor || '#1d4ed8')}` 
+              border: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0)
+                ? `${strokeWidth}px ${strokeStyle === 'none' ? 'none' : (strokeStyle || 'solid')} ${strokeOpacity !== undefined ? hexToRgba(strokeColor || '#1d4ed8', strokeOpacity / 100) : (strokeColor || '#1d4ed8')}` 
                 : 'none',
               borderRadius: borderRadius || 8,
               boxShadow: object.data.shadow?.enabled 
@@ -129,10 +140,10 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               style={{
                 fill: fillColor || '#10b981',
                 fillOpacity: fillOpacity !== undefined ? fillOpacity / 100 : 1,
-                stroke: strokeWidth && strokeWidth > 0 ? strokeColor || '#059669' : 'none',
-                strokeOpacity: strokeWidth && strokeWidth > 0 && strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
-                strokeWidth: strokeWidth || 0,
-                strokeDasharray: strokeWidth && strokeWidth > 0 ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
+                stroke: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#059669' : 'none',
+                strokeOpacity: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) && strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
+                strokeWidth: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeWidth || 0 : 0,
+                strokeDasharray: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
                 filter: object.data.shadow?.enabled 
                   ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
                   : 'none',
@@ -150,10 +161,10 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               style={{
                 fill: fillColor || '#f59e0b',
                 fillOpacity: fillOpacity !== undefined ? fillOpacity / 100 : 1,
-                stroke: strokeWidth && strokeWidth > 0 ? strokeColor || '#d97706' : 'none',
-                strokeOpacity: strokeWidth && strokeWidth > 0 && strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
-                strokeWidth: strokeWidth && strokeWidth > 0 ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
-                strokeDasharray: strokeWidth && strokeWidth > 0 ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
+                stroke: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#d97706' : 'none',
+                strokeOpacity: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) && strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
+                strokeWidth: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
+                strokeDasharray: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
                 filter: object.data.shadow?.enabled 
                   ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
                   : 'none',
@@ -171,10 +182,10 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               style={{
                 fill: fillColor || '#8b5cf6',
                 fillOpacity: fillOpacity !== undefined ? fillOpacity / 100 : 1,
-                stroke: strokeWidth && strokeWidth > 0 ? strokeColor || '#7c3aed' : 'none',
-                strokeOpacity: strokeWidth && strokeWidth > 0 && strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
-                strokeWidth: strokeWidth && strokeWidth > 0 ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
-                strokeDasharray: strokeWidth && strokeWidth > 0 ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
+                stroke: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#7c3aed' : 'none',
+                strokeOpacity: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) && strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
+                strokeWidth: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
+                strokeDasharray: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
                 filter: object.data.shadow?.enabled 
                   ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
                   : 'none',
@@ -193,10 +204,10 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               x2="90"
               y2="50"
               style={{
-                stroke: strokeColor || '#6b7280',
-                strokeOpacity: strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
-                strokeWidth: (strokeWidth || 2) * (100 / Math.min(width, height)),
-                strokeDasharray: getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2),
+                stroke: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#6b7280' : 'none',
+                strokeOpacity: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) && strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
+                strokeWidth: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
+                strokeDasharray: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
                 strokeLinecap: lineCap || 'round',
                 filter: object.data.shadow?.enabled 
                   ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
@@ -223,8 +234,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
                 <polygon
                   points={`0 0, ${arrowMarkerSize} ${arrowMarkerSize * 0.35}, 0 ${arrowMarkerSize * 0.7}`}
                   style={{
-                    fill: strokeColor || '#6b7280',
-                    fillOpacity: strokeOpacity !== undefined ? strokeOpacity / 100 : 1
+                    fill: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#6b7280' : 'none',
+                    fillOpacity: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) && strokeOpacity !== undefined ? strokeOpacity / 100 : 1
                   }}
                 />
               </marker>
@@ -235,10 +246,10 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               x2="85"
               y2="50"
               style={{
-                stroke: strokeColor || '#6b7280',
-                strokeOpacity: strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
-                strokeWidth: (strokeWidth || 2) * (100 / Math.min(width, height)),
-                strokeDasharray: getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2),
+                stroke: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#6b7280' : 'none',
+                strokeOpacity: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) && strokeOpacity !== undefined ? strokeOpacity / 100 : 1,
+                strokeWidth: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
+                strokeDasharray: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
                 strokeLinecap: lineCap || 'round',
                 filter: object.data.shadow?.enabled 
                   ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
@@ -285,6 +296,12 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       onDragStart={(e) => e.preventDefault()}
       onMouseDown={handleMouseDown}
       onClick={onClick}
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsEditingText(true);
+        onDoubleClick?.(e);
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -292,8 +309,47 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       }}
     >
       {/* Shape content */}
-      <div className="w-full h-full">
+      <div className="w-full h-full relative">
         {renderShape()}
+        
+        {/* Text content overlay */}
+        {!isEditingText && object.data.text && (
+          <div 
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            style={{
+              color: object.data.textColor || '#374151',
+              fontSize: `${object.data.fontSize || 14}px`,
+              fontFamily: object.data.fontFamily || 'Inter',
+              fontWeight: object.data.fontWeight || 'normal',
+              fontStyle: object.data.fontStyle || 'normal',
+              textAlign: object.data.textAlign || 'center',
+              padding: '8px'
+            }}
+          >
+            <span>{object.data.text}</span>
+          </div>
+        )}
+        
+        {/* Text editor overlay */}
+        {isEditingText && (
+          <div className="absolute inset-0 flex items-center justify-center p-2">
+            <InlineTextEditor
+              initialValue={object.data.text || ''}
+              placeholder="Add text..."
+              onSave={(text) => {
+                onUpdate?.({ text });
+                setIsEditingText(false);
+              }}
+              onCancel={() => setIsEditingText(false)}
+              fontSize={object.data.fontSize || 14}
+              fontFamily={object.data.fontFamily || 'Inter'}
+              fontWeight={object.data.fontWeight || 'normal'}
+              color={object.data.textColor || '#374151'}
+              textAlign={object.data.textAlign || 'center'}
+              className="text-center"
+            />
+          </div>
+        )}
       </div>
 
       {/* Resize handles - only visible when exactly one canvas object is selected */}

@@ -72,7 +72,8 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
   const borderStyleOptions = [
     { value: 'solid', label: 'Solid' },
     { value: 'dashed', label: 'Dashed' },
-    { value: 'dotted', label: 'Dotted' }
+    { value: 'dotted', label: 'Dotted' },
+    { value: 'none', label: 'None' }
   ];
 
   // Handle background color change with automatic text color calculation

@@ -29,7 +29,8 @@ export const ShapeObjectStylingPanel: React.FC<ShapeObjectStylingPanelProps> = (
   const strokeStyleOptions = [
     { value: 'solid', label: 'Solid' },
     { value: 'dashed', label: 'Dashed' },
-    { value: 'dotted', label: 'Dotted' }
+    { value: 'dotted', label: 'Dotted' },
+    { value: 'none', label: 'None' }
   ];
 
   // Handle reset to defaults with shape identity preservation
@@ -71,6 +72,77 @@ export const ShapeObjectStylingPanel: React.FC<ShapeObjectStylingPanelProps> = (
           onChange={(value) => onUpdate({ shapeType: value as any })}
           data-testid="shape-type"
         />
+      </div>
+
+      {/* Text Content Section */}
+      <div className="space-y-3">
+        <h5 className="text-xs font-medium text-muted-foreground">Text Content</h5>
+        
+        <div className="space-y-2">
+          <label className="text-xs font-medium">Text</label>
+          <input
+            type="text"
+            value={data.text || ''}
+            onChange={(e) => onUpdate({ text: e.target.value })}
+            placeholder="Add text to shape..."
+            className="w-full px-2 py-1 text-xs border border-border rounded"
+            data-testid="shape-text-content"
+          />
+        </div>
+        
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Font Size</label>
+            <input
+              type="number"
+              value={data.fontSize || 14}
+              onChange={(e) => onUpdate({ fontSize: parseInt(e.target.value) || 14 })}
+              min={8}
+              max={72}
+              className="w-full px-2 py-1 text-xs border border-border rounded"
+              data-testid="shape-font-size"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Font Weight</label>
+            <select
+              value={data.fontWeight || 'normal'}
+              onChange={(e) => onUpdate({ fontWeight: e.target.value as any })}
+              className="w-full px-2 py-1 text-xs border border-border rounded"
+              data-testid="shape-font-weight"
+            >
+              <option value="normal">Normal</option>
+              <option value="medium">Medium</option>
+              <option value="semibold">Semibold</option>
+              <option value="bold">Bold</option>
+            </select>
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <label className="text-xs font-medium">Text Color</label>
+          <input
+            type="color"
+            value={data.textColor || '#374151'}
+            onChange={(e) => onUpdate({ textColor: e.target.value })}
+            className="w-full h-8 border border-border rounded"
+            data-testid="shape-text-color"
+          />
+        </div>
+        
+        <div className="space-y-1">
+          <label className="text-xs font-medium">Text Align</label>
+          <select
+            value={data.textAlign || 'center'}
+            onChange={(e) => onUpdate({ textAlign: e.target.value as any })}
+            className="w-full px-2 py-1 text-xs border border-border rounded"
+            data-testid="shape-text-align"
+          >
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
       </div>
 
       {/* Fill Section */}
