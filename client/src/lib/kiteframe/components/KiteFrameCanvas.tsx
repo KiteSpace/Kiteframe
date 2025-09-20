@@ -3031,7 +3031,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   canvasObject.id === obj.id ? { ...canvasObject, data: { ...canvasObject.data, ...updates } } : canvasObject
                 );
                 props.onCanvasObjectsChange?.(updatedObjects);
-              }} 
+              }}
+ 
               onResize={(width, height, resizeInfo) => {
                 const currentObject = (props.canvasObjects || []).find(co => co.id === obj.id);
                 if (!currentObject) return;

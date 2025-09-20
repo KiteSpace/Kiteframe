@@ -11,7 +11,7 @@ interface InlineTextEditorProps {
   multiline?: boolean;
   fontSize?: number;
   fontFamily?: string;
-  fontWeight?: string;
+  fontWeight?: number | string;
   color?: string;
   textAlign?: 'left' | 'center' | 'right';
 }
@@ -27,7 +27,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   multiline = false,
   fontSize = 14,
   fontFamily = 'Inter',
-  fontWeight = 'normal',
+  fontWeight = 400,
   color = '#000000',
   textAlign = 'left'
 }) => {

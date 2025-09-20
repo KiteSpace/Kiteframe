@@ -106,15 +106,15 @@ export const ShapeObjectStylingPanel: React.FC<ShapeObjectStylingPanelProps> = (
           <div className="space-y-1">
             <label className="text-xs font-medium">Font Weight</label>
             <select
-              value={data.fontWeight || 'normal'}
-              onChange={(e) => onUpdate({ fontWeight: e.target.value as any })}
+              value={data.fontWeight || 400}
+              onChange={(e) => onUpdate({ fontWeight: e.target.value === 'normal' || e.target.value === 'bold' ? e.target.value : parseInt(e.target.value) })}
               className="w-full px-2 py-1 text-xs border border-border rounded"
               data-testid="shape-font-weight"
             >
-              <option value="normal">Normal</option>
-              <option value="medium">Medium</option>
-              <option value="semibold">Semibold</option>
-              <option value="bold">Bold</option>
+              <option value={400}>Normal</option>
+              <option value={500}>Medium</option>
+              <option value={600}>Semibold</option>
+              <option value={700}>Bold</option>
             </select>
           </div>
         </div>
@@ -159,7 +159,7 @@ export const ShapeObjectStylingPanel: React.FC<ShapeObjectStylingPanelProps> = (
 
         <SliderControl
           label="Fill Opacity"
-          value={(data.fillOpacity || 1) * 100}
+          value={data.fillOpacity !== undefined ? data.fillOpacity * 100 : 70}
           onChange={(value) => onUpdate({ fillOpacity: value / 100 })}
           min={0}
           max={100}
@@ -203,7 +203,7 @@ export const ShapeObjectStylingPanel: React.FC<ShapeObjectStylingPanelProps> = (
 
         <SliderControl
           label="Stroke Opacity"
-          value={(data.strokeOpacity || 1) * 100}
+          value={data.strokeOpacity !== undefined ? data.strokeOpacity * 100 : 100}
           onChange={(value) => onUpdate({ strokeOpacity: value / 100 })}
           disabled={(data.strokeWidth || 0) === 0}
           min={0}

@@ -294,9 +294,9 @@ export interface TextNodeData {
   // Typography styling
   fontSize: number; // 8-72px
   fontFamily: 'Inter' | 'Arial' | 'Times New Roman' | 'Courier New' | 'Georgia' | 'Verdana' | 'Helvetica';
-  fontWeight: 'normal' | 'medium' | 'semibold' | 'bold';
+  fontWeight: number | 'normal' | 'bold';
   fontStyle: 'normal' | 'italic';
-  textAlign: 'left' | 'center' | 'right' | 'justify';
+  textAlign: 'left' | 'center' | 'right';
   textDecoration: 'none' | 'underline' | 'line-through';
   textTransform: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
   lineHeight: number;
@@ -333,9 +333,9 @@ export interface StickyNoteData {
   // Typography styling
   fontSize: number; // 8-24px
   fontFamily: 'Inter' | 'Arial' | 'Times New Roman' | 'Courier New' | 'Georgia' | 'Verdana' | 'Helvetica';
-  fontWeight: 'normal' | 'medium' | 'semibold' | 'bold';
+  fontWeight: number | 'normal' | 'bold';
   fontStyle: 'normal' | 'italic';
-  textAlign: 'left' | 'center' | 'right' | 'justify';
+  textAlign: 'left' | 'center' | 'right';
   verticalAlign?: 'top' | 'middle' | 'bottom';
   textDecoration: 'none' | 'underline' | 'line-through';
   lineHeight?: number;
@@ -392,7 +392,7 @@ export interface ShapeNodeData {
   textColor?: string;
   fontSize?: number;
   fontFamily?: 'Inter' | 'Arial' | 'Times New Roman' | 'Courier New' | 'Georgia' | 'Verdana' | 'Helvetica';
-  fontWeight?: 'normal' | 'medium' | 'semibold' | 'bold';
+  fontWeight?: number | 'normal' | 'bold';
   fontStyle?: 'normal' | 'italic';
   textAlign?: 'left' | 'center' | 'right';
   // Shape-specific styling

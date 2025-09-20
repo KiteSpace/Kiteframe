@@ -90,7 +90,7 @@ export const DEFAULT_SHAPE_NODE_DATA: ShapeNodeData = {
   shapeType: 'rectangle',
   // Fill styling
   fillColor: '#e5e7eb', // Light gray color
-  fillOpacity: 70, // 70% opacity
+  fillOpacity: 0.7, // 70% opacity
   gradient: {
     enabled: false,
     type: 'linear',
@@ -103,14 +103,14 @@ export const DEFAULT_SHAPE_NODE_DATA: ShapeNodeData = {
   // Stroke/Border styling
   strokeColor: '#374151', // Dark gray color
   strokeWidth: 2,
-  strokeOpacity: 100, // 100% opacity
+  strokeOpacity: 1.0, // 100% opacity
   strokeStyle: 'solid',
   // Text content
   text: '',
   textColor: '#374151',
   fontSize: 14,
   fontFamily: 'Inter',
-  fontWeight: 'normal',
+  fontWeight: 400,
   fontStyle: 'normal',
   textAlign: 'center',
   // Shape-specific styling
