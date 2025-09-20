@@ -26,22 +26,47 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
     return { isValid: false, errors, warnings };
   }
 
-  // Helper function to extract nodes/edges/viewport from various formats
+  // Helper function to extract nodes/edges/canvasObjects/viewport from various formats
   const extractWorkflowData = (data: any) => {
     const paths = [
       // Comprehensive format variations
-      { nodes: data.canvas?.nodes, edges: data.canvas?.edges, viewport: data.canvas?.viewport, type: 'comprehensive' },
-      { nodes: data.workflow?.canvas?.nodes, edges: data.workflow?.canvas?.edges, viewport: data.workflow?.canvas?.viewport, type: 'workflow.canvas' },
-      { nodes: data.flow?.nodes, edges: data.flow?.edges, viewport: data.flow?.viewport, type: 'flow' },
+      { 
+        nodes: data.canvas?.nodes, 
+        edges: data.canvas?.edges, 
+        canvasObjects: data.canvas?.canvasObjects,
+        viewport: data.canvas?.viewport, 
+        type: 'comprehensive' 
+      },
+      { 
+        nodes: data.workflow?.canvas?.nodes, 
+        edges: data.workflow?.canvas?.edges, 
+        canvasObjects: data.workflow?.canvas?.canvasObjects,
+        viewport: data.workflow?.canvas?.viewport, 
+        type: 'workflow.canvas' 
+      },
+      { 
+        nodes: data.flow?.nodes, 
+        edges: data.flow?.edges, 
+        canvasObjects: data.flow?.canvasObjects,
+        viewport: data.flow?.viewport, 
+        type: 'flow' 
+      },
       // Legacy format
-      { nodes: data.nodes, edges: data.edges, viewport: data.viewport, type: 'legacy' }
+      { 
+        nodes: data.nodes, 
+        edges: data.edges, 
+        canvasObjects: data.canvasObjects,
+        viewport: data.viewport, 
+        type: 'legacy' 
+      }
     ];
     
     for (const path of paths) {
-      if (Array.isArray(path.nodes) || Array.isArray(path.edges)) {
+      if (Array.isArray(path.nodes) || Array.isArray(path.edges) || Array.isArray(path.canvasObjects)) {
         return {
           nodes: path.nodes || [],
           edges: path.edges || [],
+          canvasObjects: path.canvasObjects || [],
           viewport: path.viewport,
           format: path.type
         };
@@ -52,13 +77,14 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
     return {
       nodes: [],
       edges: [],
+      canvasObjects: [],
       viewport: null,
       format: 'unknown'
     };
   };
 
   const extracted = extractWorkflowData(data);
-  const { nodes, edges, viewport, format } = extracted;
+  const { nodes, edges, canvasObjects, viewport, format } = extracted;
   
   // Format-specific metadata validation
   if (format === 'comprehensive' || format === 'workflow.canvas') {
@@ -133,6 +159,40 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
 
       if (!edge.type) {
         warnings.push(`Edge ${edge.id || index} missing type, will default to 'bezier'`);
+      }
+    });
+  }
+
+  // Check canvasObjects array
+  if (!Array.isArray(canvasObjects)) {
+    // CanvasObjects is optional, so we don't error if it's missing
+    if (canvasObjects !== undefined) {
+      errors.push('Canvas objects must be an array');
+    }
+  } else {
+    const objectIds = new Set<string>();
+    canvasObjects.forEach((obj: any, index: number) => {
+      if (!obj.id) {
+        errors.push(`Canvas object at index ${index} is missing required 'id' field`);
+      } else if (objectIds.has(obj.id)) {
+        errors.push(`Duplicate canvas object ID found: ${obj.id}`);
+      } else {
+        objectIds.add(obj.id);
+      }
+
+      if (!obj.type) {
+        errors.push(`Canvas object ${obj.id || index} is missing required 'type' field`);
+      } else if (!['text', 'shape', 'sticky', 'group'].includes(obj.type)) {
+        errors.push(`Canvas object ${obj.id || index} has invalid type: ${obj.type}`);
+      }
+
+      if (!obj.position || typeof obj.position !== 'object' || 
+          typeof obj.position.x !== 'number' || typeof obj.position.y !== 'number') {
+        errors.push(`Canvas object ${obj.id || index} has invalid position data`);
+      }
+
+      if (!obj.data || typeof obj.data !== 'object') {
+        warnings.push(`Canvas object ${obj.id || index} missing data object, will use defaults`);
       }
     });
   }
