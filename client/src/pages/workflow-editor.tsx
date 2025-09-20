@@ -3950,6 +3950,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   tabId: activeTab 
                 });
               }}
+              onNodeDoubleClick={(e: React.MouseEvent, node: Node) => {
+                console.log(`📝 EDITOR NODE DOUBLE-CLICK HANDLER:`, { 
+                  nodeId: node.id, 
+                  nodeType: node.type,
+                  tabId: activeTab 
+                });
+                // The inline editing is already handled by BasicNode component internally
+                // This handler can be used for additional functionality like logging
+              }}
               onEdgeClick={(edge: Edge) => {
                 console.log(`📝 EDITOR EDGE CLICK HANDLER:`, { 
                   edgeId: edge.id, 
