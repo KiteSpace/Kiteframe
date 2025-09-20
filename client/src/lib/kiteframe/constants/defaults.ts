@@ -1,6 +1,11 @@
 import { TextNodeData, StickyNoteData, ShapeNodeData } from '../types';
 
 /**
+ * Feature flags for KiteFrame functionality
+ */
+export const DISABLE_SHAPE_TEXT = true;
+
+/**
  * Centralized default values for all KiteFrame object types
  * These defaults provide consistent baseline values for reset functionality
  */
