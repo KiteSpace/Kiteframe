@@ -3,6 +3,7 @@ import { ResizeHandle } from './ResizeHandle';
 import { EmojiReactions } from './EmojiReactions';
 import { InlineTextEditor } from './InlineTextEditor';
 import type { CanvasObject, ShapeNodeData } from '../types';
+import { getInnerTextRect } from '../utils/geometry';
 import { cn } from '@/lib/utils';
 
 interface ShapeObjectProps {
@@ -312,38 +313,62 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       <div className="w-full h-full relative">
         {renderShape()}
         
-        {/* Text content overlay */}
-        {!isEditingText && object.data.text && (
-          <div 
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            style={{
-              padding: '8px'
-            }}
-          >
-            <div
+        {/* Text content overlay - shape-aware positioning */}
+        {(() => {
+          if (isEditingText || !object.data.text) return null;
+          
+          // Calculate inner text area for the specific shape type
+          const innerRect = getInnerTextRect(
+            object.data.shapeType,
+            shapeSize.width,
+            shapeSize.height,
+            object.data.strokeWidth || 0,
+            8 // padding
+          );
+          
+          // Don't render text for shapes that don't support it (line, arrow)
+          if (!innerRect) return null;
+          
+          const fontSize = object.data.fontSize || 14;
+          const lineHeight = 1.2;
+          const maxLines = Math.max(1, Math.floor(innerRect.height / (fontSize * lineHeight)));
+          
+          return (
+            <div 
+              className="absolute flex items-center justify-center pointer-events-none"
               style={{
-                color: object.data.textColor || '#374151',
-                fontSize: `${object.data.fontSize || 14}px`,
-                fontFamily: object.data.fontFamily || 'Inter',
-                fontWeight: object.data.fontWeight || 'normal',
-                fontStyle: object.data.fontStyle || 'normal',
-                textAlign: object.data.textAlign || 'center',
-                lineHeight: '1.2',
-                wordWrap: 'break-word',
-                overflowWrap: 'break-word',
-                overflow: 'hidden',
-                display: '-webkit-box' as any,
-                WebkitBoxOrient: 'vertical' as any,
-                WebkitLineClamp: Math.max(1, Math.floor((shapeSize.height - 16) / ((object.data.fontSize || 14) * 1.2))),
-                width: '100%',
-                maxWidth: '100%',
-                maxHeight: `${shapeSize.height - 16}px` // Fallback for non-WebKit browsers
+                left: innerRect.x,
+                top: innerRect.y,
+                width: innerRect.width,
+                height: innerRect.height,
+                clipPath: innerRect.clipPath
               }}
             >
-              {object.data.text}
+              <div
+                style={{
+                  color: object.data.textColor || '#374151',
+                  fontSize: `${fontSize}px`,
+                  fontFamily: object.data.fontFamily || 'Inter',
+                  fontWeight: object.data.fontWeight || 'normal',
+                  fontStyle: object.data.fontStyle || 'normal',
+                  textAlign: object.data.textAlign || 'center',
+                  lineHeight: lineHeight.toString(),
+                  wordWrap: 'break-word',
+                  overflowWrap: 'break-word',
+                  overflow: 'hidden',
+                  display: '-webkit-box' as any,
+                  WebkitBoxOrient: 'vertical' as any,
+                  WebkitLineClamp: maxLines,
+                  width: '100%',
+                  maxWidth: '100%',
+                  maxHeight: `${innerRect.height}px` // Fallback for non-WebKit browsers
+                }}
+              >
+                {object.data.text}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
         
         {/* Text editor overlay */}
         {isEditingText && (
