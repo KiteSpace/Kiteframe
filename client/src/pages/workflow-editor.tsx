@@ -4226,7 +4226,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onClose={() => setShowImportModal(false)}
             onImport={(importedData: any) => {
               try {
-                // Handle comprehensive workflow format
+                console.log('Importing from modal format:', importedData);
+                
+                // Handle comprehensive workflow format (direct JSON import)
                 if (importedData.version && importedData.canvas && importedData.workflow) {
                   // New comprehensive format
                   const { workflow, canvas } = importedData;
@@ -4280,8 +4282,42 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     title: "Workflow Imported",
                     description: `"${workflow.name}" imported with all content, styling, and metadata`,
                   });
+                } else if (importedData.nodes || importedData.edges || importedData.canvasObjects) {
+                  // New modal format - handle nodes, edges, canvasObjects, and metadata
+                  const nodesCount = importedData.nodes ? importedData.nodes.length : 0;
+                  const edgesCount = importedData.edges ? importedData.edges.length : 0;
+                  const objectsCount = importedData.canvasObjects ? importedData.canvasObjects.length : 0;
+                  
+                  if (activeTab) {
+                    // Apply workflow metadata if provided
+                    const metadataUpdate = importedData.workflowMetadata ? {
+                      name: importedData.workflowMetadata.name || activeTab.name,
+                      metadata: {
+                        name: importedData.workflowMetadata.name || activeTab.metadata.name,
+                        description: importedData.workflowMetadata.description || activeTab.metadata.description,
+                        links: importedData.workflowMetadata.links || activeTab.metadata.links,
+                        linksFormat: activeTab.metadata.linksFormat || 'text',
+                        categories: importedData.workflowMetadata.categories || activeTab.metadata.categories
+                      }
+                    } : {};
+
+                    // Update tab with imported content and metadata
+                    updateActiveTab({
+                      ...metadataUpdate,
+                      nodes: importedData.nodes ? importedData.nodes.map((node: Node) => ({ ...node, selected: false })) : activeTab.nodes,
+                      edges: importedData.edges ? importedData.edges.map((edge: Edge) => ({ ...edge, selected: false })) : activeTab.edges,
+                      canvasObjects: importedData.canvasObjects ? importedData.canvasObjects.map((obj: any) => ({ ...obj, selected: false })) : activeTab.canvasObjects,
+                      viewport: importedData.viewport || activeTab.viewport
+                    });
+                    
+                    toast({
+                      title: "Workflow Imported",
+                      description: `Imported ${nodesCount} nodes, ${edgesCount} connections, and ${objectsCount} canvas objects with metadata`,
+                    });
+                  }
                 } else {
                   // Legacy format fallback
+                  console.log('Using legacy import fallback');
                   if (importedData.nodes) {
                     setNodes(importedData.nodes);
                   }

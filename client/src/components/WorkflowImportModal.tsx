@@ -10,7 +10,18 @@ import { Upload, FileText, Bot, Loader2, AlertTriangle, CheckCircle2 } from 'luc
 
 interface WorkflowImportModalProps {
   onClose: () => void;
-  onImport: (importData: { nodes: Node[], edges: Edge[], viewport?: { x: number; y: number; zoom: number }, workflowName?: string }) => void;
+  onImport: (importData: { 
+    nodes: Node[], 
+    edges: Edge[], 
+    canvasObjects: any[], 
+    viewport?: { x: number; y: number; zoom: number }, 
+    workflowMetadata?: { 
+      name: string, 
+      description: string, 
+      links: any[], 
+      categories: any[] 
+    } 
+  }) => void;
 }
 
 interface ValidationResult {
@@ -177,22 +188,47 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
       const workflowData = JSON.parse(importData);
       console.log('Importing workflow data:', workflowData);
       
-      // Extract nodes, edges, and viewport using the same logic as server validation
+      // Extract nodes, edges, canvasObjects, and viewport using the same logic as server validation
       const extractWorkflowData = (data: any) => {
         const paths = [
           // Comprehensive format variations
-          { nodes: data.canvas?.nodes, edges: data.canvas?.edges, viewport: data.canvas?.viewport, type: 'comprehensive' },
-          { nodes: data.workflow?.canvas?.nodes, edges: data.workflow?.canvas?.edges, viewport: data.workflow?.canvas?.viewport, type: 'workflow.canvas' },
-          { nodes: data.flow?.nodes, edges: data.flow?.edges, viewport: data.flow?.viewport, type: 'flow' },
+          { 
+            nodes: data.canvas?.nodes, 
+            edges: data.canvas?.edges, 
+            canvasObjects: data.canvas?.canvasObjects,
+            viewport: data.canvas?.viewport, 
+            type: 'comprehensive' 
+          },
+          { 
+            nodes: data.workflow?.canvas?.nodes, 
+            edges: data.workflow?.canvas?.edges, 
+            canvasObjects: data.workflow?.canvas?.canvasObjects,
+            viewport: data.workflow?.canvas?.viewport, 
+            type: 'workflow.canvas' 
+          },
+          { 
+            nodes: data.flow?.nodes, 
+            edges: data.flow?.edges, 
+            canvasObjects: data.flow?.canvasObjects,
+            viewport: data.flow?.viewport, 
+            type: 'flow' 
+          },
           // Legacy format
-          { nodes: data.nodes, edges: data.edges, viewport: data.viewport, type: 'legacy' }
+          { 
+            nodes: data.nodes, 
+            edges: data.edges, 
+            canvasObjects: data.canvasObjects,
+            viewport: data.viewport, 
+            type: 'legacy' 
+          }
         ];
         
         for (const path of paths) {
-          if (Array.isArray(path.nodes) || Array.isArray(path.edges)) {
+          if (Array.isArray(path.nodes) || Array.isArray(path.edges) || Array.isArray(path.canvasObjects)) {
             return {
               nodes: path.nodes || [],
               edges: path.edges || [],
+              canvasObjects: path.canvasObjects || [],
               viewport: path.viewport || { x: 0, y: 0, zoom: 1 },
               format: path.type
             };
@@ -203,6 +239,7 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
         return {
           nodes: [],
           edges: [],
+          canvasObjects: [],
           viewport: { x: 0, y: 0, zoom: 1 },
           format: 'unknown'
         };
@@ -211,21 +248,27 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
       const extracted = extractWorkflowData(workflowData);
       const nodes = extracted.nodes;
       const edges = extracted.edges;
+      const canvasObjects = extracted.canvasObjects;
       const viewport = extracted.viewport;
       
-      console.log('Extracted data:', { nodes, edges, viewport });
-      console.log('Calling onImport with:', nodes.length, 'nodes and', edges.length, 'edges');
+      console.log('Extracted data:', { nodes, edges, canvasObjects, viewport });
+      console.log('Calling onImport with:', nodes.length, 'nodes,', edges.length, 'edges, and', canvasObjects.length, 'canvas objects');
 
-      // Extract workflow name from multiple possible formats  
-      const workflowName = workflowData.metadata?.name || workflowData.workflowName || workflowData.workflow?.name || '';
+      // Extract full workflow metadata from multiple possible formats
+      const workflowMetadata = {
+        name: workflowData.metadata?.name || workflowData.workflowName || workflowData.workflow?.name || '',
+        description: workflowData.metadata?.description || workflowData.workflow?.description || '',
+        links: workflowData.metadata?.links || workflowData.workflow?.links || [],
+        categories: workflowData.metadata?.categories || workflowData.workflow?.categories || []
+      };
       
       // Allow close after successful import
       setAllowClose(true);
-      onImport({ nodes, edges, viewport, workflowName });
+      onImport({ nodes, edges, canvasObjects, viewport, workflowMetadata });
       
       toast({
         title: "Import Successful",
-        description: `Imported ${nodes.length} nodes and ${edges.length} connections.`,
+        description: `Imported ${nodes.length} nodes, ${edges.length} connections, and ${canvasObjects.length} canvas objects.`,
         variant: "default"
       });
     } catch (error) {
