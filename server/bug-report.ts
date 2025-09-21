@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer';
 
 interface BugReportData {
   type: 'bug' | 'feature' | 'improvement';
+  department?: 'technical' | 'general' | 'sales';
   subject: string;
   description: string;
   stepsToReproduce?: string;
@@ -83,9 +84,20 @@ TECHNICAL INFORMATION:
       }
     });
 
+    // Secure email routing - addresses are only stored on server
+    const getRecipientEmail = (department?: string) => {
+      const emailMapping = {
+        'technical': process.env.BUSINESS_EMAIL_TECH || process.env.BUSINESS_EMAIL,
+        'general': process.env.BUSINESS_EMAIL_GENERAL || process.env.BUSINESS_EMAIL,
+        'sales': process.env.BUSINESS_EMAIL_SALES || process.env.BUSINESS_EMAIL
+      };
+      
+      return emailMapping[department as keyof typeof emailMapping] || process.env.BUSINESS_EMAIL || 'info@kiteframe.space';
+    };
+
     const mailOptions = {
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
-      to: 'info@kiteframe.space',
+      to: getRecipientEmail(reportData.department),
       subject: `[Kiteframe] ${reportType}: ${reportData.subject}`,
       text: emailContent,
       html: emailContent.replace(/\n/g, '<br>'),
