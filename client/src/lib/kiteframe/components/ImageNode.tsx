@@ -6,6 +6,7 @@ import { Upload, Image as ImageIcon, ExternalLink, AlertCircle } from 'lucide-re
 import type { Node, ImageNodeData, ImageNodeComponentProps } from '../types';
 import { getDynamicClassName, getNodeStyleClasses } from '../utils/styles';
 import { sanitizeText } from '../utils/validation';
+import { ImageUploadModal } from './modals/ImageUploadModal';
 
 
 const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
@@ -22,24 +23,14 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   viewport
 }) => {
   const [isUploading, setIsUploading] = useState(false);
-  const [showUrlInput, setShowUrlInput] = useState(false);
-  const [urlValue, setUrlValue] = useState('');
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const [editLabelValue, setEditLabelValue] = useState(node.data.label || '');
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
-  const urlInputRef = useRef<HTMLInputElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
-
-  // Focus URL input when shown
-  useEffect(() => {
-    if (showUrlInput && urlInputRef.current) {
-      urlInputRef.current.focus();
-    }
-  }, [showUrlInput]);
 
   // Focus label input when entering edit mode
   useEffect(() => {
@@ -49,18 +40,18 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     }
   }, [isEditingLabel]);
 
-  const handleUploadClick = useCallback(() => {
-    fileInputRef.current?.click();
+  const handleAddImageClick = useCallback(() => {
+    setShowUploadModal(true);
   }, []);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (!node.data.src) {
-      // If no image, trigger upload
-      handleUploadClick();
+      // If no image, trigger upload modal
+      handleAddImageClick();
     }
     onDoubleClick?.(e);
-  }, [node.data.src, handleUploadClick, onDoubleClick]);
+  }, [node.data.src, handleAddImageClick, onDoubleClick]);
 
   // Handle mouse down for dragging - integrate with canvas drag system
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -77,21 +68,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     onStartDrag?.(e, node);
   }, [onStartDrag, node]);
 
-  const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !onImageUpload) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      console.error('Please select an image file');
-      return;
-    }
-
-    // Validate file size (10MB max)
-    if (file.size > 10485760) {
-      console.error('File size must be less than 10MB');
-      return;
-    }
+  const handleModalImageUpload = useCallback(async (file: File) => {
+    if (!onImageUpload) return '';
 
     setIsUploading(true);
     setImageError(false);
@@ -111,46 +89,33 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
           }
         });
       }
+      
+      return imageUrl;
     } catch (error) {
       console.error('Upload failed:', error);
       setImageError(true);
+      throw error;
     } finally {
       setIsUploading(false);
-      // Reset input
-      event.target.value = '';
     }
   }, [node.id, node.data, onImageUpload, onUpdate]);
 
-  const handleUrlSubmit = useCallback(() => {
-    const url = urlValue.trim();
-    if (url && onImageUrlSet) {
+  const handleModalImageUrl = useCallback((url: string) => {
+    if (onImageUrlSet) {
       onImageUrlSet(node.id, url);
-      
-      if (onUpdate) {
-        onUpdate(node.id, {
-          data: {
-            ...node.data,
-            src: url,
-            sourceType: 'url',
-            isImageBroken: false
-          }
-        });
-      }
     }
-    setShowUrlInput(false);
-    setUrlValue('');
-  }, [urlValue, node.id, node.data, onImageUrlSet, onUpdate]);
-
-  const handleUrlKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleUrlSubmit();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      setShowUrlInput(false);
-      setUrlValue('');
+    
+    if (onUpdate) {
+      onUpdate(node.id, {
+        data: {
+          ...node.data,
+          src: url,
+          sourceType: 'url',
+          isImageBroken: false
+        }
+      });
     }
-  }, [handleUrlSubmit]);
+  }, [node.id, node.data, onImageUrlSet, onUpdate]);
 
   const handleLabelSubmit = useCallback(() => {
     if (onUpdate) {
@@ -333,45 +298,6 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         role="region"
         aria-label="Image content"
       >
-        {/* URL Input */}
-        {showUrlInput && (
-          <div className="p-3 border-b border-gray-200">
-            <div className="flex gap-2">
-              <input
-                ref={urlInputRef}
-                type="url"
-                value={urlValue}
-                onChange={(e) => setUrlValue(e.target.value)}
-                onKeyDown={handleUrlKeyDown}
-                placeholder="Enter image URL..."
-                className="flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Image URL"
-                aria-describedby="url-format-hint"
-              />
-              <button
-                onClick={handleUrlSubmit}
-                className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={!urlValue.trim()}
-                data-testid="button-submit-url"
-              >
-                Add
-              </button>
-              <button
-                onClick={() => {
-                  setShowUrlInput(false);
-                  setUrlValue('');
-                }}
-                className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                data-testid="button-cancel-url"
-              >
-                Cancel
-              </button>
-            </div>
-            <span id="url-format-hint" className="sr-only">
-              Enter a valid image URL starting with http:// or https://
-            </span>
-          </div>
-        )}
 
         {/* Image Display */}
         {hasImage && !isUploading ? (
@@ -417,7 +343,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                 <AlertCircle className="w-8 h-8 mb-2 text-red-500" />
                 <span className="text-sm text-red-600">Failed to load image</span>
                 <button
-                  onClick={handleUploadClick}
+                  onClick={handleAddImageClick}
                   className="mt-2 text-xs text-blue-600 hover:underline"
                   aria-label="Try uploading image again"
                 >
@@ -430,38 +356,22 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                 <span className="text-sm opacity-80 mb-2">
                   {node.data.displayText || 'No image'}
                 </span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleUploadClick}
-                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                    disabled={isUploading}
-                    aria-label="Upload image from your computer"
-                  >
-                    Upload
-                  </button>
-                  <button
-                    onClick={() => setShowUrlInput(true)}
-                    className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                    aria-label="Add image from URL"
-                  >
-                    URL
-                  </button>
-                </div>
+                <button
+                  onClick={handleAddImageClick}
+                  className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                  disabled={isUploading}
+                  aria-label="Add image to node"
+                  data-testid="button-add-image"
+                >
+                  <ImageIcon className="w-4 h-4 mr-2 inline" />
+                  Add Image
+                </button>
               </>
             )}
           </div>
         )}
       </div>
 
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileSelect}
-        className="hidden"
-        aria-label="Upload image file"
-      />
 
       {/* Connection Handles */}
       {showHandles && (
@@ -489,6 +399,15 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
           viewport={viewport}
         />
       )}
+
+      {/* Image Upload Modal */}
+      <ImageUploadModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onImageUpload={handleModalImageUpload}
+        onImageUrlSet={handleModalImageUrl}
+        isUploading={isUploading}
+      />
     </div>
   );
 };
