@@ -151,16 +151,29 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
 
       const errorLogs = collectErrorLogs();
 
-      const response = await fetch('/api/bug-report', {
+      // Use Formspree for simple form handling (no backend needed)
+      const formDataToSend = new FormData();
+      formDataToSend.append('type', reportData.type);
+      formDataToSend.append('subject', reportData.subject);
+      formDataToSend.append('description', reportData.description);
+      formDataToSend.append('steps_to_reproduce', reportData.stepsToReproduce || '');
+      formDataToSend.append('expected_behavior', reportData.expectedBehavior || '');
+      formDataToSend.append('actual_behavior', reportData.actualBehavior || '');
+      formDataToSend.append('contact_email', formData.email.trim());
+      formDataToSend.append('user_agent', reportData.userAgent);
+      formDataToSend.append('page_url', reportData.url);
+      formDataToSend.append('timestamp', reportData.timestamp);
+      
+      if (formData.includeErrorLogs) {
+        formDataToSend.append('error_logs', errorLogs);
+      }
+      
+      const response = await fetch('https://formspree.io/f/xpwzwrej', {
         method: 'POST',
+        body: formDataToSend,
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...reportData,
-          errorLogs: formData.includeErrorLogs ? errorLogs : null,
-          contactEmail: formData.email.trim() || undefined
-        }),
+          'Accept': 'application/json'
+        }
       });
 
       if (!response.ok) {
