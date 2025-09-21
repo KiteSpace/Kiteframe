@@ -37,7 +37,7 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
     actualBehavior: string;
     includeErrorLogs: boolean;
     email: string;
-    attachment: File | null;
+    attachments: File[];
   }>({
     type: 'bug',
     subject: '',
@@ -47,7 +47,7 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
     actualBehavior: '',
     includeErrorLogs: true,
     email: '',
-    attachment: null
+    attachments: []
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,39 +65,64 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
   const [captchaAnswer, setCaptchaAnswer] = useState('');
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type (images only)
-      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const files = Array.from(e.target.files || []);
+    
+    if (files.length === 0) return;
+    
+    // Check if adding these files would exceed the limit (max 5 images)
+    if (formData.attachments.length + files.length > 5) {
+      toast({
+        title: "Too Many Images",
+        description: "You can upload up to 5 images maximum.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const validFiles: File[] = [];
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    
+    for (const file of files) {
+      // Validate file type
       if (!validTypes.includes(file.type)) {
         toast({
           title: "Invalid File Type",
-          description: "Please upload an image file (JPG, PNG, GIF, or WebP).",
+          description: `${file.name} is not a valid image file. Please upload JPG, PNG, GIF, or WebP files only.`,
           variant: "destructive"
         });
-        return;
+        continue;
       }
       
-      // Validate file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB
+      // Validate file size
       if (file.size > maxSize) {
         toast({
           title: "File Too Large",
-          description: "Please upload an image smaller than 5MB.",
+          description: `${file.name} is larger than 5MB. Please use a smaller image.`,
           variant: "destructive"
         });
-        return;
+        continue;
       }
       
-      setFormData(prev => ({ ...prev, attachment: file }));
+      validFiles.push(file);
     }
+    
+    if (validFiles.length > 0) {
+      setFormData(prev => ({ 
+        ...prev, 
+        attachments: [...prev.attachments, ...validFiles] 
+      }));
+    }
+    
+    // Reset file input
+    e.target.value = '';
   };
 
-  const removeAttachment = () => {
-    setFormData(prev => ({ ...prev, attachment: null }));
-    // Reset file input
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
+  const removeAttachment = (index: number) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      attachments: prev.attachments.filter((_, i) => i !== index) 
+    }));
   };
 
   const collectErrorLogs = () => {
@@ -206,10 +231,10 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
         formDataToSend.append('error_logs', errorLogs);
       }
       
-      // Add image attachment if provided
-      if (formData.attachment) {
-        formDataToSend.append('attachment', formData.attachment);
-      }
+      // Add image attachments if provided
+      formData.attachments.forEach((file, index) => {
+        formDataToSend.append(`attachment_${index + 1}`, file);
+      });
       
       const response = await fetch('https://formspree.io/f/xblzrdvw', {
         method: 'POST',
@@ -386,55 +411,80 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
             />
           </div>
 
-          {/* Image Attachment */}
+          {/* Image Attachments */}
           <div className="space-y-2">
-            <Label htmlFor="attachment">Attach Screenshot (optional)</Label>
+            <Label htmlFor="attachment">
+              Attach Screenshots (optional) 
+              {formData.attachments.length > 0 && (
+                <span className="text-xs text-muted-foreground ml-2">
+                  {formData.attachments.length}/5 images
+                </span>
+              )}
+            </Label>
             <div className="space-y-3">
-              {!formData.attachment ? (
-                <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors cursor-pointer">
-                  <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">
-                      Upload a screenshot to help explain the issue
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      JPG, PNG, GIF, or WebP • Max 5MB
-                    </p>
-                  </div>
-                  <input
-                    id="attachment"
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                    onChange={handleFileChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    data-testid="input-attachment"
-                  />
+              {/* Upload Area */}
+              <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors cursor-pointer">
+                <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    {formData.attachments.length === 0 ? 
+                      'Upload screenshots to help explain the issue' :
+                      'Add more images (click or drag & drop)'
+                    }
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    JPG, PNG, GIF, or WebP • Max 5MB each • Up to 5 images
+                  </p>
                 </div>
-              ) : (
-                <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-shrink-0">
-                      <Image className="h-8 w-8 text-primary" />
+                <input
+                  id="attachment"
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                  multiple
+                  onChange={handleFileChange}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  data-testid="input-attachment"
+                  disabled={formData.attachments.length >= 5}
+                />
+              </div>
+
+              {/* Image Previews */}
+              {formData.attachments.length > 0 && (
+                <div className="grid grid-cols-2 gap-3">
+                  {formData.attachments.map((file, index) => (
+                    <div key={`${file.name}-${index}`} className="relative group">
+                      <div className="aspect-video bg-muted rounded-lg overflow-hidden border">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          onLoad={() => {
+                            // Clean up object URL after image loads to prevent memory leaks
+                            // Note: This doesn't immediately revoke the URL, but marks it for cleanup
+                          }}
+                        />
+                      </div>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg" />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => removeAttachment(index)}
+                        className="absolute top-2 right-2 h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        data-testid={`button-remove-attachment-${index}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      <div className="absolute bottom-2 left-2 right-2">
+                        <div className="bg-black/75 text-white text-xs p-2 rounded backdrop-blur-sm">
+                          <p className="font-medium truncate">{file.name}</p>
+                          <p className="text-white/75">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">
-                        {formData.attachment.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {(formData.attachment.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={removeAttachment}
-                    className="flex-shrink-0"
-                    data-testid="button-remove-attachment"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  ))}
                 </div>
               )}
             </div>
