@@ -40,24 +40,6 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
       { value: 'custom', label: 'Custom Model' }
     ],
-    anthropic: [
-      { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
-      { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
-      { value: 'custom', label: 'Custom Model' }
-    ],
-    ollama: [
-      { value: 'llama3.1:8b', label: 'Llama 3.1 8B' },
-      { value: 'llama3.1:70b', label: 'Llama 3.1 70B' },
-      { value: 'llama3.2:3b', label: 'Llama 3.2 3B' },
-      { value: 'mistral:7b', label: 'Mistral 7B' },
-      { value: 'codellama:7b', label: 'CodeLlama 7B' },
-      { value: 'phi3:mini', label: 'Phi-3 Mini' },
-      { value: 'custom', label: 'Custom Model' }
-    ],
-    kiteframe: [
-      { value: 'llama3.2:3b', label: 'Llama 3.2 3B (Available)' },
-      { value: 'custom', label: 'Custom Model' }
-    ],
     custom: [
       { value: 'custom', label: 'Custom Model' }
     ]
@@ -72,13 +54,20 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Fix legacy settings with wrong models
+        // Fix legacy settings with wrong models and removed providers
         const fixedSettings = { ...parsed };
+        
+        // Coerce removed providers to OpenAI
+        if (['anthropic', 'kiteframe', 'ollama'].includes(fixedSettings.provider)) {
+          fixedSettings.provider = 'openai';
+          fixedSettings.model = 'gpt-4o';
+          fixedSettings.apiKey = '';
+          fixedSettings.customEndpoint = '';
+        }
+        
+        // Fix legacy OpenAI models
         if (fixedSettings.provider === 'openai' && (fixedSettings.model === 'gpt-5' || !fixedSettings.model)) {
           fixedSettings.model = 'gpt-4o';
-        }
-        if (fixedSettings.provider === 'kiteframe' && (fixedSettings.model === 'tinyllama:1.1b' || fixedSettings.model === 'gemma2:2b')) {
-          fixedSettings.model = 'llama3.2:3b';
         }
         setSettings(prev => ({ ...prev, ...fixedSettings }));
       } catch (e) {
@@ -101,9 +90,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       provider,
       model: defaultModel,
       customModel: provider === 'custom' ? prev.customModel : '',
-      customEndpoint: provider === 'ollama' ? 'http://localhost:11434' : 
-                      provider === 'kiteframe' ? 'https://kiteline-ai.replit.app' :
-                      provider === 'custom' ? prev.customEndpoint || 'https://api.openai.com' : ''
+      customEndpoint: provider === 'custom' ? prev.customEndpoint || '' : ''
     }));
   };
 
@@ -116,11 +103,11 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   };
 
   const handleSave = () => {
-    // Ollama, Kiteframe, and OpenAI don't require user API keys
-    if (settings.provider !== 'ollama' && settings.provider !== 'kiteframe' && settings.provider !== 'openai' && !settings.apiKey.trim()) {
+    // Custom providers may not require API keys (e.g., Ollama servers)
+    if (settings.provider === 'custom' && !settings.customEndpoint?.trim()) {
       toast({
-        title: "API Key Required",
-        description: "Please enter your API key to use AI features.",
+        title: "Custom Endpoint Required",
+        description: "Please specify a custom API endpoint when using custom provider.",
         variant: "destructive"
       });
       return;
@@ -135,24 +122,15 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       return;
     }
 
-    if (settings.provider === 'custom' && !settings.customEndpoint?.trim()) {
-      toast({
-        title: "Custom Endpoint Required",
-        description: "Please specify a custom API endpoint when using custom provider.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     onSave(settings);
   };
 
   const handleQuickTest = async () => {
-    // Ollama, Kiteframe, and OpenAI don't require user API keys
-    if (settings.provider !== 'ollama' && settings.provider !== 'kiteframe' && settings.provider !== 'openai' && !settings.apiKey.trim()) {
+    // Custom providers may not require API keys but need endpoints
+    if (settings.provider === 'custom' && !settings.customEndpoint?.trim()) {
       toast({
-        title: "API Key Required",
-        description: "Please enter your API key to test the connection.",
+        title: "Custom Endpoint Required",
+        description: "Please enter your custom API endpoint to test the connection.",
         variant: "destructive"
       });
       return;
@@ -225,11 +203,11 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             <div className="grid grid-cols-1 gap-3">
               {/* Maximum Privacy */}
               <div className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                settings.provider === 'ollama' || settings.provider === 'custom' || settings.provider === 'kiteframe'
+                settings.provider === 'custom'
                   ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
                   : 'border-gray-200 dark:border-gray-700 hover:border-green-300'
               }`}
-              onClick={() => setSettings({ ...settings, provider: 'kiteframe' })}
+              onClick={() => handleProviderChange('custom')}
               >
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 rounded-full bg-green-500 mt-2"></div>
@@ -239,7 +217,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                       Data stays on your machine or private server. Zero external data sharing.
                     </p>
                     <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                      Kiteframe Managed • Local Ollama • Remote Ollama • Custom Endpoint
+                      Custom Endpoint • Your own server
                     </p>
                   </div>
                 </div>
@@ -247,11 +225,11 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
 
               {/* Standard Privacy */}
               <div className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                settings.provider === 'openai' || settings.provider === 'anthropic'
+                settings.provider === 'openai'
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
                   : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
               }`}
-              onClick={() => setSettings({ ...settings, provider: 'openai' })}
+              onClick={() => handleProviderChange('openai')}
               >
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
@@ -261,7 +239,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                       Convenient cloud AI with established privacy policies.
                     </p>
                     <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                      OpenAI • Anthropic • Major cloud providers
+                      OpenAI • Major cloud providers
                     </p>
                   </div>
                 </div>
@@ -280,9 +258,6 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="openai">OpenAI (GPT-4o)</SelectItem>
-                <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
-                <SelectItem value="kiteframe">Kiteframe (Managed Privacy)</SelectItem>
-                <SelectItem value="ollama">Ollama (Local)</SelectItem>
                 <SelectItem value="custom">Custom Endpoint</SelectItem>
               </SelectContent>
             </Select>
@@ -292,21 +267,13 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             <div className="space-y-2">
               <Label>Model</Label>
               <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-md text-sm">
-                ✅ Using: <strong>GPT-4o</strong> (latest available model, no setup required)
+                ✅ Using: <strong>GPT-4o</strong> (no setup required)
               </div>
             </div>
           )}
 
-          {settings.provider === 'kiteframe' && (
-            <div className="space-y-2">
-              <Label>Model</Label>
-              <div className="p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-md text-sm">
-                🔒 Using: <strong>Llama 3.2 3B</strong> (privacy-focused processing, no setup required)
-              </div>
-            </div>
-          )}
 
-          {settings.provider !== 'openai' && settings.provider !== 'kiteframe' && (
+          {settings.provider !== 'openai' && (
             <div className="space-y-2">
               <Label htmlFor="model">Model</Label>
               <Select
@@ -359,40 +326,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             </div>
           )}
 
-          {settings.provider === 'ollama' && (
-            <div className="space-y-2">
-              <Label htmlFor="ollamaEndpoint">Ollama Endpoint (Optional)</Label>
-              <Input
-                id="ollamaEndpoint"
-                placeholder="http://localhost:11434 (default)"
-                value={settings.customEndpoint || ''}
-                onChange={(e) => setSettings(prev => ({ ...prev, customEndpoint: e.target.value }))}
-                data-testid="input-ollama-endpoint"
-              />
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                <p>Leave empty for local Ollama (localhost:11434)</p>
-                <p>Or specify your remote Ollama server URL</p>
-              </div>
-            </div>
-          )}
 
-          {settings.provider === 'ollama' && (
-            <div className="space-y-2">
-              <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
-                <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                  🔒 Maximum Privacy Mode
-                </p>
-                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                  Your data never leaves your control - zero external sharing
-                </p>
-                <div className="text-xs text-green-600 dark:text-green-400 mt-2 space-y-1">
-                  <div>• <strong>Local:</strong> Install Ollama on your machine</div>
-                  <div>• <strong>Remote:</strong> Run Ollama on your own server</div>
-                  <div>• <strong>Custom:</strong> Use "Custom Endpoint" for private Ollama servers</div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {settings.provider === 'custom' && (
             <div className="space-y-2">
@@ -412,27 +346,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             </div>
           )}
 
-          {settings.provider === 'kiteframe' && (
-            <div className="space-y-2">
-              <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
-                <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                  🚀 Kiteframe Managed Privacy
-                </p>
-                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                  Maximum privacy with zero setup - KitelineAI runs secure Ollama for you
-                </p>
-                <div className="text-xs text-green-600 dark:text-green-400 mt-2 space-y-1">
-                  <div>• <strong>No API key required</strong> - Ready to use immediately</div>
-                  <div>• <strong>Data never stored</strong> - Processed only, never saved</div>
-                  <div>• <strong>Private infrastructure</strong> - Your own dedicated AI server</div>
-                  <div>• <strong>Model</strong> - Llama 3.2 3B (advanced reasoning)</div>
-                  <div>• <strong>Cost optimized</strong> - Scales to zero when not in use</div>
-                </div>
-              </div>
-            </div>
-          )}
 
-          {(settings.provider === 'openai' || settings.provider === 'anthropic') && (
+          {settings.provider === 'openai' && (
             <div className="space-y-2">
               <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
                 <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
@@ -442,20 +357,18 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                   Convenient and reliable, with established privacy policies
                 </p>
                 <div className="text-xs text-blue-600 dark:text-blue-400 mt-2 space-y-1">
-                  <div>• Data processed by {settings.provider === 'openai' ? 'OpenAI' : 'Anthropic'}</div>
+                  <div>• Data processed by OpenAI</div>
                   <div>• Check their privacy policy for data handling details</div>
-                  <div>• {settings.provider === 'openai' ? 'No API key needed - automatically configured' : 'API key required for authentication'}</div>
+                  <div>• No API key needed - automatically configured</div>
                 </div>
               </div>
             </div>
           )}
           
-          {settings.provider !== 'ollama' && settings.provider !== 'kiteframe' && settings.provider !== 'openai' && (
+          {settings.provider !== 'openai' && (
             <div className="space-y-2">
               <Label htmlFor="apiKey">
                 API Key 
-                {settings.provider === 'openai' && ' (OpenAI)'}
-                {settings.provider === 'anthropic' && ' (Anthropic)'}
                 {settings.provider === 'custom' && ' (Custom Provider)'}
               </Label>
               <Input
