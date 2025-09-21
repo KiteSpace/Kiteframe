@@ -29,7 +29,7 @@ import { useAuth } from '../hooks/useAuth';
 import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeData, ShapeNodeData, StickyNoteData } from '../lib/kiteframe/types';
 import { DEFAULT_SHAPE_NODE_DATA } from '../lib/kiteframe/constants/defaults';
 import { recalculateAllEdgeZIndexes } from '../lib/kiteframe/utils/edgeZIndex';
-import { applyThemeToNode, applyThemeToEdge } from '../lib/themes';
+import { applyThemeToNode, applyThemeToEdge, workflowThemes, getThemeById, type WorkflowTheme } from '../lib/themes';
 import '../lib/kiteframe/styles/kiteframe.css';
 import { 
   X, 
@@ -2308,6 +2308,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Popout state for collapsed sidebar
   const [activePopout, setActivePopout] = useState<'node-types' | 'shapes' | 'templates' | 'themes' | null>(null);
 
+  // Current workflow theme state
+  const [currentTheme, setCurrentTheme] = useState<WorkflowTheme>(() => {
+    try {
+      const savedThemeId = localStorage.getItem('workflow-theme') || 'default';
+      return getThemeById(savedThemeId) || workflowThemes[0];
+    } catch {
+      return workflowThemes[0]; // Default theme
+    }
+  });
+
   // Save sidebar collapse state to localStorage
   useEffect(() => {
     localStorage.setItem('sidebar-collapsed', JSON.stringify(isSidebarCollapsed));
@@ -2894,6 +2904,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     handleAddTemplateToCurrentTab(templateType, position);
                   }}
                   onApplyTheme={(theme) => {
+                    // Update current theme state
+                    setCurrentTheme(theme);
+                    localStorage.setItem('workflow-theme', theme.id);
+                    
                     // Apply theme to all nodes using the enhanced helper function
                     setNodes(prev => prev.map(node => ({
                       ...node,
@@ -3556,6 +3570,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onSnapshot={handleSnapshot}
               onVersionHistory={handleVersionHistory}
               onApplyTheme={(theme) => {
+                // Update current theme state
+                setCurrentTheme(theme);
+                localStorage.setItem('workflow-theme', theme.id);
+                
                 // Apply theme to all nodes using the enhanced helper function
                 setNodes(prev => prev.map(node => ({
                   ...node,
