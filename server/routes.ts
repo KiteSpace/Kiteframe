@@ -1064,6 +1064,57 @@ Respond with only the corrected JSON data:`;
   // Bug Report endpoint
   app.post('/api/bug-report', handleBugReport);
 
+  // SMTP Configuration info (GET)
+  app.get('/api/smtp-config', (req, res) => {
+    res.json({
+      config: {
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT,
+        user: process.env.SMTP_USER,
+        hasPassword: !!process.env.SMTP_PASS
+      }
+    });
+  });
+
+  // SMTP Test endpoint to verify email credentials
+  app.post('/api/test-smtp', async (req, res) => {
+    try {
+      const nodemailer = await import('nodemailer');
+      
+      const transporter = nodemailer.default.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_PORT === '465',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      // Test the connection
+      await transporter.verify();
+      
+      console.log('✅ SMTP connection test successful');
+      res.json({
+        success: true,
+        message: 'SMTP credentials verified successfully',
+        config: {
+          host: process.env.SMTP_HOST,
+          port: process.env.SMTP_PORT,
+          user: process.env.SMTP_USER
+        }
+      });
+
+    } catch (error: any) {
+      console.error('❌ SMTP connection test failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'SMTP authentication failed',
+        details: error.message
+      });
+    }
+  });
+
   // AI Image-to-Workflow Analysis endpoint
   app.post("/api/ai/analyze-workflow-image", upload.single('image'), async (req, res) => {
     try {
