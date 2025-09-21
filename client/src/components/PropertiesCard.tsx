@@ -51,6 +51,7 @@ function createNodeColorProperties(selectedNode: Node): ColorProperty[] {
     case 'condition':
     case 'output':
     case 'ai':
+    case 'image':
       // Basic nodes with header and body
       return [
         {
@@ -88,18 +89,6 @@ function createNodeColorProperties(selectedNode: Node): ColorProperty[] {
         }
       ];
       
-    case 'image':
-      // Image nodes only have border color
-      return [
-        {
-          key: 'border',
-          label: 'Border',
-          value: selectedNode.data?.colors?.borderColor || selectedNode.data?.borderColor || '#e2e8f0',
-          opacity: selectedNode.data?.colors?.borderOpacity ?? 100,
-          hasOpacity: true,
-          type: 'stroke' as const
-        }
-      ];
       
     default:
       // Fallback for unknown node types - basic node properties
