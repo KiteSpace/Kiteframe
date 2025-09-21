@@ -20,6 +20,7 @@ import { BugReportModal } from '@/components/BugReportModal';
 import { ContextMenu } from '@/components/ContextMenu';
 import { MissingImagesModal } from '@/components/MissingImagesModal';
 import { NewTabModal } from '@/components/NewTabModal';
+import { ImageUploadModal } from '@/lib/kiteframe/components/modals/ImageUploadModal';
 import { AiProvider, useAi } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import { useToast } from '@/hooks/use-toast';
@@ -2318,10 +2319,29 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   });
 
+  // Image upload modal state
+  const [selectedImageNodeId, setSelectedImageNodeId] = useState<string | null>(null);
+  const [showImageUploadModal, setShowImageUploadModal] = useState(false);
+
   // Save sidebar collapse state to localStorage
   useEffect(() => {
     localStorage.setItem('sidebar-collapsed', JSON.stringify(isSidebarCollapsed));
   }, [isSidebarCollapsed]);
+
+  // Watch for openImageModal flag in node data
+  useEffect(() => {
+    const nodeWithModalFlag = nodes.find(n => n.data?.openImageModal);
+    if (nodeWithModalFlag) {
+      setSelectedImageNodeId(nodeWithModalFlag.id);
+      setShowImageUploadModal(true);
+      // Clear the flag
+      setNodes(prev => prev.map(n => 
+        n.id === nodeWithModalFlag.id 
+          ? { ...n, data: { ...n.data, openImageModal: undefined } }
+          : n
+      ));
+    }
+  }, [nodes, setNodes]);
 
   // Icon mapping for collapsed sidebar
   const sidebarIcons = useMemo(() => ({
@@ -4401,6 +4421,43 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         {showBugReportModal && (
           <BugReportModal
             onClose={() => setShowBugReportModal(false)}
+          />
+        )}
+
+        {/* Image Upload Modal */}
+        {showImageUploadModal && selectedImageNodeId && (
+          <ImageUploadModal
+            isOpen={showImageUploadModal}
+            onClose={() => {
+              setShowImageUploadModal(false);
+              setSelectedImageNodeId(null);
+            }}
+            onImageUpload={async (file: File) => {
+              // Convert file to data URL for local storage
+              return new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  const dataUrl = reader.result as string;
+                  // Update the node with the image
+                  setNodes(prev => prev.map(n => 
+                    n.id === selectedImageNodeId
+                      ? { ...n, data: { ...n.data, src: dataUrl, filename: file.name, sourceType: 'upload' } }
+                      : n
+                  ));
+                  resolve(dataUrl);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+              });
+            }}
+            onImageUrlSet={(url: string) => {
+              // Update the node with the URL
+              setNodes(prev => prev.map(n => 
+                n.id === selectedImageNodeId
+                  ? { ...n, data: { ...n.data, src: url, sourceType: 'url' } }
+                  : n
+              ));
+            }}
           />
         )}
 

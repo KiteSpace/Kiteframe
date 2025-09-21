@@ -2530,7 +2530,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   props.onNodeClick?.(e, n);
                 }}
               >
-                <div className="title">{n.data?.label || n.type || n.id}</div>
+                <div className="title" style={{ background: headerBg, color: headerText }}>{n.data?.label || n.type || n.id}</div>
                 <div 
                   className="body" 
                   style={{ 
@@ -2586,17 +2586,15 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Trigger file input for image upload
-                          const input = document.createElement('input');
-                          input.type = 'file';
-                          input.accept = 'image/*';
-                          input.onchange = (event) => {
-                            const file = (event.target as HTMLInputElement).files?.[0];
-                            if (file && props.onImageUpload) {
-                              props.onImageUpload(n.id, file);
-                            }
-                          };
-                          input.click();
+                          // Set flag to open image modal
+                          if (props.onNodesChange) {
+                            const updated = props.nodes.map(node => 
+                              node.id === n.id 
+                                ? { ...node, data: { ...node.data, openImageModal: true } }
+                                : node
+                            );
+                            props.onNodesChange(updated);
+                          }
                         }}
                         style={{
                           padding: '6px 12px',
@@ -2618,6 +2616,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 {n.showHandles !== false && <NodeHandles 
                   key={`handles-${n.id}`}
                   node={n} 
+                  scale={viewport.zoom}
                   onHandleConnect={(position, e)=>{
                     if (!containerRef.current) return;
                     const rect = containerRef.current.getBoundingClientRect();
@@ -2627,7 +2626,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       wx: wp.x, 
                       wy: wp.y, 
                       hoverTargetId: null, 
-                      eligible: [] 
+                      eligible: false 
                     });
                   }}
                 />}

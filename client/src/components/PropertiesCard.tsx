@@ -291,6 +291,58 @@ export function PropertiesCard({
               />
             </div>
 
+            {/* Image Node Specific Properties */}
+            {selectedNode.type === 'image' && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Image Source</Label>
+                  {selectedNode.data?.src ? (
+                    <div className="space-y-2">
+                      <div className="text-xs text-muted-foreground">
+                        {selectedNode.data?.filename || 'Image loaded'}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => {
+                          // Open image modal to replace image
+                          if (onNodeUpdate) {
+                            // Trigger the modal by setting a flag that the parent can check
+                            onNodeUpdate(selectedNode.id, {
+                              data: { ...selectedNode.data, openImageModal: true }
+                            });
+                          }
+                        }}
+                        data-testid="replace-image-button"
+                      >
+                        Replace Image
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        // Open image modal to add image
+                        if (onNodeUpdate) {
+                          // Trigger the modal by setting a flag that the parent can check
+                          onNodeUpdate(selectedNode.id, {
+                            data: { ...selectedNode.data, openImageModal: true }
+                          });
+                        }
+                      }}
+                      data-testid="add-image-button"
+                    >
+                      Add Image
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
+
             {/* Node Color Customization - Tabbed Interface */}
             <Separator />
             <TabbedColorPicker
