@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Palette, Upload, ExternalLink, Image as ImageIcon } from 'lucide-react';
 import type { Node, ImageNodeData } from '../../types';
+import { ImageUploadModal } from '../modals/ImageUploadModal';
 
 interface ImageNodePropertiesProps {
   node: Node & { data: ImageNodeData };
@@ -19,10 +20,8 @@ export const ImageNodeProperties: React.FC<ImageNodePropertiesProps> = ({
   onImageUpload,
   onImageUrlSet
 }) => {
-  const [showUrlInput, setShowUrlInput] = useState(false);
-  const [urlValue, setUrlValue] = useState('');
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Helper function to determine if a color is light or dark
   const isLightColor = (color: string): boolean => {
@@ -42,19 +41,8 @@ export const ImageNodeProperties: React.FC<ImageNodePropertiesProps> = ({
     onUpdate?.(node.id, updates);
   };
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !onImageUpload) return;
-
-    if (!file.type.startsWith('image/')) {
-      console.error('Please select an image file');
-      return;
-    }
-
-    if (file.size > 10485760) {
-      console.error('File size must be less than 10MB');
-      return;
-    }
+  const handleModalImageUpload = async (file: File) => {
+    if (!onImageUpload) return '';
 
     setIsUploading(true);
     try {
@@ -68,29 +56,27 @@ export const ImageNodeProperties: React.FC<ImageNodePropertiesProps> = ({
           isImageBroken: false
         }
       });
+      return imageUrl;
     } catch (error) {
       console.error('Upload failed:', error);
+      throw error;
     } finally {
       setIsUploading(false);
-      event.target.value = '';
     }
   };
 
-  const handleUrlSubmit = () => {
-    const url = urlValue.trim();
-    if (url && onImageUrlSet) {
+  const handleModalImageUrl = (url: string) => {
+    if (onImageUrlSet) {
       onImageUrlSet(node.id, url);
-      handleUpdate({
-        data: {
-          ...node.data,
-          src: url,
-          sourceType: 'url',
-          isImageBroken: false
-        }
-      });
     }
-    setShowUrlInput(false);
-    setUrlValue('');
+    handleUpdate({
+      data: {
+        ...node.data,
+        src: url,
+        sourceType: 'url',
+        isImageBroken: false
+      }
+    });
   };
 
   const colors = node.data.colors || {};
@@ -173,67 +159,17 @@ export const ImageNodeProperties: React.FC<ImageNodePropertiesProps> = ({
         )}
 
         {/* Image Actions */}
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="text-xs"
-          >
-            <Upload className="w-3 h-3 mr-1" />
-            {isUploading ? 'Uploading...' : 'Upload'}
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowUrlInput(!showUrlInput)}
-            className="text-xs"
-          >
-            <ExternalLink className="w-3 h-3 mr-1" />
-            URL
-          </Button>
-        </div>
-
-        {/* URL Input */}
-        {showUrlInput && (
-          <div className="space-y-2">
-            <Input
-              type="url"
-              value={urlValue}
-              onChange={(e) => setUrlValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleUrlSubmit();
-                } else if (e.key === 'Escape') {
-                  setShowUrlInput(false);
-                  setUrlValue('');
-                }
-              }}
-              placeholder="Enter image URL..."
-              className="text-xs"
-              data-testid="image-url-input"
-            />
-            <div className="flex gap-2">
-              <Button size="sm" onClick={handleUrlSubmit} className="text-xs">
-                Set URL
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={() => {
-                  setShowUrlInput(false);
-                  setUrlValue('');
-                }}
-                className="text-xs"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowUploadModal(true)}
+          disabled={isUploading}
+          className="w-full text-xs"
+          data-testid="properties-add-image-button"
+        >
+          <ImageIcon className="w-3 h-3 mr-2" />
+          {isUploading ? 'Uploading...' : 'Add Image'}
+        </Button>
 
         {/* Display Text */}
         <div className="space-y-2">
@@ -397,13 +333,13 @@ export const ImageNodeProperties: React.FC<ImageNodePropertiesProps> = ({
         </div>
       </div>
 
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileSelect}
-        className="hidden"
+      {/* Image Upload Modal */}
+      <ImageUploadModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onImageUpload={handleModalImageUpload}
+        onImageUrlSet={handleModalImageUrl}
+        isUploading={isUploading}
       />
     </>
   );
