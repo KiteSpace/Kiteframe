@@ -168,7 +168,7 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
         formDataToSend.append('error_logs', errorLogs);
       }
       
-      const response = await fetch('https://formspree.io/f/xpwzwrej', {
+      const response = await fetch('https://formspree.io/f/xblzrdvw', {
         method: 'POST',
         body: formDataToSend,
         headers: {
