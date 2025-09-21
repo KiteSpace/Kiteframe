@@ -72,7 +72,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   const quickAddOffset = 35 / scale; // Keep visual distance constant regardless of zoom
   const ghostSpacing = 250 / scale;
   
-  const isQuickAddEnabled = proFeatures?.quickAdd?.enabled !== false;
+  const isQuickAddEnabled = proFeatures?.quickAdd?.enabled !== false && node.type !== 'image';
   
   const pos = {
     top:    { cx: w/2, cy: 0 },

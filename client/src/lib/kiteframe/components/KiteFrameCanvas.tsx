@@ -2562,7 +2562,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     <div style={{ 
                       padding: '8px', 
                       textAlign: 'center', 
-                      color: '#666',
+                      color: bodyText,
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
@@ -2573,7 +2573,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       {n.data?.displayText ? (
                         <div style={{
                           fontSize: '11px',
-                          color: n.data?.isImageBroken ? '#dc2626' : '#888',
+                          color: n.data?.isImageBroken ? '#dc2626' : bodyText,
                           fontStyle: 'italic',
                           marginBottom: '8px',
                           whiteSpace: 'pre-line',
@@ -2601,10 +2601,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         style={{
                           padding: '6px 12px',
                           fontSize: '11px',
-                          border: '1px dashed #ccc',
+                          border: `1px dashed ${border}`,
                           borderRadius: '4px',
                           background: 'transparent',
-                          color: '#666',
+                          color: bodyText,
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -2844,7 +2844,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     <div style={{ 
                       padding: '8px', 
                       textAlign: 'center', 
-                      color: '#666',
+                      color: bodyText,
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
@@ -2855,7 +2855,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       {n.data?.displayText ? (
                         <div style={{
                           fontSize: '11px',
-                          color: n.data?.isImageBroken ? '#dc2626' : '#888',
+                          color: n.data?.isImageBroken ? '#dc2626' : bodyText,
                           fontStyle: 'italic',
                           marginBottom: '8px',
                           whiteSpace: 'pre-line',
@@ -2873,10 +2873,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         style={{
                           padding: '6px 12px',
                           fontSize: '11px',
-                          border: '1px dashed #ccc',
+                          border: `1px dashed ${border}`,
                           borderRadius: '4px',
                           background: 'transparent',
-                          color: '#666',
+                          color: bodyText,
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -2887,8 +2887,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                           e.currentTarget.style.color = '#007bff';
                         }}
                         onMouseOut={(e) => {
-                          e.currentTarget.style.borderColor = '#ccc';
-                          e.currentTarget.style.color = '#666';
+                          e.currentTarget.style.borderColor = border;
+                          e.currentTarget.style.color = bodyText;
                         }}
                       >
                         📷 Add Image
