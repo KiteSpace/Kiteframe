@@ -2478,8 +2478,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   width: w, 
                   height: h, 
                   borderColor: border,
-                  background: colors.background || 'white', 
-                  color: colors.text || '#0f172a',
+                  background: bodyBg, 
+                  color: bodyText,
                   zIndex: n.zIndex || 0
                 }}
                 onMouseDown={(e)=>{
