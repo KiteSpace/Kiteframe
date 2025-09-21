@@ -71,17 +71,15 @@ TECHNICAL INFORMATION:
     // Use Nodemailer with SMTP for business email
     
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host: process.env.SMTP_HOST || 'mail.privateemail.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false, // false for STARTTLS (port 587)
-      requireTLS: true, // require TLS for security
+      secure: false, // false for port 587 (TLS/STARTTLS)
       auth: {
-        user: process.env.SMTP_USER,
+        user: process.env.SMTP_USER, // Must be full email address
         pass: process.env.SMTP_PASS,
       },
-      tls: {
-        ciphers: 'SSLv3'
-      }
+      logger: true,
+      debug: true
     });
 
     // Secure email routing - addresses are only stored on server
