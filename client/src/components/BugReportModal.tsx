@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Bug, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Bug, Loader2, CheckCircle, AlertCircle, Upload, X, Image } from 'lucide-react';
 
 interface BugReportModalProps {
   onClose: () => void;
@@ -37,6 +37,7 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
     actualBehavior: string;
     includeErrorLogs: boolean;
     email: string;
+    attachment: File | null;
   }>({
     type: 'bug',
     subject: '',
@@ -45,7 +46,8 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
     expectedBehavior: '',
     actualBehavior: '',
     includeErrorLogs: true,
-    email: ''
+    email: '',
+    attachment: null
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,6 +63,42 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
     return { a, b, answer: a + b, question: `${a} + ${b} = ?` };
   });
   const [captchaAnswer, setCaptchaAnswer] = useState('');
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type (images only)
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        toast({
+          title: "Invalid File Type",
+          description: "Please upload an image file (JPG, PNG, GIF, or WebP).",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        toast({
+          title: "File Too Large",
+          description: "Please upload an image smaller than 5MB.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setFormData(prev => ({ ...prev, attachment: file }));
+    }
+  };
+
+  const removeAttachment = () => {
+    setFormData(prev => ({ ...prev, attachment: null }));
+    // Reset file input
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
 
   const collectErrorLogs = () => {
     const logs: string[] = [];
@@ -166,6 +204,11 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
       
       if (formData.includeErrorLogs) {
         formDataToSend.append('error_logs', errorLogs);
+      }
+      
+      // Add image attachment if provided
+      if (formData.attachment) {
+        formDataToSend.append('attachment', formData.attachment);
       }
       
       const response = await fetch('https://formspree.io/f/xblzrdvw', {
@@ -341,6 +384,60 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
               onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
               data-testid="input-email"
             />
+          </div>
+
+          {/* Image Attachment */}
+          <div className="space-y-2">
+            <Label htmlFor="attachment">Attach Screenshot (optional)</Label>
+            <div className="space-y-3">
+              {!formData.attachment ? (
+                <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors cursor-pointer">
+                  <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">
+                      Upload a screenshot to help explain the issue
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      JPG, PNG, GIF, or WebP • Max 5MB
+                    </p>
+                  </div>
+                  <input
+                    id="attachment"
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    data-testid="input-attachment"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0">
+                      <Image className="h-8 w-8 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">
+                        {formData.attachment.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {(formData.attachment.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={removeAttachment}
+                    className="flex-shrink-0"
+                    data-testid="button-remove-attachment"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Include Error Logs Checkbox */}
