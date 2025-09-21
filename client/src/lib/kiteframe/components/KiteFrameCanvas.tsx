@@ -2464,6 +2464,177 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             />;
           }
 
+          // Handle image nodes with proper rendering from backup
+          if (n.type === 'image') {
+            return (
+              <div
+                key={n.id}
+                ref={(el) => registerNodeRef(n.id, el)}
+                data-node-id={n.id}
+                className={`kiteframe-node group ${n.selected?'selected':''}`}
+                style={{ 
+                  left: n.position.x, 
+                  top: n.position.y, 
+                  width: w, 
+                  height: h, 
+                  borderColor: border,
+                  background: colors.background || 'white', 
+                  color: colors.text || '#0f172a',
+                  zIndex: n.zIndex || 0
+                }}
+                onMouseDown={(e)=>{
+                  e.stopPropagation();
+                  if (!containerRef.current) return;
+                  const rect = containerRef.current.getBoundingClientRect();
+                  const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+                  
+                  // Check if this node is selected and if there are other selected nodes or canvas objects
+                  const selectedNodes = props.nodes.filter(node => node.selected === true);
+                  const selectedCanvasObjects = (props.canvasObjects || []).filter(obj => obj.selected === true);
+                  const totalSelected = selectedNodes.length + selectedCanvasObjects.length;
+                  const isGroupDrag = totalSelected > 1 && n.selected === true;
+                  
+                  // Prepare origins for all nodes that will be dragged
+                  const origins = isGroupDrag 
+                    ? selectedNodes.map(node => ({ id: node.id, origin: { ...node.position } }))
+                    : [{ id: n.id, origin: { ...n.position } }];
+                  
+                  // Prepare origins for all canvas objects that will be dragged
+                  const canvasObjectOrigins = isGroupDrag 
+                    ? selectedCanvasObjects.map(obj => ({ id: obj.id, origin: { ...obj.position } }))
+                    : [];
+                  
+                  dragInfo.current = { 
+                    id: n.id, 
+                    start: wp, 
+                    origin: { ...n.position },
+                    origins: origins,
+                    canvasObjectOrigins: canvasObjectOrigins,
+                    isGroupDrag: isGroupDrag
+                  };
+                  
+                  console.log('🔧 DRAG START:', {
+                    nodeId: n.id,
+                    worldPos: wp,
+                    nodePosition: n.position,
+                    selectedNodes: selectedNodes.map(sn => sn.id),
+                    isGroupDrag,
+                    dragInfo: dragInfo.current
+                  });
+                }}
+                onDoubleClick={(e)=>props.onNodeDoubleClick?.(e, n)}
+                onContextMenu={(e)=>{ e.preventDefault(); props.onNodeRightClick?.(e, n); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log(`🎯 NODE CLICK:`, { nodeId: n.id, wasSelected: n.selected });
+                  props.onNodeClick?.(e, n);
+                }}
+              >
+                <div className="title">{n.data?.label || n.type || n.id}</div>
+                <div 
+                  className="body" 
+                  style={{ 
+                    padding: '0',
+                    height: `${h - 32}px`, // Account for title height
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  {n.data?.src ? 
+                    <img 
+                      src={n.data.src} 
+                      alt={n.data?.filename || n.data?.label || ''} 
+                      style={{ 
+                        maxWidth: '100%', 
+                        maxHeight: '100%', 
+                        width: n.data?.imageSize === 'fill' ? '100%' : 'auto',
+                        height: n.data?.imageSize === 'fill' ? '100%' : 'auto',
+                        objectFit: n.data?.imageSize === 'fill' ? 'cover' : 
+                                   n.data?.imageSize === 'fit' ? 'scale-down' : 
+                                   'contain',
+                        display: 'block',
+                        userSelect: 'none',
+                        pointerEvents: 'none',
+                        draggable: false
+                      } as React.CSSProperties} 
+                    /> : 
+                    <div style={{ 
+                      padding: '8px', 
+                      textAlign: 'center', 
+                      color: '#666',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: '100%',
+                      gap: '8px'
+                    }}>
+                      {n.data?.displayText ? (
+                        <div style={{
+                          fontSize: '11px',
+                          color: n.data?.isImageBroken ? '#dc2626' : '#888',
+                          fontStyle: 'italic',
+                          marginBottom: '8px',
+                          whiteSpace: 'pre-line',
+                          textAlign: 'center'
+                        }}>
+                          {n.data?.isImageBroken && '⚠️ '}
+                          {n.data.displayText}
+                        </div>
+                      ) : null}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Trigger file input for image upload
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = 'image/*';
+                          input.onchange = (event) => {
+                            const file = (event.target as HTMLInputElement).files?.[0];
+                            if (file && props.onImageUpload) {
+                              props.onImageUpload(n.id, file);
+                            }
+                          };
+                          input.click();
+                        }}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          border: '1px dashed #ccc',
+                          borderRadius: '4px',
+                          background: 'transparent',
+                          color: '#666',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        📁 Add Image
+                      </button>
+                    </div>}
+                </div>
+                {n.showHandles !== false && <NodeHandles 
+                  key={`handles-${n.id}`}
+                  node={n} 
+                  onHandleConnect={(position, e)=>{
+                    if (!containerRef.current) return;
+                    const rect = containerRef.current.getBoundingClientRect();
+                    const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+                    setConnecting({ 
+                      sourceId: n.id, 
+                      wx: wp.x, 
+                      wy: wp.y, 
+                      hoverTargetId: null, 
+                      eligible: [] 
+                    });
+                  }}
+                />}
+              </div>
+            );
+          }
+
           // Check for plugin renderers before falling back to default rendering
           if (enablePlugins && n.type) {
             const hooks = core.getHooks();

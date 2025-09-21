@@ -142,6 +142,23 @@ export const ImageNodeProperties: React.FC<ImageNodePropertiesProps> = ({
           <Label className="text-xs font-semibold">Image</Label>
         </div>
 
+        {/* Image Size Mode */}
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">Image Fit</Label>
+          <select
+            value={node.data.imageSize || 'contain'}
+            onChange={(e) => handleUpdate({
+              data: { ...node.data, imageSize: e.target.value as 'fill' | 'fit' | 'contain' }
+            })}
+            className="w-full text-sm border border-input bg-background px-3 py-2 rounded-md"
+            data-testid="image-size-select"
+          >
+            <option value="contain">Contain - Show full image within bounds</option>
+            <option value="fill">Fill - Fill node completely (may crop)</option>
+            <option value="fit">Fit - Scale down to fit if needed</option>
+          </select>
+        </div>
+
         {/* Current Image Info */}
         {node.data.src && (
           <div className="space-y-2">

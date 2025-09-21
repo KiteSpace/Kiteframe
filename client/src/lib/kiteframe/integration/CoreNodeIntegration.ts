@@ -17,12 +17,13 @@ export const coreNodeIntegrationPlugin: KiteFramePlugin = {
     // Log the components being registered
     console.log('📦 Core Node Integration: Preparing to register node renderers:');
     console.log('  - BasicNode:', typeof BasicNode === 'function' ? '✓ Component found' : '✗ Component missing');
-    console.log('  - ImageNode:', typeof ImageNode === 'function' ? '✓ Component found' : '✗ Component missing');
+    console.log('  - ImageNode: Handled by main canvas for advanced features');
     
-    // Register BasicNode and ImageNode as custom node renderers
+    // Register BasicNode as custom node renderer
+    // Note: ImageNode moved to main canvas rendering for advanced features
     const nodeRenderers = {
-      'basic': BasicNode,
-      'image': ImageNode
+      'basic': BasicNode
+      // 'image': ImageNode - Moved to main canvas rendering for selection, handles, and advanced imageSize modes
     };
     
     console.log('📝 Core Node Integration: Registering hooks with core system...');
@@ -40,22 +41,21 @@ export const coreNodeIntegrationPlugin: KiteFramePlugin = {
     
     // Verify our specific renderers
     const basicRegistered = registeredRenderers['basic'] === BasicNode;
-    const imageRegistered = registeredRenderers['image'] === ImageNode;
     
-    if (basicRegistered && imageRegistered) {
-      console.log('✅ Core Node Integration: SUCCESS - All node renderers registered correctly');
+    if (basicRegistered) {
+      console.log('✅ Core Node Integration: SUCCESS - Node renderers registered correctly');
       console.log('  ✓ basic -> BasicNode');
-      console.log('  ✓ image -> ImageNode');
+      console.log('  ✓ image -> Main Canvas (advanced features)');
     } else {
-      console.error('❌ Core Node Integration: FAILED - Some renderers not registered properly');
+      console.error('❌ Core Node Integration: FAILED - BasicNode renderer not registered properly');
       console.error('  basic registered:', basicRegistered ? '✓' : '✗');
-      console.error('  image registered:', imageRegistered ? '✓' : '✗');
-      throw new Error('Core Node Integration failed to register all required renderers');
+      throw new Error('Core Node Integration failed to register BasicNode renderer');
     }
     
     // Emit success event
     core.emit('core-node-integration:initialized', {
-      renderers: ['basic', 'image'],
+      renderers: ['basic'],
+      mainCanvasRenderers: ['image'],
       timestamp: new Date().toISOString()
     });
   },

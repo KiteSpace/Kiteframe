@@ -119,7 +119,7 @@ export interface ImageNodeData {
   filename?: string; // Original filename
   sourceType?: 'upload' | 'url' | 'data';
   isImageBroken?: boolean;
-  imageSize?: { width: number; height: number };
+  imageSize?: 'fill' | 'fit' | 'contain'; // Image sizing mode
   displayText?: string; // Fallback text when image is missing
   colors?: {
     headerBackground?: string;
