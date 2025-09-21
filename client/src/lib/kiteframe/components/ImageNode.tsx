@@ -17,7 +17,9 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   className,
   style,
   showHandles = true,
-  showResizeHandle = true
+  showResizeHandle = true,
+  onStartDrag,
+  viewport
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
@@ -59,6 +61,21 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     }
     onDoubleClick?.(e);
   }, [node.data.src, handleUploadClick, onDoubleClick]);
+
+  // Handle mouse down for dragging - integrate with canvas drag system
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only start drag if not clicking on interactive elements
+    const target = e.target as HTMLElement;
+    const isInteractiveElement = target.closest('input, button, textarea, select, [contenteditable="true"]');
+    
+    if (isInteractiveElement) {
+      return; // Don't start drag on interactive elements
+    }
+    
+    e.stopPropagation();
+    // Trigger the canvas drag system
+    onStartDrag?.(e, node);
+  }, [onStartDrag, node]);
 
   const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -241,10 +258,9 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       className={cn(
         'kiteframe-node group',
         'border-2 rounded-lg shadow-md transition-all duration-200',
-        'hover:shadow-lg',
+        'hover:shadow-lg cursor-move',
         node.selected ? 'ring-2 ring-blue-500 shadow-lg' : '',
         node.hidden ? 'opacity-0 pointer-events-none' : '',
-        isPlaceholder ? 'cursor-pointer' : 'cursor-move',
         nodePositionClass,
         borderClass,
         className
@@ -253,6 +269,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       aria-label={`Image node: ${node.data.label || 'Untitled'}. ${hasImage ? `Image: ${node.data.filename || 'Uploaded image'}` : 'No image uploaded'}`}
       aria-selected={node.selected}
       tabIndex={node.selected ? 0 : -1}
+      onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
       data-testid={`image-node-${node.id}`}
     >
@@ -319,18 +336,37 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         {/* URL Input */}
         {showUrlInput && (
           <div className="p-3 border-b border-gray-200">
-            <input
-              ref={urlInputRef}
-              type="url"
-              value={urlValue}
-              onChange={(e) => setUrlValue(e.target.value)}
-              onBlur={handleUrlSubmit}
-              onKeyDown={handleUrlKeyDown}
-              placeholder="Enter image URL..."
-              className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              aria-label="Image URL"
-              aria-describedby="url-format-hint"
-            />
+            <div className="flex gap-2">
+              <input
+                ref={urlInputRef}
+                type="url"
+                value={urlValue}
+                onChange={(e) => setUrlValue(e.target.value)}
+                onKeyDown={handleUrlKeyDown}
+                placeholder="Enter image URL..."
+                className="flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Image URL"
+                aria-describedby="url-format-hint"
+              />
+              <button
+                onClick={handleUrlSubmit}
+                className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={!urlValue.trim()}
+                data-testid="button-submit-url"
+              >
+                Add
+              </button>
+              <button
+                onClick={() => {
+                  setShowUrlInput(false);
+                  setUrlValue('');
+                }}
+                className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                data-testid="button-cancel-url"
+              >
+                Cancel
+              </button>
+            </div>
             <span id="url-format-hint" className="sr-only">
               Enter a valid image URL starting with http:// or https://
             </span>
@@ -430,8 +466,12 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       {/* Connection Handles */}
       {showHandles && (
         <NodeHandles
-          node={node}
-          scale={1}
+          node={{
+            ...node,
+            width: nodeWidth,
+            height: nodeHeight
+          }}
+          scale={viewport?.zoom || 1}
           onHandleConnect={useCallback((pos: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => {
             console.log('Handle connect:', pos, e);
           }, [])}
@@ -446,6 +486,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
           onResize={handleResize}
           minWidth={200}
           minHeight={150}
+          viewport={viewport}
         />
       )}
     </div>

@@ -2484,14 +2484,34 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     console.log('Plugin node connection:', sourceId, targetId);
                   }}
                   onDoubleClick={(e: React.MouseEvent) => props.onNodeDoubleClick?.(e, n)}
+                  onStartDrag={(e: React.MouseEvent, node: any) => {
+                    e.stopPropagation();
+                    if (!containerRef.current) return;
+                    const rect = containerRef.current.getBoundingClientRect();
+                    const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+                    
+                    // Check if this node is selected and if there are other selected nodes or canvas objects
+                    const selectedNodes = props.nodes.filter(node => node.selected === true);
+                    const selectedCanvasObjects = (props.canvasObjects || []).filter(obj => obj.selected === true);
+                    const totalSelected = selectedNodes.length + selectedCanvasObjects.length;
+                    const isGroupDrag = totalSelected > 1 && n.selected === true;
+                    
+                    // Prepare origins for all nodes that will be dragged
+                    const origins = isGroupDrag 
+                      ? selectedNodes.map(node => ({ id: node.id, origin: { ...node.position } }))
+                      : [{ id: n.id, origin: { ...n.position } }];
+                    
+                    dragInfo.current = { 
+                      id: n.id, 
+                      start: wp, 
+                      origin: { ...n.position },
+                      isGroupDrag,
+                      origins 
+                    };
+                  }}
+                  viewport={viewport}
                   onImageUpload={props.onImageUpload}
                   onImageUrlSet={props.onImageUrlSet}
-                  style={{
-                    position: 'absolute',
-                    left: n.position.x,
-                    top: n.position.y,
-                    zIndex: n.zIndex || 0
-                  }}
                 />
               );
             }
