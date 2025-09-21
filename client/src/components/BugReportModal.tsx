@@ -176,13 +176,8 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
         }
       });
 
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
+      if (response.ok) {
+        // Formspree returns 200 on success
         setSubmitted(true);
         toast({
           title: "Report Sent Successfully!",
@@ -190,7 +185,8 @@ export function BugReportModal({ onClose }: BugReportModalProps) {
           variant: "default"
         });
       } else {
-        throw new Error(result.error || 'Failed to send report');
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || `Submission failed (${response.status})`);
       }
     } catch (error) {
       console.error('Bug report submission error:', error);
