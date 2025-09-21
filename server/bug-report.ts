@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import nodemailer from 'nodemailer';
 
 interface BugReportData {
   type: 'bug' | 'feature' | 'improvement';
@@ -67,9 +68,8 @@ TECHNICAL INFORMATION:
     }
 
     // Use Nodemailer with SMTP for business email
-    const nodemailer = require('nodemailer');
     
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
