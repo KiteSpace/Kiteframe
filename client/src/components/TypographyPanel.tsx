@@ -1,25 +1,31 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { GoogleFontsSelector } from './GoogleFontsSelector';
-import FigmaStyleColorPicker from './FigmaStyleColorPicker';
-import { getAvailableWeightOptions, findFallbackWeight } from '@/lib/fontUtils';
-import { DEFAULT_TEXT_NODE_DATA } from '@/lib/kiteframe/constants/defaults';
-import { 
-  AlignLeft, 
-  AlignCenter, 
-  AlignRight, 
+import { useState, useCallback, useEffect, useRef } from "react";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { GoogleFontsSelector } from "./GoogleFontsSelector";
+import FigmaStyleColorPicker from "./FigmaStyleColorPicker";
+import { getAvailableWeightOptions, findFallbackWeight } from "@/lib/fontUtils";
+import { DEFAULT_TEXT_NODE_DATA } from "@/lib/kiteframe/constants/defaults";
+import {
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
   AlignJustify,
   AlignVerticalJustifyStart,
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
   Underline,
   Type,
-  RotateCcw
-} from 'lucide-react';
+  RotateCcw,
+} from "lucide-react";
 
 interface TypographyPanelProps {
   textContent: string;
@@ -49,12 +55,12 @@ interface TypographyPanelProps {
 // Dynamic font weights will be calculated based on selected font
 
 const FONT_SIZES = [
-  { label: 'Extra small', value: 10 },
-  { label: 'Small', value: 14 },
-  { label: 'Normal', value: 18 },
-  { label: 'Large', value: 24 },
-  { label: 'Extra Large', value: 40 },
-  { label: 'Custom', value: 'custom' }
+  { label: "Extra small", value: 10 },
+  { label: "Small", value: 14 },
+  { label: "Normal", value: 18 },
+  { label: "Large", value: 24 },
+  { label: "Extra Large", value: 40 },
+  { label: "Custom", value: "custom" },
 ];
 
 export const TypographyPanel = ({
@@ -63,9 +69,9 @@ export const TypographyPanel = ({
   fontFamily,
   fontWeight,
   textColor,
-  textAlign = 'left',
-  textDecoration = 'none',
-  verticalAlign = 'top',
+  textAlign = "left",
+  textDecoration = "none",
+  verticalAlign = "top",
   lineHeight = 1.4,
   letterSpacing = 0,
   onTextContentChange,
@@ -79,11 +85,11 @@ export const TypographyPanel = ({
   onLineHeightChange,
   onLetterSpacingChange,
   onResetToDefaults,
-  className = ''
+  className = "",
 }: TypographyPanelProps) => {
   const [showCustomSize, setShowCustomSize] = useState(false);
   const [customSize, setCustomSize] = useState(fontSize);
-  
+
   // Local state for text content input with debouncing
   const [localTextContent, setLocalTextContent] = useState(textContent);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -94,21 +100,27 @@ export const TypographyPanel = ({
   }, [textContent]);
 
   // Debounced text content change handler
-  const debouncedTextContentChange = useCallback((value: string) => {
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-    
-    debounceTimeoutRef.current = setTimeout(() => {
-      onTextContentChange(value);
-    }, 150); // 150ms debounce delay for responsive feel
-  }, [onTextContentChange]);
+  const debouncedTextContentChange = useCallback(
+    (value: string) => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+
+      debounceTimeoutRef.current = setTimeout(() => {
+        onTextContentChange(value);
+      }, 150); // 150ms debounce delay for responsive feel
+    },
+    [onTextContentChange],
+  );
 
   // Handle text input changes with immediate local update and debounced prop update
-  const handleTextContentChange = useCallback((value: string) => {
-    setLocalTextContent(value); // Immediate local update for responsiveness
-    debouncedTextContentChange(value); // Debounced prop update
-  }, [debouncedTextContentChange]);
+  const handleTextContentChange = useCallback(
+    (value: string) => {
+      setLocalTextContent(value); // Immediate local update for responsiveness
+      debouncedTextContentChange(value); // Debounced prop update
+    },
+    [debouncedTextContentChange],
+  );
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -120,22 +132,25 @@ export const TypographyPanel = ({
   }, []);
 
   // Check if current fontSize matches one of the preset sizes
-  const currentPresetSize = FONT_SIZES.find(size => size.value === fontSize);
+  const currentPresetSize = FONT_SIZES.find((size) => size.value === fontSize);
   const isCustomSize = !currentPresetSize;
 
   // Get available font weights for the current font family
   const availableWeights = getAvailableWeightOptions(fontFamily);
 
   // Handle font family change with weight fallback
-  const handleFontFamilyChange = useCallback((newFontFamily: string) => {
-    const fallbackWeight = findFallbackWeight(fontWeight, newFontFamily);
-    onFontFamilyChange(newFontFamily);
-    
-    // Update weight if it changed due to fallback
-    if (fallbackWeight !== fontWeight) {
-      onFontWeightChange(fallbackWeight);
-    }
-  }, [fontWeight, onFontFamilyChange, onFontWeightChange]);
+  const handleFontFamilyChange = useCallback(
+    (newFontFamily: string) => {
+      const fallbackWeight = findFallbackWeight(fontWeight, newFontFamily);
+      onFontFamilyChange(newFontFamily);
+
+      // Update weight if it changed due to fallback
+      if (fallbackWeight !== fontWeight) {
+        onFontWeightChange(fallbackWeight);
+      }
+    },
+    [fontWeight, onFontFamilyChange, onFontWeightChange],
+  );
 
   // Handle reset to defaults - now includes all typography properties
   const handleResetToDefaults = useCallback(() => {
@@ -151,11 +166,23 @@ export const TypographyPanel = ({
       onTextColorChange(defaults.textColor);
       onTextAlignChange?.(defaults.textAlign);
       onTextDecorationChange?.(defaults.textDecoration);
-      onVerticalAlignChange?.(defaults.verticalAlign || 'top');
+      onVerticalAlignChange?.(defaults.verticalAlign || "top");
       onLineHeightChange?.(defaults.lineHeight);
       onLetterSpacingChange?.(defaults.letterSpacing);
     }
-  }, [onResetToDefaults, onTextContentChange, onFontSizeChange, onFontFamilyChange, onFontWeightChange, onTextColorChange, onTextAlignChange, onTextDecorationChange, onVerticalAlignChange, onLineHeightChange, onLetterSpacingChange]);
+  }, [
+    onResetToDefaults,
+    onTextContentChange,
+    onFontSizeChange,
+    onFontFamilyChange,
+    onFontWeightChange,
+    onTextColorChange,
+    onTextAlignChange,
+    onTextDecorationChange,
+    onVerticalAlignChange,
+    onLineHeightChange,
+    onLetterSpacingChange,
+  ]);
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -204,7 +231,10 @@ export const TypographyPanel = ({
         <div className="space-y-2">
           <Label className="text-xs font-medium">Weight</Label>
           <Select value={fontWeight} onValueChange={onFontWeightChange}>
-            <SelectTrigger className="h-9 text-sm" data-testid="font-weight-selector">
+            <SelectTrigger
+              className="h-9 text-sm"
+              data-testid="font-weight-selector"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="z-[9999]">
@@ -219,10 +249,10 @@ export const TypographyPanel = ({
 
         <div className="space-y-2">
           <Label className="text-xs font-medium">Size</Label>
-          <Select 
-            value={isCustomSize ? 'custom' : fontSize.toString()} 
+          <Select
+            value={isCustomSize ? "custom" : fontSize.toString()}
             onValueChange={(value) => {
-              if (value === 'custom') {
+              if (value === "custom") {
                 setShowCustomSize(true);
                 setCustomSize(fontSize);
               } else {
@@ -231,18 +261,21 @@ export const TypographyPanel = ({
               }
             }}
           >
-            <SelectTrigger className="h-9 text-sm" data-testid="font-size-selector">
+            <SelectTrigger
+              className="h-9 text-sm"
+              data-testid="font-size-selector"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="z-[9999]">
               {FONT_SIZES.map((size) => (
                 <SelectItem key={size.value} value={size.value.toString()}>
-                  {size.label} {size.value !== 'custom' && `(${size.value}px)`}
+                  {size.label} {size.value !== "custom" && `(${size.value}px)`}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          
+
           {/* Custom Size Input */}
           {(showCustomSize || isCustomSize) && (
             <div className="flex items-center gap-2">
@@ -257,7 +290,7 @@ export const TypographyPanel = ({
                   setShowCustomSize(false);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     onFontSizeChange(customSize);
                     setShowCustomSize(false);
                   }
@@ -272,70 +305,21 @@ export const TypographyPanel = ({
         </div>
       </div>
 
-      <Separator />
-
-      {/* Text Formatting Controls */}
-      <div className="space-y-3">
-        <Label className="text-xs font-medium">Formatting</Label>
-        
-        {/* Text Decoration and Text Color Row */}
-        <div className="flex items-center gap-2">
-          {/* Underline Toggle */}
-          <Button
-            variant={textDecoration === 'underline' ? 'default' : 'outline'}
-            size="sm"
-            className="h-8 w-12 p-0"
-            onClick={() => onTextDecorationChange?.(
-              textDecoration === 'underline' ? 'none' : 'underline'
-            )}
-            data-testid="underline-toggle"
-          >
-            <Underline className="w-4 h-4" />
-          </Button>
-
-          {/* Font Size Display */}
-          <div className="flex items-center gap-1 px-3 py-1 bg-muted rounded text-sm font-medium">
-            <Type className="w-3 h-3" />
-            <span>{fontSize}</span>
-          </div>
-
-          {/* Color Indicator - shows current color */}
-          <div
-            className="h-8 w-12 border-2 border-border rounded"
-            style={{ backgroundColor: textColor }}
-            data-testid="text-color-display"
-          />
-        </div>
-
-        {/* Color Picker - Always Visible */}
-        <div className="p-3 border rounded-lg bg-background">
-          <FigmaStyleColorPicker
-            fillColor={textColor}
-            onFillColorChange={onTextColorChange}
-            showFill={true}
-            showStroke={false}
-            testIdScope="text-color"
-          />
-        </div>
-      </div>
-
-      <Separator />
-
       {/* Text Alignment */}
       {onTextAlignChange && (
         <div className="space-y-3">
           <Label className="text-xs font-medium">Horizontal Alignment</Label>
           <div className="flex gap-1">
             {[
-              { value: 'left', icon: AlignLeft, label: 'Left' },
-              { value: 'center', icon: AlignCenter, label: 'Center' },
-              { value: 'right', icon: AlignRight, label: 'Right' }
+              { value: "left", icon: AlignLeft, label: "Left" },
+              { value: "center", icon: AlignCenter, label: "Center" },
+              { value: "right", icon: AlignRight, label: "Right" },
             ].map((align) => {
               const IconComponent = align.icon;
               return (
                 <Button
                   key={align.value}
-                  variant={textAlign === align.value ? 'default' : 'outline'}
+                  variant={textAlign === align.value ? "default" : "outline"}
                   size="sm"
                   className="h-8 w-12 p-0"
                   onClick={() => onTextAlignChange(align.value)}
@@ -349,7 +333,7 @@ export const TypographyPanel = ({
         </div>
       )}
 
-      {/* Vertical Alignment */}
+      {/* Vertical Alignment
       {onVerticalAlignChange && (
         <div className="space-y-3">
           <Label className="text-xs font-medium">Vertical Alignment</Label>
@@ -376,6 +360,25 @@ export const TypographyPanel = ({
           </div>
         </div>
       )}
+       */}
+
+      <Separator />
+
+      {/* Text Formatting Controls */}
+      <div className="space-y-3">
+        {/* Color Picker - Always Visible */}
+        <div className="p-3 border rounded-lg bg-background">
+          <FigmaStyleColorPicker
+            fillColor={textColor}
+            onFillColorChange={onTextColorChange}
+            showFill={false}
+            showStroke={false}
+            testIdScope="text-color"
+          />
+        </div>
+      </div>
+
+      <Separator />
     </div>
   );
 };
