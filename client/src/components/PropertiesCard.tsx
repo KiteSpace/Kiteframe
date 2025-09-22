@@ -332,16 +332,6 @@ export function PropertiesCard({
                 data-testid="node-description-input"
                 style={{ width: '100%', height: '80px', resize: 'vertical', overflowWrap: 'break-word' }}
               />
-                value={selectedNode.data.description || ""}
-                onChange={(e) =>
-                  onNodeUpdate?.(selectedNode.id, {
-                    data: { ...selectedNode.data, description: e.target.value },
-                  })
-                }
-                className="text-sm"
-                placeholder="Node description..."
-                data-testid="node-description-input"
-              />
             </div>
 
             {/* Image Node Specific Properties */}
