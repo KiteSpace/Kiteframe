@@ -2537,6 +2537,18 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   console.log(`🎯 IMAGE NODE CLICK:`, { nodeId: n.id, wasSelected: n.selected });
                   props.onNodeClick?.(e, n);
                 }}
+                onHandleConnect={(position, e) => {
+                  if (!containerRef.current) return;
+                  const rect = containerRef.current.getBoundingClientRect();
+                  const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+                  setConnecting({ 
+                    sourceId: n.id, 
+                    wx: wp.x, 
+                    wy: wp.y, 
+                    hoverTargetId: null, 
+                    eligible: false 
+                  });
+                }}
                 viewport={viewport}
                 style={{
                   position: 'absolute',

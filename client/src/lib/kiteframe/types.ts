@@ -213,6 +213,7 @@ export interface ImageNodeComponentProps extends BaseNodeComponentProps<ImageNod
   onImageUrlSet?: (nodeId: string, url: string) => void;
   onStartDrag?: (e: React.MouseEvent, node: Node) => void;
   onClick?: (e: React.MouseEvent, node: Node) => void;
+  onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
   viewport?: { x: number; y: number; zoom: number };
 }
 

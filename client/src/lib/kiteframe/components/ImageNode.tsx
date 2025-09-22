@@ -47,6 +47,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   showResizeHandle = true,
   onStartDrag,
   onClick,
+  onHandleConnect,
   viewport,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
@@ -588,12 +589,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
             height: nodeHeight,
           }}
           scale={viewport?.zoom || 1}
-          onHandleConnect={useCallback(
-            (pos: "top" | "bottom" | "left" | "right", e: React.MouseEvent) => {
-              console.log("Handle connect:", pos, e);
-            },
-            [],
-          )}
+          onHandleConnect={onHandleConnect}
         />
       )}
 
