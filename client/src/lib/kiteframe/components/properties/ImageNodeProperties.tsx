@@ -4,7 +4,9 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Palette, Upload, ExternalLink, Image as ImageIcon } from 'lucide-react';
-import type { Node, ImageNodeData } from '../../types';
+import type { Node, ImageNodeData, ImageFit } from '../../types';
+import { Switch } from '@/components/ui/switch';
+import { Maximize2 } from 'lucide-react';
 import { ImageUploadModal } from '../modals/ImageUploadModal';
 
 interface ImageNodePropertiesProps {
@@ -22,6 +24,8 @@ export const ImageNodeProperties: React.FC<ImageNodePropertiesProps> = ({
 }) => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDraggingResize, setIsDraggingResize] = useState(false);
+  const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
 
   // Helper function to determine if a color is light or dark
   const isLightColor = (color: string): boolean => {
@@ -134,15 +138,72 @@ export const ImageNodeProperties: React.FC<ImageNodePropertiesProps> = ({
           <select
             value={node.data.imageSize || 'contain'}
             onChange={(e) => handleUpdate({
-              data: { ...node.data, imageSize: e.target.value as 'fill' | 'fit' | 'contain' }
+              data: { ...node.data, imageSize: e.target.value as ImageFit }
             })}
             className="w-full text-sm border border-input bg-background px-3 py-2 rounded-md"
             data-testid="image-size-select"
           >
             <option value="contain">Contain - Show full image within bounds</option>
-            <option value="fill">Fill - Fill node completely (may crop)</option>
+            <option value="cover">Cover - Fill node completely (may crop)</option>
+            <option value="fill">Fill - Stretch to fill</option>
             <option value="fit">Fit - Scale down to fit if needed</option>
           </select>
+        </div>
+        
+        {/* Auto Height Toggle */}
+        <div className="flex items-center justify-between">
+          <Label className="text-xs font-medium">Auto Height</Label>
+          <Switch
+            checked={node.data.autoHeight !== false}
+            onCheckedChange={(checked) => handleUpdate({
+              data: { ...node.data, autoHeight: checked }
+            })}
+            className="scale-75"
+            data-testid="image-auto-height-toggle"
+          />
+        </div>
+        
+        {/* Size Controls */}
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">Dimensions</Label>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Input
+                type="number"
+                value={Math.round(node.style?.width || node.width || 200)}
+                onChange={(e) => {
+                  const width = Math.max(50, parseInt(e.target.value) || 200);
+                  handleUpdate({
+                    style: { ...node.style, width }
+                  });
+                }}
+                className="text-xs"
+                placeholder="Width"
+                min={50}
+                data-testid="image-width-input"
+              />
+              <span className="text-xs text-muted-foreground">Width</span>
+            </div>
+            <div className="flex-1">
+              <Input
+                type="number"
+                value={Math.round(node.style?.height || node.height || 200)}
+                onChange={(e) => {
+                  const height = Math.max(50, parseInt(e.target.value) || 200);
+                  handleUpdate({
+                    style: { ...node.style, height },
+                    data: { ...node.data, autoHeight: false }
+                  });
+                }}
+                disabled={node.data.autoHeight !== false}
+                className="text-xs"
+                placeholder="Height"
+                min={50}
+                data-testid="image-height-input"
+              />
+              <span className="text-xs text-muted-foreground">Height</span>
+            </div>
+          </div>
         </div>
 
         {/* Current Image Info */}

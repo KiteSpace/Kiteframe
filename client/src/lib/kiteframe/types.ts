@@ -112,6 +112,9 @@ export interface BasicNodeData {
   borderWidth?: number;
 }
 
+// Image fit type definition
+export type ImageFit = 'contain' | 'cover' | 'fill' | 'fit'; // fit maps to scale-down
+
 export interface ImageNodeData {
   label?: string;
   description?: string;
@@ -119,8 +122,11 @@ export interface ImageNodeData {
   filename?: string; // Original filename
   sourceType?: 'upload' | 'url' | 'data';
   isImageBroken?: boolean;
-  imageSize?: 'fill' | 'fit' | 'contain'; // Image sizing mode
+  imageSize?: ImageFit; // Image sizing mode
   displayText?: string; // Fallback text when image is missing
+  naturalWidth?: number; // Natural width of the image
+  naturalHeight?: number; // Natural height of the image
+  autoHeight?: boolean; // Auto-adjust height based on aspect ratio (default true)
   colors?: {
     headerBackground?: string;
     bodyBackground?: string;

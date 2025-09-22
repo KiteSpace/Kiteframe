@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
 import { Upload, Image as ImageIcon, ExternalLink, AlertCircle } from 'lucide-react';
-import type { Node, ImageNodeData, ImageNodeComponentProps } from '../types';
+import type { Node, ImageNodeData, ImageNodeComponentProps, ImageFit } from '../types';
 import { getDynamicClassName, getNodeStyleClasses } from '../utils/styles';
 import { sanitizeText } from '../utils/validation';
 import { ImageUploadModal } from './modals/ImageUploadModal';
@@ -31,6 +31,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Focus label input when entering edit mode
   useEffect(() => {
@@ -85,7 +87,9 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
             src: imageUrl,
             filename: file.name,
             sourceType: 'upload',
-            isImageBroken: false
+            isImageBroken: false,
+            naturalWidth: undefined,
+            naturalHeight: undefined
           }
         });
       }
@@ -146,7 +150,47 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   const handleImageLoad = useCallback(() => {
     setImageLoaded(true);
     setImageError(false);
-  }, []);
+    
+    // Capture natural dimensions and auto-adjust height
+    if (imgRef.current && onUpdate) {
+      const naturalWidth = imgRef.current.naturalWidth;
+      const naturalHeight = imgRef.current.naturalHeight;
+      
+      // Update node with natural dimensions
+      const updates: any = {
+        data: { 
+          ...node.data, 
+          naturalWidth, 
+          naturalHeight 
+        }
+      };
+      
+      // Auto-adjust height if enabled (default true)
+      if (node.data.autoHeight !== false) {
+        const nodeWidth = Number(node.style?.width || node.width || 200);
+        const imageSize = node.data.imageSize || 'contain';
+        
+        // Only auto-adjust height for contain and fit modes
+        if ((imageSize === 'contain' || imageSize === 'fit') && naturalWidth > 0) {
+          const aspectRatio = naturalHeight / naturalWidth;
+          const computedHeight = Math.max(100, Math.round(nodeWidth * aspectRatio));
+          
+          updates.style = {
+            ...node.style,
+            height: computedHeight
+          };
+        }
+      }
+      
+      // Debounce updates to avoid thrashing
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+      updateTimeoutRef.current = setTimeout(() => {
+        onUpdate(node.id, updates);
+      }, 100);
+    }
+  }, [node.id, node.data, node.style, node.width, onUpdate]);
 
   const handleImageError = useCallback(() => {
     setImageLoaded(false);
@@ -162,11 +206,54 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
 
   const handleResize = useCallback((width: number, height: number) => {
     if (onUpdate) {
+      let finalHeight = height;
+      
+      // If auto-height is enabled and we have natural dimensions, maintain aspect ratio
+      if (node.data.autoHeight !== false && node.data.naturalWidth && node.data.naturalHeight) {
+        const imageSize = node.data.imageSize || 'contain';
+        
+        // Only maintain aspect ratio for contain and fit modes
+        if (imageSize === 'contain' || imageSize === 'fit') {
+          const aspectRatio = node.data.naturalHeight / node.data.naturalWidth;
+          finalHeight = Math.max(100, Math.round(width * aspectRatio));
+        }
+      }
+      
       onUpdate(node.id, {
-        style: { ...node.style, width, height }
+        style: { ...node.style, width, height: finalHeight }
       });
     }
-  }, [node.id, node.style, onUpdate]);
+  }, [node.id, node.style, node.data, onUpdate]);
+
+  // Recompute height when width or image size changes
+  useEffect(() => {
+    if (node.data.src && node.data.naturalWidth && node.data.naturalHeight && node.data.autoHeight !== false) {
+      const nodeWidth = Number(node.style?.width || node.width || 200);
+      const imageSize = node.data.imageSize || 'contain';
+      
+      // Only auto-adjust height for contain and fit modes
+      if ((imageSize === 'contain' || imageSize === 'fit') && node.data.naturalWidth > 0) {
+        const aspectRatio = node.data.naturalHeight / node.data.naturalWidth;
+        const computedHeight = Math.max(100, Math.round(nodeWidth * aspectRatio));
+        const currentHeight = Number(node.style?.height || node.height || 200);
+        
+        // Only update if height actually changed to avoid infinite loops
+        if (Math.abs(currentHeight - computedHeight) > 1) {
+          if (updateTimeoutRef.current) {
+            clearTimeout(updateTimeoutRef.current);
+          }
+          updateTimeoutRef.current = setTimeout(() => {
+            onUpdate?.(node.id, {
+              style: {
+                ...node.style,
+                height: computedHeight
+              }
+            });
+          }, 100);
+        }
+      }
+    }
+  }, [node.style?.width, node.data.src, node.data.imageSize, node.data.naturalWidth, node.data.naturalHeight, node.data.autoHeight]);
 
   // Get colors with fallbacks - memoized for performance
   const colors = useMemo(() => {
@@ -193,6 +280,18 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
 
   const nodeWidth = node.style?.width || node.width || 250;
   const nodeHeight = node.style?.height || node.height || 200;
+
+  // Map image size mode to CSS object-fit
+  const objectFit = useMemo(() => {
+    const imageSize = node.data.imageSize || 'contain';
+    switch (imageSize) {
+      case 'cover': return 'cover';
+      case 'fill': return 'fill';
+      case 'fit': return 'scale-down';
+      case 'contain':
+      default: return 'contain';
+    }
+  }, [node.data.imageSize]);
 
   // Get dynamic class for node positioning and dimensions
   const nodePositionClass = useMemo(() => {
@@ -303,9 +402,11 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         {hasImage && !isUploading ? (
           <div className="relative w-full h-full">
             <img
+              ref={imgRef}
               src={node.data.src}
               alt={node.data.altText || node.data.label || node.data.filename || 'Image'}
-              className="w-full h-full object-cover"
+              className="w-full h-full"
+              style={{ objectFit }}
               onLoad={handleImageLoad}
               onError={handleImageError}
               draggable={false}
