@@ -330,7 +330,12 @@ export function PropertiesCard({
                 className="text-sm"
                 placeholder="Node description..."
                 data-testid="node-description-input"
-                style={{ width: '100%', height: '80px', resize: 'vertical', overflowWrap: 'break-word' }}
+                style={{
+                  width: "100%",
+                  height: "80px",
+                  resize: "vertical",
+                  overflowWrap: "break-word",
+                }}
               />
             </div>
 
