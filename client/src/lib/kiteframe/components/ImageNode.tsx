@@ -1,13 +1,39 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { cn } from '@/lib/utils';
-import { NodeHandles } from './NodeHandles';
-import { ResizeHandle } from './ResizeHandle';
-import { Upload, Image as ImageIcon, ExternalLink, AlertCircle } from 'lucide-react';
-import type { Node, ImageNodeData, ImageNodeComponentProps, ImageFit } from '../types';
-import { getDynamicClassName, getNodeStyleClasses } from '../utils/styles';
-import { sanitizeText } from '../utils/validation';
-import { ImageUploadModal } from './modals/ImageUploadModal';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
+import { cn } from "@/lib/utils";
+import { NodeHandles } from "./NodeHandles";
+import { ResizeHandle } from "./ResizeHandle";
+import {
+  Upload,
+  Image as ImageIcon,
+  ExternalLink,
+  AlertCircle,
+} from "lucide-react";
+import type {
+  Node,
+  ImageNodeData,
+  ImageNodeComponentProps,
+  ImageFit,
+} from "../types";
+import { getDynamicClassName, getNodeStyleClasses } from "../utils/styles";
+import { sanitizeText } from "../utils/validation";
+import { ImageUploadModal } from "./modals/ImageUploadModal";
 
+/** --- Utilities --- */
+const toPxNumber = (v: unknown, fallback: number): number => {
+  if (typeof v === "number") return isNaN(v) ? fallback : v;
+  if (typeof v === "string") {
+    const n = parseFloat(v);
+    return isNaN(n) ? fallback : n;
+  }
+  return fallback;
+};
+const HEADER_H = 32; // matches h-8 in the header
 
 const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   node,
@@ -20,19 +46,26 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   showHandles = true,
   showResizeHandle = true,
   onStartDrag,
-  viewport
+  viewport,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isEditingLabel, setIsEditingLabel] = useState(false);
-  const [editLabelValue, setEditLabelValue] = useState(node.data.label || '');
-  
+  const [editLabelValue, setEditLabelValue] = useState(node.data.label || "");
+
   const nodeRef = useRef<HTMLDivElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // cleanup any pending debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+    };
+  }, []);
 
   // Focus label input when entering edit mode
   useEffect(() => {
@@ -46,101 +79,103 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     setShowUploadModal(true);
   }, []);
 
-  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!node.data.src) {
-      // If no image, trigger upload modal
-      handleAddImageClick();
-    }
-    onDoubleClick?.(e);
-  }, [node.data.src, handleAddImageClick, onDoubleClick]);
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!node.data.src) {
+        handleAddImageClick();
+      }
+      onDoubleClick?.(e);
+    },
+    [node.data.src, handleAddImageClick, onDoubleClick],
+  );
 
   // Handle mouse down for dragging - integrate with canvas drag system
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // Only start drag if not clicking on interactive elements
-    const target = e.target as HTMLElement;
-    const isInteractiveElement = target.closest('input, button, textarea, select, [contenteditable="true"]');
-    
-    if (isInteractiveElement) {
-      return; // Don't start drag on interactive elements
-    }
-    
-    e.stopPropagation();
-    // Trigger the canvas drag system
-    onStartDrag?.(e, node);
-  }, [onStartDrag, node]);
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const isInteractiveElement = target.closest(
+        'input, button, textarea, select, [contenteditable="true"]',
+      );
+      if (isInteractiveElement) return;
+      e.stopPropagation();
+      onStartDrag?.(e, node);
+    },
+    [onStartDrag, node],
+  );
 
-  const handleModalImageUpload = useCallback(async (file: File) => {
-    if (!onImageUpload) return '';
+  const handleModalImageUpload = useCallback(
+    async (file: File) => {
+      if (!onImageUpload) return "";
 
-    setIsUploading(true);
-    setImageError(false);
+      setIsUploading(true);
+      setImageError(false);
 
-    try {
-      const imageUrl = await onImageUpload(node.id, file);
-      
-      // Update node with new image data
-      if (onUpdate) {
-        onUpdate(node.id, {
-          data: {
-            ...node.data,
-            src: imageUrl,
-            filename: file.name,
-            sourceType: 'upload',
-            isImageBroken: false,
-            naturalWidth: undefined,
-            naturalHeight: undefined
-          }
-        });
+      try {
+        const imageUrl = await onImageUpload(node.id, file);
+        if (onUpdate) {
+          onUpdate(node.id, {
+            data: {
+              ...node.data,
+              src: imageUrl,
+              filename: file.name,
+              sourceType: "upload",
+              isImageBroken: false,
+              naturalWidth: undefined,
+              naturalHeight: undefined,
+            },
+          });
+        }
+        return imageUrl;
+      } catch (error) {
+        console.error("Upload failed:", error);
+        setImageError(true);
+        throw error;
+      } finally {
+        setIsUploading(false);
       }
-      
-      return imageUrl;
-    } catch (error) {
-      console.error('Upload failed:', error);
-      setImageError(true);
-      throw error;
-    } finally {
-      setIsUploading(false);
-    }
-  }, [node.id, node.data, onImageUpload, onUpdate]);
+    },
+    [node.id, node.data, onImageUpload, onUpdate],
+  );
 
-  const handleModalImageUrl = useCallback((url: string) => {
-    if (onImageUrlSet) {
-      onImageUrlSet(node.id, url);
-    }
-    
-    if (onUpdate) {
-      onUpdate(node.id, {
+  const handleModalImageUrl = useCallback(
+    (url: string) => {
+      onImageUrlSet?.(node.id, url);
+      onUpdate?.(node.id, {
         data: {
           ...node.data,
           src: url,
-          sourceType: 'url',
-          isImageBroken: false
-        }
+          sourceType: "url",
+          isImageBroken: false,
+        },
       });
-    }
-  }, [node.id, node.data, onImageUrlSet, onUpdate]);
+    },
+    [node.id, node.data, onImageUrlSet, onUpdate],
+  );
 
   const handleLabelSubmit = useCallback(() => {
     if (onUpdate) {
-      const sanitizedLabel = sanitizeText(editLabelValue.trim() || 'Image');
+      const sanitizedLabel = sanitizeText(editLabelValue.trim() || "Image");
       onUpdate(node.id, {
-        data: { ...node.data, label: sanitizedLabel }
+        data: { ...node.data, label: sanitizedLabel },
       });
     }
     setIsEditingLabel(false);
   }, [editLabelValue, node.id, node.data, onUpdate]);
 
-  const handleLabelKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleLabelSubmit();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      setEditLabelValue(node.data.label || '');
-      setIsEditingLabel(false);
-    }
-  }, [handleLabelSubmit, node.data.label]);
+  const handleLabelKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleLabelSubmit();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setEditLabelValue(node.data.label || "");
+        setIsEditingLabel(false);
+      }
+    },
+    [handleLabelSubmit, node.data.label],
+  );
 
   const handleLabelDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -150,54 +185,44 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   const handleImageLoad = useCallback(() => {
     setImageLoaded(true);
     setImageError(false);
-    
-    // Capture natural dimensions and auto-adjust height
+
     if (imgRef.current && onUpdate) {
       const naturalWidth = imgRef.current.naturalWidth;
       const naturalHeight = imgRef.current.naturalHeight;
-      
-      // Update node with natural dimensions
+
       const updates: any = {
-        data: { 
-          ...node.data, 
-          naturalWidth, 
-          naturalHeight 
-        }
+        data: {
+          ...node.data,
+          naturalWidth,
+          naturalHeight,
+        },
       };
-      
-      // Auto-adjust height if enabled (default true)
-      if (node.data.autoHeight !== false) {
-        const nodeWidth = Number(node.style?.width || node.width || 200);
-        const imageSize = node.data.imageSize || 'contain';
-        
-        // Auto-adjust height for contain mode (image fills width, node adjusts height)
-        if (imageSize === 'contain' && naturalWidth > 0) {
-          const aspectRatio = naturalHeight / naturalWidth;
-          // Add header height (32px) to the image height to get total node height
-          const imageHeight = Math.round(nodeWidth * aspectRatio);
-          const totalNodeHeight = Math.max(100, imageHeight + 32);
-          
-          updates.style = {
-            ...node.style,
-            height: totalNodeHeight
-          };
-        }
-        // For other modes (cover, fill, fit), use the original logic with fixed container
-        else if ((imageSize === 'cover' || imageSize === 'fill' || imageSize === 'fit') && naturalWidth > 0) {
-          const aspectRatio = naturalHeight / naturalWidth;
-          const computedHeight = Math.max(100, Math.round(nodeWidth * aspectRatio));
-          
-          updates.style = {
-            ...node.style,
-            height: computedHeight
-          };
+
+      // Auto-adjust height if enabled
+      if (node.data.autoHeight !== false && naturalWidth > 0) {
+        const nodeWidthNum = toPxNumber(node.style?.width ?? node.width, 250);
+        const imageSize: ImageFit | undefined =
+          (node.data.imageSize as ImageFit) || "contain";
+        const aspectRatio = naturalHeight / naturalWidth;
+
+        if (imageSize === "contain") {
+          const imageHeight = Math.round(nodeWidthNum * aspectRatio);
+          const totalNodeHeight = Math.max(100, imageHeight + HEADER_H);
+          updates.style = { ...node.style, height: totalNodeHeight };
+        } else if (
+          imageSize === "cover" ||
+          imageSize === "fill" ||
+          imageSize === "fit"
+        ) {
+          const computedHeight = Math.max(
+            100,
+            Math.round(nodeWidthNum * aspectRatio),
+          );
+          updates.style = { ...node.style, height: computedHeight };
         }
       }
-      
-      // Debounce updates to avoid thrashing
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
+
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = setTimeout(() => {
         onUpdate(node.id, updates);
       }, 100);
@@ -207,89 +232,104 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   const handleImageError = useCallback(() => {
     setImageLoaded(false);
     setImageError(true);
-    
-    // Mark image as broken in node data
-    if (onUpdate) {
-      onUpdate(node.id, {
-        data: { ...node.data, isImageBroken: true }
-      });
-    }
+    onUpdate?.(node.id, {
+      data: { ...node.data, isImageBroken: true },
+    });
   }, [node.id, node.data, onUpdate]);
 
-  const handleResize = useCallback((width: number, height: number) => {
-    if (onUpdate) {
+  const handleResize = useCallback(
+    (width: number, height: number) => {
+      if (!onUpdate) return;
+
       let finalHeight = height;
-      
-      // If auto-height is enabled and we have natural dimensions, maintain aspect ratio
-      if (node.data.autoHeight !== false && node.data.naturalWidth && node.data.naturalHeight) {
-        const imageSize = node.data.imageSize || 'contain';
-        
-        if (imageSize === 'contain') {
-          // For contain mode, calculate total node height (image height + header)
-          const aspectRatio = node.data.naturalHeight / node.data.naturalWidth;
+
+      if (
+        node.data.autoHeight !== false &&
+        node.data.naturalWidth &&
+        node.data.naturalHeight
+      ) {
+        const imageSize = node.data.imageSize || "contain";
+        const aspectRatio = node.data.naturalHeight / node.data.naturalWidth;
+
+        if (imageSize === "contain") {
           const imageHeight = Math.round(width * aspectRatio);
-          finalHeight = Math.max(100, imageHeight + 32);
-        } else if (imageSize === 'cover' || imageSize === 'fill' || imageSize === 'fit') {
-          // For other modes, use the original calculation
-          const aspectRatio = node.data.naturalHeight / node.data.naturalWidth;
+          finalHeight = Math.max(100, imageHeight + HEADER_H);
+        } else if (
+          imageSize === "cover" ||
+          imageSize === "fill" ||
+          imageSize === "fit"
+        ) {
           finalHeight = Math.max(100, Math.round(width * aspectRatio));
         }
       }
-      
-      onUpdate(node.id, {
-        style: { ...node.style, width, height: finalHeight }
-      });
-    }
-  }, [node.id, node.style, node.data, onUpdate]);
 
-  // Recompute height when width or image size changes
+      onUpdate(node.id, {
+        style: { ...node.style, width, height: finalHeight },
+      });
+    },
+    [node.id, node.style, node.data, onUpdate],
+  );
+
+  /** ---- Normalized sizes for stable calculations & deps ---- */
+  const nodeWidth = toPxNumber(node.style?.width ?? node.width, 250);
+  const nodeHeight = toPxNumber(node.style?.height ?? node.height, 200);
+
+  // Recompute height when width or image size changes (normalized deps)
   useEffect(() => {
-    if (node.data.src && node.data.naturalWidth && node.data.naturalHeight && node.data.autoHeight !== false) {
-      const nodeWidth = Number(node.style?.width || node.width || 200);
-      const imageSize = node.data.imageSize || 'contain';
-      
-      if (node.data.naturalWidth > 0) {
-        const aspectRatio = node.data.naturalHeight / node.data.naturalWidth;
-        let computedHeight;
-        
-        if (imageSize === 'contain') {
-          // For contain mode, calculate total node height (image height + header)
-          const imageHeight = Math.round(nodeWidth * aspectRatio);
-          computedHeight = Math.max(100, imageHeight + 32);
-        } else {
-          // For other modes, use the original calculation
-          computedHeight = Math.max(100, Math.round(nodeWidth * aspectRatio));
-        }
-        
-        const currentHeight = Number(node.style?.height || node.height || 200);
-        
-        // Only update if height actually changed to avoid infinite loops
-        if (Math.abs(currentHeight - computedHeight) > 1) {
-          if (updateTimeoutRef.current) {
-            clearTimeout(updateTimeoutRef.current);
-          }
-          updateTimeoutRef.current = setTimeout(() => {
-            onUpdate?.(node.id, {
-              style: {
-                ...node.style,
-                height: computedHeight
-              }
-            });
-          }, 100);
-        }
+    if (
+      node.data.src &&
+      node.data.naturalWidth &&
+      node.data.naturalHeight &&
+      node.data.autoHeight !== false
+    ) {
+      const imageSize = node.data.imageSize || "contain";
+      const aspectRatio = node.data.naturalHeight / node.data.naturalWidth;
+
+      let computedHeight: number;
+      if (imageSize === "contain") {
+        const imageHeight = Math.round(nodeWidth * aspectRatio);
+        computedHeight = Math.max(100, imageHeight + HEADER_H);
+      } else {
+        computedHeight = Math.max(100, Math.round(nodeWidth * aspectRatio));
+      }
+
+      const currentHeight = toPxNumber(node.style?.height ?? node.height, 200);
+
+      if (Math.abs(currentHeight - computedHeight) > 1) {
+        if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+        updateTimeoutRef.current = setTimeout(() => {
+          onUpdate?.(node.id, {
+            style: {
+              ...node.style,
+              height: computedHeight,
+            },
+          });
+        }, 100);
       }
     }
-  }, [node.style?.width, node.data.src, node.data.imageSize, node.data.naturalWidth, node.data.naturalHeight, node.data.autoHeight]);
+    // We intentionally depend on normalized numeric width & image attributes
+  }, [
+    nodeWidth,
+    node.data.src,
+    node.data.imageSize,
+    node.data.naturalWidth,
+    node.data.naturalHeight,
+    node.data.autoHeight,
+    node.style,
+    node.height,
+    node.id,
+    onUpdate,
+  ]);
 
   // Get colors with fallbacks - memoized for performance
   const colors = useMemo(() => {
     const nodeColors = node.data.colors || {};
     return {
-      headerBg: nodeColors.headerBackground || '#f8fafc',
-      bodyBg: nodeColors.bodyBackground || '#ffffff',
-      borderColor: nodeColors.borderColor || '#e2e8f0',
-      headerTextColor: nodeColors.headerTextColor || '#1e293b',
-      bodyTextColor: nodeColors.bodyTextColor || '#64748b'
+      headerBg: nodeColors.headerBackground || "#f8fafc",
+      bodyBg: nodeColors.bodyBackground || "#ffffff",
+      borderColor: nodeColors.borderColor || "#e2e8f0",
+      headerTextColor: nodeColors.headerTextColor || "#1e293b",
+      bodyTextColor: nodeColors.bodyTextColor || "#64748b",
     };
   }, [node.data.colors]);
 
@@ -300,48 +340,62 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       bodyBackground: colors.bodyBg,
       borderColor: colors.borderColor,
       headerTextColor: colors.headerTextColor,
-      bodyTextColor: colors.bodyTextColor
+      bodyTextColor: colors.bodyTextColor,
     });
   }, [colors]);
 
-  const nodeWidth = node.style?.width || node.width || 250;
-  const nodeHeight = node.style?.height || node.height || 200;
-
-  // Get image styling based on image size mode
+  // Image styling based on image size mode
   const imageStyle = useMemo(() => {
-    const imageSize = node.data.imageSize || 'contain';
+    const imageSize = node.data.imageSize || "contain";
     switch (imageSize) {
-      case 'cover':
-        return { objectFit: 'cover' as const, width: '100%', height: '100%' };
-      case 'fill':
-        return { objectFit: 'fill' as const, width: '100%', height: '100%' };
-      case 'fit':
-        return { objectFit: 'scale-down' as const, width: '100%', height: '100%' };
-      case 'contain':
+      case "cover":
+        return { objectFit: "cover" as const, width: "100%", height: "100%" };
+      case "fill":
+        return { objectFit: "fill" as const, width: "100%", height: "100%" };
+      case "fit":
+        return {
+          objectFit: "scale-down" as const,
+          width: "100%",
+          height: "100%",
+        };
+      case "contain":
       default:
-        // For contain mode, let image fill width and maintain aspect ratio
-        return { width: '100%', height: 'auto', maxWidth: '100%' };
+        return { width: "100%", height: "auto", maxWidth: "100%" };
     }
   }, [node.data.imageSize]);
 
-  // Get dynamic class for node positioning and dimensions
+  // Dynamic class for node positioning and dimensions (uses normalized sizes)
   const nodePositionClass = useMemo(() => {
-    return getDynamicClassName({
-      position: 'absolute',
-      left: `${node.position.x}px`,
-      top: `${node.position.y}px`,
-      width: `${nodeWidth}px`,
-      height: `${nodeHeight}px`,
-      zIndex: node.zIndex || 0,
-      ...style
-    }, `image-node-${node.id}`);
-  }, [node.position.x, node.position.y, nodeWidth, nodeHeight, node.zIndex, node.id, style]);
+    return getDynamicClassName(
+      {
+        position: "absolute",
+        left: `${node.position.x}px`,
+        top: `${node.position.y}px`,
+        width: `${nodeWidth}px`,
+        height: `${nodeHeight}px`,
+        zIndex: node.zIndex || 0,
+        ...style,
+      },
+      `image-node-${node.id}`,
+    );
+  }, [
+    node.position.x,
+    node.position.y,
+    nodeWidth,
+    nodeHeight,
+    node.zIndex,
+    node.id,
+    style,
+  ]);
 
-  // Get dynamic class for border color
+  // Dynamic class for border color
   const borderClass = useMemo(() => {
-    return getDynamicClassName({
-      borderColor: colors.borderColor
-    }, `image-border-${node.id}`);
+    return getDynamicClassName(
+      {
+        borderColor: colors.borderColor,
+      },
+      `image-border-${node.id}`,
+    );
   }, [colors.borderColor, node.id]);
 
   const hasImage = node.data.src && !imageError;
@@ -351,17 +405,17 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     <div
       ref={nodeRef}
       className={cn(
-        'kiteframe-node group',
-        'border-2 rounded-lg shadow-md transition-all duration-200',
-        'hover:shadow-lg cursor-move',
-        node.selected ? 'ring-2 ring-blue-500 shadow-lg' : '',
-        node.hidden ? 'opacity-0 pointer-events-none' : '',
+        "kiteframe-node group",
+        "border-2 rounded-lg shadow-md transition-all duration-200",
+        "hover:shadow-lg cursor-move",
+        node.selected ? "ring-2 ring-blue-500 shadow-lg" : "",
+        node.hidden ? "opacity-0 pointer-events-none" : "",
         nodePositionClass,
         borderClass,
-        className
+        className,
       )}
       role="article"
-      aria-label={`Image node: ${node.data.label || 'Untitled'}. ${hasImage ? `Image: ${node.data.filename || 'Uploaded image'}` : 'No image uploaded'}`}
+      aria-label={`Image node: ${node.data.label || "Untitled"}. ${hasImage ? `Image: ${node.data.filename || "Uploaded image"}` : "No image uploaded"}`}
       aria-selected={node.selected}
       tabIndex={node.selected ? 0 : -1}
       onMouseDown={handleMouseDown}
@@ -369,10 +423,10 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       data-testid={`image-node-${node.id}`}
     >
       {/* Header */}
-      <div 
+      <div
         className={cn(
           "h-8 px-3 flex items-center justify-between rounded-t-md",
-          styleClasses.headerClass
+          styleClasses.headerClass,
         )}
         role="heading"
         aria-level={3}
@@ -388,7 +442,10 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
             onKeyDown={handleLabelKeyDown}
             className={cn(
               "bg-transparent border-none outline-none text-sm font-medium w-full",
-              getDynamicClassName({ color: colors.headerTextColor }, `label-input-${node.id}`)
+              getDynamicClassName(
+                { color: colors.headerTextColor },
+                `label-input-${node.id}`,
+              ),
             )}
             placeholder="Enter label..."
             aria-label="Image node label"
@@ -396,52 +453,57 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
           />
         ) : (
           <span className="text-sm font-medium truncate">
-            {sanitizeText(node.data.label || 'Image')}
+            {sanitizeText(node.data.label || "Image")}
           </span>
         )}
-        
+
         <div className="flex items-center gap-1">
-          {/* Image status indicator */}
-          <div 
+          <div
             className={cn(
               "w-2 h-2 rounded-full flex-shrink-0",
               getDynamicClassName(
-                { backgroundColor: hasImage ? '#22c55e' : '#94a3b8' },
-                `status-${node.id}-${hasImage}`
-              )
+                { backgroundColor: hasImage ? "#22c55e" : "#94a3b8" },
+                `status-${node.id}-${hasImage}`,
+              ),
             )}
-            title={hasImage ? 'Image loaded' : 'No image'}
+            title={hasImage ? "Image loaded" : "No image"}
             aria-hidden="true"
           />
         </div>
       </div>
 
       {/* Body */}
-      <div 
+      <div
         className={cn(
           "flex-1 rounded-b-md overflow-hidden",
           getDynamicClassName(
             { backgroundColor: colors.bodyBg },
-            `image-body-${node.id}`
-          )
+            `image-body-${node.id}`,
+          ),
         )}
         role="region"
         aria-label="Image content"
       >
-
         {/* Image Display */}
         {hasImage && !isUploading ? (
           <div className="relative w-full">
             <img
               ref={imgRef}
               src={node.data.src}
-              alt={node.data.altText || node.data.label || node.data.filename || 'Image'}
+              alt={
+                node.data.altText ||
+                node.data.label ||
+                node.data.filename ||
+                "Image"
+              }
               className="block"
               style={imageStyle}
               onLoad={handleImageLoad}
               onError={handleImageError}
               draggable={false}
-              aria-describedby={node.data.description ? `${node.id}-description` : undefined}
+              aria-describedby={
+                node.data.description ? `${node.id}-description` : undefined
+              }
             />
             {node.data.description && (
               <span id={`${node.id}-description`} className="sr-only">
@@ -456,13 +518,13 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
           </div>
         ) : (
           /* Placeholder/Upload Area */
-          <div 
+          <div
             className={cn(
               "flex flex-col items-center justify-center h-full p-4 text-center",
               getDynamicClassName(
                 { color: colors.bodyTextColor },
-                `placeholder-text-${node.id}`
-              )
+                `placeholder-text-${node.id}`,
+              ),
             )}
           >
             {isUploading ? (
@@ -473,7 +535,9 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
             ) : imageError ? (
               <>
                 <AlertCircle className="w-8 h-8 mb-2 text-red-500" />
-                <span className="text-sm text-red-600">Failed to load image</span>
+                <span className="text-sm text-red-600">
+                  Failed to load image
+                </span>
                 <button
                   onClick={handleAddImageClick}
                   className="mt-2 text-xs text-blue-600 hover:underline"
@@ -486,11 +550,12 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
               <>
                 <ImageIcon className="w-8 h-8 mb-2 opacity-60" />
                 <span className="text-sm opacity-80 mb-2">
-                  {node.data.displayText || 'No image'}
+                  {node.data.displayText || "No image"}
                 </span>
                 <button
+                  type="button"
                   onClick={handleAddImageClick}
-                  className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                  className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   disabled={isUploading}
                   aria-label="Add image to node"
                   data-testid="button-add-image"
@@ -504,19 +569,21 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         )}
       </div>
 
-
       {/* Connection Handles */}
       {showHandles && (
         <NodeHandles
           node={{
             ...node,
             width: nodeWidth,
-            height: nodeHeight
+            height: nodeHeight,
           }}
           scale={viewport?.zoom || 1}
-          onHandleConnect={useCallback((pos: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => {
-            console.log('Handle connect:', pos, e);
-          }, [])}
+          onHandleConnect={useCallback(
+            (pos: "top" | "bottom" | "left" | "right", e: React.MouseEvent) => {
+              console.log("Handle connect:", pos, e);
+            },
+            [],
+          )}
         />
       )}
 
@@ -549,22 +616,25 @@ export const ImageNode = React.memo(ImageNodeComponent);
 
 // Default props for creating an image node
 export const createImageNode = (
-  id: string, 
+  id: string,
   position: { x: number; y: number },
-  data: Partial<ImageNodeData> = {}
+  data: Partial<ImageNodeData> = {},
 ): Node & { data: ImageNodeData } => ({
   id,
-  type: 'image',
+  type: "image",
   position,
   data: {
-    label: data.label || 'Image',
-    description: data.description || '',
-    src: data.src || '',
-    filename: data.filename || '',
-    sourceType: data.sourceType || 'upload',
+    label: data.label || "Image",
+    description: data.description || "",
+    src: data.src || "",
+    filename: data.filename || "",
+    sourceType: data.sourceType || "upload",
     isImageBroken: data.isImageBroken || false,
-    displayText: data.displayText || 'Double-click to upload',
-    colors: data.colors || {}
+    displayText: data.displayText || "Double-click to upload",
+    colors: data.colors || {},
+    // You can set defaults for fit/autoHeight if desired:
+    // imageSize: data.imageSize || 'contain',
+    // autoHeight: data.autoHeight ?? true,
   },
   width: 250,
   height: 200,
@@ -572,5 +642,5 @@ export const createImageNode = (
   selectable: true,
   doubleClickable: true,
   resizable: true,
-  showHandles: true
+  showHandles: true,
 });
