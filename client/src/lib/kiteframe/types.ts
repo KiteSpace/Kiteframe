@@ -212,6 +212,7 @@ export interface ImageNodeComponentProps extends BaseNodeComponentProps<ImageNod
   onImageUpload?: (nodeId: string, file: File) => Promise<string>;
   onImageUrlSet?: (nodeId: string, url: string) => void;
   onStartDrag?: (e: React.MouseEvent, node: Node) => void;
+  onClick?: (e: React.MouseEvent, node: Node) => void;
   viewport?: { x: number; y: number; zoom: number };
 }
 

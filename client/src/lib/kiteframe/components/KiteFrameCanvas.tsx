@@ -2532,7 +2532,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     isGroupDrag,
                     dragInfo: dragInfo.current
                   });
-                  
+                }}
+                onClick={(e: React.MouseEvent) => {
+                  console.log(`🎯 IMAGE NODE CLICK:`, { nodeId: n.id, wasSelected: n.selected });
                   props.onNodeClick?.(e, n);
                 }}
                 viewport={viewport}

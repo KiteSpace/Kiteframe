@@ -46,6 +46,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   showHandles = true,
   showResizeHandle = true,
   onStartDrag,
+  onClick,
   viewport,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
@@ -420,6 +421,15 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       tabIndex={node.selected ? 0 : -1}
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        const isInteractiveElement = target.closest(
+          'input, button, textarea, select, [contenteditable="true"]',
+        );
+        if (isInteractiveElement) return;
+        e.stopPropagation();
+        onClick?.(e, node);
+      }}
       data-testid={`image-node-${node.id}`}
     >
       {/* Header */}
