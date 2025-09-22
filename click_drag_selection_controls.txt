@@ -1,0 +1,467 @@
+/* Click/Drag/Selection Controls Implementation */
+/* This shows how node interactions, dragging, and connection handles work */
+
+/* === DRAG AND SELECTION SYSTEM === */
+
+// Main canvas mouse event handlers from KiteFrameCanvas
+const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+  if (e.button !== 0) return; // Only handle left click
+  
+  const target = e.target as HTMLElement;
+  const rect = containerRef.current!.getBoundingClientRect();
+  const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+  
+  // Check if clicking on a node
+  const clickedNode = props.nodes.find(n => {
+    const nodeRect = {
+      left: n.position.x,
+      top: n.position.y,
+      right: n.position.x + (n.style?.width ?? n.width ?? 200),
+      bottom: n.position.y + (n.style?.height ?? n.height ?? 100)
+    };
+    return wp.x >= nodeRect.left && wp.x <= nodeRect.right && 
+           wp.y >= nodeRect.top && wp.y <= nodeRect.bottom;
+  });
+  
+  if (clickedNode) {
+    // Node click - start drag
+    dragInfo.current = {
+      id: clickedNode.id,
+      start: wp,
+      origin: { ...clickedNode.position }
+    };
+    setIsDragging(true);
+  } else {
+    // Canvas click - clear selection
+    setSelectedNodeId('');
+    setSelectedEdgeId('');
+  }
+}, [viewport, props.nodes]);
+
+// Mouse move handler for dragging
+const handleMouseMove = useCallback((e: MouseEvent) => {
+  if (!isDragging || !dragInfo.current || !containerRef.current) return;
+  
+  const rect = containerRef.current.getBoundingClientRect();
+  const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+  
+  const deltaX = wp.x - dragInfo.current.start.x;
+  const deltaY = wp.y - dragInfo.current.start.y;
+  
+  // Update node position
+  const updatedNodes = props.nodes.map(node => {
+    if (node.id === dragInfo.current!.id) {
+      return {
+        ...node,
+        position: {
+          x: dragInfo.current!.origin.x + deltaX,
+          y: dragInfo.current!.origin.y + deltaY
+        }
+      };
+    }
+    return node;
+  });
+  
+  props.onNodesChange?.(updatedNodes);
+}, [isDragging, viewport, props.nodes, props.onNodesChange]);
+
+// Mouse up handler to end dragging
+const handleMouseUp = useCallback(() => {
+  setIsDragging(false);
+  dragInfo.current = null;
+}, []);
+
+/* === NODE CLICK HANDLERS === */
+
+// Node selection handler
+const handleNodeClick = useCallback((e: React.MouseEvent, node: Node) => {
+  e.stopPropagation();
+  
+  console.log(`📝 EDITOR NODE CLICK HANDLER:`, {
+    nodeId: node.id,
+    currentSelected: selectedNodeId,
+    shiftKey: e.shiftKey,
+    tabId
+  });
+
+  if (e.shiftKey && multiSelectConfig?.enabled) {
+    // Multi-select mode
+    const currentSelection = selectedNodes || [];
+    let newSelection: string[];
+    
+    if (currentSelection.includes(node.id)) {
+      newSelection = currentSelection.filter(id => id !== node.id);
+    } else {
+      newSelection = [...currentSelection, node.id];
+    }
+    
+    const updatedNodes = props.nodes.map(n => ({
+      ...n,
+      selected: newSelection.includes(n.id)
+    }));
+    
+    console.log(`📝 MULTI SELECT UPDATE:`, {
+      selected: newSelection,
+      total: updatedNodes.length
+    });
+    
+    onNodesChange?.(updatedNodes);
+    setSelectedNodes?.(newSelection);
+    setSelectedNodeId(''); // Clear single selection
+  } else {
+    // Single select mode
+    const updatedNodes = props.nodes.map(n => ({
+      ...n,
+      selected: n.id === node.id
+    }));
+    
+    console.log(`📝 SINGLE SELECT UPDATE:`, {
+      selected: [node.id],
+      total: updatedNodes.length
+    });
+    
+    onNodesChange?.(updatedNodes);
+    setSelectedNodes?.([node.id]);
+    
+    // Delay setting selectedNodeId to prevent interference with drag detection
+    console.log(`📝 SELECTION STATE SET:`, {
+      selectedNodeId: "delayed for drag detection",
+      selectedEdgeId: "",
+      tabId
+    });
+    
+    // Use timeout to ensure drag detection completes first
+    setTimeout(() => {
+      if (!isDragDetected) {
+        console.log(`📝 CLICK CONFIRMED (no drag detected) - opening properties panel for:`, node.id);
+        setSelectedNodeId(node.id);
+        saveWorkflow();
+      } else {
+        console.log(`📝 DRAG DETECTED - not opening properties panel`);
+        setIsDragDetected(false);
+      }
+    }, 50);
+    
+    setSelectedEdgeId('');
+  }
+}, [
+  selectedNodeId,
+  selectedNodes,
+  multiSelectConfig,
+  props.nodes,
+  onNodesChange,
+  setSelectedNodes,
+  setSelectedNodeId,
+  setSelectedEdgeId,
+  saveWorkflow,
+  isDragDetected,
+  tabId
+]);
+
+/* === CONNECTION HANDLES SYSTEM === */
+
+// NodeHandles component for connection points
+export const NodeHandles: React.FC<NodeHandlesProps> = ({ 
+  node, 
+  scale,
+  onHandleConnect, 
+  proFeatures,
+  onQuickAdd
+}) => {
+  const [hoveredHandle, setHoveredHandle] = useState<'top'|'bottom'|'left'|'right' | null>(null);
+  
+  // Handle positions on node edges
+  const w = Number(node.style?.width ?? node.width ?? 200) || 200;
+  const h = Number(node.style?.height ?? node.height ?? 100) || 100;
+  
+  const pos = {
+    top:    { cx: w/2, cy: 0 },
+    bottom: { cx: w/2, cy: h },
+    left:   { cx: 0,   cy: h/2 },
+    right:  { cx: w,   cy: h/2 }
+  } as const;
+
+  return (
+    <div className="absolute top-0 left-0 w-full h-full">
+      <svg 
+        width={w} 
+        height={h} 
+        className="absolute top-0 left-0 overflow-visible pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        {(['top','bottom','left','right'] as const).map((p) => (
+          <circle
+            key={p}
+            cx={pos[p].cx} 
+            cy={pos[p].cy} 
+            r={6}
+            className="pointer-events-auto cursor-crosshair"
+            fill="white" 
+            stroke="#3b82f6" 
+            strokeWidth={2}
+            onMouseDown={(e) => { 
+              e.stopPropagation(); 
+              onHandleConnect?.(p, e); 
+            }}
+            onMouseEnter={() => setHoveredHandle(p)}
+            onMouseLeave={() => setHoveredHandle(null)}
+          />
+        ))}
+      </svg>
+    </div>
+  );
+};
+
+// Connection handle click handler (from KiteFrameCanvas)
+const handleConnectionClick = (position: 'top'|'bottom'|'left'|'right', e: React.MouseEvent) => {
+  if (!containerRef.current) return;
+  
+  const rect = containerRef.current.getBoundingClientRect();
+  const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+  
+  // Start connection mode
+  setConnecting({ 
+    sourceId: node.id, 
+    wx: wp.x, 
+    wy: wp.y, 
+    hoverTargetId: null, 
+    eligible: false 
+  });
+  
+  console.log(`🔗 CONNECTION STARTED from ${node.id} at ${position}`);
+};
+
+/* === RESIZE HANDLES === */
+
+// ResizeHandle component for node resizing
+export const ResizeHandle: React.FC<ResizeHandleProps> = ({
+  position,
+  nodeRef,
+  onResize,
+  minWidth = 100,
+  minHeight = 50,
+  viewport
+}) => {
+  const [isResizing, setIsResizing] = useState(false);
+  const [startDimensions, setStartDimensions] = useState<{width: number, height: number} | null>(null);
+  const [startMouse, setStartMouse] = useState<{x: number, y: number} | null>(null);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log(`🔧 RESIZE HANDLE MOUSE DOWN:`, { position });
+    
+    if (nodeRef.current) {
+      const rect = nodeRef.current.getBoundingClientRect();
+      const scale = viewport?.zoom || 1;
+      
+      setStartDimensions({ 
+        width: rect.width / scale, 
+        height: rect.height / scale 
+      });
+      setStartMouse({ x: e.clientX, y: e.clientY });
+      setIsResizing(true);
+      
+      console.log(`🔧 RESIZE START:`, {
+        dimensions: { width: rect.width / scale, height: rect.height / scale },
+        mousePos: { x: e.clientX, y: e.clientY }
+      });
+    }
+  }, [position, nodeRef, viewport]);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing || !startDimensions || !startMouse) return;
+    
+    const deltaX = e.clientX - startMouse.x;
+    const deltaY = e.clientY - startMouse.y;
+    const scale = viewport?.zoom || 1;
+    
+    // Adjust deltas for zoom level
+    const scaledDeltaX = deltaX / scale;
+    const scaledDeltaY = deltaY / scale;
+    
+    console.log(`🔧 RESIZE COORDINATE DEBUG:`, {
+      position,
+      screenMouse: { x: e.clientX, y: e.clientY },
+      startMouse,
+      rawDeltas: { x: deltaX, y: deltaY },
+      zoom: scale,
+      correctedDeltas: { x: scaledDeltaX, y: scaledDeltaY },
+      startDimensions
+    });
+    
+    let newWidth = startDimensions.width;
+    let newHeight = startDimensions.height;
+    
+    // Apply resize based on handle position
+    switch (position) {
+      case 'bottom-right':
+        newWidth = Math.max(minWidth, startDimensions.width + scaledDeltaX);
+        newHeight = Math.max(minHeight, startDimensions.height + scaledDeltaY);
+        break;
+      case 'bottom-left':
+        newWidth = Math.max(minWidth, startDimensions.width - scaledDeltaX);
+        newHeight = Math.max(minHeight, startDimensions.height + scaledDeltaY);
+        break;
+      case 'top-right':
+        newWidth = Math.max(minWidth, startDimensions.width + scaledDeltaX);
+        newHeight = Math.max(minHeight, startDimensions.height - scaledDeltaY);
+        break;
+      case 'top-left':
+        newWidth = Math.max(minWidth, startDimensions.width - scaledDeltaX);
+        newHeight = Math.max(minHeight, startDimensions.height - scaledDeltaY);
+        break;
+    }
+    
+    onResize(newWidth, newHeight);
+  }, [isResizing, startDimensions, startMouse, position, minWidth, minHeight, onResize, viewport]);
+
+  const handleMouseUp = useCallback(() => {
+    console.log(`🔧 RESIZE HANDLE MOUSE UP`);
+    setIsResizing(false);
+    setStartDimensions(null);
+    setStartMouse(null);
+  }, []);
+
+  // Attach global mouse events during resize
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isResizing, handleMouseMove, handleMouseUp]);
+
+  return (
+    <div
+      className={cn(
+        "absolute w-3 h-3 bg-blue-500 border border-white rounded-sm cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity",
+        position === 'bottom-right' && "bottom-0 right-0 translate-x-1/2 translate-y-1/2",
+        position === 'bottom-left' && "bottom-0 left-0 -translate-x-1/2 translate-y-1/2",
+        position === 'top-right' && "top-0 right-0 translate-x-1/2 -translate-y-1/2",
+        position === 'top-left' && "top-0 left-0 -translate-x-1/2 -translate-y-1/2"
+      )}
+      onMouseDown={handleMouseDown}
+      data-testid={`resize-handle-${position}`}
+    />
+  );
+};
+
+/* === SELECTION STYLES === */
+
+// CSS for node selection states
+.kiteframe-node {
+  position: absolute;
+  border: 2px solid;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  cursor: move;
+  transition: all 0.2s ease;
+}
+
+.kiteframe-node:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.kiteframe-node.selected {
+  box-shadow: 0 0 0 2px #3b82f6, 0 4px 6px rgba(0,0,0,0.1);
+  z-index: 1000;
+}
+
+/* Connection handles appear on hover */
+.kiteframe-node:hover .node-handles {
+  opacity: 1;
+}
+
+.node-handles {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Resize handles appear on hover */
+.kiteframe-node:hover .resize-handle {
+  opacity: 1;
+}
+
+.resize-handle {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* === EVENT UTILITIES === */
+
+// Convert client coordinates to world coordinates
+function clientToWorld(
+  clientX: number, 
+  clientY: number, 
+  viewport: { x: number; y: number; zoom: number },
+  containerRect: DOMRect
+) {
+  return {
+    x: (clientX - containerRect.left - viewport.x) / viewport.zoom,
+    y: (clientY - containerRect.top - viewport.y) / viewport.zoom
+  };
+}
+
+// Convert world coordinates to client coordinates  
+function worldToClient(
+  worldX: number,
+  worldY: number,
+  viewport: { x: number; y: number; zoom: number },
+  containerRect: DOMRect
+) {
+  return {
+    x: worldX * viewport.zoom + viewport.x + containerRect.left,
+    y: worldY * viewport.zoom + viewport.y + containerRect.top
+  };
+}
+
+/* === MULTI-SELECT SYSTEM === */
+
+// Multi-select with Shift+click
+const handleMultiSelect = useCallback((nodeId: string, shiftKey: boolean) => {
+  if (!shiftKey) {
+    // Single select
+    setSelectedNodes([nodeId]);
+    return;
+  }
+  
+  // Multi-select
+  setSelectedNodes(prev => {
+    if (prev.includes(nodeId)) {
+      return prev.filter(id => id !== nodeId);
+    } else {
+      return [...prev, nodeId];
+    }
+  });
+}, []);
+
+// Multi-select with drag rectangle
+const handleRectangleSelect = useCallback((startPoint: {x: number, y: number}, endPoint: {x: number, y: number}) => {
+  const rect = {
+    left: Math.min(startPoint.x, endPoint.x),
+    top: Math.min(startPoint.y, endPoint.y),
+    right: Math.max(startPoint.x, endPoint.x),
+    bottom: Math.max(startPoint.y, endPoint.y)
+  };
+  
+  const selectedNodes = props.nodes.filter(node => {
+    const nodeRect = {
+      left: node.position.x,
+      top: node.position.y,
+      right: node.position.x + (node.style?.width ?? node.width ?? 200),
+      bottom: node.position.y + (node.style?.height ?? node.height ?? 100)
+    };
+    
+    return rect.left <= nodeRect.right && 
+           rect.right >= nodeRect.left &&
+           rect.top <= nodeRect.bottom && 
+           rect.bottom >= nodeRect.top;
+  });
+  
+  const selectedIds = selectedNodes.map(n => n.id);
+  setSelectedNodes(selectedIds);
+}, [props.nodes]);
