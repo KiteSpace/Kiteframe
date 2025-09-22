@@ -1,0 +1,29 @@
+*** PATCH: src/components/nodes/NodeHandles.tsx
+@@
+-import React from 'react';
++import React from 'react';
++// ADD: normalize width/height that may be strings like "250px"
++const toPxNumber = (v: unknown, fallback: number): number => {
++  if (typeof v === 'number') return isNaN(v) ? fallback : v;
++  if (typeof v === 'string') {
++    const n = parseFloat(v);
++    return isNaN(n) ? fallback : n;
++  }
++  return fallback;
++};
+@@
+-  const w = Number(node.style?.width ?? node.width ?? 200);
+-  const h = Number(node.style?.height ?? node.height ?? 100);
++  // CHANGE: use normalized numeric sizes so handles align with actual node size
++  const w = toPxNumber((node as any).width ?? node.style?.width, 200);
++  const h = toPxNumber((node as any).height ?? node.style?.height, 100);
+@@
+-  return (
+-    <div className="absolute inset-0">
++  return (
++    <div className="node-handles absolute inset-0">
+       <svg className="absolute inset-0 w-full h-full opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+         {/* circles */}
+       </svg>
+     </div>
+   );
