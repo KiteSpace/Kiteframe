@@ -15,6 +15,7 @@ import { KiteFrameCore, kiteFrameCore } from '../core/KiteFrameCore';
 import { TextNode } from './TextNode';
 import { StickyNote } from './StickyNote';
 import { ShapeNode } from './ShapeNode';
+import { ImageNode } from './ImageNode';
 import { TextObject } from './TextObject';
 import { StickyNoteObject } from './StickyNoteObject';
 import { ShapeObject } from './ShapeObject';
@@ -2464,25 +2465,35 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             />;
           }
 
-          // Handle image nodes with proper rendering from backup
+          // Handle image nodes with proper ImageNode component
           if (n.type === 'image') {
             return (
-              <div
+              <ImageNode
                 key={n.id}
-                ref={(el) => registerNodeRef(n.id, el)}
-                data-node-id={n.id}
-                className={`kiteframe-node group ${n.selected?'selected':''}`}
-                style={{ 
-                  left: n.position.x, 
-                  top: n.position.y, 
-                  width: w, 
-                  height: h, 
-                  borderColor: border,
-                  background: bodyBg, 
-                  color: bodyText,
-                  zIndex: n.zIndex || 0
+                node={n as any} // Type assertion for compatibility
+                onUpdate={(nodeId: string, updates: any) => {
+                  const updated = props.nodes.map(node => node.id === nodeId ? { ...node, ...updates } : node);
+                  props.onNodesChange?.(updated);
                 }}
-                onMouseDown={(e)=>{
+                onImageUpload={async (nodeId: string, file: File) => {
+                  // Convert File to data URL for compatibility with existing system
+                  return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const dataUrl = reader.result as string;
+                      props.onImageUpload?.(nodeId, dataUrl);
+                      resolve(dataUrl);
+                    };
+                    reader.readAsDataURL(file);
+                  });
+                }}
+                onImageUrlSet={(nodeId: string, url: string) => {
+                  props.onImageUrlSet?.(nodeId, url);
+                }}
+                onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
+                showHandles={n.showHandles !== false}
+                showResizeHandle={n.resizable !== false}
+                onStartDrag={(e: React.MouseEvent) => {
                   e.stopPropagation();
                   if (!containerRef.current) return;
                   const rect = containerRef.current.getBoundingClientRect();
@@ -2521,116 +2532,18 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     isGroupDrag,
                     dragInfo: dragInfo.current
                   });
-                }}
-                onDoubleClick={(e)=>props.onNodeDoubleClick?.(e, n)}
-                onContextMenu={(e)=>{ e.preventDefault(); props.onNodeRightClick?.(e, n); }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log(`🎯 NODE CLICK:`, { nodeId: n.id, wasSelected: n.selected });
+                  
                   props.onNodeClick?.(e, n);
                 }}
-              >
-                <div className="title" style={{ background: headerBg, color: headerText }}>{n.data?.label || n.type || n.id}</div>
-                <div 
-                  className="body" 
-                  style={{ 
-                    padding: '0',
-                    height: `${h - 32}px`, // Account for title height
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  {n.data?.src ? 
-                    <img 
-                      src={n.data.src} 
-                      alt={n.data?.filename || n.data?.label || ''} 
-                      style={{ 
-                        maxWidth: '100%', 
-                        maxHeight: '100%', 
-                        width: n.data?.imageSize === 'fill' ? '100%' : 'auto',
-                        height: n.data?.imageSize === 'fill' ? '100%' : 'auto',
-                        objectFit: n.data?.imageSize === 'fill' ? 'cover' : 
-                                   n.data?.imageSize === 'fit' ? 'scale-down' : 
-                                   'contain',
-                        display: 'block',
-                        userSelect: 'none',
-                        pointerEvents: 'none',
-                        draggable: false
-                      } as React.CSSProperties} 
-                    /> : 
-                    <div style={{ 
-                      padding: '8px', 
-                      textAlign: 'center', 
-                      color: bodyText,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      height: '100%',
-                      gap: '8px'
-                    }}>
-                      {n.data?.displayText ? (
-                        <div style={{
-                          fontSize: '11px',
-                          color: n.data?.isImageBroken ? '#dc2626' : bodyText,
-                          fontStyle: 'italic',
-                          marginBottom: '8px',
-                          whiteSpace: 'pre-line',
-                          textAlign: 'center'
-                        }}>
-                          {n.data?.isImageBroken && '⚠️ '}
-                          {n.data.displayText}
-                        </div>
-                      ) : null}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Set flag to open image modal
-                          if (props.onNodesChange) {
-                            const updated = props.nodes.map(node => 
-                              node.id === n.id 
-                                ? { ...node, data: { ...node.data, openImageModal: true } }
-                                : node
-                            );
-                            props.onNodesChange(updated);
-                          }
-                        }}
-                        style={{
-                          padding: '6px 12px',
-                          fontSize: '11px',
-                          border: `1px dashed ${border}`,
-                          borderRadius: '4px',
-                          background: 'transparent',
-                          color: bodyText,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        📁 Add Image
-                      </button>
-                    </div>}
-                </div>
-                {n.showHandles !== false && <NodeHandles 
-                  key={`handles-${n.id}`}
-                  node={n} 
-                  scale={viewport.zoom}
-                  onHandleConnect={(position, e)=>{
-                    if (!containerRef.current) return;
-                    const rect = containerRef.current.getBoundingClientRect();
-                    const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
-                    setConnecting({ 
-                      sourceId: n.id, 
-                      wx: wp.x, 
-                      wy: wp.y, 
-                      hoverTargetId: null, 
-                      eligible: false 
-                    });
-                  }}
-                />}
-              </div>
+                viewport={viewport}
+                style={{
+                  position: 'absolute',
+                  left: n.position.x,
+                  top: n.position.y,
+                  zIndex: n.zIndex || 0
+                }}
+                className={n.selected ? 'selected' : ''}
+              />
             );
           }
 
