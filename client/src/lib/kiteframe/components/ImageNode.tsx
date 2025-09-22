@@ -170,8 +170,20 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         const nodeWidth = Number(node.style?.width || node.width || 200);
         const imageSize = node.data.imageSize || 'contain';
         
-        // Only auto-adjust height for contain and fit modes
-        if ((imageSize === 'contain' || imageSize === 'fit') && naturalWidth > 0) {
+        // Auto-adjust height for contain mode (image fills width, node adjusts height)
+        if (imageSize === 'contain' && naturalWidth > 0) {
+          const aspectRatio = naturalHeight / naturalWidth;
+          // Add header height (32px) to the image height to get total node height
+          const imageHeight = Math.round(nodeWidth * aspectRatio);
+          const totalNodeHeight = Math.max(100, imageHeight + 32);
+          
+          updates.style = {
+            ...node.style,
+            height: totalNodeHeight
+          };
+        }
+        // For other modes (cover, fill, fit), use the original logic with fixed container
+        else if ((imageSize === 'cover' || imageSize === 'fill' || imageSize === 'fit') && naturalWidth > 0) {
           const aspectRatio = naturalHeight / naturalWidth;
           const computedHeight = Math.max(100, Math.round(nodeWidth * aspectRatio));
           
@@ -212,8 +224,13 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       if (node.data.autoHeight !== false && node.data.naturalWidth && node.data.naturalHeight) {
         const imageSize = node.data.imageSize || 'contain';
         
-        // Only maintain aspect ratio for contain and fit modes
-        if (imageSize === 'contain' || imageSize === 'fit') {
+        if (imageSize === 'contain') {
+          // For contain mode, calculate total node height (image height + header)
+          const aspectRatio = node.data.naturalHeight / node.data.naturalWidth;
+          const imageHeight = Math.round(width * aspectRatio);
+          finalHeight = Math.max(100, imageHeight + 32);
+        } else if (imageSize === 'cover' || imageSize === 'fill' || imageSize === 'fit') {
+          // For other modes, use the original calculation
           const aspectRatio = node.data.naturalHeight / node.data.naturalWidth;
           finalHeight = Math.max(100, Math.round(width * aspectRatio));
         }
@@ -231,10 +248,19 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       const nodeWidth = Number(node.style?.width || node.width || 200);
       const imageSize = node.data.imageSize || 'contain';
       
-      // Only auto-adjust height for contain and fit modes
-      if ((imageSize === 'contain' || imageSize === 'fit') && node.data.naturalWidth > 0) {
+      if (node.data.naturalWidth > 0) {
         const aspectRatio = node.data.naturalHeight / node.data.naturalWidth;
-        const computedHeight = Math.max(100, Math.round(nodeWidth * aspectRatio));
+        let computedHeight;
+        
+        if (imageSize === 'contain') {
+          // For contain mode, calculate total node height (image height + header)
+          const imageHeight = Math.round(nodeWidth * aspectRatio);
+          computedHeight = Math.max(100, imageHeight + 32);
+        } else {
+          // For other modes, use the original calculation
+          computedHeight = Math.max(100, Math.round(nodeWidth * aspectRatio));
+        }
+        
         const currentHeight = Number(node.style?.height || node.height || 200);
         
         // Only update if height actually changed to avoid infinite loops
@@ -281,15 +307,20 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   const nodeWidth = node.style?.width || node.width || 250;
   const nodeHeight = node.style?.height || node.height || 200;
 
-  // Map image size mode to CSS object-fit
-  const objectFit = useMemo(() => {
+  // Get image styling based on image size mode
+  const imageStyle = useMemo(() => {
     const imageSize = node.data.imageSize || 'contain';
     switch (imageSize) {
-      case 'cover': return 'cover';
-      case 'fill': return 'fill';
-      case 'fit': return 'scale-down';
+      case 'cover':
+        return { objectFit: 'cover' as const, width: '100%', height: '100%' };
+      case 'fill':
+        return { objectFit: 'fill' as const, width: '100%', height: '100%' };
+      case 'fit':
+        return { objectFit: 'scale-down' as const, width: '100%', height: '100%' };
       case 'contain':
-      default: return 'contain';
+      default:
+        // For contain mode, let image fill width and maintain aspect ratio
+        return { width: '100%', height: 'auto', maxWidth: '100%' };
     }
   }, [node.data.imageSize]);
 
@@ -390,7 +421,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         className={cn(
           "flex-1 rounded-b-md overflow-hidden",
           getDynamicClassName(
-            { backgroundColor: colors.bodyBg, minHeight: `${nodeHeight - 32}px` },
+            { backgroundColor: colors.bodyBg },
             `image-body-${node.id}`
           )
         )}
@@ -400,13 +431,13 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
 
         {/* Image Display */}
         {hasImage && !isUploading ? (
-          <div className="relative w-full h-full">
+          <div className="relative w-full">
             <img
               ref={imgRef}
               src={node.data.src}
               alt={node.data.altText || node.data.label || node.data.filename || 'Image'}
-              className="w-full h-full"
-              style={{ objectFit }}
+              className="block"
+              style={imageStyle}
               onLoad={handleImageLoad}
               onError={handleImageError}
               draggable={false}
