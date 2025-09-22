@@ -8,7 +8,7 @@ import type { Node, ImageNodeData, ImageNodeComponentProps, ImageFit } from '../
 import { getDynamicClassName, getNodeStyleClasses } from '../utils/styles';
 import { sanitizeText } from '../utils/validation';
 import { ImageUploadModal } from './modals/ImageUploadModal';
-import { toPxNumber } from '@/src/utils/size';
+import { toPxNumber } from '@/utils/size';
 
 const HEADER_H = 32; // matches h-8
 

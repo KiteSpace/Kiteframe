@@ -2,6 +2,16 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Node, ProFeaturesConfig } from '../types';
 import { useEventCleanup } from '../utils/eventCleanup';
 
+// ADD: normalize width/height that may be strings like "250px"
+const toPxNumber = (v: unknown, fallback: number): number => {
+  if (typeof v === 'number') return isNaN(v) ? fallback : v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v);
+    return isNaN(n) ? fallback : n;
+  }
+  return fallback;
+};
+
 interface NodeHandlesProps {
   node: Node;
   scale: number;
@@ -27,9 +37,9 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   const nodeRef = useRef<HTMLDivElement>(null);
   const cleanupManager = useEventCleanup();
   
-  // Use actual rendered dimensions if available, fallback to node properties
-  const w = Number(actualDimensions?.width ?? node.style?.width ?? node.width ?? 200) || 200;
-  const h = Number(actualDimensions?.height ?? node.style?.height ?? node.height ?? 100) || 100;
+  // CHANGE: use normalized numeric sizes so handles align with actual node size
+  const w = toPxNumber((node as any).width ?? node.style?.width, 200);
+  const h = toPxNumber((node as any).height ?? node.style?.height, 100);
 
   // Measure actual node dimensions
   useEffect(() => {
@@ -202,7 +212,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
       {/* Original node area for handles */}
       <div 
         ref={nodeRef}
-        className="absolute top-0 left-0 w-full h-full"
+        className="node-handles absolute top-0 left-0 w-full h-full"
         onMouseEnter={() => {
           setIsMouseInNodeArea(true);
           cancelHide();
