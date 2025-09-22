@@ -15,6 +15,7 @@ import { DropdownControl } from '@/lib/kiteframe/components/styling/DropdownCont
 import FillStrokeColorPicker from '@/components/FillStrokeColorPicker';
 import { TypographyPanel } from '@/components/TypographyPanel';
 import { DISABLE_SHAPE_TEXT } from '@/lib/kiteframe/constants/defaults';
+import { ImageNodeProperties } from '@/lib/kiteframe/components/properties/ImageNodeProperties';
 
 interface PropertiesCardProps {
   selectedNode?: Node;
@@ -28,6 +29,9 @@ interface PropertiesCardProps {
   onEdgeUpdate?: (edgeId: string, updates: Partial<Edge>) => void;
   onCanvasObjectUpdate?: (objectId: string, updates: Partial<any>) => void;
   onDeselect: () => void;
+  // Image node specific handlers
+  onImageUpload?: (nodeId: string, file: File) => Promise<string>;
+  onImageUrlSet?: (nodeId: string, url: string) => void;
 }
 
 // Helper function to create color properties for different node types
@@ -195,7 +199,9 @@ export function PropertiesCard({
   onNodeUpdate,
   onEdgeUpdate,
   onCanvasObjectUpdate,
-  onDeselect 
+  onDeselect,
+  onImageUpload,
+  onImageUrlSet
 }: PropertiesCardProps) {
   const [isEditing, setIsEditing] = useState(false);
 
@@ -295,51 +301,12 @@ export function PropertiesCard({
             {selectedNode.type === 'image' && (
               <>
                 <Separator />
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Image Source</Label>
-                  {selectedNode.data?.src ? (
-                    <div className="space-y-2">
-                      <div className="text-xs text-muted-foreground">
-                        {selectedNode.data?.filename || 'Image loaded'}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => {
-                          // Open image modal to replace image
-                          if (onNodeUpdate) {
-                            // Trigger the modal by setting a flag that the parent can check
-                            onNodeUpdate(selectedNode.id, {
-                              data: { ...selectedNode.data, openImageModal: true }
-                            });
-                          }
-                        }}
-                        data-testid="replace-image-button"
-                      >
-                        Replace Image
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        // Open image modal to add image
-                        if (onNodeUpdate) {
-                          // Trigger the modal by setting a flag that the parent can check
-                          onNodeUpdate(selectedNode.id, {
-                            data: { ...selectedNode.data, openImageModal: true }
-                          });
-                        }
-                      }}
-                      data-testid="add-image-button"
-                    >
-                      Add Image
-                    </Button>
-                  )}
-                </div>
+                <ImageNodeProperties
+                  node={selectedNode as any}
+                  onUpdate={onNodeUpdate}
+                  onImageUpload={onImageUpload}
+                  onImageUrlSet={onImageUrlSet}
+                />
               </>
             )}
 

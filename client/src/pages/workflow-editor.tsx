@@ -3119,6 +3119,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         });
                       }
                     }}
+                    onImageUpload={async (nodeId: string, file: File) => {
+                      // Convert file to data URL for local storage
+                      return new Promise<string>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          const dataUrl = reader.result as string;
+                          resolve(dataUrl);
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                      });
+                    }}
+                    onImageUrlSet={(nodeId: string, url: string) => {
+                      // This handler is called when URL is set via modal
+                      console.log('Image URL set for node:', nodeId, url);
+                    }}
                   />
                 )}
               </>
