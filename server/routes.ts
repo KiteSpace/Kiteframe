@@ -1177,7 +1177,7 @@ Respond with only the corrected JSON data:`;
       const base64Image = req.file.buffer.toString('base64');
       const imageDataUrl = `data:${req.file.mimetype};base64,${base64Image}`;
 
-      // Analyze image with GPT-5-nano Vision (faster analysis)
+      // Analyze image with GPT-4o Vision (GPT-5-nano doesn't support vision)
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -1185,7 +1185,7 @@ Respond with only the corrected JSON data:`;
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: "gpt-5-nano",
+          model: "gpt-4o", // GPT-5-nano doesn't support vision - using GPT-4o for image analysis
           messages: [
             {
               role: "system",
@@ -1263,8 +1263,8 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
             }
           ],
           response_format: { type: "json_object" },
-          max_completion_tokens: 4000
-          // GPT-5 doesn't support temperature parameter - removed for faster analysis
+          max_tokens: 4000,
+          temperature: 0.2
         })
       });
 
