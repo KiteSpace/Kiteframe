@@ -6,7 +6,7 @@ export class OpenAICompatClient implements AiClient {
   async chat(req: AiRequest): Promise<AiResponse> {
     // Get the current AI settings from localStorage
     const savedSettings = localStorage.getItem('ai_settings');
-    let currentModel = req.model || this.opts.defaultModel || 'gpt-4o';
+    let currentModel = req.model || this.opts.defaultModel || 'gpt-5-nano'; // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
     let provider = 'openai';
     let apiKey = null;
     
