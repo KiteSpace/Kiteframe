@@ -803,7 +803,7 @@ Respond with only the corrected JSON data:`;
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: 'gpt-5-nano',
           messages: [{ role: 'user', content: correctionPrompt }],
           temperature: 0.1,
           max_tokens: 4000
@@ -1185,7 +1185,7 @@ Respond with only the corrected JSON data:`;
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: "gpt-4o",
+          model: "gpt-5-nano",
           messages: [
             {
               role: "system",
