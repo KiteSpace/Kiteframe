@@ -1177,7 +1177,7 @@ Respond with only the corrected JSON data:`;
       const base64Image = req.file.buffer.toString('base64');
       const imageDataUrl = `data:${req.file.mimetype};base64,${base64Image}`;
 
-      // Analyze image with GPT-4o Vision
+      // Analyze image with GPT-5-nano Vision (faster analysis)
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -1263,8 +1263,8 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
             }
           ],
           response_format: { type: "json_object" },
-          max_tokens: 4000,
-          temperature: 0.2
+          max_completion_tokens: 4000
+          // GPT-5 doesn't support temperature parameter - removed for faster analysis
         })
       });
 
