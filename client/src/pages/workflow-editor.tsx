@@ -1107,13 +1107,25 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     const newTab = createBlankTab();
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newTab.id);
-  }, [createBlankTab]);
+    
+    // Toast notification for new workflow creation
+    toast({
+      title: "New Workflow Created",
+      description: `Created blank workflow "${newTab.name}"`
+    });
+  }, [createBlankTab, toast]);
 
   const handleCreateWithTemplate = useCallback(() => {
     const newTab = createDefaultTab();
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newTab.id);
-  }, [createDefaultTab]);
+    
+    // Toast notification for template workflow creation
+    toast({
+      title: "Template Workflow Created",
+      description: `Created workflow "${newTab.name}" with template`
+    });
+  }, [createDefaultTab, toast]);
 
   const handleCreateWithAI = useCallback(() => {
     // Create blank tab first, then open AI generator
@@ -1121,7 +1133,13 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newTab.id);
     setShowAiGenerator(true);
-  }, [createBlankTab]);
+    
+    // Toast notification for new workflow creation
+    toast({
+      title: "New Workflow Created",
+      description: `Created workflow "${newTab.name}" for AI generation`
+    });
+  }, [createBlankTab, toast]);
 
   const handleImportFromCanvas = useCallback(() => {
     // Create blank tab first, then trigger import
@@ -1749,6 +1767,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       newEdges: offsetEdges.length,
       offset,
       anchorPosition
+    });
+    
+    // Toast notification for template creation
+    toast({
+      title: "Template Added",
+      description: `${templateType.replace(/([A-Z])/g, ' $1').trim()} template added to canvas`,
+      variant: "default"
     });
   }, [generateUserJourneyTemplate, generateMindmapTemplate, generateSystemArchitectureTemplate, generateSwimLanesTemplate, generateUserAccountTemplate, generateIOLogicTemplate, calculateWorkflowOffset, setNodes, setEdges, saveToHistory]);
 
@@ -2983,6 +3008,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                     setNodes(prev => [...prev, newNode]);
                     saveToHistory();
+                    
+                    // Toast notification for node creation
+                    toast({
+                      title: "Node Added",
+                      description: `${newNode.data.label} added to canvas`,
+                      variant: "default"
+                    });
                   }}
                   onCreateNodeAtPosition={(type: string, position: { x: number; y: number }) => {
                     // Handle drag-and-drop node creation
@@ -3017,6 +3049,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                     setNodes(prev => [...prev, newNode]);
                     saveToHistory();
+                    
+                    // Toast notification for node creation
+                    toast({
+                      title: "Node Added",
+                      description: `${newNode.data.label} added to canvas`,
+                      variant: "default"
+                    });
                   }}
                 />
                 
@@ -3041,6 +3080,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     updateActiveTab({ 
                       canvasObjects: [...canvasObjects, newCanvasObject] 
                     });
+                    
+                    // Toast notification for shape creation
+                    toast({
+                      title: "Shape Added",
+                      description: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} shape added to canvas`,
+                      variant: "default"
+                    });
                   }}
                   onCreateShapeAtPosition={(shapeType: string, position: { x: number; y: number }) => {
                     saveToHistory();
@@ -3057,6 +3103,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     
                     updateActiveTab({ 
                       canvasObjects: [...canvasObjects, newCanvasObject] 
+                    });
+                    
+                    // Toast notification for shape creation
+                    toast({
+                      title: "Shape Added",
+                      description: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} shape added to canvas`,
+                      variant: "default"
                     });
                   }}
                 />
@@ -3229,6 +3282,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   // Add to canvas objects instead of regular nodes
                   const currentCanvasObjects = activeTab?.canvasObjects || [];
                   updateActiveTab({ canvasObjects: [...currentCanvasObjects, newCanvasObject] });
+                  
+                  // Toast notification for canvas object creation
+                  const objectTypeLabel = type === 'text' ? 'Text object' : type === 'sticky' ? 'Sticky note' : 'Shape';
+                  toast({
+                    title: `${objectTypeLabel} Added`,
+                    description: `${objectTypeLabel} added to canvas`,
+                    variant: "default"
+                  });
                   return;
                 }
 
@@ -3258,6 +3319,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 };
 
                 setNodes(prev => [...prev, newNode]);
+                
+                // Toast notification for node creation
+                toast({
+                  title: "Node Added",
+                  description: `${newNode.data.label} added to canvas`,
+                  variant: "default"
+                });
               }}
               onCreateNodeAtPosition={(type: string, position: { x: number; y: number }) => {
                 // Create a new tab if none exist
@@ -3320,6 +3388,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   
                   const currentCanvasObjects = activeTab?.canvasObjects || [];
                   updateActiveTab({ canvasObjects: [...currentCanvasObjects, newCanvasObject] });
+                  
+                  // Toast notification for canvas object creation
+                  const objectTypeLabel = type === 'text' ? 'Text object' : type === 'sticky' ? 'Sticky note' : 'Shape';
+                  toast({
+                    title: `${objectTypeLabel} Added`,
+                    description: `${objectTypeLabel} added to canvas`,
+                    variant: "default"
+                  });
                   return;
                 }
 
@@ -3350,6 +3426,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 };
 
                 setNodes(prev => [...prev, newNode]);
+                
+                // Toast notification for node creation
+                toast({
+                  title: "Node Added",
+                  description: `${newNode.data.label} added to canvas`,
+                  variant: "default"
+                });
               }}
               onFitView={() => {
                 if (nodes.length === 0) {

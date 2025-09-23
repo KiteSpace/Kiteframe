@@ -72,7 +72,7 @@ function createNodeColorProperties(selectedNode: Node): ColorProperty[] {
       return [
         {
           key: "headerBg",
-          label: "Header BG",
+          label: "Header",
           value:
             selectedNode.data?.colors?.headerBackground ||
             selectedNode.data?.color ||
@@ -83,7 +83,7 @@ function createNodeColorProperties(selectedNode: Node): ColorProperty[] {
         },
         {
           key: "bodyBg",
-          label: "Body BG",
+          label: "Body",
           value:
             selectedNode.data?.colors?.bodyBackground ||
             selectedNode.data?.color ||
