@@ -322,11 +322,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${activeApiKey}`
         };
+        
+        // GPT-5 models require different parameters
+        const isGpt5Model = model && (model.includes('gpt-5') || model.startsWith('gpt-5'));
         requestBody = {
           model,
           messages,
-          temperature,
-          max_tokens: maxTokens
+          ...(isGpt5Model ? {
+            max_completion_tokens: maxTokens
+            // GPT-5 doesn't support temperature parameter
+          } : {
+            temperature,
+            max_tokens: maxTokens
+          })
         };
       }
 

@@ -66,10 +66,10 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
         // Fix legacy settings with wrong models and removed providers
         const fixedSettings = { ...parsed };
         
-        // Coerce removed providers to OpenAI
+        // Coerce removed providers to OpenAI with latest default
         if (['anthropic', 'kiteframe', 'ollama'].includes(fixedSettings.provider)) {
           fixedSettings.provider = 'openai';
-          fixedSettings.model = 'gpt-4o';
+          fixedSettings.model = 'gpt-5-nano';
           fixedSettings.apiKey = '';
           fixedSettings.customEndpoint = '';
         }
@@ -266,7 +266,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="openai">OpenAI (GPT-4o)</SelectItem>
+                <SelectItem value="openai">OpenAI (GPT-5-nano)</SelectItem>
                 <SelectItem value="custom">Custom Endpoint</SelectItem>
               </SelectContent>
             </Select>
@@ -276,7 +276,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             <div className="space-y-2">
               <Label>Model</Label>
               <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-md text-sm">
-                ✅ Using: <strong>GPT-4o</strong> (no setup required)
+                ✅ Using: <strong>{settings.model === 'gpt-5-nano' ? 'GPT-5-nano (latest model, faster analysis)' : settings.model}</strong>
               </div>
             </div>
           )}
