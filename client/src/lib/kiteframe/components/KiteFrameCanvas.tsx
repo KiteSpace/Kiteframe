@@ -1079,6 +1079,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   }, [props.canvasObjects, viewport, virtualizationManager]);
 
   // Performance metrics in development mode
+  const [showPerformance, setShowPerformance] = useState(false);
   const [showMetrics, setShowMetrics] = useState(false);
   const [metrics, setMetrics] = useState(renderBatchManager.getMetrics());
 
@@ -1090,6 +1091,19 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       return () => clearInterval(interval);
     }
   }, [showMetrics, renderBatchManager]);
+
+  // Keyboard event listener for Alt+P to toggle Performance element
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey && event.key === 'p') {
+        event.preventDefault();
+        setShowPerformance(prev => !prev);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // ========== PRODUCTION FEATURES EFFECTS ==========
   // 1. Memory Monitoring
@@ -4161,7 +4175,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         )}
 
         {/* Performance Metrics Display (Development Mode) */}
-        {process.env.NODE_ENV === "development" && (
+        {process.env.NODE_ENV === "development" && showPerformance && (
           <div
             style={{
               position: "absolute",
