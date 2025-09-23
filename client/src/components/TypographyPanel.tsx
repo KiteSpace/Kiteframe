@@ -66,7 +66,7 @@ const FONT_SIZES = [
 export const TypographyPanel = ({
   textContent,
   fontSize,
-  fontFamily,
+  fontFamily = "Inter",
   fontWeight,
   textColor,
   textAlign = "left",
@@ -366,16 +366,14 @@ export const TypographyPanel = ({
 
       {/* Text Formatting Controls */}
       <div className="space-y-3">
-        {/* Color Picker - Always Visible */}
-        <div className="p-3 border rounded-lg bg-background">
-          <FigmaStyleColorPicker
-            fillColor={textColor}
-            onFillColorChange={onTextColorChange}
-            showFill={false}
-            showStroke={false}
-            testIdScope="text-color"
-          />
-        </div>
+        <FigmaStyleColorPicker
+          label="Text Color"
+          fillColor={textColor}
+          onFillColorChange={onTextColorChange}
+          showFill={true}
+          showStroke={false}
+          testIdScope="text-color"
+        />
       </div>
 
       <Separator />

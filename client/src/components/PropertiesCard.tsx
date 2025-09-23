@@ -327,7 +327,7 @@ export function PropertiesCard({
                     data: { ...selectedNode.data, description: e.target.value },
                   })
                 }
-                className="text-sm"
+                className="text-sm bg-card border border-border rounded-md p-2"
                 placeholder="Node description..."
                 data-testid="node-description-input"
                 style={{

@@ -3,10 +3,30 @@ import { Slider } from "@/components/ui/slider";
 
 // Updated color swatches as requested: Red Orange Yellow Green Teal Blue Purple Violet White Grey Black
 const vividSwatches = [
-  "#EF4444", "#F97316", "#EAB308", "#22C55E", "#06B6D4", "#3B82F6", "#8B5CF6", "#A855F7", "#FFFFFF", "#64748B", "#000000"
+  "#EF4444",
+  "#F97316",
+  "#EAB308",
+  "#22C55E",
+  "#06B6D4",
+  "#3B82F6",
+  "#8B5CF6",
+  "#A855F7",
+  "#FFFFFF",
+  "#64748B",
+  "#000000",
 ];
 const pastelSwatches = [
-  "#FCA5A5", "#FDBA74", "#FDE047", "#86EFAC", "#67E8F9", "#93C5FD", "#C4B5FD", "#D8B4FE", "#F8FAFC", "#CBD5E1", "#374151"
+  "#FCA5A5",
+  "#FDBA74",
+  "#FDE047",
+  "#86EFAC",
+  "#67E8F9",
+  "#93C5FD",
+  "#C4B5FD",
+  "#D8B4FE",
+  "#F8FAFC",
+  "#CBD5E1",
+  "#374151",
 ];
 
 export interface FillStrokeColorPickerProps {
@@ -32,16 +52,15 @@ export default function FillStrokeColorPicker({
   onStrokeColorChange,
   onStrokeOpacityChange,
   className,
-  testIdScope
+  testIdScope,
 }: FillStrokeColorPickerProps) {
-
-  const ColorSwatchRow = ({ 
-    label, 
-    color, 
-    opacity, 
-    onColorChange, 
+  const ColorSwatchRow = ({
+    label,
+    color,
+    opacity,
+    onColorChange,
     onOpacityChange,
-    testId 
+    testId,
   }: {
     label: string;
     color: string;
@@ -51,16 +70,18 @@ export default function FillStrokeColorPicker({
     testId?: string;
   }) => (
     <div className="space-y-2">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
       {/* Vivid colors row */}
       <div className="grid grid-cols-11 gap-1.5">
         {vividSwatches.map((sw) => (
-          <button 
+          <button
             key={`${label}-vivid-${sw}`}
-            className={`w-6 h-6 rounded-full border border-border ${color === sw ? 'ring-2 ring-blue-500' : ''}`}
-            style={{ backgroundColor: sw }} 
-            onClick={() => onColorChange?.(sw)} 
-            aria-label={`${label} swatch ${sw}`} 
+            className={`w-6 h-6 rounded-full border border-border ${color === sw ? "ring-2 ring-blue-500" : ""}`}
+            style={{ backgroundColor: sw }}
+            onClick={() => onColorChange?.(sw)}
+            aria-label={`${label} swatch ${sw}`}
             data-testid={testId ? `${testId}-vivid-${sw}` : undefined}
           />
         ))}
@@ -68,18 +89,18 @@ export default function FillStrokeColorPicker({
       {/* Pastel colors row */}
       <div className="grid grid-cols-11 gap-1.5">
         {pastelSwatches.map((sw) => (
-          <button 
+          <button
             key={`${label}-pastel-${sw}`}
-            className={`w-6 h-6 rounded-full border border-border ${color === sw ? 'ring-2 ring-blue-500' : ''}`}
-            style={{ backgroundColor: sw }} 
-            onClick={() => onColorChange?.(sw)} 
-            aria-label={`${label} swatch ${sw}`} 
+            className={`w-6 h-6 rounded-full border border-border ${color === sw ? "ring-2 ring-blue-500" : ""}`}
+            style={{ backgroundColor: sw }}
+            onClick={() => onColorChange?.(sw)}
+            aria-label={`${label} swatch ${sw}`}
             data-testid={testId ? `${testId}-pastel-${sw}` : undefined}
           />
         ))}
       </div>
       {/* Opacity slider */}
-      <div>
+      {/*<div>
         <div className="flex justify-between text-xs mb-1">
           <span>Opacity</span>
           <span>{opacity}%</span>
@@ -91,7 +112,7 @@ export default function FillStrokeColorPicker({
           step={1} 
           data-testid={testId ? `${testId}-opacity` : undefined}
         />
-      </div>
+      </div>*/}
     </div>
   );
 
@@ -103,16 +124,16 @@ export default function FillStrokeColorPicker({
         opacity={fillOpacity}
         onColorChange={onFillColorChange}
         onOpacityChange={onFillOpacityChange}
-        testId={testIdScope ? `${testIdScope}-fill` : 'fill'}
+        testId={testIdScope ? `${testIdScope}-fill` : "fill"}
       />
-      
+
       <ColorSwatchRow
         label="Stroke"
         color={strokeColor}
         opacity={strokeOpacity}
         onColorChange={onStrokeColorChange}
         onOpacityChange={onStrokeOpacityChange}
-        testId={testIdScope ? `${testIdScope}-stroke` : 'stroke'}
+        testId={testIdScope ? `${testIdScope}-stroke` : "stroke"}
       />
     </div>
   );
