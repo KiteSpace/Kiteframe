@@ -302,20 +302,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!customEndpoint) {
           return res.status(400).json({ error: 'Custom endpoint is required for custom provider' });
         }
-        // Auto-detect if this is an Ollama endpoint
+        // Auto-detect if this is an Ollama endpoint or OpenAI endpoint
         const isCustomOllama = customEndpoint.includes('ollama') || !activeApiKey;
+        const isCustomOpenAI = customEndpoint.includes('api.openai.com');
+        const isGpt5Model = model && (model.includes('gpt-5') || model.startsWith('gpt-5'));
+        
         endpoint = `${customEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
         headers = {
           'Content-Type': 'application/json',
           ...(isCustomOllama ? {} : { 'Authorization': `Bearer ${activeApiKey}` })
         };
-        requestBody = {
-          model,
-          messages,
-          temperature,
-          max_tokens: maxTokens,
-          ...(isCustomOllama ? { stream: false } : {})
-        };
+        
+        if (isCustomOpenAI && isGpt5Model) {
+          // Use GPT-5 compatible parameters for custom OpenAI endpoints
+          requestBody = {
+            model,
+            messages,
+            max_completion_tokens: maxTokens
+          };
+        } else {
+          requestBody = {
+            model,
+            messages,
+            temperature,
+            max_tokens: maxTokens,
+            ...(isCustomOllama ? { stream: false } : {})
+          };
+        }
       } else {
         endpoint = 'https://api.openai.com/v1/chat/completions';
         headers = {
@@ -418,7 +431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Setting default model for provider:', provider);
         switch (provider) {
           case 'openai':
-            model = 'gpt-4o';
+            model = 'gpt-5-nano';
             break;
           case 'kiteframe':
             model = 'llama3.2:3b';
@@ -430,7 +443,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             model = 'llama3.2:3b'; // Default Ollama model
             break;
           default:
-            model = 'gpt-4o';
+            model = 'gpt-5-nano';
         }
         console.log('Default model set to:', model);
       }
@@ -574,12 +587,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stream: false
         };
       } else {
-        requestBody = {
-          model,
-          messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
-          max_tokens: 10,
-          temperature: 0.1
-        };
+        // Handle GPT-5 models with different parameters
+        const isGpt5Model = model && (model.includes('gpt-5') || model.startsWith('gpt-5'));
+        const isCustomOpenAI = provider === 'custom' && customEndpoint && customEndpoint.includes('api.openai.com');
+        const needsGpt5Params = (provider === 'openai' || isCustomOpenAI) && isGpt5Model;
+        
+        if (needsGpt5Params) {
+          requestBody = {
+            model,
+            messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
+            max_completion_tokens: 10
+            // GPT-5 doesn't support temperature parameter
+          };
+        } else {
+          requestBody = {
+            model,
+            messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
+            max_tokens: 10,
+            temperature: 0.1
+          };
+        }
       }
 
       const response = await fetch(testUrl, {
