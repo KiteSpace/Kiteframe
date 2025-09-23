@@ -26,7 +26,7 @@ interface AiSettingsModalProps {
 export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   const [settings, setSettings] = useState<AiSettings>({
     provider: 'openai',
-    model: 'gpt-4o',
+    model: 'gpt-5-nano',
     apiKey: '',
     temperature: 0.7
   });
@@ -34,6 +34,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   // Provider-specific model options
   const modelOptions = {
     openai: [
+      { value: 'gpt-5-nano', label: 'GPT-5 Nano (Latest)' },
+      { value: 'gpt-5', label: 'GPT-5' },
       { value: 'gpt-4o', label: 'GPT-4o' },
       { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
       { value: 'gpt-4', label: 'GPT-4' },
@@ -49,6 +51,13 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   const aiClient = useAi();
 
   useEffect(() => {
+    // Force update users to new GPT-5-nano default (one-time migration)
+    const migrationKey = 'ai_settings_migrated_to_gpt5nano';
+    if (!localStorage.getItem(migrationKey)) {
+      localStorage.removeItem('ai_settings'); // Clear old settings
+      localStorage.setItem(migrationKey, 'true');
+    }
+    
     // Load saved settings
     const saved = localStorage.getItem('ai_settings');
     if (saved) {
@@ -65,9 +74,9 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
           fixedSettings.customEndpoint = '';
         }
         
-        // Fix legacy OpenAI models
-        if (fixedSettings.provider === 'openai' && (fixedSettings.model === 'gpt-5' || !fixedSettings.model)) {
-          fixedSettings.model = 'gpt-4o';
+        // Fix legacy OpenAI models - set to latest default if missing
+        if (fixedSettings.provider === 'openai' && !fixedSettings.model) {
+          fixedSettings.model = 'gpt-5-nano';
         }
         setSettings(prev => ({ ...prev, ...fixedSettings }));
       } catch (e) {
