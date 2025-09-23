@@ -217,46 +217,86 @@ export class VersionControlPlugin implements KiteFramePlugin {
 
     const snapshots = await this.getSnapshots(tabManager.currentTab.id);
     
-    const historyHTML = `
-      <div id="version-history-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div class="bg-card border border-border rounded-lg p-6 max-w-2xl w-full m-4 max-h-96 overflow-y-auto">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold">Version History</h3>
-            <button id="close-version-history" class="text-muted-foreground hover:text-foreground">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x">
-                <path d="M18 6 6 18"/>
-                <path d="M6 6l12 12"/>
-              </svg>
-            </button>
-          </div>
-          <div class="space-y-2">
-            ${snapshots.map(snapshot => `
-              <div class="flex items-center justify-between p-3 border border-border rounded-lg">
-                <div>
-                  <div class="font-medium">${snapshot.name}</div>
-                  <div class="text-sm text-muted-foreground">${new Date(snapshot.createdAt).toLocaleString()}</div>
-                  ${snapshot.description ? `<div class="text-xs text-muted-foreground">${snapshot.description}</div>` : ''}
-                </div>
-                <button 
-                  onclick="versionControlPlugin.restoreSnapshot('${snapshot.id}')"
-                  class="px-3 py-1 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90"
-                >
-                  Restore
-                </button>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      </div>
+    // Create modal safely using DOM methods
+    const modalOverlay = document.createElement('div');
+    modalOverlay.id = 'version-history-modal';
+    modalOverlay.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
+    
+    const modalContent = document.createElement('div');
+    modalContent.className = 'bg-card border border-border rounded-lg p-6 max-w-2xl w-full m-4 max-h-96 overflow-y-auto';
+    
+    // Create header
+    const header = document.createElement('div');
+    header.className = 'flex justify-between items-center mb-4';
+    
+    const title = document.createElement('h3');
+    title.className = 'text-lg font-semibold';
+    title.textContent = 'Version History';
+    
+    const closeButton = document.createElement('button');
+    closeButton.id = 'close-version-history';
+    closeButton.className = 'text-muted-foreground hover:text-foreground';
+    closeButton.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x">
+        <path d="M18 6 6 18"/>
+        <path d="M6 6l12 12"/>
+      </svg>
     `;
-
-    const modal = document.createElement('div');
-    modal.innerHTML = historyHTML;
-    document.body.appendChild(modal.firstElementChild!);
+    
+    header.appendChild(title);
+    header.appendChild(closeButton);
+    
+    // Create snapshots container
+    const snapshotsContainer = document.createElement('div');
+    snapshotsContainer.className = 'space-y-2';
+    
+    // Create snapshot items safely
+    snapshots.forEach(snapshot => {
+      const snapshotItem = document.createElement('div');
+      snapshotItem.className = 'flex items-center justify-between p-3 border border-border rounded-lg';
+      
+      const infoDiv = document.createElement('div');
+      
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'font-medium';
+      nameDiv.textContent = snapshot.name; // Safe: uses textContent
+      
+      const dateDiv = document.createElement('div');
+      dateDiv.className = 'text-sm text-muted-foreground';
+      dateDiv.textContent = new Date(snapshot.createdAt).toLocaleString();
+      
+      infoDiv.appendChild(nameDiv);
+      infoDiv.appendChild(dateDiv);
+      
+      if (snapshot.description) {
+        const descDiv = document.createElement('div');
+        descDiv.className = 'text-xs text-muted-foreground';
+        descDiv.textContent = snapshot.description; // Safe: uses textContent
+        infoDiv.appendChild(descDiv);
+      }
+      
+      const restoreButton = document.createElement('button');
+      restoreButton.className = 'px-3 py-1 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90';
+      restoreButton.textContent = 'Restore';
+      restoreButton.addEventListener('click', () => {
+        this.restoreSnapshot(snapshot.id);
+      });
+      
+      snapshotItem.appendChild(infoDiv);
+      snapshotItem.appendChild(restoreButton);
+      snapshotsContainer.appendChild(snapshotItem);
+    });
+    
+    // Assemble modal
+    modalContent.appendChild(header);
+    modalContent.appendChild(snapshotsContainer);
+    modalOverlay.appendChild(modalContent);
+    
+    document.body.appendChild(modalOverlay);
 
     // Add close handler
-    document.getElementById('close-version-history')?.addEventListener('click', () => {
-      document.getElementById('version-history-modal')?.remove();
+    closeButton.addEventListener('click', () => {
+      modalOverlay.remove();
     });
 
     // Expose this instance to window for button callbacks
