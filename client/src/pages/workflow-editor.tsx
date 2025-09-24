@@ -31,6 +31,7 @@ import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeDat
 import { DEFAULT_SHAPE_NODE_DATA } from '../lib/kiteframe/constants/defaults';
 import { recalculateAllEdgeZIndexes } from '../lib/kiteframe/utils/edgeZIndex';
 import { applyThemeToNode, applyThemeToEdge, workflowThemes, getThemeById, type WorkflowTheme } from '../lib/themes';
+import { isPureBlack, isPureWhite, getOppositeTextColor } from '../lib/kiteframe/utils/colorUtils';
 import '../lib/kiteframe/styles/kiteframe.css';
 import { 
   X, 
@@ -916,6 +917,82 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     // Save to localStorage
     localStorage.setItem('dark-mode', JSON.stringify(isDarkMode));
   }, [isDarkMode]);
+
+
+  useEffect(() => {
+    if (!activeTab) return;
+
+    const handleThemeChange = () => {
+      const currentTab = activeTabRef.current;
+      if (!currentTab) return;
+
+      const currentCanvasObjects = currentTab.canvasObjects || [];
+      let hasChanges = false;
+      
+      const updatedCanvasObjects = currentCanvasObjects.map(obj => {
+        if (obj.type === 'text') {
+          const textData = obj.data as TextNodeData;
+          const currentTextColor = textData.textColor;
+          
+          // Only update pure black/white colors
+          if (isPureBlack(currentTextColor) || isPureWhite(currentTextColor)) {
+            const newTextColor = getOppositeTextColor(currentTextColor);
+            hasChanges = true;
+            
+            return {
+              ...obj,
+              data: {
+                ...textData,
+                textColor: newTextColor
+              }
+            };
+          }
+        }
+        return obj;
+      });
+
+      // Only update if there were changes
+      if (hasChanges) {
+        updateTab(currentTab.id, { canvasObjects: updatedCanvasObjects });
+      }
+    };
+
+    // Create MutationObserver to watch for theme class changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          const isDarkNow = document.documentElement.classList.contains('dark');
+          
+          // Only trigger if theme actually changed
+          if (isDarkNow !== lastThemeIsDarkRef.current) {
+            lastThemeIsDarkRef.current = isDarkNow;
+            
+            // Clear any existing timeout
+            if (debounceTimeoutRef.current) {
+              clearTimeout(debounceTimeoutRef.current);
+            }
+            
+            // Debounce the theme change handling
+            debounceTimeoutRef.current = setTimeout(handleThemeChange, 10);
+          }
+        }
+      });
+    });
+
+    // Start observing the document element for class changes
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    // Cleanup observer and timeout on unmount or activeTab change
+    return () => {
+      observer.disconnect();
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [activeTab?.id, updateTab]);
 
   // Dark mode toggle function
   const toggleDarkMode = useCallback(() => {
@@ -2320,6 +2397,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const clickDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDraggingRef = useRef(false);
   const dragResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Theme change detection refs
+  const activeTabRef = useRef(activeTab);
+  const lastThemeIsDarkRef = useRef(document.documentElement.classList.contains('dark'));
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Keep refs in sync with current state
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
 
   // Sidebar collapse state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
