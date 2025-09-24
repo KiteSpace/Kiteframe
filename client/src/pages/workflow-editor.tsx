@@ -258,7 +258,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     });
 
     // Create edges between the nodes (linear flow: 1->2->3)
-    const edgeTypes = ['bezier', 'straight', 'step'] as const;
+    const edgeTypes = ['bezier', 'straight'] as const;
     const colors = [
       'hsl(221.2, 83.2%, 53.3%)', 
       'hsl(142.1, 76.2%, 36.3%)',
@@ -456,7 +456,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
         id: `sys-edge-${edges.length + 1}`,
         source: nodes[i].id,
         target: nodes[i + 1].id,
-        type: 'step' as const,
+        type: 'bezier' as const,
         animated: false,
         style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
         markers: { type: 'arrow' as const, position: 'end' as const }
@@ -470,7 +470,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
           id: `sys-edge-${edges.length + 1}`,
           source: nodes[i].id,
           target: nodes[i + 2].id,
-          type: 'step' as const,
+          type: 'bezier' as const,
           animated: false,
           style: { strokeColor: 'hsl(262.1, 83.3%, 57.8%)', strokeWidth: 1 },
           markers: { type: 'arrow' as const, position: 'end' as const }
@@ -544,7 +544,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
           id: `swim-edge-lane-${laneIndex}-${i}`,
           source: nodesInLane[i],
           target: nodesInLane[i + 1],
-          type: 'step' as const,
+          type: 'bezier' as const,
           animated: true,
           style: { strokeColor: `hsl(${laneIndex * 120}, 70%, 50%)`, strokeWidth: 2 },
           markers: { type: 'arrow' as const, position: 'end' as const }
@@ -751,7 +751,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
         id: `io-edge-process-${i + 1}`,
         source: `process-${i + 1}`,
         target: `process-${i + 2}`,
-        type: 'step' as const,
+        type: 'bezier' as const,
         animated: false,
         style: { strokeColor: 'hsl(142.1, 76.2%, 36.3%)', strokeWidth: 2 },
         markers: { type: 'arrow' as const, position: 'end' as const }
@@ -2684,7 +2684,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         id: `edge-${Date.now()}`,
         source: sourceNodeId,
         target: newNode.id,
-        type: 'step' as const,
+        type: 'bezier' as const,
         animated: false,
         style: { strokeColor: '#3b82f6', strokeWidth: 2 },
         markers: { type: 'arrow' as const, position: 'end' as const }
