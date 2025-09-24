@@ -919,6 +919,44 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   }, [isDarkMode]);
 
 
+  // Dark mode toggle function
+  const toggleDarkMode = useCallback(() => {
+    setIsDarkMode(prev => !prev);
+  }, []);
+
+  // Get current active tab
+  const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId) || tabs[0], [tabs, activeTabId]);
+
+  // Convenience getters for current tab state
+  const nodes = activeTab?.nodes || [];
+  const edges = activeTab?.edges || [];
+  const canvasObjects = activeTab?.canvasObjects || [];
+  const viewport = activeTab?.viewport || { x: 0, y: 0, zoom: 1 };
+  const selectedNodeId = activeTab?.selectedNodeId || '';
+  const selectedEdgeId = activeTab?.selectedEdgeId || '';
+  
+  // Derive selected canvas objects from active tab state
+  const selectedCanvasObjects = useMemo(() => canvasObjects.filter(obj => obj.selected), [canvasObjects]);
+  
+  const history = activeTab?.history || [];
+  const historyIndex = activeTab?.historyIndex ?? 0;
+  const showImageModal = activeTab?.showImageModal || null;
+  const metadata = activeTab?.metadata || {
+    name: activeTab?.name || 'Untitled Workflow',
+    description: '',
+    links: [],
+    linksFormat: 'text' as const,
+    categories: []
+  };
+
+  // Update current tab
+  const updateActiveTab = useCallback((updates: Partial<WorkflowTab>) => {
+    setTabs(prev => prev.map(tab => 
+      tab.id === activeTabId ? { ...tab, ...updates } : tab
+    ));
+  }, [activeTabId]);
+
+  // Theme change detection for text color updates using MutationObserver
   useEffect(() => {
     if (!activeTab) return;
 
@@ -953,7 +991,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
 
       // Only update if there were changes
       if (hasChanges) {
-        updateTab(currentTab.id, { canvasObjects: updatedCanvasObjects });
+        updateActiveTab({ canvasObjects: updatedCanvasObjects });
       }
     };
 
@@ -992,44 +1030,7 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
         clearTimeout(debounceTimeoutRef.current);
       }
     };
-  }, [activeTab?.id, updateTab]);
-
-  // Dark mode toggle function
-  const toggleDarkMode = useCallback(() => {
-    setIsDarkMode(prev => !prev);
-  }, []);
-
-  // Get current active tab
-  const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId) || tabs[0], [tabs, activeTabId]);
-
-  // Convenience getters for current tab state
-  const nodes = activeTab?.nodes || [];
-  const edges = activeTab?.edges || [];
-  const canvasObjects = activeTab?.canvasObjects || [];
-  const viewport = activeTab?.viewport || { x: 0, y: 0, zoom: 1 };
-  const selectedNodeId = activeTab?.selectedNodeId || '';
-  const selectedEdgeId = activeTab?.selectedEdgeId || '';
-  
-  // Derive selected canvas objects from active tab state
-  const selectedCanvasObjects = useMemo(() => canvasObjects.filter(obj => obj.selected), [canvasObjects]);
-  
-  const history = activeTab?.history || [];
-  const historyIndex = activeTab?.historyIndex ?? 0;
-  const showImageModal = activeTab?.showImageModal || null;
-  const metadata = activeTab?.metadata || {
-    name: activeTab?.name || 'Untitled Workflow',
-    description: '',
-    links: [],
-    linksFormat: 'text' as const,
-    categories: []
-  };
-
-  // Update current tab
-  const updateActiveTab = useCallback((updates: Partial<WorkflowTab>) => {
-    setTabs(prev => prev.map(tab => 
-      tab.id === activeTabId ? { ...tab, ...updates } : tab
-    ));
-  }, [activeTabId]);
+  }, [activeTab?.id, updateActiveTab]);
 
   // Setters that update the active tab
   const setNodes = useCallback((newNodes: Node[] | ((prev: Node[]) => Node[])) => {
@@ -2399,7 +2400,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const dragResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Theme change detection refs
-  const activeTabRef = useRef(activeTab);
+  const activeTabRef = useRef<WorkflowTab | undefined>(undefined);
   const lastThemeIsDarkRef = useRef(document.documentElement.classList.contains('dark'));
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
