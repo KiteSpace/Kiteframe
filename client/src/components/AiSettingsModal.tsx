@@ -50,7 +50,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
 
   useEffect(() => {
     // Force update users to new GPT-4o default (one-time migration)
-    const migrationKey = 'ai_settings_migrated_to_gpt4o';
+    const migrationKey = 'ai_settings_force_gpt4o_jan2025';
     if (!localStorage.getItem(migrationKey)) {
       localStorage.removeItem('ai_settings'); // Clear old settings
       localStorage.setItem(migrationKey, 'true');
@@ -72,8 +72,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
           fixedSettings.customEndpoint = '';
         }
         
-        // Fix legacy OpenAI models - set to latest default if missing
-        if (fixedSettings.provider === 'openai' && !fixedSettings.model) {
+        // Fix legacy OpenAI models - set to latest default if missing OR invalid
+        if (fixedSettings.provider === 'openai' && (!fixedSettings.model || fixedSettings.model.includes('gpt-5'))) {
           fixedSettings.model = 'gpt-4o';
         }
         setSettings(prev => ({ ...prev, ...fixedSettings }));
