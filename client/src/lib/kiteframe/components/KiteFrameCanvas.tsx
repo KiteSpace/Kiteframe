@@ -882,6 +882,40 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   // Plugin system integration
   const core = props.core || kiteFrameCore;
   const enablePlugins = props.enablePlugins !== false; // Default to true
+
+  // Configure AdvancedInteractionsPlugin with canvas objects for unified copy-paste
+  useEffect(() => {
+    if (enablePlugins && props.proFeatures) {
+      const advancedInteractionsPlugin = core.getPlugin('advanced-interactions-pro') as any;
+      if (advancedInteractionsPlugin && typeof advancedInteractionsPlugin.configure === 'function') {
+        advancedInteractionsPlugin.configure(
+          props.proFeatures,
+          props.nodes,
+          props.edges || [],
+          props.onNodesChange || (() => {}),
+          props.onEdgesChange,
+          props.onConnect,
+          props.canvasObjects || [],
+          props.onCanvasObjectsChange
+        );
+        console.log('🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste');
+      }
+    }
+  }, [enablePlugins, props.proFeatures, props.nodes, props.edges, props.canvasObjects, props.onNodesChange, props.onEdgesChange, props.onConnect, props.onCanvasObjectsChange, core]);
+
+  // Update AdvancedInteractionsPlugin configuration when props change
+  useEffect(() => {
+    if (enablePlugins) {
+      const advancedInteractionsPlugin = core.getPlugin('advanced-interactions-pro') as any;
+      if (advancedInteractionsPlugin && typeof advancedInteractionsPlugin.updateConfiguration === 'function') {
+        advancedInteractionsPlugin.updateConfiguration(
+          props.proFeatures || {},
+          props.nodes,
+          props.canvasObjects || []
+        );
+      }
+    }
+  }, [enablePlugins, props.proFeatures, props.nodes, props.canvasObjects, core]);
   const [panning, setPanning] = useState(false);
   const panStart = useRef<{ x: number; y: number } | null>(null);
   // Unified Selection State (works for both nodes and canvas objects)

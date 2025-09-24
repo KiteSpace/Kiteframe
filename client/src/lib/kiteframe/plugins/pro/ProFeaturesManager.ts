@@ -1,5 +1,6 @@
-import type { Node, Edge, ProFeaturesConfig, NodeType, SmartGuidesConfig, SmartConnectConfig } from '../../types';
+import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, SmartGuidesConfig, SmartConnectConfig } from '../../types';
 import { calculateSnapPosition, findAlignmentGuides, SpatialIndex, type SnapGuide, type SnapSettings, defaultSnapSettings } from '../../utils/snapUtils';
+import { clipboardManager } from '../../utils/ClipboardManager';
 
 /**
  * ProFeaturesManager - Centralized manager for all premium features
@@ -10,8 +11,10 @@ export class ProFeaturesManager {
   private config: ProFeaturesConfig;
   private nodes: Node[];
   private edges: Edge[] = [];
+  private canvasObjects: CanvasObject[] = [];
   private onNodesChange: (nodes: Node[]) => void;
   private onEdgesChange?: (edges: Edge[]) => void;
+  private onCanvasObjectsChange?: (canvasObjects: CanvasObject[]) => void;
   private onConnect?: (connection: { source: string; target: string }) => void;
   
   // Smart Guides state
@@ -30,13 +33,17 @@ export class ProFeaturesManager {
     edges: Edge[],
     onNodesChange: (nodes: Node[]) => void,
     onEdgesChange?: (edges: Edge[]) => void,
-    onConnect?: (connection: { source: string; target: string }) => void
+    onConnect?: (connection: { source: string; target: string }) => void,
+    canvasObjects: CanvasObject[] = [],
+    onCanvasObjectsChange?: (canvasObjects: CanvasObject[]) => void
   ) {
     this.config = config;
     this.nodes = nodes;
     this.edges = edges;
+    this.canvasObjects = canvasObjects;
     this.onNodesChange = onNodesChange;
     this.onEdgesChange = onEdgesChange;
+    this.onCanvasObjectsChange = onCanvasObjectsChange;
     this.onConnect = onConnect;
     
     // Initialize smart guides spatial index
@@ -108,57 +115,100 @@ export class ProFeaturesManager {
     }
   }
 
-  // Copy/Paste Feature
+  // Copy/Paste Feature - Unified for nodes and canvas objects
   isCopyPasteEnabled(): boolean {
     return this.config.copyPaste?.enabled !== false;
   }
 
-  copyNode(node: Node): void {
-    if (!this.isCopyPasteEnabled()) return;
+  copySelected(): boolean {
+    if (!this.isCopyPasteEnabled()) return false;
 
-    // Store in localStorage for cross-component access
-    localStorage.setItem('kiteframe-copied-node', JSON.stringify(node));
+    const selectedNodes = this.nodes.filter(node => node.selected === true);
+    const selectedCanvasObjects = this.canvasObjects.filter(obj => obj.selected === true);
+    
+    if (selectedNodes.length === 0 && selectedCanvasObjects.length === 0) {
+      return false;
+    }
+
+    const success = clipboardManager.copy(selectedNodes, selectedCanvasObjects);
     
     // Call custom handler if provided
+    if (success && this.config.copyPaste?.onCopy) {
+      // Call for each copied node (backward compatibility)
+      selectedNodes.forEach(node => this.config.copyPaste?.onCopy?.(node));
+    }
+
+    return success;
+  }
+
+  pasteFromClipboard(): { 
+    newNodes: Node[];
+    newCanvasObjects: CanvasObject[];
+    success: boolean;
+  } {
+    if (!this.isCopyPasteEnabled()) {
+      return { newNodes: [], newCanvasObjects: [], success: false };
+    }
+
+    if (!clipboardManager.hasData()) {
+      return { newNodes: [], newCanvasObjects: [], success: false };
+    }
+
+    const result = clipboardManager.paste(
+      this.nodes,
+      this.canvasObjects,
+      undefined,
+      { offsetDistance: this.config.copyPaste?.offsetDistance ?? 50 }
+    );
+
+    if (result.nodes.length > 0 || result.canvasObjects.length > 0) {
+      // Update nodes
+      if (result.nodes.length > 0) {
+        const updatedNodes = [...this.nodes, ...result.nodes];
+        this.onNodesChange(updatedNodes);
+      }
+
+      // Update canvas objects
+      if (result.canvasObjects.length > 0 && this.onCanvasObjectsChange) {
+        const updatedCanvasObjects = [...this.canvasObjects, ...result.canvasObjects];
+        this.onCanvasObjectsChange(updatedCanvasObjects);
+      }
+
+      // Call custom handlers if provided
+      if (this.config.copyPaste?.onPaste) {
+        result.nodes.forEach(newNode => {
+          // Find original node for backward compatibility
+          const originalData = clipboardManager.getClipboardSummary();
+          if (originalData.nodeCount > 0) {
+            this.config.copyPaste?.onPaste?.(newNode, newNode); // Use same node as both args for compatibility
+          }
+        });
+      }
+
+      return { 
+        newNodes: result.nodes, 
+        newCanvasObjects: result.canvasObjects, 
+        success: true 
+      };
+    }
+
+    return { newNodes: [], newCanvasObjects: [], success: false };
+  }
+
+  // Legacy methods for backward compatibility
+  copyNode(node: Node): void {
+    if (!this.isCopyPasteEnabled()) return;
+    
+    clipboardManager.copy([node], []);
+    
     if (this.config.copyPaste?.onCopy) {
       this.config.copyPaste.onCopy(node);
     }
   }
 
   pasteNode(): Node | null {
-    if (!this.isCopyPasteEnabled()) return null;
-
-    const copiedNodeStr = localStorage.getItem('kiteframe-copied-node');
-    if (!copiedNodeStr) return null;
-
-    try {
-      const copiedNode = JSON.parse(copiedNodeStr) as Node;
-      const offsetDistance = this.config.copyPaste?.offsetDistance ?? 50;
-      
-      const newNode: Node = {
-        ...copiedNode,
-        id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        position: {
-          x: copiedNode.position.x + offsetDistance,
-          y: copiedNode.position.y + offsetDistance
-        },
-        selected: false // Ensure copied node is not selected
-      };
-
-      // Add the new node
-      const updatedNodes = [...this.nodes, newNode];
-      this.onNodesChange(updatedNodes);
-
-      // Call custom handler if provided
-      if (this.config.copyPaste?.onPaste) {
-        this.config.copyPaste.onPaste(copiedNode, newNode);
-      }
-
-      return newNode;
-    } catch (error) {
-      console.error('Failed to paste node:', error);
-      return null;
-    }
+    const result = this.pasteFromClipboard();
+    return result.newNodes.length > 0 ? result.newNodes[0] : null;
   }
 
   // Advanced Selection Feature
@@ -211,25 +261,36 @@ export class ProFeaturesManager {
     }
   }
 
-  // Keyboard shortcuts handler
-  handleKeyboardShortcut(event: KeyboardEvent, selectedNodes: Node[]): boolean {
+  // Keyboard shortcuts handler - Updated for unified copy-paste
+  handleKeyboardShortcut(event: KeyboardEvent, selectedNodes: Node[], selectedCanvasObjects: CanvasObject[] = []): boolean {
     if (!this.isCopyPasteEnabled()) return false;
 
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const cmdKey = isMac ? event.metaKey : event.ctrlKey;
 
-    if (cmdKey && event.key === 'c' && selectedNodes.length > 0) {
-      // Copy selected node (first one if multiple selected)
-      this.copyNode(selectedNodes[0]);
-      event.preventDefault();
-      return true;
+    if (cmdKey && event.key === 'c') {
+      // Copy selected items (nodes and/or canvas objects)
+      const hasSelection = selectedNodes.length > 0 || selectedCanvasObjects.length > 0;
+      if (hasSelection) {
+        const success = clipboardManager.copy(selectedNodes, selectedCanvasObjects);
+        if (success) {
+          console.log(`📋 Copied ${selectedNodes.length} nodes and ${selectedCanvasObjects.length} canvas objects`);
+          event.preventDefault();
+          return true;
+        }
+      }
     }
 
     if (cmdKey && event.key === 'v') {
-      // Paste node
-      this.pasteNode();
-      event.preventDefault();
-      return true;
+      // Paste items
+      if (clipboardManager.hasData()) {
+        const result = this.pasteFromClipboard();
+        if (result.success) {
+          console.log(`📋 Pasted ${result.newNodes.length} nodes and ${result.newCanvasObjects.length} canvas objects`);
+          event.preventDefault();
+          return true;
+        }
+      }
     }
 
     return false;
@@ -409,8 +470,28 @@ export class ProFeaturesManager {
     this.edges = edges;
   }
 
+  // Update canvas objects state
+  updateCanvasObjects(canvasObjects: CanvasObject[]): void {
+    this.canvasObjects = canvasObjects;
+  }
+
   // Update configuration
   updateConfig(config: ProFeaturesConfig): void {
     this.config = config;
+  }
+
+  // Get selected canvas objects
+  getSelectedCanvasObjects(): CanvasObject[] {
+    return this.canvasObjects.filter(obj => obj.selected === true);
+  }
+
+  // Check if clipboard has data
+  hasClipboardData(): boolean {
+    return clipboardManager.hasData();
+  }
+
+  // Get clipboard summary
+  getClipboardSummary() {
+    return clipboardManager.getClipboardSummary();
   }
 }

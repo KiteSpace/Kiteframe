@@ -1,5 +1,5 @@
 import type { KiteFramePlugin, PluginHooks } from '../../core/KiteFrameCore';
-import type { Node, Edge, ProFeaturesConfig } from '../../types';
+import type { Node, Edge, CanvasObject, ProFeaturesConfig } from '../../types';
 import { ProFeaturesManager } from './ProFeaturesManager';
 
 /**
@@ -22,7 +22,9 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
 
   private proFeaturesManager: ProFeaturesManager | null = null;
   private currentNodes: Node[] = [];
+  private currentCanvasObjects: CanvasObject[] = [];
   private onNodesChange: ((nodes: Node[]) => void) | null = null;
+  private onCanvasObjectsChange: ((canvasObjects: CanvasObject[]) => void) | null = null;
   private onConnect: ((connection: { source: string; target: string }) => void) | undefined | null = null;
 
   initialize(core: any): void {
@@ -59,10 +61,14 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
     edges: Edge[],
     onNodesChange: (nodes: Node[]) => void,
     onEdgesChange?: (edges: Edge[]) => void,
-    onConnect?: (connection: { source: string; target: string }) => void
+    onConnect?: (connection: { source: string; target: string }) => void,
+    canvasObjects: CanvasObject[] = [],
+    onCanvasObjectsChange?: (canvasObjects: CanvasObject[]) => void
   ): void {
     this.currentNodes = nodes;
+    this.currentCanvasObjects = canvasObjects;
     this.onNodesChange = onNodesChange;
+    this.onCanvasObjectsChange = onCanvasObjectsChange;
     this.onConnect = onConnect;
     
     this.proFeaturesManager = new ProFeaturesManager(
@@ -71,23 +77,29 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
       edges || [],
       onNodesChange,
       onEdgesChange,
-      onConnect
+      onConnect,
+      canvasObjects,
+      onCanvasObjectsChange
     );
 
     console.log('🔧 AdvancedInteractions configured with pro features:', {
       quickAdd: config.quickAdd?.enabled !== false,
       copyPaste: config.copyPaste?.enabled !== false,
-      advancedSelection: config.advancedSelection?.enabled !== false
+      advancedSelection: config.advancedSelection?.enabled !== false,
+      nodeCount: nodes.length,
+      canvasObjectCount: canvasObjects.length
     });
   }
 
   // Update configuration when props change
-  updateConfiguration(config: ProFeaturesConfig, nodes: Node[]): void {
+  updateConfiguration(config: ProFeaturesConfig, nodes: Node[], canvasObjects: CanvasObject[] = []): void {
     this.currentNodes = nodes;
+    this.currentCanvasObjects = canvasObjects;
     
     if (this.proFeaturesManager) {
       this.proFeaturesManager.updateConfig(config);
       this.proFeaturesManager.updateNodes(nodes);
+      this.proFeaturesManager.updateCanvasObjects(canvasObjects);
     }
   }
 
@@ -106,10 +118,11 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
     const target = event.target as HTMLElement;
     if (target.closest('.kiteframe-canvas')) {
       const selectedNodes = this.getSelectedNodes();
-      const handled = this.proFeaturesManager.handleKeyboardShortcut(event, selectedNodes);
+      const selectedCanvasObjects = this.getSelectedCanvasObjects();
+      const handled = this.proFeaturesManager.handleKeyboardShortcut(event, selectedNodes, selectedCanvasObjects);
       
       if (handled) {
-        console.log('⌨️ Keyboard shortcut handled by pro features');
+        console.log('⌨️ Keyboard shortcut handled by pro features (unified copy-paste)');
       }
     }
   };
@@ -117,6 +130,11 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
   private getSelectedNodes(): Node[] {
     // Get selected nodes from current node data
     return this.currentNodes.filter(node => node.selected === true);
+  }
+
+  private getSelectedCanvasObjects(): CanvasObject[] {
+    // Get selected canvas objects from current canvas object data
+    return this.currentCanvasObjects.filter(obj => obj.selected === true);
   }
 
 
@@ -177,6 +195,7 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
     // Clear manager reference
     this.proFeaturesManager = null;
     this.onNodesChange = null;
+    this.onCanvasObjectsChange = null;
     this.onConnect = null;
     
     console.log('🚀 AdvancedInteractions Pro Plugin v2.0: Cleaned up');
