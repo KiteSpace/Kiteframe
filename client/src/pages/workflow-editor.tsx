@@ -1443,11 +1443,210 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         edges: workflowData.edges
       });
       
-      return workflowData;
+      // Apply minimum spacing between nodes
+      const spacedNodes = enforceMinimumNodeSpacing(workflowData.nodes, 16);
+      console.log('✨ APPLIED MINIMUM SPACING:', { 
+        originalNodes: workflowData.nodes.length,
+        spacedNodes: spacedNodes.length,
+        hasPositionChanges: JSON.stringify(workflowData.nodes) !== JSON.stringify(spacedNodes)
+      });
+      
+      return {
+        ...workflowData,
+        nodes: spacedNodes
+      };
     } else {
       throw new Error('Invalid workflow structure returned');
     }
   }, [ai]);
+
+  // Function to enforce minimum spacing between nodes
+  const enforceMinimumNodeSpacing = useCallback((nodes: Node[], minGap: number = 16, existingNodes: Node[] = []): Node[] => {
+    if (nodes.length === 0) return nodes;
+    
+    const adjustedNodes = [...nodes];
+    const maxIterations = 10; // Prevent infinite loops
+    const allNodes = [...existingNodes, ...adjustedNodes]; // Combined set for collision checking
+    
+    // Helper function to get actual node dimensions
+    const getNodeDimensions = (node: Node) => ({
+      width: node.width || 200, // Fallback to 200 if width not specified
+      height: node.height || 100  // Fallback to 100 if height not specified
+    });
+    
+    // Helper function to check if two nodes are too close
+    const areNodesTooClose = (nodeA: Node, nodeB: Node) => {
+      const dimA = getNodeDimensions(nodeA);
+      const dimB = getNodeDimensions(nodeB);
+      
+      const aLeft = nodeA.position.x;
+      const aRight = nodeA.position.x + dimA.width;
+      const aTop = nodeA.position.y;
+      const aBottom = nodeA.position.y + dimA.height;
+      
+      const bLeft = nodeB.position.x;
+      const bRight = nodeB.position.x + dimB.width;
+      const bTop = nodeB.position.y;
+      const bBottom = nodeB.position.y + dimB.height;
+      
+      // Check if bounding boxes overlap or are too close
+      const horizontalOverlap = !(aRight + minGap < bLeft || bRight + minGap < aLeft);
+      const verticalOverlap = !(aBottom + minGap < bTop || bBottom + minGap < aTop);
+      
+      return horizontalOverlap && verticalOverlap;
+    };
+    
+    // Iteratively resolve collisions until stable or max iterations reached
+    for (let iteration = 0; iteration < maxIterations; iteration++) {
+      let hasCollisions = false;
+      
+      // Check all pairs for collisions
+      for (let i = 0; i < adjustedNodes.length; i++) {
+        const nodeA = adjustedNodes[i];
+        const dimA = getNodeDimensions(nodeA);
+        
+        // Check against existing nodes (we can't move these)
+        for (let k = 0; k < existingNodes.length; k++) {
+          const existingNode = existingNodes[k];
+          if (areNodesTooClose(nodeA, existingNode)) {
+            hasCollisions = true;
+            
+            // Move the new node away from existing node
+            const dimExisting = getNodeDimensions(existingNode);
+            const centerAX = nodeA.position.x + dimA.width / 2;
+            const centerAY = nodeA.position.y + dimA.height / 2;
+            const centerExistingX = existingNode.position.x + dimExisting.width / 2;
+            const centerExistingY = existingNode.position.y + dimExisting.height / 2;
+            
+            const deltaX = centerAX - centerExistingX;
+            const deltaY = centerAY - centerExistingY;
+            
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+              // Adjust horizontally
+              if (deltaX > 0) {
+                // Move nodeA to the right
+                adjustedNodes[i] = {
+                  ...nodeA,
+                  position: {
+                    ...nodeA.position,
+                    x: existingNode.position.x + dimExisting.width + minGap
+                  }
+                };
+              } else {
+                // Move nodeA to the left
+                adjustedNodes[i] = {
+                  ...nodeA,
+                  position: {
+                    ...nodeA.position,
+                    x: existingNode.position.x - dimA.width - minGap
+                  }
+                };
+              }
+            } else {
+              // Adjust vertically
+              if (deltaY > 0) {
+                // Move nodeA down
+                adjustedNodes[i] = {
+                  ...nodeA,
+                  position: {
+                    ...nodeA.position,
+                    y: existingNode.position.y + dimExisting.height + minGap
+                  }
+                };
+              } else {
+                // Move nodeA up
+                adjustedNodes[i] = {
+                  ...nodeA,
+                  position: {
+                    ...nodeA.position,
+                    y: existingNode.position.y - dimA.height - minGap
+                  }
+                };
+              }
+            }
+          }
+        }
+        
+        // Check against other new nodes
+        for (let j = i + 1; j < adjustedNodes.length; j++) {
+          const nodeB = adjustedNodes[j];
+          if (areNodesTooClose(adjustedNodes[i], nodeB)) {
+            hasCollisions = true;
+            
+            // Move the later node (nodeB) away from the earlier one
+            const dimB = getNodeDimensions(nodeB);
+            const centerAX = adjustedNodes[i].position.x + dimA.width / 2;
+            const centerAY = adjustedNodes[i].position.y + dimA.height / 2;
+            const centerBX = nodeB.position.x + dimB.width / 2;
+            const centerBY = nodeB.position.y + dimB.height / 2;
+            
+            const deltaX = centerBX - centerAX;
+            const deltaY = centerBY - centerAY;
+            
+            // Add small random jitter to prevent oscillation
+            const jitter = (Math.random() - 0.5) * 4;
+            
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+              // Adjust horizontally
+              if (deltaX > 0) {
+                // Move nodeB to the right
+                adjustedNodes[j] = {
+                  ...nodeB,
+                  position: {
+                    ...nodeB.position,
+                    x: adjustedNodes[i].position.x + dimA.width + minGap + jitter
+                  }
+                };
+              } else {
+                // Move nodeB to the left
+                adjustedNodes[j] = {
+                  ...nodeB,
+                  position: {
+                    ...nodeB.position,
+                    x: adjustedNodes[i].position.x - dimB.width - minGap + jitter
+                  }
+                };
+              }
+            } else {
+              // Adjust vertically
+              if (deltaY > 0) {
+                // Move nodeB down
+                adjustedNodes[j] = {
+                  ...nodeB,
+                  position: {
+                    ...nodeB.position,
+                    y: adjustedNodes[i].position.y + dimA.height + minGap + jitter
+                  }
+                };
+              } else {
+                // Move nodeB up
+                adjustedNodes[j] = {
+                  ...nodeB,
+                  position: {
+                    ...nodeB.position,
+                    y: adjustedNodes[i].position.y - dimB.height - minGap + jitter
+                  }
+                };
+              }
+            }
+          }
+        }
+      }
+      
+      // If no collisions found, we're done
+      if (!hasCollisions) {
+        console.log(`✨ Node spacing resolved in ${iteration + 1} iterations`);
+        break;
+      }
+      
+      // Log progress for debugging
+      if (iteration === maxIterations - 1) {
+        console.warn(`⚠️ Node spacing hit max iterations (${maxIterations}), some overlaps may remain`);
+      }
+    }
+    
+    return adjustedNodes;
+  }, []);
 
   const handleCreateFromPrompt = useCallback(async (prompt: string) => {
     try {
@@ -1861,11 +2060,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       // Generate workflow using AI
       const generatedWorkflow = await generateWorkflowFromPrompt(prompt);
       
+      // Apply minimum spacing between nodes in the generated workflow AND relative to existing nodes
+      const spacedWorkflow = {
+        ...generatedWorkflow,
+        nodes: enforceMinimumNodeSpacing(generatedWorkflow.nodes, 16, nodes)
+      };
+      
       // Calculate offset for new nodes
-      const offset = calculateWorkflowOffset(generatedWorkflow.nodes);
+      const offset = calculateWorkflowOffset(spacedWorkflow.nodes);
       
       // Apply offset to new nodes
-      const offsetNodes = generatedWorkflow.nodes.map(node => ({
+      const offsetNodes = spacedWorkflow.nodes.map(node => ({
         ...node,
         id: `${node.id}-${Date.now()}`, // Ensure unique IDs
         position: {
@@ -1876,7 +2081,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       }));
 
       // Apply offset to new edges and update IDs
-      const offsetEdges = generatedWorkflow.edges.map(edge => ({
+      const offsetEdges = spacedWorkflow.edges.map(edge => ({
         ...edge,
         id: `${edge.id}-${Date.now()}`, // Ensure unique IDs
         source: `${edge.source}-${Date.now()}`,
