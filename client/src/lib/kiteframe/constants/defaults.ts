@@ -1,4 +1,5 @@
 import { TextNodeData, StickyNoteData, ShapeNodeData } from '../types';
+import { getThemeAwareDefaultTextColor } from '../utils/colorUtils';
 
 /**
  * Feature flags for KiteFrame functionality
@@ -10,7 +11,54 @@ export const DISABLE_SHAPE_TEXT = true;
  * These defaults provide consistent baseline values for reset functionality
  */
 
-// Default values for TextNodeData objects
+
+/**
+ * Get theme-aware default values for TextNodeData objects
+ * Returns appropriate text color based on current theme (dark/light mode)
+ */
+export function getDefaultTextNodeData(): TextNodeData {
+  return {
+    label: 'Text',
+    text: 'Click to add text',
+    // Typography styling
+    fontSize: 16,
+    fontFamily: 'Inter',
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textAlign: 'left',
+    textDecoration: 'none',
+    textTransform: 'none',
+    lineHeight: 1.4,
+    letterSpacing: 0,
+    // Color styling - theme-aware
+    textColor: getThemeAwareDefaultTextColor(),
+    backgroundColor: 'transparent',
+    // Border styling
+    borderColor: '#e2e8f0',
+    borderWidth: 0,
+    borderStyle: 'solid',
+    borderRadius: 4,
+    // Effects
+    opacity: 1,
+    shadow: {
+      enabled: false,
+      color: '#000000',
+      blur: 4,
+      offsetX: 0,
+      offsetY: 2
+    },
+    // Padding
+    padding: {
+      top: 8,
+      right: 12,
+      bottom: 8,
+      left: 12
+    }
+  };
+}
+
+// Legacy constant for backward compatibility (static black color)
+// Use getDefaultTextNodeData() for theme-aware defaults
 export const DEFAULT_TEXT_NODE_DATA: TextNodeData = {
   label: 'Text',
   text: 'Click to add text',
@@ -25,7 +73,7 @@ export const DEFAULT_TEXT_NODE_DATA: TextNodeData = {
   lineHeight: 1.4,
   letterSpacing: 0,
   // Color styling
-  textColor: '#000000',
+  textColor: '#000000', // Static black - use getDefaultTextNodeData() for theme-aware
   backgroundColor: 'transparent',
   // Border styling
   borderColor: '#e2e8f0',

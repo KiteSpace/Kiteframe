@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { GoogleFontsSelector } from "./GoogleFontsSelector";
 import FigmaStyleColorPicker from "./FigmaStyleColorPicker";
 import { getAvailableWeightOptions, findFallbackWeight } from "@/lib/fontUtils";
-import { DEFAULT_TEXT_NODE_DATA } from "@/lib/kiteframe/constants/defaults";
+import { getDefaultTextNodeData } from "@/lib/kiteframe/constants/defaults";
 import {
   AlignLeft,
   AlignCenter,
@@ -158,11 +158,11 @@ export const TypographyPanel = ({
       onResetToDefaults();
     } else {
       // Fallback to individual property resets if no unified reset handler
-      const defaults = DEFAULT_TEXT_NODE_DATA;
+      const defaults = getDefaultTextNodeData();
       onTextContentChange(defaults.text);
       onFontSizeChange(defaults.fontSize);
       onFontFamilyChange(defaults.fontFamily);
-      onFontWeightChange(defaults.fontWeight);
+      onFontWeightChange(String(defaults.fontWeight));
       onTextColorChange(defaults.textColor);
       onTextAlignChange?.(defaults.textAlign);
       onTextDecorationChange?.(defaults.textDecoration);
