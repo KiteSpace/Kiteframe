@@ -26,7 +26,7 @@ interface AiSettingsModalProps {
 export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   const [settings, setSettings] = useState<AiSettings>({
     provider: 'openai',
-    model: 'gpt-5-nano',
+    model: 'gpt-4o',
     apiKey: '',
     temperature: 0.7
   });
@@ -34,9 +34,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   // Provider-specific model options
   const modelOptions = {
     openai: [
-      { value: 'gpt-5-nano', label: 'GPT-5 Nano (Latest)' },
-      { value: 'gpt-5', label: 'GPT-5' },
-      { value: 'gpt-4o', label: 'GPT-4o' },
+      { value: 'gpt-4o', label: 'GPT-4o (Latest)' },
       { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
       { value: 'gpt-4', label: 'GPT-4' },
       { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
@@ -51,8 +49,8 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   const aiClient = useAi();
 
   useEffect(() => {
-    // Force update users to new GPT-5-nano default (one-time migration)
-    const migrationKey = 'ai_settings_migrated_to_gpt5nano';
+    // Force update users to new GPT-4o default (one-time migration)
+    const migrationKey = 'ai_settings_migrated_to_gpt4o';
     if (!localStorage.getItem(migrationKey)) {
       localStorage.removeItem('ai_settings'); // Clear old settings
       localStorage.setItem(migrationKey, 'true');
@@ -69,14 +67,14 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
         // Coerce removed providers to OpenAI with latest default
         if (['anthropic', 'kiteframe', 'ollama'].includes(fixedSettings.provider)) {
           fixedSettings.provider = 'openai';
-          fixedSettings.model = 'gpt-5-nano';
+          fixedSettings.model = 'gpt-4o';
           fixedSettings.apiKey = '';
           fixedSettings.customEndpoint = '';
         }
         
         // Fix legacy OpenAI models - set to latest default if missing
         if (fixedSettings.provider === 'openai' && !fixedSettings.model) {
-          fixedSettings.model = 'gpt-5-nano';
+          fixedSettings.model = 'gpt-4o';
         }
         setSettings(prev => ({ ...prev, ...fixedSettings }));
       } catch (e) {
@@ -266,7 +264,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="openai">OpenAI (GPT-5-nano)</SelectItem>
+                <SelectItem value="openai">OpenAI (GPT-4o)</SelectItem>
                 <SelectItem value="custom">Custom Endpoint</SelectItem>
               </SelectContent>
             </Select>
@@ -276,7 +274,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             <div className="space-y-2">
               <Label>Model</Label>
               <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-md text-sm">
-                ✅ Using: <strong>{settings.model === 'gpt-5-nano' ? 'GPT-5-nano (latest model, faster analysis)' : settings.model}</strong>
+                ✅ Using: <strong>{settings.model === 'gpt-4o' ? 'GPT-4o (latest model, faster analysis)' : settings.model}</strong>
               </div>
             </div>
           )}
