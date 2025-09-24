@@ -128,6 +128,109 @@ export const colorContrast: ColorContrast = {
 };
 
 /**
+ * Check if a color is pure black (#000000, rgb(0,0,0), black)
+ */
+export function isPureBlack(color: string): boolean {
+  if (!color) return false;
+  
+  const normalized = color.toLowerCase().trim();
+  
+  // Direct matches for common black formats
+  if (normalized === '#000000' || normalized === '#000' || normalized === 'black') {
+    return true;
+  }
+  
+  // RGB format check
+  if (normalized.startsWith('rgb(')) {
+    const match = normalized.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
+    if (match) {
+      const [, r, g, b] = match;
+      return r === '0' && g === '0' && b === '0';
+    }
+  }
+  
+  // RGBA format check
+  if (normalized.startsWith('rgba(')) {
+    const match = normalized.match(/rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*[\d.]+\s*\)/);
+    if (match) {
+      const [, r, g, b] = match;
+      return r === '0' && g === '0' && b === '0';
+    }
+  }
+  
+  // HSL format check for black
+  if (normalized.startsWith('hsl(')) {
+    const match = normalized.match(/hsl\(\s*[\d.]+\s*,\s*[\d.]+%\s*,\s*([\d.]+)%\s*\)/);
+    if (match) {
+      const lightness = parseFloat(match[1]);
+      return lightness === 0;
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * Check if a color is pure white (#ffffff, rgb(255,255,255), white)
+ */
+export function isPureWhite(color: string): boolean {
+  if (!color) return false;
+  
+  const normalized = color.toLowerCase().trim();
+  
+  // Direct matches for common white formats
+  if (normalized === '#ffffff' || normalized === '#fff' || normalized === 'white') {
+    return true;
+  }
+  
+  // RGB format check
+  if (normalized.startsWith('rgb(')) {
+    const match = normalized.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
+    if (match) {
+      const [, r, g, b] = match;
+      return r === '255' && g === '255' && b === '255';
+    }
+  }
+  
+  // RGBA format check
+  if (normalized.startsWith('rgba(')) {
+    const match = normalized.match(/rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*[\d.]+\s*\)/);
+    if (match) {
+      const [, r, g, b] = match;
+      return r === '255' && g === '255' && b === '255';
+    }
+  }
+  
+  // HSL format check for white
+  if (normalized.startsWith('hsl(')) {
+    const match = normalized.match(/hsl\(\s*[\d.]+\s*,\s*[\d.]+%\s*,\s*([\d.]+)%\s*\)/);
+    if (match) {
+      const lightness = parseFloat(match[1]);
+      return lightness === 100;
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * Get theme-appropriate default text color based on current theme
+ */
+export function getThemeAwareDefaultTextColor(): string {
+  const isDarkMode = document.documentElement.classList.contains('dark');
+  return isDarkMode ? '#ffffff' : '#000000';
+}
+
+/**
+ * Get the opposite color for theme switching (black->white, white->black)
+ */
+export function getOppositeTextColor(color: string): string {
+  if (isPureBlack(color)) return '#ffffff';
+  if (isPureWhite(color)) return '#000000';
+  return color; // Return unchanged if not pure black/white
+}
+
+/**
  * Common preset colors organized by category
  */
 export const colorPresets = {
