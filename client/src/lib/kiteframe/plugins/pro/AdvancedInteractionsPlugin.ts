@@ -170,6 +170,13 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
     return this.proFeaturesManager;
   }
 
+  // Update viewport information for centered paste functionality
+  public updateViewportInfo(viewport: { x: number; y: number; zoom: number }, containerDimensions: { width: number; height: number }): void {
+    if (this.proFeaturesManager) {
+      this.proFeaturesManager.setViewportInfo(viewport, containerDimensions);
+    }
+  }
+
   public triggerQuickAdd(sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left'): void {
     if (this.proFeaturesManager) {
       this.proFeaturesManager.handleQuickAdd(sourceNode, position);

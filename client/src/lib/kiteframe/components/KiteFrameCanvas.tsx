@@ -916,6 +916,21 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       }
     }
   }, [enablePlugins, props.proFeatures, props.nodes, props.canvasObjects, core]);
+
+  // Update viewport information in ProFeaturesManager for centered paste
+  useEffect(() => {
+    if (enablePlugins && containerRef.current) {
+      const advancedInteractionsPlugin = core.getPlugin('advanced-interactions-pro') as any;
+      if (advancedInteractionsPlugin && typeof advancedInteractionsPlugin.updateViewportInfo === 'function') {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        advancedInteractionsPlugin.updateViewportInfo(viewport, {
+          width: containerRect.width,
+          height: containerRect.height
+        });
+      }
+    }
+  }, [enablePlugins, viewport, core]);
+
   const [panning, setPanning] = useState(false);
   const panStart = useRef<{ x: number; y: number } | null>(null);
   // Unified Selection State (works for both nodes and canvas objects)

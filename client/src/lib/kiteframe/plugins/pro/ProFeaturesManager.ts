@@ -17,6 +17,10 @@ export class ProFeaturesManager {
   private onCanvasObjectsChange?: (canvasObjects: CanvasObject[]) => void;
   private onConnect?: (connection: { source: string; target: string }) => void;
   
+  // Viewport state for centered paste
+  private viewportState: { x: number; y: number; zoom: number } | null = null;
+  private containerDimensions: { width: number; height: number } | null = null;
+  
   // Smart Guides state
   private spatialIndex: SpatialIndex | null = null;
   private currentGuides: SnapGuide[] = [];
@@ -48,6 +52,37 @@ export class ProFeaturesManager {
     
     // Initialize smart guides spatial index
     this.rebuildSpatialIndex();
+  }
+
+  // Viewport management for centered paste
+  setViewportInfo(viewport: { x: number; y: number; zoom: number }, containerDimensions: { width: number; height: number }): void {
+    this.viewportState = viewport;
+    this.containerDimensions = containerDimensions;
+  }
+
+  /**
+   * Calculate the center of the current viewport in world coordinates
+   * This is where pasted items will be positioned
+   */
+  private calculateViewportCenter(): { x: number; y: number } | null {
+    if (!this.viewportState || !this.containerDimensions) {
+      return null;
+    }
+
+    const { x: viewX, y: viewY, zoom } = this.viewportState;
+    const { width: containerWidth, height: containerHeight } = this.containerDimensions;
+
+    // Convert the center of the screen to world coordinates
+    // Screen center coordinates
+    const screenCenterX = containerWidth / 2;
+    const screenCenterY = containerHeight / 2;
+
+    // Convert screen coordinates to world coordinates
+    // This is the inverse of the viewport transform: translate(viewX, viewY) scale(zoom)
+    const worldCenterX = (screenCenterX - viewX) / zoom;
+    const worldCenterY = (screenCenterY - viewY) / zoom;
+
+    return { x: worldCenterX, y: worldCenterY };
   }
 
   // Quick Add Feature
@@ -154,10 +189,13 @@ export class ProFeaturesManager {
       return { newNodes: [], newCanvasObjects: [], success: false };
     }
 
+    // Calculate viewport center for paste position
+    const viewportCenter = this.calculateViewportCenter();
+    
     const result = clipboardManager.paste(
       this.nodes,
       this.canvasObjects,
-      undefined,
+      viewportCenter || undefined, // Use viewport center if available, fallback to default behavior
       { offsetDistance: this.config.copyPaste?.offsetDistance ?? 50 }
     );
 
