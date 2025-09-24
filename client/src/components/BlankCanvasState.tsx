@@ -1,6 +1,19 @@
-import { FileText, Sparkles, Upload, Plus, Zap, Grid3X3, Bot, Users, MapPin, Server, Layers, UserPlus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import {
+  FileText,
+  Sparkles,
+  Upload,
+  Plus,
+  Zap,
+  Grid3X3,
+  Bot,
+  Users,
+  MapPin,
+  Server,
+  Layers,
+  UserPlus,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface BlankCanvasStateProps {
   onCreateBlank: () => void;
@@ -15,7 +28,7 @@ export function BlankCanvasState({
   onCreateWithTemplate,
   onCreateWithAI,
   onImportWorkflow,
-  onCreateTemplate
+  onCreateTemplate,
 }: BlankCanvasStateProps) {
   const handleTemplateCreate = (templateType: string) => {
     // If we have the template creation function, use it, otherwise fall back to blank
@@ -31,15 +44,21 @@ export function BlankCanvasState({
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-2">Create New Workflow</h1>
-          <p className="text-muted-foreground text-md">Choose how you'd like to start building your automation</p>
+          <h1 className="text-2xl font-bold text-foreground mb-2">
+            Create New Workflow
+          </h1>
+          <p className="text-muted-foreground text-md">
+            Choose how you'd like to start building
+          </p>
         </div>
 
         {/* Fresh Start Section */}
         <div className="mb-12">
-          <label className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-6 block">Fresh Start</label>
+          <label className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-6 block">
+            Fresh Start
+          </label>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card 
+            <Card
               className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border hover:border-muted-foreground/20"
               onClick={onCreateBlank}
             >
@@ -57,8 +76,8 @@ export function BlankCanvasState({
                 </div>
               </CardContent>
             </Card>
-            
-            <Card 
+
+            <Card
               className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border hover:border-muted-foreground/20"
               onClick={onCreateWithAI}
             >
@@ -76,8 +95,8 @@ export function BlankCanvasState({
                 </div>
               </CardContent>
             </Card>
-            
-            <Card 
+
+            <Card
               className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border hover:border-muted-foreground/20"
               onClick={onImportWorkflow}
             >
@@ -100,11 +119,13 @@ export function BlankCanvasState({
 
         {/* Quick Start Templates Section */}
         <div className="mb-8">
-          <label className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-6 block">Quick Start Templates</label>
+          <label className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-6 block">
+            Quick Start Templates
+          </label>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card 
+            <Card
               className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border hover:border-muted-foreground/20"
-              onClick={() => handleTemplateCreate('user-journey')}
+              onClick={() => handleTemplateCreate("user-journey")}
             >
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
@@ -120,10 +141,10 @@ export function BlankCanvasState({
                 </div>
               </CardContent>
             </Card>
-            
-            <Card 
+
+            <Card
               className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border hover:border-muted-foreground/20"
-              onClick={() => handleTemplateCreate('mindmap')}
+              onClick={() => handleTemplateCreate("mindmap")}
             >
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
@@ -139,10 +160,10 @@ export function BlankCanvasState({
                 </div>
               </CardContent>
             </Card>
-            
-            <Card 
+
+            <Card
               className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border hover:border-muted-foreground/20"
-              onClick={() => handleTemplateCreate('system-architecture')}
+              onClick={() => handleTemplateCreate("system-architecture")}
             >
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
@@ -158,10 +179,10 @@ export function BlankCanvasState({
                 </div>
               </CardContent>
             </Card>
-            
-            <Card 
+
+            <Card
               className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border hover:border-muted-foreground/20"
-              onClick={() => handleTemplateCreate('swim-lanes')}
+              onClick={() => handleTemplateCreate("swim-lanes")}
             >
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
@@ -177,10 +198,10 @@ export function BlankCanvasState({
                 </div>
               </CardContent>
             </Card>
-            
-            <Card 
+
+            <Card
               className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border hover:border-muted-foreground/20"
-              onClick={() => handleTemplateCreate('user-account-creation')}
+              onClick={() => handleTemplateCreate("user-account-creation")}
             >
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
@@ -196,10 +217,10 @@ export function BlankCanvasState({
                 </div>
               </CardContent>
             </Card>
-            
-            <Card 
+
+            <Card
               className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border hover:border-muted-foreground/20"
-              onClick={() => handleTemplateCreate('io-logic')}
+              onClick={() => handleTemplateCreate("io-logic")}
             >
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
