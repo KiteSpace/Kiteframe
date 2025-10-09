@@ -20,54 +20,61 @@ function anchor(node: Node, toward: Node){
   return dy > 0 ? { x: cx, y: y + h + handleOffset } : { x: cx, y: y - handleOffset };
 }
 
+// Helper function to round coordinates for crisp rendering
+const r = (n: number) => Math.round(n);
+
 // Helper function to generate path based on edge type
 function generatePath(type: string, s: { x: number; y: number }, t: { x: number; y: number }, options: any = {}) {
   const { curvature = 0.5, cornerRadius = 10 } = options;
   
+  // Round source and target coordinates for pixel-perfect rendering
+  const sx = r(s.x), sy = r(s.y);
+  const tx = r(t.x), ty = r(t.y);
+  
   switch (type) {
     case 'straight':
-      return `M ${s.x} ${s.y} L ${t.x} ${t.y}`;
+      return `M ${sx} ${sy} L ${tx} ${ty}`;
       
     case 'step':
-      const mx = s.x + (t.x - s.x) / 2;
+      const mx = r(sx + (tx - sx) / 2);
       if (cornerRadius > 0) {
         // Rounded step edge
-        const r = Math.min(cornerRadius, Math.abs(t.x - mx) / 2, Math.abs(t.y - s.y) / 2);
-        const dx = t.x > mx ? 1 : -1;
-        const dy = t.y > s.y ? 1 : -1;
-        return `M ${s.x} ${s.y} L ${mx - r * dx} ${s.y} Q ${mx} ${s.y} ${mx} ${s.y + r * dy} L ${mx} ${t.y - r * dy} Q ${mx} ${t.y} ${mx + r * dx} ${t.y} L ${t.x} ${t.y}`;
+        const rad = Math.min(cornerRadius, Math.abs(tx - mx) / 2, Math.abs(ty - sy) / 2);
+        const dx = tx > mx ? 1 : -1;
+        const dy = ty > sy ? 1 : -1;
+        return `M ${sx} ${sy} L ${r(mx - rad * dx)} ${sy} Q ${mx} ${sy} ${mx} ${r(sy + rad * dy)} L ${mx} ${r(ty - rad * dy)} Q ${mx} ${ty} ${r(mx + rad * dx)} ${ty} L ${tx} ${ty}`;
       }
-      return `M ${s.x} ${s.y} L ${mx} ${s.y} L ${mx} ${t.y} L ${t.x} ${t.y}`;
+      return `M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ty} L ${tx} ${ty}`;
       
     case 'smoothstep':
-      const smx = s.x + (t.x - s.x) / 2;
-      const curve = Math.abs(t.y - s.y) * 0.3;
-      return `M ${s.x} ${s.y} C ${s.x + curve} ${s.y}, ${smx - curve} ${s.y}, ${smx} ${s.y} L ${smx} ${t.y} C ${smx + curve} ${t.y}, ${t.x - curve} ${t.y}, ${t.x} ${t.y}`;
+      const smx = r(sx + (tx - sx) / 2);
+      const curve = r(Math.abs(ty - sy) * 0.3);
+      return `M ${sx} ${sy} C ${r(sx + curve)} ${sy}, ${r(smx - curve)} ${sy}, ${smx} ${sy} L ${smx} ${ty} C ${r(smx + curve)} ${ty}, ${r(tx - curve)} ${ty}, ${tx} ${ty}`;
       
     case 'curved':
-      const distance = Math.sqrt(Math.pow(t.x - s.x, 2) + Math.pow(t.y - s.y, 2));
+      const distance = Math.sqrt(Math.pow(tx - sx, 2) + Math.pow(ty - sy, 2));
       const offset = distance * curvature * 0.5;
-      const midX = (s.x + t.x) / 2;
-      const midY = (s.y + t.y) / 2;
-      const angle = Math.atan2(t.y - s.y, t.x - s.x) + Math.PI / 2;
-      const cx = midX + Math.cos(angle) * offset;
-      const cy = midY + Math.sin(angle) * offset;
-      return `M ${s.x} ${s.y} Q ${cx} ${cy} ${t.x} ${t.y}`;
+      const midX = (sx + tx) / 2;
+      const midY = (sy + ty) / 2;
+      const angle = Math.atan2(ty - sy, tx - sx) + Math.PI / 2;
+      const cx = r(midX + Math.cos(angle) * offset);
+      const cy = r(midY + Math.sin(angle) * offset);
+      return `M ${sx} ${sy} Q ${cx} ${cy} ${tx} ${ty}`;
       
     case 'orthogonal':
-      const isHorizontalFirst = Math.abs(t.x - s.x) > Math.abs(t.y - s.y);
+      const isHorizontalFirst = Math.abs(tx - sx) > Math.abs(ty - sy);
       if (isHorizontalFirst) {
-        return `M ${s.x} ${s.y} L ${t.x} ${s.y} L ${t.x} ${t.y}`;
+        return `M ${sx} ${sy} L ${tx} ${sy} L ${tx} ${ty}`;
       } else {
-        return `M ${s.x} ${s.y} L ${s.x} ${t.y} L ${t.x} ${t.y}`;
+        return `M ${sx} ${sy} L ${sx} ${ty} L ${tx} ${ty}`;
       }
       
     default: // bezier
-      const c1x = s.x + (t.x - s.x) * 0.5;
-      const c1y = s.y;
-      const c2x = t.x - (t.x - s.x) * 0.5;
-      const c2y = t.y;
-      return `M ${s.x} ${s.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${t.x} ${t.y}`;
+      const c1x = r(sx + (tx - sx) * 0.5);
+      const c1y = sy;
+      const c2x = r(tx - (tx - sx) * 0.5);
+      const c2y = ty;
+      return `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tx} ${ty}`;
   }
 }
 

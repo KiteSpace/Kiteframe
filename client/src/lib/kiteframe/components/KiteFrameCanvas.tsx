@@ -2501,7 +2501,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   };
 
   const worldStyle = {
-    transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+    transform: `translate(${Math.round(viewport.x)}px, ${Math.round(viewport.y)}px) scale(${viewport.zoom})`,
   };
 
   // Canvas object click handler for selection
