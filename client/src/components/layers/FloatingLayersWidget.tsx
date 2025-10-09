@@ -22,11 +22,11 @@ export function FloatingLayersWidget({ nodes, edges, frames }: Props){
         </button>
       )}
       {open && (
-        <div className="mt-2 w-[380px] h-[560px] rounded-xl shadow-2xl border bg-white overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-2 border-b">
-            <div className="flex items-center gap-2 text-sm font-semibold"><ListTree size={16}/> Layers</div>
+        <div className="mt-2 w-[380px] h-[560px] rounded-xl shadow-2xl border border-border bg-white dark:bg-gray-900 overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100"><ListTree size={16}/> Layers</div>
             <button 
-              className="text-xs opacity-70 hover:opacity-100" 
+              className="text-xs opacity-70 hover:opacity-100 text-gray-700 dark:text-gray-300" 
               onClick={()=>setOpen(false)}
               data-testid="button-close-layers"
             >

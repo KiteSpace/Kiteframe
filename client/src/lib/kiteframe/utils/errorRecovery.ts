@@ -360,14 +360,12 @@ export function useErrorRecovery() {
   
   React.useEffect(() => {
     const unsubscribe = errorRecovery.onRecovery((state) => {
+      // Only set recovery state when triggered by actual error recovery
       setRecoveryState(state);
     });
     
-    // Load any auto-saved state on mount
-    const autoSaved = errorRecovery.loadAutoSavedState();
-    if (autoSaved) {
-      setRecoveryState(autoSaved);
-    }
+    // Don't auto-load saved state on mount - only recover on actual errors
+    // This prevents showing "Canvas Recovered" toast on every page load
     
     return unsubscribe;
   }, []);

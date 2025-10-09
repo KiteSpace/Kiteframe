@@ -121,13 +121,8 @@ export function AiWorkflowGenerator({ onClose, onGenerate }: AiWorkflowGenerator
       const result: ImageAnalysisResult = await response.json();
       setAnalysisResult(result);
 
-      if (result.confidence < 70) {
-        toast({
-          title: "Low Confidence Analysis",
-          description: `Confidence: ${result.confidence}%. The image might not contain clear workflow elements.`,
-          variant: "destructive"
-        });
-      } else {
+      // Only show success toast - low confidence is already shown in the modal alert
+      if (result.confidence >= 70) {
         toast({
           title: "Analysis Complete",
           description: `Confidence: ${result.confidence}%. Found ${result.nodes.length} nodes and ${result.edges.length} connections.`

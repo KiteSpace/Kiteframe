@@ -259,7 +259,7 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
       {/* Body */}
       <div
         className={cn(
-          "flex-1 p-3 rounded-b-md",
+          "flex-1 p-3 rounded-b-lg",
           styleClasses.bodyClass,
           getDynamicClassName(
             { minHeight: `${nodeHeight - 32}px` },

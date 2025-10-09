@@ -37,9 +37,9 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   const nodeRef = useRef<HTMLDivElement>(null);
   const cleanupManager = useEventCleanup();
   
-  // CHANGE: use normalized numeric sizes so handles align with actual node size
-  const w = toPxNumber((node as any).width ?? node.style?.width, 200);
-  const h = toPxNumber((node as any).height ?? node.style?.height, 100);
+  // CHANGE: use normalized numeric sizes as fallback
+  const fallbackW = toPxNumber((node as any).width ?? node.style?.width, 200);
+  const fallbackH = toPxNumber((node as any).height ?? node.style?.height, 100);
 
   // Measure actual node dimensions
   useEffect(() => {
@@ -76,6 +76,11 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
       }
     }
   }, [node.data.label, node.data.description, scale, cleanupManager]); // Re-measure when content or scale changes
+  
+  // Use actual dimensions when available, fallback to node properties
+  const w = actualDimensions?.width ?? fallbackW;
+  const h = actualDimensions?.height ?? fallbackH;
+  
   const size = 12, r = size/2;
   
   // Scale-independent offsets for quick-add buttons and ghost previews
