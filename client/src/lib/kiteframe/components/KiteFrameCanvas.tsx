@@ -3280,7 +3280,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   key={n.id}
                   ref={(el) => registerNodeRef(n.id, el)}
                   data-node-id={n.id}
-                  className={`kiteframe-node group rounded-lg ${n.selected ? "selected" : ""}`}
+                  className={`kiteframe-node group rounded-lg overflow-hidden ${n.selected ? "selected" : ""}`}
                   style={{
                     left: n.position.x,
                     top: n.position.y,
