@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, FileText, Sparkles, Upload, Grid3X3, Image as ImageIcon } from 'lucide-react';
 import type { Node, Edge } from '../lib/kiteframe/types';
+import { WorkflowImportModal } from './WorkflowImportModal';
 
 interface NewTabModalProps {
   isOpen: boolean;
@@ -218,6 +219,7 @@ export function NewTabModal({ isOpen, onClose, onCreateBlank, onCreateFromPrompt
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   if (!isOpen) return null;
 
@@ -233,25 +235,16 @@ export function NewTabModal({ isOpen, onClose, onCreateBlank, onCreateFromPrompt
     }
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target?.result as string);
-        if (data.nodes && data.edges && Array.isArray(data.nodes) && Array.isArray(data.edges)) {
-          onCreateFromFile(data);
-          onClose();
-        } else {
-          alert('Invalid workflow file format. Must contain "nodes" and "edges" arrays.');
-        }
-      } catch (error) {
-        alert('Invalid JSON file. Please upload a valid workflow file.');
-      }
-    };
-    reader.readAsText(file);
+  const handleImport = (importData: { 
+    nodes: Node[], 
+    edges: Edge[], 
+    canvasObjects: any[], 
+    viewport?: { x: number; y: number; zoom: number }, 
+    workflowMetadata?: any 
+  }) => {
+    onCreateFromFile({ nodes: importData.nodes, edges: importData.edges });
+    setShowImportModal(false);
+    onClose();
   };
 
   // Image handling functions
@@ -550,21 +543,21 @@ export function NewTabModal({ isOpen, onClose, onCreateBlank, onCreateFromPrompt
 
             {activeTab === 'file' && (
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Upload Workflow File</h3>
+                <h3 className="text-lg font-medium">Import Workflow</h3>
                 <p className="text-muted-foreground">
-                  Import a previously exported workflow JSON file to continue working on it.
+                  Import a previously exported workflow JSON file with validation and AI-powered error correction.
                 </p>
                 <div className="space-y-3">
-                  <label className="block text-sm font-medium">Select JSON File</label>
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleFileUpload}
-                    className="w-full p-3 border border-border rounded-md bg-background file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                    data-testid="input-workflow-file"
-                  />
+                  <button
+                    onClick={() => setShowImportModal(true)}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors flex items-center gap-2"
+                    data-testid="button-open-import-modal"
+                  >
+                    <Upload size={16} />
+                    Open Import Dialog
+                  </button>
                   <p className="text-xs text-muted-foreground">
-                    Upload a JSON file exported from this workflow editor or any compatible format with "nodes" and "edges" arrays.
+                    The import dialog supports file upload, JSON paste, validation, and AI-powered error correction for incompatible formats.
                   </p>
                 </div>
               </div>
@@ -600,6 +593,14 @@ export function NewTabModal({ isOpen, onClose, onCreateBlank, onCreateFromPrompt
           </div>
         </div>
       </div>
+      
+      {/* Import Modal */}
+      {showImportModal && (
+        <WorkflowImportModal 
+          onClose={() => setShowImportModal(false)}
+          onImport={handleImport}
+        />
+      )}
     </div>
   );
 }
