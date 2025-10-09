@@ -3280,7 +3280,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   key={n.id}
                   ref={(el) => registerNodeRef(n.id, el)}
                   data-node-id={n.id}
-                  className={`kiteframe-node group ${n.selected ? "selected" : ""}`}
+                  className={`kiteframe-node group rounded-lg ${n.selected ? "selected" : ""}`}
                   style={{
                     left: n.position.x,
                     top: n.position.y,
@@ -3417,12 +3417,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 >
                   {!n.data?.hideHeader && (
                     <div
-                      className="title"
+                      className="title rounded-t-lg"
                       style={{
                         backgroundColor: headerBg,
                         color: headerText,
-                        borderTopLeftRadius: "8px",
-                        borderTopRightRadius: "8px",
                         borderBottom: `1px solid ${border}`,
                       }}
                     >
@@ -3431,22 +3429,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   )}
                   {!n.data?.hideDescription && (
                     <div
-                      className="body"
+                      className={`body ${n.data?.hideHeader ? "rounded-lg" : "rounded-b-lg"}`}
                       style={{
                         backgroundColor: bodyBg,
                         color: bodyText,
-                        borderBottomLeftRadius: n.data?.hideHeader
-                          ? "8px"
-                          : undefined,
-                        borderBottomRightRadius: n.data?.hideHeader
-                          ? "8px"
-                          : undefined,
-                        borderTopLeftRadius: n.data?.hideHeader
-                          ? "8px"
-                          : undefined,
-                        borderTopRightRadius: n.data?.hideHeader
-                          ? "8px"
-                          : undefined,
                         padding: n.type === "image" ? "0" : undefined,
                         flex: 1, // Make the body fill remaining space
                         display: "flex",
