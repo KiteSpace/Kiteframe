@@ -24,7 +24,7 @@ export default function KitelineDemo() {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   // Sample nodes for the interactive demo
-  const [demoNodes] = useState<Node[]>([
+  const [demoNodes, setDemoNodes] = useState<Node[]>([
     {
       id: "1",
       type: "basic",
@@ -95,7 +95,7 @@ export default function KitelineDemo() {
     }
   ]);
 
-  const [demoEdges] = useState<Edge[]>([
+  const [demoEdges, setDemoEdges] = useState<Edge[]>([
     {
       id: "e1-2",
       source: "1",
@@ -339,8 +339,8 @@ kiteFrameCore.installPlugin(myPlugin);`,
             <KiteFrameCanvas
               nodes={demoNodes}
               edges={demoEdges}
-              onNodesChange={() => {}}
-              onEdgesChange={() => {}}
+              onNodesChange={setDemoNodes}
+              onEdgesChange={setDemoEdges}
             />
           </div>
         </div>
