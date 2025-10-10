@@ -20,7 +20,7 @@
 
 ### 4. **Basic Plugins Implemented**
 - `MultiSelectPlugin` - Enhanced selection management
-- `LayoutPlugin` - Automatic layout algorithms (4 layouts)
+- `LayoutPlugin` - Automatic layout algorithms (5 layouts)
 
 ### 5. **Library Structure**
 ```
@@ -45,7 +45,7 @@ client/src/lib/kiteframe/
 ### What Works:
 - Plugin architecture foundation
 - Basic plugin registration
-- Layout plugin with 4 algorithms
+- Layout plugin with 5 algorithms
 - Multi-selection enhancements
 - Backwards compatibility maintained
 

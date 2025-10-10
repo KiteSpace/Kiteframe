@@ -31,9 +31,10 @@
 - **Edge templates** - Reusable styled connection presets
 
 ### 🎯 **Smart Layouts**
-- **4 auto-layout algorithms**:
+- **5 auto-layout algorithms**:
   - Horizontal Flow - Left-to-right organization
   - Vertical Flow - Top-to-bottom structure
+  - Grid Layout - Neat grid arrangement
   - Circular - Radial node placement
   - Hierarchical - Tree-based organization
 - **Collision detection** - Smart spacing for AI-generated workflows
@@ -299,7 +300,7 @@ const handleRightClick = (e: React.MouseEvent, nodeId: string) => {
 import { layoutPlugin } from '@kiteline/core';
 
 // Auto-arrange nodes
-layoutPlugin.applyLayout(nodes, 'horizontal'); // or 'vertical', 'circular', 'hierarchical'
+layoutPlugin.applyLayout(nodes, 'horizontal'); // or 'vertical', 'grid', 'circular', 'hierarchical'
 ```
 
 #### Edge Validation
