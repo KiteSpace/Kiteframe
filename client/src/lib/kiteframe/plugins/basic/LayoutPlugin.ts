@@ -17,7 +17,6 @@ export class LayoutPlugin implements KiteFramePlugin {
     core.layout = {
       horizontalFlow: this.horizontalFlow.bind(this),
       verticalFlow: this.verticalFlow.bind(this),
-      grid: this.gridLayout.bind(this),
       hierarchical: this.hierarchicalLayout.bind(this)
     };
 
@@ -35,14 +34,6 @@ export class LayoutPlugin implements KiteFramePlugin {
       const layouted = this.layoutWorkflows(nodes, edges, 'vertical');
       context.updateNodes(layouted);
     });
-
-    core.on('layout:workflows-grid', () => {
-      const nodes = context.getNodes();
-      const edges = context.getEdges();
-      const layouted = this.layoutWorkflows(nodes, edges, 'grid');
-      context.updateNodes(layouted);
-    });
-
 
     core.on('layout:workflows-hierarchical', () => {
       const nodes = context.getNodes();
@@ -63,13 +54,6 @@ export class LayoutPlugin implements KiteFramePlugin {
       const layouted = this.verticalFlow(nodes);
       context.updateNodes(layouted);
     });
-
-    core.on('layout:nodes-grid', () => {
-      const nodes = context.getNodes();
-      const layouted = this.gridLayout(nodes);
-      context.updateNodes(layouted);
-    });
-
 
     core.on('layout:nodes-hierarchical', () => {
       const nodes = context.getNodes();
@@ -264,20 +248,6 @@ export class LayoutPlugin implements KiteFramePlugin {
           centerY: index * WORKFLOW_SPACING + 200
         }));
         
-      case 'grid': {
-        const columns = Math.ceil(Math.sqrt(workflowUnits.length));
-        return workflowUnits.map((unit, index) => {
-          const row = Math.floor(index / columns);
-          const col = index % columns;
-          return {
-            flow: unit.flow,
-            centerX: col * WORKFLOW_SPACING + 300,
-            centerY: row * WORKFLOW_SPACING + 200
-          };
-        });
-      }
-      
-      
       case 'hierarchical':
         // For hierarchical, arrange workflows vertically for simplicity
         return workflowUnits.map((unit, index) => ({
@@ -314,9 +284,6 @@ export class LayoutPlugin implements KiteFramePlugin {
           break;
         case 'vertical':
           layoutedNodes = this.verticalFlow(flow.nodes);
-          break;
-        case 'grid':
-          layoutedNodes = this.gridLayout(flow.nodes);
           break;
         case 'hierarchical':
           layoutedNodes = this.hierarchicalLayout(flow.nodes, flow.edges);
@@ -466,24 +433,6 @@ export class LayoutPlugin implements KiteFramePlugin {
       }
     }));
   }
-
-  /**
-   * Arrange nodes in grid layout
-   */
-  gridLayout(nodes: Node[], columns = 3, spacing = 250): Node[] {
-    return nodes.map((node, index) => {
-      const row = Math.floor(index / columns);
-      const col = index % columns;
-      return {
-        ...node,
-        position: {
-          x: col * spacing + 100,
-          y: row * spacing + 100
-        }
-      };
-    });
-  }
-
 
   /**
    * Arrange nodes in hierarchical layout based on connections

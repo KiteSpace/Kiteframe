@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interactive canvas with zoom, pan, and minimap
 - 6 built-in node types: Input, Process, Condition, Output, AI, and Image
 - 6 edge types: Bezier, Straight, Step, Smoothstep, Curved, and Orthogonal
-- 5 auto-layout algorithms: Horizontal, Vertical, Grid, Circular, and Hierarchical
+- 4 auto-layout algorithms: Horizontal, Vertical, Circular, and Hierarchical
 - Undo/Redo system with command pattern
 - Plugin architecture with 8 extension points
 - Edge validation system with customizable rules
