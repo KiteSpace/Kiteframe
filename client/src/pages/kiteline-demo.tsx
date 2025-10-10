@@ -291,8 +291,6 @@ kiteFrameCore.installPlugin(myPlugin);`,
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Hero Section */}
       <section className="relative pt-20 pb-32 px-4 overflow-hidden" data-testid="section-hero">
-        <div className="absolute inset-0 bg-grid-slate-100 dark:bg-grid-slate-800 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:[mask-image:linear-gradient(0deg,black,rgba(0,0,0,0.6))]"></div>
-        
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-12">
             <img 
