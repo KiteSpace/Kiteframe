@@ -6,13 +6,13 @@
 import { z } from 'zod';
 import { sanitizeText } from './validation';
 
-interface RateLimitConfig {
+export interface RateLimitConfig {
   maxRequests: number;
   windowMs: number;
   identifier?: string;
 }
 
-interface SecurityEvent {
+export interface SecurityEvent {
   type: 'rate-limit' | 'xss-attempt' | 'validation-failure' | 'suspicious-activity';
   severity: 'low' | 'medium' | 'high' | 'critical';
   details: any;
