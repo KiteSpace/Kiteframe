@@ -464,7 +464,6 @@ Kiteline uses CSS custom properties for theming:
 ```css
 :root {
   --kiteframe-bg: #ffffff;
-  --kiteframe-grid-color: #e5e7eb;
   --kiteframe-node-bg: #f9fafb;
   --kiteframe-node-border: #d1d5db;
   --kiteframe-node-selected: #3b82f6;
@@ -474,7 +473,6 @@ Kiteline uses CSS custom properties for theming:
 
 .dark {
   --kiteframe-bg: #111827;
-  --kiteframe-grid-color: #374151;
   --kiteframe-node-bg: #1f2937;
   --kiteframe-node-border: #4b5563;
 }

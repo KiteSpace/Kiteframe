@@ -1,12 +1,10 @@
 /* Canvas background variables for light/dark mode support */
 :root {
   --kiteframe-canvas-bg: hsl(210, 40%, 98%);
-  --kiteframe-grid-color: hsl(214.3, 31.8%, 91.4%);
 }
 
 .dark {
   --kiteframe-canvas-bg: hsl(224, 71%, 4%);
-  --kiteframe-grid-color: hsl(215, 25%, 27%);
 }
 
 .kiteframe-canvas { position: relative; overflow: hidden; background: var(--kiteframe-canvas-bg); width:100%; height:100%; cursor: grab; }
@@ -42,15 +40,6 @@
   line-height: 1.4;
   max-height: 300px;
   overflow-y: auto;
-}
-.kiteframe-grid {
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(circle, var(--kiteframe-grid-color) 1px, transparent 1px);
-    background-size: 10px 10px;
-    opacity: 0.7;
-    width: 100%;
-    height: 100%;
 }
 .kiteframe-edge-layer { position:absolute; inset:0; pointer-events:none; z-index: 1; }
 .kiteframe-select-rect { position:absolute; border:1px dashed hsl(221.2, 83.2%, 53.3%); background: hsla(221.2, 83.2%, 53.3%, 0.08); pointer-events:none; }

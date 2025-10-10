@@ -755,7 +755,6 @@ type Props = {
   onEdgesChange: (e: Edge[]) => void;
   onCanvasObjectsChange?: (canvasObjects: CanvasObject[]) => void;
   onConnect?: (c: { source: string; target: string }) => void;
-  gridType?: "dots" | "lines" | "none";
   minZoom?: number;
   maxZoom?: number;
   fitView?: boolean;
@@ -2387,118 +2386,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     return cleanupKeydown;
   }, [props.nodes, props.canvasObjects]);
 
-  // Enhanced Grid component that moves with canvas transformations
-  const Grid = () => {
-    if (props.gridType === "none") return null;
-
-    // Grid spacing in world units (scales with zoom)
-    const gridSize = 20; // World units - this will scale with zoom
-
-    // Calculate viewport bounds in world coordinates
-    const containerRect = containerRef.current?.getBoundingClientRect();
-    if (!containerRect) return null;
-
-    const worldLeft = -viewport.x / viewport.zoom;
-    const worldTop = -viewport.y / viewport.zoom;
-    const worldRight = worldLeft + containerRect.width / viewport.zoom;
-    const worldBottom = worldTop + containerRect.height / viewport.zoom;
-
-    // Calculate grid bounds with padding in world units
-    const padding =
-      Math.max(containerRect.width, containerRect.height) / viewport.zoom;
-    const startX = Math.floor((worldLeft - padding) / gridSize) * gridSize;
-    const endX = Math.ceil((worldRight + padding) / gridSize) * gridSize;
-    const startY = Math.floor((worldTop - padding) / gridSize) * gridSize;
-    const endY = Math.ceil((worldBottom + padding) / gridSize) * gridSize;
-
-    if (props.gridType === "lines") {
-      // Grid lines implementation
-      const lines = [];
-
-      // Vertical lines
-      for (let x = startX; x <= endX; x += gridSize) {
-        lines.push(
-          <line
-            key={`v-${x}`}
-            x1={x}
-            y1={startY}
-            x2={x}
-            y2={endY}
-            stroke="var(--kiteframe-grid-color, #e2e8f0)"
-            strokeWidth={1 / viewport.zoom}
-            opacity={0.5}
-            shapeRendering="crispEdges"
-          />,
-        );
-      }
-
-      // Horizontal lines
-      for (let y = startY; y <= endY; y += gridSize) {
-        lines.push(
-          <line
-            key={`h-${y}`}
-            x1={startX}
-            y1={y}
-            x2={endX}
-            y2={y}
-            stroke="var(--kiteframe-grid-color, #e2e8f0)"
-            strokeWidth={1 / viewport.zoom}
-            opacity={0.5}
-          />,
-        );
-      }
-
-      return (
-        <svg
-          style={{
-            position: "absolute",
-            left: startX,
-            top: startY,
-            width: endX - startX,
-            height: endY - startY,
-            pointerEvents: "none",
-            overflow: "visible",
-          }}
-        >
-          {lines}
-        </svg>
-      );
-    } else {
-      // Grid dots implementation (default)
-      const dots = [];
-
-      for (let x = startX; x <= endX; x += gridSize) {
-        for (let y = startY; y <= endY; y += gridSize) {
-          dots.push(
-            <circle
-              key={`${x}-${y}`}
-              cx={x}
-              cy={y}
-              r={1 / viewport.zoom}
-              fill="var(--kiteframe-grid-color, #cbd5e1)"
-              opacity={0.6}
-            />,
-          );
-        }
-      }
-
-      return (
-        <svg
-          style={{
-            position: "absolute",
-            left: startX,
-            top: startY,
-            width: endX - startX,
-            height: endY - startY,
-            pointerEvents: "none",
-            overflow: "visible",
-          }}
-        >
-          {dots}
-        </svg>
-      );
-    }
-  };
 
   const worldStyle = {
     transform: `translate(${Math.round(viewport.x)}px, ${Math.round(viewport.y)}px) scale(${viewport.zoom})`,
@@ -2692,7 +2579,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         }}
       >
         <div className="kiteframe-world" style={worldStyle}>
-          <Grid />
           {/* Existing edges */}
           <svg
             className="kiteframe-edge-layer"
@@ -2705,23 +2591,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               overflow: "visible",
             }}
           >
-            <defs>
-              <pattern
-                id="grid"
-                width="20"
-                height="20"
-                patternUnits="userSpaceOnUse"
-              >
-                <rect
-                  width="20"
-                  height="20"
-                  fill="none"
-                  stroke="var(--kiteframe-grid-color)"
-                  strokeWidth="0.5"
-                  opacity="0.3"
-                />
-              </pattern>
-            </defs>
+            <defs></defs>
             {(() => {
               // Recalculate edge z-indexes based on current node states
               const edgesWithZIndex = recalculateAllEdgeZIndexes(
