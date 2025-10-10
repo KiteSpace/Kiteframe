@@ -3,13 +3,16 @@
 ## Overview
 Kiteframe is a visual workflow editor built as a full-stack application with React and Express. It provides an interactive canvas for creating and managing workflow diagrams with various node types (input, process, condition, output, AI tasks, and images). The editor supports node creation, connection with edges, and AI integration for workflow processing, featuring a modern UI with drag-and-drop functionality and real-time canvas interactions. The project focuses on core workflow editing capabilities with advanced features like version control and enhanced interactions available through a plugin architecture.
 
+The core canvas library has been extracted as **Kiteline** (`@kiteline/core`), a standalone open-source npm package ready for publication with comprehensive documentation, demo website, and enterprise-grade features.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
 ### Multi-Service Architecture
-- **Kiteframe (Main Application)**: The visual workflow editor.
+- **Kiteframe (Main Application)**: The visual workflow editor web app.
+- **Kiteline Library** (`@kiteline/core`): Extracted open-source npm package of the core canvas library, ready for publication.
 - **KitelineAI (AI Service)**: A dedicated Ollama service for privacy-focused AI processing. Kiteframe communicates with KitelineAI for AI workflow generation.
 
 ### Frontend Architecture (Kiteframe)
@@ -77,6 +80,54 @@ Preferred communication style: Simple, everyday language.
 - **Undo/Redo System**: Command pattern implementation with batching, debouncing, history limits, and keyboard shortcuts (Ctrl+Z/Y).
 - **Performance Optimization**: React.memo on all critical components, useCallback for event handlers, useMemo for expensive calculations.
 - **Memory Management**: Proper cleanup of event listeners and timers to prevent memory leaks.
+
+## Kiteline Library Package (@kiteline/core)
+
+### Package Overview
+The core canvas library has been extracted as a standalone open-source npm package located at `client/src/lib/kiteframe/`.
+
+**Publishing Details:**
+- **Package Name**: `@kiteline/core`
+- **Version**: 1.0.0
+- **License**: MIT
+- **Distribution**: Ships TypeScript source files (requires consumer-side transpilation)
+- **Repository**: https://github.com/kiteline/kiteline
+- **Homepage**: https://kiteline.dev
+
+### Documentation
+- **README.md**: Comprehensive feature documentation, installation guide, quick start, API reference, and examples (free features only)
+- **LICENSE**: MIT License
+- **CONTRIBUTING.md**: Contribution guidelines, development setup, styleguides, and PR process
+- **CODE_OF_CONDUCT.md**: Contributor Covenant Code of Conduct with enforcement contact (conduct@kiteline.dev)
+- **CHANGELOG.md**: Version history following Keep a Changelog format
+
+### Demo Website
+Interactive demo site at `/demo` route showcasing:
+- Hero section with live interactive canvas
+- 8 feature cards (Interactive Canvas, Rich Nodes, Flexible Edges, Auto Layouts, Undo/Redo, Plugin System, Enterprise Security, Import/Export)
+- Installation and quick start guide with copy-to-clipboard code examples
+- API examples for Nodes, Edges, and Plugins
+- 3-step getting started guide
+- Full dark mode support and responsive design
+
+### Package Structure
+- **Exports**: TypeScript source files via `index.ts` and CSS via `styles/*`
+- **Peer Dependencies**: React 18+, React DOM 18+
+- **Dependencies**: Zod for validation
+- **Files**: All component, core, hooks, utils, and plugin directories included
+
+### Free Features Included
+All core functionality is included in the open-source package:
+- 6 node types (input, process, condition, output, AI, image)
+- 6 edge types with styling and validation
+- 5 auto-layout algorithms
+- Undo/Redo system
+- Plugin architecture with 8 extension points
+- Import/Export functionality
+- Enterprise security features
+- Full TypeScript support
+
+**Note**: Pro features (Advanced Interactions, Version Control, Smart Connect, Collaboration) are omitted from public documentation and package.
 
 ## External Dependencies
 

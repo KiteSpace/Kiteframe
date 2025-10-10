@@ -90,6 +90,14 @@ Kiteline requires React 18+:
 npm install react react-dom
 ```
 
+### 📝 Note on TypeScript Sources
+
+Kiteline ships TypeScript source files directly (not pre-compiled JavaScript). This approach:
+- ✅ Provides full type information and IntelliSense
+- ✅ Allows your bundler to optimize imports (tree-shaking)
+- ✅ Ensures compatibility with your project's TypeScript configuration
+- ⚠️ Requires your project to have a TypeScript-capable build system (Vite, Next.js, Create React App, etc.)
+
 ---
 
 ## 🚀 Quick Start

@@ -4,6 +4,10 @@
   "description": "A powerful, extensible React canvas library for building workflow editors and node-based UIs",
   "main": "./index.ts",
   "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./styles/*": "./styles/*"
+  },
   "keywords": [
     "react",
     "workflow",
