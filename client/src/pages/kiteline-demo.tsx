@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KiteFrameCanvas, type Node, type Edge } from "@/lib/kiteframe";
 import { 
   Copy, 
@@ -16,7 +17,9 @@ import {
   Code,
   Zap,
   Github,
-  Book
+  Book,
+  Eye,
+  Settings
 } from "lucide-react";
 import kiteframeLogo from "@assets/kiteframe@2x_1758226635607.png";
 
@@ -173,7 +176,9 @@ export default function KitelineDemo() {
 yarn add @kiteline/core
 # or
 pnpm add @kiteline/core`,
-      language: "bash"
+      language: "bash",
+      hasDemo: false,
+      hasProperties: false
     },
     {
       title: "Quick Start",
@@ -201,7 +206,34 @@ function MyWorkflow() {
     />
   );
 }`,
-      language: "tsx"
+      language: "tsx",
+      hasDemo: true,
+      demoNodes: [
+        {
+          id: '1',
+          type: 'basic',
+          position: { x: 150, y: 80 },
+          data: { 
+            label: 'Start Node',
+            colors: {
+              headerBackground: '#3b82f6',
+              bodyBackground: '#eff6ff',
+              borderColor: '#3b82f6',
+              headerTextColor: '#ffffff',
+              bodyTextColor: '#1e40af'
+            }
+          },
+          style: { width: 180, height: 80 }
+        }
+      ],
+      demoEdges: [],
+      hasProperties: true,
+      properties: [
+        { name: 'nodes', type: 'Node[]', description: 'Array of node objects to render on the canvas' },
+        { name: 'edges', type: 'Edge[]', description: 'Array of edge objects connecting nodes' },
+        { name: 'onNodesChange', type: '(nodes: Node[]) => void', description: 'Callback when nodes are updated' },
+        { name: 'onEdgesChange', type: '(edges: Edge[]) => void', description: 'Callback when edges are updated' }
+      ]
     },
     {
       title: "Node API",
@@ -225,7 +257,50 @@ const customNode: Node = {
   selectable: true,
   resizable: true
 };`,
-      language: "typescript"
+      language: "typescript",
+      hasDemo: true,
+      demoNodes: [
+        {
+          id: 'node-1',
+          type: 'basic',
+          position: { x: 120, y: 70 },
+          data: {
+            label: 'My Node',
+            description: 'Node description',
+            colors: {
+              headerBackground: '#3b82f6',
+              bodyBackground: '#eff6ff',
+              borderColor: '#3b82f6',
+              headerTextColor: '#ffffff',
+              bodyTextColor: '#1e40af'
+            }
+          },
+          style: { width: 200, height: 100 },
+          draggable: true,
+          selectable: true,
+          resizable: true
+        }
+      ],
+      demoEdges: [],
+      hasProperties: true,
+      properties: [
+        { name: 'id', type: 'string', description: 'Unique identifier for the node' },
+        { name: 'type', type: 'string', description: 'Node type: "basic", "input", "output", "ai", "image", etc.' },
+        { name: 'position', type: '{ x: number, y: number }', description: 'Node position on canvas' },
+        { name: 'data.label', type: 'string', description: 'Primary text displayed in node header' },
+        { name: 'data.description', type: 'string', description: 'Secondary text displayed in node body' },
+        { name: 'data.colors.headerBackground', type: 'string', description: 'Header background color (hex)' },
+        { name: 'data.colors.bodyBackground', type: 'string', description: 'Body background color (hex)' },
+        { name: 'data.colors.borderColor', type: 'string', description: 'Border color (hex)' },
+        { name: 'data.colors.headerTextColor', type: 'string', description: 'Header text color (hex)' },
+        { name: 'data.colors.bodyTextColor', type: 'string', description: 'Body text color (hex)' },
+        { name: 'style.width', type: 'number', description: 'Node width in pixels' },
+        { name: 'style.height', type: 'number', description: 'Node height in pixels' },
+        { name: 'draggable', type: 'boolean', description: 'Whether node can be dragged (default: true)' },
+        { name: 'selectable', type: 'boolean', description: 'Whether node can be selected (default: true)' },
+        { name: 'resizable', type: 'boolean', description: 'Whether node can be resized (default: true)' },
+        { name: 'hidden', type: 'boolean', description: 'Whether node is hidden (default: false)' }
+      ]
     },
     {
       title: "Edge API",
@@ -252,7 +327,86 @@ const customEdge: Edge = {
     color: '#3b82f6'
   }
 };`,
-      language: "typescript"
+      language: "typescript",
+      hasDemo: true,
+      demoNodes: [
+        {
+          id: 'node-1',
+          type: 'basic',
+          position: { x: 50, y: 70 },
+          data: {
+            label: 'Source',
+            colors: {
+              headerBackground: '#3b82f6',
+              bodyBackground: '#eff6ff',
+              borderColor: '#3b82f6',
+              headerTextColor: '#ffffff',
+              bodyTextColor: '#1e40af'
+            }
+          },
+          style: { width: 140, height: 80 }
+        },
+        {
+          id: 'node-2',
+          type: 'basic',
+          position: { x: 280, y: 70 },
+          data: {
+            label: 'Target',
+            colors: {
+              headerBackground: '#8b5cf6',
+              bodyBackground: '#f5f3ff',
+              borderColor: '#8b5cf6',
+              headerTextColor: '#ffffff',
+              bodyTextColor: '#6b21a8'
+            }
+          },
+          style: { width: 140, height: 80 }
+        }
+      ],
+      demoEdges: [
+        {
+          id: 'edge-1',
+          source: 'node-1',
+          target: 'node-2',
+          type: 'bezier',
+          animated: true,
+          label: 'Connection',
+          style: {
+            strokeWidth: 2,
+            stroke: '#3b82f6'
+          },
+          labelStyle: {
+            fontSize: 12,
+            fontColor: '#374151',
+            backgroundColor: '#ffffff'
+          },
+          markerEnd: {
+            type: 'arrow',
+            size: 8,
+            color: '#3b82f6'
+          }
+        }
+      ],
+      hasProperties: true,
+      properties: [
+        { name: 'id', type: 'string', description: 'Unique identifier for the edge' },
+        { name: 'source', type: 'string', description: 'ID of the source node' },
+        { name: 'target', type: 'string', description: 'ID of the target node' },
+        { name: 'type', type: 'string', description: 'Edge type: "bezier", "straight", "step", "curved", "orthogonal", "smoothstep"' },
+        { name: 'animated', type: 'boolean', description: 'Whether edge is animated (default: false)' },
+        { name: 'label', type: 'string', description: 'Text label displayed on edge' },
+        { name: 'style.strokeWidth', type: 'number', description: 'Edge line thickness in pixels' },
+        { name: 'style.stroke', type: 'string', description: 'Edge line color (hex)' },
+        { name: 'style.strokeDasharray', type: 'string', description: 'Dash pattern (e.g., "5,5")' },
+        { name: 'labelStyle.fontSize', type: 'number', description: 'Label font size in pixels' },
+        { name: 'labelStyle.fontColor', type: 'string', description: 'Label text color (hex)' },
+        { name: 'labelStyle.backgroundColor', type: 'string', description: 'Label background color (hex)' },
+        { name: 'markerEnd.type', type: 'string', description: 'End marker type: "arrow", "circle", "square", "diamond", "triangle"' },
+        { name: 'markerEnd.size', type: 'number', description: 'End marker size in pixels' },
+        { name: 'markerEnd.color', type: 'string', description: 'End marker color (hex)' },
+        { name: 'markerStart', type: 'object', description: 'Start marker configuration (same as markerEnd)' },
+        { name: 'hidden', type: 'boolean', description: 'Whether edge is hidden (default: false)' }
+      ]
     },
     {
       title: "Plugin System",
@@ -277,7 +431,9 @@ const myPlugin = createPlugin({
 
 // Register the plugin
 kiteFrameCore.installPlugin(myPlugin);`,
-      language: "typescript"
+      language: "typescript",
+      hasDemo: false,
+      hasProperties: false
     }
   ];
 
@@ -406,38 +562,106 @@ kiteFrameCore.installPlugin(myPlugin);`,
             {codeExamples.map((example, index) => (
               <Card key={index} data-testid={`card-code-example-${index}`}>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-xl" data-testid={`text-code-title-${index}`}>
-                      <Code className="inline-block w-5 h-5 mr-2" />
-                      {example.title}
-                    </CardTitle>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => copyToClipboard(example.code, index)}
-                      data-testid={`button-copy-code-${index}`}
-                    >
-                      {copiedIndex === index ? (
-                        <>
-                          <Check className="w-4 h-4 mr-2" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4 mr-2" />
-                          Copy
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  <CardTitle className="text-xl" data-testid={`text-code-title-${index}`}>
+                    <Code className="inline-block w-5 h-5 mr-2" />
+                    {example.title}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <pre 
-                    className="bg-gray-900 dark:bg-black text-gray-100 p-4 rounded-lg overflow-x-auto text-sm"
-                    data-testid={`code-example-${index}`}
-                  >
-                    <code>{example.code}</code>
-                  </pre>
+                  <Tabs defaultValue="code" className="w-full">
+                    <TabsList className="grid w-full" style={{ gridTemplateColumns: example.hasDemo && example.hasProperties ? 'repeat(3, 1fr)' : example.hasDemo || example.hasProperties ? 'repeat(2, 1fr)' : '1fr' }}>
+                      <TabsTrigger value="code" data-testid={`tab-code-${index}`}>
+                        <Code className="w-4 h-4 mr-2" />
+                        Code
+                      </TabsTrigger>
+                      {example.hasDemo && (
+                        <TabsTrigger value="demo" data-testid={`tab-demo-${index}`}>
+                          <Eye className="w-4 h-4 mr-2" />
+                          Demo
+                        </TabsTrigger>
+                      )}
+                      {example.hasProperties && (
+                        <TabsTrigger value="properties" data-testid={`tab-properties-${index}`}>
+                          <Settings className="w-4 h-4 mr-2" />
+                          Properties
+                        </TabsTrigger>
+                      )}
+                    </TabsList>
+                    
+                    <TabsContent value="code" className="mt-4">
+                      <div className="flex justify-end mb-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => copyToClipboard(example.code, index)}
+                          data-testid={`button-copy-code-${index}`}
+                        >
+                          {copiedIndex === index ? (
+                            <>
+                              <Check className="w-4 h-4 mr-2" />
+                              Copied!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4 mr-2" />
+                              Copy
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      <pre 
+                        className="bg-gray-900 dark:bg-black text-gray-100 p-4 rounded-lg overflow-x-auto text-sm"
+                        data-testid={`code-example-${index}`}
+                      >
+                        <code>{example.code}</code>
+                      </pre>
+                    </TabsContent>
+
+                    {example.hasDemo && example.demoNodes && (
+                      <TabsContent value="demo" className="mt-4">
+                        <div 
+                          className="relative rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                          style={{ height: "250px" }}
+                          data-testid={`demo-canvas-${index}`}
+                        >
+                          <KiteFrameCanvas
+                            nodes={example.demoNodes}
+                            edges={example.demoEdges || []}
+                            onNodesChange={() => {}}
+                            onEdgesChange={() => {}}
+                          />
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 text-center">
+                          Interactive demo - try dragging the node!
+                        </p>
+                      </TabsContent>
+                    )}
+
+                    {example.hasProperties && example.properties && (
+                      <TabsContent value="properties" className="mt-4">
+                        <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-100 dark:bg-gray-800">
+                              <tr>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Property</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Type</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Description</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                              {example.properties.map((prop, propIndex) => (
+                                <tr key={propIndex} className="hover:bg-gray-50 dark:hover:bg-gray-800/50" data-testid={`property-row-${index}-${propIndex}`}>
+                                  <td className="px-4 py-3 font-mono text-blue-600 dark:text-blue-400">{prop.name}</td>
+                                  <td className="px-4 py-3 font-mono text-purple-600 dark:text-purple-400">{prop.type}</td>
+                                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{prop.description}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </TabsContent>
+                    )}
+                  </Tabs>
                 </CardContent>
               </Card>
             ))}
