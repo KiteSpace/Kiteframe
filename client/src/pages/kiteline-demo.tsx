@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,6 +25,122 @@ import kiteframeLogo from "@assets/kiteframe@2x_1758226635607.png";
 
 export default function KitelineDemo() {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  
+  // State for demo canvases
+  const [quickStartDemoNodes, setQuickStartDemoNodes] = useState<Node[]>([]);
+  const [quickStartDemoEdges, setQuickStartDemoEdges] = useState<Edge[]>([]);
+  const [nodeApiDemoNodes, setNodeApiDemoNodes] = useState<Node[]>([]);
+  const [nodeApiDemoEdges, setNodeApiDemoEdges] = useState<Edge[]>([]);
+  const [edgeApiDemoNodes, setEdgeApiDemoNodes] = useState<Node[]>([]);
+  const [edgeApiDemoEdges, setEdgeApiDemoEdges] = useState<Edge[]>([]);
+
+  // Initialize demo canvas data
+  useEffect(() => {
+    // Quick Start demo
+    setQuickStartDemoNodes([
+      {
+        id: '1',
+        type: 'basic',
+        position: { x: 150, y: 80 },
+        data: { 
+          label: 'Start Node',
+          colors: {
+            headerBackground: '#3b82f6',
+            bodyBackground: '#eff6ff',
+            borderColor: '#3b82f6',
+            headerTextColor: '#ffffff',
+            bodyTextColor: '#1e40af'
+          }
+        },
+        style: { width: 180, height: 80 }
+      }
+    ]);
+    
+    // Node API demo
+    setNodeApiDemoNodes([
+      {
+        id: 'node-1',
+        type: 'basic',
+        position: { x: 120, y: 70 },
+        data: {
+          label: 'My Node',
+          description: 'Node description',
+          colors: {
+            headerBackground: '#3b82f6',
+            bodyBackground: '#eff6ff',
+            borderColor: '#3b82f6',
+            headerTextColor: '#ffffff',
+            bodyTextColor: '#1e40af'
+          }
+        },
+        style: { width: 200, height: 100 },
+        draggable: true,
+        selectable: true,
+        resizable: true
+      }
+    ]);
+    
+    // Edge API demo
+    setEdgeApiDemoNodes([
+      {
+        id: 'node-1',
+        type: 'basic',
+        position: { x: 50, y: 70 },
+        data: {
+          label: 'Source',
+          colors: {
+            headerBackground: '#3b82f6',
+            bodyBackground: '#eff6ff',
+            borderColor: '#3b82f6',
+            headerTextColor: '#ffffff',
+            bodyTextColor: '#1e40af'
+          }
+        },
+        style: { width: 140, height: 80 }
+      },
+      {
+        id: 'node-2',
+        type: 'basic',
+        position: { x: 280, y: 70 },
+        data: {
+          label: 'Target',
+          colors: {
+            headerBackground: '#8b5cf6',
+            bodyBackground: '#f5f3ff',
+            borderColor: '#8b5cf6',
+            headerTextColor: '#ffffff',
+            bodyTextColor: '#6b21a8'
+          }
+        },
+        style: { width: 140, height: 80 }
+      }
+    ]);
+    
+    setEdgeApiDemoEdges([
+      {
+        id: 'edge-1',
+        source: 'node-1',
+        target: 'node-2',
+        type: 'bezier',
+        animated: true,
+        label: 'Connection',
+        style: {
+          strokeWidth: 2,
+          stroke: '#3b82f6'
+        },
+        labelStyle: {
+          fontSize: 12,
+          color: '#374151',
+          backgroundColor: '#ffffff'
+        },
+        markerEnd: {
+          type: 'arrow',
+          size: 8,
+          color: '#3b82f6'
+        }
+      }
+    ]);
+  }, []);
 
   // Sample nodes for the interactive demo
   const [demoNodes, setDemoNodes] = useState<Node[]>([
@@ -318,7 +434,7 @@ const customEdge: Edge = {
   },
   labelStyle: {
     fontSize: 12,
-    fontColor: '#374151',
+    color: '#374151',
     backgroundColor: '#ffffff'
   },
   markerEnd: {
@@ -368,7 +484,7 @@ const customEdge: Edge = {
           id: 'edge-1',
           source: 'node-1',
           target: 'node-2',
-          type: 'bezier',
+          type: 'bezier' as const,
           animated: true,
           label: 'Connection',
           style: {
@@ -377,16 +493,16 @@ const customEdge: Edge = {
           },
           labelStyle: {
             fontSize: 12,
-            fontColor: '#374151',
+            color: '#374151',
             backgroundColor: '#ffffff'
           },
           markerEnd: {
-            type: 'arrow',
+            type: 'arrow' as const,
             size: 8,
             color: '#3b82f6'
           }
         }
-      ],
+      ] as Edge[],
       hasProperties: true,
       properties: [
         { name: 'id', type: 'string', description: 'Unique identifier for the edge' },
@@ -399,7 +515,7 @@ const customEdge: Edge = {
         { name: 'style.stroke', type: 'string', description: 'Edge line color (hex)' },
         { name: 'style.strokeDasharray', type: 'string', description: 'Dash pattern (e.g., "5,5")' },
         { name: 'labelStyle.fontSize', type: 'number', description: 'Label font size in pixels' },
-        { name: 'labelStyle.fontColor', type: 'string', description: 'Label text color (hex)' },
+        { name: 'labelStyle.color', type: 'string', description: 'Label text color (hex)' },
         { name: 'labelStyle.backgroundColor', type: 'string', description: 'Label background color (hex)' },
         { name: 'markerEnd.type', type: 'string', description: 'End marker type: "arrow", "circle", "square", "diamond", "triangle"' },
         { name: 'markerEnd.size', type: 'number', description: 'End marker size in pixels' },
@@ -625,10 +741,30 @@ kiteFrameCore.installPlugin(myPlugin);`,
                           data-testid={`demo-canvas-${index}`}
                         >
                           <KiteFrameCanvas
-                            nodes={example.demoNodes}
-                            edges={example.demoEdges || []}
-                            onNodesChange={() => {}}
-                            onEdgesChange={() => {}}
+                            nodes={
+                              example.title === "Quick Start" ? quickStartDemoNodes :
+                              example.title === "Node API" ? nodeApiDemoNodes :
+                              example.title === "Edge API" ? edgeApiDemoNodes :
+                              []
+                            }
+                            edges={
+                              example.title === "Quick Start" ? quickStartDemoEdges :
+                              example.title === "Node API" ? nodeApiDemoEdges :
+                              example.title === "Edge API" ? edgeApiDemoEdges :
+                              []
+                            }
+                            onNodesChange={
+                              example.title === "Quick Start" ? setQuickStartDemoNodes :
+                              example.title === "Node API" ? setNodeApiDemoNodes :
+                              example.title === "Edge API" ? setEdgeApiDemoNodes :
+                              () => {}
+                            }
+                            onEdgesChange={
+                              example.title === "Quick Start" ? setQuickStartDemoEdges :
+                              example.title === "Node API" ? setNodeApiDemoEdges :
+                              example.title === "Edge API" ? setEdgeApiDemoEdges :
+                              () => {}
+                            }
                           />
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 text-center">
