@@ -190,53 +190,6 @@ export const BasicNodeProperties: React.FC<BasicNodePropertiesProps> = ({
             </div>
           </div>
 
-          {/* Border Color */}
-          <div className="space-y-1">
-            <Label className="text-xs font-medium">Border</Label>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <input
-                  type="color"
-                  value={colors.borderColor || '#e2e8f0'}
-                  onChange={(e) => {
-                    handleUpdate({
-                      data: {
-                        ...node.data,
-                        colors: {
-                          ...colors,
-                          borderColor: e.target.value
-                        }
-                      }
-                    });
-                  }}
-                  className="w-6 h-6 rounded border border-border cursor-pointer opacity-0 absolute"
-                  data-testid="border-color"
-                />
-                <div 
-                  className="w-6 h-6 rounded border border-border cursor-pointer"
-                  style={{ backgroundColor: colors.borderColor || '#e2e8f0' }}
-                />
-              </div>
-              <Input
-                type="text"
-                value={colors.borderColor || '#e2e8f0'}
-                onChange={(e) => {
-                  handleUpdate({
-                    data: {
-                      ...node.data,
-                      colors: {
-                        ...colors,
-                        borderColor: e.target.value
-                      }
-                    }
-                  });
-                }}
-                className="flex-1 text-xs"
-                placeholder="#e2e8f0"
-                data-testid="border-hex"
-              />
-            </div>
-          </div>
         </div>
       </div>
 
