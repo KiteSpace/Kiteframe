@@ -107,7 +107,7 @@ export default function KitelineDemo() {
       {
         id: 'node-2',
         type: 'basic',
-        position: { x: 280, y: 70 },
+        position: { x: 330, y: 70 },
         data: {
           label: 'Target',
           colors: {
