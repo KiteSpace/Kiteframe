@@ -107,7 +107,7 @@ export default function KitelineDemo() {
       {
         id: 'node-2',
         type: 'basic',
-        position: { x: 330, y: 70 },
+        position: { x: 430, y: 70 },
         data: {
           label: 'Target',
           colors: {
@@ -471,7 +471,7 @@ const customEdge: Edge = {
         {
           id: 'node-2',
           type: 'basic',
-          position: { x: 280, y: 70 },
+          position: { x: 430, y: 70 },
           data: {
             label: 'Target',
             colors: {
@@ -899,12 +899,12 @@ kiteFrameCore.installPlugin(myPlugin);`,
                                 
                                 {/* Floating Property Editor */}
                                 {(example.title === "Node API" || example.title === "Edge API") && (
-                                  <div className="absolute top-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 max-w-xs z-10">
+                                  <div className="absolute top-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 max-w-xs z-10 pointer-events-auto">
                                     <h3 className="text-sm font-semibold mb-3 text-gray-900 dark:text-gray-100">
                                       <Settings className="inline w-4 h-4 mr-1" />
                                       Edit Properties
                                     </h3>
-                                    <div className="space-y-3">
+                                    <div className="space-y-3 pointer-events-auto">
                                       {example.title === "Node API" && nodes[0] && (
                                         <>
                                           <div>
