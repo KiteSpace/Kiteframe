@@ -66,8 +66,10 @@ class StyleRegistry {
       // Prevent unbounded cache growth
       if (this.styleCache.size > this.maxCacheSize) {
         const firstKey = this.styleCache.keys().next().value;
-        this.styleCache.delete(firstKey);
-        this.styles.delete(firstKey);
+        if (firstKey) {
+          this.styleCache.delete(firstKey);
+          this.styles.delete(firstKey);
+        }
       }
       
       this.updateStylesheet();
@@ -83,7 +85,9 @@ class StyleRegistry {
     return Object.entries(styles)
       .map(([key, value]) => {
         const cssKey = key.replace(/[A-Z]/g, m => `-${m.toLowerCase()}`);
-        return `${cssKey}: ${value}`;
+        // Add !important to border-color to override Tailwind defaults
+        const important = cssKey === 'border-color' ? ' !important' : '';
+        return `${cssKey}: ${value}${important}`;
       })
       .join('; ');
   }
