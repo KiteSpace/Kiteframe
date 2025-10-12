@@ -11,6 +11,7 @@ import { ResizeHandle } from "./ResizeHandle";
 import type { Node, BasicNodeData, BasicNodeComponentProps } from "../types";
 import { sanitizeText, validateColor } from "../utils/validation";
 import { getDynamicClassName, getNodeStyleClasses } from "../utils/styles";
+import { getBorderColorFromHeader } from "@/lib/themes";
 
 const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
   node,
@@ -124,16 +125,17 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
   // Get colors with fallbacks and validation - memoized for performance
   const colors = useMemo(() => {
     const nodeColors = node.data.colors || {};
+    const headerBg = validateColor(nodeColors.headerBackground || "")
+      ? nodeColors.headerBackground
+      : "#f8fafc";
+    
     return {
-      headerBg: validateColor(nodeColors.headerBackground || "")
-        ? nodeColors.headerBackground
-        : "#f8fafc",
+      headerBg,
       bodyBg: validateColor(nodeColors.bodyBackground || "")
         ? nodeColors.bodyBackground
         : "#ffffff",
-      borderColor: validateColor(nodeColors.borderColor || "")
-        ? nodeColors.borderColor
-        : "#e2e8f0",
+      // Calculate border color from header color (30% darker/lighter)
+      borderColor: getBorderColorFromHeader(headerBg),
       headerTextColor: validateColor(nodeColors.headerTextColor || "")
         ? nodeColors.headerTextColor
         : "#1e293b",
