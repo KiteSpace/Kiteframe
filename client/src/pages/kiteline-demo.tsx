@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KiteFrameCanvas, type Node, type Edge } from "@/lib/kiteframe";
+import { ZoomControls } from "@/lib/kiteframe/components/ZoomControls";
 import { 
   Copy, 
   Check, 
@@ -29,10 +30,15 @@ export default function KitelineDemo() {
   // State for demo canvases
   const [quickStartDemoNodes, setQuickStartDemoNodes] = useState<Node[]>([]);
   const [quickStartDemoEdges, setQuickStartDemoEdges] = useState<Edge[]>([]);
+  const [quickStartViewport, setQuickStartViewport] = useState({ x: 0, y: 0, zoom: 1 });
+  
   const [nodeApiDemoNodes, setNodeApiDemoNodes] = useState<Node[]>([]);
   const [nodeApiDemoEdges, setNodeApiDemoEdges] = useState<Edge[]>([]);
+  const [nodeApiViewport, setNodeApiViewport] = useState({ x: 0, y: 0, zoom: 1 });
+  
   const [edgeApiDemoNodes, setEdgeApiDemoNodes] = useState<Node[]>([]);
   const [edgeApiDemoEdges, setEdgeApiDemoEdges] = useState<Edge[]>([]);
+  const [edgeApiViewport, setEdgeApiViewport] = useState({ x: 0, y: 0, zoom: 1 });
 
   // Initialize demo canvas data
   useEffect(() => {
@@ -559,6 +565,54 @@ kiteFrameCore.installPlugin(myPlugin);`,
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  // Zoom control functions
+  const createZoomHandlers = (viewport: typeof quickStartViewport, setViewport: typeof setQuickStartViewport, nodes: Node[]) => {
+    const handleZoomIn = () => {
+      setViewport(prev => ({ ...prev, zoom: Math.min(prev.zoom * 1.2, 2) }));
+    };
+
+    const handleZoomOut = () => {
+      setViewport(prev => ({ ...prev, zoom: Math.max(prev.zoom / 1.2, 0.1) }));
+    };
+
+    const handleZoomReset = () => {
+      setViewport({ x: 0, y: 0, zoom: 1 });
+    };
+
+    const handleZoomToFit = () => {
+      if (nodes.length === 0) return;
+      
+      // Calculate bounding box of all nodes
+      const padding = 50;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      
+      nodes.forEach(node => {
+        const width = node.style?.width || 200;
+        const height = node.style?.height || 100;
+        minX = Math.min(minX, node.position.x);
+        minY = Math.min(minY, node.position.y);
+        maxX = Math.max(maxX, node.position.x + width);
+        maxY = Math.max(maxY, node.position.y + height);
+      });
+
+      const contentWidth = maxX - minX;
+      const contentHeight = maxY - minY;
+      const canvasWidth = 450; // approximate canvas width
+      const canvasHeight = 250; // approximate canvas height
+
+      const zoomX = (canvasWidth - 2 * padding) / contentWidth;
+      const zoomY = (canvasHeight - 2 * padding) / contentHeight;
+      const zoom = Math.min(zoomX, zoomY, 1);
+
+      const x = (canvasWidth - (minX + contentWidth / 2) * zoom) / 2;
+      const y = (canvasHeight - (minY + contentHeight / 2) * zoom) / 2;
+
+      setViewport({ x, y, zoom });
+    };
+
+    return { handleZoomIn, handleZoomOut, handleZoomReset, handleZoomToFit };
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Hero Section */}
@@ -602,7 +656,7 @@ kiteFrameCore.installPlugin(myPlugin);`,
 
           {/* Interactive Demo Canvas */}
           <div 
-            className="relative rounded-xl overflow-hidden shadow-2xl border-2 border-gray-200 dark:border-gray-700"
+            className="relative rounded-xl overflow-hidden shadow-2xl border-2 border-gray-200 dark:border-gray-700 [&_.kite-node]:!border-4"
             style={{ height: "500px" }}
             data-testid="container-demo-canvas"
           >
@@ -611,6 +665,7 @@ kiteFrameCore.installPlugin(myPlugin);`,
               edges={demoEdges}
               onNodesChange={setDemoNodes}
               onEdgesChange={setDemoEdges}
+              disableWheelZoom={true}
             />
           </div>
         </div>
@@ -684,27 +739,9 @@ kiteFrameCore.installPlugin(myPlugin);`,
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Tabs defaultValue="code" className="w-full">
-                    <TabsList className="grid w-full" style={{ gridTemplateColumns: example.hasDemo && example.hasProperties ? 'repeat(3, 1fr)' : example.hasDemo || example.hasProperties ? 'repeat(2, 1fr)' : '1fr' }}>
-                      <TabsTrigger value="code" data-testid={`tab-code-${index}`}>
-                        <Code className="w-4 h-4 mr-2" />
-                        Code
-                      </TabsTrigger>
-                      {example.hasDemo && (
-                        <TabsTrigger value="demo" data-testid={`tab-demo-${index}`}>
-                          <Eye className="w-4 h-4 mr-2" />
-                          Demo
-                        </TabsTrigger>
-                      )}
-                      {example.hasProperties && (
-                        <TabsTrigger value="properties" data-testid={`tab-properties-${index}`}>
-                          <Settings className="w-4 h-4 mr-2" />
-                          Properties
-                        </TabsTrigger>
-                      )}
-                    </TabsList>
-                    
-                    <TabsContent value="code" className="mt-4">
+                  {!example.hasDemo && !example.hasProperties ? (
+                    // Simple code-only display for Installation
+                    <>
                       <div className="flex justify-end mb-2">
                         <Button
                           size="sm"
@@ -731,12 +768,62 @@ kiteFrameCore.installPlugin(myPlugin);`,
                       >
                         <code>{example.code}</code>
                       </pre>
-                    </TabsContent>
+                    </>
+                  ) : (
+                    // Tabs for examples with demo/properties
+                    <Tabs defaultValue="code" className="w-full">
+                      <TabsList className="grid w-full" style={{ gridTemplateColumns: example.hasDemo && example.hasProperties ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)' }}>
+                        <TabsTrigger value="code" data-testid={`tab-code-${index}`}>
+                          <Code className="w-4 h-4 mr-2" />
+                          Code
+                        </TabsTrigger>
+                        {example.hasDemo && (
+                          <TabsTrigger value="demo" data-testid={`tab-demo-${index}`}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            Demo
+                          </TabsTrigger>
+                        )}
+                        {example.hasProperties && (
+                          <TabsTrigger value="properties" data-testid={`tab-properties-${index}`}>
+                            <Settings className="w-4 h-4 mr-2" />
+                            Properties
+                          </TabsTrigger>
+                        )}
+                      </TabsList>
+                      
+                      <TabsContent value="code" className="mt-4">
+                        <div className="flex justify-end mb-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => copyToClipboard(example.code, index)}
+                            data-testid={`button-copy-code-${index}`}
+                          >
+                            {copiedIndex === index ? (
+                              <>
+                                <Check className="w-4 h-4 mr-2" />
+                                Copied!
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-4 h-4 mr-2" />
+                                Copy
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        <pre 
+                          className="bg-gray-900 dark:bg-black text-gray-100 p-4 rounded-lg overflow-x-auto text-sm"
+                          data-testid={`code-example-${index}`}
+                        >
+                          <code>{example.code}</code>
+                        </pre>
+                      </TabsContent>
 
                     {example.hasDemo && example.demoNodes && (
                       <TabsContent value="demo" className="mt-4">
                         <div 
-                          className="relative rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                          className="relative rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 [&_.kite-node]:!border-4"
                           style={{ height: "250px" }}
                           data-testid={`demo-canvas-${index}`}
                         >
@@ -765,10 +852,170 @@ kiteFrameCore.installPlugin(myPlugin);`,
                               example.title === "Edge API" ? setEdgeApiDemoEdges :
                               () => {}
                             }
+                            viewport={
+                              example.title === "Quick Start" ? quickStartViewport :
+                              example.title === "Node API" ? nodeApiViewport :
+                              example.title === "Edge API" ? edgeApiViewport :
+                              { x: 0, y: 0, zoom: 1 }
+                            }
+                            onViewportChange={
+                              example.title === "Quick Start" ? setQuickStartViewport :
+                              example.title === "Node API" ? setNodeApiViewport :
+                              example.title === "Edge API" ? setEdgeApiViewport :
+                              () => {}
+                            }
                           />
+                          {(() => {
+                            const viewport = example.title === "Quick Start" ? quickStartViewport :
+                                           example.title === "Node API" ? nodeApiViewport :
+                                           example.title === "Edge API" ? edgeApiViewport :
+                                           { x: 0, y: 0, zoom: 1 };
+                            const nodes = example.title === "Quick Start" ? quickStartDemoNodes :
+                                        example.title === "Node API" ? nodeApiDemoNodes :
+                                        example.title === "Edge API" ? edgeApiDemoNodes : [];
+                            const edges = example.title === "Edge API" ? edgeApiDemoEdges : [];
+                            const setNodes = example.title === "Quick Start" ? setQuickStartDemoNodes :
+                                           example.title === "Node API" ? setNodeApiDemoNodes :
+                                           example.title === "Edge API" ? setEdgeApiDemoNodes :
+                                           () => {};
+                            const setEdges = example.title === "Edge API" ? setEdgeApiDemoEdges : () => {};
+                            const setViewport = example.title === "Quick Start" ? setQuickStartViewport :
+                                              example.title === "Node API" ? setNodeApiViewport :
+                                              example.title === "Edge API" ? setEdgeApiViewport :
+                                              () => {};
+                            const { handleZoomIn, handleZoomOut, handleZoomReset, handleZoomToFit } = createZoomHandlers(viewport, setViewport, nodes);
+                            
+                            return (
+                              <>
+                                <ZoomControls
+                                  zoom={viewport.zoom}
+                                  onZoomIn={handleZoomIn}
+                                  onZoomOut={handleZoomOut}
+                                  onZoomReset={handleZoomReset}
+                                  onZoomToFit={handleZoomToFit}
+                                  position="bottom-right"
+                                  className="dark:bg-gray-800 dark:border-gray-600"
+                                />
+                                
+                                {/* Floating Property Editor */}
+                                {(example.title === "Node API" || example.title === "Edge API") && (
+                                  <div className="absolute top-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 max-w-xs z-10">
+                                    <h3 className="text-sm font-semibold mb-3 text-gray-900 dark:text-gray-100">
+                                      <Settings className="inline w-4 h-4 mr-1" />
+                                      Edit Properties
+                                    </h3>
+                                    <div className="space-y-3">
+                                      {example.title === "Node API" && nodes[0] && (
+                                        <>
+                                          <div>
+                                            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Label</label>
+                                            <input
+                                              type="text"
+                                              value={nodes[0].data.label || ''}
+                                              onChange={(e) => setNodes([{ ...nodes[0], data: { ...nodes[0].data, label: e.target.value } }])}
+                                              className="mt-1 w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Description</label>
+                                            <input
+                                              type="text"
+                                              value={nodes[0].data.description || ''}
+                                              onChange={(e) => setNodes([{ ...nodes[0], data: { ...nodes[0].data, description: e.target.value } }])}
+                                              className="mt-1 w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Header Color</label>
+                                            <input
+                                              type="color"
+                                              value={nodes[0].data.colors?.headerBackground || '#3b82f6'}
+                                              onChange={(e) => setNodes([{ 
+                                                ...nodes[0], 
+                                                data: { 
+                                                  ...nodes[0].data, 
+                                                  colors: { ...nodes[0].data.colors, headerBackground: e.target.value }
+                                                }
+                                              }])}
+                                              className="mt-1 w-full h-8 rounded border border-gray-300 dark:border-gray-600"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Body Color</label>
+                                            <input
+                                              type="color"
+                                              value={nodes[0].data.colors?.bodyBackground || '#eff6ff'}
+                                              onChange={(e) => setNodes([{ 
+                                                ...nodes[0], 
+                                                data: { 
+                                                  ...nodes[0].data, 
+                                                  colors: { ...nodes[0].data.colors, bodyBackground: e.target.value }
+                                                }
+                                              }])}
+                                              className="mt-1 w-full h-8 rounded border border-gray-300 dark:border-gray-600"
+                                            />
+                                          </div>
+                                        </>
+                                      )}
+                                      
+                                      {example.title === "Edge API" && edges[0] && (
+                                        <>
+                                          <div>
+                                            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Label</label>
+                                            <input
+                                              type="text"
+                                              value={edges[0].label || ''}
+                                              onChange={(e) => setEdges([{ ...edges[0], label: e.target.value }])}
+                                              className="mt-1 w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                            />
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <input
+                                              type="checkbox"
+                                              checked={edges[0].animated || false}
+                                              onChange={(e) => setEdges([{ ...edges[0], animated: e.target.checked }])}
+                                              className="w-4 h-4"
+                                            />
+                                            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Animated</label>
+                                          </div>
+                                          <div>
+                                            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Stroke Color</label>
+                                            <input
+                                              type="color"
+                                              value={edges[0].style?.stroke || '#3b82f6'}
+                                              onChange={(e) => setEdges([{ 
+                                                ...edges[0], 
+                                                style: { ...edges[0].style, stroke: e.target.value }
+                                              }])}
+                                              className="mt-1 w-full h-8 rounded border border-gray-300 dark:border-gray-600"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Stroke Width</label>
+                                            <input
+                                              type="range"
+                                              min="1"
+                                              max="10"
+                                              value={edges[0].style?.strokeWidth || 2}
+                                              onChange={(e) => setEdges([{ 
+                                                ...edges[0], 
+                                                style: { ...edges[0].style, strokeWidth: Number(e.target.value) }
+                                              }])}
+                                              className="mt-1 w-full"
+                                            />
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">{edges[0].style?.strokeWidth || 2}px</span>
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-3 text-center">
-                          Interactive demo - try dragging the node!
+                          Interactive demo - try dragging nodes! Tip: Option+Scroll to zoom
                         </p>
                       </TabsContent>
                     )}
@@ -798,6 +1045,7 @@ kiteFrameCore.installPlugin(myPlugin);`,
                       </TabsContent>
                     )}
                   </Tabs>
+                  )}
                 </CardContent>
               </Card>
             ))}

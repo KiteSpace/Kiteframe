@@ -794,6 +794,7 @@ type Props = {
   onImageUpload?: (id: string, data: string) => void;
   onImageUrlSet?: (id: string, url: string) => void;
   disablePan?: boolean;
+  disableWheelZoom?: boolean;
   viewport?: Viewport;
   onViewportChange?: (viewport: Viewport) => void;
 
@@ -1348,6 +1349,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   // Wheel/pinch zoom (cursor-anchored)
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
+    
+    // Skip zoom if disabled, but still prevent default scroll behavior
+    if (props.disableWheelZoom) {
+      return;
+    }
+    
     const rect = containerRef.current!.getBoundingClientRect();
     const old = viewport;
     const newZoom = zoomAroundPoint(

@@ -492,6 +492,7 @@ export interface KiteFrameProps {
   onEdgeReconnect?: (edgeId: string, newSource: string, newTarget: string) => void;
   className?: string;
   disablePan?: boolean;
+  disableWheelZoom?: boolean;
   minZoom?: number;
   maxZoom?: number;
   
