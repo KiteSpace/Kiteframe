@@ -824,7 +824,7 @@ kiteFrameCore.installPlugin(myPlugin);`,
                       <TabsContent value="demo" className="mt-4">
                         <div 
                           className="relative rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 [&_.kite-node]:!border-4"
-                          style={{ height: "250px" }}
+                          style={{ height: example.title === "Node API" || example.title === "Edge API" ? "600px" : "250px" }}
                           data-testid={`demo-canvas-${index}`}
                         >
                           <KiteFrameCanvas
