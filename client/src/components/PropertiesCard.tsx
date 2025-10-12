@@ -45,21 +45,6 @@ interface PropertiesCardProps {
 
 // Helper function to create color properties for different node types
 function createNodeColorProperties(selectedNode: Node): ColorProperty[] {
-  // Type-aware property mapping based on node type
-  const commonProperties: ColorProperty[] = [
-    {
-      key: "border",
-      label: "Border",
-      value:
-        selectedNode.data?.colors?.borderColor ||
-        selectedNode.data?.borderColor ||
-        "#e2e8f0",
-      opacity: selectedNode.data?.colors?.borderOpacity ?? 100,
-      hasOpacity: true,
-      type: "stroke" as const,
-    },
-  ];
-
   // Different node types have different color properties
   switch (selectedNode.type) {
     case "input":
@@ -92,7 +77,6 @@ function createNodeColorProperties(selectedNode: Node): ColorProperty[] {
           hasOpacity: true,
           type: "fill" as const,
         },
-        ...commonProperties,
         {
           key: "headerText",
           label: "Header Text",
@@ -144,7 +128,6 @@ function createNodeColorProperties(selectedNode: Node): ColorProperty[] {
           hasOpacity: true,
           type: "fill" as const,
         },
-        ...commonProperties,
       ];
   }
 }
