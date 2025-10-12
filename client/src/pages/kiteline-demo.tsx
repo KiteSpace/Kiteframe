@@ -899,7 +899,7 @@ kiteFrameCore.installPlugin(myPlugin);`,
                                 
                                 {/* Floating Property Editor */}
                                 {(example.title === "Node API" || example.title === "Edge API") && (
-                                  <div className="absolute top-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 max-w-xs z-10">
+                                  <div className="absolute top-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 max-w-xs z-10">
                                     <h3 className="text-sm font-semibold mb-3 text-gray-900 dark:text-gray-100">
                                       <Settings className="inline w-4 h-4 mr-1" />
                                       Edit Properties
