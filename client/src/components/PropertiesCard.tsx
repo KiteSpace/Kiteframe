@@ -158,9 +158,6 @@ function handleNodeColorUpdate(
       updates.data!.colors!.bodyBackground = color;
       updates.data!.colors!.bodyTextColor = getAppropriateTextColor(color);
       break;
-    case "border":
-      updates.data!.colors!.borderColor = color;
-      break;
     case "headerText":
       updates.data!.colors!.headerTextColor = color;
       break;
@@ -194,9 +191,6 @@ function handleNodeOpacityUpdate(
       break;
     case "bodyBg":
       updates.data!.colors!.bodyBackgroundOpacity = opacity;
-      break;
-    case "border":
-      updates.data!.colors!.borderOpacity = opacity;
       break;
   }
 
