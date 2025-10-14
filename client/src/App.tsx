@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import WorkflowEditor from "@/pages/workflow-editor";
 import KitelineDemo from "@/pages/kiteline-demo";
+import KitelineDocs from "@/pages/kiteline-docs";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -12,6 +13,7 @@ function Router() {
     <Switch>
       <Route path="/" component={WorkflowEditor} />
       <Route path="/demo" component={KitelineDemo} />
+      <Route path="/docs" component={KitelineDocs} />
       <Route component={NotFound} />
     </Switch>
   );

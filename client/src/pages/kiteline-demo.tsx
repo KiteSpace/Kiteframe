@@ -686,9 +686,11 @@ kiteFrameCore.installPlugin(myPlugin);`,
                 <Zap className="mr-2" />
                 Get Started
               </Button>
-              <Button size="lg" variant="outline" data-testid="button-view-docs">
-                <Book className="mr-2" />
-                Documentation
+              <Button size="lg" variant="outline" data-testid="button-view-docs" asChild>
+                <a href="/docs">
+                  <Book className="mr-2" />
+                  Documentation
+                </a>
               </Button>
               <Button size="lg" variant="outline" data-testid="button-github" asChild>
                 <a href="https://github.com/KiteSpace/Kiteline.git" target="_blank" rel="noopener noreferrer">
