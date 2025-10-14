@@ -186,42 +186,14 @@ export function getContrastTextColor(backgroundColor: string): string {
 }
 
 /**
- * Calculate border color from header color (30% darker for light colors, 30% lighter for dark colors)
+ * Get border color that matches header color exactly
  */
 export function getBorderColorFromHeader(headerColor: string): string {
-  try {
-    // Remove # if present
-    const hex = headerColor.replace('#', '');
-    
-    // Handle 3-char hex codes
-    let r, g, b;
-    if (hex.length === 3) {
-      r = parseInt(hex[0] + hex[0], 16);
-      g = parseInt(hex[1] + hex[1], 16);
-      b = parseInt(hex[2] + hex[2], 16);
-    } else {
-      r = parseInt(hex.substr(0, 2), 16);
-      g = parseInt(hex.substr(2, 2), 16);
-      b = parseInt(hex.substr(4, 2), 16);
-    }
-    
-    // Determine if color is light or dark
-    const isLight = isLightColor(headerColor);
-    
-    // Darken by 30% for light colors, lighten by 30% for dark colors
-    const factor = isLight ? 0.7 : 1.3;
-    
-    // Apply factor and clamp to 0-255 range
-    r = Math.min(255, Math.max(0, Math.round(r * factor)));
-    g = Math.min(255, Math.max(0, Math.round(g * factor)));
-    b = Math.min(255, Math.max(0, Math.round(b * factor)));
-    
-    // Convert back to hex
-    const toHex = (n: number) => n.toString(16).padStart(2, '0');
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-  } catch {
-    return '#e2e8f0'; // Default border color if calculation fails
-  }
+  console.log('🎨 getBorderColorFromHeader called with:', headerColor);
+  // Simply return the header color as-is
+  const borderColor = headerColor || '#e2e8f0';
+  console.log('🎨 Returning border color:', borderColor);
+  return borderColor;
 }
 
 export function applyThemeToNode(nodeData: any, theme: WorkflowTheme): any {

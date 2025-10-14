@@ -129,13 +129,22 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
       ? nodeColors.headerBackground
       : "#f8fafc";
     
+    const borderColor = getBorderColorFromHeader(headerBg);
+    
+    console.log('🔵 BasicNode colors calculation:', {
+      nodeId: node.id,
+      headerBg,
+      borderColor,
+      nodeColors
+    });
+    
     return {
       headerBg,
       bodyBg: validateColor(nodeColors.bodyBackground || "")
         ? nodeColors.bodyBackground
         : "#ffffff",
-      // Calculate border color from header color (30% darker/lighter)
-      borderColor: getBorderColorFromHeader(headerBg),
+      // Border color matches header color exactly
+      borderColor,
       headerTextColor: validateColor(nodeColors.headerTextColor || "")
         ? nodeColors.headerTextColor
         : "#1e293b",

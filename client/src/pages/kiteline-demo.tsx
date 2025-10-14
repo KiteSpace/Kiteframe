@@ -20,7 +20,8 @@ import {
   Github,
   Book,
   Eye,
-  Settings
+  Settings,
+  Plus
 } from "lucide-react";
 import kiteframeLogo from "@assets/kiteframe@2x_1758226635607.png";
 
@@ -39,6 +40,9 @@ export default function KitelineDemo() {
   const [edgeApiDemoNodes, setEdgeApiDemoNodes] = useState<Node[]>([]);
   const [edgeApiDemoEdges, setEdgeApiDemoEdges] = useState<Edge[]>([]);
   const [edgeApiViewport, setEdgeApiViewport] = useState({ x: 0, y: 0, zoom: 1 });
+
+  // Hero demo viewport
+  const [heroViewport, setHeroViewport] = useState({ x: 0, y: 0, zoom: 1 });
 
   // Initialize demo canvas data
   useEffect(() => {
@@ -565,6 +569,45 @@ kiteFrameCore.installPlugin(myPlugin);`,
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  // Helper function to add a new node at the center of the viewport
+  const addNewNode = (
+    nodes: Node[],
+    setNodes: (nodes: Node[]) => void,
+    viewport: { x: number; y: number; zoom: number },
+    canvasWidth = 800,
+    canvasHeight = 500
+  ) => {
+    // Calculate the center of the viewport in world coordinates
+    const centerX = (canvasWidth / 2 - viewport.x) / viewport.zoom;
+    const centerY = (canvasHeight / 2 - viewport.y) / viewport.zoom;
+
+    // Generate a unique ID
+    const newId = `node-${Date.now()}`;
+
+    const newNode: Node = {
+      id: newId,
+      type: 'basic',
+      position: { x: centerX - 100, y: centerY - 50 }, // Center the node (200x100)
+      data: {
+        label: 'New Node',
+        description: 'Click to edit',
+        colors: {
+          headerBackground: '#10b981',
+          bodyBackground: '#ecfdf5',
+          borderColor: '#10b981',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#065f46'
+        }
+      },
+      style: { width: 200, height: 100 },
+      draggable: true,
+      selectable: true,
+      resizable: true
+    };
+
+    setNodes([...nodes, newNode]);
+  };
+
   // Zoom control functions
   const createZoomHandlers = (viewport: typeof quickStartViewport, setViewport: typeof setQuickStartViewport, nodes: Node[]) => {
     const handleZoomIn = () => {
@@ -647,16 +690,18 @@ kiteFrameCore.installPlugin(myPlugin);`,
                 <Book className="mr-2" />
                 Documentation
               </Button>
-              <Button size="lg" variant="outline" data-testid="button-github">
-                <Github className="mr-2" />
-                GitHub
+              <Button size="lg" variant="outline" data-testid="button-github" asChild>
+                <a href="https://github.com/KiteSpace/Kiteline.git" target="_blank" rel="noopener noreferrer">
+                  <Github className="mr-2" />
+                  GitHub
+                </a>
               </Button>
             </div>
           </div>
 
           {/* Interactive Demo Canvas */}
           <div 
-            className="relative rounded-xl overflow-hidden shadow-2xl border-2 border-gray-200 dark:border-gray-700 [&_.kite-node]:!border-4"
+            className="relative rounded-xl overflow-hidden shadow-2xl border-2 border-gray-200 dark:border-gray-700"
             style={{ height: "500px" }}
             data-testid="container-demo-canvas"
           >
@@ -665,8 +710,25 @@ kiteFrameCore.installPlugin(myPlugin);`,
               edges={demoEdges}
               onNodesChange={setDemoNodes}
               onEdgesChange={setDemoEdges}
+              viewport={heroViewport}
+              onViewportChange={setHeroViewport}
               disableWheelZoom={true}
+              proFeatures={{
+                quickAdd: { enabled: false }
+              }}
             />
+            {/* New Node Button */}
+            <div className="absolute top-4 right-4 z-10">
+              <Button
+                size="sm"
+                onClick={() => addNewNode(demoNodes, setDemoNodes, heroViewport, 800, 500)}
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white shadow-lg"
+                data-testid="button-new-node-hero"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Node
+              </Button>
+            </div>
           </div>
         </div>
       </section>
@@ -823,7 +885,7 @@ kiteFrameCore.installPlugin(myPlugin);`,
                     {example.hasDemo && example.demoNodes && (
                       <TabsContent value="demo" className="mt-4">
                         <div 
-                          className="relative rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 [&_.kite-node]:!border-4"
+                          className="relative rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
                           style={{ height: example.title === "Node API" || example.title === "Edge API" ? "600px" : "250px" }}
                           data-testid={`demo-canvas-${index}`}
                         >
@@ -864,6 +926,9 @@ kiteFrameCore.installPlugin(myPlugin);`,
                               example.title === "Edge API" ? setEdgeApiViewport :
                               () => {}
                             }
+                            proFeatures={{
+                              quickAdd: { enabled: false }
+                            }}
                           />
                           {(() => {
                             const viewport = example.title === "Quick Start" ? quickStartViewport :
@@ -887,6 +952,22 @@ kiteFrameCore.installPlugin(myPlugin);`,
                             
                             return (
                               <>
+                                {/* New Node Button */}
+                                <div className={`absolute top-4 z-10 ${(example.title === "Node API" || example.title === "Edge API") ? 'left-4' : 'right-4'}`}>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      const canvasHeight = example.title === "Node API" || example.title === "Edge API" ? 600 : 250;
+                                      addNewNode(nodes, setNodes, viewport, 450, canvasHeight);
+                                    }}
+                                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white shadow-lg"
+                                    data-testid={`button-new-node-${example.title.toLowerCase().replace(/ /g, '-')}`}
+                                  >
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    New Node
+                                  </Button>
+                                </div>
+
                                 <ZoomControls
                                   zoom={viewport.zoom}
                                   onZoomIn={handleZoomIn}
@@ -1192,7 +1273,7 @@ kiteFrameCore.installPlugin(myPlugin);`,
                 Community
               </h3>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white transition-colors" data-testid="link-github">GitHub</a></li>
+                <li><a href="https://github.com/KiteSpace/Kiteline.git" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" data-testid="link-github">GitHub</a></li>
                 <li><a href="#" className="hover:text-white transition-colors" data-testid="link-discord">Discord</a></li>
                 <li><a href="#" className="hover:text-white transition-colors" data-testid="link-twitter">Twitter</a></li>
                 <li><a href="#" className="hover:text-white transition-colors" data-testid="link-blog">Blog</a></li>
