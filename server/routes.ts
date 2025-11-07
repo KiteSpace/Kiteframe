@@ -1471,6 +1471,37 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
     }
   });
 
+  // Admin: Revoke or unrevoke an unlock code
+  app.post('/internal/ops-codes/revoke/:codeId', requireAdminAuth, async (req, res) => {
+    try {
+      const { codeId } = req.params;
+      const { revoke } = req.body;
+      
+      const [updatedCode] = await db.update(unlockCodes)
+        .set({ isRevoked: revoke })
+        .where(eq(unlockCodes.id, codeId))
+        .returning();
+      
+      if (!updatedCode) {
+        return res.status(404).json({
+          error: 'Code not found',
+        });
+      }
+      
+      res.json({
+        success: true,
+        code: updatedCode,
+        message: revoke ? 'Code revoked successfully' : 'Code restored successfully',
+      });
+    } catch (error: any) {
+      console.error('Revoke code error:', error);
+      res.status(500).json({ 
+        error: 'Failed to update code status',
+        details: error.message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   
   // WebSocket server for real-time collaboration
