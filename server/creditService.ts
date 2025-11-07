@@ -112,6 +112,10 @@ export class CreditService {
           throw new Error('INVALID_CODE');
         }
 
+        if (unlockCode.isRevoked) {
+          throw new Error('CODE_REVOKED');
+        }
+
         if (unlockCode.isUsed) {
           throw new Error('CODE_ALREADY_USED');
         }
@@ -176,6 +180,9 @@ export class CreditService {
     } catch (error: any) {
       if (error.message === 'INVALID_CODE') {
         return { success: false, message: 'Invalid unlock code' };
+      }
+      if (error.message === 'CODE_REVOKED') {
+        return { success: false, message: 'This unlock code has been disabled by the administrator' };
       }
       if (error.message === 'CODE_ALREADY_USED') {
         return { success: false, message: 'This unlock code has already been used' };
