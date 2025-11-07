@@ -106,6 +106,7 @@ export const userCredits = pgTable("user_credits", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userIdentifier: varchar("user_identifier").notNull().unique(), // Can be user ID or IP address
   credits: integer("credits").notNull().default(10), // Default 10 free credits
+  isUnlimited: boolean("is_unlimited").default(false), // True for trusted users with unlimited credits
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -115,6 +116,8 @@ export const unlockCodes = pgTable("unlock_codes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   code: varchar("code").notNull().unique(),
   creditsToAdd: integer("credits_to_add").notNull().default(10),
+  grantsUnlimited: boolean("grants_unlimited").default(false), // True for codes that grant unlimited credits
+  notes: text("notes"), // Admin notes about this code
   isUsed: boolean("is_used").default(false),
   usedBy: varchar("used_by"), // User identifier who redeemed it
   usedAt: timestamp("used_at"),
