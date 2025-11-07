@@ -1,0 +1,97 @@
+Below you will find annotated Python code samples (suitable for a Flask, FastAPI, or similar Replit web app).
+Each code section is preceded by reasoning comments, clearly separated for region locking (US-only) and the AI usage credit system.
+You’ll need to fill in details such as your storage/data access logic and API key management. Remember: always perform the region lock check first on any route handling user actions.
+
+1. Region Locking Logic (US Only)
+Reasoning steps:
+- Get the user's IP address (X-Forwarded-For first, fallback to remote_addr).
+- Query a geolocation API (like ipinfo) to get the country code.
+- Allow only if country is 'US'. Deny and exit otherwise.
+- Perform this check on every sensitive endpoint.
+--- Actual code sample ---
+from flask import request, abort
+import requests
+
+def check_us_only():
+# Get user IP address from request headers or remote_addr
+user_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+
+# Use a geo API to determine country
+geo_url = f'https://ipinfo.io/{user_ip}?token=[YOUR_GEO_API_KEY]'
+resp = requests.get(geo_url)
+if resp.status_code != 200:
+    abort(403, "Could not verify location.")
+
+country = resp.json().get('country')
+if country != 'US':
+    abort(403, "Access Denied: This service is US only.")
+Usage in a Flask route:
+@app.route('/ai', methods=['POST'])
+def ai_route():
+check_us_only()
+... # go on to credit checks and processing
+2. AI Usage Credit System
+Reasoning steps:
+- Track a per-user session or identifier (e.g., from session or IP).
+- Give each new user initial credits.
+- Before any AI operation, check credits. If zero, prompt for and validate an unlock code.
+- If unlock code is valid (and unused), reset/increase their credits securely and track redemption.
+- Always sanitize and securely process user input.
+--- Actual code sample ---
+credits_store can be a dictionary, a database object, or a redis cache
+credits_store = {}  # Example: {user_id: {'credits': 10}}
+
+Used codes should be tracked to prevent re-use
+used_codes = set()
+
+valid_codes = set([...]) # Securely store these elsewhere or use a code database
+def get_user_id():
+# In production, use secure session or authentication for user_id
+return request.headers.get('X-Forwarded-For', request.remote_addr)
+
+def validate_code(unlock_code, user_id):
+# Replace with secure validation (e.g., check unlock_code against your backend/store)
+# Also verify the code wasn't previously used
+if unlock_code in valid_codes and unlock_code not in used_codes:
+used_codes.add(unlock_code)
+return True
+return False
+
+def handle_ai_credit():
+user_id = get_user_id()
+# Initialize credits for new users
+if user_id not in credits_store:
+credits_store[user_id] = {'credits': 10}
+
+# Check credits
+if credits_store[user_id]['credits'] <= 0:
+    # Prompt user for unlock code (in a real app, this would be an HTML/form prompt)
+    unlock_code = request.form.get('unlock_code')  # Imagine user submits form field
+
+    if unlock_code and validate_code(unlock_code, user_id):
+        # Unlock code valid; securely reset/increase credits
+        credits_store[user_id]['credits'] = 10
+        return "Credits reset! You may now use AI features again."
+    else:
+        return "Credit limit reached. Contact info@kiteframe.space for a new unlock code."
+
+# User has credits -- decrement and allow AI use
+credits_store[user_id]['credits'] -= 1
+result = perform_ai_action()  # Your AI logic here
+return result
+Usage in a Flask route, after region lock:
+@app.route('/ai', methods=['POST'])
+def ai_route():
+check_us_only()
+return handle_ai_credit()
+Summary/Reminders
+Main objectives:
+
+Only allow access to US users by geolocating the IP before any AI/credit logic.
+Track and limit free AI credits per user/session.
+On credit exhaustion, block use until a valid unlock code (from info@kiteframe.space) is securely provided.
+Always order: region check → credit check → AI usage.
+Store unlock codes securely; never reveal valid codes to clients.
+Sanitize all user input; never allow code logic client-side.
+Replace all placeholders (e.g., [YOUR_GEO_API_KEY], perform_ai_action(), your own code storage) and ensure secure storage and session management in your production application.
+Keep region check FIRST in all flows.
