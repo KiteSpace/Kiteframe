@@ -8,8 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Key, Shield, Ban, RotateCcw } from 'lucide-react';
+import { Copy, Key, Shield, Ban, RotateCcw, BarChart3 } from 'lucide-react';
+import AdminAnalytics from './AdminAnalytics';
 
 interface UnlockCode {
   id: string;
@@ -214,11 +216,11 @@ export default function AdminCodes() {
 
   return (
     <div className="min-h-screen bg-background p-4">
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Key className="w-8 h-8" />
-            Unlock Code Management
+            <Shield className="w-8 h-8" />
+            Admin Panel
           </h1>
           <Button
             variant="outline"
@@ -232,7 +234,20 @@ export default function AdminCodes() {
           </Button>
         </div>
 
-        <Card>
+        <Tabs defaultValue="codes" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="codes" data-testid="tab-codes-management">
+              <Key className="w-4 h-4 mr-2" />
+              Code Management
+            </TabsTrigger>
+            <TabsTrigger value="analytics" data-testid="tab-analytics-dashboard">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="codes" className="space-y-6 mt-6">
+            <Card>
           <CardHeader>
             <CardTitle>Generate New Code</CardTitle>
             <CardDescription>
@@ -367,6 +382,12 @@ export default function AdminCodes() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <AdminAnalytics authHeader={authHeader} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

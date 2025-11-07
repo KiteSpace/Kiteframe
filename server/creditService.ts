@@ -3,6 +3,7 @@ import { userCredits, unlockCodes } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
 import type { Request } from "express";
 import { geolocationService } from "./geolocation";
+import { analyticsService } from "./analyticsService";
 
 export interface CreditCheckResult {
   hasCredits: boolean;
@@ -86,6 +87,7 @@ export class CreditService {
       return { success: true, remainingCredits: result.credits, isUnlimited: result.isUnlimited || false };
     } catch (error: any) {
       if (error.message === 'INSUFFICIENT_CREDITS') {
+        analyticsService.trackCreditLimitHit(userIdentifier).catch(console.error);
         return { success: false, remainingCredits: 0, isUnlimited: false };
       }
       throw error;
@@ -101,7 +103,7 @@ export class CreditService {
       .where(eq(userCredits.userIdentifier, userIdentifier));
   }
 
-  async redeemUnlockCode(code: string, userIdentifier: string): Promise<{ success: boolean; message: string; credits?: number; isUnlimited?: boolean }> {
+  async redeemUnlockCode(code: string, userIdentifier: string, country?: string): Promise<{ success: boolean; message: string; credits?: number; isUnlimited?: boolean }> {
     try {
       const result = await db.transaction(async (tx) => {
         const unlockCode = await tx.query.unlockCodes.findFirst({
@@ -170,6 +172,8 @@ export class CreditService {
 
         return updated[0];
       });
+
+      analyticsService.trackCodeRedeemed(code, userIdentifier, country, result.credits).catch(console.error);
 
       return {
         success: true,

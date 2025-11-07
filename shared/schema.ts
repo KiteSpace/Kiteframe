@@ -125,6 +125,20 @@ export const unlockCodes = pgTable("unlock_codes", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Analytics events for admin monitoring
+export const analyticsEvents = pgTable("analytics_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventType: varchar("event_type").notNull(), // credit_limit_hit, geolocation_check, code_redeemed, ai_request
+  userIdentifier: varchar("user_identifier"), // User ID or IP
+  country: varchar("country"), // Country code from geolocation
+  metadata: jsonb("metadata"), // Additional event data (code used, request details, etc)
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_analytics_event_type").on(table.eventType),
+  index("IDX_analytics_created_at").on(table.createdAt),
+  index("IDX_analytics_country").on(table.country),
+]);
+
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   firstName: true,
@@ -138,6 +152,11 @@ export const insertUserCreditsSchema = createInsertSchema(userCredits).omit({
 });
 
 export const insertUnlockCodeSchema = createInsertSchema(unlockCodes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).omit({
   id: true,
   createdAt: true,
 });
@@ -157,3 +176,5 @@ export type UserCredits = typeof userCredits.$inferSelect;
 export type InsertUserCredits = z.infer<typeof insertUserCreditsSchema>;
 export type UnlockCode = typeof unlockCodes.$inferSelect;
 export type InsertUnlockCode = z.infer<typeof insertUnlockCodeSchema>;
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;

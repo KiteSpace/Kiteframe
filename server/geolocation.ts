@@ -1,4 +1,5 @@
 import type { Request } from "express";
+import { analyticsService } from "./analyticsService";
 
 export interface GeolocationResult {
   country: string;
@@ -137,6 +138,9 @@ export class GeolocationService {
     try {
       const result = await this.getCountryCode(req);
       const isUS = result.country === 'US';
+      
+      const userIdentifier = this.getUserIP(req);
+      analyticsService.trackGeolocationCheck(userIdentifier, result.country, result.source).catch(console.error);
       
       return {
         allowed: isUS,

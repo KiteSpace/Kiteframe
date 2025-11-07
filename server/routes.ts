@@ -19,6 +19,8 @@ import { requireCredits } from "./middleware/creditCheck";
 import { creditService } from "./creditService";
 import { requireAdminAuth } from "./middleware/adminAuth";
 import { unlockCodes } from "@shared/schema";
+import { analyticsService } from "./analyticsService";
+import { geolocationService } from "./geolocation";
 
 // Workflow validation utility
 function validateWorkflowStructure(data: any): { isValid: boolean; errors: string[]; warnings: string[] } {
@@ -394,6 +396,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         responseText = json.choices?.[0]?.message?.content || '';
       }
+      
+      // Track AI request analytics
+      const userIdentifier = creditService.getUserIdentifier(req);
+      let country: string | undefined;
+      try {
+        const geoResult = await geolocationService.getCountryCode(req);
+        country = geoResult.country;
+      } catch (error) {
+        country = undefined;
+      }
+      analyticsService.trackAIRequest(userIdentifier, country, activeProvider).catch(console.error);
       
       res.json({ text: responseText });
     } catch (error: any) {
@@ -1401,7 +1414,16 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       }
 
       const userIdentifier = creditService.getUserIdentifier(req);
-      const result = await creditService.redeemUnlockCode(code.trim(), userIdentifier);
+      let country: string | undefined;
+      
+      try {
+        const geoResult = await geolocationService.getCountryCode(req);
+        country = geoResult.country;
+      } catch (error) {
+        country = undefined;
+      }
+      
+      const result = await creditService.redeemUnlockCode(code.trim(), userIdentifier, country);
       
       if (result.success) {
         res.json({
@@ -1497,6 +1519,124 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       console.error('Revoke code error:', error);
       res.status(500).json({ 
         error: 'Failed to update code status',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin Analytics: Overview stats
+  app.get('/internal/analytics/overview', requireAdminAuth, async (req, res) => {
+    try {
+      const { analyticsEvents } = await import('@shared/schema');
+      const { sql } = await import('drizzle-orm');
+      
+      const [totalAIRequests] = await db.select({ count: sql<number>`COUNT(*)::int` })
+        .from(analyticsEvents)
+        .where(eq(analyticsEvents.eventType, 'ai_request'));
+      
+      const [totalCreditAlerts] = await db.select({ count: sql<number>`COUNT(*)::int` })
+        .from(analyticsEvents)
+        .where(eq(analyticsEvents.eventType, 'credit_limit_hit'));
+      
+      const uniqueCountries = await db.selectDistinct({ country: analyticsEvents.country })
+        .from(analyticsEvents)
+        .where(sql`${analyticsEvents.country} IS NOT NULL`);
+      
+      res.json({
+        success: true,
+        data: {
+          totalAIRequests: totalAIRequests?.count || 0,
+          totalCreditAlerts: totalCreditAlerts?.count || 0,
+          totalCountries: uniqueCountries.length,
+        },
+      });
+    } catch (error: any) {
+      console.error('Analytics overview error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch analytics overview',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin Analytics: Geographic activity
+  app.get('/internal/analytics/geographic', requireAdminAuth, async (req, res) => {
+    try {
+      const { analyticsEvents } = await import('@shared/schema');
+      const { sql } = await import('drizzle-orm');
+      
+      const geoActivity = await db.select({
+        country: analyticsEvents.country,
+        totalRequests: sql<number>`COUNT(*)::int`,
+        aiRequests: sql<number>`COUNT(CASE WHEN ${analyticsEvents.eventType} = 'ai_request' THEN 1 END)::int`,
+        uniqueUsers: sql<number>`COUNT(DISTINCT ${analyticsEvents.userIdentifier})::int`,
+        lastActivity: sql<string>`MAX(${analyticsEvents.createdAt})::text`,
+      })
+        .from(analyticsEvents)
+        .where(sql`${analyticsEvents.country} IS NOT NULL`)
+        .groupBy(analyticsEvents.country);
+      
+      res.json({
+        success: true,
+        data: geoActivity,
+      });
+    } catch (error: any) {
+      console.error('Geographic analytics error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch geographic analytics',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin Analytics: Code usage stats
+  app.get('/internal/analytics/code-usage', requireAdminAuth, async (req, res) => {
+    try {
+      const { analyticsEvents } = await import('@shared/schema');
+      const { sql } = await import('drizzle-orm');
+      
+      const codeUsage = await db.select({
+        code: sql<string>`${analyticsEvents.metadata}->>'code'`,
+        totalRedemptions: sql<number>`COUNT(*)::int`,
+        countries: sql<string[]>`ARRAY_AGG(DISTINCT ${analyticsEvents.country})`,
+        lastUsed: sql<string>`MAX(${analyticsEvents.createdAt})::text`,
+      })
+        .from(analyticsEvents)
+        .where(eq(analyticsEvents.eventType, 'code_redeemed'))
+        .groupBy(sql`${analyticsEvents.metadata}->>'code'`);
+      
+      res.json({
+        success: true,
+        data: codeUsage,
+      });
+    } catch (error: any) {
+      console.error('Code usage analytics error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch code usage analytics',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin Analytics: Recent credit alerts
+  app.get('/internal/analytics/alerts', requireAdminAuth, async (req, res) => {
+    try {
+      const { analyticsEvents } = await import('@shared/schema');
+      
+      const alerts = await db.query.analyticsEvents.findMany({
+        where: eq(analyticsEvents.eventType, 'credit_limit_hit'),
+        orderBy: desc(analyticsEvents.createdAt),
+        limit: 50,
+      });
+      
+      res.json({
+        success: true,
+        data: alerts,
+      });
+    } catch (error: any) {
+      console.error('Alerts analytics error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch alerts',
         details: error.message 
       });
     }
