@@ -117,6 +117,7 @@ export const unlockCodes = pgTable("unlock_codes", {
   code: varchar("code").notNull().unique(),
   creditsToAdd: integer("credits_to_add").notNull().default(10),
   grantsUnlimited: boolean("grants_unlimited").default(false), // True for codes that grant unlimited credits
+  allowedCountries: text("allowed_countries").array().notNull().default(sql`ARRAY['US']::text[]`), // Countries allowed to use this code
   notes: text("notes"), // Admin notes about this code
   isUsed: boolean("is_used").default(false),
   isRevoked: boolean("is_revoked").default(false), // True if admin has disabled this code
