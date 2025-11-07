@@ -18,6 +18,7 @@ interface UnlockCode {
   code: string;
   creditsToAdd: number;
   grantsUnlimited: boolean;
+  allowedCountries: string[];
   notes: string | null;
   isUsed: boolean;
   isRevoked: boolean;
@@ -26,12 +27,29 @@ interface UnlockCode {
   createdAt: string;
 }
 
+const AVAILABLE_COUNTRIES = [
+  { code: 'US', name: 'United States' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'GB', name: 'United Kingdom' },
+  { code: 'AU', name: 'Australia' },
+  { code: 'NZ', name: 'New Zealand' },
+  { code: 'DE', name: 'Germany' },
+  { code: 'FR', name: 'France' },
+  { code: 'IT', name: 'Italy' },
+  { code: 'ES', name: 'Spain' },
+  { code: 'JP', name: 'Japan' },
+  { code: 'KR', name: 'South Korea' },
+  { code: 'SG', name: 'Singapore' },
+];
+
 export default function AdminCodes() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authHeader, setAuthHeader] = useState('');
   const [grantsUnlimited, setGrantsUnlimited] = useState(false);
+  const [creditsToAdd, setCreditsToAdd] = useState(10);
+  const [allowedCountries, setAllowedCountries] = useState<string[]>(['US']);
   const [notes, setNotes] = useState('');
   const { toast } = useToast();
 
@@ -50,7 +68,7 @@ export default function AdminCodes() {
   });
 
   const generateCodeMutation = useMutation({
-    mutationFn: async (data: { grantsUnlimited: boolean; notes: string }) => {
+    mutationFn: async (data: { grantsUnlimited: boolean; creditsToAdd: number; allowedCountries: string[]; notes: string }) => {
       const response = await fetch('/internal/ops-codes/generate', {
         method: 'POST',
         headers: {
@@ -70,6 +88,8 @@ export default function AdminCodes() {
       });
       setNotes('');
       setGrantsUnlimited(false);
+      setCreditsToAdd(10);
+      setAllowedCountries(['US']);
       
       navigator.clipboard.writeText(data.code.code);
       toast({
@@ -152,8 +172,18 @@ export default function AdminCodes() {
   const handleGenerate = () => {
     generateCodeMutation.mutate({
       grantsUnlimited,
+      creditsToAdd,
+      allowedCountries,
       notes: notes.trim() || '',
     });
+  };
+
+  const toggleCountry = (countryCode: string) => {
+    setAllowedCountries(prev => 
+      prev.includes(countryCode)
+        ? prev.filter(c => c !== countryCode)
+        : [...prev, countryCode]
+    );
   };
 
   const copyCode = (code: string) => {
@@ -266,6 +296,50 @@ export default function AdminCodes() {
                 Grant Unlimited Credits (for trusted users)
               </Label>
             </div>
+
+            {!grantsUnlimited && (
+              <div className="space-y-2">
+                <Label htmlFor="credits">Credits to Grant</Label>
+                <Input
+                  id="credits"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={creditsToAdd}
+                  onChange={(e) => setCreditsToAdd(parseInt(e.target.value) || 10)}
+                  data-testid="input-credits-amount"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Number of AI operation credits to grant (default: 10)
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Allowed Countries</Label>
+              <div className="grid grid-cols-2 gap-2 p-4 border rounded-md max-h-48 overflow-y-auto">
+                {AVAILABLE_COUNTRIES.map((country) => (
+                  <div key={country.code} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`country-${country.code}`}
+                      checked={allowedCountries.includes(country.code)}
+                      onCheckedChange={() => toggleCountry(country.code)}
+                      data-testid={`checkbox-country-${country.code}`}
+                    />
+                    <Label 
+                      htmlFor={`country-${country.code}`} 
+                      className="cursor-pointer text-sm font-normal"
+                    >
+                      {country.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Select countries where this code can be used (default: US only)
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="notes">Notes (optional)</Label>
               <Textarea
@@ -318,7 +392,7 @@ export default function AdminCodes() {
                           <Copy className="w-4 h-4" />
                         </Button>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                         {code.grantsUnlimited ? (
                           <Badge variant="default" data-testid={`badge-unlimited-${code.id}`}>
                             Unlimited Credits
@@ -328,6 +402,9 @@ export default function AdminCodes() {
                             {code.creditsToAdd} Credits
                           </Badge>
                         )}
+                        <Badge variant="outline" data-testid={`badge-countries-${code.id}`}>
+                          {code.allowedCountries?.join(', ') || 'US'}
+                        </Badge>
                         {code.isRevoked ? (
                           <Badge variant="destructive" data-testid={`badge-revoked-${code.id}`}>
                             Revoked
