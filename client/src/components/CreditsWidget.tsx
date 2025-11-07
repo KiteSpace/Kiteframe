@@ -74,7 +74,9 @@ export function CreditsWidget() {
   };
 
   const credits = (creditsData as CreditsResponse | undefined)?.credits ?? 0;
-  const isLowCredits = credits <= 2;
+  const isUnlimited = credits >= 999999;
+  const isLowCredits = credits <= 2 && !isUnlimited;
+  const displayCredits = isUnlimited ? '∞' : credits;
 
   return (
     <>
@@ -86,7 +88,7 @@ export function CreditsWidget() {
         data-testid="button-credits"
       >
         <Coins className="h-4 w-4" />
-        <span data-testid="text-credits-count">{isLoading ? '...' : credits}</span>
+        <span data-testid="text-credits-count">{isLoading ? '...' : displayCredits}</span>
         {isLowCredits && <AlertCircle className="h-3 w-3" />}
       </Button>
 
@@ -95,8 +97,9 @@ export function CreditsWidget() {
           <DialogHeader>
             <DialogTitle>AI Credits</DialogTitle>
             <DialogDescription>
-              You have <strong data-testid="text-credits-remaining">{credits}</strong> AI credits remaining.
-              Each AI operation uses 1 credit.
+              You have <strong data-testid="text-credits-remaining">{isUnlimited ? 'unlimited' : credits}</strong> AI credits remaining.
+              {!isUnlimited && ' Each AI operation uses 1 credit.'}
+              {isUnlimited && ' You have unlimited AI access.'}
             </DialogDescription>
           </DialogHeader>
 
