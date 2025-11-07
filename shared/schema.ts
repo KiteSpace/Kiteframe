@@ -119,6 +119,7 @@ export const unlockCodes = pgTable("unlock_codes", {
   grantsUnlimited: boolean("grants_unlimited").default(false), // True for codes that grant unlimited credits
   notes: text("notes"), // Admin notes about this code
   isUsed: boolean("is_used").default(false),
+  isRevoked: boolean("is_revoked").default(false), // True if admin has disabled this code
   usedBy: varchar("used_by"), // User identifier who redeemed it
   usedAt: timestamp("used_at"),
   createdAt: timestamp("created_at").defaultNow(),
