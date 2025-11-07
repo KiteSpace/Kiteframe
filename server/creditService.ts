@@ -122,6 +122,13 @@ export class CreditService {
           throw new Error('CODE_ALREADY_USED');
         }
 
+        // Check if user's country is allowed to use this code
+        if (country && unlockCode.allowedCountries && unlockCode.allowedCountries.length > 0) {
+          if (!unlockCode.allowedCountries.includes(country)) {
+            throw new Error('COUNTRY_NOT_ALLOWED');
+          }
+        }
+
         await tx.update(unlockCodes)
           .set({
             isUsed: true,
@@ -190,6 +197,9 @@ export class CreditService {
       }
       if (error.message === 'CODE_ALREADY_USED') {
         return { success: false, message: 'This unlock code has already been used' };
+      }
+      if (error.message === 'COUNTRY_NOT_ALLOWED') {
+        return { success: false, message: 'This unlock code is not valid in your country' };
       }
       throw error;
     }
