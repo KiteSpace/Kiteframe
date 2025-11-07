@@ -1449,14 +1449,21 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   // Admin: Generate unlock code
   app.post('/internal/ops-codes/generate', requireAdminAuth, async (req, res) => {
     try {
-      const { grantsUnlimited, notes } = req.body;
+      const { grantsUnlimited, creditsToAdd, allowedCountries, notes } = req.body;
+      
+      // Validate input
+      const credits = grantsUnlimited ? 999999 : (creditsToAdd || 10);
+      const countries = Array.isArray(allowedCountries) && allowedCountries.length > 0 
+        ? allowedCountries 
+        : ['US'];
       
       const code = 'KITE-' + Math.random().toString(36).substring(2, 15).toUpperCase();
       
       const [newCode] = await db.insert(unlockCodes).values({
         code,
-        creditsToAdd: grantsUnlimited ? 999999 : 10,
+        creditsToAdd: credits,
         grantsUnlimited: grantsUnlimited || false,
+        allowedCountries: countries,
         notes: notes || null,
       }).returning();
       
