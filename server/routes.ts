@@ -17,6 +17,8 @@ import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits } from "./middleware/creditCheck";
 import { creditService } from "./creditService";
+import { requireAdminAuth } from "./middleware/adminAuth";
+import { unlockCodes } from "@shared/schema";
 
 // Workflow validation utility
 function validateWorkflowStructure(data: any): { isValid: boolean; errors: string[]; warnings: string[] } {
@@ -1417,6 +1419,53 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       console.error('Redeem code error:', error);
       res.status(500).json({ 
         error: 'Failed to redeem unlock code',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Generate unlock code
+  app.post('/internal/ops-codes/generate', requireAdminAuth, async (req, res) => {
+    try {
+      const { grantsUnlimited, notes } = req.body;
+      
+      const code = 'KITE-' + Math.random().toString(36).substring(2, 15).toUpperCase();
+      
+      const [newCode] = await db.insert(unlockCodes).values({
+        code,
+        creditsToAdd: grantsUnlimited ? 999999 : 10,
+        grantsUnlimited: grantsUnlimited || false,
+        notes: notes || null,
+      }).returning();
+      
+      res.json({
+        success: true,
+        code: newCode,
+      });
+    } catch (error: any) {
+      console.error('Generate code error:', error);
+      res.status(500).json({ 
+        error: 'Failed to generate unlock code',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: List all unlock codes
+  app.get('/internal/ops-codes/list', requireAdminAuth, async (req, res) => {
+    try {
+      const codes = await db.query.unlockCodes.findMany({
+        orderBy: desc(unlockCodes.createdAt),
+      });
+      
+      res.json({
+        success: true,
+        codes,
+      });
+    } catch (error: any) {
+      console.error('List codes error:', error);
+      res.status(500).json({ 
+        error: 'Failed to list unlock codes',
         details: error.message 
       });
     }
