@@ -77,7 +77,10 @@ export default function AdminCodes() {
         },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error('Failed to generate code');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to generate code' }));
+        throw new Error(errorData.error || 'Failed to generate code');
+      }
       return response.json();
     },
     onSuccess: (data) => {
@@ -352,11 +355,21 @@ export default function AdminCodes() {
             </div>
             <Button
               onClick={handleGenerate}
-              disabled={generateCodeMutation.isPending}
+              disabled={generateCodeMutation.isPending || allowedCountries.length === 0 || (!grantsUnlimited && creditsToAdd < 1)}
               data-testid="button-generate-code"
             >
               {generateCodeMutation.isPending ? 'Generating...' : 'Generate Code'}
             </Button>
+            {allowedCountries.length === 0 && (
+              <p className="text-sm text-destructive">
+                Please select at least one country
+              </p>
+            )}
+            {!grantsUnlimited && creditsToAdd < 1 && (
+              <p className="text-sm text-destructive">
+                Credits must be at least 1
+              </p>
+            )}
           </CardContent>
         </Card>
 
