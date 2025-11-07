@@ -83,11 +83,38 @@ export default function AdminCodes() {
     },
   });
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const auth = btoa(`${username}:${password}`);
     const header = `Basic ${auth}`;
-    setAuthHeader(header);
-    setIsAuthenticated(true);
+    
+    try {
+      const response = await fetch('/internal/ops-codes/list', {
+        headers: {
+          'Authorization': header,
+        },
+      });
+      
+      if (response.ok) {
+        setAuthHeader(header);
+        setIsAuthenticated(true);
+        toast({
+          title: 'Login Successful',
+          description: 'Welcome to admin panel',
+        });
+      } else {
+        toast({
+          title: 'Login Failed',
+          description: 'Invalid username or password',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Login Failed',
+        description: 'Unable to connect to server',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleGenerate = () => {
@@ -144,6 +171,7 @@ export default function AdminCodes() {
             <Button 
               onClick={handleLogin} 
               className="w-full"
+              disabled={!username || !password}
               data-testid="button-admin-login"
             >
               Login
