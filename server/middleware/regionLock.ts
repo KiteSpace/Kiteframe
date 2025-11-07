@@ -10,8 +10,8 @@ export async function requireUSOnly(
     const isUS = await geolocationService.isUSOnly(req);
     
     if (!isUS) {
-      res.status(403).json({ 
-        error: "Access Denied: This service is US only." 
+      res.status(500).json({ 
+        error: "Something went wrong. Contact web master for help." 
       });
       return;
     }
@@ -19,8 +19,8 @@ export async function requireUSOnly(
     next();
   } catch (error) {
     console.error('Region lock error:', error);
-    res.status(403).json({ 
-      error: "Could not verify location." 
+    res.status(500).json({ 
+      error: "Something went wrong. Contact web master for help." 
     });
   }
 }

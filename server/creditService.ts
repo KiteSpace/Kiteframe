@@ -171,7 +171,7 @@ export class CreditService {
         success: true,
         message: result.isUnlimited ? 'Successfully activated unlimited credits' : `Successfully added ${result.credits} credits`,
         credits: result.credits,
-        isUnlimited: result.isUnlimited,
+        isUnlimited: result.isUnlimited || false,
       };
     } catch (error: any) {
       if (error.message === 'INVALID_CODE') {
