@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 import kiteframeIcon from "@assets/kiteframe@2x_1758226635607.png";
 import { AuthButton } from "./AuthButton";
+import { CreditsWidget } from "./CreditsWidget";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -73,6 +74,9 @@ export function Toolbar({
       <div className="flex items-center gap-3">
         {/* Authentication */}
         <AuthButton />
+        
+        {/* AI Credits */}
+        <CreditsWidget />
         
         {/* Light/Dark Mode Toggle */}
         {onToggleDarkMode && (

@@ -101,10 +101,41 @@ export const workflowComments = pgTable("workflow_comments", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// User credits for AI usage tracking
+export const userCredits = pgTable("user_credits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userIdentifier: varchar("user_identifier").notNull().unique(), // Can be user ID or IP address
+  credits: integer("credits").notNull().default(10), // Default 10 free credits
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Unlock codes for resetting credits
+export const unlockCodes = pgTable("unlock_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: varchar("code").notNull().unique(),
+  creditsToAdd: integer("credits_to_add").notNull().default(10),
+  isUsed: boolean("is_used").default(false),
+  usedBy: varchar("used_by"), // User identifier who redeemed it
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   firstName: true,
   lastName: true,
+});
+
+export const insertUserCreditsSchema = createInsertSchema(userCredits).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUnlockCodeSchema = createInsertSchema(unlockCodes).omit({
+  id: true,
+  createdAt: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -118,3 +149,7 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = typeof chatMessages.$inferInsert;
 export type WorkflowComment = typeof workflowComments.$inferSelect;
 export type InsertWorkflowComment = typeof workflowComments.$inferInsert;
+export type UserCredits = typeof userCredits.$inferSelect;
+export type InsertUserCredits = z.infer<typeof insertUserCreditsSchema>;
+export type UnlockCode = typeof unlockCodes.$inferSelect;
+export type InsertUnlockCode = z.infer<typeof insertUnlockCodeSchema>;

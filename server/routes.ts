@@ -14,6 +14,9 @@ import {
 } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
+import { requireUSOnly } from "./middleware/regionLock";
+import { requireCredits } from "./middleware/creditCheck";
+import { creditService } from "./creditService";
 
 // Workflow validation utility
 function validateWorkflowStructure(data: any): { isValid: boolean; errors: string[]; warnings: string[] } {
@@ -212,7 +215,7 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // AI Chat endpoint - proxy for AI models with dynamic provider routing
-  app.post('/api/ai/chat', async (req, res) => {
+  app.post('/api/ai/chat', requireUSOnly, requireCredits, async (req, res) => {
     try {
       const { model, messages, temperature, maxTokens, provider, apiKey: clientApiKey } = req.body;
       
@@ -1154,7 +1157,7 @@ Respond with only the corrected JSON data:`;
   });
 
   // AI Image-to-Workflow Analysis endpoint
-  app.post("/api/ai/analyze-workflow-image", upload.single('image'), async (req, res) => {
+  app.post("/api/ai/analyze-workflow-image", requireUSOnly, requireCredits, upload.single('image'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No image file provided" });
@@ -1359,6 +1362,61 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       console.error('[Image Analysis] Error:', error);
       res.status(500).json({ 
         error: 'Failed to analyze workflow image', 
+        details: error.message 
+      });
+    }
+  });
+
+  // Get remaining AI credits
+  app.get('/api/credits', async (req, res) => {
+    try {
+      const userIdentifier = creditService.getUserIdentifier(req);
+      const credits = await creditService.getRemainingCredits(userIdentifier);
+      
+      res.json({
+        success: true,
+        credits,
+        userIdentifier,
+      });
+    } catch (error: any) {
+      console.error('Get credits error:', error);
+      res.status(500).json({ 
+        error: 'Failed to retrieve credits',
+        details: error.message 
+      });
+    }
+  });
+
+  // Redeem unlock code to get more AI credits
+  app.post('/api/credits/redeem', async (req, res) => {
+    try {
+      const { code } = req.body;
+      
+      if (!code || typeof code !== 'string' || code.trim() === '') {
+        return res.status(400).json({ 
+          error: 'Unlock code is required' 
+        });
+      }
+
+      const userIdentifier = creditService.getUserIdentifier(req);
+      const result = await creditService.redeemUnlockCode(code.trim(), userIdentifier);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          message: result.message,
+          credits: result.credits,
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: result.message,
+        });
+      }
+    } catch (error: any) {
+      console.error('Redeem code error:', error);
+      res.status(500).json({ 
+        error: 'Failed to redeem unlock code',
         details: error.message 
       });
     }
