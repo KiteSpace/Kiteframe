@@ -38,12 +38,12 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
   };
 
   const orientationClasses = orientation === 'horizontal' 
-    ? 'flex-row space-x-2' 
-    : 'flex-col space-y-2';
+    ? 'flex-row space-x-1' 
+    : 'flex-col space-y-1';
 
   return (
     <div
-      className={`absolute ${positionClasses[position]} bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 ${className}`}
+      className={`absolute ${positionClasses[position]} bg-white rounded-lg shadow-lg border border-gray-200 p-2 ${className}`}
       role="group"
       aria-label="Zoom controls"
       data-testid="zoom-controls"
@@ -53,7 +53,7 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
         <button
           onClick={onZoomIn}
           disabled={!canZoomIn}
-          className={`p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
+          className={`p-2 rounded hover:bg-gray-100 transition-colors ${
             !canZoomIn ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
           }`}
           title="Zoom In (Ctrl++)"
@@ -62,7 +62,7 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
           data-testid="zoom-in-button"
         >
           <svg
-            className="w-7 h-7"
+            className="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -80,7 +80,7 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
         <button
           onClick={onZoomOut}
           disabled={!canZoomOut}
-          className={`p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
+          className={`p-2 rounded hover:bg-gray-100 transition-colors ${
             !canZoomOut ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
           }`}
           title="Zoom Out (Ctrl+-)"
@@ -89,7 +89,7 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
           data-testid="zoom-out-button"
         >
           <svg
-            className="w-7 h-7"
+            className="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -106,14 +106,14 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
         {/* Zoom Reset */}
         <button
           onClick={onZoomReset}
-          className="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+          className="p-2 rounded hover:bg-gray-100 transition-colors cursor-pointer"
           title="Reset Zoom (Ctrl+0)"
           aria-label="Reset zoom to 100%"
           aria-keyshortcuts="Control+0"
           data-testid="zoom-reset-button"
         >
           <svg
-            className="w-7 h-7"
+            className="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -131,13 +131,13 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
         {onZoomToFit && (
           <button
             onClick={onZoomToFit}
-            className="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            className="p-2 rounded hover:bg-gray-100 transition-colors cursor-pointer"
             title="Fit to Screen"
             aria-label="Fit all content to screen"
             data-testid="zoom-fit-button"
           >
             <svg
-              className="w-7 h-7"
+              className="w-5 h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

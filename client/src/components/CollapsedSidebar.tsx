@@ -319,10 +319,10 @@ export function CollapsedSidebar({
 
   return (
     <TooltipProvider>
-      <div className="absolute left-4 top-4 bottom-4 w-20 flex flex-col bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg p-3" data-testid="collapsed-sidebar">
+      <div className="h-full flex flex-col bg-card border-r border-border p-2" data-testid="collapsed-sidebar">
 
         {/* Main Icons */}
-        <div className="space-y-3 mb-5">
+        <div className="space-y-2 mb-4">
           {mainIcons.map((iconKey) => {
             const IconComponent = sidebarIcons[iconKey];
             if (!IconComponent) return null;
@@ -339,18 +339,18 @@ export function CollapsedSidebar({
                     }}
                     onMouseDown={(e) => handleIconMouseDown(e, iconKey)}
                     className={`
-                      w-12 h-12 rounded-lg flex items-center justify-center transition-colors
+                      w-8 h-8 rounded-md flex items-center justify-center transition-colors
                       ${iconKey === 'brain'
                         ? 'bg-gradient-to-br from-purple-500 to-blue-600 text-white hover:from-purple-600 hover:to-blue-700'
                         : isActive(iconKey) 
                           ? 'bg-primary text-primary-foreground' 
-                          : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                          : 'hover:bg-accent'
                       }
                     `}
                     data-testid={`icon-${iconKey}`}
                     title={getTooltipText(iconKey)}
                   >
-                    <IconComponent className="w-6 h-6" />
+                    <IconComponent className="w-4 h-4" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right">
@@ -362,10 +362,10 @@ export function CollapsedSidebar({
         </div>
 
         {/* Divider */}
-        <div className="border-b border-gray-200 dark:border-gray-700 mb-5"></div>
+        <div className="border-b border-border mb-4"></div>
 
         {/* Template and Theme Icons */}
-        <div className="space-y-3 mb-5">
+        <div className="space-y-2 mb-4">
           {templateThemeIcons.map((iconKey) => {
             const IconComponent = sidebarIcons[iconKey];
             if (!IconComponent) return null;
@@ -379,16 +379,16 @@ export function CollapsedSidebar({
                       handleIconClick(iconKey);
                     }}
                     className={`
-                      w-12 h-12 rounded-lg flex items-center justify-center transition-colors
+                      w-8 h-8 rounded-md flex items-center justify-center transition-colors
                       ${isActive(iconKey) 
                         ? 'bg-primary text-primary-foreground' 
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                        : 'hover:bg-accent'
                       }
                     `}
                     data-testid={`icon-${iconKey}`}
                     title={getTooltipText(iconKey)}
                   >
-                    <IconComponent className="w-6 h-6" />
+                    <IconComponent className="w-4 h-4" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right">
@@ -400,10 +400,10 @@ export function CollapsedSidebar({
         </div>
 
         {/* Divider */}
-        <div className="border-b border-gray-200 dark:border-gray-700 mb-5"></div>
+        <div className="border-b border-border mb-4"></div>
 
         {/* Action Icons */}
-        <div className="space-y-3 flex-1">
+        <div className="space-y-2 flex-1">
           {actionIcons.map((iconKey) => {
             const IconComponent = sidebarIcons[iconKey];
             if (!IconComponent) return null;
@@ -413,11 +413,11 @@ export function CollapsedSidebar({
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => handleIconClick(iconKey)}
-                    className="w-12 h-12 rounded-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-accent transition-colors"
                     data-testid={`action-${iconKey}`}
                     title={getTooltipText(iconKey)}
                   >
-                    <IconComponent className="w-6 h-6" />
+                    <IconComponent className="w-4 h-4" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right">

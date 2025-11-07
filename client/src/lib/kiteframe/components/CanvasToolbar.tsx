@@ -36,7 +36,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 
   return (
     <div
-      className={`absolute ${positionClasses} ${alignmentClasses[alignment]} bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 px-3 py-2 flex items-center space-x-2 ${className}`}
+      className={`absolute ${positionClasses} ${alignmentClasses[alignment]} bg-white rounded-lg shadow-lg border border-gray-200 px-2 py-1 flex items-center space-x-1 ${className}`}
       role="toolbar"
       aria-label="Canvas toolbar"
       aria-orientation="horizontal"
@@ -47,7 +47,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
           return (
             <div
               key={`separator-${index}`}
-              className="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-1"
+              className="w-px h-6 bg-gray-300 mx-1"
               role="separator"
               aria-orientation="vertical"
             />
@@ -64,16 +64,16 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
             aria-pressed={action.active}
             role="button"
             tabIndex={action.disabled ? -1 : 0}
-            className={`p-3 rounded-lg transition-colors ${
+            className={`p-2 rounded transition-colors ${
               action.active
-                ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300'
+                ? 'bg-blue-100 text-blue-600'
                 : action.disabled
                 ? 'opacity-50 cursor-not-allowed text-gray-400'
-                : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 cursor-pointer'
+                : 'hover:bg-gray-100 text-gray-700 cursor-pointer'
             }`}
             data-testid={`toolbar-action-${action.id}`}
           >
-            <div className="w-7 h-7 flex items-center justify-center" aria-hidden="true">
+            <div className="w-5 h-5 flex items-center justify-center" aria-hidden="true">
               {action.icon}
             </div>
           </button>
