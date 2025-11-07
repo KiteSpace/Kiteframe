@@ -3045,9 +3045,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Sidebar */}
-          <div className={`${isSidebarCollapsed ? 'w-12' : 'w-64'} border-r border-border flex flex-col transition-all duration-200 ${isSidebarCollapsed ? 'overflow-visible' : 'overflow-hidden'}`}>
+        <div className="flex-1 flex overflow-hidden relative">
+          {/* Sidebar - now takes no layout space, uses absolute positioning */}
+          <div className={`${isSidebarCollapsed ? 'w-0' : 'w-0'} transition-all duration-200`}>
             {isSidebarCollapsed ? (
               <>
                 <CollapsedSidebar

@@ -547,20 +547,20 @@ export function Sidebar({
   return (
     <>
       <aside
-        className="w-64 p-4 bg-card border-r border-border shadow-sm flex flex-col h-full overflow-hidden"
+        className="absolute left-4 top-4 bottom-4 w-72 p-5 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg flex flex-col overflow-hidden"
         data-testid="sidebar"
       >
         {/* Sidebar Header with Collapse Button */}
         {onToggleSidebar && (
-          <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
-            <h2 className="text-sm font-semibold text-foreground">Tools</h2>
+          <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-base font-semibold text-foreground">Tools</h2>
             <button
               onClick={onToggleSidebar}
-              className="p-1 rounded-md hover:bg-accent transition-colors"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               data-testid="collapse-sidebar"
               title="Collapse Sidebar"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={24} />
             </button>
           </div>
         )}
