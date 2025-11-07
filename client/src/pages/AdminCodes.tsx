@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Key, Shield } from 'lucide-react';
+import { Copy, Key, Shield, Ban, RotateCcw } from 'lucide-react';
 
 interface UnlockCode {
   id: string;
@@ -18,6 +18,7 @@ interface UnlockCode {
   grantsUnlimited: boolean;
   notes: string | null;
   isUsed: boolean;
+  isRevoked: boolean;
   usedBy: string | null;
   usedAt: string | null;
   createdAt: string;
@@ -78,6 +79,35 @@ export default function AdminCodes() {
       toast({
         title: 'Error',
         description: error.message || 'Failed to generate code',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: async (data: { codeId: string; revoke: boolean }) => {
+      const response = await fetch(`/internal/ops-codes/revoke/${data.codeId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ revoke: data.revoke }),
+      });
+      if (!response.ok) throw new Error('Failed to update code');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/internal/ops-codes/list'] });
+      toast({
+        title: 'Success',
+        description: data.message,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update code',
         variant: 'destructive',
       });
     },
@@ -283,7 +313,11 @@ export default function AdminCodes() {
                             {code.creditsToAdd} Credits
                           </Badge>
                         )}
-                        {code.isUsed ? (
+                        {code.isRevoked ? (
+                          <Badge variant="destructive" data-testid={`badge-revoked-${code.id}`}>
+                            Revoked
+                          </Badge>
+                        ) : code.isUsed ? (
                           <Badge variant="destructive" data-testid={`badge-used-${code.id}`}>
                             Used by {code.usedBy}
                           </Badge>
@@ -301,6 +335,31 @@ export default function AdminCodes() {
                       <p className="text-xs text-muted-foreground" data-testid={`text-created-${code.id}`}>
                         Created: {new Date(code.createdAt).toLocaleString()}
                       </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {code.isRevoked ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => revokeMutation.mutate({ codeId: code.id, revoke: false })}
+                          disabled={revokeMutation.isPending}
+                          data-testid={`button-restore-${code.id}`}
+                        >
+                          <RotateCcw className="w-4 h-4 mr-1" />
+                          Restore
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => revokeMutation.mutate({ codeId: code.id, revoke: true })}
+                          disabled={revokeMutation.isPending}
+                          data-testid={`button-revoke-${code.id}`}
+                        >
+                          <Ban className="w-4 h-4 mr-1" />
+                          Revoke
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
