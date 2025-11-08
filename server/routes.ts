@@ -436,6 +436,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Wireframe Generation endpoint - generate SVG wireframes for workflow nodes
+  app.post('/api/generate-wireframe', requireUSOnly, requireCredits, async (req, res) => {
+    try {
+      const { label, description, nodeType } = req.body;
+      
+      if (!label || !nodeType) {
+        return res.status(400).json({ error: 'Node label and type are required' });
+      }
+
+      // Create prompt for wireframe generation
+      const prompt = `Create a simple, clean SVG wireframe mockup for a UI component representing "${label}".
+
+Node Type: ${nodeType}
+Description: ${description || 'No description provided'}
+
+Requirements:
+- Generate ONLY the SVG code, no explanations
+- Use a 400x300 viewBox
+- Use simple shapes (rectangles, circles, lines, text)
+- Use grayscale colors (#333, #666, #999, #ddd, #f5f5f5)
+- Include placeholder text and UI elements appropriate for this type of component
+- Make it look like a professional wireframe mockup
+- Keep it simple and clean
+
+Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
+
+      // Use OpenAI to generate the wireframe
+      const endpoint = 'https://api.openai.com/v1/chat/completions';
+      const apiKey = process.env.OPENAI_API_KEY;
+      
+      if (!apiKey) {
+        return res.status(401).json({ error: 'OpenAI API key not configured' });
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a UI/UX designer that creates clean, simple SVG wireframes. Always return ONLY SVG code, nothing else.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 2000
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('OpenAI wireframe generation error:', error);
+        return res.status(response.status).json({ 
+          error: 'Failed to generate wireframe',
+          details: error
+        });
+      }
+
+      const json = await response.json();
+      const svgContent = json.choices?.[0]?.message?.content || '';
+      
+      // Extract SVG from response (in case there's extra text)
+      const svgMatch = svgContent.match(/<svg[\s\S]*<\/svg>/i);
+      const svg = svgMatch ? svgMatch[0] : svgContent;
+      
+      // Track analytics
+      const userIdentifier = creditService.getUserIdentifier(req);
+      let country: string | undefined;
+      try {
+        const geoResult = await geolocationService.getCountryCode(req);
+        country = geoResult.country;
+      } catch (error) {
+        country = undefined;
+      }
+      analyticsService.trackAIRequest(userIdentifier, country, 'openai').catch(console.error);
+      
+      res.json({ svg });
+    } catch (error: any) {
+      console.error('Wireframe generation error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // AI Test endpoint - validate API key and model compatibility
   app.post('/api/ai/test', async (req, res) => {
     try {

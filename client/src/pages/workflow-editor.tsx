@@ -956,6 +956,129 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     ));
   }, [activeTabId]);
 
+  // Track wireframe generation loading state
+  const [generatingWireframe, setGeneratingWireframe] = useState(false);
+
+  // Wireframe generation handler
+  useEffect(() => {
+    const handleGenerateWireframe = async (event: any) => {
+      const { nodeId, node } = event.detail;
+      
+      if (!node || generatingWireframe) {
+        // Ignore if already generating or no node provided
+        if (generatingWireframe) {
+          toast({
+            title: 'Please wait',
+            description: 'Wireframe generation in progress...',
+          });
+        }
+        return;
+      }
+
+      try {
+        setGeneratingWireframe(true);
+        
+        // Show loading toast
+        toast({
+          title: 'Generating wireframe...',
+          description: `Creating mockup for "${node.data?.label || 'node'}"`,
+        });
+
+        // Call the wireframe generation API
+        const response = await fetch('/api/generate-wireframe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            label: node.data?.label || 'Untitled',
+            description: node.data?.description || '',
+            nodeType: node.type || 'basic',
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Failed to generate wireframe' }));
+          throw new Error(errorData.error || 'Failed to generate wireframe');
+        }
+
+        const { svg } = await response.json();
+
+        // Convert SVG to data URL with proper encoding for non-ASCII characters
+        const svgDataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+
+        // Create a new image node next to the source node
+        const newImageNode: Node = {
+          id: `image-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: 'image',
+          position: {
+            x: node.position.x + (node.width || 200) + 50, // Position to the right with some spacing
+            y: node.position.y,
+          },
+          data: {
+            label: `${node.data?.label || 'Node'} Mockup`,
+            description: 'AI-generated wireframe',
+            src: svgDataUrl,
+            filename: `${node.data?.label || 'wireframe'}.svg`,
+            sourceType: 'data',
+            imageSize: 'contain',
+            autoHeight: true,
+          },
+          width: 400,
+          height: 300,
+          draggable: true,
+          selectable: true,
+          resizable: true,
+          showHandles: true,
+        };
+
+        // Add the new image node to the canvas
+        const currentTab = tabs.find(tab => tab.id === activeTabId);
+        if (currentTab) {
+          const currentNodes = currentTab.nodes;
+          
+          // Save to history first
+          const currentState = {
+            nodes: currentNodes,
+            edges: currentTab.edges,
+            canvasObjects: currentTab.canvasObjects || [],
+            viewport: currentTab.viewport
+          };
+          
+          // Add to history
+          const newHistory = currentTab.history.slice(0, currentTab.historyIndex + 1);
+          newHistory.push(currentState);
+          
+          // Update with new node
+          updateActiveTab({
+            nodes: [...currentNodes, newImageNode],
+            history: newHistory,
+            historyIndex: newHistory.length - 1,
+          });
+
+          toast({
+            title: 'Wireframe generated!',
+            description: 'AI-generated mockup added to canvas',
+          });
+        }
+      } catch (error: any) {
+        console.error('Wireframe generation error:', error);
+        toast({
+          title: 'Generation failed',
+          description: error.message || 'Failed to generate wireframe. Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setGeneratingWireframe(false);
+      }
+    };
+
+    window.addEventListener('generateWireframe', handleGenerateWireframe);
+    return () => {
+      window.removeEventListener('generateWireframe', handleGenerateWireframe);
+    };
+  }, [tabs, activeTabId, toast, updateActiveTab, generatingWireframe]);
+
   // Theme change detection for text color updates using MutationObserver
   useEffect(() => {
     if (!activeTab) return;

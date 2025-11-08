@@ -29,6 +29,7 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
   const [editDescriptionValue, setEditDescriptionValue] = useState(
     node.data.description || "",
   );
+  const [isHovering, setIsHovering] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -202,6 +203,15 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
     );
   }, [colors.borderColor, node.id]);
 
+  const handleMockupClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Emit custom event for wireframe generation
+    const event = new CustomEvent('generateWireframe', {
+      detail: { nodeId: node.id, node }
+    });
+    window.dispatchEvent(event);
+  }, [node]);
+
   return (
     <div
       ref={nodeRef}
@@ -220,6 +230,8 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
       aria-selected={node.selected}
       tabIndex={node.selected ? 0 : -1}
       onDoubleClick={handleDoubleClick}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
       data-testid={`basic-node-${node.id}`}
     >
       {/* Header */}
@@ -338,6 +350,19 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
           minWidth={150}
           minHeight={80}
         />
+      )}
+
+      {/* Mockup Button (appears on hover in lower left) */}
+      {isHovering && !isEditing && !isEditingDescription && (
+        <button
+          onClick={handleMockupClick}
+          className="absolute -bottom-10 left-0 bg-white dark:bg-gray-800 border-2 border-blue-500 rounded-lg px-3 py-1.5 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 z-50"
+          data-testid={`mockup-button-${node.id}`}
+          style={{ position: 'absolute' }}
+        >
+          <span className="text-base">✨</span>
+          <span>Mockup</span>
+        </button>
       )}
     </div>
   );

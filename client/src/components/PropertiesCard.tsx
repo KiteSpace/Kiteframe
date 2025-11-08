@@ -316,6 +316,27 @@ export function PropertiesCard({
               />
             </div>
 
+            {/* Mockup Wireframe Button */}
+            {selectedNode.type !== "image" && (
+              <div className="pt-2">
+                <Button
+                  onClick={() => {
+                    const event = new CustomEvent('generateWireframe', {
+                      detail: { nodeId: selectedNode.id, node: selectedNode }
+                    });
+                    window.dispatchEvent(event);
+                  }}
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-md hover:shadow-lg transition-all"
+                  data-testid="mockup-wireframe-button"
+                >
+                  <span className="mr-2 text-base">✨</span>
+                  Mockup wireframe
+                </Button>
+              </div>
+            )}
+
+            <Separator />
+
             {/* Image Node Specific Properties */}
             {selectedNode.type === "image" && (
               <>
