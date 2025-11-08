@@ -321,7 +321,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         aria-label="Image content"
       >
         {hasImage && !isUploading ? (
-          <div className="relative w-full">
+          <div className="relative w-full cursor-move">
             <img
               ref={imgRef}
               src={node.data.src}
