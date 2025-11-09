@@ -248,20 +248,6 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       ...filteredStyle
     };
     
-    console.log('🎨 ImageNode position rendering:', {
-      nodeId: node.id,
-      label: node.data.label,
-      position: node.position,
-      nodeWidth,
-      nodeHeight,
-      passedStyle: style,
-      filteredStyle,
-      finalStyles: positionStyles,
-      removedKeys: style ? Object.keys(style).filter(k => 
-        ['position', 'left', 'top', 'right', 'bottom', 'transform', 'width', 'height'].includes(k)
-      ) : []
-    });
-    
     return getDynamicClassName(positionStyles, `image-node-${node.id}`);
   }, [node.position.x, node.position.y, nodeWidth, nodeHeight, node.zIndex, node.id, style, node.data.label]);
 
