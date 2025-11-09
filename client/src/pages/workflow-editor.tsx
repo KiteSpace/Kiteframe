@@ -1027,15 +1027,36 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
           height: 300,
         };
 
-        // Add the new image node to the canvas
+        // Create auto-connection edge from source node to wireframe mockup
+        const newEdge: Edge = {
+          id: `edge-wireframe-${Date.now()}`,
+          source: node.id,
+          target: newImageNode.id,
+          type: 'straight',
+          style: {
+            strokeColor: '#9333ea', // Purple color for mockup connections
+            strokeWidth: 2,
+            strokeDasharray: '5,5', // Dashed line
+          },
+          markers: {
+            type: 'circle',
+            position: 'end',
+          },
+          label: 'mockup',
+          reconnectable: true,
+          interactable: true,
+        };
+
+        // Add the new image node and edge to the canvas
         const currentTab = tabs.find(tab => tab.id === activeTabId);
         if (currentTab) {
           const currentNodes = currentTab.nodes;
+          const currentEdges = currentTab.edges;
           
           // Save to history first
           const currentState = {
             nodes: currentNodes,
-            edges: currentTab.edges,
+            edges: currentEdges,
             canvasObjects: currentTab.canvasObjects || [],
             viewport: currentTab.viewport
           };
@@ -1044,9 +1065,10 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
           const newHistory = currentTab.history.slice(0, currentTab.historyIndex + 1);
           newHistory.push(currentState);
           
-          // Update with new node
+          // Update with new node and edge
           updateActiveTab({
             nodes: [...currentNodes, newImageNode],
+            edges: [...currentEdges, newEdge],
             history: newHistory,
             historyIndex: newHistory.length - 1,
           });

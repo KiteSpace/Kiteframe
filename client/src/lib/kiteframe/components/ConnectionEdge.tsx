@@ -315,27 +315,30 @@ export const ConnectionEdge: React.FC<{
         }}
       />
       
-      {/* Edge label */}
+      {/* Edge label with enhanced styling */}
       {edge.label && (
-        <g>
-          {edge.labelStyle?.backgroundColor && (
-            <rect
-              x={(s.x + t.x) / 2 - (edge.label.length * 4)}
-              y={(s.y + t.y) / 2 - 8}
-              width={edge.label.length * 8}
-              height={16}
-              fill={edge.labelStyle.backgroundColor}
-              rx={edge.labelStyle.borderRadius || 4}
-            />
-          )}
+        <g style={{ zIndex: 100 }}>
+          {/* Label background with node body color and edge-colored border */}
+          <rect
+            x={(s.x + t.x) / 2 - (edge.label.length * 4 + 6)}
+            y={(s.y + t.y) / 2 - 10}
+            width={edge.label.length * 8 + 12}
+            height={20}
+            fill={targetNode.data?.colors?.bodyBackground || edge.labelStyle?.backgroundColor || '#ffffff'}
+            stroke={strokeColor}
+            strokeWidth={1.5}
+            rx={edge.labelStyle?.borderRadius || 4}
+            style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }}
+          />
           <text 
             x={(s.x + t.x) / 2} 
             y={(s.y + t.y) / 2} 
             textAnchor="middle" 
             dominantBaseline="middle"
-            fontSize={edge.labelStyle?.fontSize || 10}
-            fill={edge.labelStyle?.fontColor || '#64748b'}
-            fontWeight={edge.labelStyle?.fontWeight || 'normal'}
+            fontSize={edge.labelStyle?.fontSize || 11}
+            fill={targetNode.data?.colors?.bodyTextColor || edge.labelStyle?.fontColor || '#64748b'}
+            fontWeight={edge.labelStyle?.fontWeight || '500'}
+            style={{ userSelect: 'none' }}
           >
             {edge.label}
           </text>
