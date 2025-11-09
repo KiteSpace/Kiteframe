@@ -231,7 +231,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   }, [node.data.imageSize]);
 
   const nodePositionClass = useMemo(() => {
-    return getDynamicClassName({
+    const positionStyles = {
       position: 'absolute',
       left: `${node.position.x}px`,
       top: `${node.position.y}px`,
@@ -239,8 +239,22 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       height: `${nodeHeight}px`,
       zIndex: node.zIndex || 0,
       ...style
-    }, `image-node-${node.id}`);
-  }, [node.position.x, node.position.y, nodeWidth, nodeHeight, node.zIndex, node.id, style]);
+    };
+    
+    console.log('🎨 ImageNode position rendering:', {
+      nodeId: node.id,
+      label: node.data.label,
+      position: node.position,
+      nodeWidth,
+      nodeHeight,
+      passedStyle: style,
+      finalStyles: positionStyles,
+      hasTransform: 'transform' in positionStyles,
+      transform: (positionStyles as any).transform
+    });
+    
+    return getDynamicClassName(positionStyles, `image-node-${node.id}`);
+  }, [node.position.x, node.position.y, nodeWidth, nodeHeight, node.zIndex, node.id, style, node.data.label]);
 
   const borderClass = useMemo(() => {
     return getDynamicClassName({ borderColor: colors.borderColor }, `image-border-${node.id}`);
