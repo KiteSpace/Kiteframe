@@ -1022,14 +1022,9 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
             filename: `${node.data?.label || 'wireframe'}.svg`,
             sourceType: 'data',
             imageSize: 'contain',
-            autoHeight: true,
           },
           width: 400,
           height: 300,
-          draggable: true,
-          selectable: true,
-          resizable: true,
-          showHandles: true,
         };
 
         // Add the new image node to the canvas
