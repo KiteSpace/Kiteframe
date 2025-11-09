@@ -318,13 +318,13 @@ export const ConnectionEdge: React.FC<{
       {/* Edge label with enhanced styling */}
       {edge.label && (
         <g style={{ zIndex: 100 }}>
-          {/* Label background with node body color and edge-colored border */}
+          {/* Label background with source node body color and edge-colored border */}
           <rect
             x={(s.x + t.x) / 2 - (edge.label.length * 4 + 6)}
             y={(s.y + t.y) / 2 - 10}
             width={edge.label.length * 8 + 12}
             height={20}
-            fill={targetNode.data?.colors?.bodyBackground || edge.labelStyle?.backgroundColor || '#ffffff'}
+            fill={sourceNode.data?.colors?.bodyBackground || edge.labelStyle?.backgroundColor || '#ffffff'}
             stroke={strokeColor}
             strokeWidth={1.5}
             rx={edge.labelStyle?.borderRadius || 4}
@@ -336,7 +336,7 @@ export const ConnectionEdge: React.FC<{
             textAnchor="middle" 
             dominantBaseline="middle"
             fontSize={edge.labelStyle?.fontSize || 11}
-            fill={targetNode.data?.colors?.bodyTextColor || edge.labelStyle?.fontColor || '#64748b'}
+            fill={sourceNode.data?.colors?.bodyTextColor || edge.labelStyle?.fontColor || '#64748b'}
             fontWeight={edge.labelStyle?.fontWeight || '500'}
             style={{ userSelect: 'none' }}
           >
