@@ -111,7 +111,7 @@ export function Toolbar({
             <Settings size={16} />
           </button>
           {showSettingsDropdown && (
-            <div className="absolute right-0 top-full mt-1 w-64 bg-card border border-border rounded-lg shadow-lg z-50 p-3">
+            <div className="absolute right-0 top-full mt-1 w-64 bg-card border border-border rounded-lg shadow-lg z-[100] p-3">
               {/* AI Settings Button */}
               <button
                 className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2 rounded-lg mb-3"
