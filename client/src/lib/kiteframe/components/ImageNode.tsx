@@ -231,6 +231,13 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   }, [node.data.imageSize]);
 
   const nodePositionClass = useMemo(() => {
+    // Filter out positioning properties from style prop to prevent coordinate system conflicts
+    const filteredStyle = style ? Object.fromEntries(
+      Object.entries(style).filter(([key]) => 
+        !['position', 'left', 'top', 'right', 'bottom', 'transform', 'width', 'height'].includes(key)
+      )
+    ) : {};
+    
     const positionStyles = {
       position: 'absolute',
       left: `${node.position.x}px`,
@@ -238,7 +245,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       width: `${nodeWidth}px`,
       height: `${nodeHeight}px`,
       zIndex: node.zIndex || 0,
-      ...style
+      ...filteredStyle
     };
     
     console.log('🎨 ImageNode position rendering:', {
@@ -248,9 +255,11 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       nodeWidth,
       nodeHeight,
       passedStyle: style,
+      filteredStyle,
       finalStyles: positionStyles,
-      hasTransform: 'transform' in positionStyles,
-      transform: (positionStyles as any).transform
+      removedKeys: style ? Object.keys(style).filter(k => 
+        ['position', 'left', 'top', 'right', 'bottom', 'transform', 'width', 'height'].includes(k)
+      ) : []
     });
     
     return getDynamicClassName(positionStyles, `image-node-${node.id}`);

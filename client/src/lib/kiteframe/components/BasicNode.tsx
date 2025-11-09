@@ -171,6 +171,13 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
 
   // Get dynamic class for node positioning and dimensions
   const nodePositionClass = useMemo(() => {
+    // Filter out positioning properties from style prop to prevent coordinate system conflicts
+    const filteredStyle = style ? Object.fromEntries(
+      Object.entries(style).filter(([key]) => 
+        !['position', 'left', 'top', 'right', 'bottom', 'transform', 'width', 'height'].includes(key)
+      )
+    ) : {};
+    
     return getDynamicClassName(
       {
         position: "absolute",
@@ -179,7 +186,7 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
         width: `${nodeWidth}px`,
         height: `${nodeHeight}px`,
         zIndex: node.zIndex || 0,
-        ...style,
+        ...filteredStyle,
       },
       `basic-node-${node.id}`,
     );
