@@ -1,0 +1,805 @@
+================================================================================
+AI IMPLEMENTATION DOCUMENTATION
+Current AI System and Prompt Modal Implementation
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1. Overview
+2. Frontend Implementation
+   2.1 Type Definitions (ai/types.ts)
+   2.2 AI Client (ai/OpenAICompatClient.ts)
+   2.3 AI Provider (ai/AiProvider.tsx)
+   2.4 AI Workflow Generator Modal (components/AiWorkflowGenerator.tsx)
+   2.5 AI Settings Modal (components/AiSettingsModal.tsx)
+3. Backend Implementation (server/routes.ts)
+   3.1 AI Chat Endpoint
+   3.2 Wireframe Generation Endpoint
+   3.3 AI Test Endpoint
+4. Integration in Main App (pages/workflow-editor.tsx)
+5. How to Use
+
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The application includes a comprehensive AI system that allows users to:
+- Generate workflows from text prompts
+- Analyze and generate workflows from uploaded images
+- Configure AI provider settings (OpenAI, Custom endpoints)
+- Test AI connections
+- Generate wireframe mockups for workflow nodes
+
+Key Features:
+- Multi-provider support (OpenAI, Custom endpoints, Ollama, Kiteframe)
+- Fallback handling for failed generations
+- API key management with localStorage persistence
+- Temperature and model configuration
+- Image-to-workflow conversion with confidence scoring
+- Credit-based usage tracking
+- Region-locked to US only
+
+
+================================================================================
+2. FRONTEND IMPLEMENTATION
+================================================================================
+
+2.1 TYPE DEFINITIONS (client/src/ai/types.ts)
+----------------------------------------------
+
+export type AiMessage = { 
+  role: 'system'|'user'|'assistant'|'tool'; 
+  content: string 
+};
+
+export type AiRequest = { 
+  model?: string; 
+  messages: AiMessage[]; 
+  temperature?: number; 
+  maxTokens?: number; 
+  stream?: boolean 
+};
+
+export type AiResponse = { 
+  text: string 
+};
+
+export interface AiClient {
+  chat(req: AiRequest): Promise<AiResponse>;
+  stream?(req: AiRequest, onToken: (t:string)=>void): Promise<void>;
+}
+
+
+================================================================================
+2.2 AI CLIENT (client/src/ai/OpenAICompatClient.ts)
+----------------------------------------------------
+
+The OpenAICompatClient class implements the AiClient interface.
+
+Key Responsibilities:
+- Load AI settings from localStorage
+- Handle provider selection (OpenAI, custom)
+- Determine appropriate model
+- Route requests through /api/ai/chat endpoint
+- Parse error responses
+
+Constructor:
+OpenAICompatClient(opts: {
+  baseURL: string;
+  apiKey?: string;
+  headers?: Record<string,string>;
+  defaultModel?: string;
+})
+
+Main Method - async chat(req: AiRequest): Promise<AiResponse>
+
+Flow:
+1. Read saved settings from localStorage key: 'ai_settings'
+2. Parse settings to get provider, model, apiKey
+3. Send request to /api/ai/chat with:
+   - model: from request or saved settings or default 'gpt-4o'
+   - messages: user provided
+   - temperature: 0.7 default
+   - maxTokens: 1024 default
+   - provider: from settings
+   - apiKey: from settings (for custom providers)
+4. Handle response or throw error
+
+Settings Structure (localStorage):
+{
+  provider: 'openai' | 'custom' | 'anthropic' | 'ollama' | 'kiteframe',
+  model: 'gpt-4o' | 'gpt-4o-mini' | 'gpt-4' | 'gpt-3.5-turbo' | 'custom',
+  customModel?: string,
+  apiKey: string,
+  temperature: number (0-1),
+  customEndpoint?: string
+}
+
+
+================================================================================
+2.3 AI PROVIDER (client/src/ai/AiProvider.tsx)
+-----------------------------------------------
+
+React Context Provider Pattern
+
+Components:
+1. AiProvider Component - Wraps app with context
+2. useAi() Hook - Access AI client in any component
+
+Code:
+const Ctx = createContext<AiClient | null>(null);
+export const AiProvider: React.FC<{ 
+  client: AiClient; 
+  children: React.ReactNode 
+}> = ({ client, children }) => (
+  <Ctx.Provider value={client}>{children}</Ctx.Provider>
+);
+
+export function useAi() {
+  const ctx = useContext(Ctx); 
+  if(!ctx) throw new Error('useAi must be used within <AiProvider>'); 
+  return ctx;
+}
+
+Usage Example:
+const aiClient = useAi();
+const response = await aiClient.chat({
+  messages: [
+    { role: 'system', content: 'You are a helpful assistant' },
+    { role: 'user', content: 'Hello!' }
+  ],
+  temperature: 0.7,
+  maxTokens: 1024
+});
+console.log(response.text);
+
+
+================================================================================
+2.4 AI WORKFLOW GENERATOR MODAL (components/AiWorkflowGenerator.tsx)
+---------------------------------------------------------------------
+
+Comprehensive modal component for generating workflows using AI.
+
+Two Operating Modes:
+1. TEXT PROMPT MODE
+2. IMAGE UPLOAD MODE
+
+TEXT PROMPT MODE FEATURES:
+- Text input field for workflow description
+- Example prompts that users can click to populate input
+- Ctrl+Enter keyboard shortcut for generation
+- Real-time prompt state management
+
+Example Prompts:
+- "Create an e-commerce order processing workflow"
+- "Build a content moderation system with AI review"
+- "Design a customer support ticket routing system"
+
+IMAGE UPLOAD MODE FEATURES:
+- Drag-and-drop file upload
+- Click to browse files
+- Image preview
+- File size validation (max 10MB)
+- File type validation (PNG, JPG, GIF only)
+- Image analysis via /api/ai/analyze-workflow-image
+- Confidence scoring
+- Recommendations based on analysis
+- Generate workflow from analysis results
+
+ImageAnalysisResult Type:
+{
+  success: boolean,
+  confidence: number (0-100),
+  canGenerate: boolean,
+  analysis: string,
+  nodes: Node[],
+  edges: Edge[],
+  recommendations: string[],
+  metadata: {
+    originalFileName: string,
+    fileSize: number,
+    analysisTimestamp: string
+  }
+}
+
+GENERATION PROCESS:
+
+Text Prompt Generation:
+1. User enters prompt and clicks "Generate Workflow"
+2. System Prompt is sent to AI:
+   "ONLY return JSON. No text before or after. Just JSON.
+   Format: {"nodes":[{"id":"node-1","type":"input",...}],"edges":[...]}
+   Types: input, process, output
+   Icons: input=ArrowRight, process=Cog, output=ArrowLeft
+   Colors: input=text-blue-500, process=text-green-500, output=text-red-500
+   Position nodes 250px apart horizontally."
+3. AI generates JSON workflow structure
+4. Response is cleaned and parsed:
+   - Remove markdown code blocks (```json, ```)
+   - Remove text before first {
+   - Find last closing }
+   - Extract JSON from wrapped text
+5. Multiple parsing attempts with fallbacks:
+   a. Try direct JSON.parse()
+   b. If fails: Apply JSON fixes
+      - Remove trailing commas
+      - Fix missing commas between elements
+      - Fix unquoted keys
+      - Convert single quotes to double quotes
+      - Fix incomplete arrays/objects
+      - Balance brackets
+   c. If still fails: Use fallback workflow
+6. Validate workflow structure (nodes and edges arrays exist)
+7. Return parsed workflow or fallback
+
+Image Analysis Generation:
+1. User uploads image
+2. POST /api/ai/analyze-workflow-image with FormData containing image
+3. Backend analyzes image using vision API
+4. Returns analysis with confidence score
+5. User reviews results
+6. If confident enough (can recommend >70%), user can generate
+
+Fallback Workflow (when parsing fails):
+- 3-node simple workflow (Start → Process → Complete)
+- Input node at x:300, y:250
+- Process node at x:550, y:250
+- Output node at x:800, y:250
+- 2 connecting bezier edges
+- Shows toast notifying user: "Basic Workflow Created"
+
+Error Handling:
+- Empty prompt validation
+- Image file type validation
+- Image size validation
+- Parse errors with detailed logging
+- Network errors with retry guidance
+- API errors (401, 429, 500) with specific messages
+
+States Managed:
+- mode: 'text' | 'image' (current tab)
+- prompt: string (text input)
+- isGenerating: boolean (loading state for generation)
+- isAnalyzing: boolean (loading state for image analysis)
+- selectedImage: File | null
+- imagePreview: string | null (base64)
+- analysisResult: ImageAnalysisResult | null
+- dragActive: boolean (for drag-over styling)
+- error: string | null
+
+Props:
+interface AiWorkflowGeneratorProps {
+  onClose: () => void;           // Close modal
+  onGenerate: (workflow: {       // Handle generated workflow
+    nodes: Node[], 
+    edges: Edge[] 
+  }) => void;
+}
+
+
+================================================================================
+2.5 AI SETTINGS MODAL (components/AiSettingsModal.tsx)
+-------------------------------------------------------
+
+Modal for configuring AI provider and model settings.
+
+SETTINGS STRUCTURE:
+{
+  provider: 'openai' | 'custom',
+  model: 'gpt-4o' | 'gpt-4o-mini' | 'gpt-4' | 'gpt-3.5-turbo' | 'custom',
+  customModel?: string,
+  apiKey: string,
+  temperature: number (0-1),
+  customEndpoint?: string
+}
+
+PROVIDER OPTIONS:
+
+OpenAI (Standard Privacy):
+- Latest model: GPT-4o (default)
+- Alternative models: GPT-4o Mini, GPT-4, GPT-3.5 Turbo
+- No API key needed (uses server-side key)
+- Established privacy policies
+- Cloud-based processing
+
+Custom Endpoint (Maximum Privacy):
+- Connect to your own server
+- Support for Ollama servers
+- Support for other self-hosted AI
+- Optional API key for authenticated endpoints
+- Zero external data sharing
+- Format examples:
+  * https://ollama.your-domain.com
+  * http://192.168.1.100:11434
+  * https://your-server.ngrok.io
+
+MODEL SELECTION LOGIC:
+- OpenAI provider: Show fixed list (latest GPT models)
+- Custom provider: Allow custom model name input
+- Custom model option: Enter any model name
+
+TEMPERATURE SLIDER:
+- Range: 0 to 1
+- Default: 0.7
+- 0 = Focused (deterministic)
+- 1 = Creative (random)
+
+PERSISTENCE:
+- localStorage key: 'ai_settings'
+- Settings auto-load on modal open
+- Settings auto-save on "Save Settings" click
+
+MIGRATION LOGIC:
+- Migration key: 'ai_settings_force_gpt4o_jan2025' (one-time)
+- Auto-update old providers (anthropic, ollama, kiteframe) to OpenAI
+- Auto-update invalid/deprecated models to gpt-4o
+
+QUICK TEST FEATURE:
+- Tests connection to AI provider
+- POST /api/ai/test endpoint
+- Shows connection status
+- Validates API key format before sending
+- Displays user-friendly success/error messages
+
+Validation:
+- OpenAI keys: Must start with "sk-"
+- Custom providers: Must have endpoint URL
+- Custom models: Must have model name specified
+- API keys: ASCII only (no emojis or special Unicode)
+
+Privacy Level Display:
+- Visual cards showing privacy implications
+- Green card for Maximum Privacy
+- Blue card for Standard Privacy
+- Color-coded selection indicator
+
+Props:
+interface AiSettingsModalProps {
+  onClose: () => void;
+  onSave: (settings: AiSettings) => void;
+}
+
+
+================================================================================
+3. BACKEND IMPLEMENTATION (server/routes.ts)
+================================================================================
+
+3.1 AI CHAT ENDPOINT: POST /api/ai/chat
+----------------------------------------
+
+Purpose: Route AI chat requests to appropriate provider with proper auth.
+
+Middleware Applied:
+- requireUSOnly: Blocks non-US requests (region lock)
+- requireCredits: Verifies user has credit balance
+
+Request Body:
+{
+  model: string,
+  messages: Array<{role: string, content: string}>,
+  temperature?: number,
+  maxTokens?: number,
+  provider?: string,
+  apiKey?: string,
+  customEndpoint?: string
+}
+
+Response Success (200):
+{
+  text: "AI response text"
+}
+
+Response Error:
+{
+  error: "Error message description",
+  details?: "Additional error details"
+}
+
+ERROR CODES:
+- 401: API key not configured or invalid
+- 400: Invalid request (missing endpoint, insufficient credits)
+- 429: Rate limit exceeded
+- 500: Server/AI service error
+
+PROVIDER ROUTING LOGIC:
+
+OpenAI:
+- Endpoint: https://api.openai.com/v1/chat/completions
+- API Key: Always uses OPENAI_API_KEY from environment (ignores client key)
+- Model: as requested
+- Parameters: model, messages, temperature, max_tokens
+- Special handling for GPT-5 models: Uses max_completion_tokens instead
+
+Anthropic:
+- Endpoint: https://api.anthropic.com/v1/messages
+- API Key: ANTHROPIC_API_KEY from env or client
+- Header: x-api-key, anthropic-version: 2023-06-01
+- Parameters: model, messages, max_tokens
+
+Ollama:
+- Endpoint: http://localhost:11434/v1/chat/completions (or customEndpoint)
+- No API key required
+- Parameters: model, messages, temperature, max_tokens, stream: false
+- Error: ECONNREFUSED means Ollama not running
+
+Kiteframe:
+- Endpoint: https://kiteline-ai.replit.app/v1/chat/completions
+- Managed service - no auth required
+- Parameters: model, messages, temperature, max_tokens
+
+Custom:
+- Endpoint: user-provided customEndpoint/v1/chat/completions
+- Auto-detects if Ollama or OpenAI compatible
+- May or may not require API key (context dependent)
+- Special handling for GPT-5 models
+
+ANALYTICS TRACKING:
+- Logs: provider, model, hasApiKey (masked)
+- Tracks: user identifier, country code, provider
+- Service: analyticsService.trackAIRequest()
+- Errors logged to console with details
+
+ERROR MESSAGE ENRICHMENT:
+- Detects specific error patterns
+- Maps to user-friendly messages
+- Provides helpful guidance
+- Example: Low Anthropic credits → "Add credits in your Anthropic console"
+
+
+3.2 WIREFRAME GENERATION ENDPOINT: POST /api/generate-wireframe
+---------------------------------------------------------------
+
+Purpose: Generate SVG wireframes for workflow node mockups.
+
+Middleware Applied:
+- requireUSOnly: Region lock
+- requireCredits: Credit check
+
+Request Body:
+{
+  label: string,
+  description: string,
+  nodeType: string
+}
+
+Response Success (200):
+{
+  svg: "<svg>...</svg>"
+}
+
+Response Error:
+{
+  error: "Error message"
+}
+
+PROCESS:
+1. Build prompt incorporating label, description, nodeType
+2. Send to GPT-4o with system prompt instructing SVG generation
+3. Parse response to extract SVG
+4. Strip markdown code blocks if present
+5. Return SVG string
+
+System Prompt:
+"You are a UI/UX designer that creates clean, simple SVG wireframes.
+Always return ONLY SVG code, nothing else."
+
+User Prompt Template:
+"Create a simple, clean SVG wireframe mockup for a UI component representing '{label}'.
+Node Type: {nodeType}
+Description: {description}
+
+Requirements:
+- Generate ONLY the SVG code, no explanations
+- Use a 400x300 viewBox
+- Use simple shapes (rectangles, circles, lines, text)
+- Use grayscale colors (#333, #666, #999, #ddd, #f5f5f5)
+- Include placeholder text and UI elements appropriate for this type
+- Make it look like a professional wireframe mockup
+- Keep it simple and clean
+
+Return ONLY the SVG code starting with <svg> and ending with </svg>."
+
+SVG Extraction:
+- Uses regex: /<svg[\s\S]*<\/svg>/i
+- Falls back to raw response if regex doesn't match
+- Ensures valid SVG for rendering
+
+
+3.3 AI TEST ENDPOINT: POST /api/ai/test
+----------------------------------------
+
+Purpose: Test AI provider connections without consuming credits.
+
+Note: NO middleware applied (allows pre-credit testing)
+
+Request Body:
+{
+  provider: string,
+  model?: string,
+  apiKey?: string,
+  customEndpoint?: string
+}
+
+Response Success (200):
+{
+  success: true,
+  response: "test response from AI"
+}
+
+Response Error:
+{
+  error: "Error description",
+  success: false
+}
+
+DEFAULT MODELS BY PROVIDER:
+- openai: gpt-5-nano (or gpt-4o as fallback)
+- anthropic: claude-3-5-sonnet-20241022
+- ollama: llama3.2:3b
+- kiteframe: llama3.2:3b
+
+API KEY VALIDATION:
+- OpenAI: Must start with "sk-"
+- Anthropic: Must start with "sk-ant-"
+- All: Must be ASCII only (no emojis, special Unicode)
+- Custom/Ollama: Can be optional
+
+ENDPOINT VALIDATION:
+- Custom endpoints must have protocol (http/https)
+- Custom endpoints must be accessible
+- Ollama uses /v1/chat/completions path
+
+TEST MESSAGE SENT:
+"Hello! This is a test message."
+
+ERROR RESPONSES:
+- 400: Invalid API key format, missing endpoint, invalid configuration
+- 500: Server-side error, connection refused, timeout
+- Connection failures include helpful guidance
+
+
+================================================================================
+4. INTEGRATION IN MAIN APP (client/src/pages/workflow-editor.tsx)
+================================================================================
+
+AI SETUP IN WORKFLOW EDITOR:
+
+1. AI CLIENT INITIALIZATION:
+   const aiClient = new OpenAICompatClient({
+     baseURL: 'http://localhost:5000',
+     defaultModel: 'gpt-4o'
+   });
+
+2. AI PROVIDER WRAPPER:
+   <AiProvider client={aiClient}>
+     <WorkflowEditorContent />
+   </AiProvider>
+
+3. STATE MANAGEMENT:
+   - showAiSettings: boolean (toggle settings modal)
+   - showAiGenerator: boolean (toggle generator modal)
+   - Callbacks for opening/closing modals
+
+4. TOOLBAR BUTTONS:
+   - "AI Settings" button → Opens AiSettingsModal
+   - "AI Generate" button → Opens AiWorkflowGenerator
+   - Both buttons have icons (Bot for settings, Sparkles for generator)
+
+5. MODAL HANDLERS:
+   - onAiSettingsChange: Called after settings saved, can refresh AI client
+   - onAiClose: Closes current modal
+   - onAiGenerate: Receives generated workflow, applies to canvas
+
+6. WIREFRAME GENERATION:
+   - Listens to 'generateWireframe' event from nodes
+   - Sends request to /api/generate-wireframe
+   - Adds generated SVG as image node to canvas
+   - Shows loading state during generation
+
+7. WORKFLOW APPLICATION:
+   - Generated nodes/edges applied to current active tab
+   - Canvas updates reactively
+   - History state created for undo
+   - Toast notification shows success with node/edge count
+
+
+================================================================================
+5. HOW TO USE
+================================================================================
+
+SETUP: CONFIGURE AI SETTINGS
+----------------------------
+
+Step 1: Open AI Settings
+- Click the "AI Settings" button in the toolbar
+- Bot icon appears in top toolbar
+
+Step 2: Choose Provider
+- OpenAI (default, recommended)
+  * Uses server-side API key (no setup needed)
+  * Latest GPT-4o model
+  * Reliable and fast
+
+- Custom Endpoint (for self-hosted)
+  * Enter your Ollama or other AI server URL
+  * Example: https://ollama.example.com
+  * Optional API key for authenticated endpoints
+
+Step 3: Configure Model (if custom provider)
+- OpenAI: Automatic GPT-4o (fixed)
+- Custom: Enter model name or select from list
+
+Step 4: Adjust Temperature (optional)
+- Default: 0.7
+- Slide left (0): More focused/deterministic
+- Slide right (1): More creative/random
+
+Step 5: Test Connection
+- Click "Quick Test" button
+- Wait for success message
+- If fails: Check endpoint URL and API key
+
+Step 6: Save Settings
+- Click "Save Settings"
+- Settings persist in browser localStorage
+- Ready for generation!
+
+GENERATE WORKFLOW FROM TEXT PROMPT
+-----------------------------------
+
+Step 1: Open Generator
+- Click "AI Generate" button in toolbar
+- Modal appears with two tabs
+
+Step 2: Select Text Prompt Tab
+- Should already be selected
+- Shows text input area
+
+Step 3: Enter Workflow Description
+- Describe what workflow you want
+- Examples:
+  * "Create a user registration workflow"
+  * "Build a payment processing pipeline"
+  * "Design a data validation workflow"
+- Be specific for better results
+
+Step 4: Generate
+- Press Ctrl+Enter on keyboard, OR
+- Click "Generate Workflow" button
+- Watch loading spinner
+
+Step 5: Review Result
+- Workflow appears on canvas
+- Nodes connected with edges
+- Customize as needed
+
+GENERATE WORKFLOW FROM IMAGE
+-----------------------------
+
+Step 1: Open Generator
+- Click "AI Generate" button in toolbar
+
+Step 2: Select Image Upload Tab
+- Click on "Upload Image" tab
+
+Step 3: Upload Image
+- Drag workflow image into drop zone, OR
+- Click "browse files" link
+- Select PNG, JPG, or GIF (max 10MB)
+- Preview appears
+
+Step 4: Analyze Image
+- Click "Analyze Image" button
+- Wait for analysis (shows loading)
+- See results with:
+  * Confidence percentage
+  * Number of detected nodes
+  * Number of detected edges
+  * Analysis description
+  * Recommendations
+
+Step 5: Check Confidence
+- If >70%: Green indicator, safe to generate
+- If <70%: Yellow/red indicator, may have issues
+- Review recommendations
+
+Step 6: Generate Workflow
+- Click "Generate Workflow" button
+- Workflow created from analysis
+- Nodes and edges added to canvas
+
+GENERATE WIREFRAME MOCKUP
+--------------------------
+
+Step 1: Right-Click on Node
+- Right-click on any workflow node
+- Context menu appears
+
+Step 2: Select Generate Wireframe
+- Click "Generate Wireframe" option
+- Shows loading state
+
+Step 3: Wait for Generation
+- AI generates SVG mockup
+- Based on node type and description
+- Grayscale professional design
+
+Step 4: Review and Customize
+- Mockup appears as image node on canvas
+- Can move, resize, or delete
+- Can layer with other elements
+
+TROUBLESHOOTING GUIDE
+---------------------
+
+Problem: "Invalid API key" error
+Solution:
+- Go to AI Settings
+- Verify provider is set to OpenAI
+- Click "Quick Test"
+- If fails, check if server has OPENAI_API_KEY env var set
+- For custom endpoints, paste correct API key
+
+Problem: Generation fails with parsing error
+Solution:
+- AI response couldn't be parsed
+- Try again - sometimes helps
+- Use simpler prompt if too complex
+- Check browser console (F12) for details
+- Fallback 3-node workflow will be created
+
+Problem: Image analysis shows low confidence (<50%)
+Solution:
+- Image may be unclear or not a workflow diagram
+- Try a clearer/higher resolution image
+- Make sure image shows workflow structure
+- Can still generate but results may vary
+
+Problem: Custom Ollama endpoint not connecting
+Solution:
+- Verify Ollama is running: ollama serve
+- Check endpoint URL is correct (no trailing slash)
+- Test connection with Quick Test button
+- Check firewall allows connection
+- For remote servers: ensure HTTPS or same network
+
+Problem: Rate limit or "too many requests" error
+Solution:
+- OpenAI rate limit hit
+- Wait a few minutes
+- Try again later
+- Consider upgrading OpenAI account
+
+Problem: Settings not saving
+Solution:
+- Check browser localStorage is enabled
+- No private/incognito mode restrictions
+- Try refreshing page
+- Check browser console for JS errors
+
+ADVANCED: CUSTOM PROVIDERS
+---------------------------
+
+Ollama Setup:
+1. Install Ollama from ollama.ai
+2. Run: ollama serve
+3. Pull a model: ollama pull llama2
+4. In AI Settings:
+   - Provider: Custom Endpoint
+   - Endpoint: http://localhost:11434
+   - Model: llama2 (or other pulled model)
+5. Click Quick Test
+
+Custom OpenAI-Compatible API:
+1. Have API endpoint running at: https://your-server/v1/chat/completions
+2. In AI Settings:
+   - Provider: Custom Endpoint
+   - Endpoint: https://your-server
+   - Model: your-model-name
+   - API Key: your-key (if needed)
+3. Click Quick Test
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
