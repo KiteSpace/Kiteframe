@@ -153,6 +153,18 @@ export function KiteAIChat({
     setPosition({ x: 0, y: 0 });
   };
 
+  const handleToggleMinimize = () => {
+    // If the window has been dragged (position changed), adjust top so bottom stays anchored
+    if (position.x !== 0 || position.y !== 0) {
+      const heightDiff = isMinimized ? size.height - 56 : 512 - size.height;
+      setPosition(prev => ({
+        ...prev,
+        y: prev.y + heightDiff
+      }));
+    }
+    setIsMinimized(!isMinimized);
+  };
+
   // Add/remove global mouse event listeners
   useEffect(() => {
     if (isDragging || isResizing) {
@@ -709,7 +721,7 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
                 <Anchor className="w-4 h-4 text-muted-foreground" />
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
+                onClick={(e) => { e.stopPropagation(); handleToggleMinimize(); }}
                 className="p-1.5 hover:bg-accent rounded-md transition-colors"
                 data-testid="button-kiteai-minimize"
               >
