@@ -318,7 +318,7 @@ export function PropertiesCard({
 
             {/* Mockup Wireframe Button */}
             {selectedNode.type !== "image" && (
-              <div className="pt-2">
+              <div className="pt-2 flex flex-col gap-1">
                 <Button
                   onClick={() => {
                     const event = new CustomEvent('generateWireframe', {
@@ -332,6 +332,7 @@ export function PropertiesCard({
                   <span className="mr-2 text-base">✨</span>
                   Mockup wireframe
                 </Button>
+                <span className="text-xs text-muted-foreground">Uses AI tokens • Need more? Contact info@kiteframe.space</span>
               </div>
             )}
 

@@ -291,11 +291,9 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
   return (
     <Dialog open={true} onOpenChange={(open) => {
       console.log('Dialog onOpenChange called with:', open, 'allowClose:', allowClose);
-      if (!open && allowClose) {
-        console.log('Dialog close allowed, calling onClose');
+      if (!open) {
+        console.log('Dialog close triggered, calling onClose');
         onClose();
-      } else if (!open) {
-        console.log('Dialog close blocked - not user initiated');
       }
     }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="modal-workflow-import" aria-describedby="import-workflow-description">
