@@ -682,7 +682,6 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
           <div 
             className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-purple-600/10 to-blue-600/10 rounded-t-xl select-none cursor-grab active:cursor-grabbing"
             onMouseDown={handleHeaderMouseDown}
-            onClick={() => setIsMinimized(!isMinimized)}
             title="Drag to move"
           >
             <div className="flex items-center gap-2 pointer-events-none">
