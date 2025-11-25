@@ -1544,7 +1544,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       
       // Validate input
       if (!grantsUnlimited) {
-        const credits = creditsToAdd ?? 10;
+        const credits = creditsToAdd ?? 25;
         if (typeof credits !== 'number' || isNaN(credits) || credits < 1) {
           return res.status(400).json({
             error: 'Credits must be at least 1',
@@ -1558,7 +1558,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         });
       }
       
-      const credits = grantsUnlimited ? 999999 : (creditsToAdd || 10);
+      const credits = grantsUnlimited ? 999999 : (creditsToAdd || 25);
       const countries = allowedCountries;
       
       const code = 'KITE-' + Math.random().toString(36).substring(2, 15).toUpperCase();

@@ -48,7 +48,7 @@ export default function AdminCodes() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authHeader, setAuthHeader] = useState('');
   const [grantsUnlimited, setGrantsUnlimited] = useState(false);
-  const [creditsToAdd, setCreditsToAdd] = useState(10);
+  const [creditsToAdd, setCreditsToAdd] = useState(25);
   const [allowedCountries, setAllowedCountries] = useState<string[]>(['US']);
   const [notes, setNotes] = useState('');
   const { toast } = useToast();
