@@ -23,7 +23,8 @@ import {
   User,
   Trash2,
   RotateCcw,
-  Eye
+  Eye,
+  Anchor
 } from 'lucide-react';
 
 // Message types for conversation
@@ -71,9 +72,9 @@ export function KiteAIChat({
 }: KiteAIChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [size, setSize] = useState({ width: 384, height: 512 }); // w-96 = 384px, h-[32rem] = 512px
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const chatWindowRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -96,36 +97,43 @@ export function KiteAIChat({
   const { toast } = useToast();
   const aiClient = useAi();
 
-  // Drag handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // Resize handlers
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!chatWindowRef.current) return;
-    setIsDragging(true);
+    setIsResizing(true);
     const rect = chatWindowRef.current.getBoundingClientRect();
-    setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+    setResizeStart({
+      x: e.clientX,
+      y: e.clientY,
+      width: rect.width,
+      height: rect.height
     });
   };
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging) return;
-    setPosition({
-      x: e.clientX - dragOffset.x,
-      y: e.clientY - dragOffset.y
+    if (!isResizing) return;
+    const deltaX = e.clientX - resizeStart.x;
+    const deltaY = -(e.clientY - resizeStart.y); // negative because we resize upward
+    
+    setSize({
+      width: Math.max(300, resizeStart.width + deltaX),
+      height: Math.max(200, resizeStart.height + deltaY)
     });
-  }, [isDragging, dragOffset]);
+  }, [isResizing, resizeStart]);
 
   const handleMouseUp = () => {
-    setIsDragging(false);
+    setIsResizing(false);
   };
 
-  const handleDoubleClick = () => {
-    setPosition({ x: 0, y: 0 });
+  const resetSize = () => {
+    setSize({ width: 384, height: 512 });
   };
 
   // Add/remove global mouse event listeners
   useEffect(() => {
-    if (isDragging) {
+    if (isResizing) {
       document.addEventListener('mousemove', handleMouseMove as any);
       document.addEventListener('mouseup', handleMouseUp);
       return () => {
@@ -133,7 +141,7 @@ export function KiteAIChat({
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, handleMouseMove]);
+  }, [isResizing, handleMouseMove]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -636,23 +644,19 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
       {isOpen && (
         <div 
           ref={chatWindowRef}
-          className={`fixed z-50 bg-background border border-border rounded-xl shadow-2xl flex flex-col transition-all duration-200 ${
-            isMinimized ? 'w-72 h-14' : 'w-96 h-[32rem]'
-          } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          className={`fixed bottom-6 left-16 z-50 bg-background border border-border rounded-xl shadow-2xl flex flex-col ${
+            isResizing ? 'cursor-se-resize' : ''
+          }`}
           style={{
-            left: `${position.x}px`,
-            top: `${position.y}px`,
-            bottom: position.x === 0 && position.y === 0 ? '1.5rem' : 'auto',
-            ...(position.x === 0 && position.y === 0 ? { left: '4rem' } : {})
+            width: isMinimized ? '288px' : `${size.width}px`,
+            height: isMinimized ? '56px' : `${size.height}px`,
           }}
           data-testid="panel-kiteai-chat"
         >
-          {/* Header - Draggable */}
+          {/* Header */}
           <div 
-            className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-purple-600/10 to-blue-600/10 rounded-t-xl cursor-grab active:cursor-grabbing select-none"
-            onMouseDown={handleMouseDown}
-            onDoubleClick={handleDoubleClick}
-            title="Drag to move, double-click to reset"
+            className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-purple-600/10 to-blue-600/10 rounded-t-xl select-none"
+            onClick={() => setIsMinimized(!isMinimized)}
           >
             <div className="flex items-center gap-2 pointer-events-none">
               <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
@@ -669,6 +673,14 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
                 data-testid="button-kiteai-clear"
               >
                 <Trash2 className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); resetSize(); }}
+                className="p-1.5 hover:bg-accent rounded-md transition-colors"
+                title="Reset to default size"
+                data-testid="button-kiteai-reset"
+              >
+                <Anchor className="w-4 h-4 text-muted-foreground" />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
