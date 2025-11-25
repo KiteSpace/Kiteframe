@@ -383,19 +383,22 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
                 </Button>
 
                 {canCorrect && (
-                  <Button
-                    onClick={handleAiCorrection}
-                    disabled={isProcessing}
-                    className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
-                    data-testid="button-ai-correct"
-                  >
-                    {isProcessing ? (
-                      <Loader2 className="animate-spin" size={16} />
-                    ) : (
-                      <Bot size={16} />
-                    )}
-                    {isProcessing ? 'Correcting...' : 'AI Auto-Fix'}
-                  </Button>
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      onClick={handleAiCorrection}
+                      disabled={isProcessing}
+                      className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+                      data-testid="button-ai-correct"
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="animate-spin" size={16} />
+                      ) : (
+                        <Bot size={16} />
+                      )}
+                      {isProcessing ? 'Correcting...' : 'AI Auto-Fix'}
+                    </Button>
+                    <span className="text-xs text-muted-foreground">Uses AI tokens • Need more? Contact info@kiteframe.space</span>
+                  </div>
                 )}
               </div>
 
