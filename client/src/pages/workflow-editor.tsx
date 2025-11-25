@@ -15,6 +15,7 @@ import { PropertiesCard } from '@/components/PropertiesCard';
 import { Toolbar } from '@/components/Toolbar';
 import { AiSettingsModal } from '@/components/AiSettingsModal';
 import { AiWorkflowGenerator } from '@/components/AiWorkflowGenerator';
+import { KiteAIChat } from '@/components/KiteAIChat';
 import { WorkflowImportModal } from '@/components/WorkflowImportModal';
 import { BugReportModal } from '@/components/BugReportModal';
 import { ContextMenu } from '@/components/ContextMenu';
@@ -4696,6 +4697,79 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   nodes={nodes}
                   edges={edges}
                   frames={[]}
+                />
+                
+                {/* KiteAI Floating Chat */}
+                <KiteAIChat
+                  currentNodes={nodes}
+                  currentEdges={edges}
+                  currentCanvasObjects={canvasObjects}
+                  onApplyWorkflow={(workflow) => {
+                    console.log('📝 KITEAI APPLYING WORKFLOW:', { 
+                      nodeCount: workflow.nodes.length, 
+                      edgeCount: workflow.edges.length 
+                    });
+                    
+                    // Calculate offset to avoid overlap with existing nodes
+                    const offset = calculateWorkflowOffset(workflow.nodes);
+                    
+                    // Generate unique batch ID
+                    const batchId = Date.now();
+                    
+                    // Map old IDs to new IDs
+                    const nodeIdMapping: { [oldId: string]: string } = {};
+                    
+                    // Apply offset and create unique IDs
+                    const offsetNodes = workflow.nodes.map((node: Node, index: number) => {
+                      const oldId = node.id || `node-${index}`;
+                      const newId = `${oldId}-kiteai-${batchId}-${index}`;
+                      nodeIdMapping[oldId] = newId;
+                      
+                      return {
+                        ...node,
+                        id: newId,
+                        position: {
+                          x: node.position.x + offset.x,
+                          y: node.position.y + offset.y
+                        },
+                        selected: false
+                      };
+                    });
+
+                    const offsetEdges = workflow.edges.map((edge: Edge, index: number) => ({
+                      ...edge,
+                      id: `${edge.id || `edge-${index}`}-kiteai-${batchId}-${index}`,
+                      source: nodeIdMapping[edge.source] || edge.source,
+                      target: nodeIdMapping[edge.target] || edge.target,
+                      selected: false
+                    }));
+
+                    // Append to existing canvas
+                    setNodes(prev => [...prev, ...offsetNodes]);
+                    setEdges(prev => [...prev, ...offsetEdges]);
+                    
+                    // Handle canvas objects if present
+                    if (workflow.canvasObjects && workflow.canvasObjects.length > 0) {
+                      const offsetObjects = workflow.canvasObjects.map((obj: CanvasObject, index: number) => ({
+                        ...obj,
+                        id: `${obj.id || `obj-${index}`}-kiteai-${batchId}-${index}`,
+                        position: {
+                          x: obj.position.x + offset.x,
+                          y: obj.position.y + offset.y
+                        },
+                        selected: false
+                      }));
+                      updateActiveTab({ canvasObjects: [...canvasObjects, ...offsetObjects] });
+                    }
+                    
+                    // Save to history
+                    setTimeout(() => saveToHistory(), 0);
+                    
+                    toast({
+                      title: "Workflow Applied",
+                      description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections.`
+                    });
+                  }}
                 />
               </>
             ) : (

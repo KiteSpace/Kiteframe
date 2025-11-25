@@ -61,9 +61,6 @@ export function CollapsedSidebar({
     console.log('🎯 HANDLE ICON CLICK CALLED:', { iconKey, currentActivePopout: activePopout });
     
     switch (iconKey) {
-      case 'brain':
-        onOpenAiGenerator?.();
-        break;
       case 'workflow':
         const newNodeTypesState = activePopout === 'node-types' ? null : 'node-types';
         console.log('🎯 SETTING NODE TYPES POPOUT:', { from: activePopout, to: newNodeTypesState });
@@ -285,7 +282,6 @@ export function CollapsedSidebar({
 
   const getTooltipText = (iconKey: string): string => {
     switch (iconKey) {
-      case 'brain': return 'AI Assistant';
       case 'workflow': return 'Node Types';
       case 'type': return 'Text';
       case 'sticky-note': return 'Sticky Note';
@@ -313,7 +309,8 @@ export function CollapsedSidebar({
   };
 
   // Split icons into main, template/theme, and action groups
-  const mainIcons = ['brain', 'workflow', 'type', 'shapes', 'sticky-note'];
+  // Note: 'brain' removed - AI assistant is now the floating KiteAI button
+  const mainIcons = ['workflow', 'type', 'shapes', 'sticky-note'];
   const templateThemeIcons = ['route', 'palette'];
   const actionIcons = ['clear', 'export', 'import'];
 
@@ -340,11 +337,9 @@ export function CollapsedSidebar({
                     onMouseDown={(e) => handleIconMouseDown(e, iconKey)}
                     className={`
                       w-8 h-8 rounded-md flex items-center justify-center transition-colors
-                      ${iconKey === 'brain'
-                        ? 'bg-gradient-to-br from-purple-500 to-blue-600 text-white hover:from-purple-600 hover:to-blue-700'
-                        : isActive(iconKey) 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'hover:bg-accent'
+                      ${isActive(iconKey) 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'hover:bg-accent'
                       }
                     `}
                     data-testid={`icon-${iconKey}`}
