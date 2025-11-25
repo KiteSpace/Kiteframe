@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, MouseEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -71,6 +71,10 @@ export function KiteAIChat({
 }: KiteAIChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const chatWindowRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -91,6 +95,45 @@ export function KiteAIChat({
   
   const { toast } = useToast();
   const aiClient = useAi();
+
+  // Drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!chatWindowRef.current) return;
+    setIsDragging(true);
+    const rect = chatWindowRef.current.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragOffset.x,
+      y: e.clientY - dragOffset.y
+    });
+  }, [isDragging, dragOffset]);
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleDoubleClick = () => {
+    setPosition({ x: 0, y: 0 });
+  };
+
+  // Add/remove global mouse event listeners
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove as any);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove as any);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -581,7 +624,7 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 left-6 z-50 flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 group"
+          className="fixed bottom-6 left-16 z-50 flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 group"
           data-testid="button-kiteai-open"
         >
           <Sparkles className="w-5 h-5 group-hover:animate-pulse" />
@@ -592,24 +635,33 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
       {/* Chat Window */}
       {isOpen && (
         <div 
-          className={`fixed bottom-6 left-6 z-50 bg-background border border-border rounded-xl shadow-2xl flex flex-col transition-all duration-200 ${
+          ref={chatWindowRef}
+          className={`fixed z-50 bg-background border border-border rounded-xl shadow-2xl flex flex-col transition-all duration-200 ${
             isMinimized ? 'w-72 h-14' : 'w-96 h-[32rem]'
-          }`}
+          } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          style={{
+            left: `${position.x}px`,
+            top: `${position.y}px`,
+            bottom: position.x === 0 && position.y === 0 ? '1.5rem' : 'auto',
+            ...(position.x === 0 && position.y === 0 ? { left: '4rem' } : {})
+          }}
           data-testid="panel-kiteai-chat"
         >
-          {/* Header */}
+          {/* Header - Draggable */}
           <div 
-            className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-purple-600/10 to-blue-600/10 rounded-t-xl cursor-pointer"
-            onClick={() => setIsMinimized(!isMinimized)}
+            className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-purple-600/10 to-blue-600/10 rounded-t-xl cursor-grab active:cursor-grabbing select-none"
+            onMouseDown={handleMouseDown}
+            onDoubleClick={handleDoubleClick}
+            title="Drag to move, double-click to reset"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pointer-events-none">
               <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <span className="font-semibold">KiteAI</span>
               {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 pointer-events-auto">
               <button
                 onClick={(e) => { e.stopPropagation(); clearChat(); }}
                 className="p-1.5 hover:bg-accent rounded-md transition-colors"
