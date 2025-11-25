@@ -4707,7 +4707,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   onApplyWorkflow={(workflow) => {
                     console.log('📝 KITEAI APPLYING WORKFLOW:', { 
                       nodeCount: workflow.nodes.length, 
-                      edgeCount: workflow.edges.length 
+                      edgeCount: workflow.edges.length,
+                      originalNodeIds: workflow.nodes.map(n => n.id),
+                      edgeReferences: workflow.edges.map(e => ({ source: e.source, target: e.target }))
                     });
                     
                     // Calculate offset to avoid overlap with existing nodes
@@ -4716,14 +4718,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     // Generate unique batch ID
                     const batchId = Date.now();
                     
-                    // Map old IDs to new IDs
+                    // Create mapping from original IDs to new IDs
                     const nodeIdMapping: { [oldId: string]: string } = {};
                     
-                    // Apply offset and create unique IDs
+                    // Apply offset and create unique IDs for nodes
                     const offsetNodes = workflow.nodes.map((node: Node, index: number) => {
                       const oldId = node.id || `node-${index}`;
-                      const newId = `${oldId}-kiteai-${batchId}-${index}`;
+                      const newId = `node-${batchId}-${index}`;
                       nodeIdMapping[oldId] = newId;
+                      
+                      console.log(`Mapping node: ${oldId} -> ${newId}`);
                       
                       return {
                         ...node,
@@ -4736,13 +4740,49 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       };
                     });
 
-                    const offsetEdges = workflow.edges.map((edge: Edge, index: number) => ({
-                      ...edge,
-                      id: `${edge.id || `edge-${index}`}-kiteai-${batchId}-${index}`,
-                      source: nodeIdMapping[edge.source] || edge.source,
-                      target: nodeIdMapping[edge.target] || edge.target,
-                      selected: false
-                    }));
+                    // Remap edges to use new node IDs with fallback to numeric index matching
+                    const offsetEdges = workflow.edges.map((edge: Edge, index: number) => {
+                      let newSource = nodeIdMapping[edge.source];
+                      let newTarget = nodeIdMapping[edge.target];
+                      
+                      // Fallback: try numeric index matching if exact ID matching fails
+                      // This handles cases where edges reference nodes by position (e.g., "1", "2", "3")
+                      if (!newSource) {
+                        const sourceNumeric = parseInt(edge.source);
+                        if (!isNaN(sourceNumeric) && sourceNumeric < workflow.nodes.length) {
+                          const sourceNodeId = workflow.nodes[sourceNumeric]?.id;
+                          newSource = sourceNodeId ? nodeIdMapping[sourceNodeId] : undefined;
+                        }
+                      }
+                      
+                      if (!newTarget) {
+                        const targetNumeric = parseInt(edge.target);
+                        if (!isNaN(targetNumeric) && targetNumeric < workflow.nodes.length) {
+                          const targetNodeId = workflow.nodes[targetNumeric]?.id;
+                          newTarget = targetNodeId ? nodeIdMapping[targetNodeId] : undefined;
+                        }
+                      }
+                      
+                      // Log warnings for unresolved references
+                      if (!newSource) {
+                        console.warn(`⚠️ Edge ${edge.id} source ${edge.source} could not be mapped to any node`);
+                      }
+                      if (!newTarget) {
+                        console.warn(`⚠️ Edge ${edge.id} target ${edge.target} could not be mapped to any node`);
+                      }
+                      
+                      return {
+                        ...edge,
+                        id: `edge-${batchId}-${index}`,
+                        source: newSource || edge.source,
+                        target: newTarget || edge.target,
+                        selected: false
+                      };
+                    });
+
+                    console.log('📝 REMAPPED EDGES:', {
+                      edges: offsetEdges.map(e => ({ id: e.id, source: e.source, target: e.target }))
+                    });
 
                     // Append to existing canvas
                     setNodes(prev => [...prev, ...offsetNodes]);
@@ -4752,7 +4792,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     if (workflow.canvasObjects && workflow.canvasObjects.length > 0) {
                       const offsetObjects = workflow.canvasObjects.map((obj: CanvasObject, index: number) => ({
                         ...obj,
-                        id: `${obj.id || `obj-${index}`}-kiteai-${batchId}-${index}`,
+                        id: `obj-${batchId}-${index}`,
                         position: {
                           x: obj.position.x + offset.x,
                           y: obj.position.y + offset.y
