@@ -4750,16 +4750,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       if (!newSource) {
                         const sourceNumeric = parseInt(edge.source);
                         if (!isNaN(sourceNumeric) && sourceNumeric < workflow.nodes.length) {
-                          const sourceNodeId = workflow.nodes[sourceNumeric]?.id;
-                          newSource = sourceNodeId ? nodeIdMapping[sourceNodeId] : undefined;
+                          const sourceNodeId = workflow.nodes[sourceNumeric]?.id || `node-${sourceNumeric}`;
+                          newSource = nodeIdMapping[sourceNodeId];
                         }
                       }
                       
                       if (!newTarget) {
                         const targetNumeric = parseInt(edge.target);
                         if (!isNaN(targetNumeric) && targetNumeric < workflow.nodes.length) {
-                          const targetNodeId = workflow.nodes[targetNumeric]?.id;
-                          newTarget = targetNodeId ? nodeIdMapping[targetNodeId] : undefined;
+                          const targetNodeId = workflow.nodes[targetNumeric]?.id || `node-${targetNumeric}`;
+                          newTarget = nodeIdMapping[targetNodeId];
                         }
                       }
                       

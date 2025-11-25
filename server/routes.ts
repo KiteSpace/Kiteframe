@@ -912,10 +912,10 @@ Respond with only the corrected JSON data:`;
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: 'gpt-5-nano',
+          model: 'gpt-4o-mini',
           messages: [{ role: 'user', content: correctionPrompt }],
           temperature: 0.1,
-          max_tokens: 4000
+          max_completion_tokens: 4000
         })
       });
 
