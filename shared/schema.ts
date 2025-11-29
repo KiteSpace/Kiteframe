@@ -24,6 +24,14 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
+// Subscription tier type
+export const subscriptionTierEnum = ['free', 'advanced', 'pro'] as const;
+export type SubscriptionTier = typeof subscriptionTierEnum[number];
+
+// Subscription status type
+export const subscriptionStatusEnum = ['active', 'canceled', 'past_due', 'paused', 'trialing'] as const;
+export type SubscriptionStatus = typeof subscriptionStatusEnum[number];
+
 // User storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 export const users = pgTable("users", {
@@ -32,6 +40,15 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  // Subscription fields
+  stripeCustomerId: varchar("stripe_customer_id"),
+  stripeSubscriptionId: varchar("stripe_subscription_id"),
+  subscriptionTier: varchar("subscription_tier").default('free'), // free, advanced, pro
+  subscriptionStatus: varchar("subscription_status").default('active'), // active, canceled, past_due, paused, trialing
+  billingPeriodEnd: timestamp("billing_period_end"),
+  // OAuth provider tracking
+  authProvider: varchar("auth_provider"), // google, github, replit
+  authProviderId: varchar("auth_provider_id"), // Provider's unique user ID
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -140,10 +157,53 @@ export const analyticsEvents = pgTable("analytics_events", {
   index("IDX_analytics_country").on(table.country),
 ]);
 
+// Saved projects for Pro users (cloud storage)
+export const savedProjects = pgTable("saved_projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  workflowData: jsonb("workflow_data").notNull(), // Full workflow JSON (nodes, edges, canvas objects, viewport)
+  thumbnail: text("thumbnail"), // Base64 encoded thumbnail image
+  isPublic: boolean("is_public").default(false),
+  folderId: varchar("folder_id"), // For folder organization
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_saved_projects_user").on(table.userId),
+  index("IDX_saved_projects_folder").on(table.folderId),
+]);
+
+// Project folders for organization
+export const projectFolders = pgTable("project_folders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  name: varchar("name").notNull(),
+  parentFolderId: varchar("parent_folder_id"), // For nested folders
+  color: varchar("color").default('#6366f1'), // Folder color
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_project_folders_user").on(table.userId),
+]);
+
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   firstName: true,
   lastName: true,
+});
+
+export const insertSavedProjectSchema = createInsertSchema(savedProjects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProjectFolderSchema = createInsertSchema(projectFolders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertUserCreditsSchema = createInsertSchema(userCredits).omit({
@@ -179,3 +239,7 @@ export type UnlockCode = typeof unlockCodes.$inferSelect;
 export type InsertUnlockCode = z.infer<typeof insertUnlockCodeSchema>;
 export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;
+export type SavedProject = typeof savedProjects.$inferSelect;
+export type InsertSavedProject = z.infer<typeof insertSavedProjectSchema>;
+export type ProjectFolder = typeof projectFolders.$inferSelect;
+export type InsertProjectFolder = z.infer<typeof insertProjectFolderSchema>;

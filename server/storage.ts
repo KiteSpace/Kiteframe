@@ -1,38 +1,155 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { 
+  type User, 
+  type UpsertUser, 
+  type SavedProject, 
+  type InsertSavedProject,
+  type ProjectFolder,
+  type InsertProjectFolder,
+  users,
+  savedProjects,
+  projectFolders,
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  updateUserSubscription(userId: string, data: Partial<UpsertUser>): Promise<User | undefined>;
+  deleteUser(id: string): Promise<void>;
+  getUserByStripeCustomerId(customerId: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getSavedProjects(userId: string): Promise<SavedProject[]>;
+  getSavedProject(id: string, userId: string): Promise<SavedProject | undefined>;
+  createSavedProject(project: InsertSavedProject): Promise<SavedProject>;
+  updateSavedProject(id: string, userId: string, data: Partial<InsertSavedProject>): Promise<SavedProject | undefined>;
+  deleteSavedProject(id: string, userId: string): Promise<void>;
+  deleteAllUserProjects(userId: string): Promise<void>;
+  getProjectFolders(userId: string): Promise<ProjectFolder[]>;
+  createProjectFolder(folder: InsertProjectFolder): Promise<ProjectFolder>;
+  updateProjectFolder(id: string, userId: string, data: Partial<InsertProjectFolder>): Promise<ProjectFolder | undefined>;
+  deleteProjectFolder(id: string, userId: string): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  async updateUserSubscription(userId: string, data: Partial<UpsertUser>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await this.deleteAllUserProjects(id);
+    await db.delete(projectFolders).where(eq(projectFolders.userId, id));
+    await db.delete(users).where(eq(users.id, id));
+  }
+
+  async getUserByStripeCustomerId(customerId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.stripeCustomerId, customerId));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async getSavedProjects(userId: string): Promise<SavedProject[]> {
+    return db
+      .select()
+      .from(savedProjects)
+      .where(eq(savedProjects.userId, userId))
+      .orderBy(desc(savedProjects.updatedAt));
+  }
+
+  async getSavedProject(id: string, userId: string): Promise<SavedProject | undefined> {
+    const [project] = await db
+      .select()
+      .from(savedProjects)
+      .where(and(eq(savedProjects.id, id), eq(savedProjects.userId, userId)));
+    return project;
+  }
+
+  async createSavedProject(project: InsertSavedProject): Promise<SavedProject> {
+    const [created] = await db.insert(savedProjects).values(project).returning();
+    return created;
+  }
+
+  async updateSavedProject(id: string, userId: string, data: Partial<InsertSavedProject>): Promise<SavedProject | undefined> {
+    const [updated] = await db
+      .update(savedProjects)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(savedProjects.id, id), eq(savedProjects.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteSavedProject(id: string, userId: string): Promise<void> {
+    await db.delete(savedProjects).where(and(eq(savedProjects.id, id), eq(savedProjects.userId, userId)));
+  }
+
+  async deleteAllUserProjects(userId: string): Promise<void> {
+    await db.delete(savedProjects).where(eq(savedProjects.userId, userId));
+  }
+
+  async getProjectFolders(userId: string): Promise<ProjectFolder[]> {
+    return db
+      .select()
+      .from(projectFolders)
+      .where(eq(projectFolders.userId, userId))
+      .orderBy(projectFolders.name);
+  }
+
+  async createProjectFolder(folder: InsertProjectFolder): Promise<ProjectFolder> {
+    const [created] = await db.insert(projectFolders).values(folder).returning();
+    return created;
+  }
+
+  async updateProjectFolder(id: string, userId: string, data: Partial<InsertProjectFolder>): Promise<ProjectFolder | undefined> {
+    const [updated] = await db
+      .update(projectFolders)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(projectFolders.id, id), eq(projectFolders.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteProjectFolder(id: string, userId: string): Promise<void> {
+    await db.update(savedProjects).set({ folderId: null }).where(eq(savedProjects.folderId, id));
+    await db.delete(projectFolders).where(and(eq(projectFolders.id, id), eq(projectFolders.userId, userId)));
+  }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
