@@ -58,7 +58,7 @@ export function SignUpModal({ open, onOpenChange, onSignInClick }: SignUpModalPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Your KiteAI Account</DialogTitle>
+          <DialogTitle>Create Your Kiteframe Account</DialogTitle>
           <DialogDescription>
             Choose a plan and sign up with your preferred method
           </DialogDescription>
@@ -75,18 +75,18 @@ export function SignUpModal({ open, onOpenChange, onSignInClick }: SignUpModalPr
                   onClick={() => setSelectedTier(tier)}
                   className={`p-4 rounded-lg border-2 text-left transition-colors ${
                     selectedTier === tier
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-slate-900 dark:border-blue-400'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 hover:border-slate-300 dark:hover:border-slate-600'
                   }`}
                   data-testid={`button-tier-${tier}`}
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="font-semibold text-slate-900">{info.name}</div>
-                      <div className="text-sm text-slate-600 mt-1">
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">{info.name}</div>
+                      <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                         {info.credits.toLocaleString()} credits/month
                       </div>
-                      <div className="text-lg font-bold text-slate-900 mt-2">{info.price}</div>
+                      <div className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-2">{info.price}</div>
                     </div>
                     <div
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
@@ -107,11 +107,11 @@ export function SignUpModal({ open, onOpenChange, onSignInClick }: SignUpModalPr
           </div>
 
           {/* Features of selected tier */}
-          <div className="bg-slate-50 p-4 rounded-lg">
-            <h3 className="font-medium text-sm text-slate-900 mb-3">What's Included</h3>
+          <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg">
+            <h3 className="font-medium text-sm text-slate-900 dark:text-slate-100 mb-3">What's Included</h3>
             <ul className="space-y-2">
               {tierInfo[selectedTier].features.map((feature, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
+                <li key={i} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                   <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
                   {feature}
                 </li>
@@ -161,7 +161,7 @@ export function SignUpModal({ open, onOpenChange, onSignInClick }: SignUpModalPr
             </div>
           </div>
 
-          <div className="text-center text-sm text-slate-600">
+          <div className="text-center text-sm text-slate-600 dark:text-slate-300">
             Already have an account?{' '}
             <button
               onClick={() => {

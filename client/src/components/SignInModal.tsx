@@ -29,7 +29,7 @@ export function SignInModal({ open, onOpenChange, onSignUpClick }: SignInModalPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
-          <DialogTitle>Sign In to KiteAI</DialogTitle>
+          <DialogTitle>Sign In to Kiteframe</DialogTitle>
           <DialogDescription>
             Choose your preferred sign-in method
           </DialogDescription>
@@ -74,14 +74,14 @@ export function SignInModal({ open, onOpenChange, onSignUpClick }: SignInModalPr
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200"></div>
+              <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-slate-500">or</span>
+              <span className="px-2 bg-white dark:bg-slate-950 text-slate-500 dark:text-slate-400">or</span>
             </div>
           </div>
 
-          <div className="text-center text-sm text-slate-600">
+          <div className="text-center text-sm text-slate-600 dark:text-slate-300">
             Don't have an account yet?{' '}
             <button
               onClick={() => {

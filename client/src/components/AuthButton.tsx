@@ -1,19 +1,18 @@
-import { LogIn, LogOut, User, ExternalLink, ChevronDown } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
-import { useState, useEffect, useRef } from 'react';
+import { LogIn, LogOut, User, ChevronDown, Settings } from 'lucide-react';
+import { useReplitAuth } from '@/hooks/useReplitAuth';
+import { useState, useRef, useEffect } from 'react';
+import { SignInModal } from './SignInModal';
+import { SignUpModal } from './SignUpModal';
+import { useLocation } from 'wouter';
 
 export function AuthButton() {
-  const { user, loading, signIn, signOut, isAuthenticated } = useAuth();
-  const [isInIframe, setIsInIframe] = useState(false);
+  const { user, isLoading, isAuthenticated } = useReplitAuth();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false);
+  const [showSignUp, setShowSignUp] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [, navigate] = useLocation();
 
-  useEffect(() => {
-    // Check if we're running inside an iframe (like Replit preview)
-    setIsInIframe(window.top !== window);
-  }, []);
-
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -27,7 +26,13 @@ export function AuthButton() {
     };
   }, []);
 
-  if (loading) {
+  const handleLogout = async () => {
+    setShowDropdown(false);
+    await fetch('/api/logout', { method: 'POST' });
+    window.location.href = '/';
+  };
+
+  if (isLoading) {
     return (
       <div className="flex items-center px-3 py-1.5 text-sm text-muted-foreground">
         Loading...
@@ -42,15 +47,14 @@ export function AuthButton() {
           onClick={() => setShowDropdown(!showDropdown)}
           className="flex items-center space-x-1 p-1.5 rounded-full hover:bg-accent transition-colors"
           data-testid="button-user-profile"
-          title={user.displayName || user.email || 'User profile'}
+          title={user.email || 'User profile'}
         >
-          {user.photoURL ? (
+          {user.profileImageUrl ? (
             <img
-              src={user.photoURL}
+              src={user.profileImageUrl}
               alt="Profile"
               className="w-8 h-8 rounded-full object-cover"
               onError={(e) => {
-                // Fallback to generic icon if image fails to load
                 e.currentTarget.style.display = 'none';
                 e.currentTarget.nextElementSibling?.classList.remove('hidden');
               }}
@@ -58,7 +62,7 @@ export function AuthButton() {
           ) : null}
           <User 
             size={20} 
-            className={`${user.photoURL ? 'hidden' : ''} text-muted-foreground`}
+            className={`${user.profileImageUrl ? 'hidden' : ''} text-muted-foreground`}
           />
           <ChevronDown size={14} className="text-muted-foreground" />
         </button>
@@ -68,7 +72,7 @@ export function AuthButton() {
             <div className="py-1">
               <div className="px-3 py-2 text-sm border-b">
                 <div className="font-medium truncate">
-                  {user.displayName || 'User'}
+                  {user.firstName || user.email || 'User'}
                 </div>
                 <div className="text-xs text-muted-foreground truncate">
                   {user.email}
@@ -77,8 +81,16 @@ export function AuthButton() {
               <button
                 onClick={() => {
                   setShowDropdown(false);
-                  signOut();
+                  navigate('/account');
                 }}
+                className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center space-x-2"
+                data-testid="button-account-settings"
+              >
+                <Settings size={16} />
+                <span>Account Settings</span>
+              </button>
+              <button
+                onClick={handleLogout}
                 className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center space-x-2"
                 data-testid="button-sign-out"
               >
@@ -92,32 +104,42 @@ export function AuthButton() {
     );
   }
 
-  if (isInIframe) {
-    // When in iframe (like Replit preview), show button to open in new tab
-    return (
-      <div className="flex items-center space-x-2">
+  return (
+    <>
+      <div className="flex items-center gap-2">
         <button
-          disabled
-          className="flex items-center space-x-1 px-3 py-1.5 rounded-md bg-muted text-muted-foreground cursor-not-allowed text-sm font-medium transition-colors"
-          data-testid="button-open-in-tab"
-          title="Profiles coming soon"
+          onClick={() => setShowSignIn(true)}
+          className="flex items-center space-x-1 px-3 py-1.5 rounded-md hover:bg-accent text-sm font-medium transition-colors"
+          data-testid="button-sign-in"
         >
           <LogIn size={16} />
           <span>Sign In</span>
         </button>
+        <button
+          onClick={() => setShowSignUp(true)}
+          className="flex items-center space-x-1 px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-colors"
+          data-testid="button-sign-up"
+        >
+          <span>Sign Up</span>
+        </button>
       </div>
-    );
-  }
 
-  return (
-    <button
-      disabled
-      className="flex items-center space-x-1 px-3 py-1.5 rounded-md bg-muted text-muted-foreground cursor-not-allowed text-sm font-medium transition-colors"
-      data-testid="button-sign-in"
-      title="Profiles coming soon"
-    >
-      <LogIn size={16} />
-      <span>Sign In</span>
-    </button>
+      <SignInModal
+        open={showSignIn}
+        onOpenChange={setShowSignIn}
+        onSignUpClick={() => {
+          setShowSignIn(false);
+          setShowSignUp(true);
+        }}
+      />
+      <SignUpModal
+        open={showSignUp}
+        onOpenChange={setShowSignUp}
+        onSignInClick={() => {
+          setShowSignUp(false);
+          setShowSignIn(true);
+        }}
+      />
+    </>
   );
 }

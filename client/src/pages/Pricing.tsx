@@ -119,7 +119,7 @@ export default function Pricing() {
 
   if (productsLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
       </div>
     );
@@ -129,14 +129,14 @@ export default function Pricing() {
   const proProduct = products.find(p => p.metadata?.tier === 'pro');
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 py-12 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-slate-900 mb-4">
+          <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-4">
             Choose Your Plan
           </h1>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
-            Unlock the full potential of KiteAI with our flexible pricing plans.
+          <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto mb-8">
+            Unlock the full potential of Kiteframe with our flexible pricing plans.
             Start free and upgrade as you grow.
           </p>
 
@@ -176,13 +176,13 @@ export default function Pricing() {
             <CardContent>
               <div className="mb-6">
                 <span className="text-4xl font-bold">$0</span>
-                <span className="text-slate-500">/month</span>
+                <span className="text-slate-500 dark:text-slate-400">/month</span>
               </div>
               <ul className="space-y-3">
                 {tierFeatures.free.map((feature, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
-                    <span className="text-sm text-slate-600">{feature}</span>
+                    <span className="text-sm text-slate-600 dark:text-slate-300">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -221,9 +221,9 @@ export default function Pricing() {
                           : getPriceForInterval(advancedProduct, 'month')?.unit_amount || 0) / (isAnnual ? 12 : 1)
                       )}
                     </span>
-                    <span className="text-slate-500">/month</span>
+                    <span className="text-slate-500 dark:text-slate-400">/month</span>
                     {isAnnual && (
-                      <p className="text-sm text-slate-500 mt-1">
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                         Billed {formatPrice(getPriceForInterval(advancedProduct, 'year')?.unit_amount || 0)} annually
                       </p>
                     )}
@@ -236,7 +236,7 @@ export default function Pricing() {
                 {tierFeatures.advanced.map((feature, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
-                    <span className="text-sm text-slate-600">{feature}</span>
+                    <span className="text-sm text-slate-600 dark:text-slate-300">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -288,9 +288,9 @@ export default function Pricing() {
                           : getPriceForInterval(proProduct, 'month')?.unit_amount || 0) / (isAnnual ? 12 : 1)
                       )}
                     </span>
-                    <span className="text-slate-500">/month</span>
+                    <span className="text-slate-500 dark:text-slate-400">/month</span>
                     {isAnnual && (
-                      <p className="text-sm text-slate-500 mt-1">
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                         Billed {formatPrice(getPriceForInterval(proProduct, 'year')?.unit_amount || 0)} annually
                       </p>
                     )}
@@ -303,7 +303,7 @@ export default function Pricing() {
                 {tierFeatures.pro.map((feature, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
-                    <span className="text-sm text-slate-600">{feature}</span>
+                    <span className="text-sm text-slate-600 dark:text-slate-300">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -330,27 +330,27 @@ export default function Pricing() {
         </div>
 
         <div className="mt-16 text-center">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-4">
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-4">
             Frequently Asked Questions
           </h2>
           <div className="max-w-2xl mx-auto text-left space-y-6">
             <div>
-              <h3 className="font-medium text-slate-900">What are AI credits?</h3>
-              <p className="text-slate-600 text-sm mt-1">
+              <h3 className="font-medium text-slate-900 dark:text-slate-100">What are AI credits?</h3>
+              <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">
                 AI credits are used each time you generate workflows, get AI suggestions, or use any AI-powered features.
                 Each plan comes with a monthly allocation that resets on your billing date.
               </p>
             </div>
             <div>
-              <h3 className="font-medium text-slate-900">Can I upgrade or downgrade anytime?</h3>
-              <p className="text-slate-600 text-sm mt-1">
+              <h3 className="font-medium text-slate-900 dark:text-slate-100">Can I upgrade or downgrade anytime?</h3>
+              <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">
                 Yes! You can change your plan at any time. When upgrading, you'll be charged the prorated amount.
                 When downgrading, your new rate takes effect at the next billing cycle.
               </p>
             </div>
             <div>
-              <h3 className="font-medium text-slate-900">What are cloud-saved projects?</h3>
-              <p className="text-slate-600 text-sm mt-1">
+              <h3 className="font-medium text-slate-900 dark:text-slate-100">What are cloud-saved projects?</h3>
+              <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">
                 Pro users can save their workflows to the cloud, access them from any device, and share them with team members.
                 Your projects are securely stored and always backed up.
               </p>
