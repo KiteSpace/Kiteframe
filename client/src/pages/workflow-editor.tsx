@@ -23,6 +23,7 @@ import { MissingImagesModal } from '@/components/MissingImagesModal';
 import { NewTabModal } from '@/components/NewTabModal';
 import { ImageUploadModal } from '@/lib/kiteframe/components/modals/ImageUploadModal';
 import { SavedProjectsDrawer } from '@/components/SavedProjectsDrawer';
+import { HomeScreen } from '@/components/HomeScreen';
 import { AiProvider, useAi } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import { useToast } from '@/hooks/use-toast';
@@ -56,7 +57,8 @@ import {
   Upload, 
   Menu, 
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Home
 } from 'lucide-react';
 
 // Workflow metadata types
@@ -837,7 +839,10 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
 
   // Tab management state
   const [tabs, setTabs] = useState<WorkflowTab[]>([]);
-  const [activeTabId, setActiveTabId] = useState<string>('');
+  const [activeTabId, setActiveTabId] = useState<string>('home');
+  
+  // Check if we're on the home screen
+  const isOnHomeTab = activeTabId === 'home';
   
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -1301,15 +1306,15 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   const closeTab = useCallback((tabId: string) => {
     setTabs(prev => {
       const newTabs = prev.filter(tab => tab.id !== tabId);
-      // If we're closing the active tab, switch to the previous tab or first tab
+      // If we're closing the active tab, switch to the previous tab or home
       if (tabId === activeTabId) {
         if (newTabs.length > 0) {
           const closingIndex = prev.findIndex(tab => tab.id === tabId);
           const newActiveTab = newTabs[Math.max(0, closingIndex - 1)] || newTabs[0];
           setActiveTabId(newActiveTab.id);
         } else {
-          // No tabs remaining, clear active tab ID
-          setActiveTabId('');
+          // No tabs remaining, go to home
+          setActiveTabId('home');
         }
       }
       return newTabs;
@@ -2738,6 +2743,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Other UI state
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
+  const [generatorPrompt, setGeneratorPrompt] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
   const [showBugReportModal, setShowBugReportModal] = useState(false);
   const [showNewTabModal, setShowNewTabModal] = useState(false);
@@ -3099,7 +3105,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     const savedTabs = loadFromLocalStorage();
     if (savedTabs.length > 0) {
       setTabs(savedTabs);
-      setActiveTabId(savedTabs[0].id);
+      // Keep user on home screen by default, they can switch to a tab from there
       console.log('🔄 Restored workflows from local storage');
     }
   }, [loadFromLocalStorage]);
@@ -3120,6 +3126,21 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         {/* Tab Bar */}
         <div className="flex items-center bg-card border-b border-border px-4 py-2">
           <div className="flex items-center space-x-1 flex-1 overflow-x-auto min-w-0">
+            {/* Home Tab Icon */}
+            <button
+              className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${
+                isOnHomeTab
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => setActiveTabId('home')}
+              data-testid="tab-home"
+              title="Home"
+            >
+              <Home size={16} />
+            </button>
+            
+            {/* Workflow Tabs */}
             {tabs.map((tab) => (
               <div
                 key={tab.id}
@@ -3197,6 +3218,34 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
+          {/* Home Screen */}
+          {isOnHomeTab ? (
+            <HomeScreen
+              recentProjects={tabs.map(tab => ({
+                id: tab.id,
+                name: tab.name,
+                lastModified: new Date(),
+                status: 'draft' as const
+              }))}
+              onOpenProject={(projectId) => setActiveTabId(projectId)}
+              onGenerateWorkflow={(prompt) => {
+                const newTab = createBlankTab();
+                setTabs(prev => [...prev, newTab]);
+                setActiveTabId(newTab.id);
+                setShowAiGenerator(true);
+                setGeneratorPrompt(prompt);
+              }}
+              onCreateBlankWorkflow={createNewTab}
+              onUploadImage={() => {
+                const newTab = createBlankTab();
+                setTabs(prev => [...prev, newTab]);
+                setActiveTabId(newTab.id);
+                setShowAiGenerator(true);
+              }}
+              isGenerating={generatingWireframe}
+            />
+          ) : (
+          <>
           {/* Sidebar */}
           <div className={`${isSidebarCollapsed ? 'w-12' : 'w-64'} border-r border-border flex flex-col transition-all duration-200 ${isSidebarCollapsed ? 'overflow-visible' : 'overflow-hidden'}`}>
             {isSidebarCollapsed ? (
@@ -4832,6 +4881,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               />
             )}
           </div>
+          </>
+          )}
         </div>
 
         {/* Modals */}
@@ -4853,7 +4904,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         )}
         {showAiGenerator && (
           <AiWorkflowGenerator
-            onClose={() => setShowAiGenerator(false)}
+            onClose={() => {
+              setShowAiGenerator(false);
+              setGeneratorPrompt('');
+            }}
+            initialPrompt={generatorPrompt}
             onGenerate={(generatedWorkflow: any) => {
               console.log('📝 WORKFLOW EDITOR RECEIVED AI DATA:', { 
                 hasNodes: !!generatedWorkflow.nodes,

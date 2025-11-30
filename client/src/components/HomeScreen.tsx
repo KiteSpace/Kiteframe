@@ -1,0 +1,361 @@
+import { useState, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Sparkles, 
+  Upload, 
+  ArrowRight, 
+  Clock, 
+  MoreVertical,
+  Workflow,
+  Users,
+  GitBranch,
+  Zap,
+  Settings,
+  Database,
+  Globe,
+  Heart
+} from 'lucide-react';
+
+interface RecentProject {
+  id: string;
+  name: string;
+  lastModified: Date;
+  thumbnail?: string;
+  status: 'published' | 'private' | 'draft';
+}
+
+interface WorkflowTemplate {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  likes: number;
+  uses: number;
+  thumbnail?: string;
+  category: string;
+  prompt: string;
+}
+
+interface HomeScreenProps {
+  recentProjects: RecentProject[];
+  onOpenProject: (projectId: string) => void;
+  onGenerateWorkflow: (prompt: string) => void;
+  onCreateBlankWorkflow: () => void;
+  onUploadImage: () => void;
+  isGenerating?: boolean;
+}
+
+const quickExamples = [
+  { label: 'User Onboarding Flow', prompt: 'Create a user onboarding workflow that includes account creation, email verification, profile setup, and a welcome tutorial' },
+  { label: 'API Request Handler', prompt: 'Design an API request handling workflow with authentication, rate limiting, request validation, processing, and response formatting' },
+  { label: 'Decision Tree', prompt: 'Build a customer support decision tree workflow that routes inquiries to the right department based on issue type and priority' },
+];
+
+const workflowTemplates: WorkflowTemplate[] = [
+  {
+    id: 'template-1',
+    name: 'User Authentication Flow',
+    description: 'Complete auth workflow with login, signup, and password reset',
+    author: 'Kiteframe',
+    likes: 234,
+    uses: 12500,
+    category: 'Authentication',
+    prompt: 'Create a user authentication workflow with login form, credential validation, session creation, error handling for invalid credentials, and password reset flow'
+  },
+  {
+    id: 'template-2',
+    name: 'E-commerce Checkout',
+    description: 'Shopping cart to order confirmation workflow',
+    author: 'Kiteframe',
+    likes: 189,
+    uses: 8900,
+    category: 'E-commerce',
+    prompt: 'Design an e-commerce checkout workflow starting from cart review, shipping address, payment processing, order confirmation, and email notification'
+  },
+  {
+    id: 'template-3',
+    name: 'Data Pipeline',
+    description: 'ETL workflow for data processing',
+    author: 'Kiteframe',
+    likes: 156,
+    uses: 6700,
+    category: 'Data',
+    prompt: 'Create a data pipeline workflow with data extraction from multiple sources, transformation steps, validation, and loading into a database'
+  },
+  {
+    id: 'template-4',
+    name: 'CI/CD Pipeline',
+    description: 'Continuous integration and deployment workflow',
+    author: 'Kiteframe',
+    likes: 312,
+    uses: 15200,
+    category: 'DevOps',
+    prompt: 'Build a CI/CD pipeline workflow with code commit, automated testing, code review, staging deployment, and production release with rollback capability'
+  },
+  {
+    id: 'template-5',
+    name: 'Customer Support Ticket',
+    description: 'Ticket routing and resolution workflow',
+    author: 'Kiteframe',
+    likes: 98,
+    uses: 4300,
+    category: 'Support',
+    prompt: 'Design a customer support ticket workflow with ticket creation, priority assessment, agent assignment, resolution tracking, and customer feedback collection'
+  },
+  {
+    id: 'template-6',
+    name: 'Content Approval',
+    description: 'Multi-stage content review workflow',
+    author: 'Kiteframe',
+    likes: 145,
+    uses: 5800,
+    category: 'Content',
+    prompt: 'Create a content approval workflow with draft submission, editorial review, stakeholder approval, revision requests, and final publication'
+  },
+];
+
+const categoryIcons: Record<string, typeof Workflow> = {
+  'Authentication': Users,
+  'E-commerce': Globe,
+  'Data': Database,
+  'DevOps': GitBranch,
+  'Support': Settings,
+  'Content': Zap,
+};
+
+function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minutes ago`;
+  if (diffHours < 24) return `${diffHours} hours ago`;
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString();
+}
+
+function formatNumber(num: number): string {
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k';
+  }
+  return num.toString();
+}
+
+export function HomeScreen({
+  recentProjects,
+  onOpenProject,
+  onGenerateWorkflow,
+  onCreateBlankWorkflow,
+  onUploadImage,
+  isGenerating = false
+}: HomeScreenProps) {
+  const [promptValue, setPromptValue] = useState('');
+
+  const handleExampleClick = useCallback((prompt: string) => {
+    setPromptValue(prompt);
+  }, []);
+
+  const handleTemplateClick = useCallback((template: WorkflowTemplate) => {
+    setPromptValue(template.prompt);
+  }, []);
+
+  const handleGenerate = useCallback(() => {
+    if (promptValue.trim()) {
+      onGenerateWorkflow(promptValue.trim());
+    }
+  }, [promptValue, onGenerateWorkflow]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && promptValue.trim() && !isGenerating) {
+      handleGenerate();
+    }
+  }, [promptValue, isGenerating, handleGenerate]);
+
+  return (
+    <div className="flex-1 overflow-auto bg-background">
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* AI Prompt Section */}
+        <div className="mb-10">
+          <h2 className="text-sm font-medium text-muted-foreground mb-3">Prompt</h2>
+          <div className="bg-card border border-border rounded-xl p-4">
+            <Textarea
+              value={promptValue}
+              onChange={(e) => setPromptValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Describe the workflow you want to create...or upload an image"
+              className="min-h-[100px] resize-none border-0 p-0 focus-visible:ring-0 text-base bg-transparent"
+              data-testid="input-workflow-prompt"
+            />
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onUploadImage}
+                  className="text-muted-foreground hover:text-foreground"
+                  data-testid="button-upload-image"
+                >
+                  <Upload size={16} className="mr-1" />
+                  Upload Image
+                </Button>
+              </div>
+              <Button
+                onClick={handleGenerate}
+                disabled={!promptValue.trim() || isGenerating}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                data-testid="button-start-designing"
+              >
+                {isGenerating ? (
+                  <>
+                    <span className="animate-spin mr-2">⏳</span>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} className="mr-2" />
+                    Start designing
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            The fastest way to create visual workflows – ideal for designers and PMs. See results in ~30 seconds.
+          </p>
+
+          {/* Quick Example Chips */}
+          <div className="mt-4">
+            <span className="text-sm text-muted-foreground mr-3">Start with an example</span>
+            <div className="inline-flex flex-wrap gap-2 mt-2">
+              {quickExamples.map((example) => (
+                <button
+                  key={example.label}
+                  onClick={() => handleExampleClick(example.prompt)}
+                  className="inline-flex items-center px-3 py-1.5 rounded-full bg-muted hover:bg-muted/80 text-sm text-foreground transition-colors"
+                  data-testid={`chip-example-${example.label.toLowerCase().replace(/\s+/g, '-')}`}
+                >
+                  <Workflow size={14} className="mr-1.5 text-muted-foreground" />
+                  {example.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Projects Section */}
+        {recentProjects.length > 0 && (
+          <div className="mb-10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Recent Projects</h2>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                View All <ArrowRight size={14} className="ml-1" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {recentProjects.slice(0, 3).map((project) => (
+                <Card
+                  key={project.id}
+                  className="cursor-pointer hover:border-primary/50 transition-colors group"
+                  onClick={() => onOpenProject(project.id)}
+                  data-testid={`card-project-${project.id}`}
+                >
+                  <div className="aspect-video bg-muted rounded-t-lg overflow-hidden relative">
+                    {project.thumbnail ? (
+                      <img 
+                        src={project.thumbnail} 
+                        alt={project.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Workflow size={32} className="text-muted-foreground/50" />
+                      </div>
+                    )}
+                    <button
+                      className="absolute top-2 right-2 p-1 rounded-md bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                      data-testid={`button-project-menu-${project.id}`}
+                    >
+                      <MoreVertical size={14} />
+                    </button>
+                  </div>
+                  <CardContent className="p-3">
+                    <h3 className="font-medium truncate">{project.name}</h3>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs text-muted-foreground flex items-center">
+                        <Clock size={12} className="mr-1" />
+                        {formatTimeAgo(project.lastModified)}
+                      </span>
+                      <Badge 
+                        variant={project.status === 'published' ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {project.status === 'published' ? 'Published' : project.status === 'private' ? 'Private' : 'Draft'}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Quick Start Templates Section */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Quick Start Templates</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {workflowTemplates.map((template) => {
+              const IconComponent = categoryIcons[template.category] || Workflow;
+              return (
+                <Card
+                  key={template.id}
+                  className="cursor-pointer hover:border-primary/50 transition-colors group"
+                  onClick={() => handleTemplateClick(template)}
+                  data-testid={`card-template-${template.id}`}
+                >
+                  <div className="aspect-video bg-gradient-to-br from-muted to-muted/50 rounded-t-lg overflow-hidden flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-2">
+                        <IconComponent size={24} className="text-primary" />
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">{template.category}</span>
+                    </div>
+                  </div>
+                  <CardContent className="p-3">
+                    <h3 className="font-medium">{template.name}</h3>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      {template.description}
+                    </p>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-border">
+                      <span className="text-xs text-muted-foreground">
+                        by {template.author}
+                      </span>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center">
+                          <Heart size={12} className="mr-1" />
+                          {formatNumber(template.likes)}
+                        </span>
+                        <span className="flex items-center">
+                          <Users size={12} className="mr-1" />
+                          {formatNumber(template.uses)}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

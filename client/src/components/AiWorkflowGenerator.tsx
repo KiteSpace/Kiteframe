@@ -28,11 +28,12 @@ interface ImageAnalysisResult {
 interface AiWorkflowGeneratorProps {
   onClose: () => void;
   onGenerate: (workflow: { nodes: Node[], edges: Edge[] }) => void;
+  initialPrompt?: string;
 }
 
-export function AiWorkflowGenerator({ onClose, onGenerate }: AiWorkflowGeneratorProps) {
+export function AiWorkflowGenerator({ onClose, onGenerate, initialPrompt = '' }: AiWorkflowGeneratorProps) {
   const [mode, setMode] = useState<'text' | 'image'>('text');
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState(initialPrompt);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
