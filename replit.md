@@ -42,8 +42,19 @@ Preferred communication style: Simple, everyday language.
 - **Session Management**: PostgreSQL session store with connect-pg-simple.
 
 ### Authentication and Authorization
-- **User Model**: Basic user schema with username/password fields.
-- **Session Storage**: PostgreSQL-backed sessions.
+- **Multi-Provider OAuth**: Support for Google, GitHub, and Replit authentication.
+- **OAuth Providers Table**: Allows users to link multiple OAuth providers to a single account.
+- **User Model**: Database users with email, profile info, subscription tier, and linked OAuth providers.
+- **Session Storage**: PostgreSQL-backed sessions with Passport.js.
+- **Account Linking**: Automatically links new OAuth providers to existing accounts by email match.
+
+### Subscription System (KiteAI)
+- **Three-Tier Model**: Free (25 credits/month), Advanced (150 credits/month, $14.99/mo), Pro (500 credits/month, $29.99/mo).
+- **Stripe Integration**: Checkout for subscriptions, Customer Portal for management, webhooks for events.
+- **Credit System**: Monthly credit allocation based on subscription tier, tracked per authenticated user.
+- **Saved Projects**: Pro tier feature for cloud-saved workflows with folder organization.
+- **Pricing Page**: Tier comparison, feature lists, and Stripe Checkout integration.
+- **Account Management**: Connected auth providers, subscription management, account deletion flow.
 
 ### Canvas and Workflow System
 - **Node Types**: Supports input, process, condition, output, AI, and image nodes with dynamic text wrapping and height adjustment.
