@@ -7,6 +7,9 @@ import { BlankCanvasState } from '@/components/BlankCanvasState';
 import { PluginProvider, layoutPlugin, consolePlugin, testPlugin, advancedInteractionsPlugin } from '@/lib/kiteframe';
 import { PluginTestButton } from '@/components/PluginTestButton';
 import { PluginTestPanel } from '@/components/PluginTestPanel';
+import { AppHeader } from '@/components/AppHeader';
+import { SignInModal } from '@/components/SignInModal';
+import { SignUpModal } from '@/components/SignUpModal';
 
 import { Sidebar } from '@/components/Sidebar';
 import { CollapsedSidebar } from '@/components/CollapsedSidebar';
@@ -94,6 +97,8 @@ interface WorkflowTab {
 function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: () => void }) {
   const ai = useAi();
   const { toast } = useToast();
+  const [showSignIn, setShowSignIn] = useState(false);
+  const [showSignUp, setShowSignUp] = useState(false);
 
   // Editor Settings State with persistence
   const [editorSettings, setEditorSettings] = useState(() => {
@@ -3107,6 +3112,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   return (
     <div className="h-screen flex flex-col bg-background">
+        <AppHeader onSignInClick={() => setShowSignIn(true)} onSignUpClick={() => setShowSignUp(true)} />
+        <SignInModal
+          open={showSignIn}
+          onOpenChange={setShowSignIn}
+          onSignUpClick={() => {
+            setShowSignIn(false);
+            setShowSignUp(true);
+          }}
+        />
+        <SignUpModal
+          open={showSignUp}
+          onOpenChange={setShowSignUp}
+          onSignInClick={() => {
+            setShowSignUp(false);
+            setShowSignIn(true);
+          }}
+        />
         {/* Header */}
         <Toolbar
           onOpenAiSettings={() => setShowAiModal(true)}
