@@ -46,12 +46,30 @@ export const users = pgTable("users", {
   subscriptionTier: varchar("subscription_tier").default('free'), // free, advanced, pro
   subscriptionStatus: varchar("subscription_status").default('active'), // active, canceled, past_due, paused, trialing
   billingPeriodEnd: timestamp("billing_period_end"),
-  // OAuth provider tracking
+  // Primary OAuth provider (legacy, maintained for backward compatibility)
   authProvider: varchar("auth_provider"), // google, github, replit
   authProviderId: varchar("auth_provider_id"), // Provider's unique user ID
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// OAuth provider links for multi-provider authentication
+export const oauthProviders = pgTable("oauth_providers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  provider: varchar("provider").notNull(), // google, github, replit
+  providerId: varchar("provider_id").notNull(), // Provider's unique user ID
+  accessToken: text("access_token"), // Encrypted access token
+  refreshToken: text("refresh_token"), // Encrypted refresh token
+  email: varchar("email"),
+  displayName: varchar("display_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  linkedAt: timestamp("linked_at").defaultNow(),
+  lastUsedAt: timestamp("last_used_at").defaultNow(),
+}, (table) => [
+  index("IDX_oauth_providers_user").on(table.userId),
+  index("IDX_oauth_providers_provider_id").on(table.provider, table.providerId),
+]);
 
 // Workflow snapshots for Version Control Pro
 export const workflowSnapshots = pgTable("workflow_snapshots", {
@@ -243,3 +261,5 @@ export type SavedProject = typeof savedProjects.$inferSelect;
 export type InsertSavedProject = z.infer<typeof insertSavedProjectSchema>;
 export type ProjectFolder = typeof projectFolders.$inferSelect;
 export type InsertProjectFolder = z.infer<typeof insertProjectFolderSchema>;
+export type OAuthProvider = typeof oauthProviders.$inferSelect;
+export type InsertOAuthProvider = typeof oauthProviders.$inferInsert;

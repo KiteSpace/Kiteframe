@@ -1,9 +1,15 @@
 import { db } from "./db";
-import { userCredits, unlockCodes } from "@shared/schema";
+import { userCredits, unlockCodes, users } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
 import type { Request } from "express";
 import { geolocationService } from "./geolocation";
 import { analyticsService } from "./analyticsService";
+
+const TIER_CREDITS = {
+  free: 25,
+  advanced: 150,
+  pro: 500,
+} as const;
 
 export interface CreditCheckResult {
   hasCredits: boolean;
@@ -13,6 +19,10 @@ export interface CreditCheckResult {
 
 export class CreditService {
   getUserIdentifier(req: Request): string {
+    const user = req.user as any;
+    if (user && (user.id || user.claims?.sub)) {
+      return user.id || user.claims.sub;
+    }
     return geolocationService.getUserIP(req);
   }
 
@@ -22,9 +32,15 @@ export class CreditService {
     });
 
     if (!credits) {
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userIdentifier),
+      });
+      const tier = (user?.subscriptionTier as keyof typeof TIER_CREDITS) || 'free';
+      const initialCredits = TIER_CREDITS[tier] || TIER_CREDITS.free;
+      
       const [newCredits] = await db.insert(userCredits).values({
         userIdentifier,
-        credits: 10,
+        credits: initialCredits,
       }).returning();
       credits = newCredits;
     }
@@ -53,7 +69,7 @@ export class CreditService {
         if (!existing) {
           await tx.insert(userCredits).values({
             userIdentifier,
-            credits: 10,
+            credits: TIER_CREDITS.free,
             isUnlimited: false,
           });
         }
@@ -208,6 +224,51 @@ export class CreditService {
   async getRemainingCredits(userIdentifier: string): Promise<number> {
     const credits = await this.getOrCreateUserCredits(userIdentifier);
     return credits.credits;
+  }
+
+  getCreditsForTier(tier: keyof typeof TIER_CREDITS): number {
+    return TIER_CREDITS[tier] || TIER_CREDITS.free;
+  }
+
+  async resetMonthlyCreditsForUser(userId: string): Promise<void> {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (!user) return;
+
+    const tier = (user.subscriptionTier as keyof typeof TIER_CREDITS) || 'free';
+    const monthlyCredits = this.getCreditsForTier(tier);
+
+    await db.update(userCredits)
+      .set({
+        credits: monthlyCredits,
+        updatedAt: new Date(),
+      })
+      .where(eq(userCredits.userIdentifier, userId));
+  }
+
+  async syncUserCreditsWithTier(userId: string, tier: keyof typeof TIER_CREDITS): Promise<void> {
+    const monthlyCredits = this.getCreditsForTier(tier);
+    
+    const existing = await db.query.userCredits.findFirst({
+      where: eq(userCredits.userIdentifier, userId),
+    });
+
+    if (existing) {
+      await db.update(userCredits)
+        .set({
+          credits: monthlyCredits,
+          updatedAt: new Date(),
+        })
+        .where(eq(userCredits.userIdentifier, userId));
+    } else {
+      await db.insert(userCredits).values({
+        userIdentifier: userId,
+        credits: monthlyCredits,
+        isUnlimited: tier === 'pro',
+      });
+    }
   }
 }
 

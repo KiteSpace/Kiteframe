@@ -38,13 +38,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    const existingUser = userData.id ? await this.getUser(userData.id) : undefined;
+    
+    const dataToInsert = {
+      ...userData,
+      subscriptionTier: userData.subscriptionTier || existingUser?.subscriptionTier || 'free',
+      subscriptionStatus: userData.subscriptionStatus || existingUser?.subscriptionStatus || 'active',
+    };
+    
     const [user] = await db
       .insert(users)
-      .values(userData)
+      .values(dataToInsert)
       .onConflictDoUpdate({
         target: users.id,
         set: {
-          ...userData,
+          email: dataToInsert.email,
+          firstName: dataToInsert.firstName,
+          lastName: dataToInsert.lastName,
+          profileImageUrl: dataToInsert.profileImageUrl,
+          authProvider: dataToInsert.authProvider,
+          authProviderId: dataToInsert.authProviderId,
           updatedAt: new Date(),
         },
       })

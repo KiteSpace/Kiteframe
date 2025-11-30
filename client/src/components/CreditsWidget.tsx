@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { Coins, AlertCircle } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
+import { Coins, AlertCircle, Crown, Sparkles } from 'lucide-react';
 
 interface CreditsResponse {
   success: boolean;
@@ -24,6 +26,7 @@ export function CreditsWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [unlockCode, setUnlockCode] = useState('');
   const { toast } = useToast();
+  const { tier, isPro, isAdvanced, monthlyCredits } = useSubscription();
 
   const { data: creditsData, isLoading } = useQuery({
     queryKey: ['/api/credits'],
@@ -78,24 +81,42 @@ export function CreditsWidget() {
   const isLowCredits = credits <= 2 && !isUnlimited;
   const displayCredits = isUnlimited ? '∞' : credits;
 
+  const tierBadge = tier === 'pro' ? (
+    <Badge variant="default" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
+      <Crown className="h-3 w-3 mr-1" />
+      Pro
+    </Badge>
+  ) : tier === 'advanced' ? (
+    <Badge variant="default" className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0">
+      <Sparkles className="h-3 w-3 mr-1" />
+      Advanced
+    </Badge>
+  ) : null;
+
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setIsOpen(true)}
-        className={`flex items-center gap-2 ${isLowCredits ? 'border-orange-500 text-orange-600' : ''}`}
-        data-testid="button-credits"
-      >
-        <Coins className="h-4 w-4" />
-        <span data-testid="text-credits-count">{isLoading ? '...' : displayCredits}</span>
-        {isLowCredits && <AlertCircle className="h-3 w-3" />}
-      </Button>
+      <div className="flex items-center gap-2">
+        {tierBadge}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsOpen(true)}
+          className={`flex items-center gap-2 ${isLowCredits ? 'border-orange-500 text-orange-600' : ''}`}
+          data-testid="button-credits"
+        >
+          <Coins className="h-4 w-4" />
+          <span data-testid="text-credits-count">{isLoading ? '...' : displayCredits}</span>
+          {isLowCredits && <AlertCircle className="h-3 w-3" />}
+        </Button>
+      </div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent data-testid="dialog-credits">
           <DialogHeader>
-            <DialogTitle>AI Credits</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              AI Credits
+              {tierBadge}
+            </DialogTitle>
             <DialogDescription>
               You have <strong data-testid="text-credits-remaining">{isUnlimited ? 'unlimited' : credits}</strong> AI credits remaining.
               {!isUnlimited && ' Each AI operation uses 1 credit.'}
@@ -104,10 +125,23 @@ export function CreditsWidget() {
           </DialogHeader>
 
           <div className="space-y-4 pt-4">
+            {(isPro || isAdvanced) && (
+              <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-lg p-4">
+                <p className="text-sm font-medium text-foreground">
+                  Monthly Allocation: {monthlyCredits} credits
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your credits refresh at the start of each billing period.
+                </p>
+              </div>
+            )}
+
             {credits === 0 && (
               <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
                 <p className="text-sm text-orange-800 dark:text-orange-200">
-                  You've run out of credits. Enter an unlock code to continue using AI features.
+                  You've run out of credits. {tier === 'free' ? (
+                    <a href="/pricing" className="underline font-medium">Upgrade your plan</a>
+                  ) : 'Enter an unlock code'} to continue using AI features.
                 </p>
               </div>
             )}

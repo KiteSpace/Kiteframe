@@ -8,6 +8,7 @@ import {
   Sun,
   Moon,
   Bug,
+  Cloud,
 } from "lucide-react";
 import { useState } from "react";
 import kiteframeIcon from "@assets/kiteframe@2x_1758226635607.png";
@@ -28,6 +29,7 @@ interface ToolbarProps {
   editorSettings?: EditorSettings;
   onEditorSettingsChange?: (settings: EditorSettings) => void;
   onOpenBugReport?: () => void;
+  onOpenCloudProjects?: () => void;
 }
 
 export function Toolbar({ 
@@ -36,7 +38,8 @@ export function Toolbar({
   onToggleDarkMode, 
   editorSettings,
   onEditorSettingsChange,
-  onOpenBugReport
+  onOpenBugReport,
+  onOpenCloudProjects
 }: ToolbarProps) {
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   return (
@@ -99,6 +102,18 @@ export function Toolbar({
             title="Report Bug or Feature Request"
           >
             <Bug size={16} />
+          </button>
+        )}
+        
+        {/* Cloud Projects Button */}
+        {onOpenCloudProjects && (
+          <button
+            className="p-2 rounded-md hover:bg-accent transition-colors"
+            onClick={onOpenCloudProjects}
+            data-testid="button-cloud-projects"
+            title="Cloud Projects (Pro)"
+          >
+            <Cloud size={16} />
           </button>
         )}
         

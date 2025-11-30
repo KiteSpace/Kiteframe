@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { usePluginSystem } from '@/lib/kiteframe/core/PluginProvider';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import FloatingLayersWidget from '@/components/layers/FloatingLayersWidget';
@@ -22,6 +23,7 @@ import { ContextMenu } from '@/components/ContextMenu';
 import { MissingImagesModal } from '@/components/MissingImagesModal';
 import { NewTabModal } from '@/components/NewTabModal';
 import { ImageUploadModal } from '@/lib/kiteframe/components/modals/ImageUploadModal';
+import { SavedProjectsDrawer } from '@/components/SavedProjectsDrawer';
 import { AiProvider, useAi } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import { useToast } from '@/hooks/use-toast';
@@ -2727,12 +2729,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [nodes, saveToHistory, core]);
 
 
+  // Subscription data for Pro tier features
+  const { data: subscriptionData } = useQuery<{ tier?: string; status?: string }>({
+    queryKey: ['/api/subscription'],
+  });
+  const isPro = subscriptionData?.tier === 'pro' && subscriptionData?.status === 'active';
+  const isAuthenticated = !!subscriptionData?.tier || subscriptionData?.tier === 'free';
+
   // Other UI state
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showBugReportModal, setShowBugReportModal] = useState(false);
   const [showNewTabModal, setShowNewTabModal] = useState(false);
+  const [showCloudProjects, setShowCloudProjects] = useState(false);
   const [showPluginTest, setShowPluginTest] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node; canvasObject?: CanvasObject } | null>(null);
   const [isEditingWorkflowName, setIsEditingWorkflowName] = useState(false);
@@ -3105,6 +3115,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           editorSettings={editorSettings}
           onEditorSettingsChange={setEditorSettings}
           onOpenBugReport={() => setShowBugReportModal(true)}
+          onOpenCloudProjects={() => setShowCloudProjects(true)}
         />
         
         {/* Tab Bar */}
@@ -5344,6 +5355,51 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
           />
         )}
+
+        {/* Cloud Projects Drawer */}
+        <SavedProjectsDrawer
+          isOpen={showCloudProjects}
+          onOpenChange={setShowCloudProjects}
+          currentWorkflow={{
+            nodes,
+            edges,
+            canvasObjects,
+            viewport,
+            metadata: activeTab?.metadata,
+          }}
+          onLoadProject={(workflowData) => {
+            saveToHistory();
+            const newTab: WorkflowTab = {
+              id: `tab-${Date.now()}`,
+              name: workflowData.metadata?.name || 'Loaded Project',
+              nodes: workflowData.nodes || [],
+              edges: workflowData.edges || [],
+              canvasObjects: workflowData.canvasObjects || [],
+              viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
+              selectedNodeId: '',
+              selectedEdgeId: '',
+              history: [{
+                nodes: workflowData.nodes || [],
+                edges: workflowData.edges || [],
+                canvasObjects: workflowData.canvasObjects || [],
+                viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 }
+              }],
+              historyIndex: 0,
+              showImageModal: null,
+              metadata: workflowData.metadata || {
+                name: 'Loaded Project',
+                description: '',
+                links: [],
+                linksFormat: 'text',
+                categories: []
+              }
+            };
+            setTabs(prev => [...prev, newTab]);
+            setActiveTabId(newTab.id);
+          }}
+          isPro={isPro}
+          isAuthenticated={isAuthenticated}
+        />
 
       </div>
   );

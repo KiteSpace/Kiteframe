@@ -10,7 +10,9 @@ import {
   collaborationRooms, 
   roomParticipants, 
   chatMessages, 
-  workflowComments 
+  workflowComments,
+  savedProjects,
+  projectFolders,
 } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
@@ -21,6 +23,9 @@ import { requireAdminAuth } from "./middleware/adminAuth";
 import { unlockCodes } from "@shared/schema";
 import { analyticsService } from "./analyticsService";
 import { geolocationService } from "./geolocation";
+import { setupAuth, isAuthenticated } from "./replitAuth";
+import { stripeService } from "./stripeService";
+import { getStripePublishableKey } from "./stripeClient";
 
 // Workflow validation utility
 function validateWorkflowStructure(data: any): { isValid: boolean; errors: string[]; warnings: string[] } {
@@ -218,6 +223,356 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup Replit Auth
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Get Stripe publishable key
+  app.get('/api/stripe/config', async (req, res) => {
+    try {
+      const publishableKey = await getStripePublishableKey();
+      res.json({ publishableKey });
+    } catch (error) {
+      console.error('Error getting Stripe config:', error);
+      res.status(500).json({ error: 'Stripe not configured' });
+    }
+  });
+
+  // Get subscription status
+  app.get('/api/subscription', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.json({ subscription: null, tier: 'free' });
+      }
+
+      let subscription = null;
+      if (user.stripeSubscriptionId) {
+        subscription = await stripeService.getSubscription(user.stripeSubscriptionId);
+      }
+
+      res.json({ 
+        subscription,
+        tier: user.subscriptionTier || 'free',
+        status: user.subscriptionStatus || 'active',
+        billingPeriodEnd: user.billingPeriodEnd,
+      });
+    } catch (error) {
+      console.error('Error fetching subscription:', error);
+      res.status(500).json({ error: 'Failed to fetch subscription' });
+    }
+  });
+
+  // Create checkout session
+  app.post('/api/checkout', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const { priceId } = req.body;
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripeService.createCustomer(
+          user.email || '',
+          user.id,
+          `${user.firstName || ''} ${user.lastName || ''}`.trim() || undefined
+        );
+        await storage.updateUserSubscription(user.id, { stripeCustomerId: customer.id });
+        customerId = customer.id;
+      }
+
+      const session = await stripeService.createCheckoutSession(
+        customerId,
+        priceId,
+        `${req.protocol}://${req.get('host')}/checkout/success`,
+        `${req.protocol}://${req.get('host')}/pricing`
+      );
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error('Checkout error:', error);
+      res.status(500).json({ error: 'Failed to create checkout session' });
+    }
+  });
+
+  // Customer portal for managing subscription
+  app.post('/api/billing/portal', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user?.stripeCustomerId) {
+        return res.status(400).json({ error: 'No billing account found' });
+      }
+
+      const session = await stripeService.createCustomerPortalSession(
+        user.stripeCustomerId,
+        `${req.protocol}://${req.get('host')}/account`
+      );
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error('Portal error:', error);
+      res.status(500).json({ error: 'Failed to create portal session' });
+    }
+  });
+
+  // Get products with prices for pricing page
+  app.get('/api/products', async (req, res) => {
+    try {
+      const rows = await stripeService.listProductsWithPrices();
+      
+      const productsMap = new Map();
+      for (const row of rows as any[]) {
+        if (!productsMap.has(row.product_id)) {
+          productsMap.set(row.product_id, {
+            id: row.product_id,
+            name: row.product_name,
+            description: row.product_description,
+            active: row.product_active,
+            metadata: row.product_metadata,
+            prices: []
+          });
+        }
+        if (row.price_id) {
+          productsMap.get(row.product_id).prices.push({
+            id: row.price_id,
+            unit_amount: row.unit_amount,
+            currency: row.currency,
+            recurring: row.recurring,
+            active: row.price_active,
+            metadata: row.price_metadata,
+          });
+        }
+      }
+
+      res.json({ data: Array.from(productsMap.values()) });
+    } catch (error) {
+      console.error('Products error:', error);
+      res.status(500).json({ error: 'Failed to fetch products' });
+    }
+  });
+
+  // Account deletion endpoint
+  app.delete('/api/account', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Cancel Stripe subscription if exists
+      if (user.stripeSubscriptionId) {
+        try {
+          await stripeService.cancelSubscription(user.stripeSubscriptionId);
+        } catch (error) {
+          console.error('Error canceling subscription:', error);
+        }
+      }
+
+      // Delete all user data
+      await storage.deleteUser(userId);
+
+      // Logout the user
+      req.logout(() => {
+        res.json({ success: true, message: 'Account deleted successfully' });
+      });
+    } catch (error) {
+      console.error('Account deletion error:', error);
+      res.status(500).json({ error: 'Failed to delete account' });
+    }
+  });
+
+  // Saved Projects API (Pro tier only)
+  app.get('/api/projects', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || user.subscriptionTier !== 'pro') {
+        return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
+      }
+
+      const projects = await storage.getSavedProjects(userId);
+      res.json({ projects });
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      res.status(500).json({ error: 'Failed to fetch projects' });
+    }
+  });
+
+  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user || user.subscriptionTier !== 'pro') {
+        return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
+      }
+
+      const { name, description, workflowData, thumbnail, folderId, tags, isPublic } = req.body;
+
+      const project = await storage.createSavedProject({
+        userId,
+        name,
+        description,
+        workflowData,
+        thumbnail,
+        folderId,
+        tags: tags || [],
+        isPublic: isPublic || false,
+      });
+
+      res.json({ project });
+    } catch (error) {
+      console.error('Error creating project:', error);
+      res.status(500).json({ error: 'Failed to create project' });
+    }
+  });
+
+  app.get('/api/projects/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+
+      const project = await storage.getSavedProject(id, userId);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      res.json({ project });
+    } catch (error) {
+      console.error('Error fetching project:', error);
+      res.status(500).json({ error: 'Failed to fetch project' });
+    }
+  });
+
+  app.put('/api/projects/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      const { name, description, workflowData, thumbnail, folderId, tags, isPublic } = req.body;
+
+      const project = await storage.updateSavedProject(id, userId, {
+        name,
+        description,
+        workflowData,
+        thumbnail,
+        folderId,
+        tags,
+        isPublic,
+      });
+
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      res.json({ project });
+    } catch (error) {
+      console.error('Error updating project:', error);
+      res.status(500).json({ error: 'Failed to update project' });
+    }
+  });
+
+  app.delete('/api/projects/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+
+      await storage.deleteSavedProject(id, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      res.status(500).json({ error: 'Failed to delete project' });
+    }
+  });
+
+  // Project Folders API
+  app.get('/api/folders', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const folders = await storage.getProjectFolders(userId);
+      res.json({ folders });
+    } catch (error) {
+      console.error('Error fetching folders:', error);
+      res.status(500).json({ error: 'Failed to fetch folders' });
+    }
+  });
+
+  app.post('/api/folders', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { name, parentFolderId, color } = req.body;
+
+      const folder = await storage.createProjectFolder({
+        userId,
+        name,
+        parentFolderId,
+        color,
+      });
+
+      res.json({ folder });
+    } catch (error) {
+      console.error('Error creating folder:', error);
+      res.status(500).json({ error: 'Failed to create folder' });
+    }
+  });
+
+  app.put('/api/folders/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      const { name, parentFolderId, color } = req.body;
+
+      const folder = await storage.updateProjectFolder(id, userId, {
+        name,
+        parentFolderId,
+        color,
+      });
+
+      if (!folder) {
+        return res.status(404).json({ error: 'Folder not found' });
+      }
+
+      res.json({ folder });
+    } catch (error) {
+      console.error('Error updating folder:', error);
+      res.status(500).json({ error: 'Failed to update folder' });
+    }
+  });
+
+  app.delete('/api/folders/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+
+      await storage.deleteProjectFolder(id, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting folder:', error);
+      res.status(500).json({ error: 'Failed to delete folder' });
+    }
+  });
+
   // AI Chat endpoint - proxy for AI models with dynamic provider routing
   app.post('/api/ai/chat', requireUSOnly, requireCredits, async (req, res) => {
     try {
