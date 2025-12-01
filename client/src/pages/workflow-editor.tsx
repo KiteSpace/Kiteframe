@@ -91,6 +91,103 @@ interface WorkflowTab {
   historyIndex: number;
   showImageModal: string | null;
   metadata: WorkflowMetadata;
+  thumbnail?: string;
+  lastModified?: number;
+}
+
+// Helper to get node position and dimensions (handles different node structures)
+function getNodeBounds(node: Node): { x: number; y: number; width: number; height: number } {
+  const x = node.position?.x ?? 0;
+  const y = node.position?.y ?? 0;
+  const width = node.width ?? node.style?.width ?? 200;
+  const height = node.height ?? node.style?.height ?? 100;
+  return { x, y, width, height };
+}
+
+// Generate a simple SVG thumbnail preview of the workflow
+function generateWorkflowThumbnail(nodes: Node[], edges: Edge[]): string {
+  if (nodes.length === 0) return '';
+  
+  // Get bounds for all nodes
+  const nodeBounds = nodes.map(n => getNodeBounds(n));
+  
+  // Find bounding box of all nodes
+  const padding = 20;
+  const minX = Math.min(...nodeBounds.map(b => b.x)) - padding;
+  const minY = Math.min(...nodeBounds.map(b => b.y)) - padding;
+  const maxX = Math.max(...nodeBounds.map(b => b.x + b.width)) + padding;
+  const maxY = Math.max(...nodeBounds.map(b => b.y + b.height)) + padding;
+  
+  const width = maxX - minX;
+  const height = maxY - minY;
+  
+  // Guard against invalid dimensions
+  if (!isFinite(width) || !isFinite(height) || width <= 0 || height <= 0) {
+    return '';
+  }
+  
+  // Scale to fit in thumbnail size (300x200)
+  const scale = Math.min(300 / width, 200 / height, 1);
+  const scaledWidth = width * scale;
+  const scaledHeight = height * scale;
+  
+  // Node type colors
+  const nodeColors: Record<string, string> = {
+    input: '#3b82f6',
+    process: '#8b5cf6',
+    condition: '#f59e0b',
+    output: '#22c55e',
+    ai: '#ec4899',
+    image: '#06b6d4'
+  };
+  
+  // Generate SVG
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200">`;
+  svg += `<rect width="300" height="200" fill="#f8fafc"/>`;
+  
+  // Center the content
+  const offsetX = (300 - scaledWidth) / 2;
+  const offsetY = (200 - scaledHeight) / 2;
+  
+  // Draw edges first (behind nodes)
+  edges.forEach(edge => {
+    const sourceIdx = nodes.findIndex(n => n.id === edge.source);
+    const targetIdx = nodes.findIndex(n => n.id === edge.target);
+    if (sourceIdx >= 0 && targetIdx >= 0) {
+      const sourceBounds = nodeBounds[sourceIdx];
+      const targetBounds = nodeBounds[targetIdx];
+      const x1 = (sourceBounds.x + sourceBounds.width / 2 - minX) * scale + offsetX;
+      const y1 = (sourceBounds.y + sourceBounds.height / 2 - minY) * scale + offsetY;
+      const x2 = (targetBounds.x + targetBounds.width / 2 - minX) * scale + offsetX;
+      const y2 = (targetBounds.y + targetBounds.height / 2 - minY) * scale + offsetY;
+      svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/>`;
+    }
+  });
+  
+  // Draw nodes
+  nodeBounds.forEach((bounds, idx) => {
+    const node = nodes[idx];
+    const x = (bounds.x - minX) * scale + offsetX;
+    const y = (bounds.y - minY) * scale + offsetY;
+    const w = bounds.width * scale;
+    const h = bounds.height * scale;
+    const color = nodeColors[node.type || 'process'] || '#64748b';
+    
+    if (node.type === 'condition') {
+      // Diamond shape for conditions
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      svg += `<polygon points="${cx},${y} ${x + w},${cy} ${cx},${y + h} ${x},${cy}" fill="${color}" opacity="0.8"/>`;
+    } else {
+      // Rounded rectangle for other nodes
+      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${color}" opacity="0.8"/>`;
+    }
+  });
+  
+  svg += `</svg>`;
+  
+  // Convert to data URL
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
 }
 
 function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: () => void }) {
@@ -103,12 +200,12 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     try {
       const saved = localStorage.getItem('kiteframe-editor-settings');
       return saved ? JSON.parse(saved) : {
-        nodeAutoConnect: true,
+        nodeAutoConnect: false,
         snapToGuides: true
       };
     } catch {
       return {
-        nodeAutoConnect: true,
+        nodeAutoConnect: false,
         snapToGuides: true
       };
     }
@@ -3264,11 +3361,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     return [];
   }, []);
 
-  // Auto-save to local storage when tabs change
+  // Auto-save to local storage when tabs change (with thumbnail generation)
   useEffect(() => {
     if (tabs.length > 0) {
       const timer = setTimeout(() => {
-        saveToLocalStorage(tabs);
+        // Generate thumbnails and update lastModified for each tab before saving
+        const tabsWithThumbnails = tabs.map(tab => ({
+          ...tab,
+          thumbnail: generateWorkflowThumbnail(tab.nodes, tab.edges),
+          lastModified: tab.lastModified || Date.now()
+        }));
+        saveToLocalStorage(tabsWithThumbnails);
       }, 1000); // Debounce saves by 1 second
       
       return () => clearTimeout(timer);
@@ -3295,7 +3398,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           editorSettings={editorSettings}
           onEditorSettingsChange={setEditorSettings}
           onOpenBugReport={() => setShowBugReportModal(true)}
-          onOpenCloudProjects={() => setShowCloudProjects(true)}
         />
         
         {/* Tab Bar */}
@@ -3399,8 +3501,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               recentProjects={tabs.map(tab => ({
                 id: tab.id,
                 name: tab.name,
-                lastModified: new Date(),
-                status: 'draft' as const
+                lastModified: new Date(tab.lastModified || Date.now()),
+                status: 'draft' as const,
+                thumbnail: tab.thumbnail || generateWorkflowThumbnail(tab.nodes, tab.edges)
               }))}
               onOpenProject={(projectId) => setActiveTabId(projectId)}
               onGenerateWorkflow={(prompt) => {

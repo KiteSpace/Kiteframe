@@ -8,7 +8,6 @@ import {
   Sun,
   Moon,
   Bug,
-  Cloud,
 } from "lucide-react";
 import { useState } from "react";
 import kiteframeIcon from "@assets/kiteframe@2x_1758226635607.png";
@@ -29,7 +28,6 @@ interface ToolbarProps {
   editorSettings?: EditorSettings;
   onEditorSettingsChange?: (settings: EditorSettings) => void;
   onOpenBugReport?: () => void;
-  onOpenCloudProjects?: () => void;
 }
 
 export function Toolbar({ 
@@ -38,8 +36,7 @@ export function Toolbar({
   onToggleDarkMode, 
   editorSettings,
   onEditorSettingsChange,
-  onOpenBugReport,
-  onOpenCloudProjects
+  onOpenBugReport
 }: ToolbarProps) {
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   return (
@@ -81,42 +78,6 @@ export function Toolbar({
         {/* AI Credits */}
         <CreditsWidget />
         
-        {/* Light/Dark Mode Toggle */}
-        {onToggleDarkMode && (
-          <button
-            className="p-2 rounded-md hover:bg-accent transition-colors"
-            onClick={onToggleDarkMode}
-            data-testid="button-theme-toggle"
-            title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-        )}
-        
-        {/* Bug Report Button */}
-        {onOpenBugReport && (
-          <button
-            className="p-2 rounded-md hover:bg-accent transition-colors"
-            onClick={onOpenBugReport}
-            data-testid="button-bug-report"
-            title="Report Bug or Feature Request"
-          >
-            <Bug size={16} />
-          </button>
-        )}
-        
-        {/* Cloud Projects Button */}
-        {onOpenCloudProjects && (
-          <button
-            className="p-2 rounded-md hover:bg-accent transition-colors"
-            onClick={onOpenCloudProjects}
-            data-testid="button-cloud-projects"
-            title="Cloud Projects (Pro)"
-          >
-            <Cloud size={16} />
-          </button>
-        )}
-        
         <div className="relative">
           <button
             className="p-2 rounded-md hover:bg-accent transition-colors"
@@ -127,9 +88,40 @@ export function Toolbar({
           </button>
           {showSettingsDropdown && (
             <div className="absolute right-0 top-full mt-1 w-64 bg-card border border-border rounded-lg shadow-lg z-[100] p-3">
+              {/* Theme Toggle */}
+              {onToggleDarkMode && (
+                <button
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2 rounded-lg"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleDarkMode();
+                  }}
+                  data-testid="button-theme-toggle"
+                >
+                  {isDarkMode ? <Sun size={16} className="text-yellow-500" /> : <Moon size={16} className="text-blue-500" />}
+                  {isDarkMode ? "Light Mode" : "Dark Mode"}
+                </button>
+              )}
+              
+              {/* Bug Report Button */}
+              {onOpenBugReport && (
+                <button
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2 rounded-lg"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenBugReport();
+                    setShowSettingsDropdown(false);
+                  }}
+                  data-testid="button-bug-report"
+                >
+                  <Bug size={16} className="text-red-500" />
+                  Report Bug
+                </button>
+              )}
+              
               {/* AI Settings Button */}
               <button
-                className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2 rounded-lg mb-3"
+                className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2 rounded-lg"
                 onClick={(e) => {
                   e.stopPropagation();
                   onOpenAiSettings();
@@ -138,17 +130,15 @@ export function Toolbar({
                 data-testid="button-ai-settings"
               >
                 <Bot size={16} className="text-purple-500" />
-                AI Settings
+                AI Provider
               </button>
 
               {/* Divider */}
-              <div className="border-b border-border mb-3"></div>
+              <div className="border-b border-border my-2"></div>
 
               {/* Editor Settings Toggles */}
               {editorSettings && onEditorSettingsChange && (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-muted-foreground">Editor Settings</h4>
-                  
                   {/* Node Auto-Connect Toggle */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
@@ -156,7 +146,7 @@ export function Toolbar({
                         Node Auto-Connect
                       </Label>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Automatically connect nodes that are moved close to each other
+                        Automatically connect nodes when moved close
                       </p>
                     </div>
                     <Switch
@@ -176,7 +166,7 @@ export function Toolbar({
                         Snap to Guides
                       </Label>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Snap objects to guidelines for precise alignment
+                        Snap objects for precise alignment
                       </p>
                     </div>
                     <Switch

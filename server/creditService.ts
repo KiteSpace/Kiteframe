@@ -7,9 +7,12 @@ import { analyticsService } from "./analyticsService";
 
 const TIER_CREDITS = {
   free: 25,
-  advanced: 150,
-  pro: 500,
+  advanced: 50,
+  pro: 150,
 } as const;
+
+// Credits for unauthenticated (IP-based) users
+const UNAUTHENTICATED_CREDITS = 5;
 
 export interface CreditCheckResult {
   hasCredits: boolean;
@@ -26,17 +29,30 @@ export class CreditService {
     return geolocationService.getUserIP(req);
   }
 
-  async getOrCreateUserCredits(userIdentifier: string) {
+  isAuthenticatedUser(req: Request): boolean {
+    const user = req.user as any;
+    return !!(user && (user.id || user.claims?.sub));
+  }
+
+  async getOrCreateUserCredits(userIdentifier: string, isAuthenticated: boolean = true) {
     let credits = await db.query.userCredits.findFirst({
       where: eq(userCredits.userIdentifier, userIdentifier),
     });
 
     if (!credits) {
-      const user = await db.query.users.findFirst({
-        where: eq(users.id, userIdentifier),
-      });
-      const tier = (user?.subscriptionTier as keyof typeof TIER_CREDITS) || 'free';
-      const initialCredits = TIER_CREDITS[tier] || TIER_CREDITS.free;
+      let initialCredits: number;
+      
+      if (isAuthenticated) {
+        // Authenticated user - check their subscription tier
+        const user = await db.query.users.findFirst({
+          where: eq(users.id, userIdentifier),
+        });
+        const tier = (user?.subscriptionTier as keyof typeof TIER_CREDITS) || 'free';
+        initialCredits = TIER_CREDITS[tier] || TIER_CREDITS.free;
+      } else {
+        // Unauthenticated (IP-based) user - give fewer credits
+        initialCredits = UNAUTHENTICATED_CREDITS;
+      }
       
       const [newCredits] = await db.insert(userCredits).values({
         userIdentifier,
@@ -50,7 +66,8 @@ export class CreditService {
 
   async checkCredits(req: Request): Promise<CreditCheckResult> {
     const userIdentifier = this.getUserIdentifier(req);
-    const credits = await this.getOrCreateUserCredits(userIdentifier);
+    const isAuthenticated = this.isAuthenticatedUser(req);
+    const credits = await this.getOrCreateUserCredits(userIdentifier, isAuthenticated);
 
     return {
       hasCredits: credits.credits > 0,

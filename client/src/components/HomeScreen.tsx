@@ -514,25 +514,67 @@ export function HomeScreen({
         </div>
 
         {/* Recent Projects Section */}
-        {recentProjects.length > 0 && (
-          <div className="mb-10">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Recent Projects</h2>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => setShowAllProjects(true)}
-                data-testid="button-view-all-projects"
-              >
-                View All <ArrowRight size={14} className="ml-1" />
-              </Button>
+        <div className="mb-10">
+          <h2 className="text-lg font-semibold mb-4">Recent Projects</h2>
+          
+          {!isAuthenticated ? (
+            /* Promo Card for Non-Authenticated Users */
+            <div 
+              className="rounded-xl p-[2px] relative overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, #2AF1FF 0%, #FF1F97 100%)'
+              }}
+              data-testid="promo-signup-card"
+            >
+              <div className="bg-white dark:bg-card rounded-[10px] p-6">
+                <p className="text-foreground mb-4">
+                  Want to save your projects so it's easy to pick back up where you left off? Create a Kiteframe account! All tiers come with a monthly allotment of tokens and with a paid account you'll get access to cloud storage, more tokens, and more.
+                </p>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="ghost"
+                    onClick={() => window.dispatchEvent(new CustomEvent('openSignIn'))}
+                    data-testid="button-signin-promo"
+                  >
+                    Sign in
+                  </Button>
+                  <Button
+                    onClick={() => window.dispatchEvent(new CustomEvent('openSignUp'))}
+                    className="bg-gradient-to-r from-[#2AF1FF] to-[#FF1F97] hover:opacity-90 text-white"
+                    data-testid="button-signup-promo"
+                  >
+                    Sign Up
+                  </Button>
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recentProjects.slice(0, 3).map((project) => renderProjectCard(project))}
+          ) : recentProjects.length > 0 ? (
+            /* Authenticated User with Projects */
+            <>
+              <div className="flex items-center justify-between mb-4 -mt-4">
+                <span></span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowAllProjects(true)}
+                  data-testid="button-view-all-projects"
+                >
+                  View All <ArrowRight size={14} className="ml-1" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recentProjects.slice(0, 3).map((project) => renderProjectCard(project))}
+              </div>
+            </>
+          ) : (
+            /* Authenticated User with No Projects */
+            <div className="text-center py-8 bg-muted/30 rounded-lg">
+              <Workflow size={32} className="mx-auto text-muted-foreground/50 mb-2" />
+              <p className="text-muted-foreground text-sm">No projects yet. Create your first workflow above!</p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Delete Confirmation Dialog (for home view) */}
         <AlertDialog open={!!deleteProjectId} onOpenChange={(open) => !open && setDeleteProjectId(null)}>

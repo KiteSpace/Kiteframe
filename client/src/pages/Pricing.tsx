@@ -30,23 +30,18 @@ const tierFeatures = {
   free: [
     '25 AI credits per month',
     'Basic workflow editor',
-    'Local project storage',
-    'Community support',
+    'Download & upload Kiteframe files',
   ],
   advanced: [
-    '150 AI credits per month',
+    '50 AI credits per month',
     'All Free features',
-    'Priority AI processing',
-    'Advanced templates',
-    'Email support',
+    'Wireframe generator',
+    'Cloud storage',
   ],
   pro: [
-    '500 AI credits per month',
+    '150 AI credits per month',
     'All Advanced features',
-    'Cloud-saved projects',
-    'Team collaboration (coming soon)',
-    'Priority support',
-    'Early access to new features',
+    'Image-to-workflow generator',
   ],
 };
 
@@ -131,6 +126,16 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 py-12 px-4">
       <div className="max-w-6xl mx-auto">
+        {/* Introductory Pricing Banner */}
+        <div 
+          className="mb-8 p-4 rounded-lg text-center text-white font-medium"
+          style={{ 
+            background: 'linear-gradient(135deg, #2AF1FF 0%, #FF1F97 100%)'
+          }}
+        >
+          Create an account today to lock in Kiteframe's introductory pricing!
+        </div>
+
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-4">
             Choose Your Plan
@@ -229,7 +234,7 @@ export default function Pricing() {
                     )}
                   </>
                 ) : (
-                  <span className="text-4xl font-bold">$14.99</span>
+                  <span className="text-4xl font-bold">$5</span>
                 )}
               </div>
               <ul className="space-y-3">
@@ -263,11 +268,6 @@ export default function Pricing() {
 
           {/* Pro Tier */}
           <Card className="relative border-2 border-purple-300 hover:border-purple-400 transition-colors shadow-lg" data-testid="card-tier-pro">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
-                Most Popular
-              </Badge>
-            </div>
             <CardHeader>
               <div className="flex items-center gap-2 mb-2">
                 <div className={`p-2 rounded-lg ${tierColors.pro}`}>
@@ -296,7 +296,7 @@ export default function Pricing() {
                     )}
                   </>
                 ) : (
-                  <span className="text-4xl font-bold">$29.99</span>
+                  <span className="text-4xl font-bold">$10</span>
                 )}
               </div>
               <ul className="space-y-3">
