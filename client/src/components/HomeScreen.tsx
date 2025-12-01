@@ -41,8 +41,7 @@ import {
   Trash2,
   AlertCircle
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/hooks/useAuth';
+import { useCreditsGate } from '@/hooks/useCreditsGate';
 
 interface RecentProject {
   id: string;
@@ -170,15 +169,19 @@ export function HomeScreen({
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const projectToDelete = recentProjects.find(p => p.id === deleteProjectId);
   
-  const { isAuthenticated } = useAuth();
+  const { 
+    credits, 
+    isOutOfCredits, 
+    isAuthenticated, 
+    ctaMessage, 
+    ctaAction, 
+    ctaButtonText,
+    openSignup,
+    openPricing,
+    openCreditsDialog
+  } = useCreditsGate();
   
-  const { data: creditsData } = useQuery<{ credits: number }>({
-    queryKey: ['/api/credits'],
-    refetchInterval: 30000,
-  });
-  
-  const credits = creditsData?.credits ?? 0;
-  const showZeroCreditsWarning = credits === 0 && !isAuthenticated;
+  const showZeroCreditsWarning = isOutOfCredits && !isAuthenticated;
 
   const handleExampleClick = useCallback((prompt: string) => {
     setPromptValue(prompt);
@@ -189,16 +192,24 @@ export function HomeScreen({
   }, []);
 
   const handleGenerate = useCallback(() => {
+    // Defense in depth: check credits before generating
+    if (isOutOfCredits) {
+      if (ctaAction === 'signup') openSignup();
+      else if (ctaAction === 'upgrade') openPricing();
+      else openCreditsDialog();
+      return;
+    }
     if (promptValue.trim()) {
       onGenerateWorkflow(promptValue.trim());
     }
-  }, [promptValue, onGenerateWorkflow]);
+  }, [promptValue, onGenerateWorkflow, isOutOfCredits, ctaAction, openSignup, openPricing, openCreditsDialog]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && promptValue.trim() && !isGenerating) {
+    // Block keyboard shortcut when out of credits
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && promptValue.trim() && !isGenerating && !isOutOfCredits) {
       handleGenerate();
     }
-  }, [promptValue, isGenerating, handleGenerate]);
+  }, [promptValue, isGenerating, isOutOfCredits, handleGenerate]);
 
   const handleConfirmDelete = useCallback(() => {
     if (deleteProjectId && onDeleteProject) {
@@ -416,13 +427,14 @@ export function HomeScreen({
 
         {/* AI Prompt Section */}
         <div className="mb-10">
-          <div className="bg-card border border-border rounded-xl p-4">
+          <div className={`bg-card border border-border rounded-xl p-4 ${isOutOfCredits ? 'opacity-60' : ''}`}>
             <Textarea
               value={promptValue}
               onChange={(e) => setPromptValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Describe the workflow you want to create, or upload an image"
+              placeholder={isOutOfCredits ? "AI generation disabled - out of credits" : "Describe the workflow you want to create, or upload an image"}
               className="min-h-[100px] resize-none border-0 p-0 focus-visible:ring-0 text-base bg-transparent"
+              disabled={isOutOfCredits}
               data-testid="input-workflow-prompt"
             />
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
@@ -432,34 +444,53 @@ export function HomeScreen({
                   size="sm"
                   onClick={onUploadImage}
                   className="text-muted-foreground hover:text-foreground"
+                  disabled={isOutOfCredits}
                   data-testid="button-upload-image"
                 >
                   <Upload size={16} className="mr-1" />
                   Upload Image
                 </Button>
               </div>
-              <Button
-                onClick={handleGenerate}
-                disabled={!promptValue.trim() || isGenerating}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-                data-testid="button-start-designing"
-              >
-                {isGenerating ? (
-                  <>
-                    <span className="animate-spin mr-2">⏳</span>
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={16} className="mr-2" />
-                    Start designing
-                  </>
-                )}
-              </Button>
+              {isOutOfCredits ? (
+                <Button
+                  onClick={() => {
+                    if (ctaAction === 'signup') openSignup();
+                    else if (ctaAction === 'upgrade') openPricing();
+                    else openCreditsDialog();
+                  }}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  data-testid="button-get-credits"
+                >
+                  <Sparkles size={16} className="mr-2" />
+                  {ctaButtonText}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleGenerate}
+                  disabled={!promptValue.trim() || isGenerating}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  data-testid="button-start-designing"
+                >
+                  {isGenerating ? (
+                    <>
+                      <span className="animate-spin mr-2">⏳</span>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={16} className="mr-2" />
+                      Start designing
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            The fastest way to create visual workflows – ideal for designers and PMs. See results in ~30 seconds.
+            {isOutOfCredits 
+              ? ctaMessage 
+              : "The fastest way to create visual workflows – ideal for designers and PMs. See results in ~30 seconds."
+            }
           </p>
 
           {/* Quick Example Chips */}
@@ -470,7 +501,8 @@ export function HomeScreen({
                 <button
                   key={example.label}
                   onClick={() => handleExampleClick(example.prompt)}
-                  className="inline-flex items-center px-3 py-1.5 rounded-full bg-muted hover:bg-muted/80 text-sm text-foreground transition-colors"
+                  disabled={isOutOfCredits}
+                  className={`inline-flex items-center px-3 py-1.5 rounded-full bg-muted text-sm text-foreground transition-colors ${isOutOfCredits ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted/80'}`}
                   data-testid={`chip-example-${example.label.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   <Workflow size={14} className="mr-1.5 text-muted-foreground" />
@@ -525,7 +557,7 @@ export function HomeScreen({
         </AlertDialog>
 
         {/* Quick Start Templates Section */}
-        <div>
+        <div className={isOutOfCredits ? 'opacity-60' : ''}>
           <h2 className="text-lg font-semibold mb-4">Quick Start Templates</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {workflowTemplates.map((template) => {
@@ -533,8 +565,8 @@ export function HomeScreen({
               return (
                 <Card
                   key={template.id}
-                  className="cursor-pointer hover:border-primary/50 transition-colors group"
-                  onClick={() => handleTemplateClick(template)}
+                  className={`transition-colors group ${isOutOfCredits ? 'cursor-not-allowed' : 'cursor-pointer hover:border-primary/50'}`}
+                  onClick={() => !isOutOfCredits && handleTemplateClick(template)}
                   data-testid={`card-template-${template.id}`}
                 >
                   <div className="aspect-video bg-gradient-to-br from-muted to-muted/50 rounded-t-lg overflow-hidden flex items-center justify-center">

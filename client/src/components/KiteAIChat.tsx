@@ -5,8 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
-import { useAuth } from '@/hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
+import { useCreditsGate } from '@/hooks/useCreditsGate';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
 import { 
   MessageCircle, 
@@ -26,7 +25,8 @@ import {
   Trash2,
   RotateCcw,
   Eye,
-  Anchor
+  Anchor,
+  AlertCircle
 } from 'lucide-react';
 
 // Message types for conversation
@@ -94,22 +94,28 @@ export function KiteAIChat({
   
   const { toast } = useToast();
   const aiClient = useAi();
-  const { isAuthenticated } = useAuth();
-  
-  const { data: creditsData } = useQuery<{ credits: number }>({
-    queryKey: ['/api/credits'],
-    refetchInterval: 30000,
-  });
-  
-  const credits = creditsData?.credits ?? 0;
-  const isOutOfTokens = credits === 0 && !isAuthenticated;
+  const { 
+    credits, 
+    isOutOfCredits, 
+    isAuthenticated, 
+    ctaMessage, 
+    ctaAction, 
+    ctaButtonText,
+    openSignup,
+    openPricing,
+    openCreditsDialog
+  } = useCreditsGate();
   
   const getWelcomeMessage = useCallback(() => {
-    if (isOutOfTokens) {
-      return "You've run out of free trial tokens. Create an account and get tokens monthly to unlock the power of KiteAI.\n\nWith a free account, you'll receive 25 AI credits every month to:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images\n• Generate AI-powered suggestions";
+    if (isOutOfCredits) {
+      if (!isAuthenticated) {
+        return "You've run out of free trial tokens. Create an account and get tokens monthly to unlock the power of KiteAI.\n\nWith a free account, you'll receive 25 AI credits every month to:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images\n• Generate AI-powered suggestions";
+      } else {
+        return "You've run out of AI credits.\n\n" + ctaMessage + "\n\nOnce you have credits, you'll be able to:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images\n• Generate AI-powered suggestions";
+      }
     }
     return "Hi! I'm KiteAI, your workflow assistant. I can help you:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images or .kiteframe files\n• Answer questions about workflow design\n\nThis feature uses AI tokens. Need more? Contact info@kiteframe.space\n\nHow can I help you today?";
-  }, [isOutOfTokens]);
+  }, [isOutOfCredits, isAuthenticated, ctaMessage]);
   
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -129,7 +135,7 @@ export function KiteAIChat({
         timestamp: new Date()
       }]);
     }
-  }, [isOutOfTokens, getWelcomeMessage]);
+  }, [isOutOfCredits, getWelcomeMessage]);
 
   // Drag and Resize handlers
   const handleHeaderMouseDown = (e: React.MouseEvent) => {
@@ -366,6 +372,19 @@ export function KiteAIChat({
   // Send message
   const handleSend = async () => {
     if (!inputValue.trim() && pendingFiles.length === 0) return;
+    
+    // Defense in depth: check credits before sending
+    if (isOutOfCredits) {
+      toast({
+        title: 'Out of credits',
+        description: 'AI features are disabled. Get more credits to continue.',
+        variant: 'destructive',
+      });
+      if (ctaAction === 'signup') openSignup();
+      else if (ctaAction === 'upgrade') openPricing();
+      else openCreditsDialog();
+      return;
+    }
 
     const messageId = `msg-${Date.now()}`;
     const attachments: ChatMessage['attachments'] = [];
@@ -918,62 +937,52 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
               >
-                {/* Out of Tokens Warning */}
-                {isOutOfTokens ? (
+                {/* Pending Files Preview */}
+                {pendingFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {pendingFiles.map((file, index) => (
+                      <div key={index} className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs">
+                        {file.type.startsWith('image/') ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+                        <span className="truncate max-w-[100px]">{file.name}</span>
+                        <button 
+                          onClick={() => removePendingFile(index)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Drop Zone Indicator */}
+                {dragActive && (
+                  <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-xl flex items-center justify-center pointer-events-none">
+                    <span className="text-primary font-medium">Drop files here</span>
+                  </div>
+                )}
+                
+                {isOutOfCredits ? (
                   <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <Input
-                        value=""
-                        placeholder="Chat disabled - out of tokens"
-                        className="flex-1 opacity-50"
-                        disabled={true}
-                        data-testid="input-kiteai-message-disabled"
-                      />
-                      <Button
-                        size="icon"
-                        disabled={true}
-                        className="flex-shrink-0 opacity-50"
-                        data-testid="button-kiteai-send-disabled"
-                      >
-                        <Send className="w-4 h-4" />
-                      </Button>
+                    <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>AI features disabled - out of credits</span>
                     </div>
                     <Button
-                      onClick={() => window.dispatchEvent(new CustomEvent('openSignUp'))}
+                      onClick={() => {
+                        if (ctaAction === 'signup') openSignup();
+                        else if (ctaAction === 'upgrade') openPricing();
+                        else openCreditsDialog();
+                      }}
                       className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                      data-testid="button-kiteai-signup"
+                      data-testid="button-kiteai-get-credits"
                     >
                       <Sparkles className="w-4 h-4 mr-2" />
-                      Create Free Account
+                      {ctaButtonText}
                     </Button>
                   </div>
                 ) : (
                   <>
-                    {/* Pending Files Preview */}
-                    {pendingFiles.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {pendingFiles.map((file, index) => (
-                          <div key={index} className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs">
-                            {file.type.startsWith('image/') ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
-                            <span className="truncate max-w-[100px]">{file.name}</span>
-                            <button 
-                              onClick={() => removePendingFile(index)}
-                              className="text-muted-foreground hover:text-foreground"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {/* Drop Zone Indicator */}
-                    {dragActive && (
-                      <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-xl flex items-center justify-center pointer-events-none">
-                        <span className="text-primary font-medium">Drop files here</span>
-                      </div>
-                    )}
-                    
                     <div className="flex gap-2">
                       <input
                         ref={fileInputRef}

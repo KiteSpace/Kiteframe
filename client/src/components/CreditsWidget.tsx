@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,12 @@ interface RedeemResponse {
 
 export function CreditsWidget() {
   const [isOpen, setIsOpen] = useState(false);
+  
+  useEffect(() => {
+    const handleOpenCreditsDialog = () => setIsOpen(true);
+    window.addEventListener('openCreditsDialog', handleOpenCreditsDialog);
+    return () => window.removeEventListener('openCreditsDialog', handleOpenCreditsDialog);
+  }, []);
   const [unlockCode, setUnlockCode] = useState('');
   const { toast } = useToast();
   const { tier, isPro, isAdvanced, monthlyCredits } = useSubscription();

@@ -30,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ObjectUploader } from '@/components/ObjectUploader';
 import { useFirebaseWorkflows } from '../hooks/useFirebaseWorkflows';
 import { useAuth } from '../hooks/useAuth';
+import { useCreditsGate } from '../hooks/useCreditsGate';
 import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeData, ShapeNodeData, StickyNoteData } from '../lib/kiteframe/types';
 import { DEFAULT_SHAPE_NODE_DATA } from '../lib/kiteframe/constants/defaults';
 import { recalculateAllEdgeZIndexes } from '../lib/kiteframe/utils/edgeZIndex';
@@ -95,6 +96,7 @@ interface WorkflowTab {
 function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: () => void }) {
   const ai = useAi();
   const { toast } = useToast();
+  const { isOutOfCredits, ctaMessage, ctaAction, ctaButtonText, openSignup, openPricing, openCreditsDialog } = useCreditsGate();
 
   // Editor Settings State with persistence
   const [editorSettings, setEditorSettings] = useState(() => {
@@ -968,6 +970,18 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
 
   // Direct AI workflow generation (for home screen prompt)
   const generateWorkflowDirectly = useCallback(async (prompt: string, tabId: string) => {
+    if (isOutOfCredits) {
+      toast({
+        title: 'Out of credits',
+        description: ctaMessage,
+        variant: 'destructive',
+      });
+      if (ctaAction === 'signup') openSignup();
+      else if (ctaAction === 'upgrade') openPricing();
+      else openCreditsDialog();
+      return;
+    }
+    
     if (generatingWireframe) {
       toast({
         title: 'Please wait',
@@ -1095,6 +1109,19 @@ Position nodes 250px apart horizontally.`;
   useEffect(() => {
     const handleGenerateWireframe = async (event: any) => {
       const { nodeId, node } = event.detail;
+      
+      // Check credits before AI operation
+      if (isOutOfCredits) {
+        toast({
+          title: 'Out of credits',
+          description: ctaMessage,
+          variant: 'destructive',
+        });
+        if (ctaAction === 'signup') openSignup();
+        else if (ctaAction === 'upgrade') openPricing();
+        else openCreditsDialog();
+        return;
+      }
       
       if (!node || generatingWireframe) {
         // Ignore if already generating or no node provided
@@ -1616,6 +1643,19 @@ Position nodes 250px apart horizontally.`;
 
   // Direct AI generation function
   const generateWorkflowFromPrompt = useCallback(async (prompt: string): Promise<{ nodes: Node[]; edges: Edge[] }> => {
+    // Check credits before AI operation
+    if (isOutOfCredits) {
+      toast({
+        title: 'Out of credits',
+        description: ctaMessage,
+        variant: 'destructive',
+      });
+      if (ctaAction === 'signup') openSignup();
+      else if (ctaAction === 'upgrade') openPricing();
+      else openCreditsDialog();
+      throw new Error('Out of credits');
+    }
+    
     const systemPrompt = `You are a workflow generator. Create a visual workflow based on the user's description. 
 
 Return ONLY a valid JSON object with "nodes" and "edges" arrays. Keep descriptions short and concise.
@@ -1949,6 +1989,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       
     } catch (error) {
       console.error('Workflow generation error:', error);
+      
+      // Skip showing toast for credit errors - already handled by generateWorkflowFromPrompt
+      if (error instanceof Error && error.message === 'Out of credits') {
+        return;
+      }
       
       let title = "Generation Failed";
       let description = "Failed to generate workflow. Please try again.";
@@ -2378,6 +2423,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       
     } catch (error) {
       console.error('Workflow generation error:', error);
+      
+      // Skip showing toast for credit errors - already handled by generateWorkflowFromPrompt
+      if (error instanceof Error && error.message === 'Out of credits') {
+        return;
+      }
       
       let title = "Generation Failed";
       let description = "Failed to generate workflow. Please try again.";
