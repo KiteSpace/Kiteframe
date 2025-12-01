@@ -3242,6 +3242,57 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setActiveTabId(newTab.id);
                 setShowAiGenerator(true);
               }}
+              onShareProject={(projectId) => {
+                const tab = tabs.find(t => t.id === projectId);
+                if (tab) {
+                  toast({
+                    title: "Share",
+                    description: `Sharing "${tab.name}" - This feature is coming soon!`,
+                  });
+                }
+              }}
+              onDownloadProject={(projectId) => {
+                const tab = tabs.find(t => t.id === projectId);
+                if (tab) {
+                  const workflowData = {
+                    name: tab.name,
+                    nodes: tab.nodes,
+                    edges: tab.edges,
+                    canvasObjects: tab.canvasObjects,
+                    metadata: tab.metadata,
+                    exportedAt: new Date().toISOString()
+                  };
+                  const blob = new Blob([JSON.stringify(workflowData, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${tab.name.replace(/\s+/g, '-').toLowerCase()}.json`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  toast({
+                    title: "Downloaded",
+                    description: `"${tab.name}" has been downloaded as JSON.`,
+                  });
+                }
+              }}
+              onDeleteProject={(projectId) => {
+                const tab = tabs.find(t => t.id === projectId);
+                if (tab) {
+                  setTabs(prev => prev.filter(t => t.id !== projectId));
+                  if (activeTabId === projectId) {
+                    const remainingTabs = tabs.filter(t => t.id !== projectId);
+                    if (remainingTabs.length > 0) {
+                      setActiveTabId(remainingTabs[0].id);
+                    }
+                  }
+                  toast({
+                    title: "Deleted",
+                    description: `"${tab.name}" has been deleted.`,
+                  });
+                }
+              }}
               isGenerating={generatingWireframe}
             />
           ) : (

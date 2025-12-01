@@ -3,10 +3,28 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   Sparkles, 
   Upload, 
   ArrowRight, 
+  ArrowLeft,
   Clock, 
   MoreVertical,
   Workflow,
@@ -16,7 +34,12 @@ import {
   Settings,
   Database,
   Globe,
-  Heart
+  Heart,
+  Plus,
+  FolderOpen,
+  Share2,
+  Download,
+  Trash2
 } from 'lucide-react';
 
 interface RecentProject {
@@ -45,6 +68,9 @@ interface HomeScreenProps {
   onGenerateWorkflow: (prompt: string) => void;
   onCreateBlankWorkflow: () => void;
   onUploadImage: () => void;
+  onShareProject?: (projectId: string) => void;
+  onDownloadProject?: (projectId: string) => void;
+  onDeleteProject?: (projectId: string) => void;
   isGenerating?: boolean;
 }
 
@@ -153,9 +179,15 @@ export function HomeScreen({
   onGenerateWorkflow,
   onCreateBlankWorkflow,
   onUploadImage,
+  onShareProject,
+  onDownloadProject,
+  onDeleteProject,
   isGenerating = false
 }: HomeScreenProps) {
   const [promptValue, setPromptValue] = useState('');
+  const [showAllProjects, setShowAllProjects] = useState(false);
+  const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
+  const projectToDelete = recentProjects.find(p => p.id === deleteProjectId);
 
   const handleExampleClick = useCallback((prompt: string) => {
     setPromptValue(prompt);
@@ -177,6 +209,194 @@ export function HomeScreen({
     }
   }, [promptValue, isGenerating, handleGenerate]);
 
+  const handleConfirmDelete = useCallback(() => {
+    if (deleteProjectId && onDeleteProject) {
+      onDeleteProject(deleteProjectId);
+      setDeleteProjectId(null);
+    }
+  }, [deleteProjectId, onDeleteProject]);
+
+  const renderProjectCard = (project: RecentProject, showMenu = true) => (
+    <Card
+      key={project.id}
+      className="cursor-pointer hover:border-primary/50 transition-colors group"
+      onClick={() => onOpenProject(project.id)}
+      data-testid={`card-project-${project.id}`}
+    >
+      <div className="aspect-video bg-muted rounded-t-lg overflow-hidden relative">
+        {project.thumbnail ? (
+          <img 
+            src={project.thumbnail} 
+            alt={project.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Workflow size={32} className="text-muted-foreground/50" />
+          </div>
+        )}
+        {showMenu && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="absolute top-2 right-2 p-1.5 rounded-md bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+                onClick={(e) => e.stopPropagation()}
+                data-testid={`button-project-menu-${project.id}`}
+              >
+                <MoreVertical size={14} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenProject(project.id);
+                }}
+                data-testid={`menu-open-${project.id}`}
+              >
+                <FolderOpen size={14} className="mr-2" />
+                Open
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShareProject?.(project.id);
+                }}
+                data-testid={`menu-share-${project.id}`}
+              >
+                <Share2 size={14} className="mr-2" />
+                Share
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownloadProject?.(project.id);
+                }}
+                data-testid={`menu-download-${project.id}`}
+              >
+                <Download size={14} className="mr-2" />
+                Download
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteProjectId(project.id);
+                }}
+                className="text-destructive focus:text-destructive"
+                data-testid={`menu-delete-${project.id}`}
+              >
+                <Trash2 size={14} className="mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+      <CardContent className="p-3">
+        <h3 className="font-medium truncate">{project.name}</h3>
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-xs text-muted-foreground flex items-center">
+            <Clock size={12} className="mr-1" />
+            {formatTimeAgo(project.lastModified)}
+          </span>
+          <Badge 
+            variant={project.status === 'published' ? 'default' : 'secondary'}
+            className="text-xs"
+          >
+            {project.status === 'published' ? 'Published' : project.status === 'private' ? 'Private' : 'Draft'}
+          </Badge>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  // All Projects View
+  if (showAllProjects) {
+    return (
+      <div className="flex-1 overflow-auto bg-background">
+        <div className="max-w-5xl mx-auto px-6 py-8">
+          {/* Header with back button */}
+          <div className="flex items-center gap-4 mb-6">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAllProjects(false)}
+              className="text-muted-foreground hover:text-foreground"
+              data-testid="button-back-home"
+            >
+              <ArrowLeft size={16} className="mr-1" />
+              Back
+            </Button>
+            <h1 className="text-2xl font-bold">All Projects</h1>
+          </div>
+
+          {/* Projects Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {/* New Project Tile */}
+            <Card
+              className="cursor-pointer hover:border-primary/50 transition-colors group border-dashed"
+              onClick={onCreateBlankWorkflow}
+              data-testid="card-new-project"
+            >
+              <div className="aspect-video bg-muted/50 rounded-t-lg overflow-hidden flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <Plus size={24} className="text-primary" />
+                </div>
+              </div>
+              <CardContent className="p-3">
+                <h3 className="font-medium text-center">New Project</h3>
+                <p className="text-xs text-muted-foreground text-center mt-1">
+                  Start from scratch
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Project Cards */}
+            {recentProjects.map((project) => renderProjectCard(project))}
+          </div>
+
+          {recentProjects.length === 0 && (
+            <div className="text-center py-12">
+              <Workflow size={48} className="mx-auto text-muted-foreground/50 mb-4" />
+              <h3 className="text-lg font-medium mb-2">No projects yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Create your first workflow to get started
+              </p>
+              <Button onClick={onCreateBlankWorkflow} data-testid="button-create-first-project">
+                <Plus size={16} className="mr-2" />
+                Create Project
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!deleteProjectId} onOpenChange={(open) => !open && setDeleteProjectId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Project</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{projectToDelete?.name}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                data-testid="button-confirm-delete"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    );
+  }
+
+  // Main Home View
   return (
     <div className="flex-1 overflow-auto bg-background">
       <div className="max-w-5xl mx-auto px-6 py-8">
@@ -253,60 +473,43 @@ export function HomeScreen({
           <div className="mb-10">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Recent Projects</h2>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => setShowAllProjects(true)}
+                data-testid="button-view-all-projects"
+              >
                 View All <ArrowRight size={14} className="ml-1" />
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recentProjects.slice(0, 3).map((project) => (
-                <Card
-                  key={project.id}
-                  className="cursor-pointer hover:border-primary/50 transition-colors group"
-                  onClick={() => onOpenProject(project.id)}
-                  data-testid={`card-project-${project.id}`}
-                >
-                  <div className="aspect-video bg-muted rounded-t-lg overflow-hidden relative">
-                    {project.thumbnail ? (
-                      <img 
-                        src={project.thumbnail} 
-                        alt={project.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Workflow size={32} className="text-muted-foreground/50" />
-                      </div>
-                    )}
-                    <button
-                      className="absolute top-2 right-2 p-1 rounded-md bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                      }}
-                      data-testid={`button-project-menu-${project.id}`}
-                    >
-                      <MoreVertical size={14} />
-                    </button>
-                  </div>
-                  <CardContent className="p-3">
-                    <h3 className="font-medium truncate">{project.name}</h3>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-xs text-muted-foreground flex items-center">
-                        <Clock size={12} className="mr-1" />
-                        {formatTimeAgo(project.lastModified)}
-                      </span>
-                      <Badge 
-                        variant={project.status === 'published' ? 'default' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {project.status === 'published' ? 'Published' : project.status === 'private' ? 'Private' : 'Draft'}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {recentProjects.slice(0, 3).map((project) => renderProjectCard(project))}
             </div>
           </div>
         )}
+
+        {/* Delete Confirmation Dialog (for home view) */}
+        <AlertDialog open={!!deleteProjectId} onOpenChange={(open) => !open && setDeleteProjectId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Project</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{projectToDelete?.name}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                data-testid="button-confirm-delete"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Quick Start Templates Section */}
         <div>
