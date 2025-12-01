@@ -966,6 +966,131 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   // Track wireframe generation loading state
   const [generatingWireframe, setGeneratingWireframe] = useState(false);
 
+  // Direct AI workflow generation (for home screen prompt)
+  const generateWorkflowDirectly = useCallback(async (prompt: string, tabId: string) => {
+    if (generatingWireframe) {
+      toast({
+        title: 'Please wait',
+        description: 'Generation in progress...',
+      });
+      return;
+    }
+
+    setGeneratingWireframe(true);
+    toast({
+      title: 'Generating workflow...',
+      description: 'Creating your workflow from the prompt.',
+    });
+
+    try {
+      const systemPrompt = `ONLY return JSON. No text before or after. Just JSON.
+
+Format:
+{"nodes":[{"id":"node-1","type":"input","position":{"x":300,"y":250},"data":{"label":"Start","description":"Begin","icon":"ArrowRight","iconColor":"text-blue-500"},"width":200,"height":100}],"edges":[]}
+
+Types: input, process, output, condition
+Icons: input=ArrowRight, process=Cog, output=ArrowLeft, condition=HelpCircle
+Colors: input=text-blue-500, process=text-green-500, output=text-red-500, condition=text-yellow-500
+Position nodes 250px apart horizontally.`;
+
+      const response = await ai.chat({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Create workflow: ${prompt}` }
+        ],
+        temperature: 0.1,
+        maxTokens: 3000
+      });
+
+      // Parse the AI response with JSON cleaning
+      let cleanedResponse = response.text
+        .replace(/^JSON:\s*/i, '')
+        .replace(/```json\s?|```/g, '')
+        .replace(/^[^{]*/, '')
+        .trim();
+      
+      const lastBraceIndex = cleanedResponse.lastIndexOf('}');
+      if (lastBraceIndex !== -1) {
+        cleanedResponse = cleanedResponse.substring(0, lastBraceIndex + 1);
+      }
+      
+      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanedResponse = jsonMatch[0];
+      }
+      
+      let workflowData;
+      try {
+        workflowData = JSON.parse(cleanedResponse);
+      } catch {
+        // Fix common JSON issues
+        let fixedResponse = cleanedResponse
+          .replace(/,(\s*[}\]])/g, '$1')
+          .replace(/([}\]])\s*([{"])/g, '$1,$2')
+          .replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+        
+        const openBraces = (fixedResponse.match(/\{/g) || []).length;
+        const closeBraces = (fixedResponse.match(/\}/g) || []).length;
+        const openBrackets = (fixedResponse.match(/\[/g) || []).length;
+        const closeBrackets = (fixedResponse.match(/\]/g) || []).length;
+        
+        for (let i = 0; i < openBraces - closeBraces; i++) fixedResponse += '}';
+        for (let i = 0; i < openBrackets - closeBrackets; i++) fixedResponse += ']';
+        
+        workflowData = JSON.parse(fixedResponse);
+      }
+
+      if (workflowData.nodes && workflowData.edges) {
+        // Add unique IDs with timestamp prefix
+        const timestamp = Date.now();
+        const processedNodes = workflowData.nodes.map((node: any, index: number) => ({
+          ...node,
+          id: `${index + 1}-kiteai-${timestamp}-${index}`,
+          width: node.width || 200,
+          height: node.height || 100
+        }));
+        
+        const nodeIdMap: Record<string, string> = {};
+        workflowData.nodes.forEach((node: any, index: number) => {
+          nodeIdMap[node.id] = `${index + 1}-kiteai-${timestamp}-${index}`;
+        });
+        
+        const processedEdges = workflowData.edges.map((edge: any, index: number) => ({
+          ...edge,
+          id: `edge-kiteai-${timestamp}-${index}`,
+          source: nodeIdMap[edge.source] || edge.source,
+          target: nodeIdMap[edge.target] || edge.target,
+          type: edge.type || 'bezier',
+          style: edge.style || { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
+          markers: edge.markers || { type: 'arrow', position: 'end' }
+        }));
+
+        // Update the tab with the generated workflow
+        setTabs(prev => prev.map(tab => 
+          tab.id === tabId ? { 
+            ...tab, 
+            nodes: processedNodes, 
+            edges: processedEdges 
+          } : tab
+        ));
+
+        toast({
+          title: 'Workflow Generated',
+          description: `Created ${processedNodes.length} nodes and ${processedEdges.length} connections.`,
+        });
+      }
+    } catch (error) {
+      console.error('Workflow generation error:', error);
+      toast({
+        title: 'Generation Failed',
+        description: error instanceof Error ? error.message : 'Failed to generate workflow. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setGeneratingWireframe(false);
+    }
+  }, [ai, generatingWireframe, toast]);
+
   // Wireframe generation handler
   useEffect(() => {
     const handleGenerateWireframe = async (event: any) => {
@@ -3232,8 +3357,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 const newTab = createBlankTab();
                 setTabs(prev => [...prev, newTab]);
                 setActiveTabId(newTab.id);
-                setShowAiGenerator(true);
-                setGeneratorPrompt(prompt);
+                // Directly generate workflow without opening modal
+                generateWorkflowDirectly(prompt, newTab.id);
               }}
               onCreateBlankWorkflow={createNewTab}
               onUploadImage={() => {

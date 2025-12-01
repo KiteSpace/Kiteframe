@@ -34,7 +34,6 @@ import {
   Settings,
   Database,
   Globe,
-  Heart,
   Plus,
   FolderOpen,
   Share2,
@@ -55,8 +54,6 @@ interface WorkflowTemplate {
   name: string;
   description: string;
   author: string;
-  likes: number;
-  uses: number;
   thumbnail?: string;
   category: string;
   prompt: string;
@@ -86,8 +83,6 @@ const workflowTemplates: WorkflowTemplate[] = [
     name: 'User Authentication Flow',
     description: 'Complete auth workflow with login, signup, and password reset',
     author: 'Kiteframe',
-    likes: 234,
-    uses: 12500,
     category: 'Authentication',
     prompt: 'Create a user authentication workflow with login form, credential validation, session creation, error handling for invalid credentials, and password reset flow'
   },
@@ -96,8 +91,6 @@ const workflowTemplates: WorkflowTemplate[] = [
     name: 'E-commerce Checkout',
     description: 'Shopping cart to order confirmation workflow',
     author: 'Kiteframe',
-    likes: 189,
-    uses: 8900,
     category: 'E-commerce',
     prompt: 'Design an e-commerce checkout workflow starting from cart review, shipping address, payment processing, order confirmation, and email notification'
   },
@@ -106,8 +99,6 @@ const workflowTemplates: WorkflowTemplate[] = [
     name: 'Data Pipeline',
     description: 'ETL workflow for data processing',
     author: 'Kiteframe',
-    likes: 156,
-    uses: 6700,
     category: 'Data',
     prompt: 'Create a data pipeline workflow with data extraction from multiple sources, transformation steps, validation, and loading into a database'
   },
@@ -116,8 +107,6 @@ const workflowTemplates: WorkflowTemplate[] = [
     name: 'CI/CD Pipeline',
     description: 'Continuous integration and deployment workflow',
     author: 'Kiteframe',
-    likes: 312,
-    uses: 15200,
     category: 'DevOps',
     prompt: 'Build a CI/CD pipeline workflow with code commit, automated testing, code review, staging deployment, and production release with rollback capability'
   },
@@ -126,8 +115,6 @@ const workflowTemplates: WorkflowTemplate[] = [
     name: 'Customer Support Ticket',
     description: 'Ticket routing and resolution workflow',
     author: 'Kiteframe',
-    likes: 98,
-    uses: 4300,
     category: 'Support',
     prompt: 'Design a customer support ticket workflow with ticket creation, priority assessment, agent assignment, resolution tracking, and customer feedback collection'
   },
@@ -136,8 +123,6 @@ const workflowTemplates: WorkflowTemplate[] = [
     name: 'Content Approval',
     description: 'Multi-stage content review workflow',
     author: 'Kiteframe',
-    likes: 145,
-    uses: 5800,
     category: 'Content',
     prompt: 'Create a content approval workflow with draft submission, editorial review, stakeholder approval, revision requests, and final publication'
   },
@@ -164,13 +149,6 @@ function formatTimeAgo(date: Date): string {
   if (diffHours < 24) return `${diffHours} hours ago`;
   if (diffDays < 7) return `${diffDays} days ago`;
   return date.toLocaleDateString();
-}
-
-function formatNumber(num: number): string {
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'k';
-  }
-  return num.toString();
 }
 
 export function HomeScreen({
@@ -402,7 +380,6 @@ export function HomeScreen({
       <div className="max-w-5xl mx-auto px-6 py-8">
         {/* AI Prompt Section */}
         <div className="mb-10">
-          <h2 className="text-sm font-medium text-muted-foreground mb-3">Prompt</h2>
           <div className="bg-card border border-border rounded-xl p-4">
             <Textarea
               value={promptValue}
@@ -537,20 +514,10 @@ export function HomeScreen({
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                       {template.description}
                     </p>
-                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-border">
+                    <div className="mt-2 pt-2 border-t border-border">
                       <span className="text-xs text-muted-foreground">
                         by {template.author}
                       </span>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center">
-                          <Heart size={12} className="mr-1" />
-                          {formatNumber(template.likes)}
-                        </span>
-                        <span className="flex items-center">
-                          <Users size={12} className="mr-1" />
-                          {formatNumber(template.uses)}
-                        </span>
-                      </div>
                     </div>
                   </CardContent>
                 </Card>
