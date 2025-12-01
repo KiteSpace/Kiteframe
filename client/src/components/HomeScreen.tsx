@@ -534,38 +534,36 @@ export function HomeScreen({
           {!isAuthenticated ? (
             /* Promo Card for Non-Authenticated Users */
             <div 
-              className="rounded-xl p-[2px] relative overflow-hidden"
+              className="rounded-xl p-6"
               style={{
-                background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.8) 0%, rgba(59, 130, 246, 0.8) 100%)'
+                background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)'
               }}
               data-testid="promo-signup-card"
             >
-              <div className="bg-white dark:bg-card rounded-[10px] p-6">
-                <h3 className="text-base font-semibold text-foreground mb-2">
-                  Sign up for a Pro Account to save your projects
-                </h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  Want to save your projects so it's easy to pick back up where you left off? Create a Pro account to get access to cloud storage, increased tokens, and more!
-                </p>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => window.dispatchEvent(new CustomEvent('openSignIn'))}
-                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
-                    data-testid="button-signin-promo"
-                  >
-                    Sign in
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => window.dispatchEvent(new CustomEvent('openSignUp'))}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                    data-testid="button-signup-promo"
-                  >
-                    Sign up
-                  </Button>
-                </div>
+              <h3 className="text-base font-semibold text-foreground mb-2">
+                Sign up for a Pro Account to save your projects
+              </h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                Want to save your projects so it's easy to pick back up where you left off? Create a Pro account to get access to cloud storage, increased tokens, and more!
+              </p>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => window.dispatchEvent(new CustomEvent('openSignIn'))}
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
+                  data-testid="button-signin-promo"
+                >
+                  Sign in
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('openSignUp'))}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  data-testid="button-signup-promo"
+                >
+                  Sign up
+                </Button>
               </div>
             </div>
           ) : recentProjects.length > 0 ? (
