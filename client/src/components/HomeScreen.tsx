@@ -540,7 +540,7 @@ export function HomeScreen({
                   </Button>
                   <Button
                     onClick={() => window.dispatchEvent(new CustomEvent('openSignUp'))}
-                    className="bg-gradient-to-r from-[#2AF1FF] to-[#FF1F97] hover:opacity-90 text-white"
+                    className="bg-blue-500 hover:bg-blue-600 text-white"
                     data-testid="button-signup-promo"
                   >
                     Sign Up

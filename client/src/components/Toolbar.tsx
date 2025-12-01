@@ -119,20 +119,6 @@ export function Toolbar({
                 </button>
               )}
               
-              {/* AI Settings Button */}
-              <button
-                className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2 rounded-lg"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenAiSettings();
-                  setShowSettingsDropdown(false);
-                }}
-                data-testid="button-ai-settings"
-              >
-                <Bot size={16} className="text-purple-500" />
-                AI Provider
-              </button>
-
               {/* Divider */}
               <div className="border-b border-border my-2"></div>
 
