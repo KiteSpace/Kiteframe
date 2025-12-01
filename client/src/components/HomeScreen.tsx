@@ -628,16 +628,17 @@ export function HomeScreen({
         </AlertDialog>
 
         {/* Quick Start Templates Section */}
-        <div className={isOutOfCredits ? 'opacity-60' : ''}>
+        <div>
           <h2 className="text-lg font-semibold mb-4">Quick Start Templates</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {workflowTemplates.map((template) => {
               const IconComponent = categoryIcons[template.category] || Workflow;
               return (
-                <Card
+                <button
+                  type="button"
                   key={template.id}
-                  className={`transition-colors group ${isOutOfCredits ? 'cursor-not-allowed' : 'cursor-pointer hover:border-primary/50'}`}
-                  onClick={() => !isOutOfCredits && handleTemplateClick(template)}
+                  className="text-left w-full rounded-lg border bg-card text-card-foreground shadow-sm transition-colors group cursor-pointer hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  onClick={() => handleTemplateClick(template)}
                   data-testid={`card-template-${template.id}`}
                 >
                   <div className="aspect-video bg-gradient-to-br from-muted to-muted/50 rounded-t-lg overflow-hidden flex items-center justify-center">
@@ -648,7 +649,7 @@ export function HomeScreen({
                       <span className="text-xs font-medium text-muted-foreground">{template.category}</span>
                     </div>
                   </div>
-                  <CardContent className="p-3">
+                  <div className="p-3">
                     <h3 className="font-medium">{template.name}</h3>
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                       {template.description}
@@ -658,8 +659,8 @@ export function HomeScreen({
                         by {template.author}
                       </span>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </button>
               );
             })}
           </div>
