@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useAuth } from '@/hooks/useAuth';
 import { Coins, AlertCircle, Crown, Sparkles } from 'lucide-react';
 
 interface CreditsResponse {
@@ -27,6 +28,7 @@ export function CreditsWidget() {
   const [unlockCode, setUnlockCode] = useState('');
   const { toast } = useToast();
   const { tier, isPro, isAdvanced, monthlyCredits } = useSubscription();
+  const { isAuthenticated } = useAuth();
 
   const { data: creditsData, isLoading } = useQuery({
     queryKey: ['/api/credits'],
@@ -80,6 +82,7 @@ export function CreditsWidget() {
   const isUnlimited = credits >= 999999;
   const isLowCredits = credits <= 2 && !isUnlimited;
   const displayCredits = isUnlimited ? '∞' : credits;
+  const showSignupPrompt = credits === 0 && !isAuthenticated;
 
   const tierBadge = tier === 'pro' ? (
     <Badge variant="default" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
@@ -101,12 +104,14 @@ export function CreditsWidget() {
           variant="outline"
           size="sm"
           onClick={() => setIsOpen(true)}
-          className={`flex items-center gap-2 ${isLowCredits ? 'border-orange-500 text-orange-600' : ''}`}
+          className={`flex items-center gap-2 ${isLowCredits || showSignupPrompt ? 'border-orange-500 text-orange-600' : ''}`}
           data-testid="button-credits"
         >
           <Coins className="h-4 w-4" />
-          <span data-testid="text-credits-count">{isLoading ? '...' : displayCredits}</span>
-          {isLowCredits && <AlertCircle className="h-3 w-3" />}
+          <span data-testid="text-credits-count">
+            {isLoading ? '...' : showSignupPrompt ? '0 credits! Create an account' : displayCredits}
+          </span>
+          {(isLowCredits || showSignupPrompt) && <AlertCircle className="h-3 w-3" />}
         </Button>
       </div>
 
@@ -137,12 +142,29 @@ export function CreditsWidget() {
             )}
 
             {credits === 0 && (
-              <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+              <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg p-4 space-y-3">
                 <p className="text-sm text-orange-800 dark:text-orange-200">
-                  You've run out of credits. {tier === 'free' ? (
-                    <a href="/pricing" className="underline font-medium">Upgrade your plan</a>
-                  ) : 'Enter an unlock code'} to continue using AI features.
+                  {!isAuthenticated ? (
+                    "You've run out of free trial credits. Create an account to get 25 credits monthly!"
+                  ) : tier === 'free' ? (
+                    <>You've run out of credits. <a href="/pricing" className="underline font-medium">Upgrade your plan</a> to continue using AI features.</>
+                  ) : (
+                    "You've run out of credits. Enter an unlock code to continue using AI features."
+                  )}
                 </p>
+                {!isAuthenticated && (
+                  <Button
+                    className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                    onClick={() => {
+                      setIsOpen(false);
+                      window.dispatchEvent(new CustomEvent('openSignUp'));
+                    }}
+                    data-testid="button-signup-credits"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Create Free Account
+                  </Button>
+                )}
               </div>
             )}
 

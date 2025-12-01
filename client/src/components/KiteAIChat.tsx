@@ -5,6 +5,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
+import { useAuth } from '@/hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
 import { 
   MessageCircle, 
@@ -79,14 +81,7 @@ export function KiteAIChat({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const chatWindowRef = useRef<HTMLDivElement>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: "Hi! I'm KiteAI, your workflow assistant. I can help you:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images or .kiteframe files\n• Answer questions about workflow design\n\nThis feature uses AI tokens. Need more? Contact info@kiteframe.space\n\nHow can I help you today?",
-      timestamp: new Date()
-    }
-  ]);
+  
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -99,6 +94,42 @@ export function KiteAIChat({
   
   const { toast } = useToast();
   const aiClient = useAi();
+  const { isAuthenticated } = useAuth();
+  
+  const { data: creditsData } = useQuery<{ credits: number }>({
+    queryKey: ['/api/credits'],
+    refetchInterval: 30000,
+  });
+  
+  const credits = creditsData?.credits ?? 0;
+  const isOutOfTokens = credits === 0 && !isAuthenticated;
+  
+  const getWelcomeMessage = useCallback(() => {
+    if (isOutOfTokens) {
+      return "You've run out of free trial tokens. Create an account and get tokens monthly to unlock the power of KiteAI.\n\nWith a free account, you'll receive 25 AI credits every month to:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images\n• Generate AI-powered suggestions";
+    }
+    return "Hi! I'm KiteAI, your workflow assistant. I can help you:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images or .kiteframe files\n• Answer questions about workflow design\n\nThis feature uses AI tokens. Need more? Contact info@kiteframe.space\n\nHow can I help you today?";
+  }, [isOutOfTokens]);
+  
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      content: "Hi! I'm KiteAI, your workflow assistant. I can help you:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images or .kiteframe files\n• Answer questions about workflow design\n\nThis feature uses AI tokens. Need more? Contact info@kiteframe.space\n\nHow can I help you today?",
+      timestamp: new Date()
+    }
+  ]);
+  
+  useEffect(() => {
+    if (messages.length === 1 && messages[0].id === 'welcome') {
+      setMessages([{
+        id: 'welcome',
+        role: 'assistant',
+        content: getWelcomeMessage(),
+        timestamp: new Date()
+      }]);
+    }
+  }, [isOutOfTokens, getWelcomeMessage]);
 
   // Drag and Resize handlers
   const handleHeaderMouseDown = (e: React.MouseEvent) => {
@@ -887,74 +918,107 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
               >
-                {/* Pending Files Preview */}
-                {pendingFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {pendingFiles.map((file, index) => (
-                      <div key={index} className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs">
-                        {file.type.startsWith('image/') ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
-                        <span className="truncate max-w-[100px]">{file.name}</span>
-                        <button 
-                          onClick={() => removePendingFile(index)}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
+                {/* Out of Tokens Warning */}
+                {isOutOfTokens ? (
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <Input
+                        value=""
+                        placeholder="Chat disabled - out of tokens"
+                        className="flex-1 opacity-50"
+                        disabled={true}
+                        data-testid="input-kiteai-message-disabled"
+                      />
+                      <Button
+                        size="icon"
+                        disabled={true}
+                        className="flex-shrink-0 opacity-50"
+                        data-testid="button-kiteai-send-disabled"
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <Button
+                      onClick={() => window.dispatchEvent(new CustomEvent('openSignUp'))}
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                      data-testid="button-kiteai-signup"
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Create Free Account
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Pending Files Preview */}
+                    {pendingFiles.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {pendingFiles.map((file, index) => (
+                          <div key={index} className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs">
+                            {file.type.startsWith('image/') ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+                            <span className="truncate max-w-[100px]">{file.name}</span>
+                            <button 
+                              onClick={() => removePendingFile(index)}
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    )}
+                    
+                    {/* Drop Zone Indicator */}
+                    {dragActive && (
+                      <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-xl flex items-center justify-center pointer-events-none">
+                        <span className="text-primary font-medium">Drop files here</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*,.kiteframe,.json"
+                        onChange={handleFileInputChange}
+                        className="hidden"
+                        multiple
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex-shrink-0"
+                        disabled={isLoading}
+                        data-testid="button-kiteai-attach"
+                      >
+                        <Paperclip className="w-4 h-4" />
+                      </Button>
+                      <Input
+                        ref={inputRef}
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        placeholder="Describe your workflow..."
+                        className="flex-1"
+                        disabled={isLoading}
+                        data-testid="input-kiteai-message"
+                      />
+                      <Button
+                        size="icon"
+                        onClick={handleSend}
+                        disabled={isLoading || (!inputValue.trim() && pendingFiles.length === 0)}
+                        className="flex-shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                        data-testid="button-kiteai-send"
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="text-[10px] text-muted-foreground mt-2 text-center">
+                      Drop images or .kiteframe files, or click the paperclip to upload
+                    </div>
+                  </>
                 )}
-                
-                {/* Drop Zone Indicator */}
-                {dragActive && (
-                  <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-xl flex items-center justify-center pointer-events-none">
-                    <span className="text-primary font-medium">Drop files here</span>
-                  </div>
-                )}
-                
-                <div className="flex gap-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,.kiteframe,.json"
-                    onChange={handleFileInputChange}
-                    className="hidden"
-                    multiple
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex-shrink-0"
-                    disabled={isLoading}
-                    data-testid="button-kiteai-attach"
-                  >
-                    <Paperclip className="w-4 h-4" />
-                  </Button>
-                  <Input
-                    ref={inputRef}
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyPress}
-                    placeholder="Describe your workflow..."
-                    className="flex-1"
-                    disabled={isLoading}
-                    data-testid="input-kiteai-message"
-                  />
-                  <Button
-                    size="icon"
-                    onClick={handleSend}
-                    disabled={isLoading || (!inputValue.trim() && pendingFiles.length === 0)}
-                    className="flex-shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                    data-testid="button-kiteai-send"
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-                
-                <div className="text-[10px] text-muted-foreground mt-2 text-center">
-                  Drop images or .kiteframe files, or click the paperclip to upload
-                </div>
 
                 {/* Resize Handle */}
                 <div

@@ -38,8 +38,11 @@ import {
   FolderOpen,
   Share2,
   Download,
-  Trash2
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
 
 interface RecentProject {
   id: string;
@@ -166,6 +169,16 @@ export function HomeScreen({
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const projectToDelete = recentProjects.find(p => p.id === deleteProjectId);
+  
+  const { isAuthenticated } = useAuth();
+  
+  const { data: creditsData } = useQuery<{ credits: number }>({
+    queryKey: ['/api/credits'],
+    refetchInterval: 30000,
+  });
+  
+  const credits = creditsData?.credits ?? 0;
+  const showZeroCreditsWarning = credits === 0 && !isAuthenticated;
 
   const handleExampleClick = useCallback((prompt: string) => {
     setPromptValue(prompt);
@@ -378,6 +391,29 @@ export function HomeScreen({
   return (
     <div className="flex-1 overflow-auto bg-background">
       <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* Zero Credits Warning Banner */}
+        {showZeroCreditsWarning && (
+          <div className="mb-6 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg p-4 flex items-center gap-3" data-testid="banner-zero-credits">
+            <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                You've run out of free trial credits
+              </p>
+              <p className="text-xs text-orange-700 dark:text-orange-300 mt-0.5">
+                Create an account to get monthly credits and unlock the full power of KiteAI.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+              onClick={() => window.dispatchEvent(new CustomEvent('openSignUp'))}
+              data-testid="button-signup-banner"
+            >
+              Sign Up Free
+            </Button>
+          </div>
+        )}
+
         {/* AI Prompt Section */}
         <div className="mb-10">
           <div className="bg-card border border-border rounded-xl p-4">
@@ -385,7 +421,7 @@ export function HomeScreen({
               value={promptValue}
               onChange={(e) => setPromptValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Describe the workflow you want to create...or upload an image"
+              placeholder="Describe the workflow you want to create, or upload an image"
               className="min-h-[100px] resize-none border-0 p-0 focus-visible:ring-0 text-base bg-transparent"
               data-testid="input-workflow-prompt"
             />
