@@ -321,10 +321,20 @@ export function PropertiesCard({
               <div className="pt-2 flex flex-col gap-1">
                 <Button
                   onClick={() => {
-                    const event = new CustomEvent('generateWireframe', {
-                      detail: { nodeId: selectedNode.id, node: selectedNode }
-                    });
-                    window.dispatchEvent(event);
+                    // Wireframe is Advanced tier and up
+                    const tier = (window as any).__subscriptionTier;
+                    if (tier && tier !== 'free') {
+                      const event = new CustomEvent('generateWireframe', {
+                        detail: { nodeId: selectedNode.id, node: selectedNode }
+                      });
+                      window.dispatchEvent(event);
+                    } else {
+                      // Dispatch upsell event
+                      const event = new CustomEvent('showFeatureUpsell', {
+                        detail: { type: 'wireframe' }
+                      });
+                      window.dispatchEvent(event);
+                    }
                   }}
                   className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-md hover:shadow-lg transition-all"
                   data-testid="mockup-wireframe-button"

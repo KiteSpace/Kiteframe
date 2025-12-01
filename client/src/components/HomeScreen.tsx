@@ -42,6 +42,8 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useCreditsGate } from '@/hooks/useCreditsGate';
+import { useSubscription } from '@/hooks/useSubscription';
+import { FeatureUpsellDialog } from './FeatureUpsellDialog';
 
 interface RecentProject {
   id: string;
@@ -167,6 +169,10 @@ export function HomeScreen({
   const [promptValue, setPromptValue] = useState('');
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
+  const [showFeatureUpsell, setShowFeatureUpsell] = useState(false);
+  const [featureUpsellType, setFeatureUpsellType] = useState<'image' | 'wireframe'>('image');
+  
+  const { tier } = useSubscription();
   const projectToDelete = recentProjects.find(p => p.id === deleteProjectId);
   
   const { 
@@ -442,7 +448,15 @@ export function HomeScreen({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={onUploadImage}
+                  onClick={() => {
+                    // Image upload is Pro tier only
+                    if (tier !== 'pro') {
+                      setFeatureUpsellType('image');
+                      setShowFeatureUpsell(true);
+                    } else {
+                      onUploadImage();
+                    }
+                  }}
                   className="text-muted-foreground hover:text-foreground"
                   disabled={isOutOfCredits}
                   data-testid="button-upload-image"
@@ -575,6 +589,22 @@ export function HomeScreen({
             </div>
           )}
         </div>
+
+        {/* Feature Upsell Dialog */}
+        <FeatureUpsellDialog
+          isOpen={showFeatureUpsell}
+          onClose={() => setShowFeatureUpsell(false)}
+          featureName={featureUpsellType === 'image' ? 'Image-to-Workflow Generator' : 'Wireframe Generator'}
+          requiredTier={featureUpsellType === 'image' ? 'pro' : 'advanced'}
+          currentTier={tier}
+          description={featureUpsellType === 'image' 
+            ? 'Convert your sketches and wireframes into interactive workflows using AI-powered image analysis.'
+            : 'Generate wireframe layouts from text descriptions using AI.'}
+          onUpgrade={() => {
+            setShowFeatureUpsell(false);
+            window.location.href = '/pricing';
+          }}
+        />
 
         {/* Delete Confirmation Dialog (for home view) */}
         <AlertDialog open={!!deleteProjectId} onOpenChange={(open) => !open && setDeleteProjectId(null)}>
