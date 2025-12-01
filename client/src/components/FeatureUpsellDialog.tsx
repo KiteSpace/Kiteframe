@@ -1,22 +1,15 @@
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Lock } from 'lucide-react';
 
 interface FeatureUpsellDialogProps {
   isOpen: boolean;
   onClose: () => void;
   featureName: string;
   requiredTier: 'advanced' | 'pro';
-  currentTier: 'free' | 'advanced' | 'pro';
   description: string;
-  onUpgrade: () => void;
 }
 
 export function FeatureUpsellDialog({
@@ -24,53 +17,60 @@ export function FeatureUpsellDialog({
   onClose,
   featureName,
   requiredTier,
-  currentTier,
   description,
-  onUpgrade,
 }: FeatureUpsellDialogProps) {
   const tierName = requiredTier === 'pro' ? 'Pro' : 'Advanced';
-  const isCurrentTierSufficient = 
-    (currentTier === 'pro') || 
-    (currentTier === 'advanced' && requiredTier === 'advanced');
+
+  const handleSignIn = () => {
+    onClose();
+    window.dispatchEvent(new CustomEvent('openSignIn'));
+  };
+
+  const handleSignUp = () => {
+    onClose();
+    window.dispatchEvent(new CustomEvent('openSignUp'));
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            <Lock size={20} className="text-blue-500" />
-            <DialogTitle>{featureName} is locked</DialogTitle>
+      <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden border-0">
+        <div className="p-6">
+          {/* Gradient Header */}
+          <div 
+            className="mb-4 -mx-6 -mt-6 px-6 py-4"
+            style={{
+              background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)'
+            }}
+          >
+            <h2 className="text-lg font-semibold text-foreground">
+              Sign up for a {tierName} Account to access this feature
+            </h2>
           </div>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        
-        <div className="py-4 space-y-3">
-          <p className="text-sm text-foreground">
-            This feature is only available in the <span className="font-semibold">{tierName}</span> tier.
+
+          {/* Description */}
+          <p className="text-muted-foreground mb-6">
+            {description}
           </p>
-          <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg">
-            <p className="text-sm text-blue-900 dark:text-blue-200">
-              {requiredTier === 'pro' 
-                ? 'Upgrade to Pro to unlock advanced features including image-to-workflow generation, version control, and more.'
-                : 'Upgrade to Advanced or Pro to unlock this feature along with wireframe generation, cloud storage, and priority support.'}
-            </p>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              onClick={handleSignIn}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
+              data-testid="button-signin-upsell"
+            >
+              Sign in
+            </Button>
+            <Button
+              onClick={handleSignUp}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              data-testid="button-signup-upsell"
+            >
+              Sign up
+            </Button>
           </div>
         </div>
-
-        <DialogFooter className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={onUpgrade}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            Upgrade Now
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

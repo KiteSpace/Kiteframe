@@ -26,19 +26,21 @@ export function SignUpModal({ open, onOpenChange, onSignInClick }: SignUpModalPr
       name: 'Free',
       credits: 25,
       price: '$0/month',
-      features: ['25 AI credits/month', 'Basic workflow editor', 'Local storage'],
+      features: ['25 AI credits/month', 'Basic workflow editor', 'Download & upload workflows'],
     },
     advanced: {
       name: 'Advanced',
-      credits: 150,
-      price: '$14.99/month',
-      features: ['150 AI credits/month', 'All Free features', 'Priority AI processing', 'Email support'],
+      credits: 50,
+      price: '$5/month',
+      introLabel: 'Introductory pricing',
+      features: ['50 AI credits/month', 'Wireframe generator', 'Cloud storage', 'Priority support'],
     },
     pro: {
       name: 'Pro',
-      credits: 500,
-      price: '$29.99/month',
-      features: ['500 AI credits/month', 'All Advanced features', 'Cloud-saved projects', 'Priority support'],
+      credits: 150,
+      price: '$10/month',
+      introLabel: 'Introductory pricing',
+      features: ['150 AI credits/month', 'Image-to-Workflow generator', 'Cloud storage', 'Priority support'],
     },
   };
 
@@ -82,7 +84,14 @@ export function SignUpModal({ open, onOpenChange, onSignInClick }: SignUpModalPr
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="font-semibold text-slate-900 dark:text-slate-100">{info.name}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{info.name}</span>
+                        {'introLabel' in info && (
+                          <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">
+                            {info.introLabel}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                         {info.credits.toLocaleString()} credits/month
                       </div>

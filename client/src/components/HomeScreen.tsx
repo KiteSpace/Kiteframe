@@ -536,28 +536,31 @@ export function HomeScreen({
             <div 
               className="rounded-xl p-[2px] relative overflow-hidden"
               style={{
-                background: 'linear-gradient(135deg, #2AF1FF 0%, #FF1F97 100%)'
+                background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.8) 0%, rgba(59, 130, 246, 0.8) 100%)'
               }}
               data-testid="promo-signup-card"
             >
               <div className="bg-white dark:bg-card rounded-[10px] p-6">
-                <p className="text-foreground mb-4">
-                  Want to save your projects so it's easy to pick back up where you left off? Create a Kiteframe account! All tiers come with a monthly allotment of tokens and with a paid account you'll get access to cloud storage, more tokens, and more.
+                <h3 className="text-base font-semibold text-foreground mb-2">
+                  Sign up for a Pro Account to save your projects
+                </h3>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Want to save your projects so it's easy to pick back up where you left off? Create a Pro account to get access to cloud storage, increased tokens, and more!
                 </p>
                 <div className="flex items-center gap-3">
-                  <Button
-                    variant="ghost"
+                  <button
                     onClick={() => window.dispatchEvent(new CustomEvent('openSignIn'))}
+                    className="text-blue-600 hover:text-blue-700 font-medium text-sm"
                     data-testid="button-signin-promo"
                   >
                     Sign in
-                  </Button>
+                  </button>
                   <Button
                     onClick={() => window.dispatchEvent(new CustomEvent('openSignUp'))}
-                    className="bg-blue-500 hover:bg-blue-600 text-white"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
                     data-testid="button-signup-promo"
                   >
-                    Sign Up
+                    Sign up
                   </Button>
                 </div>
               </div>
@@ -596,14 +599,9 @@ export function HomeScreen({
           onClose={() => setShowFeatureUpsell(false)}
           featureName={featureUpsellType === 'image' ? 'Image-to-Workflow Generator' : 'Wireframe Generator'}
           requiredTier={featureUpsellType === 'image' ? 'pro' : 'advanced'}
-          currentTier={tier}
           description={featureUpsellType === 'image' 
-            ? 'Convert your sketches and wireframes into interactive workflows using AI-powered image analysis.'
-            : 'Generate wireframe layouts from text descriptions using AI.'}
-          onUpgrade={() => {
-            setShowFeatureUpsell(false);
-            window.location.href = '/pricing';
-          }}
+            ? 'Convert your sketches and wireframes into interactive workflows using AI-powered image analysis!'
+            : 'Generate wireframe layouts from text descriptions using AI!'}
         />
 
         {/* Delete Confirmation Dialog (for home view) */}
