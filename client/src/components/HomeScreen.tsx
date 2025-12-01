@@ -177,7 +177,8 @@ export function HomeScreen({
     refetchInterval: 30000,
   });
   
-  const credits = creditsData?.credits ?? 0;
+  // DEMO: Force 0 credits to show banners - REMOVE AFTER SCREENSHOT
+  const credits = 0; // creditsData?.credits ?? 0;
   const showZeroCreditsWarning = credits === 0 && !isAuthenticated;
 
   const handleExampleClick = useCallback((prompt: string) => {

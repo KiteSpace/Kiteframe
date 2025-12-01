@@ -78,7 +78,8 @@ export function CreditsWidget() {
     redeemMutation.mutate(code);
   };
 
-  const credits = (creditsData as CreditsResponse | undefined)?.credits ?? 0;
+  // DEMO: Force 0 credits to show banners - REMOVE AFTER SCREENSHOT
+  const credits = 0; // (creditsData as CreditsResponse | undefined)?.credits ?? 0;
   const isUnlimited = credits >= 999999;
   const isLowCredits = credits <= 2 && !isUnlimited;
   const displayCredits = isUnlimited ? '∞' : credits;
