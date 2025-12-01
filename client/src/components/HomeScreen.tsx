@@ -120,38 +120,32 @@ const workflowTemplates: WorkflowTemplate[] = [
     description: 'Ticket routing and resolution workflow',
     author: 'Kiteframe',
     category: 'Support',
-    prompt: 'Design a customer support ticket workflow with ticket creation, priority assessment, agent assignment, resolution tracking, and customer feedback collection'
+    prompt: 'Create a customer support ticket workflow with ticket submission, priority assessment, assignment to team, resolution tracking, and customer notification'
   },
   {
     id: 'template-6',
     name: 'Content Approval',
-    description: 'Multi-stage content review workflow',
+    description: 'Multi-stage content review and publishing',
     author: 'Kiteframe',
     category: 'Content',
-    prompt: 'Create a content approval workflow with draft submission, editorial review, stakeholder approval, revision requests, and final publication'
+    prompt: 'Design a content approval workflow with submission, editorial review, copyediting, fact-checking, final approval, and scheduled publishing'
   },
 ];
 
-const categoryIcons: Record<string, typeof Workflow> = {
-  'Authentication': Users,
-  'E-commerce': Globe,
-  'Data': Database,
-  'DevOps': GitBranch,
-  'Support': Settings,
-  'Content': Zap,
+// Fallback for ShoppingCart if not imported
+const ShoppingCart = () => <Workflow />;
+
+const categoryIcons: Record<string, any> = {
+  Authentication: Users,
+  'E-commerce': ShoppingCart,
+  Data: Database,
+  DevOps: GitBranch,
+  Support: Zap,
+  Content: Globe,
 };
 
-function formatTimeAgo(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins} minutes ago`;
-  if (diffHours < 24) return `${diffHours} hours ago`;
-  if (diffDays < 7) return `${diffDays} days ago`;
+function formatDate(date: Date) {
+  if (!date) return 'Unknown';
   return date.toLocaleDateString();
 }
 
@@ -171,7 +165,6 @@ export function HomeScreen({
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [showFeatureUpsell, setShowFeatureUpsell] = useState(false);
   const [featureUpsellType, setFeatureUpsellType] = useState<'image' | 'wireframe'>('image');
-  const [showSignIn, setShowSignIn] = useState(false);
   
   const { tier } = useSubscription();
   const projectToDelete = recentProjects.find(p => p.id === deleteProjectId);
@@ -304,121 +297,40 @@ export function HomeScreen({
       </div>
       <CardContent className="p-3">
         <h3 className="font-medium truncate">{project.name}</h3>
-        <div className="flex items-center justify-between mt-1">
-          <span className="text-xs text-muted-foreground flex items-center">
-            <Clock size={12} className="mr-1" />
-            {formatTimeAgo(project.lastModified)}
-          </span>
-          <Badge 
-            variant={project.status === 'published' ? 'default' : 'secondary'}
-            className="text-xs"
-          >
-            {project.status === 'published' ? 'Published' : project.status === 'private' ? 'Private' : 'Draft'}
-          </Badge>
-        </div>
+        <p className="text-xs text-muted-foreground">
+          <Clock size={12} className="inline mr-1" />
+          Modified {formatDate(project.lastModified)}
+        </p>
       </CardContent>
     </Card>
   );
 
-  // All Projects View
-  if (showAllProjects) {
-    return (
-      <div className="flex-1 overflow-auto bg-background">
-        <div className="max-w-5xl mx-auto px-6 py-8">
-          {/* Header with back button */}
-          <div className="flex items-center gap-4 mb-6">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAllProjects(false)}
-              className="text-muted-foreground hover:text-foreground"
-              data-testid="button-back-home"
-            >
-              <ArrowLeft size={16} className="mr-1" />
-              Back
-            </Button>
-            <h1 className="text-2xl font-bold">All Projects</h1>
+  return (
+    <div className="w-full max-w-6xl mx-auto px-4 py-8">
+      <div className="space-y-10">
+        {/* Header with Create New Button */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Design your workflow</h1>
+            <p className="text-muted-foreground mt-1">Build visual workflows powered by AI</p>
           </div>
-
-          {/* Projects Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {/* New Project Tile */}
-            <Card
-              className="cursor-pointer hover:border-primary/50 transition-colors group border-dashed"
-              onClick={onCreateBlankWorkflow}
-              data-testid="card-new-project"
-            >
-              <div className="aspect-video bg-muted/50 rounded-t-lg overflow-hidden flex items-center justify-center">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <Plus size={24} className="text-primary" />
-                </div>
-              </div>
-              <CardContent className="p-3">
-                <h3 className="font-medium text-center">New Project</h3>
-                <p className="text-xs text-muted-foreground text-center mt-1">
-                  Start from scratch
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Project Cards */}
-            {recentProjects.map((project) => renderProjectCard(project))}
-          </div>
-
-          {recentProjects.length === 0 && (
-            <div className="text-center py-12">
-              <Workflow size={48} className="mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-medium mb-2">No projects yet</h3>
-              <p className="text-muted-foreground mb-4">
-                Create your first workflow to get started
-              </p>
-              <Button onClick={onCreateBlankWorkflow} data-testid="button-create-first-project">
-                <Plus size={16} className="mr-2" />
-                Create Project
-              </Button>
-            </div>
-          )}
+          <Button
+            onClick={onCreateBlankWorkflow}
+            className="gap-2"
+            data-testid="button-create-blank"
+          >
+            <Plus size={16} />
+            New Workflow
+          </Button>
         </div>
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={!!deleteProjectId} onOpenChange={(open) => !open && setDeleteProjectId(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Project</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete "{projectToDelete?.name}"? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleConfirmDelete}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                data-testid="button-confirm-delete"
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    );
-  }
-
-  // Main Home View
-  return (
-    <div className="flex-1 overflow-auto bg-background">
-      <div className="max-w-5xl mx-auto px-6 py-8">
         {/* Zero Credits Warning Banner */}
         {showZeroCreditsWarning && (
-          <div className="mb-6 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg p-4 flex items-center gap-3" data-testid="banner-zero-credits">
-            <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg p-4 flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                You've run out of free trial credits
-              </p>
-              <p className="text-xs text-orange-700 dark:text-orange-300 mt-0.5">
-                Create an account to get monthly credits and unlock the full power of KiteAI.
+              <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                You're on a free trial with 5 credits remaining
               </p>
             </div>
             <Button
@@ -537,19 +449,20 @@ export function HomeScreen({
             <div 
               className="rounded-xl p-[2px] relative overflow-hidden"
               style={{
-                background: 'linear-gradient(135deg, #3B82F6 0%, #A855F7 100%)'
+                background: 'linear-gradient(to right, rgb(147, 51, 234), rgb(37, 99, 235))'
               }}
               data-testid="promo-signup-card"
             >
-              <div className="bg-white dark:bg-card rounded-[10px] p-6 space-y-4">
+              <div className="bg-white dark:bg-card rounded-[10px] p-6 space-y-3">
                 <h3 className="font-semibold text-foreground">Sign up for a Pro Account to save your projects</h3>
-                <p className="text-sm text-foreground/80">
+                <p className="text-sm text-foreground/70">
                   Want to save your projects so it's easy to pick back up where you left off? Create a Pro account to get access to cloud storage, increased tokens, and more!
                 </p>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 pt-2">
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     onClick={() => window.dispatchEvent(new CustomEvent('openSignIn'))}
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-slate-900"
                     data-testid="button-signin-promo"
                   >
                     Sign in
