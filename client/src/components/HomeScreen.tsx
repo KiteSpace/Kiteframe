@@ -171,6 +171,7 @@ export function HomeScreen({
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [showFeatureUpsell, setShowFeatureUpsell] = useState(false);
   const [featureUpsellType, setFeatureUpsellType] = useState<'image' | 'wireframe'>('image');
+  const [showSignIn, setShowSignIn] = useState(false);
   
   const { tier } = useSubscription();
   const projectToDelete = recentProjects.find(p => p.id === deleteProjectId);
@@ -536,13 +537,14 @@ export function HomeScreen({
             <div 
               className="rounded-xl p-[2px] relative overflow-hidden"
               style={{
-                background: 'linear-gradient(135deg, #2AF1FF 0%, #FF1F97 100%)'
+                background: 'linear-gradient(135deg, #3B82F6 0%, #A855F7 100%)'
               }}
               data-testid="promo-signup-card"
             >
-              <div className="bg-white dark:bg-card rounded-[10px] p-6">
-                <p className="text-foreground mb-4">
-                  Want to save your projects so it's easy to pick back up where you left off? Create a Kiteframe account! All tiers come with a monthly allotment of tokens and with a paid account you'll get access to cloud storage, more tokens, and more.
+              <div className="bg-white dark:bg-card rounded-[10px] p-6 space-y-4">
+                <h3 className="font-semibold text-foreground">Sign up for a Pro Account to save your projects</h3>
+                <p className="text-sm text-foreground/80">
+                  Want to save your projects so it's easy to pick back up where you left off? Create a Pro account to get access to cloud storage, increased tokens, and more!
                 </p>
                 <div className="flex items-center gap-3">
                   <Button
@@ -554,10 +556,10 @@ export function HomeScreen({
                   </Button>
                   <Button
                     onClick={() => window.dispatchEvent(new CustomEvent('openSignUp'))}
-                    className="bg-blue-500 hover:bg-blue-600 text-white"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
                     data-testid="button-signup-promo"
                   >
-                    Sign Up
+                    Sign up
                   </Button>
                 </div>
               </div>
@@ -598,11 +600,15 @@ export function HomeScreen({
           requiredTier={featureUpsellType === 'image' ? 'pro' : 'advanced'}
           currentTier={tier}
           description={featureUpsellType === 'image' 
-            ? 'Convert your sketches and wireframes into interactive workflows using AI-powered image analysis.'
+            ? 'Convert your sketches and wireframes into interactive workflows using AI-powered image analysis!'
             : 'Generate wireframe layouts from text descriptions using AI.'}
-          onUpgrade={() => {
+          onSignIn={() => {
             setShowFeatureUpsell(false);
-            window.location.href = '/pricing';
+            window.dispatchEvent(new CustomEvent('openSignIn'));
+          }}
+          onSignUp={() => {
+            setShowFeatureUpsell(false);
+            window.dispatchEvent(new CustomEvent('openSignUp'));
           }}
         />
 

@@ -26,19 +26,36 @@ export function SignUpModal({ open, onOpenChange, onSignInClick }: SignUpModalPr
       name: 'Free',
       credits: 25,
       price: '$0/month',
-      features: ['25 AI credits/month', 'Basic workflow editor', 'Local storage'],
+      features: [
+        '25 AI credits/month',
+        'Full workflow editor',
+        'Local storage & export',
+        'Basic templates',
+      ],
     },
     advanced: {
       name: 'Advanced',
       credits: 150,
-      price: '$14.99/month',
-      features: ['150 AI credits/month', 'All Free features', 'Priority AI processing', 'Email support'],
+      price: '$5/month',
+      features: [
+        '150 AI credits/month',
+        'Wireframe generator',
+        'Priority support',
+        'Advanced exports',
+        'All Free features',
+      ],
     },
     pro: {
       name: 'Pro',
       credits: 500,
-      price: '$29.99/month',
-      features: ['500 AI credits/month', 'All Advanced features', 'Cloud-saved projects', 'Priority support'],
+      price: '$10/month',
+      features: [
+        '500 AI credits/month',
+        'Image-to-workflow generator',
+        'Cloud-saved projects',
+        'Version control',
+        'All Advanced features',
+      ],
     },
   };
 

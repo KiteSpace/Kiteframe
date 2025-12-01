@@ -1,13 +1,10 @@
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Lock } from 'lucide-react';
 
 interface FeatureUpsellDialogProps {
   isOpen: boolean;
@@ -16,7 +13,8 @@ interface FeatureUpsellDialogProps {
   requiredTier: 'advanced' | 'pro';
   currentTier: 'free' | 'advanced' | 'pro';
   description: string;
-  onUpgrade: () => void;
+  onSignIn: () => void;
+  onSignUp: () => void;
 }
 
 export function FeatureUpsellDialog({
@@ -26,51 +24,47 @@ export function FeatureUpsellDialog({
   requiredTier,
   currentTier,
   description,
-  onUpgrade,
+  onSignIn,
+  onSignUp,
 }: FeatureUpsellDialogProps) {
   const tierName = requiredTier === 'pro' ? 'Pro' : 'Advanced';
-  const isCurrentTierSufficient = 
-    (currentTier === 'pro') || 
-    (currentTier === 'advanced' && requiredTier === 'advanced');
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <Lock size={20} className="text-blue-500" />
-            <DialogTitle>{featureName} is locked</DialogTitle>
-          </div>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle className="text-xl">Sign up for a {tierName} Account to access this feature</DialogTitle>
         </DialogHeader>
         
-        <div className="py-4 space-y-3">
-          <p className="text-sm text-foreground">
-            This feature is only available in the <span className="font-semibold">{tierName}</span> tier.
+        <div className="py-4 space-y-4">
+          <p className="text-base text-foreground leading-relaxed">
+            {description}
           </p>
-          <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg">
-            <p className="text-sm text-blue-900 dark:text-blue-200">
+          
+          <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white p-4 rounded-lg">
+            <p className="text-sm font-medium">
               {requiredTier === 'pro' 
-                ? 'Upgrade to Pro to unlock advanced features including image-to-workflow generation, version control, and more.'
-                : 'Upgrade to Advanced or Pro to unlock this feature along with wireframe generation, cloud storage, and priority support.'}
+                ? 'Pro accounts include image-to-workflow generation, version control, cloud storage, and 500 monthly credits.'
+                : 'Advanced accounts include wireframe generation, priority support, advanced exports, and 150 monthly credits.'}
             </p>
           </div>
         </div>
 
-        <DialogFooter className="flex gap-2">
+        <div className="flex gap-3 justify-end">
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={onSignIn}
+            className="px-6"
           >
-            Cancel
+            Sign in
           </Button>
           <Button
-            onClick={onUpgrade}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={onSignUp}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6"
           >
-            Upgrade Now
+            Sign up
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
