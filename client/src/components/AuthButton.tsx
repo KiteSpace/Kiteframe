@@ -26,6 +26,20 @@ export function AuthButton() {
     };
   }, []);
 
+  // Listen for global openSignIn and openSignUp events
+  useEffect(() => {
+    const handleOpenSignIn = () => setShowSignIn(true);
+    const handleOpenSignUp = () => setShowSignUp(true);
+
+    window.addEventListener('openSignIn', handleOpenSignIn);
+    window.addEventListener('openSignUp', handleOpenSignUp);
+    
+    return () => {
+      window.removeEventListener('openSignIn', handleOpenSignIn);
+      window.removeEventListener('openSignUp', handleOpenSignUp);
+    };
+  }, []);
+
   const handleLogout = async () => {
     setShowDropdown(false);
     await fetch('/api/logout', { method: 'POST' });
