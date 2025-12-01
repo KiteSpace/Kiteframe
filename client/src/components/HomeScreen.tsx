@@ -548,14 +548,17 @@ export function HomeScreen({
                   Want to save your projects so it's easy to pick back up where you left off? Create a Pro account to get access to cloud storage, increased tokens, and more!
                 </p>
                 <div className="flex items-center gap-3">
-                  <button
+                  <Button
+                    type="button"
+                    variant="ghost"
                     onClick={() => window.dispatchEvent(new CustomEvent('openSignIn'))}
-                    className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
                     data-testid="button-signin-promo"
                   >
                     Sign in
-                  </button>
+                  </Button>
                   <Button
+                    type="button"
                     onClick={() => window.dispatchEvent(new CustomEvent('openSignUp'))}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                     data-testid="button-signup-promo"

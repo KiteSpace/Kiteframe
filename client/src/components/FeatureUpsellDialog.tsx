@@ -55,6 +55,7 @@ export function FeatureUpsellDialog({
           {/* Action Buttons */}
           <div className="flex items-center gap-3">
             <Button
+              type="button"
               variant="ghost"
               onClick={handleSignIn}
               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
@@ -63,6 +64,7 @@ export function FeatureUpsellDialog({
               Sign in
             </Button>
             <Button
+              type="button"
               onClick={handleSignUp}
               className="bg-blue-600 hover:bg-blue-700 text-white"
               data-testid="button-signup-upsell"
