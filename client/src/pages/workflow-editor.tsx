@@ -3515,7 +3515,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }}
               onCreateBlankWorkflow={createNewTab}
               onLoadTemplate={(templateType) => {
-                handleAddTemplateToCurrentTab(templateType);
+                // Create a new tab first since we're on the home screen
+                const newTab = createBlankTab();
+                setTabs(prev => [...prev, newTab]);
+                setActiveTabId(newTab.id);
+                // Wait for the tab state to update, then add the template
+                setTimeout(() => {
+                  handleAddTemplateToCurrentTab(templateType);
+                }, 50);
               }}
               onUploadImage={() => {
                 const newTab = createBlankTab();
