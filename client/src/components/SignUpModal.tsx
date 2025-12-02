@@ -7,8 +7,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Chrome, Github, Check } from 'lucide-react';
+import { Chrome, Github, Check, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useQuery } from '@tanstack/react-query';
 
 interface SignUpModalProps {
   open: boolean;
@@ -20,6 +21,13 @@ type TierType = 'free' | 'advanced' | 'pro';
 
 export function SignUpModal({ open, onOpenChange, onSignInClick }: SignUpModalProps) {
   const [selectedTier, setSelectedTier] = useState<TierType>('free');
+  
+  const { data: providersData, isLoading: isLoadingProviders } = useQuery<{ providers: string[] }>({
+    queryKey: ['/api/auth/available-providers'],
+    enabled: open,
+  });
+
+  const availableProviders = providersData?.providers || [];
 
   const tierInfo = {
     free: {
@@ -132,41 +140,55 @@ export function SignUpModal({ open, onOpenChange, onSignInClick }: SignUpModalPr
           <div className="space-y-3">
             <label className="text-sm font-medium">Sign Up With</label>
             <div className="space-y-3">
-              <Button
-                variant="outline"
-                className="w-full h-11"
-                onClick={() => handleOAuthSignUp('google')}
-                data-testid="button-signup-google"
-              >
-                <Chrome className="h-4 w-4 mr-2" />
-                Google
-              </Button>
+              {isLoadingProviders ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  {availableProviders.includes('google') && (
+                    <Button
+                      variant="outline"
+                      className="w-full h-11"
+                      onClick={() => handleOAuthSignUp('google')}
+                      data-testid="button-signup-google"
+                    >
+                      <Chrome className="h-4 w-4 mr-2" />
+                      Google
+                    </Button>
+                  )}
 
-              <Button
-                variant="outline"
-                className="w-full h-11"
-                onClick={() => handleOAuthSignUp('github')}
-                data-testid="button-signup-github"
-              >
-                <Github className="h-4 w-4 mr-2" />
-                GitHub
-              </Button>
+                  {availableProviders.includes('github') && (
+                    <Button
+                      variant="outline"
+                      className="w-full h-11"
+                      onClick={() => handleOAuthSignUp('github')}
+                      data-testid="button-signup-github"
+                    >
+                      <Github className="h-4 w-4 mr-2" />
+                      GitHub
+                    </Button>
+                  )}
 
-              <Button
-                variant="outline"
-                className="w-full h-11"
-                onClick={() => handleOAuthSignUp('replit')}
-                data-testid="button-signup-replit"
-              >
-                <svg
-                  className="h-4 w-4 mr-2"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M3 3h4v4H3V3zm6 0h4v4H9V3zm6 0h4v4h-4V3zM3 9h4v4H3V9zm6 0h4v4H9V9zm6 0h4v4h-4V9zM3 15h4v4H3v-4zm6 0h4v4H9v-4zm6 0h4v4h-4v-4z" />
-                </svg>
-                Replit
-              </Button>
+                  {availableProviders.includes('replit') && (
+                    <Button
+                      variant="outline"
+                      className="w-full h-11"
+                      onClick={() => handleOAuthSignUp('replit')}
+                      data-testid="button-signup-replit"
+                    >
+                      <svg
+                        className="h-4 w-4 mr-2"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path d="M3 3h4v4H3V3zm6 0h4v4H9V3zm6 0h4v4h-4V3zM3 9h4v4H3V9zm6 0h4v4H9V9zm6 0h4v4h-4V9zM3 15h4v4H3v-4zm6 0h4v4H9v-4zm6 0h4v4h-4v-4z" />
+                      </svg>
+                      Replit
+                    </Button>
+                  )}
+                </>
+              )}
             </div>
           </div>
 

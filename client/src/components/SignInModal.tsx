@@ -6,7 +6,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Chrome, Github } from 'lucide-react';
+import { Chrome, Github, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 interface SignInModalProps {
   open: boolean;
@@ -15,6 +16,13 @@ interface SignInModalProps {
 }
 
 export function SignInModal({ open, onOpenChange, onSignUpClick }: SignInModalProps) {
+  const { data: providersData, isLoading } = useQuery<{ providers: string[] }>({
+    queryKey: ['/api/auth/available-providers'],
+    enabled: open,
+  });
+
+  const availableProviders = providersData?.providers || [];
+
   const handleOAuthLogin = (provider: string) => {
     if (provider === 'google') {
       window.location.href = '/api/auth/google';
@@ -36,41 +44,55 @@ export function SignInModal({ open, onOpenChange, onSignUpClick }: SignInModalPr
         </DialogHeader>
 
         <div className="space-y-3">
-          <Button
-            variant="outline"
-            className="w-full h-11"
-            onClick={() => handleOAuthLogin('google')}
-            data-testid="button-signin-google"
-          >
-            <Chrome className="h-4 w-4 mr-2" />
-            Continue with Google
-          </Button>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              {availableProviders.includes('google') && (
+                <Button
+                  variant="outline"
+                  className="w-full h-11"
+                  onClick={() => handleOAuthLogin('google')}
+                  data-testid="button-signin-google"
+                >
+                  <Chrome className="h-4 w-4 mr-2" />
+                  Continue with Google
+                </Button>
+              )}
 
-          <Button
-            variant="outline"
-            className="w-full h-11"
-            onClick={() => handleOAuthLogin('github')}
-            data-testid="button-signin-github"
-          >
-            <Github className="h-4 w-4 mr-2" />
-            Continue with GitHub
-          </Button>
+              {availableProviders.includes('github') && (
+                <Button
+                  variant="outline"
+                  className="w-full h-11"
+                  onClick={() => handleOAuthLogin('github')}
+                  data-testid="button-signin-github"
+                >
+                  <Github className="h-4 w-4 mr-2" />
+                  Continue with GitHub
+                </Button>
+              )}
 
-          <Button
-            variant="outline"
-            className="w-full h-11"
-            onClick={() => handleOAuthLogin('replit')}
-            data-testid="button-signin-replit"
-          >
-            <svg
-              className="h-4 w-4 mr-2"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M3 3h4v4H3V3zm6 0h4v4H9V3zm6 0h4v4h-4V3zM3 9h4v4H3V9zm6 0h4v4H9V9zm6 0h4v4h-4V9zM3 15h4v4H3v-4zm6 0h4v4H9v-4zm6 0h4v4h-4v-4z" />
-            </svg>
-            Continue with Replit
-          </Button>
+              {availableProviders.includes('replit') && (
+                <Button
+                  variant="outline"
+                  className="w-full h-11"
+                  onClick={() => handleOAuthLogin('replit')}
+                  data-testid="button-signin-replit"
+                >
+                  <svg
+                    className="h-4 w-4 mr-2"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M3 3h4v4H3V3zm6 0h4v4H9V3zm6 0h4v4h-4V3zM3 9h4v4H3V9zm6 0h4v4H9V9zm6 0h4v4h-4V9zM3 15h4v4H3v-4zm6 0h4v4H9v-4zm6 0h4v4h-4v-4z" />
+                  </svg>
+                  Continue with Replit
+                </Button>
+              )}
+            </>
+          )}
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
