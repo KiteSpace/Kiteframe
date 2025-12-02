@@ -7,6 +7,8 @@ import { WebhookHandlers } from "./webhookHandlers";
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 async function initStripe() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {

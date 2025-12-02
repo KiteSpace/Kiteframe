@@ -1,26 +1,11 @@
 import rateLimit from 'express-rate-limit';
 import type { Request } from 'express';
 
-const getClientIdentifier = (req: Request): string => {
+const getClientKey = (req: Request): string => {
   const user = req.user as any;
   if (user?.claims?.sub) return `user:${user.claims.sub}`;
   if (user?.id) return `user:${user.id}`;
-  
-  const forwarded = req.headers['x-forwarded-for'];
-  const ip = typeof forwarded === 'string' 
-    ? forwarded.split(',')[0].trim() 
-    : req.socket?.remoteAddress || 'anonymous';
-  
-  return `ip:${ip}`;
-};
-
-const getIpIdentifier = (req: Request): string => {
-  const forwarded = req.headers['x-forwarded-for'];
-  const ip = typeof forwarded === 'string' 
-    ? forwarded.split(',')[0].trim() 
-    : req.socket?.remoteAddress || 'anonymous';
-  
-  return `ip:${ip}`;
+  return req.ip || 'anonymous';
 };
 
 export const aiRateLimiter = rateLimit({
@@ -32,8 +17,8 @@ export const aiRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: getClientIdentifier,
-  validate: { xForwardedForHeader: false },
+  keyGenerator: getClientKey,
+  validate: { keyGeneratorIpFallback: false },
   skip: (req: Request) => req.path === '/api/health'
 });
 
@@ -46,8 +31,7 @@ export const authRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: getIpIdentifier,
-  validate: { xForwardedForHeader: false }
+  validate: { keyGeneratorIpFallback: false }
 });
 
 export const projectRateLimiter = rateLimit({
@@ -59,8 +43,8 @@ export const projectRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: getClientIdentifier,
-  validate: { xForwardedForHeader: false }
+  keyGenerator: getClientKey,
+  validate: { keyGeneratorIpFallback: false }
 });
 
 export const uploadRateLimiter = rateLimit({
@@ -72,8 +56,8 @@ export const uploadRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: getClientIdentifier,
-  validate: { xForwardedForHeader: false }
+  keyGenerator: getClientKey,
+  validate: { keyGeneratorIpFallback: false }
 });
 
 export const generalRateLimiter = rateLimit({
@@ -85,8 +69,8 @@ export const generalRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: getClientIdentifier,
-  validate: { xForwardedForHeader: false },
+  keyGenerator: getClientKey,
+  validate: { keyGeneratorIpFallback: false },
   skip: (req: Request) => req.path.startsWith('/assets') || req.path === '/api/health'
 });
 
@@ -99,6 +83,6 @@ export const sensitiveRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: getClientIdentifier,
-  validate: { xForwardedForHeader: false }
+  keyGenerator: getClientKey,
+  validate: { keyGeneratorIpFallback: false }
 });
