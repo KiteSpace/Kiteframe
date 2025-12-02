@@ -3515,14 +3515,64 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }}
               onCreateBlankWorkflow={createNewTab}
               onLoadTemplate={(templateType) => {
-                // Create a new tab first since we're on the home screen
-                const newTab = createBlankTab();
+                // Generate template data based on type
+                let templateData: { nodes: Node[]; edges: Edge[] } | undefined;
+                switch (templateType) {
+                  case 'user-journey':
+                    templateData = generateUserJourneyTemplate();
+                    break;
+                  case 'mindmap':
+                    templateData = generateMindmapTemplate();
+                    break;
+                  case 'system-architecture':
+                    templateData = generateSystemArchitectureTemplate();
+                    break;
+                  case 'swim-lanes':
+                    templateData = generateSwimLanesTemplate();
+                    break;
+                  case 'user-account-creation':
+                    templateData = generateUserAccountTemplate();
+                    break;
+                  case 'io-logic':
+                    templateData = generateIOLogicTemplate();
+                    break;
+                }
+                
+                if (!templateData) {
+                  console.warn('Unknown template type:', templateType);
+                  return;
+                }
+                
+                // Create a new tab with the template data pre-populated
+                const name = generateCuteName();
+                const newTab: WorkflowTab = {
+                  id: generateTabId(),
+                  name,
+                  nodes: templateData.nodes,
+                  edges: templateData.edges,
+                  canvasObjects: [],
+                  viewport: { x: 0, y: 0, zoom: 1 },
+                  selectedNodeId: '',
+                  selectedEdgeId: '',
+                  history: [{ nodes: templateData.nodes, edges: templateData.edges, canvasObjects: [], viewport: { x: 0, y: 0, zoom: 1 } }],
+                  historyIndex: 0,
+                  showImageModal: null,
+                  metadata: {
+                    name,
+                    description: '',
+                    links: [],
+                    linksFormat: 'text',
+                    categories: []
+                  }
+                };
+                
                 setTabs(prev => [...prev, newTab]);
                 setActiveTabId(newTab.id);
-                // Wait for the tab state to update, then add the template
-                setTimeout(() => {
-                  handleAddTemplateToCurrentTab(templateType);
-                }, 50);
+                
+                toast({
+                  title: "Template Loaded",
+                  description: `Created "${name}" with ${templateType.replace(/-/g, ' ')} template`,
+                });
               }}
               onUploadImage={() => {
                 const newTab = createBlankTab();
