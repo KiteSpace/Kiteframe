@@ -2806,42 +2806,291 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   }, [toast]);
 
-  // Keyboard shortcuts
+  // State for keyboard shortcuts help modal
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+
+  // Comprehensive keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Delete key handler
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        // Check if we're not in an input field
-        const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-          return;
+      // Check if we're in an input field
+      const target = e.target as HTMLElement;
+      const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      
+      // Allow Escape to work even in input fields
+      if (e.key === 'Escape') {
+        // Deselect all nodes and edges
+        setNodes(prev => prev.map(n => ({ ...n, selected: false })));
+        setEdges(prev => prev.map(edge => ({ ...edge, selected: false })));
+        setSelectedNodeId('');
+        setSelectedEdgeId('');
+        // Also blur any focused input
+        if (isInputFocused) {
+          (target as HTMLElement).blur();
         }
-        
-        // Delete selected nodes
-        const selectedNodes = nodes.filter(n => n.selected);
-        if (selectedNodes.length > 0) {
+        return;
+      }
+      
+      // Skip other shortcuts if in input field
+      if (isInputFocused) {
+        return;
+      }
+      
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const isCtrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+      
+      // Delete key handler (Delete or Backspace)
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const selectedNodesList = nodes.filter(n => n.selected);
+        if (selectedNodesList.length > 0) {
           e.preventDefault();
-          console.log('Deleting selected nodes:', selectedNodes.map(n => n.id));
           setNodes(prev => prev.filter(n => !n.selected));
           setSelectedNodeId('');
           saveToHistory();
         }
         
-        // Delete selected edges
-        const selectedEdges = edges.filter(e => e.selected);
-        if (selectedEdges.length > 0) {
+        const selectedEdgesList = edges.filter(edge => edge.selected);
+        if (selectedEdgesList.length > 0) {
           e.preventDefault();
-          console.log('Deleting selected edges:', selectedEdges.map(e => e.id));
-          setEdges(prev => prev.filter(e => !e.selected));
+          setEdges(prev => prev.filter(edge => !edge.selected));
           setSelectedEdgeId('');
           saveToHistory();
         }
+        return;
+      }
+      
+      // Ctrl/Cmd + Z - Undo
+      if (isCtrlOrCmd && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+        return;
+      }
+      
+      // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y - Redo
+      if ((isCtrlOrCmd && e.key === 'z' && e.shiftKey) || (isCtrlOrCmd && e.key === 'y')) {
+        e.preventDefault();
+        handleRedo();
+        return;
+      }
+      
+      // Ctrl/Cmd + A - Select all nodes
+      if (isCtrlOrCmd && e.key === 'a') {
+        e.preventDefault();
+        setNodes(prev => prev.map(n => ({ ...n, selected: true })));
+        toast({
+          title: "Selected All",
+          description: `${nodes.length} nodes selected`,
+        });
+        return;
+      }
+      
+      // Ctrl/Cmd + S - Save (download) workflow
+      if (isCtrlOrCmd && e.key === 's' && !e.shiftKey) {
+        e.preventDefault();
+        if (activeTab) {
+          const workflowData = {
+            name: activeTab.name,
+            nodes: activeTab.nodes,
+            edges: activeTab.edges,
+            canvasObjects: activeTab.canvasObjects,
+            metadata: activeTab.metadata,
+            exportedAt: new Date().toISOString()
+          };
+          const blob = new Blob([JSON.stringify(workflowData, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${activeTab.name.replace(/\s+/g, '-').toLowerCase()}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          toast({
+            title: "Workflow Saved",
+            description: `"${activeTab.name}" downloaded as JSON`,
+          });
+        }
+        return;
+      }
+      
+      // Ctrl/Cmd + + or = - Zoom in
+      if (isCtrlOrCmd && (e.key === '+' || e.key === '=')) {
+        e.preventDefault();
+        setViewport(prev => ({ ...prev, zoom: Math.min(prev.zoom * 1.2, 3) }));
+        return;
+      }
+      
+      // Ctrl/Cmd + - - Zoom out
+      if (isCtrlOrCmd && e.key === '-') {
+        e.preventDefault();
+        setViewport(prev => ({ ...prev, zoom: Math.max(prev.zoom / 1.2, 0.1) }));
+        return;
+      }
+      
+      // Ctrl/Cmd + 0 - Reset zoom
+      if (isCtrlOrCmd && e.key === '0') {
+        e.preventDefault();
+        setViewport({ x: 0, y: 0, zoom: 1 });
+        toast({
+          title: "View Reset",
+          description: "Zoom reset to 100%",
+        });
+        return;
+      }
+      
+      // N - Add new node at center of viewport
+      if (e.key === 'n' && !isCtrlOrCmd) {
+        e.preventDefault();
+        const canvasWidth = window.innerWidth - 300;
+        const canvasHeight = window.innerHeight - 100;
+        const centerX = (-viewport.x + canvasWidth / 2) / viewport.zoom;
+        const centerY = (-viewport.y + canvasHeight / 2) / viewport.zoom;
+        
+        const newNode: Node = {
+          id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: 'process',
+          position: { x: centerX - 100, y: centerY - 50 },
+          data: {
+            label: 'New Process',
+            description: 'Click to edit',
+            icon: 'Cog',
+          },
+          width: 200,
+          height: 100,
+          selected: true
+        };
+        
+        // Deselect all other nodes first
+        setNodes(prev => [...prev.map(n => ({ ...n, selected: false })), newNode]);
+        setSelectedNodeId(newNode.id);
+        saveToHistory();
+        
+        toast({
+          title: "Node Added",
+          description: "Press N again to add more nodes",
+        });
+        return;
+      }
+      
+      // 1-6 - Quick add node types
+      if (['1', '2', '3', '4', '5', '6'].includes(e.key) && !isCtrlOrCmd) {
+        e.preventDefault();
+        const nodeTypes: { [key: string]: NodeType } = {
+          '1': 'input',
+          '2': 'process',
+          '3': 'condition',
+          '4': 'output',
+          '5': 'ai',
+          '6': 'image'
+        };
+        const nodeLabels: { [key: string]: string } = {
+          '1': 'Input',
+          '2': 'Process',
+          '3': 'Condition',
+          '4': 'Output',
+          '5': 'AI Task',
+          '6': 'Image'
+        };
+        const nodeType = nodeTypes[e.key];
+        const canvasWidth = window.innerWidth - 300;
+        const canvasHeight = window.innerHeight - 100;
+        const centerX = (-viewport.x + canvasWidth / 2) / viewport.zoom;
+        const centerY = (-viewport.y + canvasHeight / 2) / viewport.zoom;
+        
+        const newNode: Node = {
+          id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: nodeType,
+          position: { x: centerX - 100, y: centerY - 50 },
+          data: {
+            label: nodeLabels[e.key],
+            description: 'Click to edit',
+            icon: nodeType === 'input' ? 'ArrowRight' : nodeType === 'output' ? 'ArrowLeft' : nodeType === 'condition' ? 'GitBranch' : nodeType === 'ai' ? 'Bot' : 'Cog',
+          },
+          width: 200,
+          height: 100,
+          selected: true
+        };
+        
+        setNodes(prev => [...prev.map(n => ({ ...n, selected: false })), newNode]);
+        setSelectedNodeId(newNode.id);
+        saveToHistory();
+        
+        toast({
+          title: `${nodeLabels[e.key]} Node Added`,
+          description: `Press ${e.key} again to add more`,
+        });
+        return;
+      }
+      
+      // T - Add new tab
+      if (e.key === 't' && !isCtrlOrCmd) {
+        e.preventDefault();
+        createNewTab();
+        return;
+      }
+      
+      // G - Open AI Generator (KiteAI)
+      if (e.key === 'g' && !isCtrlOrCmd) {
+        e.preventDefault();
+        if (!isOnHomeTab && tabs.length > 0) {
+          setShowAiGenerator(true);
+          toast({
+            title: "AI Generator",
+            description: "Describe your workflow to generate it with AI",
+          });
+        }
+        return;
+      }
+      
+      // H - Go to Home tab
+      if (e.key === 'h' && !isCtrlOrCmd) {
+        e.preventDefault();
+        setActiveTabId('home');
+        return;
+      }
+      
+      // ? or Shift + / - Show keyboard shortcuts help
+      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        setShowKeyboardShortcuts(prev => !prev);
+        return;
+      }
+      
+      // Arrow keys - Nudge selected nodes
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        const selectedNodesList = nodes.filter(n => n.selected);
+        if (selectedNodesList.length > 0) {
+          e.preventDefault();
+          const nudgeAmount = e.shiftKey ? 10 : 1;
+          const delta = {
+            x: e.key === 'ArrowLeft' ? -nudgeAmount : e.key === 'ArrowRight' ? nudgeAmount : 0,
+            y: e.key === 'ArrowUp' ? -nudgeAmount : e.key === 'ArrowDown' ? nudgeAmount : 0
+          };
+          
+          setNodes(prev => prev.map(n => 
+            n.selected ? { ...n, position: { x: n.position.x + delta.x, y: n.position.y + delta.y } } : n
+          ));
+          saveToHistory();
+        }
+        return;
+      }
+      
+      // Tab - Cycle through nodes (with wrapping)
+      if (e.key === 'Tab' && !isCtrlOrCmd && nodes.length > 0) {
+        e.preventDefault();
+        const currentIndex = nodes.findIndex(n => n.selected);
+        const nextIndex = e.shiftKey 
+          ? (currentIndex <= 0 ? nodes.length - 1 : currentIndex - 1)
+          : (currentIndex >= nodes.length - 1 ? 0 : currentIndex + 1);
+        
+        setNodes(prev => prev.map((n, i) => ({ ...n, selected: i === nextIndex })));
+        setSelectedNodeId(nodes[nextIndex].id);
+        return;
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nodes, edges, setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, saveToHistory]);
+  }, [nodes, edges, setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, saveToHistory, handleUndo, handleRedo, viewport, setViewport, activeTab, createNewTab, isOnHomeTab, tabs.length, toast]);
 
   // Listen for edge drag events to cancel click timers
   useEffect(() => {
@@ -5844,7 +6093,108 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           isAuthenticated={isAuthenticated}
         />
 
+        {/* Keyboard Shortcuts Help Modal */}
+        {showKeyboardShortcuts && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+            onClick={() => setShowKeyboardShortcuts(false)}
+          >
+            <div 
+              className="bg-background border border-border rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-border flex items-center justify-between bg-gradient-to-r from-purple-600/10 to-blue-600/10">
+                <h2 className="text-lg font-semibold">Keyboard Shortcuts</h2>
+                <button 
+                  onClick={() => setShowKeyboardShortcuts(false)}
+                  className="p-1 hover:bg-muted rounded"
+                  data-testid="button-close-shortcuts"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto max-h-[calc(80vh-60px)]">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Node Operations */}
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground mb-2">Node Operations</h3>
+                    <div className="space-y-1.5">
+                      <ShortcutRow keys={["N"]} description="Add new process node" />
+                      <ShortcutRow keys={["1"]} description="Add input node" />
+                      <ShortcutRow keys={["2"]} description="Add process node" />
+                      <ShortcutRow keys={["3"]} description="Add condition node" />
+                      <ShortcutRow keys={["4"]} description="Add output node" />
+                      <ShortcutRow keys={["5"]} description="Add AI task node" />
+                      <ShortcutRow keys={["6"]} description="Add image node" />
+                      <ShortcutRow keys={["Delete"]} description="Delete selected" />
+                      <ShortcutRow keys={["←", "↑", "→", "↓"]} description="Nudge selected (1px)" />
+                      <ShortcutRow keys={["Shift", "←↑→↓"]} description="Nudge selected (10px)" />
+                    </div>
+                  </div>
+                  
+                  {/* Selection & Navigation */}
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground mb-2">Selection & Navigation</h3>
+                    <div className="space-y-1.5">
+                      <ShortcutRow keys={["Ctrl/⌘", "A"]} description="Select all nodes" />
+                      <ShortcutRow keys={["Esc"]} description="Deselect all" />
+                      <ShortcutRow keys={["Tab"]} description="Cycle to next node" />
+                      <ShortcutRow keys={["Shift", "Tab"]} description="Cycle to previous node" />
+                      <ShortcutRow keys={["H"]} description="Go to Home screen" />
+                      <ShortcutRow keys={["T"]} description="Create new tab" />
+                    </div>
+                  </div>
+                  
+                  {/* Edit Operations */}
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground mb-2">Edit Operations</h3>
+                    <div className="space-y-1.5">
+                      <ShortcutRow keys={["Ctrl/⌘", "Z"]} description="Undo" />
+                      <ShortcutRow keys={["Ctrl/⌘", "Shift", "Z"]} description="Redo" />
+                      <ShortcutRow keys={["Ctrl/⌘", "Y"]} description="Redo (alternative)" />
+                      <ShortcutRow keys={["Ctrl/⌘", "S"]} description="Save/Download workflow" />
+                    </div>
+                  </div>
+                  
+                  {/* View Controls */}
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground mb-2">View Controls</h3>
+                    <div className="space-y-1.5">
+                      <ShortcutRow keys={["Ctrl/⌘", "+"]} description="Zoom in" />
+                      <ShortcutRow keys={["Ctrl/⌘", "-"]} description="Zoom out" />
+                      <ShortcutRow keys={["Ctrl/⌘", "0"]} description="Reset zoom to 100%" />
+                      <ShortcutRow keys={["G"]} description="Open AI Generator" />
+                      <ShortcutRow keys={["?"]} description="Show this help" />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 pt-4 border-t border-border text-xs text-muted-foreground text-center">
+                  Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-foreground font-mono">?</kbd> anytime to toggle this help
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
+  );
+}
+
+// Keyboard shortcut row component
+function ShortcutRow({ keys, description }: { keys: string[]; description: string }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-muted-foreground">{description}</span>
+      <div className="flex items-center gap-1">
+        {keys.map((key, i) => (
+          <span key={i}>
+            <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">{key}</kbd>
+            {i < keys.length - 1 && <span className="mx-0.5 text-muted-foreground">+</span>}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
