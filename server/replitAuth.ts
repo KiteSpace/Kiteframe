@@ -11,6 +11,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { users, oauthProviders } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
+import { authRateLimiter } from "./middleware/rateLimiter";
 
 const getOidcConfig = memoize(
   async () => {
@@ -227,10 +228,12 @@ export async function setupAuth(app: Express) {
     }));
 
     app.get('/api/auth/google',
+      authRateLimiter,
       passport.authenticate('google', { scope: ['profile', 'email'] })
     );
 
     app.get('/api/auth/google/callback',
+      authRateLimiter,
       passport.authenticate('google', { failureRedirect: '/account?error=google_auth_failed' }),
       (req, res) => {
         res.redirect('/account?success=logged_in');
@@ -260,10 +263,12 @@ export async function setupAuth(app: Express) {
     }));
 
     app.get('/api/auth/github',
+      authRateLimiter,
       passport.authenticate('github', { scope: ['user:email'] })
     );
 
     app.get('/api/auth/github/callback',
+      authRateLimiter,
       passport.authenticate('github', { failureRedirect: '/account?error=github_auth_failed' }),
       (req, res) => {
         res.redirect('/account?success=logged_in');
@@ -306,7 +311,7 @@ export async function setupAuth(app: Express) {
     res.json({ providers });
   });
 
-  app.get("/api/login", (req, res, next) => {
+  app.get("/api/login", authRateLimiter, (req, res, next) => {
     ensureStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
@@ -314,7 +319,7 @@ export async function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  app.get("/api/callback", (req, res, next) => {
+  app.get("/api/callback", authRateLimiter, (req, res, next) => {
     ensureStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: "/",
@@ -322,7 +327,7 @@ export async function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  app.get("/api/logout", (req, res) => {
+  app.get("/api/logout", authRateLimiter, (req, res) => {
     req.logout(() => {
       res.redirect(
         client.buildEndSessionUrl(config, {

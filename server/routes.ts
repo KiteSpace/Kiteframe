@@ -26,6 +26,8 @@ import { geolocationService } from "./geolocation";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
+import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter } from "./middleware/rateLimiter";
+import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
 
 // Workflow validation utility
 function validateWorkflowStructure(data: any): { isValid: boolean; errors: string[]; warnings: string[] } {
@@ -371,7 +373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Account deletion endpoint
-  app.delete('/api/account', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/account', sensitiveRateLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -420,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
+  app.post('/api/projects', projectRateLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -431,14 +433,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { name, description, workflowData, thumbnail, folderId, tags, isPublic } = req.body;
 
+      // Sanitize all input data
+      const sanitizedName = sanitizeNodeLabel(name) || 'Untitled Project';
+      const sanitizedDescription = sanitizeText(description);
+      const sanitizedWorkflowData = workflowData ? sanitizeWorkflowContent(workflowData) : null;
+
       const project = await storage.createSavedProject({
         userId,
-        name,
-        description,
-        workflowData,
+        name: sanitizedName,
+        description: sanitizedDescription,
+        workflowData: sanitizedWorkflowData,
         thumbnail,
         folderId,
-        tags: tags || [],
+        tags: (tags || []).map((t: string) => sanitizeText(t)).filter(Boolean),
         isPublic: isPublic || false,
       });
 
@@ -466,19 +473,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/projects/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/projects/:id', projectRateLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { id } = req.params;
       const { name, description, workflowData, thumbnail, folderId, tags, isPublic } = req.body;
 
+      // Sanitize all input data
+      const sanitizedName = name ? sanitizeNodeLabel(name) : undefined;
+      const sanitizedDescription = description ? sanitizeText(description) : undefined;
+      const sanitizedWorkflowData = workflowData ? sanitizeWorkflowContent(workflowData) : undefined;
+      const sanitizedTags = tags ? (tags as string[]).map((t: string) => sanitizeText(t)).filter(Boolean) : undefined;
+
       const project = await storage.updateSavedProject(id, userId, {
-        name,
-        description,
-        workflowData,
+        name: sanitizedName,
+        description: sanitizedDescription,
+        workflowData: sanitizedWorkflowData,
         thumbnail,
         folderId,
-        tags,
+        tags: sanitizedTags,
         isPublic,
       });
 
@@ -574,9 +587,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Chat endpoint - proxy for AI models with dynamic provider routing
-  app.post('/api/ai/chat', requireUSOnly, requireCredits, async (req, res) => {
+  app.post('/api/ai/chat', aiRateLimiter, requireUSOnly, requireCredits, async (req, res) => {
     try {
-      const { model, messages, temperature, maxTokens, provider, apiKey: clientApiKey } = req.body;
+      const { model, temperature, maxTokens, provider, apiKey: clientApiKey } = req.body;
+      
+      // Sanitize all messages to prevent prompt injection
+      const messages = (req.body.messages || []).map((msg: any) => ({
+        ...msg,
+        content: typeof msg.content === 'string' ? sanitizeAiPrompt(msg.content) : msg.content
+      }));
       
       // Determine provider and API key
       let activeProvider = provider;
@@ -792,7 +811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Wireframe Generation endpoint - generate SVG wireframes for workflow nodes
-  app.post('/api/generate-wireframe', requireUSOnly, requireCredits, async (req, res) => {
+  app.post('/api/generate-wireframe', aiRateLimiter, requireUSOnly, requireCredits, async (req, res) => {
     try {
       const { label, description, nodeType } = req.body;
       
@@ -883,7 +902,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
   });
 
   // AI Test endpoint - validate API key and model compatibility
-  app.post('/api/ai/test', async (req, res) => {
+  app.post('/api/ai/test', aiRateLimiter, async (req, res) => {
     try {
       const { provider, apiKey, customEndpoint } = req.body;
       

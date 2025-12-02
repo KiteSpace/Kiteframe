@@ -17,27 +17,8 @@ export function useAuth() {
       .then((result) => {
         if (result?.user) {
           console.log('✅ User authenticated from redirect:', result.user.displayName || result.user.email);
-          
-          // Extract credential and broadcast to iframe (if this is external browser tab)
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          if (credential?.idToken && credential?.accessToken) {
-            console.log('📡 Broadcasting auth credential to iframe...');
-            const payload = {
-              type: 'FIREBASE_AUTH_CREDENTIAL',
-              idToken: credential.idToken,
-              accessToken: credential.accessToken
-            };
-            
-            try {
-              new BroadcastChannel('firebase-auth-sync').postMessage(payload);
-            } catch (e) {
-              console.log('⚠️ BroadcastChannel not available, trying postMessage fallback');
-              // Fallback: try postMessage if BroadcastChannel not supported
-              if (window.opener) {
-                window.opener.postMessage(payload, window.location.origin);
-              }
-            }
-          }
+          // SECURITY: Don't broadcast tokens - Firebase handles cross-tab auth
+          // via its built-in IndexedDB persistence mechanism
         } else {
           console.log('ℹ️ No redirect result found');
         }
@@ -47,48 +28,35 @@ export function useAuth() {
         setError(error.message);
       });
 
-    // Listen for auth credentials from external browser tab (if this is iframe)
+    // Listen for auth state sync from other tabs (if this is iframe)
+    // SECURITY: Only sync auth state change notifications, NOT raw tokens
+    // This prevents token theft via malicious iframe/tab attacks
     const broadcastChannel = new BroadcastChannel('firebase-auth-sync');
     broadcastChannel.onmessage = async (event) => {
-      if (event.data?.type === 'FIREBASE_AUTH_CREDENTIAL') {
-        console.log('📡 Received auth credential from external tab, signing in...');
-        try {
-          const { idToken, accessToken } = event.data;
-          const credential = GoogleAuthProvider.credential(idToken, accessToken);
-          await signInWithCredential(auth, credential);
-          console.log('✅ Successfully signed in via credential sync!');
-        } catch (error) {
-          console.error('❌ Failed to sign in with credential:', error);
-          setError('Failed to sync authentication from external browser');
-        }
-      } else if (event.data?.type === 'FIREBASE_AUTH_SIGNOUT') {
+      // Only handle sign-out notifications - sign-in handled by Firebase's built-in persistence
+      if (event.data?.type === 'FIREBASE_AUTH_SIGNOUT') {
         console.log('📡 Received sign out signal, signing out...');
-        // Don't call our signOut function to avoid infinite loop
         await signOutUser();
         window.location.reload();
       }
+      // SECURITY: Ignore credential sync messages - let Firebase handle cross-tab auth
+      // via its built-in IndexedDB persistence mechanism instead of broadcasting tokens
     };
 
-    // Fallback: listen for postMessage (same origin check)
+    // Fallback: listen for postMessage with strict origin validation
     const handleMessage = async (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      if (event.data?.type === 'FIREBASE_AUTH_CREDENTIAL') {
-        console.log('📡 Received auth credential via postMessage, signing in...');
-        try {
-          const { idToken, accessToken } = event.data;
-          const credential = GoogleAuthProvider.credential(idToken, accessToken);
-          await signInWithCredential(auth, credential);
-          console.log('✅ Successfully signed in via postMessage credential sync!');
-        } catch (error) {
-          console.error('❌ Failed to sign in with postMessage credential:', error);
-          setError('Failed to sync authentication from external browser');
-        }
-      } else if (event.data?.type === 'FIREBASE_AUTH_SIGNOUT') {
+      // SECURITY: Strict origin check - only accept messages from same origin
+      if (event.origin !== window.location.origin) {
+        console.warn('⚠️ Rejected postMessage from untrusted origin:', event.origin);
+        return;
+      }
+      // Only handle sign-out notifications
+      if (event.data?.type === 'FIREBASE_AUTH_SIGNOUT') {
         console.log('📡 Received sign out signal via postMessage, signing out...');
-        // Don't call our signOut function to avoid infinite loop
         await signOutUser();
         window.location.reload();
       }
+      // SECURITY: Do not accept credential payloads via postMessage
     };
 
     window.addEventListener('message', handleMessage);
@@ -117,24 +85,8 @@ export function useAuth() {
       try {
         const result = await signInWithGooglePopup();
         console.log('✅ Popup sign-in successful:', result.user.displayName || result.user.email);
-        
-        // Extract and broadcast credential for iframe sync
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        if (credential?.idToken && credential?.accessToken) {
-          console.log('📡 Broadcasting auth credential...');
-          const payload = {
-            type: 'FIREBASE_AUTH_CREDENTIAL',
-            idToken: credential.idToken,
-            accessToken: credential.accessToken
-          };
-          
-          try {
-            new BroadcastChannel('firebase-auth-sync').postMessage(payload);
-          } catch (e) {
-            // BroadcastChannel may not be available in all browsers
-            console.log('⚠️ BroadcastChannel not available');
-          }
-        }
+        // SECURITY: Don't broadcast tokens - Firebase handles cross-tab auth
+        // via its built-in IndexedDB persistence mechanism
       } catch (popupError: any) {
         console.log('⚠️ Popup blocked or failed, trying redirect fallback...', popupError.code);
         
