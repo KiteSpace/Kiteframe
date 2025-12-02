@@ -60,7 +60,7 @@ interface WorkflowTemplate {
   author: string;
   thumbnail?: string;
   category: string;
-  prompt: string;
+  templateType: string;
 }
 
 interface HomeScreenProps {
@@ -68,6 +68,7 @@ interface HomeScreenProps {
   onOpenProject: (projectId: string) => void;
   onGenerateWorkflow: (prompt: string) => void;
   onCreateBlankWorkflow: () => void;
+  onLoadTemplate: (templateType: string) => void;
   onUploadImage: () => void;
   onShareProject?: (projectId: string) => void;
   onDownloadProject?: (projectId: string) => void;
@@ -84,61 +85,61 @@ const quickExamples = [
 const workflowTemplates: WorkflowTemplate[] = [
   {
     id: 'template-1',
-    name: 'User Authentication Flow',
-    description: 'Complete auth workflow with login, signup, and password reset',
+    name: 'User Journey Map',
+    description: 'Visualize customer touchpoints and experiences',
     author: 'Kiteframe',
-    category: 'Authentication',
-    prompt: 'Create a user authentication workflow with login form, credential validation, session creation, error handling for invalid credentials, and password reset flow'
+    category: 'UX Design',
+    templateType: 'user-journey'
   },
   {
     id: 'template-2',
-    name: 'E-commerce Checkout',
-    description: 'Shopping cart to order confirmation workflow',
+    name: 'Mind Map',
+    description: 'Brainstorm and organize ideas visually',
     author: 'Kiteframe',
-    category: 'E-commerce',
-    prompt: 'Design an e-commerce checkout workflow starting from cart review, shipping address, payment processing, order confirmation, and email notification'
+    category: 'Planning',
+    templateType: 'mindmap'
   },
   {
     id: 'template-3',
-    name: 'Data Pipeline',
-    description: 'ETL workflow for data processing',
+    name: 'System Architecture',
+    description: 'Technical architecture diagram with components',
     author: 'Kiteframe',
-    category: 'Data',
-    prompt: 'Create a data pipeline workflow with data extraction from multiple sources, transformation steps, validation, and loading into a database'
+    category: 'DevOps',
+    templateType: 'system-architecture'
   },
   {
     id: 'template-4',
-    name: 'CI/CD Pipeline',
-    description: 'Continuous integration and deployment workflow',
+    name: 'Swim Lanes',
+    description: 'Process flow with role-based lanes',
     author: 'Kiteframe',
-    category: 'DevOps',
-    prompt: 'Build a CI/CD pipeline workflow with code commit, automated testing, code review, staging deployment, and production release with rollback capability'
+    category: 'Process',
+    templateType: 'swim-lanes'
   },
   {
     id: 'template-5',
-    name: 'Customer Support Ticket',
-    description: 'Ticket routing and resolution workflow',
+    name: 'User Account Creation',
+    description: 'Complete user registration workflow',
     author: 'Kiteframe',
-    category: 'Support',
-    prompt: 'Design a customer support ticket workflow with ticket creation, priority assessment, agent assignment, resolution tracking, and customer feedback collection'
+    category: 'Authentication',
+    templateType: 'user-account-creation'
   },
   {
     id: 'template-6',
-    name: 'Content Approval',
-    description: 'Multi-stage content review workflow',
+    name: 'I/O Logic Flow',
+    description: 'Input/output processing with decision logic',
     author: 'Kiteframe',
-    category: 'Content',
-    prompt: 'Create a content approval workflow with draft submission, editorial review, stakeholder approval, revision requests, and final publication'
+    category: 'Data',
+    templateType: 'io-logic'
   },
 ];
 
 const categoryIcons: Record<string, typeof Workflow> = {
-  'Authentication': Users,
-  'E-commerce': Globe,
-  'Data': Database,
+  'UX Design': Users,
+  'Planning': Zap,
   'DevOps': GitBranch,
-  'Support': Settings,
-  'Content': Zap,
+  'Process': Settings,
+  'Authentication': Users,
+  'Data': Database,
 };
 
 function formatTimeAgo(date: Date): string {
@@ -160,6 +161,7 @@ export function HomeScreen({
   onOpenProject,
   onGenerateWorkflow,
   onCreateBlankWorkflow,
+  onLoadTemplate,
   onUploadImage,
   onShareProject,
   onDownloadProject,
@@ -194,8 +196,8 @@ export function HomeScreen({
   }, []);
 
   const handleTemplateClick = useCallback((template: WorkflowTemplate) => {
-    setPromptValue(template.prompt);
-  }, []);
+    onLoadTemplate(template.templateType);
+  }, [onLoadTemplate]);
 
   const handleGenerate = useCallback(() => {
     // Defense in depth: check credits before generating

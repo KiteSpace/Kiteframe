@@ -3514,6 +3514,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 generateWorkflowDirectly(prompt, newTab.id);
               }}
               onCreateBlankWorkflow={createNewTab}
+              onLoadTemplate={(templateType) => {
+                handleAddTemplateToCurrentTab(templateType);
+              }}
               onUploadImage={() => {
                 const newTab = createBlankTab();
                 setTabs(prev => [...prev, newTab]);
