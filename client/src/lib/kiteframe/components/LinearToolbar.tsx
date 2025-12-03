@@ -469,12 +469,17 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               { id: 'dotted', label: 'Dotted', dasharray: '2 2' }
             ].map((style) => (
               <button
+                type="button"
                 key={style.id}
                 className={cn(
                   "w-12 h-8 rounded bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center px-1",
                   getEdgeStrokeStyle() === style.id && "ring-2 ring-blue-500"
                 )}
-                onClick={() => {
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  console.log('Stroke style clicked:', style.id);
                   onEdgeStyleChange?.({ strokeStyle: style.id as 'solid' | 'dashed' | 'dotted' });
                   setActiveSubmenu(null);
                 }}
@@ -500,12 +505,16 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           <div className="flex gap-2 items-center">
             {STROKE_WIDTHS.map((width) => (
               <button
+                type="button"
                 key={width}
                 className={cn(
                   "w-8 h-8 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
                   (edge?.style?.strokeWidth || 2) === width && "ring-2 ring-blue-500"
                 )}
-                onClick={() => {
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
                   onEdgeStyleChange?.({ strokeWidth: width });
                   setActiveSubmenu(null);
                 }}
@@ -540,12 +549,16 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             { id: 'straight', label: 'Straight', path: 'M4 20 L20 4' }
           ].map((type) => (
             <button
+              type="button"
               key={type.id}
               className={cn(
                 "w-12 h-10 rounded bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
                 (edge?.type || 'bezier') === type.id && "ring-2 ring-blue-500"
               )}
-              onClick={() => {
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 onEdgeStyleChange?.({ lineType: type.id as 'straight' | 'bezier' | 'step' });
                 setActiveSubmenu(null);
               }}
@@ -610,12 +623,17 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             <div className="flex gap-1">
               {endpointOptions.map((opt) => (
                 <button
+                  type="button"
                   key={opt.id}
                   className={cn(
                     "w-10 h-8 rounded bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
                     startType === opt.id && "ring-2 ring-blue-500"
                   )}
-                  onClick={() => {
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    console.log('Start endpoint clicked:', opt.id);
                     onEdgeStyleChange?.({ markerStart: createMarker(opt.id) });
                   }}
                   title={opt.label}
@@ -633,12 +651,17 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             <div className="flex gap-1">
               {endpointOptions.map((opt) => (
                 <button
+                  type="button"
                   key={opt.id}
                   className={cn(
                     "w-10 h-8 rounded bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
                     endType === opt.id && "ring-2 ring-blue-500"
                   )}
-                  onClick={() => {
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    console.log('End endpoint clicked:', opt.id);
                     onEdgeStyleChange?.({ markerEnd: createMarker(opt.id) });
                   }}
                   title={opt.label}
