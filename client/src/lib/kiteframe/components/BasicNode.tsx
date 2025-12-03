@@ -222,37 +222,30 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
   // Check if border should be hidden
   const hasNoBorder = node.data.noStroke === true;
 
-  // Override base .kiteframe-node styles and use box-shadow to create an outer border effect
-  // This renders OUTSIDE the element and follows border-radius (unlike outline)
-  // Must explicitly set border: none to override base CSS
-  // All visual states (border, selection, hover) are consolidated into one box-shadow
+  // Log node data for debugging
+  console.log('🎨 BasicNode render:', {
+    nodeId: node.id,
+    iconVisible: node.data.iconVisible,
+    nodeIcon: node.data.nodeIcon,
+    hasNoBorder,
+    borderColor: colors.borderColor
+  });
+
+  // Use real CSS border like StickyNoteObject does (not box-shadow)
+  // This ensures border is always visible regardless of child backgrounds
   const dropShadow = isHovering ? '0 4px 12px rgba(0,0,0,0.12)' : '0 2px 8px rgba(0,0,0,0.08)';
   
-  // Build box-shadow layers:
-  // 1. Selection ring (blue, 2px offset) - only if selected and not noStroke
-  // 2. Border ring (2px solid color) - only if not noStroke  
-  // 3. Drop shadow - always present
-  const shadowLayers: string[] = [];
-  
-  if (node.selected && !hasNoBorder) {
-    // Selection ring: offset outward from border
-    shadowLayers.push('0 0 0 4px rgba(59, 130, 246, 0.5)');
-  }
-  
-  if (!hasNoBorder) {
-    // Border ring: 2px solid border color
-    shadowLayers.push(`0 0 0 2px ${colors.borderColor}`);
-  }
-  
-  // Drop shadow: always present for depth
-  shadowLayers.push(dropShadow);
-  
-  // Node style: transparent background to let box-shadow be visible around content
-  const nodeStyle = {
-    border: 'none',
-    boxShadow: shadowLayers.join(', '),
+  const nodeStyle: React.CSSProperties = {
+    // Real CSS border - always visible
+    borderWidth: hasNoBorder ? '0px' : '2px',
+    borderStyle: node.data.borderStyle || 'solid',
+    borderColor: hasNoBorder ? 'transparent' : colors.borderColor,
+    // Drop shadow for depth
+    boxShadow: dropShadow,
+    // Prevent any background from this container
     background: 'transparent',
-    padding: '2px', // Creates gap for border to show
+    // Ensure overflow visible for handles
+    overflow: 'visible',
   };
 
   return (
@@ -261,8 +254,9 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
       className={cn(
         "kiteframe-node group",
         "rounded-lg",
-        "transition-shadow duration-200",
+        "transition-all duration-200",
         "cursor-move",
+        node.selected && "outline outline-2 outline-blue-500",
         node.hidden ? "opacity-0 pointer-events-none" : "",
         nodePositionClass,
         className,
@@ -338,7 +332,16 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
       >
         <div className="flex gap-3">
           {/* Icon/Emoji container - only shown if iconVisible is true and nodeIcon exists */}
-          {node.data.iconVisible !== false && node.data.nodeIcon && (
+          {(() => {
+            const shouldShowIcon = node.data.iconVisible !== false && node.data.nodeIcon;
+            console.log('🎭 Icon render check:', {
+              nodeId: node.id,
+              iconVisible: node.data.iconVisible,
+              nodeIcon: node.data.nodeIcon,
+              shouldShowIcon
+            });
+            return shouldShowIcon;
+          })() && (
             <div 
               className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
               style={{ 

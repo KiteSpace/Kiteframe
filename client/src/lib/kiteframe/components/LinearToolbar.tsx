@@ -570,6 +570,13 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                 // Preserve the existing emoji when toggling visibility
                 // If enabling and no emoji exists, use a default star emoji
                 const emojiToUse = node?.data?.nodeIcon || (newVisible ? '⭐' : undefined);
+                console.log('🔘 Icon visibility toggle:', {
+                  oldVisible: iconVisible,
+                  newVisible,
+                  existingIcon: node?.data?.nodeIcon,
+                  emojiToUse,
+                  nodeId: node?.id
+                });
                 onIconSelect?.({ emoji: emojiToUse, visible: newVisible });
               }}
               data-testid="toolbar-icon-visibility"
