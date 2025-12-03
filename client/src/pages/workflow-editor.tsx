@@ -23,6 +23,7 @@ import { MissingImagesModal } from '@/components/MissingImagesModal';
 import { NewTabModal } from '@/components/NewTabModal';
 import { ImageUploadModal } from '@/lib/kiteframe/components/modals/ImageUploadModal';
 import { LinearToolbar } from '@/lib/kiteframe/components/LinearToolbar';
+import { QuickCreateRadialMenu, ShapeType } from '@/lib/kiteframe/components/QuickCreateRadialMenu';
 import { SavedProjectsDrawer } from '@/components/SavedProjectsDrawer';
 import { HomeScreen } from '@/components/HomeScreen';
 import { AiProvider, useAi } from '../ai/AiProvider';
@@ -2972,6 +2973,41 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         return;
       }
       
+      // + - Show quick create radial menu at mouse position
+      if ((e.key === '+' || (e.key === '=' && e.shiftKey)) && !isCtrlOrCmd) {
+        e.preventDefault();
+        
+        // Get canvas element bounds to check if mouse is inside
+        const canvasEl = document.querySelector('[data-testid="kiteframe-canvas"]');
+        const canvasBounds = canvasEl?.getBoundingClientRect();
+        
+        let screenX = mousePositionRef.current.x;
+        let screenY = mousePositionRef.current.y;
+        
+        // Check if mouse is inside canvas bounds
+        const isInsideCanvas = canvasBounds && 
+          screenX >= canvasBounds.left && 
+          screenX <= canvasBounds.right && 
+          screenY >= canvasBounds.top && 
+          screenY <= canvasBounds.bottom;
+        
+        if (!isInsideCanvas || !canvasBounds) {
+          // Position at lower middle of screen, above any action toolbar
+          screenX = window.innerWidth / 2;
+          screenY = window.innerHeight - 150;
+        }
+        
+        // Convert screen position to canvas position
+        const canvasX = (screenX - (canvasBounds?.left || 0) - viewport.x) / viewport.zoom;
+        const canvasY = (screenY - (canvasBounds?.top || 0) - viewport.y) / viewport.zoom;
+        
+        setQuickCreateMenu({
+          screenPosition: { x: screenX, y: screenY },
+          canvasPosition: { x: canvasX, y: canvasY }
+        });
+        return;
+      }
+      
       // 1-6 - Quick add node types
       if (['1', '2', '3', '4', '5', '6'].includes(e.key) && !isCtrlOrCmd) {
         e.preventDefault();
@@ -3092,6 +3128,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [nodes, edges, setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, saveToHistory, handleUndo, handleRedo, viewport, setViewport, activeTab, createNewTab, isOnHomeTab, tabs.length, toast]);
+
+  // Track mouse position for quick create menu
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      mousePositionRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   // Listen for edge drag events to cancel click timers
   useEffect(() => {
@@ -3280,6 +3325,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     edge?: Edge;
     canvasObject?: CanvasObject;
   } | null>(null);
+  const [quickCreateMenu, setQuickCreateMenu] = useState<{
+    screenPosition: { x: number; y: number };
+    canvasPosition: { x: number; y: number };
+  } | null>(null);
+  const mousePositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const [inlineEditingNodeId, setInlineEditingNodeId] = useState<string | null>(null);
   const [isEditingWorkflowName, setIsEditingWorkflowName] = useState(false);
   const [workflowNameInput, setWorkflowNameInput] = useState('');
@@ -6348,7 +6398,143 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
               setLinearToolbar(null);
             }}
+            onWireframe={() => {
+              if (linearToolbar.node) {
+                const tier = subscriptionData?.tier;
+                const canUse = tier && tier !== 'free';
+                if (canUse) {
+                  const event = new CustomEvent('generateWireframe', {
+                    detail: { nodeId: linearToolbar.node.id, node: linearToolbar.node }
+                  });
+                  window.dispatchEvent(event);
+                } else {
+                  const event = new CustomEvent('showFeatureUpsell', {
+                    detail: { type: 'wireframe' }
+                  });
+                  window.dispatchEvent(event);
+                }
+                setLinearToolbar(null);
+              }
+            }}
+            canUseWireframe={!!(subscriptionData?.tier && subscriptionData.tier !== 'free')}
             scale={viewport.zoom}
+          />
+        )}
+
+        {/* Quick Create Radial Menu */}
+        {quickCreateMenu && (
+          <QuickCreateRadialMenu
+            isOpen={true}
+            position={quickCreateMenu.screenPosition}
+            canvasPosition={quickCreateMenu.canvasPosition}
+            onClose={() => setQuickCreateMenu(null)}
+            onCreateNode={(pos) => {
+              const newNode: Node = {
+                id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                type: 'process',
+                position: { x: pos.x - 100, y: pos.y - 50 },
+                data: {
+                  label: 'New Process',
+                  description: 'Click to edit',
+                  icon: 'Cog',
+                },
+                width: 200,
+                height: 100,
+                selected: true
+              };
+              setNodes(prev => [...prev.map(n => ({ ...n, selected: false })), newNode]);
+              setSelectedNodeId(newNode.id);
+              saveToHistory();
+              toast({
+                title: "Node Added",
+                description: "Double-click to edit the label",
+              });
+            }}
+            onCreateText={(pos) => {
+              const newTextObject: CanvasObject = {
+                id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                type: 'text',
+                position: { x: pos.x - 75, y: pos.y - 20 },
+                width: 150,
+                height: 40,
+                selected: true,
+                data: {
+                  text: 'Double-click to edit',
+                  fontSize: 14,
+                  fontFamily: 'Inter',
+                  fontWeight: 'normal',
+                  fontStyle: 'normal',
+                  textAlign: 'left',
+                  textDecoration: 'none',
+                  textColor: document.documentElement.classList.contains('dark') ? '#ffffff' : '#1e293b',
+                  backgroundColor: 'transparent',
+                } as TextNodeData
+              };
+              const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
+              updateActiveTab({ canvasObjects: [...updatedObjects, newTextObject] });
+              saveToHistory();
+              toast({
+                title: "Text Object Added",
+                description: "Double-click to edit the text",
+              });
+            }}
+            onCreateShape={(pos, shapeType) => {
+              const isDark = document.documentElement.classList.contains('dark');
+              const newShapeObject: CanvasObject = {
+                id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                type: 'shape',
+                position: { x: pos.x - 50, y: pos.y - 50 },
+                width: shapeType === 'line' || shapeType === 'arrow' ? 150 : 100,
+                height: shapeType === 'line' || shapeType === 'arrow' ? 4 : 100,
+                selected: true,
+                data: {
+                  shapeType,
+                  fillColor: isDark ? '#374151' : '#e2e8f0',
+                  fillOpacity: 1,
+                  strokeColor: isDark ? '#6b7280' : '#94a3b8',
+                  strokeWidth: 2,
+                  strokeStyle: 'solid',
+                  opacity: 1,
+                  borderRadius: shapeType === 'rectangle' ? 8 : 0,
+                } as ShapeNodeData
+              };
+              const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
+              updateActiveTab({ canvasObjects: [...updatedObjects, newShapeObject] });
+              saveToHistory();
+              toast({
+                title: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} Added`,
+                description: "Click to select and style",
+              });
+            }}
+            onCreateSticky={(pos) => {
+              const newStickyObject: CanvasObject = {
+                id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                type: 'sticky',
+                position: { x: pos.x - 75, y: pos.y - 75 },
+                width: 150,
+                height: 150,
+                selected: true,
+                data: {
+                  text: 'New sticky note',
+                  fontSize: 12,
+                  fontFamily: 'Inter',
+                  fontWeight: 'normal',
+                  fontStyle: 'normal',
+                  textAlign: 'left',
+                  textDecoration: 'none',
+                  textColor: '#1e293b',
+                  backgroundColor: '#fef3c7',
+                  autoTextColor: true,
+                } as StickyNoteData
+              };
+              const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
+              updateActiveTab({ canvasObjects: [...updatedObjects, newStickyObject] });
+              saveToHistory();
+              toast({
+                title: "Sticky Note Added",
+                description: "Double-click to edit",
+              });
+            }}
           />
         )}
 

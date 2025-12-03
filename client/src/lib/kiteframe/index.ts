@@ -25,6 +25,8 @@ export { ZoomControls } from './components/ZoomControls';
 export { CanvasToolbar, ToolbarIcons } from './components/CanvasToolbar';
 export type { ToolbarAction } from './components/CanvasToolbar';
 export { RadialMenu } from './components/RadialMenu';
+export { QuickCreateRadialMenu } from './components/QuickCreateRadialMenu';
+export type { QuickCreateType, ShapeType } from './components/QuickCreateRadialMenu';
 
 // Hooks
 export { useContextMenu } from './hooks/useContextMenu';

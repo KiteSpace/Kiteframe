@@ -24,7 +24,8 @@ import {
   Diamond,
   ArrowRight,
   ChevronDown,
-  Zap
+  Zap,
+  Sparkles
 } from 'lucide-react';
 import type { Node, Edge, NodeColors, CanvasObject, EdgeMarker } from '../types';
 
@@ -70,6 +71,8 @@ interface LinearToolbarProps {
     animated?: boolean;
   }) => void;
   onEdgeDirectionSwap?: () => void;
+  onWireframe?: () => void;
+  canUseWireframe?: boolean;
   scale?: number;
 }
 
@@ -130,6 +133,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   onDelete,
   onEdgeStyleChange,
   onEdgeDirectionSwap,
+  onWireframe,
+  canUseWireframe = false,
   scale = 1
 }) => {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
@@ -920,7 +925,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       <div className="relative">
         {/* Main toolbar - horizontal row of circular buttons */}
         <div className="flex items-center gap-2 p-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-full shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-200">
-          {buttons.map((button, index) => {
+          {buttons.filter(b => b.id !== 'delete').map((button, index) => {
             const isActive = activeSubmenu === button.id;
             return (
               <button
@@ -941,6 +946,40 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               </button>
             );
           })}
+          
+          {/* Wireframe button - only for nodes */}
+          {isNodeTarget && node?.type !== 'image' && (
+            <button
+              className={cn(
+                "h-9 px-3 rounded-full flex items-center gap-1.5 text-white text-sm font-medium shadow-md transition-all duration-200",
+                "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600",
+                "hover:scale-105 active:scale-95 hover:shadow-lg",
+                !canUseWireframe && "opacity-75"
+              )}
+              onClick={() => onWireframe?.()}
+              title={canUseWireframe ? "Generate wireframe mockup" : "Upgrade to use Wireframe (Pro feature)"}
+              data-testid="toolbar-button-wireframe"
+            >
+              <Sparkles size={14} className="text-white" />
+              <span>Wireframe</span>
+            </button>
+          )}
+          
+          {/* Delete button always last */}
+          {buttons.find(b => b.id === 'delete') && (
+            <button
+              className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md transition-all duration-200",
+                "bg-red-500 hover:bg-red-600",
+                "hover:scale-110 active:scale-95"
+              )}
+              onClick={() => { onDelete?.(); onClose(); }}
+              title="Delete"
+              data-testid="toolbar-button-delete"
+            >
+              <Trash2 size={18} />
+            </button>
+          )}
         </div>
 
         {/* Submenus */}
