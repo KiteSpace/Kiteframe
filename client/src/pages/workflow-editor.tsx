@@ -6272,6 +6272,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     updatedEdge.markerEnd = style.markerEnd;
                   }
                   
+                  // Handle animated
+                  if (style.animated !== undefined) {
+                    updatedEdge.animated = style.animated;
+                  }
+                  
                   return updatedEdge;
                 }));
               }

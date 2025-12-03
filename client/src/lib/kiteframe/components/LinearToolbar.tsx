@@ -23,7 +23,8 @@ import {
   Circle,
   Diamond,
   ArrowRight,
-  ChevronDown
+  ChevronDown,
+  Zap
 } from 'lucide-react';
 import type { Node, Edge, NodeColors, CanvasObject, EdgeMarker } from '../types';
 
@@ -66,6 +67,7 @@ interface LinearToolbarProps {
     lineType?: 'straight' | 'bezier' | 'step';
     markerStart?: EdgeMarker | boolean;
     markerEnd?: EdgeMarker | boolean;
+    animated?: boolean;
   }) => void;
   onEdgeDirectionSwap?: () => void;
   scale?: number;
@@ -535,48 +537,77 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     </div>
   );
 
-  const renderLineTypeSubmenu = () => (
-    <div 
-      ref={submenuRef}
-      className={cn(
-        "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150",
-        showAbove ? "bottom-full mb-2" : "top-full mt-2"
-      )}
-    >
-      <div className="space-y-2">
-        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Line Type</div>
-        <div className="flex gap-2">
-          {[
-            { id: 'bezier', label: 'Bezier', path: 'M4 20 C 8 20, 8 4, 12 4 C 16 4, 16 20, 20 20' },
-            { id: 'step', label: 'Step', path: 'M4 20 L4 12 L20 12 L20 4' },
-            { id: 'straight', label: 'Straight', path: 'M4 20 L20 4' }
-          ].map((type) => (
+  const renderLineTypeSubmenu = () => {
+    const isAnimated = edge?.animated ?? false;
+    
+    return (
+      <div 
+        ref={submenuRef}
+        className={cn(
+          "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150",
+          showAbove ? "bottom-full mb-2" : "top-full mt-2"
+        )}
+      >
+        <div className="space-y-2">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Line Type</div>
+          <div className="flex gap-2 items-center">
+            {[
+              { id: 'bezier', label: 'Bezier', path: 'M4 20 C 8 20, 8 4, 12 4 C 16 4, 16 20, 20 20' },
+              { id: 'step', label: 'Step', path: 'M4 20 L4 12 L20 12 L20 4' },
+              { id: 'straight', label: 'Straight', path: 'M4 20 L20 4' }
+            ].map((type) => (
+              <button
+                type="button"
+                key={type.id}
+                className={cn(
+                  "w-12 h-10 rounded bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
+                  (edge?.type || 'bezier') === type.id && "ring-2 ring-blue-500"
+                )}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onEdgeStyleChange?.({ lineType: type.id as 'straight' | 'bezier' | 'step' });
+                  setActiveSubmenu(null);
+                }}
+                title={type.label}
+                data-testid={`toolbar-line-${type.id}`}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d={type.path} />
+                </svg>
+              </button>
+            ))}
+            
+            {/* Divider */}
+            <div className="w-px h-8 bg-gray-200 dark:bg-gray-600 mx-1" />
+            
+            {/* Animated Toggle */}
             <button
               type="button"
-              key={type.id}
               className={cn(
-                "w-12 h-10 rounded bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
-                (edge?.type || 'bezier') === type.id && "ring-2 ring-blue-500"
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors",
+                isAnimated 
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300" 
+                  : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
               )}
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                onEdgeStyleChange?.({ lineType: type.id as 'straight' | 'bezier' | 'step' });
-                setActiveSubmenu(null);
+                onEdgeStyleChange?.({ animated: !isAnimated });
               }}
-              title={type.label}
-              data-testid={`toolbar-line-${type.id}`}
+              title={isAnimated ? "Turn off animation" : "Turn on animation"}
+              data-testid="toolbar-animated-toggle"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d={type.path} />
-              </svg>
+              <Zap size={14} className={cn("pointer-events-none", isAnimated && "fill-current")} />
+              <span className="text-xs font-medium pointer-events-none">Animated</span>
             </button>
-          ))}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderEndpointsSubmenu = () => {
     const startType = getEndpointType(edge?.markerStart);
