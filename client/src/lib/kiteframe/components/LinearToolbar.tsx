@@ -611,17 +611,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             </div>
           </div>
 
-          {/* Clear Icon */}
-          <button
-            className="w-full py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            onClick={() => {
-              onIconSelect?.({ emoji: undefined, icon: undefined, visible: false });
-              setActiveSubmenu(null);
-            }}
-            data-testid="toolbar-icon-clear"
-          >
-            Remove Icon
-          </button>
         </div>
       </div>
     );
