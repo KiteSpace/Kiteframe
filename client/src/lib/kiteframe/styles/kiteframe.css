@@ -112,3 +112,52 @@
     opacity: 1;
   }
 }
+
+/* Radial Menu Animations */
+@keyframes radialFadeIn {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes radialSectorPop {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes radialSubmenuSlide {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.radial-menu-enter {
+  animation: radialFadeIn 0.2s ease-out forwards;
+}
+
+.radial-sector-enter {
+  animation: radialSectorPop 0.3s ease-out forwards;
+}
+
+.radial-submenu-enter {
+  animation: radialSubmenuSlide 0.2s ease-out forwards;
+}

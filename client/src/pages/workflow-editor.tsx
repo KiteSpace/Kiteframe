@@ -22,6 +22,7 @@ import { ContextMenu } from '@/components/ContextMenu';
 import { MissingImagesModal } from '@/components/MissingImagesModal';
 import { NewTabModal } from '@/components/NewTabModal';
 import { ImageUploadModal } from '@/lib/kiteframe/components/modals/ImageUploadModal';
+import { RadialMenu } from '@/lib/kiteframe/components/RadialMenu';
 import { SavedProjectsDrawer } from '@/components/SavedProjectsDrawer';
 import { HomeScreen } from '@/components/HomeScreen';
 import { AiProvider, useAi } from '../ai/AiProvider';
@@ -3271,6 +3272,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showCloudProjects, setShowCloudProjects] = useState(false);
   const [showPluginTest, setShowPluginTest] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node; canvasObject?: CanvasObject } | null>(null);
+  const [radialMenu, setRadialMenu] = useState<{ x: number; y: number; node?: Node; edge?: Edge } | null>(null);
   const [isEditingWorkflowName, setIsEditingWorkflowName] = useState(false);
   const [workflowNameInput, setWorkflowNameInput] = useState('');
   const [copiedProperties, setCopiedProperties] = useState<{ colors?: any; data?: Partial<Node['data']> } | null>(null);
@@ -5224,8 +5226,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   nodeType: node.type,
                   tabId: activeTab 
                 });
-                // The inline editing is already handled by BasicNode component internally
-                // This handler can be used for additional functionality like logging
+                // Show radial menu for quick styling - use mouse position for accuracy
+                setRadialMenu({ 
+                  x: e.clientX, 
+                  y: e.clientY, 
+                  node 
+                });
+                setContextMenu(null);
               }}
               onEdgeClick={(edge: Edge) => {
                 console.log(`📝 EDITOR EDGE CLICK HANDLER:`, { 
@@ -5292,6 +5299,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setSelectedNodeId('');
                 setSelectedEdgeId('');
                 setContextMenu(null);
+                setRadialMenu(null);
                 // Clear canvas objects selection too
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => ({ ...obj, selected: false }))
@@ -6045,6 +6053,103 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setContextMenu(null);
               }
             }}
+          />
+        )}
+
+        {/* Radial Menu for Node/Edge Styling */}
+        {radialMenu && (
+          <RadialMenu
+            isOpen={true}
+            position={{ x: radialMenu.x, y: radialMenu.y }}
+            target={radialMenu.node ? { type: 'node', id: radialMenu.node.id } : radialMenu.edge ? { type: 'edge', id: radialMenu.edge.id } : null}
+            node={radialMenu.node}
+            edge={radialMenu.edge}
+            onClose={() => setRadialMenu(null)}
+            onColorChange={(colors) => {
+              if (radialMenu.node) {
+                saveToHistory();
+                setNodes(prev => prev.map(n => 
+                  n.id === radialMenu.node!.id 
+                    ? { ...n, data: { ...n.data, colors: { ...n.data?.colors, ...colors } } }
+                    : n
+                ));
+              }
+            }}
+            onEdgeColorChange={(color) => {
+              if (radialMenu.edge) {
+                saveToHistory();
+                setEdges(prev => prev.map(e => 
+                  e.id === radialMenu.edge!.id 
+                    ? { ...e, style: { ...e.style, strokeColor: color, stroke: color } }
+                    : e
+                ));
+              }
+            }}
+            onTextEdit={() => {
+              if (radialMenu.node) {
+                setSelectedNodeId(radialMenu.node.id);
+                setRadialMenu(null);
+              }
+            }}
+            onStyleChange={(style) => {
+              if (radialMenu.node) {
+                saveToHistory();
+                setNodes(prev => prev.map(n => 
+                  n.id === radialMenu.node!.id 
+                    ? { ...n, data: { ...n.data, borderStyle: style.borderStyle ?? n.data?.borderStyle, borderWidth: style.borderWidth ?? n.data?.borderWidth } }
+                    : n
+                ));
+              } else if (radialMenu.edge) {
+                saveToHistory();
+                setEdges(prev => prev.map(e => 
+                  e.id === radialMenu.edge!.id 
+                    ? { ...e, style: { ...e.style, strokeWidth: style.strokeWidth } }
+                    : e
+                ));
+              }
+            }}
+            onEmojiSelect={(emoji) => {
+              if (radialMenu.node) {
+                const nodeId = radialMenu.node.id;
+                const currentReactions = radialMenu.node.data?.reactions || {};
+                const emojiReaction = currentReactions[emoji];
+                const userId = 'current-user';
+                
+                let newReactions;
+                if (emojiReaction?.userIds.includes(userId)) {
+                  const newUserIds = emojiReaction.userIds.filter((id: string) => id !== userId);
+                  newReactions = {
+                    ...currentReactions,
+                    [emoji]: { count: newUserIds.length, userIds: newUserIds }
+                  };
+                } else {
+                  const newUserIds = [...(emojiReaction?.userIds || []), userId];
+                  newReactions = {
+                    ...currentReactions,
+                    [emoji]: { count: newUserIds.length, userIds: newUserIds }
+                  };
+                }
+                
+                saveToHistory();
+                setNodes(prev => prev.map(n => 
+                  n.id === nodeId 
+                    ? { ...n, data: { ...n.data, reactions: newReactions } }
+                    : n
+                ));
+              }
+            }}
+            onDelete={() => {
+              if (radialMenu.node) {
+                saveToHistory();
+                setNodes(prev => prev.filter(n => n.id !== radialMenu.node!.id));
+                setEdges(prev => prev.filter(e => e.source !== radialMenu.node!.id && e.target !== radialMenu.node!.id));
+              } else if (radialMenu.edge) {
+                saveToHistory();
+                setEdges(prev => prev.filter(e => e.id !== radialMenu.edge!.id));
+              }
+              setRadialMenu(null);
+            }}
+            scale={viewport.zoom}
           />
         )}
 

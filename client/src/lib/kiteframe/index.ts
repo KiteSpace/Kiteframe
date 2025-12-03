@@ -24,6 +24,7 @@ export { Minimap } from './components/Minimap';
 export { ZoomControls } from './components/ZoomControls';
 export { CanvasToolbar, ToolbarIcons } from './components/CanvasToolbar';
 export type { ToolbarAction } from './components/CanvasToolbar';
+export { RadialMenu } from './components/RadialMenu';
 
 // Hooks
 export { useContextMenu } from './hooks/useContextMenu';
