@@ -852,7 +852,12 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                   )}
                   style={{ backgroundColor: bgColor }}
                   onClick={() => {
-                    onIconSelect?.({ emoji: icon.emoji, visible: iconVisible });
+                    // Auto-enable visibility when selecting an icon while hidden
+                    const shouldBeVisible = true;
+                    if (!iconVisible) {
+                      setIconVisible(true);
+                    }
+                    onIconSelect?.({ emoji: icon.emoji, visible: shouldBeVisible });
                     setActiveSubmenu(null);
                   }}
                   title={icon.name}
