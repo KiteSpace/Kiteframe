@@ -567,7 +567,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               onClick={() => {
                 const newVisible = !iconVisible;
                 setIconVisible(newVisible);
-                onIconSelect?.({ visible: newVisible });
+                // Preserve the existing emoji when toggling visibility
+                onIconSelect?.({ emoji: node?.data?.nodeIcon, visible: newVisible });
               }}
               data-testid="toolbar-icon-visibility"
             >

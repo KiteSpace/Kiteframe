@@ -10,8 +10,8 @@
 .kiteframe-canvas { position: relative; overflow: hidden; background: var(--kiteframe-canvas-bg); width:100%; height:100%; cursor: grab; }
 .kiteframe-canvas.grabbing { cursor: grabbing; }
 .kiteframe-world  { position: absolute; inset: 0; transform-origin: 0 0; width: 100vw; height: 100vh; overflow: visible; will-change: transform; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; backface-visibility: hidden; }
-.kiteframe-node   { position: absolute; box-sizing: border-box; border: 1px solid hsl(214.3, 31.8%, 91.4%); background: hsl(0, 0%, 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); cursor: grab; transition: all 0.2s ease; }
-.kiteframe-node:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+.kiteframe-node   { position: absolute; box-sizing: border-box; background: hsl(0, 0%, 100%); border-radius: 8px; cursor: grab; transition: box-shadow 0.2s ease; }
+/* Note: border and box-shadow are now handled inline in BasicNode.tsx for dynamic coloring */
 .kiteframe-node.selected { 
   /* Enhanced selection styling is now in enhanced-selection.css */
 }

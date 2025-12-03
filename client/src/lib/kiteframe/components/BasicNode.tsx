@@ -222,20 +222,49 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
   // Check if border should be hidden
   const hasNoBorder = node.data.noStroke === true;
 
+  // Override base .kiteframe-node styles and use box-shadow to create an outer border effect
+  // This renders OUTSIDE the element and follows border-radius (unlike outline)
+  // Must explicitly set border: none to override base CSS
+  // All visual states (border, selection, hover) are consolidated into one box-shadow
+  const dropShadow = isHovering ? '0 4px 12px rgba(0,0,0,0.12)' : '0 2px 8px rgba(0,0,0,0.08)';
+  
+  // Build box-shadow layers:
+  // 1. Selection ring (blue, 2px offset) - only if selected and not noStroke
+  // 2. Border ring (2px solid color) - only if not noStroke  
+  // 3. Drop shadow - always present
+  const shadowLayers: string[] = [];
+  
+  if (node.selected && !hasNoBorder) {
+    // Selection ring: offset outward from border
+    shadowLayers.push('0 0 0 4px rgba(59, 130, 246, 0.5)');
+  }
+  
+  if (!hasNoBorder) {
+    // Border ring: 2px solid border color
+    shadowLayers.push(`0 0 0 2px ${colors.borderColor}`);
+  }
+  
+  // Drop shadow: always present for depth
+  shadowLayers.push(dropShadow);
+  
+  const nodeStyle = {
+    border: 'none',
+    boxShadow: shadowLayers.join(', '),
+  };
+
   return (
     <div
       ref={nodeRef}
       className={cn(
         "kiteframe-node group",
-        hasNoBorder ? "rounded-lg shadow-md" : "border-2 rounded-lg shadow-md",
-        "transition-all duration-200",
-        "hover:shadow-lg cursor-move",
-        node.selected ? "ring-2 ring-blue-500 shadow-lg" : "",
+        "rounded-lg",
+        "transition-shadow duration-200",
+        "cursor-move",
         node.hidden ? "opacity-0 pointer-events-none" : "",
         nodePositionClass,
-        !hasNoBorder && borderClass,
         className,
       )}
+      style={nodeStyle}
       role="article"
       aria-label={`Basic node: ${node.data.label || "Untitled"}. ${node.data.description || "No description"}`}
       aria-selected={node.selected}
