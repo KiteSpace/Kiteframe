@@ -435,8 +435,10 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   // Helper to get current stroke style from edge
   const getEdgeStrokeStyle = (): 'solid' | 'dashed' | 'dotted' => {
     const dasharray = edge?.style?.strokeDasharray;
+    const linecap = edge?.style?.strokeLinecap;
     if (!dasharray || dasharray === 'none') return 'solid';
-    if (dasharray.includes('1')) return 'dotted'; // "2 2" or similar small dash
+    // Dotted uses round linecap with small dash pattern
+    if (linecap === 'round' || dasharray.includes('0.1')) return 'dotted';
     return 'dashed';
   };
 
@@ -464,9 +466,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Stroke Style</div>
           <div className="flex gap-2">
             {[
-              { id: 'solid', label: 'Solid', dasharray: 'none' },
-              { id: 'dashed', label: 'Dashed', dasharray: '8 4' },
-              { id: 'dotted', label: 'Dotted', dasharray: '2 2' }
+              { id: 'solid', label: 'Solid', dasharray: 'none', linecap: 'butt' as const },
+              { id: 'dashed', label: 'Dashed', dasharray: '8 4', linecap: 'butt' as const },
+              { id: 'dotted', label: 'Dotted', dasharray: '0.1 6', linecap: 'round' as const }
             ].map((style) => (
               <button
                 type="button"
@@ -486,11 +488,12 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                 title={style.label}
                 data-testid={`toolbar-stroke-${style.id}`}
               >
-                <svg width="40" height="4" viewBox="0 0 40 4">
+                <svg width="40" height="6" viewBox="0 0 40 6" className="pointer-events-none">
                   <line 
-                    x1="0" y1="2" x2="40" y2="2" 
+                    x1="2" y1="3" x2="38" y2="3" 
                     stroke="currentColor" 
-                    strokeWidth="2"
+                    strokeWidth="3"
+                    strokeLinecap={style.linecap}
                     strokeDasharray={style.dasharray === 'none' ? undefined : style.dasharray}
                   />
                 </svg>
@@ -583,22 +586,22 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       { 
         id: 'none', 
         label: 'None (Round)',
-        icon: <Minus size={16} />
+        icon: <span className="pointer-events-none"><Minus size={16} /></span>
       },
       { 
         id: 'arrow', 
         label: 'Arrow',
-        icon: <ArrowRight size={16} />
+        icon: <span className="pointer-events-none"><ArrowRight size={16} /></span>
       },
       { 
         id: 'circle', 
         label: 'Dot',
-        icon: <Circle size={14} />
+        icon: <span className="pointer-events-none"><Circle size={14} /></span>
       },
       { 
         id: 'diamond', 
         label: 'Diamond',
-        icon: <Diamond size={14} />
+        icon: <span className="pointer-events-none"><Diamond size={14} /></span>
       }
     ];
     

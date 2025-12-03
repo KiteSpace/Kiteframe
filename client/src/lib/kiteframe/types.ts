@@ -36,6 +36,7 @@ export type EdgeStyle = {
   strokeWidth?: number;
   strokeColor?: string;
   strokeDasharray?: string;
+  strokeLinecap?: 'butt' | 'round' | 'square';
   strokeOpacity?: number;
   fill?: string;
   gradient?: {

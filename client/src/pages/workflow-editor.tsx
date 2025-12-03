@@ -6238,14 +6238,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   
                   // Handle stroke style (solid, dashed, dotted)
                   if (style.strokeStyle !== undefined) {
-                    const dasharrayMap: Record<string, string | undefined> = {
-                      'solid': undefined,
-                      'dashed': '8 4',
-                      'dotted': '2 2'
+                    const styleConfig: Record<string, { dasharray: string | undefined; linecap: string }> = {
+                      'solid': { dasharray: undefined, linecap: 'butt' },
+                      'dashed': { dasharray: '8 4', linecap: 'butt' },
+                      'dotted': { dasharray: '0.1 6', linecap: 'round' }
                     };
+                    const config = styleConfig[style.strokeStyle];
                     updatedEdge.style = {
                       ...updatedEdge.style,
-                      strokeDasharray: dasharrayMap[style.strokeStyle]
+                      strokeDasharray: config.dasharray,
+                      strokeLinecap: config.linecap as any
                     };
                   }
                   
