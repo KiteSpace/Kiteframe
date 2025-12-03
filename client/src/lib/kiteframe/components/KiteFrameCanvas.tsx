@@ -3155,13 +3155,16 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               // Check if border should be hidden
               const hasNoBorder = n.data?.noStroke === true;
               const borderStyleValue = n.data?.borderStyle || 'solid';
+              // Use consistent border radius - container should match header/body corners
+              // When using 2px border, the inner content radius should be slightly smaller
+              const cornerRadius = 10; // Match the visual appearance
               
               return (
                 <div
                   key={n.id}
                   ref={(el) => registerNodeRef(n.id, el)}
                   data-node-id={n.id}
-                  className={`kiteframe-node group rounded-lg ${n.selected ? "selected" : ""}`}
+                  className={`kiteframe-node group ${n.selected ? "selected" : ""}`}
                   style={{
                     left: n.position.x,
                     top: n.position.y,
@@ -3171,6 +3174,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     borderWidth: hasNoBorder ? '0px' : '2px',
                     borderStyle: hasNoBorder ? 'none' : borderStyleValue,
                     borderColor: hasNoBorder ? 'transparent' : border,
+                    borderRadius: `${cornerRadius}px`,
                     // Selection outline
                     outline: n.selected ? '2px solid #3b82f6' : 'none',
                     outlineOffset: '0px',
@@ -3179,6 +3183,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     flexDirection: "column",
                     zIndex: n.zIndex || 0,
                     boxSizing: 'border-box',
+                    overflow: 'hidden', // Clip inner content to container radius
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
@@ -3305,7 +3310,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 >
                   {!n.data?.hideHeader && (
                     <div
-                      className="title rounded-t-lg"
+                      className="title"
                       style={{
                         backgroundColor: headerBg,
                         color: headerText,
@@ -3317,46 +3322,42 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   )}
                   {!n.data?.hideDescription && (
                     <div
-                      className={`body ${n.data?.hideHeader ? "rounded-lg" : "rounded-b-lg"}`}
+                      className="body"
                       style={{
                         backgroundColor: bodyBg,
                         color: bodyText,
-                        padding: n.type === "image" ? "0" : undefined,
+                        padding: n.type === "image" ? "0" : "8px 12px",
                         flex: 1, // Make the body fill remaining space
                         display: "flex",
-                        flexDirection: "column",
+                        flexDirection: n.type === "image" ? "column" : "row", // Row layout for icon+text
+                        alignItems: "center", // Vertically center icon with text
+                        gap: n.type === "image" ? undefined : "10px",
                         height:
                           n.type === "image"
                             ? `${n.data?.hideHeader ? h : h - 30}px`
                             : undefined, // Account for title height
-                        alignItems: n.type === "image" ? "center" : undefined,
                         justifyContent:
                           n.type === "image" ? "center" : undefined,
                       }}
                     >
-                      {/* Icon/Emoji display */}
+                      {/* Icon/Emoji display - side by side with text */}
                       {n.data?.iconVisible !== false && n.data?.nodeIcon && n.type !== "image" && (
-                        <div style={{
-                          display: "flex",
-                          gap: "8px",
-                          marginBottom: "4px",
-                          padding: "4px 8px",
-                        }}>
-                          <div
-                            style={{
-                              width: "40px",
-                              height: "40px",
-                              borderRadius: "8px",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "20px",
-                              backgroundColor: `${headerBg}80`,
-                            }}
-                            data-testid={`node-icon-${n.id}`}
-                          >
-                            {n.data.nodeIcon}
-                          </div>
+                        <div
+                          style={{
+                            width: "40px",
+                            height: "40px",
+                            minWidth: "40px",
+                            borderRadius: "8px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "20px",
+                            backgroundColor: `${headerBg}80`,
+                            flexShrink: 0,
+                          }}
+                          data-testid={`node-icon-${n.id}`}
+                        >
+                          {n.data.nodeIcon}
                         </div>
                       )}
                       {n.type === "image" ? (
@@ -3451,7 +3452,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                           </div>
                         )
                       ) : (
-                        n.data?.description || "Drop content here…"
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {n.data?.description || "Drop content here…"}
+                        </div>
                       )}
                     </div>
                   )}
