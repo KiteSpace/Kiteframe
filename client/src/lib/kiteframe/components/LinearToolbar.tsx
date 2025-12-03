@@ -16,9 +16,16 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  Link2
+  Link2,
+  ArrowLeftRight,
+  Minus,
+  MoveRight,
+  Circle,
+  Diamond,
+  ArrowRight,
+  ChevronDown
 } from 'lucide-react';
-import type { Node, Edge, NodeColors, CanvasObject } from '../types';
+import type { Node, Edge, NodeColors, CanvasObject, EdgeMarker } from '../types';
 
 interface LinearToolbarProps {
   isOpen: boolean;
@@ -53,8 +60,18 @@ interface LinearToolbarProps {
   }) => void;
   onAddLink?: () => void;
   onDelete?: () => void;
+  onEdgeStyleChange?: (style: {
+    strokeStyle?: 'solid' | 'dashed' | 'dotted';
+    strokeWidth?: number;
+    lineType?: 'straight' | 'bezier' | 'step';
+    markerStart?: EdgeMarker | boolean;
+    markerEnd?: EdgeMarker | boolean;
+  }) => void;
+  onEdgeDirectionSwap?: () => void;
   scale?: number;
 }
+
+type EndpointType = 'none' | 'arrow' | 'circle' | 'diamond';
 
 interface ToolbarButton {
   id: string;
@@ -109,6 +126,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   onTextStyleChange,
   onAddLink,
   onDelete,
+  onEdgeStyleChange,
+  onEdgeDirectionSwap,
   scale = 1
 }) => {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
@@ -234,11 +253,39 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           hasSubmenu: true
         },
         {
-          id: 'style',
-          icon: <Brush size={18} />,
+          id: 'direction',
+          icon: <ArrowLeftRight size={18} />,
+          label: 'Swap Direction',
+          color: 'bg-purple-500',
+          hoverColor: 'hover:bg-purple-600',
+          onClick: () => { onEdgeDirectionSwap?.(); }
+        },
+        {
+          id: 'strokeStyle',
+          icon: <Minus size={18} />,
           label: 'Stroke Style',
           color: 'bg-emerald-500',
           hoverColor: 'hover:bg-emerald-600',
+          hasSubmenu: true
+        },
+        {
+          id: 'lineType',
+          icon: (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 20 C 8 20, 8 4, 12 4 C 16 4, 16 20, 20 20" />
+            </svg>
+          ),
+          label: 'Line Type',
+          color: 'bg-cyan-500',
+          hoverColor: 'hover:bg-cyan-600',
+          hasSubmenu: true
+        },
+        {
+          id: 'endpoints',
+          icon: <MoveRight size={18} />,
+          label: 'Endpoints',
+          color: 'bg-amber-500',
+          hoverColor: 'hover:bg-amber-600',
           hasSubmenu: true
         },
         {
@@ -344,76 +391,125 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         showAbove ? "bottom-full mb-2" : "top-full mt-2"
       )}
     >
-      {isNodeTarget ? (
-        <div className="space-y-3">
-          <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Border Style</div>
-          <div className="flex gap-2">
-            {/* No stroke option */}
+      <div className="space-y-3">
+        <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Border Style</div>
+        <div className="flex gap-2">
+          {/* No stroke option */}
+          <button
+            className={cn(
+              "w-10 h-8 rounded border-2 bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
+              node?.data?.noStroke && "ring-2 ring-blue-500"
+            )}
+            onClick={() => {
+              onStyleChange?.({ noStroke: true });
+              setActiveSubmenu(null);
+            }}
+            title="No stroke"
+            data-testid="toolbar-style-none"
+          >
+            <Ban size={16} className="text-gray-400" />
+          </button>
+          {BORDER_STYLES.map((style) => (
             <button
+              key={style}
               className={cn(
-                "w-10 h-8 rounded border-2 bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
-                node?.data?.noStroke && "ring-2 ring-blue-500"
+                "w-10 h-8 rounded border-2 bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
+                node?.data?.borderStyle === style && !node?.data?.noStroke && "ring-2 ring-blue-500"
               )}
+              style={{
+                borderStyle: style as any,
+                borderColor: '#64748b'
+              }}
               onClick={() => {
-                onStyleChange?.({ noStroke: true });
+                onStyleChange?.({ borderStyle: style, noStroke: false });
                 setActiveSubmenu(null);
               }}
-              title="No stroke"
-              data-testid="toolbar-style-none"
-            >
-              <Ban size={16} className="text-gray-400" />
-            </button>
-            {BORDER_STYLES.map((style) => (
+              data-testid={`toolbar-style-${style}`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Helper to get current stroke style from edge
+  const getEdgeStrokeStyle = (): 'solid' | 'dashed' | 'dotted' => {
+    const dasharray = edge?.style?.strokeDasharray;
+    if (!dasharray || dasharray === 'none') return 'solid';
+    if (dasharray.includes('1')) return 'dotted'; // "2 2" or similar small dash
+    return 'dashed';
+  };
+
+  // Helper to get endpoint type
+  const getEndpointType = (marker: EdgeMarker | boolean | undefined): EndpointType => {
+    if (marker === undefined || marker === null || marker === false) return 'none';
+    if (marker === true) return 'arrow';
+    if (typeof marker === 'object' && marker !== null) {
+      return (marker.type as EndpointType) || 'arrow';
+    }
+    return 'none';
+  };
+
+  const renderStrokeStyleSubmenu = () => (
+    <div 
+      ref={submenuRef}
+      className={cn(
+        "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150 min-w-[200px]",
+        showAbove ? "bottom-full mb-2" : "top-full mt-2"
+      )}
+    >
+      <div className="space-y-3">
+        {/* Stroke Style */}
+        <div>
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Stroke Style</div>
+          <div className="flex gap-2">
+            {[
+              { id: 'solid', label: 'Solid', dasharray: 'none' },
+              { id: 'dashed', label: 'Dashed', dasharray: '8 4' },
+              { id: 'dotted', label: 'Dotted', dasharray: '2 2' }
+            ].map((style) => (
               <button
-                key={style}
+                key={style.id}
                 className={cn(
-                  "w-10 h-8 rounded border-2 bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                  node?.data?.borderStyle === style && !node?.data?.noStroke && "ring-2 ring-blue-500"
+                  "w-12 h-8 rounded bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center px-1",
+                  getEdgeStrokeStyle() === style.id && "ring-2 ring-blue-500"
                 )}
-                style={{
-                  borderStyle: style as any,
-                  borderColor: '#64748b'
-                }}
                 onClick={() => {
-                  onStyleChange?.({ borderStyle: style, noStroke: false });
+                  onEdgeStyleChange?.({ strokeStyle: style.id as 'solid' | 'dashed' | 'dotted' });
                   setActiveSubmenu(null);
                 }}
-                data-testid={`toolbar-style-${style}`}
-              />
+                title={style.label}
+                data-testid={`toolbar-stroke-${style.id}`}
+              >
+                <svg width="40" height="4" viewBox="0 0 40 4">
+                  <line 
+                    x1="0" y1="2" x2="40" y2="2" 
+                    stroke="currentColor" 
+                    strokeWidth="2"
+                    strokeDasharray={style.dasharray === 'none' ? undefined : style.dasharray}
+                  />
+                </svg>
+              </button>
             ))}
           </div>
         </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Stroke Width</div>
+        
+        {/* Stroke Width */}
+        <div>
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Stroke Width</div>
           <div className="flex gap-2 items-center">
-            {/* No stroke option */}
-            <button
-              className={cn(
-                "w-8 h-8 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                edge?.style?.strokeWidth === 0 && "ring-2 ring-blue-500"
-              )}
-              onClick={() => {
-                onStyleChange?.({ strokeWidth: 0, noStroke: true });
-                setActiveSubmenu(null);
-              }}
-              title="No stroke"
-              data-testid="toolbar-stroke-none"
-            >
-              <Ban size={14} className="text-gray-400" />
-            </button>
             {STROKE_WIDTHS.map((width) => (
               <button
                 key={width}
                 className={cn(
                   "w-8 h-8 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                  edge?.style?.strokeWidth === width && "ring-2 ring-blue-500"
+                  (edge?.style?.strokeWidth || 2) === width && "ring-2 ring-blue-500"
                 )}
                 onClick={() => {
-                  onStyleChange?.({ strokeWidth: width, noStroke: false });
+                  onEdgeStyleChange?.({ strokeWidth: width });
                   setActiveSubmenu(null);
                 }}
-                data-testid={`toolbar-stroke-${width}`}
+                data-testid={`toolbar-stroke-width-${width}`}
               >
                 <div 
                   className="bg-gray-600 dark:bg-gray-300 rounded-full w-full" 
@@ -423,9 +519,140 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             ))}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
+
+  const renderLineTypeSubmenu = () => (
+    <div 
+      ref={submenuRef}
+      className={cn(
+        "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150",
+        showAbove ? "bottom-full mb-2" : "top-full mt-2"
+      )}
+    >
+      <div className="space-y-2">
+        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Line Type</div>
+        <div className="flex gap-2">
+          {[
+            { id: 'bezier', label: 'Bezier', path: 'M4 20 C 8 20, 8 4, 12 4 C 16 4, 16 20, 20 20' },
+            { id: 'step', label: 'Step', path: 'M4 20 L4 12 L20 12 L20 4' },
+            { id: 'straight', label: 'Straight', path: 'M4 20 L20 4' }
+          ].map((type) => (
+            <button
+              key={type.id}
+              className={cn(
+                "w-12 h-10 rounded bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
+                (edge?.type || 'bezier') === type.id && "ring-2 ring-blue-500"
+              )}
+              onClick={() => {
+                onEdgeStyleChange?.({ lineType: type.id as 'straight' | 'bezier' | 'step' });
+                setActiveSubmenu(null);
+              }}
+              title={type.label}
+              data-testid={`toolbar-line-${type.id}`}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d={type.path} />
+              </svg>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderEndpointsSubmenu = () => {
+    const startType = getEndpointType(edge?.markerStart);
+    const endType = getEndpointType(edge?.markerEnd);
+    
+    const endpointOptions: { id: EndpointType; label: string; icon: React.ReactNode }[] = [
+      { 
+        id: 'none', 
+        label: 'None (Round)',
+        icon: <Minus size={16} />
+      },
+      { 
+        id: 'arrow', 
+        label: 'Arrow',
+        icon: <ArrowRight size={16} />
+      },
+      { 
+        id: 'circle', 
+        label: 'Dot',
+        icon: <Circle size={14} />
+      },
+      { 
+        id: 'diamond', 
+        label: 'Diamond',
+        icon: <Diamond size={14} />
+      }
+    ];
+    
+    const createMarker = (type: EndpointType): EdgeMarker | boolean => {
+      if (type === 'none') return false;
+      if (type === 'arrow') return true;
+      return { type: type as any, size: 8 };
+    };
+    
+    return (
+      <div 
+        ref={submenuRef}
+        className={cn(
+          "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150 min-w-[240px]",
+          showAbove ? "bottom-full mb-2" : "top-full mt-2"
+        )}
+      >
+        <div className="space-y-3">
+          {/* Start Endpoint */}
+          <div>
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Start Point</div>
+            <div className="flex gap-1">
+              {endpointOptions.map((opt) => (
+                <button
+                  key={opt.id}
+                  className={cn(
+                    "w-10 h-8 rounded bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
+                    startType === opt.id && "ring-2 ring-blue-500"
+                  )}
+                  onClick={() => {
+                    onEdgeStyleChange?.({ markerStart: createMarker(opt.id) });
+                  }}
+                  title={opt.label}
+                  data-testid={`toolbar-start-${opt.id}`}
+                >
+                  {opt.icon}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* End Endpoint */}
+          <div>
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">End Point</div>
+            <div className="flex gap-1">
+              {endpointOptions.map((opt) => (
+                <button
+                  key={opt.id}
+                  className={cn(
+                    "w-10 h-8 rounded bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
+                    endType === opt.id && "ring-2 ring-blue-500"
+                  )}
+                  onClick={() => {
+                    onEdgeStyleChange?.({ markerEnd: createMarker(opt.id) });
+                  }}
+                  title={opt.label}
+                  data-testid={`toolbar-end-${opt.id}`}
+                >
+                  {opt.icon}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderTextSubmenu = () => (
     <div 
@@ -666,6 +893,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         {activeSubmenu === 'style' && renderStyleSubmenu()}
         {activeSubmenu === 'text' && renderTextSubmenu()}
         {activeSubmenu === 'icon' && renderIconSubmenu()}
+        {activeSubmenu === 'strokeStyle' && renderStrokeStyleSubmenu()}
+        {activeSubmenu === 'lineType' && renderLineTypeSubmenu()}
+        {activeSubmenu === 'endpoints' && renderEndpointsSubmenu()}
       </div>
     </div>
   );

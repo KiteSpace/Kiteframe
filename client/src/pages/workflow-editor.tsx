@@ -6228,6 +6228,69 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setLinearToolbar(null);
               }
             }}
+            onEdgeStyleChange={(style) => {
+              if (linearToolbar.edge) {
+                saveToHistory();
+                setEdges(prev => prev.map(e => {
+                  if (e.id !== linearToolbar.edge!.id) return e;
+                  
+                  const updatedEdge = { ...e };
+                  
+                  // Handle stroke style (solid, dashed, dotted)
+                  if (style.strokeStyle !== undefined) {
+                    const dasharrayMap: Record<string, string | undefined> = {
+                      'solid': undefined,
+                      'dashed': '8 4',
+                      'dotted': '2 2'
+                    };
+                    updatedEdge.style = {
+                      ...updatedEdge.style,
+                      strokeDasharray: dasharrayMap[style.strokeStyle]
+                    };
+                  }
+                  
+                  // Handle stroke width
+                  if (style.strokeWidth !== undefined) {
+                    updatedEdge.style = {
+                      ...updatedEdge.style,
+                      strokeWidth: style.strokeWidth
+                    };
+                  }
+                  
+                  // Handle line type
+                  if (style.lineType !== undefined) {
+                    updatedEdge.type = style.lineType;
+                  }
+                  
+                  // Handle markers
+                  if (style.markerStart !== undefined) {
+                    updatedEdge.markerStart = style.markerStart;
+                  }
+                  if (style.markerEnd !== undefined) {
+                    updatedEdge.markerEnd = style.markerEnd;
+                  }
+                  
+                  return updatedEdge;
+                }));
+              }
+            }}
+            onEdgeDirectionSwap={() => {
+              if (linearToolbar.edge) {
+                saveToHistory();
+                setEdges(prev => prev.map(e => {
+                  if (e.id !== linearToolbar.edge!.id) return e;
+                  // Swap source and target
+                  return {
+                    ...e,
+                    source: e.target,
+                    target: e.source,
+                    // Also swap markers if they exist
+                    markerStart: e.markerEnd,
+                    markerEnd: e.markerStart
+                  };
+                }));
+              }
+            }}
             onDelete={() => {
               if (linearToolbar.node) {
                 const nodeName = linearToolbar.node.data?.label || 'Node';

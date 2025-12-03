@@ -13,8 +13,8 @@
   /* Subtle background tint */
   background-color: hsla(221.2, 83.2%, 53.3%, 0.03) !important;
   
-  /* Ensure border-radius matches the base node */
-  border-radius: 8px !important;
+  /* Ensure border-radius matches the base node (10px) */
+  border-radius: 10px !important;
   
   /* Slight elevation and scaling for prominence */
   transform: scale(1.01) !important;
@@ -32,7 +32,7 @@
     0 6px 25px hsla(221.2, 83.2%, 53.3%, 0.3), 
     0 4px 12px rgba(0,0,0,0.12) !important;
   transform: scale(1.02) !important;
-  border-radius: 8px !important;
+  border-radius: 10px !important;
 }
 
 /* Selection animation for smooth transitions */
