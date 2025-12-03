@@ -3175,9 +3175,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     borderStyle: hasNoBorder ? 'none' : borderStyleValue,
                     borderColor: hasNoBorder ? 'transparent' : border,
                     borderRadius: `${cornerRadius}px`,
-                    // Selection outline
-                    outline: n.selected ? '2px solid #3b82f6' : 'none',
-                    outlineOffset: '0px',
+                    // Selection indicator using box-shadow to respect border-radius
+                    boxShadow: n.selected ? '0 0 0 2px #3b82f6' : 'none',
                     background: "transparent", // Remove default background since we'll use separate header/body
                     display: "flex",
                     flexDirection: "column",
