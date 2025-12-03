@@ -3152,6 +3152,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               }
 
               // Fallback to default rendering for unregistered node types
+              // Check if border should be hidden
+              const hasNoBorder = n.data?.noStroke === true;
+              const borderStyleValue = n.data?.borderStyle || 'solid';
+              
               return (
                 <div
                   key={n.id}
@@ -3163,11 +3167,18 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     top: n.position.y,
                     width: w,
                     height: h,
-                    boxShadow: `inset 0 0 0 1px ${border}`,
+                    // Use real CSS border (like StickyNoteObject) instead of box-shadow
+                    borderWidth: hasNoBorder ? '0px' : '2px',
+                    borderStyle: hasNoBorder ? 'none' : borderStyleValue,
+                    borderColor: hasNoBorder ? 'transparent' : border,
+                    // Selection outline
+                    outline: n.selected ? '2px solid #3b82f6' : 'none',
+                    outlineOffset: '0px',
                     background: "transparent", // Remove default background since we'll use separate header/body
                     display: "flex",
                     flexDirection: "column",
                     zIndex: n.zIndex || 0,
+                    boxSizing: 'border-box',
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
@@ -3323,6 +3334,31 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                           n.type === "image" ? "center" : undefined,
                       }}
                     >
+                      {/* Icon/Emoji display */}
+                      {n.data?.iconVisible !== false && n.data?.nodeIcon && n.type !== "image" && (
+                        <div style={{
+                          display: "flex",
+                          gap: "8px",
+                          marginBottom: "4px",
+                          padding: "4px 8px",
+                        }}>
+                          <div
+                            style={{
+                              width: "40px",
+                              height: "40px",
+                              borderRadius: "8px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "20px",
+                              backgroundColor: `${headerBg}80`,
+                            }}
+                            data-testid={`node-icon-${n.id}`}
+                          >
+                            {n.data.nodeIcon}
+                          </div>
+                        </div>
+                      )}
                       {n.type === "image" ? (
                         n.data?.src ? (
                           <img
