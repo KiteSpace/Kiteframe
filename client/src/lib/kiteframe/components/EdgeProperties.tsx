@@ -8,6 +8,25 @@ export interface EdgePropertiesProps {
   onClose: () => void;
 }
 
+type StrokeStyle = 'solid' | 'dashed' | 'dotted';
+
+// Helper to detect stroke style from edge properties
+const detectStrokeStyle = (edge: Edge | null): StrokeStyle => {
+  if (!edge?.style?.strokeDasharray) return 'solid';
+  const linecap = edge.style.strokeLinecap;
+  if (linecap === 'round' || edge.style.strokeDasharray.includes('0.1')) return 'dotted';
+  return 'dashed';
+};
+
+// Helper to get stroke style config
+const getStrokeStyleConfig = (style: StrokeStyle): { dasharray: string | undefined; linecap: 'butt' | 'round' } => {
+  switch (style) {
+    case 'dotted': return { dasharray: '0.1 6', linecap: 'round' };
+    case 'dashed': return { dasharray: '8 4', linecap: 'butt' };
+    default: return { dasharray: undefined, linecap: 'butt' };
+  }
+};
+
 const EdgePropertiesComponent: React.FC<EdgePropertiesProps> = ({
   edge,
   onUpdate,
@@ -18,6 +37,7 @@ const EdgePropertiesComponent: React.FC<EdgePropertiesProps> = ({
   const [animated, setAnimated] = useState(false);
   const [strokeWidth, setStrokeWidth] = useState(2);
   const [strokeColor, setStrokeColor] = useState('#6b7280');
+  const [strokeStyle, setStrokeStyle] = useState<StrokeStyle>('solid');
   const [labelBgColor, setLabelBgColor] = useState('#ffffff');
   const [markerEnd, setMarkerEnd] = useState(true);
   const [markerStart, setMarkerStart] = useState(false);
@@ -28,10 +48,11 @@ const EdgePropertiesComponent: React.FC<EdgePropertiesProps> = ({
       setEdgeType(edge.type || 'bezier');
       setAnimated(edge.animated || false);
       setStrokeWidth(edge.style?.strokeWidth || 2);
-      setStrokeColor(edge.style?.stroke || '#6b7280');
+      setStrokeColor(edge.style?.stroke || edge.style?.strokeColor || '#6b7280');
+      setStrokeStyle(detectStrokeStyle(edge));
       setLabelBgColor(edge.labelStyle?.backgroundColor || '#ffffff');
       setMarkerEnd(edge.markerEnd !== false);
-      setMarkerStart(edge.markerStart === true);
+      setMarkerStart(edge.markerStart === true || (typeof edge.markerStart === 'object'));
     }
   }, [edge]);
 
@@ -43,6 +64,7 @@ const EdgePropertiesComponent: React.FC<EdgePropertiesProps> = ({
     const validatedStrokeColor = validateColor(strokeColor) ? strokeColor : '#6b7280';
     const validatedLabelBgColor = validateColor(labelBgColor) ? labelBgColor : '#ffffff';
     const clampedStrokeWidth = Math.min(Math.max(strokeWidth, 1), 10);
+    const strokeStyleConfig = getStrokeStyleConfig(strokeStyle);
     
     onUpdate(edge.id, {
       label: sanitizedLabel,
@@ -50,7 +72,10 @@ const EdgePropertiesComponent: React.FC<EdgePropertiesProps> = ({
       animated,
       style: {
         strokeWidth: clampedStrokeWidth,
-        stroke: validatedStrokeColor
+        stroke: validatedStrokeColor,
+        strokeColor: validatedStrokeColor,
+        strokeDasharray: strokeStyleConfig.dasharray,
+        strokeLinecap: strokeStyleConfig.linecap
       },
       labelStyle: {
         backgroundColor: validatedLabelBgColor
@@ -59,7 +84,7 @@ const EdgePropertiesComponent: React.FC<EdgePropertiesProps> = ({
       markerStart
     });
     onClose();
-  }, [label, strokeColor, labelBgColor, strokeWidth, edge.id, edgeType, animated, markerEnd, markerStart, onUpdate, onClose]);
+  }, [label, strokeColor, labelBgColor, strokeWidth, strokeStyle, edge.id, edgeType, animated, markerEnd, markerStart, onUpdate, onClose]);
 
   return (
     <div className="absolute right-4 top-20 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
@@ -145,6 +170,41 @@ const EdgePropertiesComponent: React.FC<EdgePropertiesProps> = ({
               data-testid="edge-stroke-width-slider"
             />
             <span className="text-sm text-gray-600 w-8">{strokeWidth}px</span>
+          </div>
+        </div>
+
+        {/* Stroke Style */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Stroke Style
+          </label>
+          <div className="flex gap-2">
+            {(['solid', 'dashed', 'dotted'] as StrokeStyle[]).map((style) => (
+              <button
+                key={style}
+                type="button"
+                onClick={() => setStrokeStyle(style)}
+                className={`flex-1 px-3 py-2 text-sm rounded-md border transition-colors ${
+                  strokeStyle === style
+                    ? 'bg-blue-100 border-blue-500 text-blue-700'
+                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+                data-testid={`edge-stroke-style-${style}`}
+              >
+                <div className="flex flex-col items-center gap-1">
+                  <svg width="40" height="8" className="mx-auto">
+                    <line 
+                      x1="2" y1="4" x2="38" y2="4" 
+                      stroke="currentColor" 
+                      strokeWidth="2"
+                      strokeDasharray={style === 'dashed' ? '6 3' : style === 'dotted' ? '0.1 4' : undefined}
+                      strokeLinecap={style === 'dotted' ? 'round' : 'butt'}
+                    />
+                  </svg>
+                  <span className="capitalize">{style}</span>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
 

@@ -185,10 +185,30 @@ export const ConnectionEdge: React.FC<{
   
   // Get styling from edge.style with fallbacks to edge.data for backward compatibility
   const style = edge.style || {};
-  const strokeColor = style.strokeColor || edge.data?.color || '#64748b';
+  const strokeColor = style.strokeColor || style.stroke || edge.data?.color || '#64748b';
   const strokeWidth = style.strokeWidth ?? edge.data?.strokeWidth ?? 2;
   const strokeOpacity = style.strokeOpacity ?? 1;
   const strokeDasharray = style.strokeDasharray || (edge.animated ? '6 4' : undefined);
+  const strokeLinecap = style.strokeLinecap || 'butt';
+  
+  // Determine markers - support both legacy edge.markers and new markerStart/markerEnd
+  const hasMarkerStart = edge.markerStart !== undefined ? 
+    (edge.markerStart !== false && edge.markerStart !== null) : 
+    (edge.markers?.position === 'start' || edge.markers?.position === 'both');
+  const hasMarkerEnd = edge.markerEnd !== undefined ? 
+    (edge.markerEnd !== false && edge.markerEnd !== null) : 
+    (edge.markers?.position !== 'start');
+  
+  // Get marker config from markerStart/markerEnd or fall back to markers
+  const getMarkerConfig = (marker: typeof edge.markerStart | typeof edge.markerEnd): EdgeMarker | undefined => {
+    if (marker === undefined || marker === null || marker === false) return undefined;
+    if (marker === true) return { type: 'arrow' };
+    if (typeof marker === 'object') return marker;
+    return undefined;
+  };
+  
+  const markerStartConfig = getMarkerConfig(edge.markerStart) || (hasMarkerStart ? edge.markers : undefined);
+  const markerEndConfig = getMarkerConfig(edge.markerEnd) || (hasMarkerEnd ? edge.markers : undefined);
   
   // Generate path based on edge type
   const pathData = generatePath(type, s, t, {
@@ -261,9 +281,9 @@ export const ConnectionEdge: React.FC<{
           </filter>
         )}
         
-        {/* Markers */}
-        {edge.markers?.position !== 'start' && createMarker(markerId, edge.markers, strokeColor)}
-        {edge.markers?.position === 'both' && createMarker(markerStartId, edge.markers, strokeColor)}
+        {/* Markers - support both legacy markers and markerStart/markerEnd */}
+        {hasMarkerEnd && markerEndConfig && createMarker(markerId, markerEndConfig, strokeColor)}
+        {hasMarkerStart && markerStartConfig && createMarker(markerStartId, markerStartConfig, strokeColor)}
       </defs>
       
       {/* Selection outline */}
@@ -302,9 +322,10 @@ export const ConnectionEdge: React.FC<{
         strokeWidth={selectionWidth} 
         strokeOpacity={strokeOpacity}
         strokeDasharray={strokeDasharray}
+        strokeLinecap={strokeLinecap}
         className={edge.animated ? 'kiteframe-edge-animated' : ''}
-        markerStart={edge.markers?.position === 'start' || edge.markers?.position === 'both' ? `url(#${markerStartId})` : undefined}
-        markerEnd={edge.markers?.position !== 'start' ? `url(#${markerId})` : undefined}
+        markerStart={hasMarkerStart ? `url(#${markerStartId})` : undefined}
+        markerEnd={hasMarkerEnd ? `url(#${markerId})` : undefined}
         filter={style.shadow ? `url(#${shadowId})` : style.glow ? `url(#${glowId})` : undefined}
         style={{ 
           cursor: edge.interactable !== false ? 'pointer' : 'default',
