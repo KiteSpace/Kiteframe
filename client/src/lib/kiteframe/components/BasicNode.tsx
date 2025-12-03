@@ -247,9 +247,12 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
   // Drop shadow: always present for depth
   shadowLayers.push(dropShadow);
   
+  // Node style: transparent background to let box-shadow be visible around content
   const nodeStyle = {
     border: 'none',
     boxShadow: shadowLayers.join(', '),
+    background: 'transparent',
+    padding: '2px', // Creates gap for border to show
   };
 
   return (
@@ -277,7 +280,7 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
       {/* Header */}
       <div
         className={cn(
-          "h-8 px-3 flex items-center justify-between rounded-t-lg",
+          "h-8 px-3 flex items-center justify-between rounded-t-md",
           styleClasses.headerClass,
         )}
         role="heading"
@@ -322,10 +325,10 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
       {/* Body */}
       <div
         className={cn(
-          "flex-1 p-3 rounded-b-lg",
+          "flex-1 p-3 rounded-b-md",
           styleClasses.bodyClass,
           getDynamicClassName(
-            { minHeight: `${nodeHeight - 32}px` },
+            { minHeight: `${nodeHeight - 32 - 4}px` }, // Account for 2px padding on each side
             `body-height-${node.id}`,
           ),
         )}
