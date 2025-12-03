@@ -230,10 +230,8 @@ export const ConnectionEdge: React.FC<{
     strokeValue = `url(#${gradientId})`;
   }
   
-  // Apply selection styling
+  // Apply selection styling - no line highlight, only endpoint dots
   const isSelected = edge.selected;
-  const selectionStroke = isSelected ? '#3b82f6' : strokeValue;
-  const selectionWidth = isSelected ? strokeWidth + 1 : strokeWidth;
   
   return (
     <g 
@@ -286,24 +284,12 @@ export const ConnectionEdge: React.FC<{
         {hasMarkerStart && markerStartConfig && createMarker(markerStartId, markerStartConfig, strokeColor)}
       </defs>
       
-      {/* Selection outline */}
-      {isSelected && (
-        <path 
-          d={pathData} 
-          fill="none" 
-          stroke="#3b82f6" 
-          strokeWidth={selectionWidth + 2} 
-          strokeOpacity={0.3}
-          pointerEvents="none"
-        />
-      )}
-      
       {/* Invisible wider path for easier clicking */}
       <path 
         d={pathData} 
         fill="none" 
         stroke="transparent" 
-        strokeWidth={Math.max(selectionWidth + 6, 10)} 
+        strokeWidth={Math.max(strokeWidth + 6, 10)} 
         style={{ 
           cursor: edge.interactable !== false ? 'pointer' : 'default',
           pointerEvents: 'auto' // Only this path captures events
@@ -318,8 +304,8 @@ export const ConnectionEdge: React.FC<{
       <path 
         d={pathData} 
         fill={style.fill || "none"} 
-        stroke={selectionStroke} 
-        strokeWidth={selectionWidth} 
+        stroke={strokeValue} 
+        strokeWidth={strokeWidth} 
         strokeOpacity={strokeOpacity}
         strokeDasharray={strokeDasharray}
         strokeLinecap={strokeLinecap}
@@ -333,6 +319,30 @@ export const ConnectionEdge: React.FC<{
           pointerEvents: 'none' // Let the invisible path handle clicks
         }}
       />
+      
+      {/* Selection endpoint dots */}
+      {isSelected && (
+        <>
+          <circle
+            cx={s.x}
+            cy={s.y}
+            r={6}
+            fill="#3b82f6"
+            stroke="#ffffff"
+            strokeWidth={2}
+            style={{ pointerEvents: 'none' }}
+          />
+          <circle
+            cx={t.x}
+            cy={t.y}
+            r={6}
+            fill="#3b82f6"
+            stroke="#ffffff"
+            strokeWidth={2}
+            style={{ pointerEvents: 'none' }}
+          />
+        </>
+      )}
       
       {/* Edge label with enhanced styling */}
       {edge.label && (
