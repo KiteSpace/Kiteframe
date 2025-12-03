@@ -22,7 +22,7 @@ import { ContextMenu } from '@/components/ContextMenu';
 import { MissingImagesModal } from '@/components/MissingImagesModal';
 import { NewTabModal } from '@/components/NewTabModal';
 import { ImageUploadModal } from '@/lib/kiteframe/components/modals/ImageUploadModal';
-import { RadialMenu } from '@/lib/kiteframe/components/RadialMenu';
+import { LinearToolbar } from '@/lib/kiteframe/components/LinearToolbar';
 import { SavedProjectsDrawer } from '@/components/SavedProjectsDrawer';
 import { HomeScreen } from '@/components/HomeScreen';
 import { AiProvider, useAi } from '../ai/AiProvider';
@@ -3272,7 +3272,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showCloudProjects, setShowCloudProjects] = useState(false);
   const [showPluginTest, setShowPluginTest] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node; canvasObject?: CanvasObject } | null>(null);
-  const [radialMenu, setRadialMenu] = useState<{ x: number; y: number; node?: Node; edge?: Edge } | null>(null);
+  const [linearToolbar, setLinearToolbar] = useState<{ 
+    x: number; 
+    y: number; 
+    nodeRect?: { top: number; bottom: number; left: number; right: number; width: number }; 
+    node?: Node; 
+    edge?: Edge;
+    canvasObject?: CanvasObject;
+  } | null>(null);
+  const [inlineEditingNodeId, setInlineEditingNodeId] = useState<string | null>(null);
   const [isEditingWorkflowName, setIsEditingWorkflowName] = useState(false);
   const [workflowNameInput, setWorkflowNameInput] = useState('');
   const [copiedProperties, setCopiedProperties] = useState<{ colors?: any; data?: Partial<Node['data']> } | null>(null);
@@ -5196,13 +5204,34 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   // Reset drag detection
                   isDraggingRef.current = false;
                   
-                  // Delay opening properties panel to detect if this becomes a drag
+                  // Delay opening properties panel and toolbar to detect if this becomes a drag
                   clickDelayTimeoutRef.current = setTimeout(() => {
                     if (!isDraggingRef.current) {
-                      console.log(`📝 CLICK CONFIRMED (no drag detected) - opening properties panel for:`, node.id);
+                      console.log(`📝 CLICK CONFIRMED (no drag detected) - showing toolbar for:`, node.id);
                       setSelectedNodeId(node.id);
+                      
+                      // Calculate node rect for toolbar positioning
+                      const nodeWidth = node.style?.width ?? node.width ?? 200;
+                      const nodeHeight = node.style?.height ?? node.height ?? 100;
+                      const screenX = node.position.x * viewport.zoom + viewport.x;
+                      const screenY = node.position.y * viewport.zoom + viewport.y;
+                      const screenWidth = nodeWidth * viewport.zoom;
+                      const screenHeight = nodeHeight * viewport.zoom;
+                      
+                      setLinearToolbar({
+                        x: screenX + screenWidth / 2,
+                        y: screenY,
+                        nodeRect: {
+                          top: screenY,
+                          bottom: screenY + screenHeight,
+                          left: screenX,
+                          right: screenX + screenWidth,
+                          width: screenWidth
+                        },
+                        node
+                      });
                     } else {
-                      console.log(`📝 DRAG DETECTED - not opening properties panel for:`, node.id);
+                      console.log(`📝 DRAG DETECTED - not showing toolbar for:`, node.id);
                     }
                     clickDelayTimeoutRef.current = null;
                   }, 150); // 150ms delay to detect drag
@@ -5213,6 +5242,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 updateActiveTab({ canvasObjects: updatedObjects });
                 setSelectedEdgeId('');
                 setContextMenu(null);
+                setInlineEditingNodeId(null);
                 
                 console.log(`📝 SELECTION STATE SET:`, { 
                   selectedNodeId: e.shiftKey ? selectedNodeId : 'delayed for drag detection',
@@ -5221,17 +5251,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 });
               }}
               onNodeDoubleClick={(e: React.MouseEvent, node: Node) => {
-                console.log(`📝 EDITOR NODE DOUBLE-CLICK HANDLER:`, { 
+                console.log(`📝 EDITOR NODE DOUBLE-CLICK HANDLER - Triggering inline edit:`, { 
                   nodeId: node.id, 
                   nodeType: node.type,
                   tabId: activeTab 
                 });
-                // Show radial menu for quick styling - use mouse position for accuracy
-                setRadialMenu({ 
-                  x: e.clientX, 
-                  y: e.clientY, 
-                  node 
-                });
+                // Double-click triggers inline text editing
+                setInlineEditingNodeId(node.id);
+                setLinearToolbar(null);
                 setContextMenu(null);
               }}
               onEdgeClick={(edge: Edge) => {
@@ -5265,10 +5292,39 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 // Delay opening properties panel for edges too
                 clickDelayTimeoutRef.current = setTimeout(() => {
                   if (!isDraggingRef.current) {
-                    console.log(`📝 EDGE CLICK CONFIRMED (no drag detected) - opening properties panel for:`, edge.id);
+                    console.log(`📝 EDGE CLICK CONFIRMED (no drag detected) - showing toolbar for edge:`, edge.id);
                     setSelectedEdgeId(edge.id);
+                    
+                    // Calculate edge midpoint for toolbar positioning
+                    const sourceNode = nodes.find(n => n.id === edge.source);
+                    const targetNode = nodes.find(n => n.id === edge.target);
+                    if (sourceNode && targetNode) {
+                      const sourceX = sourceNode.position.x + (sourceNode.width ?? 200) / 2;
+                      const sourceY = sourceNode.position.y + (sourceNode.height ?? 100) / 2;
+                      const targetX = targetNode.position.x + (targetNode.width ?? 200) / 2;
+                      const targetY = targetNode.position.y + (targetNode.height ?? 100) / 2;
+                      
+                      const midX = (sourceX + targetX) / 2;
+                      const midY = (sourceY + targetY) / 2;
+                      
+                      const screenX = midX * viewport.zoom + viewport.x;
+                      const screenY = midY * viewport.zoom + viewport.y;
+                      
+                      setLinearToolbar({
+                        x: screenX,
+                        y: screenY - 40,
+                        nodeRect: {
+                          top: screenY - 20,
+                          bottom: screenY + 20,
+                          left: screenX - 50,
+                          right: screenX + 50,
+                          width: 100
+                        },
+                        edge
+                      });
+                    }
                   } else {
-                    console.log(`📝 EDGE DRAG DETECTED - not opening properties panel for:`, edge.id);
+                    console.log(`📝 EDGE DRAG DETECTED - not showing toolbar for edge:`, edge.id);
                   }
                   clickDelayTimeoutRef.current = null;
                 }, 150); // 150ms delay
@@ -5299,7 +5355,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setSelectedNodeId('');
                 setSelectedEdgeId('');
                 setContextMenu(null);
-                setRadialMenu(null);
+                setLinearToolbar(null);
+                setInlineEditingNodeId(null);
                 // Clear canvas objects selection too
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => ({ ...obj, selected: false }))
@@ -6056,98 +6113,170 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           />
         )}
 
-        {/* Radial Menu for Node/Edge Styling */}
-        {radialMenu && (
-          <RadialMenu
+        {/* Linear Toolbar for Node/Edge Styling */}
+        {linearToolbar && (
+          <LinearToolbar
             isOpen={true}
-            position={{ x: radialMenu.x, y: radialMenu.y }}
-            target={radialMenu.node ? { type: 'node', id: radialMenu.node.id } : radialMenu.edge ? { type: 'edge', id: radialMenu.edge.id } : null}
-            node={radialMenu.node}
-            edge={radialMenu.edge}
-            onClose={() => setRadialMenu(null)}
+            position={{ x: linearToolbar.x, y: linearToolbar.y }}
+            nodeRect={linearToolbar.nodeRect}
+            viewportHeight={window.innerHeight}
+            target={
+              linearToolbar.node 
+                ? { type: 'node', id: linearToolbar.node.id } 
+                : linearToolbar.edge 
+                  ? { type: 'edge', id: linearToolbar.edge.id }
+                  : linearToolbar.canvasObject
+                    ? { type: 'canvasObject', id: linearToolbar.canvasObject.id }
+                    : null
+            }
+            node={linearToolbar.node}
+            edge={linearToolbar.edge}
+            canvasObject={linearToolbar.canvasObject}
+            onClose={() => setLinearToolbar(null)}
             onColorChange={(colors) => {
-              if (radialMenu.node) {
+              if (linearToolbar.node) {
                 saveToHistory();
                 setNodes(prev => prev.map(n => 
-                  n.id === radialMenu.node!.id 
+                  n.id === linearToolbar.node!.id 
                     ? { ...n, data: { ...n.data, colors: { ...n.data?.colors, ...colors } } }
                     : n
                 ));
               }
             }}
             onEdgeColorChange={(color) => {
-              if (radialMenu.edge) {
+              if (linearToolbar.edge) {
                 saveToHistory();
                 setEdges(prev => prev.map(e => 
-                  e.id === radialMenu.edge!.id 
+                  e.id === linearToolbar.edge!.id 
                     ? { ...e, style: { ...e.style, strokeColor: color, stroke: color } }
                     : e
                 ));
               }
             }}
             onTextEdit={() => {
-              if (radialMenu.node) {
-                setSelectedNodeId(radialMenu.node.id);
-                setRadialMenu(null);
+              if (linearToolbar.node) {
+                setInlineEditingNodeId(linearToolbar.node.id);
+                setLinearToolbar(null);
               }
             }}
             onStyleChange={(style) => {
-              if (radialMenu.node) {
+              if (linearToolbar.node) {
                 saveToHistory();
                 setNodes(prev => prev.map(n => 
-                  n.id === radialMenu.node!.id 
-                    ? { ...n, data: { ...n.data, borderStyle: style.borderStyle ?? n.data?.borderStyle, borderWidth: style.borderWidth ?? n.data?.borderWidth } }
+                  n.id === linearToolbar.node!.id 
+                    ? { 
+                        ...n, 
+                        data: { 
+                          ...n.data, 
+                          borderStyle: style.borderStyle ?? n.data?.borderStyle, 
+                          borderWidth: style.borderWidth ?? n.data?.borderWidth,
+                          noStroke: style.noStroke ?? n.data?.noStroke
+                        } 
+                      }
                     : n
                 ));
-              } else if (radialMenu.edge) {
+              } else if (linearToolbar.edge) {
                 saveToHistory();
                 setEdges(prev => prev.map(e => 
-                  e.id === radialMenu.edge!.id 
+                  e.id === linearToolbar.edge!.id 
                     ? { ...e, style: { ...e.style, strokeWidth: style.strokeWidth } }
                     : e
                 ));
               }
             }}
-            onEmojiSelect={(emoji) => {
-              if (radialMenu.node) {
-                const nodeId = radialMenu.node.id;
-                const currentReactions = radialMenu.node.data?.reactions || {};
-                const emojiReaction = currentReactions[emoji];
-                const userId = 'current-user';
-                
-                let newReactions;
-                if (emojiReaction?.userIds.includes(userId)) {
-                  const newUserIds = emojiReaction.userIds.filter((id: string) => id !== userId);
-                  newReactions = {
-                    ...currentReactions,
-                    [emoji]: { count: newUserIds.length, userIds: newUserIds }
-                  };
-                } else {
-                  const newUserIds = [...(emojiReaction?.userIds || []), userId];
-                  newReactions = {
-                    ...currentReactions,
-                    [emoji]: { count: newUserIds.length, userIds: newUserIds }
-                  };
-                }
-                
+            onTextStyleChange={(style) => {
+              if (linearToolbar.node) {
                 saveToHistory();
                 setNodes(prev => prev.map(n => 
-                  n.id === nodeId 
-                    ? { ...n, data: { ...n.data, reactions: newReactions } }
+                  n.id === linearToolbar.node!.id 
+                    ? { 
+                        ...n, 
+                        data: { 
+                          ...n.data, 
+                          fontSize: style.fontSize ?? n.data?.fontSize,
+                          bold: style.bold ?? n.data?.bold,
+                          italic: style.italic ?? n.data?.italic,
+                          strikethrough: style.strikethrough ?? n.data?.strikethrough,
+                          textAlign: style.align ?? n.data?.textAlign
+                        } 
+                      }
                     : n
                 ));
               }
             }}
-            onDelete={() => {
-              if (radialMenu.node) {
+            onIconSelect={(iconData) => {
+              if (linearToolbar.node) {
                 saveToHistory();
-                setNodes(prev => prev.filter(n => n.id !== radialMenu.node!.id));
-                setEdges(prev => prev.filter(e => e.source !== radialMenu.node!.id && e.target !== radialMenu.node!.id));
-              } else if (radialMenu.edge) {
-                saveToHistory();
-                setEdges(prev => prev.filter(e => e.id !== radialMenu.edge!.id));
+                setNodes(prev => prev.map(n => 
+                  n.id === linearToolbar.node!.id 
+                    ? { 
+                        ...n, 
+                        data: { 
+                          ...n.data, 
+                          nodeIcon: iconData.emoji || iconData.icon,
+                          iconVisible: iconData.visible
+                        } 
+                      }
+                    : n
+                ));
               }
-              setRadialMenu(null);
+            }}
+            onAddLink={() => {
+              if (linearToolbar.node) {
+                // Trigger inline editing for adding a link
+                setInlineEditingNodeId(linearToolbar.node.id);
+                setLinearToolbar(null);
+              }
+            }}
+            onDelete={() => {
+              if (linearToolbar.node) {
+                const nodeName = linearToolbar.node.data?.label || 'Node';
+                const nodeId = linearToolbar.node.id;
+                const deletedNode = linearToolbar.node;
+                const connectedEdges = edges.filter(e => e.source === nodeId || e.target === nodeId);
+                
+                saveToHistory();
+                setNodes(prev => prev.filter(n => n.id !== nodeId));
+                setEdges(prev => prev.filter(e => e.source !== nodeId && e.target !== nodeId));
+                
+                toast({
+                  title: `${nodeName} deleted`,
+                  action: (
+                    <button
+                      className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                      onClick={() => {
+                        setNodes(prev => [...prev, deletedNode]);
+                        setEdges(prev => [...prev, ...connectedEdges]);
+                      }}
+                    >
+                      Undo
+                    </button>
+                  ),
+                  duration: 5000,
+                });
+              } else if (linearToolbar.edge) {
+                const edgeId = linearToolbar.edge.id;
+                const deletedEdge = linearToolbar.edge;
+                
+                saveToHistory();
+                setEdges(prev => prev.filter(e => e.id !== edgeId));
+                
+                toast({
+                  title: 'Connection deleted',
+                  action: (
+                    <button
+                      className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                      onClick={() => {
+                        setEdges(prev => [...prev, deletedEdge]);
+                      }}
+                    >
+                      Undo
+                    </button>
+                  ),
+                  duration: 5000,
+                });
+              }
+              setLinearToolbar(null);
             }}
             scale={viewport.zoom}
           />

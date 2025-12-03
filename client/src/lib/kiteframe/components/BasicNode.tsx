@@ -219,17 +219,21 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
     window.dispatchEvent(event);
   }, [node]);
 
+  // Check if border should be hidden
+  const hasNoBorder = node.data.noStroke === true;
+
   return (
     <div
       ref={nodeRef}
       className={cn(
         "kiteframe-node group",
-        "border-2 rounded-lg shadow-md transition-all duration-200",
+        hasNoBorder ? "rounded-lg shadow-md" : "border-2 rounded-lg shadow-md",
+        "transition-all duration-200",
         "hover:shadow-lg cursor-move",
         node.selected ? "ring-2 ring-blue-500 shadow-lg" : "",
         node.hidden ? "opacity-0 pointer-events-none" : "",
         nodePositionClass,
-        borderClass,
+        !hasNoBorder && borderClass,
         className,
       )}
       role="article"
@@ -300,37 +304,67 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
         aria-label="Node content"
         onDoubleClick={handleDescriptionDoubleClick}
       >
-        {isEditingDescription ? (
-          <textarea
-            ref={descriptionRef}
-            value={editDescriptionValue}
-            onChange={(e) => setEditDescriptionValue(e.target.value)}
-            onBlur={handleDescriptionSubmit}
-            onKeyDown={handleDescriptionKeyDown}
-            className={cn(
-              "w-full h-full resize-none bg-transparent border-none outline-none text-xs leading-relaxed",
-              "focus:ring-1 focus:ring-blue-500 focus:ring-opacity-50 rounded p-1 -m-1",
-              getDynamicClassName(
-                { color: colors.bodyTextColor },
-                `description-textarea-${node.id}`,
-              ),
+        <div className="flex gap-3">
+          {/* Icon/Emoji container - only shown if iconVisible is true and nodeIcon exists */}
+          {node.data.iconVisible !== false && node.data.nodeIcon && (
+            <div 
+              className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
+              style={{ 
+                backgroundColor: colors.headerBg + '80',
+              }}
+              data-testid={`node-icon-${node.id}`}
+            >
+              {node.data.nodeIcon}
+            </div>
+          )}
+          
+          {/* Text content */}
+          <div className="flex-1 min-w-0">
+            {isEditingDescription ? (
+              <textarea
+                ref={descriptionRef}
+                value={editDescriptionValue}
+                onChange={(e) => setEditDescriptionValue(e.target.value)}
+                onBlur={handleDescriptionSubmit}
+                onKeyDown={handleDescriptionKeyDown}
+                className={cn(
+                  "w-full h-full resize-none bg-transparent border-none outline-none text-xs leading-relaxed",
+                  "focus:ring-1 focus:ring-blue-500 focus:ring-opacity-50 rounded p-1 -m-1",
+                  getDynamicClassName(
+                    { color: colors.bodyTextColor },
+                    `description-textarea-${node.id}`,
+                  ),
+                )}
+                placeholder="Enter description..."
+                aria-label="Node description"
+                data-testid="basic-node-description-textarea"
+              />
+            ) : node.data.description ? (
+              <p 
+                className={cn(
+                  "text-xs leading-relaxed",
+                  node.data.bold && "font-bold",
+                  node.data.italic && "italic",
+                  node.data.strikethrough && "line-through",
+                )}
+                style={{
+                  fontSize: node.data.fontSize ? `${node.data.fontSize}px` : undefined,
+                  textAlign: node.data.textAlign || 'left',
+                }}
+                aria-label="Node description"
+              >
+                {sanitizeText(node.data.description)}
+              </p>
+            ) : (
+              <div
+                className="text-xs opacity-60 italic"
+                aria-label="Empty node. Double-click to edit"
+              >
+                Double-click to edit
+              </div>
             )}
-            placeholder="Enter description..."
-            aria-label="Node description"
-            data-testid="basic-node-description-textarea"
-          />
-        ) : node.data.description ? (
-          <p className="text-xs leading-relaxed" aria-label="Node description">
-            {sanitizeText(node.data.description)}
-          </p>
-        ) : (
-          <div
-            className="text-xs opacity-60 italic"
-            aria-label="Empty node. Double-click to edit"
-          >
-            Double-click to edit
           </div>
-        )}
+        </div>
       </div>
 
       {/* Connection Handles */}
