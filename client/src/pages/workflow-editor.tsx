@@ -2825,6 +2825,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         setEdges(prev => prev.map(edge => ({ ...edge, selected: false })));
         setSelectedNodeId('');
         setSelectedEdgeId('');
+        setLinearToolbar(null);
         // Also blur any focused input
         if (isInputFocused) {
           (target as HTMLElement).blur();
@@ -2847,6 +2848,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           e.preventDefault();
           setNodes(prev => prev.filter(n => !n.selected));
           setSelectedNodeId('');
+          setLinearToolbar(null);
           saveToHistory();
         }
         
@@ -2855,6 +2857,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           e.preventDefault();
           setEdges(prev => prev.filter(edge => !edge.selected));
           setSelectedEdgeId('');
+          setLinearToolbar(null);
           saveToHistory();
         }
         return;
@@ -2942,6 +2945,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       // N - Add new node at center of viewport
       if (e.key === 'n' && !isCtrlOrCmd) {
         e.preventDefault();
+        setLinearToolbar(null);
         const canvasWidth = window.innerWidth - 300;
         const canvasHeight = window.innerHeight - 100;
         const centerX = (-viewport.x + canvasWidth / 2) / viewport.zoom;
@@ -2977,6 +2981,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       if ((e.key === '+' || (e.key === '=' && e.shiftKey)) && !isCtrlOrCmd) {
         e.preventDefault();
         
+        // Dismiss any open toolbar
+        setLinearToolbar(null);
+        
         // Get canvas element bounds to check if mouse is inside
         const canvasEl = document.querySelector('[data-testid="workflow-canvas"]');
         const canvasBounds = canvasEl?.getBoundingClientRect();
@@ -3011,6 +3018,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       // 1-6 - Quick add node types
       if (['1', '2', '3', '4', '5', '6'].includes(e.key) && !isCtrlOrCmd) {
         e.preventDefault();
+        setLinearToolbar(null);
         const nodeTypes: { [key: string]: NodeType } = {
           '1': 'input',
           '2': 'process',

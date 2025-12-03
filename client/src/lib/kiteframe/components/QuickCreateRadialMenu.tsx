@@ -167,11 +167,7 @@ export const QuickCreateRadialMenu: React.FC<QuickCreateRadialMenuProps> = ({
           onClick={onClose}
           data-testid="quick-create-close"
         >
-          {showShapeSubmenu ? (
-            <Shapes size={20} className="text-gray-600 dark:text-gray-300" />
-          ) : (
-            <Plus size={20} className="text-gray-600 dark:text-gray-300" />
-          )}
+          <X size={20} className="text-gray-600 dark:text-gray-300" />
         </button>
 
         {/* Main options - radial fan */}
