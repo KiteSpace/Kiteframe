@@ -2978,7 +2978,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         e.preventDefault();
         
         // Get canvas element bounds to check if mouse is inside
-        const canvasEl = document.querySelector('[data-testid="kiteframe-canvas"]');
+        const canvasEl = document.querySelector('[data-testid="workflow-canvas"]');
         const canvasBounds = canvasEl?.getBoundingClientRect();
         
         let screenX = mousePositionRef.current.x;
