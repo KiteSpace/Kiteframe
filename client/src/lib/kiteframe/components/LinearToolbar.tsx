@@ -377,7 +377,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             } else if (isEdgeTarget && onEdgeColorChange) {
               onEdgeColorChange(color);
             }
-            setActiveSubmenu(null);
           }}
           data-testid={`toolbar-color-${color.replace('#', '')}`}
         />
@@ -404,7 +403,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             )}
             onClick={() => {
               onStyleChange?.({ noStroke: true });
-              setActiveSubmenu(null);
             }}
             title="No stroke"
             data-testid="toolbar-style-none"
@@ -424,7 +422,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               }}
               onClick={() => {
                 onStyleChange?.({ borderStyle: style, noStroke: false });
-                setActiveSubmenu(null);
               }}
               data-testid={`toolbar-style-${style}`}
             />
@@ -485,7 +482,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                   e.preventDefault();
                   console.log('Stroke style clicked:', style.id);
                   onEdgeStyleChange?.({ strokeStyle: style.id as 'solid' | 'dashed' | 'dotted' });
-                  setActiveSubmenu(null);
                 }}
                 title={style.label}
                 data-testid={`toolbar-stroke-${style.id}`}
@@ -521,7 +517,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                   e.stopPropagation();
                   e.preventDefault();
                   onEdgeStyleChange?.({ strokeWidth: width });
-                  setActiveSubmenu(null);
                 }}
                 data-testid={`toolbar-stroke-width-${width}`}
               >
@@ -568,7 +563,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                   e.stopPropagation();
                   e.preventDefault();
                   onEdgeStyleChange?.({ lineType: type.id as 'straight' | 'bezier' | 'step' });
-                  setActiveSubmenu(null);
                 }}
                 title={type.label}
                 data-testid={`toolbar-line-${type.id}`}
@@ -889,7 +883,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                       setIconVisible(true);
                     }
                     onIconSelect?.({ emoji: icon.emoji, visible: shouldBeVisible });
-                    setActiveSubmenu(null);
                   }}
                   title={icon.name}
                   data-testid={`toolbar-icon-${icon.name}`}
