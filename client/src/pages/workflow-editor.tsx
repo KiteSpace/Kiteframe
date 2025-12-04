@@ -6520,11 +6520,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   canvasObjects: canvasObjects.map(obj => {
                     if (obj.id !== linearToolbar.canvasObject!.id) return obj;
                     if (objType === 'sticky') {
-                      return { ...obj, data: { ...obj.data, backgroundColor: color } };
+                      return { ...obj, data: { ...obj.data, backgroundColor: color, borderColor: color } };
                     } else if (objType === 'shape') {
-                      return { ...obj, data: { ...obj.data, fill: color, stroke: color } };
+                      return { ...obj, data: { ...obj.data, fillColor: color, strokeColor: color } };
                     } else if (objType === 'text') {
-                      return { ...obj, data: { ...obj.data, color: color } };
+                      return { ...obj, data: { ...obj.data, textColor: color } };
                     }
                     return obj;
                   })
@@ -6534,18 +6534,31 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onCanvasObjectStyleChange={(style) => {
               if (linearToolbar.canvasObject) {
                 saveToHistory();
+                const objType = linearToolbar.canvasObject.type;
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => {
                     if (obj.id !== linearToolbar.canvasObject!.id) return obj;
-                    return { 
-                      ...obj, 
-                      data: { 
-                        ...obj.data, 
-                        borderStyle: style.borderStyle ?? obj.data?.borderStyle,
-                        borderWidth: style.borderWidth ?? obj.data?.borderWidth,
-                        noStroke: style.noStroke ?? obj.data?.noStroke
-                      } 
-                    };
+                    if (objType === 'shape') {
+                      // Shapes use strokeStyle and strokeWidth directly
+                      return { 
+                        ...obj, 
+                        data: { 
+                          ...obj.data, 
+                          strokeStyle: style.strokeStyle ?? obj.data?.strokeStyle,
+                          strokeWidth: style.strokeWidth ?? obj.data?.strokeWidth
+                        } 
+                      };
+                    } else {
+                      // Sticky notes and text use borderStyle
+                      return { 
+                        ...obj, 
+                        data: { 
+                          ...obj.data, 
+                          borderStyle: style.borderStyle ?? obj.data?.borderStyle,
+                          borderWidth: style.borderWidth ?? obj.data?.borderWidth
+                        } 
+                      };
+                    }
                   })
                 });
               }
@@ -6556,14 +6569,52 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => {
                     if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                    const currentData = obj.data || {};
+                    const updates: any = {};
+                    
+                    // Handle fontSize
+                    if (style.fontSize !== undefined) {
+                      updates.fontSize = style.fontSize;
+                    }
+                    
+                    // Handle bold -> fontWeight conversion
+                    if (style.bold !== undefined) {
+                      updates.fontWeight = style.bold ? 'bold' : 'normal';
+                    }
+                    
+                    // Handle italic -> textDecoration (toggle italic in decoration)
+                    if (style.italic !== undefined) {
+                      const currentDecoration = currentData.textDecoration || 'none';
+                      if (style.italic) {
+                        updates.textDecoration = currentDecoration === 'none' ? 'italic' : 
+                          currentDecoration.includes('italic') ? currentDecoration : `${currentDecoration} italic`;
+                      } else {
+                        updates.textDecoration = currentDecoration.replace('italic', '').trim() || 'none';
+                      }
+                    }
+                    
+                    // Handle strikethrough -> textDecoration (toggle line-through in decoration)
+                    if (style.strikethrough !== undefined) {
+                      let currentDecoration = updates.textDecoration ?? currentData.textDecoration ?? 'none';
+                      if (style.strikethrough) {
+                        currentDecoration = currentDecoration === 'none' ? 'line-through' : 
+                          currentDecoration.includes('line-through') ? currentDecoration : `${currentDecoration} line-through`;
+                      } else {
+                        currentDecoration = currentDecoration.replace('line-through', '').trim() || 'none';
+                      }
+                      updates.textDecoration = currentDecoration;
+                    }
+                    
+                    // Handle textAlign
+                    if (style.textAlign !== undefined) {
+                      updates.textAlign = style.textAlign;
+                    }
+                    
                     return { 
                       ...obj, 
                       data: { 
-                        ...obj.data, 
-                        fontSize: style.fontSize ?? obj.data?.fontSize,
-                        bold: style.bold ?? obj.data?.bold,
-                        italic: style.italic ?? obj.data?.italic,
-                        textAlign: style.textAlign ?? obj.data?.textAlign
+                        ...currentData, 
+                        ...updates
                       } 
                     };
                   })

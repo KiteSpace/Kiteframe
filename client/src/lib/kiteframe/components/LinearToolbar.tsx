@@ -77,13 +77,14 @@ interface LinearToolbarProps {
   onCanvasObjectStyleChange?: (style: {
     borderStyle?: string;
     borderWidth?: number;
-    fill?: string;
-    noStroke?: boolean;
+    strokeStyle?: string;
+    strokeWidth?: number;
   }) => void;
   onCanvasObjectTextStyleChange?: (style: {
     fontSize?: number;
     bold?: boolean;
     italic?: boolean;
+    strikethrough?: boolean;
     textAlign?: 'left' | 'center' | 'right';
   }) => void;
   scale?: number;
@@ -450,8 +451,15 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   );
 
   const renderStyleSubmenu = () => {
-    // Determine the source of style data based on target type
-    const styleData = isCanvasObjectTarget ? canvasObject?.data : node?.data;
+    // Determine the current style based on target type
+    // For shapes, use strokeStyle; for nodes/sticky/text, use borderStyle
+    const isShape = isCanvasObjectTarget && canvasObject?.type === 'shape';
+    const currentStyle = isShape 
+      ? canvasObject?.data?.strokeStyle 
+      : isCanvasObjectTarget 
+        ? canvasObject?.data?.borderStyle 
+        : node?.data?.borderStyle;
+    const hasNoStroke = isNodeTarget ? node?.data?.noStroke : false; // Only nodes support noStroke
     
     return (
       <div 
@@ -462,32 +470,32 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         )}
       >
         <div className="space-y-3">
-          <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Border Style</div>
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            {isShape ? 'Stroke Style' : 'Border Style'}
+          </div>
           <div className="flex gap-2">
-            {/* No stroke option */}
-            <button
-              className={cn(
-                "w-10 h-8 rounded border-2 bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
-                styleData?.noStroke && "ring-2 ring-blue-500"
-              )}
-              onClick={() => {
-                if (isNodeTarget) {
+            {/* No stroke option - only for nodes */}
+            {isNodeTarget && (
+              <button
+                className={cn(
+                  "w-10 h-8 rounded border-2 bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
+                  hasNoStroke && "ring-2 ring-blue-500"
+                )}
+                onClick={() => {
                   onStyleChange?.({ noStroke: true });
-                } else if (isCanvasObjectTarget) {
-                  onCanvasObjectStyleChange?.({ noStroke: true });
-                }
-              }}
-              title="No stroke"
-              data-testid="toolbar-style-none"
-            >
-              <Ban size={16} className="text-gray-400" />
-            </button>
+                }}
+                title="No stroke"
+                data-testid="toolbar-style-none"
+              >
+                <Ban size={16} className="text-gray-400" />
+              </button>
+            )}
             {BORDER_STYLES.map((style) => (
               <button
                 key={style}
                 className={cn(
                   "w-10 h-8 rounded border-2 bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                  styleData?.borderStyle === style && !styleData?.noStroke && "ring-2 ring-blue-500"
+                  currentStyle === style && !hasNoStroke && "ring-2 ring-blue-500"
                 )}
                 style={{
                   borderStyle: style as any,
@@ -497,7 +505,12 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                   if (isNodeTarget) {
                     onStyleChange?.({ borderStyle: style, noStroke: false });
                   } else if (isCanvasObjectTarget) {
-                    onCanvasObjectStyleChange?.({ borderStyle: style, noStroke: false });
+                    // Use strokeStyle for shapes, borderStyle for others
+                    if (isShape) {
+                      onCanvasObjectStyleChange?.({ strokeStyle: style });
+                    } else {
+                      onCanvasObjectStyleChange?.({ borderStyle: style });
+                    }
                   }
                 }}
                 data-testid={`toolbar-style-${style}`}
@@ -784,8 +797,36 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   };
 
   const renderTextSubmenu = () => {
-    // Determine the source of style data based on target type
-    const styleData = isCanvasObjectTarget ? canvasObject?.data : node?.data;
+    // Get node data for nodes, canvas object data for canvas objects
+    const nodeData = node?.data;
+    const objData = canvasObject?.data;
+    
+    // Determine current fontSize - same property name for both
+    const currentFontSize = isCanvasObjectTarget ? objData?.fontSize : nodeData?.fontSize;
+    
+    // Determine if bold is active
+    // For nodes: uses 'bold' boolean
+    // For canvas objects: uses 'fontWeight' = 'bold' | 'normal'
+    const isBold = isCanvasObjectTarget 
+      ? objData?.fontWeight === 'bold' 
+      : nodeData?.bold;
+    
+    // Determine if italic is active
+    // For nodes: uses 'italic' boolean
+    // For canvas objects: uses 'textDecoration' containing 'italic'
+    const isItalic = isCanvasObjectTarget 
+      ? (objData?.textDecoration || '').includes('italic')
+      : nodeData?.italic;
+    
+    // Determine if strikethrough is active
+    // For nodes: uses 'strikethrough' boolean
+    // For canvas objects: uses 'textDecoration' containing 'line-through'
+    const isStrikethrough = isCanvasObjectTarget 
+      ? (objData?.textDecoration || '').includes('line-through')
+      : nodeData?.strikethrough;
+    
+    // Determine current text alignment
+    const currentAlign = isCanvasObjectTarget ? objData?.textAlign : nodeData?.textAlign;
     
     const handleFontSizeChange = (size: number) => {
       if (isNodeTarget) {
@@ -797,17 +838,33 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     
     const handleBoldToggle = () => {
       if (isNodeTarget) {
-        onTextStyleChange?.({ bold: !node?.data?.bold });
+        onTextStyleChange?.({ bold: !nodeData?.bold });
       } else if (isCanvasObjectTarget) {
-        onCanvasObjectTextStyleChange?.({ bold: !canvasObject?.data?.bold });
+        // Toggle between 'bold' and 'normal'
+        const newBold = objData?.fontWeight !== 'bold';
+        onCanvasObjectTextStyleChange?.({ bold: newBold });
       }
     };
     
     const handleItalicToggle = () => {
       if (isNodeTarget) {
-        onTextStyleChange?.({ italic: !node?.data?.italic });
+        onTextStyleChange?.({ italic: !nodeData?.italic });
       } else if (isCanvasObjectTarget) {
-        onCanvasObjectTextStyleChange?.({ italic: !canvasObject?.data?.italic });
+        // Toggle italic in textDecoration
+        const currentDecoration = objData?.textDecoration || 'none';
+        const newItalic = !currentDecoration.includes('italic');
+        onCanvasObjectTextStyleChange?.({ italic: newItalic });
+      }
+    };
+    
+    const handleStrikethroughToggle = () => {
+      if (isNodeTarget) {
+        onTextStyleChange?.({ strikethrough: !nodeData?.strikethrough });
+      } else if (isCanvasObjectTarget) {
+        // Toggle line-through in textDecoration
+        const currentDecoration = objData?.textDecoration || 'none';
+        const newStrikethrough = !currentDecoration.includes('line-through');
+        onCanvasObjectTextStyleChange?.({ strikethrough: newStrikethrough });
       }
     };
     
@@ -837,7 +894,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                   key={size}
                   className={cn(
                     "w-8 h-8 rounded text-xs font-medium bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-600",
-                    styleData?.fontSize === size && "ring-2 ring-blue-500"
+                    currentFontSize === size && "ring-2 ring-blue-500"
                   )}
                   onClick={() => handleFontSizeChange(size)}
                   data-testid={`toolbar-fontsize-${size}`}
@@ -855,7 +912,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               <button
                 className={cn(
                   "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                  styleData?.bold && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
+                  isBold && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
                 )}
                 onClick={handleBoldToggle}
                 title="Bold"
@@ -866,7 +923,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               <button
                 className={cn(
                   "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                  styleData?.italic && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
+                  isItalic && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
                 )}
                 onClick={handleItalicToggle}
                 title="Italic"
@@ -874,20 +931,17 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               >
                 <Italic size={16} />
               </button>
-              {/* Only show strikethrough for nodes */}
-              {isNodeTarget && (
-                <button
-                  className={cn(
-                    "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                    node?.data?.strikethrough && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
-                  )}
-                  onClick={() => onTextStyleChange?.({ strikethrough: !node?.data?.strikethrough })}
-                  title="Strikethrough"
-                  data-testid="toolbar-text-strikethrough"
-                >
-                  <Strikethrough size={16} />
-                </button>
-              )}
+              <button
+                className={cn(
+                  "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
+                  isStrikethrough && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
+                )}
+                onClick={handleStrikethroughToggle}
+                title="Strikethrough"
+                data-testid="toolbar-text-strikethrough"
+              >
+                <Strikethrough size={16} />
+              </button>
             </div>
           </div>
 
@@ -898,7 +952,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               <button
                 className={cn(
                   "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                  (styleData?.textAlign === 'left' || !styleData?.textAlign) && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
+                  (currentAlign === 'left' || !currentAlign) && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
                 )}
                 onClick={() => handleAlignChange('left')}
                 title="Align Left"
@@ -909,7 +963,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               <button
                 className={cn(
                   "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                  styleData?.textAlign === 'center' && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
+                  currentAlign === 'center' && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
                 )}
                 onClick={() => handleAlignChange('center')}
                 title="Align Center"
@@ -920,7 +974,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               <button
                 className={cn(
                   "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                  styleData?.textAlign === 'right' && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
+                  currentAlign === 'right' && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
                 )}
                 onClick={() => handleAlignChange('right')}
                 title="Align Right"
