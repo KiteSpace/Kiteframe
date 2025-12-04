@@ -383,12 +383,15 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
     }
   };
 
+  // Line and arrow shapes don't need bounding box (they have endpoint handles instead)
+  const isLineShape = object.data.shapeType === 'line' || object.data.shapeType === 'arrow';
+
   return (
     <div
       ref={objectRef}
       className={cn(
         "group relative cursor-pointer",
-        object.selected && "outline outline-2 outline-blue-500"
+        object.selected && !isLineShape && "outline outline-2 outline-blue-500"
       )}
       style={{
         position: 'absolute',
@@ -550,8 +553,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         )}
       </div>
 
-      {/* Resize handles - only visible when exactly one canvas object is selected */}
-      {object.selected && selectedCanvasObjectCount === 1 && (
+      {/* Resize handles - only visible when exactly one canvas object is selected (not for line/arrow shapes) */}
+      {object.selected && selectedCanvasObjectCount === 1 && !isLineShape && (
         <>
           <ResizeHandle
             position="top-left"

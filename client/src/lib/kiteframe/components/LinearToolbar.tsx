@@ -894,7 +894,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       { id: 'circle', label: 'Circle', icon: <Circle size={18} /> },
       { id: 'triangle', label: 'Triangle', icon: <Triangle size={18} /> },
       { id: 'hexagon', label: 'Hexagon', icon: <Hexagon size={18} /> },
-      { id: 'diamond', label: 'Diamond', icon: <Diamond size={18} /> },
       { id: 'arrow', label: 'Arrow', icon: <ArrowRight size={18} /> }
     ];
     
