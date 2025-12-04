@@ -6247,9 +6247,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     ? { type: 'canvasObject', id: linearToolbar.canvasObject.id }
                     : null
             }
-            node={linearToolbar.node}
-            edge={linearToolbar.edge}
-            canvasObject={linearToolbar.canvasObject}
+            node={linearToolbar.node ? nodes.find(n => n.id === linearToolbar.node!.id) ?? linearToolbar.node : undefined}
+            edge={linearToolbar.edge ? edges.find(e => e.id === linearToolbar.edge!.id) ?? linearToolbar.edge : undefined}
+            canvasObject={linearToolbar.canvasObject ? canvasObjects.find(o => o.id === linearToolbar.canvasObject!.id) ?? linearToolbar.canvasObject : undefined}
             onClose={() => setLinearToolbar(null)}
             onColorChange={(colors) => {
               if (linearToolbar.node) {
