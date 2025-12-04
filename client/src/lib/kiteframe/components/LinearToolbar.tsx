@@ -94,6 +94,38 @@ const COLOR_PALETTE = [
   '#64748b', '#1e293b', '#ffffff', '#f1f5f9', '#fef3c7'
 ];
 
+// Utility to create a tinted body color from header color (10% intensity)
+const getTintedBodyColor = (headerColor: string, intensity: number = 0.1): string => {
+  let r = 248, g = 250, b = 252; // Default light gray
+  
+  if (headerColor.startsWith('#')) {
+    const hex = headerColor.slice(1);
+    if (hex.length === 3) {
+      r = parseInt(hex[0] + hex[0], 16);
+      g = parseInt(hex[1] + hex[1], 16);
+      b = parseInt(hex[2] + hex[2], 16);
+    } else if (hex.length === 6) {
+      r = parseInt(hex.slice(0, 2), 16);
+      g = parseInt(hex.slice(2, 4), 16);
+      b = parseInt(hex.slice(4, 6), 16);
+    }
+  } else if (headerColor.startsWith('rgb')) {
+    const match = headerColor.match(/\d+/g);
+    if (match && match.length >= 3) {
+      r = parseInt(match[0]);
+      g = parseInt(match[1]);
+      b = parseInt(match[2]);
+    }
+  }
+  
+  // Mix with white at the given intensity (10% color, 90% white)
+  const mixedR = Math.round(255 * (1 - intensity) + r * intensity);
+  const mixedG = Math.round(255 * (1 - intensity) + g * intensity);
+  const mixedB = Math.round(255 * (1 - intensity) + b * intensity);
+  
+  return `#${mixedR.toString(16).padStart(2, '0')}${mixedG.toString(16).padStart(2, '0')}${mixedB.toString(16).padStart(2, '0')}`;
+};
+
 const STROKE_WIDTHS = [1, 2, 3, 4, 6];
 const BORDER_STYLES = ['solid', 'dashed', 'dotted'];
 const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24];
@@ -377,6 +409,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             if (isNodeTarget && onColorChange) {
               onColorChange({ 
                 headerBackground: color,
+                bodyBackground: getTintedBodyColor(color, 0.1),
                 borderColor: color
               });
             } else if (isEdgeTarget && onEdgeColorChange) {

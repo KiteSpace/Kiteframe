@@ -677,13 +677,12 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   );
 };
 
-// Utility to calculate contrast text color (white or black) based on background
-const getContrastTextColor = (backgroundColor: string): string => {
-  // Parse hex color to RGB
-  let r = 0, g = 0, b = 0;
+// Utility to parse color to RGB values
+const parseColorToRGB = (color: string): { r: number; g: number; b: number } => {
+  let r = 248, g = 250, b = 252; // Default light gray
   
-  if (backgroundColor.startsWith('#')) {
-    const hex = backgroundColor.slice(1);
+  if (color.startsWith('#')) {
+    const hex = color.slice(1);
     if (hex.length === 3) {
       r = parseInt(hex[0] + hex[0], 16);
       g = parseInt(hex[1] + hex[1], 16);
@@ -693,15 +692,24 @@ const getContrastTextColor = (backgroundColor: string): string => {
       g = parseInt(hex.slice(2, 4), 16);
       b = parseInt(hex.slice(4, 6), 16);
     }
-  } else if (backgroundColor.startsWith('rgb')) {
-    const match = backgroundColor.match(/\d+/g);
+  } else if (color.startsWith('rgb')) {
+    const match = color.match(/\d+/g);
     if (match && match.length >= 3) {
       r = parseInt(match[0]);
       g = parseInt(match[1]);
       b = parseInt(match[2]);
     }
-  } else if (backgroundColor.startsWith('hsl')) {
-    // For HSL, use a simpler approach - check lightness value
+  }
+  
+  return { r, g, b };
+};
+
+// Utility to calculate contrast text color (white or black) based on background
+const getContrastTextColor = (backgroundColor: string): string => {
+  const { r, g, b } = parseColorToRGB(backgroundColor);
+  
+  // Handle HSL colors separately
+  if (backgroundColor.startsWith('hsl')) {
     const match = backgroundColor.match(/\d+\.?\d*/g);
     if (match && match.length >= 3) {
       const lightness = parseFloat(match[2]);
@@ -714,6 +722,18 @@ const getContrastTextColor = (backgroundColor: string): string => {
   
   // Return white for dark backgrounds, dark slate for light backgrounds
   return luminance > 0.5 ? '#0f172a' : '#ffffff';
+};
+
+// Utility to create a tinted body color from header color (10% intensity)
+const getTintedBodyColor = (headerColor: string, intensity: number = 0.1): string => {
+  const { r, g, b } = parseColorToRGB(headerColor);
+  
+  // Mix with white at the given intensity (10% color, 90% white)
+  const mixedR = Math.round(255 * (1 - intensity) + r * intensity);
+  const mixedG = Math.round(255 * (1 - intensity) + g * intensity);
+  const mixedB = Math.round(255 * (1 - intensity) + b * intensity);
+  
+  return `#${mixedR.toString(16).padStart(2, '0')}${mixedG.toString(16).padStart(2, '0')}${mixedB.toString(16).padStart(2, '0')}`;
 };
 
 // Utility to calculate dynamic node height based on content
@@ -2824,10 +2844,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               const colors = n.data?.colors || {};
               const headerBg =
                 colors.headerBackground || n.data?.color || "#f8fafc";
-              const bodyBg = colors.bodyBackground || n.data?.color || "white";
+              // Body color: use explicit color, or derive 10% tint from header
+              const bodyBg = colors.bodyBackground || getTintedBodyColor(headerBg, 0.1);
               const border =
                 colors.borderColor || n.data?.borderColor || "#e2e8f0";
-              // Auto-contrast: use explicit color if set, otherwise calculate based on header background
+              // Auto-contrast: use explicit color if set, otherwise calculate based on background
               const headerText =
                 colors.headerTextColor ||
                 colors.textColor ||
