@@ -882,8 +882,9 @@ type Props = {
   
   // Inline text editing state
   inlineEditing?: {
-    nodeId: string;
-    part: 'header' | 'body';
+    nodeId?: string;
+    edgeId?: string;
+    part: 'header' | 'body' | 'edgeLabel';
   } | null;
   onInlineEditingSave?: (nodeId: string, part: 'header' | 'body', value: string) => void;
   onInlineEditingCancel?: () => void;

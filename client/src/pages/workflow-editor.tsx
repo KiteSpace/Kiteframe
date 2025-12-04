@@ -6880,6 +6880,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             scale={viewport.zoom}
             isInlineEditing={!!(inlineEditing && linearToolbar.node && inlineEditing.nodeId === linearToolbar.node.id)}
+            inlineEditingPart={inlineEditing?.nodeId === linearToolbar.node?.id ? inlineEditing?.part : undefined}
           />
         )}
 

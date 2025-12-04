@@ -95,6 +95,7 @@ interface LinearToolbarProps {
   onShapeTypeChange?: (shapeType: 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'line' | 'arrow' | 'polygon') => void;
   scale?: number;
   isInlineEditing?: boolean; // Show text style options when inline editing is active
+  inlineEditingPart?: 'header' | 'body' | 'edgeLabel'; // Which part is being edited
 }
 
 type EndpointType = 'none' | 'arrow' | 'circle' | 'diamond';
@@ -194,7 +195,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   onCanvasObjectFillStyleChange,
   onShapeTypeChange,
   scale = 1,
-  isInlineEditing = false
+  isInlineEditing = false,
+  inlineEditingPart
 }) => {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const [iconVisible, setIconVisible] = useState(node?.data?.iconVisible ?? true);
@@ -297,24 +299,29 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           color: 'bg-amber-500',
           hoverColor: 'hover:bg-amber-600',
           hasSubmenu: true
-        },
-        {
+        }
+      );
+      
+      // Hyperlink only available during body text inline editing (not header)
+      if (isInlineEditing && inlineEditingPart === 'body') {
+        buttons.push({
           id: 'link',
           icon: <Link2 size={18} />,
           label: 'Add Link',
           color: 'bg-cyan-500',
           hoverColor: 'hover:bg-cyan-600',
           onClick: onAddLink
-        },
-        {
-          id: 'delete',
-          icon: <Trash2 size={18} />,
-          label: 'Delete',
-          color: 'bg-red-500',
-          hoverColor: 'hover:bg-red-600',
-          onClick: () => { onDelete?.(); onClose(); }
-        }
-      );
+        });
+      }
+      
+      buttons.push({
+        id: 'delete',
+        icon: <Trash2 size={18} />,
+        label: 'Delete',
+        color: 'bg-red-500',
+        hoverColor: 'hover:bg-red-600',
+        onClick: () => { onDelete?.(); onClose(); }
+      });
       
       return buttons;
     } else if (isEdgeTarget) {

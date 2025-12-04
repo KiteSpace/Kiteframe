@@ -44,7 +44,7 @@ interface WorkflowCanvasProps {
   onEdgeReconnect?: (edgeId: string, newSource: string, newTarget: string) => void;
   connectionAnimationConfig?: any;
   connectionPreview?: { source: string; target: string } | null;
-  inlineEditing?: { nodeId: string; part: 'header' | 'body' } | null;
+  inlineEditing?: { nodeId?: string; edgeId?: string; part: 'header' | 'body' | 'edgeLabel' } | null;
   onInlineEditingSave?: (nodeId: string, part: 'header' | 'body', value: string) => void;
   onInlineEditingCancel?: () => void;
 }
