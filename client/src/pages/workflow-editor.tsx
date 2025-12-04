@@ -5426,7 +5426,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 updateActiveTab({ canvasObjects: updatedObjects });
                 setSelectedEdgeId('');
                 setContextMenu(null);
-                setInlineEditing(null);
+                // Only clear inline editing if clicking a different node
+                if (inlineEditing?.nodeId !== node.id) {
+                  setInlineEditing(null);
+                }
                 
                 console.log(`📝 SELECTION STATE SET:`, { 
                   selectedNodeId: e.shiftKey ? selectedNodeId : 'delayed for drag detection',
