@@ -3357,6 +3357,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const activeTabRef = useRef<WorkflowTab | undefined>(undefined);
   const lastThemeIsDarkRef = useRef(document.documentElement.classList.contains('dark'));
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Canvas container ref for toolbar positioning
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
 
   // Keep refs in sync with current state
   useEffect(() => {
@@ -4997,7 +5000,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           </div>
 
           {/* Canvas Area */}
-          <div className={`flex-1 relative ${tabs.length > 0 ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+          <div 
+            ref={canvasContainerRef}
+            className={`flex-1 relative ${tabs.length > 0 ? 'overflow-hidden' : 'overflow-y-auto'}`}
+          >
             
             {tabs.length > 0 ? (
               <>
@@ -5273,10 +5279,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       setSelectedNodeId(node.id);
                       
                       // Calculate node rect for toolbar positioning
+                      // Include canvas container offset for proper fixed positioning
+                      const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+                      const containerLeft = containerRect?.left ?? 0;
+                      const containerTop = containerRect?.top ?? 0;
+                      
                       const nodeWidth = node.style?.width ?? node.width ?? 200;
                       const nodeHeight = node.style?.height ?? node.height ?? 100;
-                      const screenX = node.position.x * viewport.zoom + viewport.x;
-                      const screenY = node.position.y * viewport.zoom + viewport.y;
+                      // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
+                      const screenX = node.position.x * viewport.zoom + viewport.x + containerLeft;
+                      const screenY = node.position.y * viewport.zoom + viewport.y + containerTop;
                       const screenWidth = nodeWidth * viewport.zoom;
                       const screenHeight = nodeHeight * viewport.zoom;
                       
@@ -5322,10 +5334,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 // Double-click triggers inline text editing for specific part
                 setInlineEditing({ nodeId: node.id, part: part || 'header' });
                 // Also show the linear toolbar with text style options
+                // Include canvas container offset for proper fixed positioning
+                const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+                const containerLeft = containerRect?.left ?? 0;
+                const containerTop = containerRect?.top ?? 0;
+                
                 const nodeWidth = node.style?.width ?? node.width ?? 200;
                 const nodeHeight = node.style?.height ?? node.height ?? 100;
-                const screenX = node.position.x * viewport.zoom + viewport.x;
-                const screenY = node.position.y * viewport.zoom + viewport.y;
+                // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
+                const screenX = node.position.x * viewport.zoom + viewport.x + containerLeft;
+                const screenY = node.position.y * viewport.zoom + viewport.y + containerTop;
                 const screenWidth = nodeWidth * viewport.zoom;
                 const screenHeight = nodeHeight * viewport.zoom;
                 
@@ -5378,6 +5396,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     setSelectedEdgeId(edge.id);
                     
                     // Calculate edge midpoint for toolbar positioning
+                    // Include canvas container offset for proper fixed positioning
+                    const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+                    const containerLeft = containerRect?.left ?? 0;
+                    const containerTop = containerRect?.top ?? 0;
+                    
                     const sourceNode = nodes.find(n => n.id === edge.source);
                     const targetNode = nodes.find(n => n.id === edge.target);
                     if (sourceNode && targetNode) {
@@ -5389,8 +5412,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       const midX = (sourceX + targetX) / 2;
                       const midY = (sourceY + targetY) / 2;
                       
-                      const screenX = midX * viewport.zoom + viewport.x;
-                      const screenY = midY * viewport.zoom + viewport.y;
+                      // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
+                      const screenX = midX * viewport.zoom + viewport.x + containerLeft;
+                      const screenY = midY * viewport.zoom + viewport.y + containerTop;
                       
                       setLinearToolbar({
                         x: screenX,
@@ -5473,10 +5497,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       console.log(`📝 CANVAS OBJECT CLICK CONFIRMED - showing toolbar for:`, canvasObject.id);
                       
                       // Calculate object rect for toolbar positioning
+                      // Include canvas container offset for proper fixed positioning
+                      const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+                      const containerLeft = containerRect?.left ?? 0;
+                      const containerTop = containerRect?.top ?? 0;
+                      
                       const objWidth = canvasObject.width ?? 150;
                       const objHeight = canvasObject.height ?? 100;
-                      const screenX = canvasObject.position.x * viewport.zoom + viewport.x;
-                      const screenY = canvasObject.position.y * viewport.zoom + viewport.y;
+                      // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
+                      const screenX = canvasObject.position.x * viewport.zoom + viewport.x + containerLeft;
+                      const screenY = canvasObject.position.y * viewport.zoom + viewport.y + containerTop;
                       const screenWidth = objWidth * viewport.zoom;
                       const screenHeight = objHeight * viewport.zoom;
                       

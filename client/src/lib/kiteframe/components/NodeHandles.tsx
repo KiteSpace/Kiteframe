@@ -83,9 +83,11 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   
   const size = 12, r = size/2;
   
-  // Scale-independent offsets for quick-add buttons and ghost previews
-  const quickAddOffset = 35 / scale; // Keep visual distance constant regardless of zoom
-  const ghostSpacing = 250 / scale;
+  // Scale-compensated offsets for quick-add buttons and ghost previews
+  // These values are in local coordinate space and will be scaled by the viewport
+  // Divide by scale to achieve constant screen-space distance
+  const quickAddOffset = 35 / scale; // Results in constant ~35 screen pixels at any zoom
+  const ghostSpacing = 250 / scale; // Ghost preview spacing
   
   const isQuickAddEnabled = proFeatures?.quickAdd?.enabled !== false && node.type !== 'image';
   
