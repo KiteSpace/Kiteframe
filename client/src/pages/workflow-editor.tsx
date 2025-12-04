@@ -1480,9 +1480,11 @@ Position nodes 250px apart horizontally.`;
     const canvasHeight = 600;
     
     // Calculate viewport center in world coordinates
-    // Formula: worldCoord = screenCoord / zoom + viewportOffset
-    const viewportCenterX = (canvasWidth / 2) / viewport.zoom + viewport.x;
-    const viewportCenterY = (canvasHeight / 2) / viewport.zoom + viewport.y;
+    // CSS transform: translate(viewport.x, viewport.y) scale(zoom)
+    // So: screen = world * zoom + viewport
+    // Inverting: world = (screen - viewport) / zoom
+    const viewportCenterX = (canvasWidth / 2 - viewport.x) / viewport.zoom;
+    const viewportCenterY = (canvasHeight / 2 - viewport.y) / viewport.zoom;
     
     // Count existing nodes and canvas objects for offset
     const existingCount = (nodes?.length || 0) + (canvasObjects?.length || 0);

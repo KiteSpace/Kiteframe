@@ -221,12 +221,34 @@ export function WorkflowCanvas({
     const zoomY = rect.height / boundingHeight;
     const targetZoom = Math.min(zoomX, zoomY, 2); // Cap at 2x
     
+    // Calculate center of object in world coordinates
+    const objectCenterX = obj.position.x + objWidth / 2;
+    const objectCenterY = obj.position.y + objHeight / 2;
+    
     // Calculate viewport position to center the object
+    // CSS transform: translate(viewport.x, viewport.y) scale(zoom)
+    // So: screen = world * zoom + viewport
+    // To center object: screenCenter = objectCenter * zoom + viewport
+    // We want: rect.width/2 = objectCenterX * targetZoom + viewport.x
+    // So: viewport.x = rect.width/2 - objectCenterX * targetZoom
     const targetViewport = {
-      x: minX - (rect.width / targetZoom - boundingWidth) / 2,
-      y: minY - (rect.height / targetZoom - boundingHeight) / 2,
+      x: rect.width / 2 - objectCenterX * targetZoom,
+      y: rect.height / 2 - objectCenterY * targetZoom,
       zoom: targetZoom
     };
+    
+    console.log('🔍 fitToCanvasObject:', {
+      objectId,
+      objectPosition: obj.position,
+      objWidth,
+      objHeight,
+      objectCenterX,
+      objectCenterY,
+      canvasRect: { width: rect.width, height: rect.height },
+      targetZoom,
+      targetViewport,
+      currentViewport: viewport
+    });
     
     if (animate) {
       const startViewport = viewport;
