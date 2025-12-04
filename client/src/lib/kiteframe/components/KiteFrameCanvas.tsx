@@ -3595,6 +3595,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       }}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
+                        e.preventDefault();
+                        console.log('🖱️ HEADER DOUBLE-CLICK:', { nodeId: n.id, part: 'header' });
                         props.onNodeDoubleClick?.(e, n, 'header');
                       }}
                     >
@@ -3641,6 +3643,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       onDoubleClick={(e) => {
                         if (n.type !== "image") {
                           e.stopPropagation();
+                          e.preventDefault();
+                          console.log('🖱️ BODY DOUBLE-CLICK:', { nodeId: n.id, part: 'body' });
                           props.onNodeDoubleClick?.(e, n, 'body');
                         }
                       }}
