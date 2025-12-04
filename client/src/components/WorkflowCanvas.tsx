@@ -21,6 +21,7 @@ interface WorkflowCanvasProps {
   onEdgeClick?: (edge: Edge) => void;
   onCanvasClick?: () => void;
   onNodeRightClick?: (e: React.MouseEvent, node: Node) => void;
+  onCanvasObjectClick?: (e: React.MouseEvent, canvasObject: CanvasObject) => void;
   onCanvasObjectRightClick?: (e: React.MouseEvent, canvasObject: CanvasObject) => void;
   onImageButtonClick?: (nodeId: string) => void;
   viewport: { x: number; y: number; zoom: number };
@@ -58,6 +59,7 @@ export function WorkflowCanvas({
   onEdgeClick,
   onCanvasClick,
   onNodeRightClick,
+  onCanvasObjectClick,
   onCanvasObjectRightClick,
   onImageButtonClick,
   viewport,
@@ -264,6 +266,7 @@ export function WorkflowCanvas({
         onEdgeClick={(e, edge) => onEdgeClick?.(edge)}
         onCanvasClick={onCanvasClick}
         onNodeRightClick={onNodeRightClick}
+        onCanvasObjectClick={onCanvasObjectClick}
         onCanvasObjectRightClick={onCanvasObjectRightClick}
         onImageButtonClick={onImageButtonClick}
         viewport={viewport}

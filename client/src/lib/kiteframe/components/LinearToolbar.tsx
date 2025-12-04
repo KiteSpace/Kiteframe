@@ -73,6 +73,19 @@ interface LinearToolbarProps {
   onEdgeDirectionSwap?: () => void;
   onWireframe?: () => void;
   canUseWireframe?: boolean;
+  onCanvasObjectColorChange?: (color: string) => void;
+  onCanvasObjectStyleChange?: (style: {
+    borderStyle?: string;
+    borderWidth?: number;
+    fill?: string;
+    noStroke?: boolean;
+  }) => void;
+  onCanvasObjectTextStyleChange?: (style: {
+    fontSize?: number;
+    bold?: boolean;
+    italic?: boolean;
+    textAlign?: 'left' | 'center' | 'right';
+  }) => void;
   scale?: number;
 }
 
@@ -167,6 +180,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   onEdgeDirectionSwap,
   onWireframe,
   canUseWireframe = false,
+  onCanvasObjectColorChange,
+  onCanvasObjectStyleChange,
+  onCanvasObjectTextStyleChange,
   scale = 1
 }) => {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
@@ -423,6 +439,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               }
             } else if (isEdgeTarget && onEdgeColorChange) {
               onEdgeColorChange(color);
+            } else if (isCanvasObjectTarget && onCanvasObjectColorChange) {
+              onCanvasObjectColorChange(color);
             }
           }}
           data-testid={`toolbar-color-${color.replace('#', '')}`}
@@ -431,52 +449,65 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     </div>
   );
 
-  const renderStyleSubmenu = () => (
-    <div 
-      ref={submenuRef}
-      className={cn(
-        "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150",
-        showAbove ? "bottom-full mb-2" : "top-full mt-2"
-      )}
-    >
-      <div className="space-y-3">
-        <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Border Style</div>
-        <div className="flex gap-2">
-          {/* No stroke option */}
-          <button
-            className={cn(
-              "w-10 h-8 rounded border-2 bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
-              node?.data?.noStroke && "ring-2 ring-blue-500"
-            )}
-            onClick={() => {
-              onStyleChange?.({ noStroke: true });
-            }}
-            title="No stroke"
-            data-testid="toolbar-style-none"
-          >
-            <Ban size={16} className="text-gray-400" />
-          </button>
-          {BORDER_STYLES.map((style) => (
+  const renderStyleSubmenu = () => {
+    // Determine the source of style data based on target type
+    const styleData = isCanvasObjectTarget ? canvasObject?.data : node?.data;
+    
+    return (
+      <div 
+        ref={submenuRef}
+        className={cn(
+          "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150",
+          showAbove ? "bottom-full mb-2" : "top-full mt-2"
+        )}
+      >
+        <div className="space-y-3">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Border Style</div>
+          <div className="flex gap-2">
+            {/* No stroke option */}
             <button
-              key={style}
               className={cn(
-                "w-10 h-8 rounded border-2 bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                node?.data?.borderStyle === style && !node?.data?.noStroke && "ring-2 ring-blue-500"
+                "w-10 h-8 rounded border-2 bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 flex items-center justify-center",
+                styleData?.noStroke && "ring-2 ring-blue-500"
               )}
-              style={{
-                borderStyle: style as any,
-                borderColor: '#64748b'
-              }}
               onClick={() => {
-                onStyleChange?.({ borderStyle: style, noStroke: false });
+                if (isNodeTarget) {
+                  onStyleChange?.({ noStroke: true });
+                } else if (isCanvasObjectTarget) {
+                  onCanvasObjectStyleChange?.({ noStroke: true });
+                }
               }}
-              data-testid={`toolbar-style-${style}`}
-            />
-          ))}
+              title="No stroke"
+              data-testid="toolbar-style-none"
+            >
+              <Ban size={16} className="text-gray-400" />
+            </button>
+            {BORDER_STYLES.map((style) => (
+              <button
+                key={style}
+                className={cn(
+                  "w-10 h-8 rounded border-2 bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
+                  styleData?.borderStyle === style && !styleData?.noStroke && "ring-2 ring-blue-500"
+                )}
+                style={{
+                  borderStyle: style as any,
+                  borderColor: '#64748b'
+                }}
+                onClick={() => {
+                  if (isNodeTarget) {
+                    onStyleChange?.({ borderStyle: style, noStroke: false });
+                  } else if (isCanvasObjectTarget) {
+                    onCanvasObjectStyleChange?.({ borderStyle: style, noStroke: false });
+                  }
+                }}
+                data-testid={`toolbar-style-${style}`}
+              />
+            ))}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Helper to get current stroke style from edge
   const getEdgeStrokeStyle = (): 'solid' | 'dashed' | 'dotted' => {
@@ -752,119 +783,157 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     );
   };
 
-  const renderTextSubmenu = () => (
-    <div 
-      ref={submenuRef}
-      className={cn(
-        "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 min-w-[280px] animate-in fade-in-0 zoom-in-95 duration-150",
-        showAbove ? "bottom-full mb-2" : "top-full mt-2"
-      )}
-    >
-      <div className="space-y-3">
-        {/* Font Size */}
-        <div>
-          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Font Size</div>
-          <div className="flex gap-1">
-            {FONT_SIZES.map((size) => (
+  const renderTextSubmenu = () => {
+    // Determine the source of style data based on target type
+    const styleData = isCanvasObjectTarget ? canvasObject?.data : node?.data;
+    
+    const handleFontSizeChange = (size: number) => {
+      if (isNodeTarget) {
+        onTextStyleChange?.({ fontSize: size });
+      } else if (isCanvasObjectTarget) {
+        onCanvasObjectTextStyleChange?.({ fontSize: size });
+      }
+    };
+    
+    const handleBoldToggle = () => {
+      if (isNodeTarget) {
+        onTextStyleChange?.({ bold: !node?.data?.bold });
+      } else if (isCanvasObjectTarget) {
+        onCanvasObjectTextStyleChange?.({ bold: !canvasObject?.data?.bold });
+      }
+    };
+    
+    const handleItalicToggle = () => {
+      if (isNodeTarget) {
+        onTextStyleChange?.({ italic: !node?.data?.italic });
+      } else if (isCanvasObjectTarget) {
+        onCanvasObjectTextStyleChange?.({ italic: !canvasObject?.data?.italic });
+      }
+    };
+    
+    const handleAlignChange = (align: 'left' | 'center' | 'right') => {
+      if (isNodeTarget) {
+        onTextStyleChange?.({ align });
+      } else if (isCanvasObjectTarget) {
+        onCanvasObjectTextStyleChange?.({ textAlign: align });
+      }
+    };
+    
+    return (
+      <div 
+        ref={submenuRef}
+        className={cn(
+          "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 min-w-[280px] animate-in fade-in-0 zoom-in-95 duration-150",
+          showAbove ? "bottom-full mb-2" : "top-full mt-2"
+        )}
+      >
+        <div className="space-y-3">
+          {/* Font Size */}
+          <div>
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Font Size</div>
+            <div className="flex gap-1">
+              {FONT_SIZES.map((size) => (
+                <button
+                  key={size}
+                  className={cn(
+                    "w-8 h-8 rounded text-xs font-medium bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-600",
+                    styleData?.fontSize === size && "ring-2 ring-blue-500"
+                  )}
+                  onClick={() => handleFontSizeChange(size)}
+                  data-testid={`toolbar-fontsize-${size}`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Text Style */}
+          <div>
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Style</div>
+            <div className="flex gap-2">
               <button
-                key={size}
                 className={cn(
-                  "w-8 h-8 rounded text-xs font-medium bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-600",
-                  node?.data?.fontSize === size && "ring-2 ring-blue-500"
+                  "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
+                  styleData?.bold && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
                 )}
-                onClick={() => {
-                  onTextStyleChange?.({ fontSize: size });
-                }}
-                data-testid={`toolbar-fontsize-${size}`}
+                onClick={handleBoldToggle}
+                title="Bold"
+                data-testid="toolbar-text-bold"
               >
-                {size}
+                <Bold size={16} />
               </button>
-            ))}
+              <button
+                className={cn(
+                  "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
+                  styleData?.italic && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
+                )}
+                onClick={handleItalicToggle}
+                title="Italic"
+                data-testid="toolbar-text-italic"
+              >
+                <Italic size={16} />
+              </button>
+              {/* Only show strikethrough for nodes */}
+              {isNodeTarget && (
+                <button
+                  className={cn(
+                    "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
+                    node?.data?.strikethrough && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
+                  )}
+                  onClick={() => onTextStyleChange?.({ strikethrough: !node?.data?.strikethrough })}
+                  title="Strikethrough"
+                  data-testid="toolbar-text-strikethrough"
+                >
+                  <Strikethrough size={16} />
+                </button>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Text Style */}
-        <div>
-          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Style</div>
-          <div className="flex gap-2">
-            <button
-              className={cn(
-                "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                node?.data?.bold && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
-              )}
-              onClick={() => onTextStyleChange?.({ bold: !node?.data?.bold })}
-              title="Bold"
-              data-testid="toolbar-text-bold"
-            >
-              <Bold size={16} />
-            </button>
-            <button
-              className={cn(
-                "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                node?.data?.italic && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
-              )}
-              onClick={() => onTextStyleChange?.({ italic: !node?.data?.italic })}
-              title="Italic"
-              data-testid="toolbar-text-italic"
-            >
-              <Italic size={16} />
-            </button>
-            <button
-              className={cn(
-                "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                node?.data?.strikethrough && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
-              )}
-              onClick={() => onTextStyleChange?.({ strikethrough: !node?.data?.strikethrough })}
-              title="Strikethrough"
-              data-testid="toolbar-text-strikethrough"
-            >
-              <Strikethrough size={16} />
-            </button>
-          </div>
-        </div>
-
-        {/* Alignment */}
-        <div>
-          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Alignment</div>
-          <div className="flex gap-2">
-            <button
-              className={cn(
-                "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                (node?.data?.textAlign === 'left' || !node?.data?.textAlign) && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
-              )}
-              onClick={() => onTextStyleChange?.({ align: 'left' })}
-              title="Align Left"
-              data-testid="toolbar-align-left"
-            >
-              <AlignLeft size={16} />
-            </button>
-            <button
-              className={cn(
-                "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                node?.data?.textAlign === 'center' && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
-              )}
-              onClick={() => onTextStyleChange?.({ align: 'center' })}
-              title="Align Center"
-              data-testid="toolbar-align-center"
-            >
-              <AlignCenter size={16} />
-            </button>
-            <button
-              className={cn(
-                "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
-                node?.data?.textAlign === 'right' && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
-              )}
-              onClick={() => onTextStyleChange?.({ align: 'right' })}
-              title="Align Right"
-              data-testid="toolbar-align-right"
-            >
-              <AlignRight size={16} />
-            </button>
+          {/* Alignment */}
+          <div>
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Alignment</div>
+            <div className="flex gap-2">
+              <button
+                className={cn(
+                  "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
+                  (styleData?.textAlign === 'left' || !styleData?.textAlign) && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
+                )}
+                onClick={() => handleAlignChange('left')}
+                title="Align Left"
+                data-testid="toolbar-align-left"
+              >
+                <AlignLeft size={16} />
+              </button>
+              <button
+                className={cn(
+                  "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
+                  styleData?.textAlign === 'center' && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
+                )}
+                onClick={() => handleAlignChange('center')}
+                title="Align Center"
+                data-testid="toolbar-align-center"
+              >
+                <AlignCenter size={16} />
+              </button>
+              <button
+                className={cn(
+                  "w-9 h-9 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
+                  styleData?.textAlign === 'right' && "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900"
+                )}
+                onClick={() => handleAlignChange('right')}
+                title="Align Right"
+                data-testid="toolbar-align-right"
+              >
+                <AlignRight size={16} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderIconSubmenu = () => {
     const headerColor = node?.data?.colors?.headerBackground || '#8b5cf6';

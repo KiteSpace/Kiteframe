@@ -5423,6 +5423,66 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onNodeRightClick={(e: React.MouseEvent, node: Node) => {
                 setContextMenu({ x: e.clientX, y: e.clientY, node });
               }}
+              onCanvasObjectClick={(e: React.MouseEvent, canvasObject: CanvasObject) => {
+                console.log(`📝 EDITOR CANVAS OBJECT CLICK HANDLER:`, { 
+                  objectId: canvasObject.id, 
+                  objectType: canvasObject.type,
+                  shiftKey: e.shiftKey
+                });
+                
+                // Clear any existing click delay timer
+                if (clickDelayTimeoutRef.current) {
+                  clearTimeout(clickDelayTimeoutRef.current);
+                  clickDelayTimeoutRef.current = null;
+                }
+                
+                if (e.shiftKey) {
+                  // Shift+click for multi-select - immediate action, handled by KiteFrameCanvas
+                } else {
+                  // Regular click - selection already handled by KiteFrameCanvas
+                  // Reset drag detection
+                  isDraggingRef.current = false;
+                  
+                  // Delay opening toolbar to detect if this becomes a drag
+                  clickDelayTimeoutRef.current = setTimeout(() => {
+                    if (!isDraggingRef.current) {
+                      console.log(`📝 CANVAS OBJECT CLICK CONFIRMED - showing toolbar for:`, canvasObject.id);
+                      
+                      // Calculate object rect for toolbar positioning
+                      const objWidth = canvasObject.width ?? 150;
+                      const objHeight = canvasObject.height ?? 100;
+                      const screenX = canvasObject.position.x * viewport.zoom + viewport.x;
+                      const screenY = canvasObject.position.y * viewport.zoom + viewport.y;
+                      const screenWidth = objWidth * viewport.zoom;
+                      const screenHeight = objHeight * viewport.zoom;
+                      
+                      setLinearToolbar({
+                        x: screenX + screenWidth / 2,
+                        y: screenY,
+                        nodeRect: {
+                          top: screenY,
+                          bottom: screenY + screenHeight,
+                          left: screenX,
+                          right: screenX + screenWidth,
+                          width: screenWidth
+                        },
+                        canvasObject
+                      });
+                    } else {
+                      console.log(`📝 CANVAS OBJECT DRAG DETECTED - not showing toolbar for:`, canvasObject.id);
+                    }
+                    clickDelayTimeoutRef.current = null;
+                  }, 150); // 150ms delay to detect drag
+                }
+                
+                // Deselect nodes and edges
+                setNodes(prev => prev.map(n => ({ ...n, selected: false })));
+                setEdges(prev => prev.map(e => ({ ...e, selected: false })));
+                setSelectedNodeId('');
+                setSelectedEdgeId('');
+                setContextMenu(null);
+                setInlineEditingNodeId(null);
+              }}
               onCanvasObjectRightClick={(e: React.MouseEvent, canvasObject: CanvasObject) => {
                 setContextMenu({ x: e.clientX, y: e.clientY, canvasObject });
               }}
@@ -6403,6 +6463,33 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   ),
                   duration: 5000,
                 });
+              } else if (linearToolbar.canvasObject) {
+                const objType = linearToolbar.canvasObject.type;
+                const objId = linearToolbar.canvasObject.id;
+                const deletedObj = linearToolbar.canvasObject;
+                const typeName = objType === 'sticky' ? 'Sticky note' : objType === 'text' ? 'Text' : 'Shape';
+                
+                saveToHistory();
+                updateActiveTab({
+                  canvasObjects: canvasObjects.filter(obj => obj.id !== objId)
+                });
+                
+                toast({
+                  title: `${typeName} deleted`,
+                  action: (
+                    <button
+                      className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                      onClick={() => {
+                        updateActiveTab({
+                          canvasObjects: [...canvasObjects, deletedObj]
+                        });
+                      }}
+                    >
+                      Undo
+                    </button>
+                  ),
+                  duration: 5000,
+                });
               }
               setLinearToolbar(null);
             }}
@@ -6425,6 +6512,64 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             }}
             canUseWireframe={!!(subscriptionData?.tier && subscriptionData.tier !== 'free')}
+            onCanvasObjectColorChange={(color) => {
+              if (linearToolbar.canvasObject) {
+                saveToHistory();
+                const objType = linearToolbar.canvasObject.type;
+                updateActiveTab({
+                  canvasObjects: canvasObjects.map(obj => {
+                    if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                    if (objType === 'sticky') {
+                      return { ...obj, data: { ...obj.data, backgroundColor: color } };
+                    } else if (objType === 'shape') {
+                      return { ...obj, data: { ...obj.data, fill: color, stroke: color } };
+                    } else if (objType === 'text') {
+                      return { ...obj, data: { ...obj.data, color: color } };
+                    }
+                    return obj;
+                  })
+                });
+              }
+            }}
+            onCanvasObjectStyleChange={(style) => {
+              if (linearToolbar.canvasObject) {
+                saveToHistory();
+                updateActiveTab({
+                  canvasObjects: canvasObjects.map(obj => {
+                    if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                    return { 
+                      ...obj, 
+                      data: { 
+                        ...obj.data, 
+                        borderStyle: style.borderStyle ?? obj.data?.borderStyle,
+                        borderWidth: style.borderWidth ?? obj.data?.borderWidth,
+                        noStroke: style.noStroke ?? obj.data?.noStroke
+                      } 
+                    };
+                  })
+                });
+              }
+            }}
+            onCanvasObjectTextStyleChange={(style) => {
+              if (linearToolbar.canvasObject) {
+                saveToHistory();
+                updateActiveTab({
+                  canvasObjects: canvasObjects.map(obj => {
+                    if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                    return { 
+                      ...obj, 
+                      data: { 
+                        ...obj.data, 
+                        fontSize: style.fontSize ?? obj.data?.fontSize,
+                        bold: style.bold ?? obj.data?.bold,
+                        italic: style.italic ?? obj.data?.italic,
+                        textAlign: style.textAlign ?? obj.data?.textAlign
+                      } 
+                    };
+                  })
+                });
+              }
+            }}
             scale={viewport.zoom}
           />
         )}
