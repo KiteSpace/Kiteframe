@@ -407,11 +407,20 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           style={{ backgroundColor: color }}
           onClick={() => {
             if (isNodeTarget && onColorChange) {
-              onColorChange({ 
-                headerBackground: color,
-                bodyBackground: getTintedBodyColor(color, 0.1),
-                borderColor: color
-              });
+              // White color uses default theme colors
+              if (color === '#ffffff') {
+                onColorChange({ 
+                  headerBackground: '#f8fafc',
+                  bodyBackground: '#ffffff',
+                  borderColor: '#e2e8f0'
+                });
+              } else {
+                onColorChange({ 
+                  headerBackground: color,
+                  bodyBackground: getTintedBodyColor(color, 0.1),
+                  borderColor: color
+                });
+              }
             } else if (isEdgeTarget && onEdgeColorChange) {
               onEdgeColorChange(color);
             }

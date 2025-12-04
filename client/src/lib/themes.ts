@@ -197,11 +197,10 @@ export function getBorderColorFromHeader(headerColor: string): string {
 }
 
 export function applyThemeToNode(nodeData: any, theme: WorkflowTheme): any {
-  // Use theme's predefined text colors, but fall back to intelligent contrast if needed
+  // Use theme's predefined header text color, but let body text use auto-contrast
   const headerTextColor = theme.nodeStyles.headerText || getContrastTextColor(theme.nodeStyles.headerBackground);
-  const bodyTextColor = theme.nodeStyles.bodyText || getContrastTextColor(theme.nodeStyles.bodyBackground);
   
-  // Calculate border color from header color (30% darker/lighter)
+  // Calculate border color from header color
   const borderColor = getBorderColorFromHeader(theme.nodeStyles.headerBackground);
   
   return {
@@ -210,7 +209,7 @@ export function applyThemeToNode(nodeData: any, theme: WorkflowTheme): any {
       headerBackground: theme.nodeStyles.headerBackground,
       headerTextColor: headerTextColor,
       bodyBackground: theme.nodeStyles.bodyBackground, 
-      bodyTextColor: bodyTextColor,
+      // Don't set bodyTextColor - let KiteFrameCanvas auto-calculate contrast
       borderColor: borderColor
     }
   };
