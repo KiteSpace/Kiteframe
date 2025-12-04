@@ -636,14 +636,21 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         const isFreeformClosed = object.data.isClosed ?? false;
         const isCreating = object.data.isCreating ?? false;
         
-        // If no points yet, show a placeholder
+        // During creation mode with no points, render nothing visible here
+        // The canvas-level click handler captures clicks anywhere on the canvas
+        if (renderFreeformPoints.length === 0 && isCreating) {
+          // Return invisible placeholder - all clicks go to canvas-level handler
+          return null;
+        }
+        
+        // If not in creation mode and no points, show minimal indicator
         if (renderFreeformPoints.length === 0) {
           return (
             <div 
-              className="w-full h-full flex items-center justify-center border-2 border-dashed border-gray-300 rounded cursor-crosshair"
+              className="w-full h-full flex items-center justify-center border-2 border-dashed border-gray-300 rounded cursor-crosshair pointer-events-none"
               style={{ minWidth: 100, minHeight: 100 }}
             >
-              <span className="text-gray-400 text-sm pointer-events-none">Click to add points</span>
+              <span className="text-gray-400 text-sm">Empty freeform shape</span>
             </div>
           );
         }
