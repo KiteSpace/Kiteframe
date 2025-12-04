@@ -196,7 +196,9 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   const handleBlur = (e: React.FocusEvent) => {
     // Check if blur is going to the toolbar - don't save in that case
     const relatedTarget = e.relatedTarget as Element | null;
-    const isToolbarClick = relatedTarget?.closest?.('[data-toolbar="linear"]') !== null;
+    
+    // Only skip save if relatedTarget exists AND is inside the toolbar
+    const isToolbarClick = relatedTarget !== null && relatedTarget.closest?.('[data-toolbar="linear"]') !== null;
     
     if (isToolbarClick) {
       console.log('💾 TEXT EDITOR: Blur to toolbar - keeping editor open');

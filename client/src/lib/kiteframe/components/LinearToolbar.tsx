@@ -1261,6 +1261,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                 onClick={() => handleButtonClick(button.id, button.onClick, button.hasSubmenu)}
                 title={button.label}
                 data-testid={`toolbar-button-${button.id}`}
+                tabIndex={0}
               >
                 {button.icon}
               </button>
@@ -1279,6 +1280,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               onClick={() => onWireframe?.()}
               title={canUseWireframe ? "Generate wireframe mockup" : "Upgrade to use Wireframe (Pro feature)"}
               data-testid="toolbar-button-wireframe"
+              tabIndex={0}
             >
               <Sparkles size={14} className="text-white" />
               <span>Wireframe</span>
@@ -1296,6 +1298,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               onClick={() => { onDelete?.(); onClose(); }}
               title="Delete"
               data-testid="toolbar-button-delete"
+              tabIndex={0}
             >
               <Trash2 size={18} />
             </button>
