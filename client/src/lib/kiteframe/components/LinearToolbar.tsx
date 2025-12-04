@@ -28,7 +28,8 @@ import {
   Sparkles,
   Square,
   Triangle,
-  Hexagon
+  Hexagon,
+  PenTool
 } from 'lucide-react';
 import type { Node, Edge, NodeColors, CanvasObject, EdgeMarker } from '../types';
 
@@ -91,7 +92,7 @@ interface LinearToolbarProps {
     textAlign?: 'left' | 'center' | 'right';
   }) => void;
   onCanvasObjectFillStyleChange?: (fillStyle: 'solid' | 'transparent' | 'none') => void;
-  onShapeTypeChange?: (shapeType: 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'line' | 'arrow') => void;
+  onShapeTypeChange?: (shapeType: 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'line' | 'arrow' | 'freeform') => void;
   scale?: number;
   isInlineEditing?: boolean; // Show text style options when inline editing is active
 }
@@ -894,7 +895,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       { id: 'circle', label: 'Circle', icon: <Circle size={18} /> },
       { id: 'triangle', label: 'Triangle', icon: <Triangle size={18} /> },
       { id: 'hexagon', label: 'Hexagon', icon: <Hexagon size={18} /> },
-      { id: 'arrow', label: 'Arrow', icon: <ArrowRight size={18} /> }
+      { id: 'arrow', label: 'Arrow', icon: <ArrowRight size={18} /> },
+      { id: 'freeform', label: 'Freeform', icon: <PenTool size={18} /> }
     ];
     
     return (
@@ -920,7 +922,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  onShapeTypeChange?.(opt.id as 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'line' | 'arrow');
+                  onShapeTypeChange?.(opt.id as 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'line' | 'arrow' | 'freeform');
                 }}
                 title={opt.label}
                 data-testid={`toolbar-shape-${opt.id}`}

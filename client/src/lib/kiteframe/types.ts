@@ -380,7 +380,7 @@ export interface StickyNoteData {
 }
 
 export interface ShapeNodeData {
-  shapeType: 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'line' | 'arrow';
+  shapeType: 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'line' | 'arrow' | 'freeform';
   // Fill styling
   fillColor: string;
   fillOpacity?: number; // 0-1
@@ -428,6 +428,10 @@ export interface ShapeNodeData {
   endConnectedTo?: string; // Node ID if connected to a node
   startHandlePosition?: 'top' | 'right' | 'bottom' | 'left'; // Which handle on the node
   endHandlePosition?: 'top' | 'right' | 'bottom' | 'left'; // Which handle on the node
+  // Freeform shape properties
+  points?: { x: number; y: number }[]; // Vertices for freeform polygon
+  isClosed?: boolean; // Whether the freeform shape is closed (polygon) or open (polyline)
+  isCreating?: boolean; // Whether the freeform shape is being created (points being added)
   [key: string]: any;
 }
 

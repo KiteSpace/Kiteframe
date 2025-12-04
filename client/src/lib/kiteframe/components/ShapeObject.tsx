@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useState } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { ResizeHandle } from './ResizeHandle';
 import { EmojiReactions } from './EmojiReactions';
 // import { InlineTextEditor } from './InlineTextEditor'; // Disabled for shapes
@@ -22,6 +22,10 @@ interface ShapeObjectProps {
   onEndpointDragStart?: (endpoint: 'start' | 'end', e: React.MouseEvent) => void;
   onEndpointDrag?: (endpoint: 'start' | 'end', position: { x: number; y: number }) => void;
   onEndpointDragEnd?: (endpoint: 'start' | 'end', position: { x: number; y: number }) => void;
+  // Freeform point management with auto-bounds
+  onFreeformPointAdd?: (objectId: string, point: { x: number; y: number }) => void;
+  onFreeformClose?: (objectId: string) => void;
+  canvasRef?: React.RefObject<HTMLDivElement>;
 }
 
 export const ShapeObject: React.FC<ShapeObjectProps> = ({
@@ -38,10 +42,17 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   selectedCanvasObjectCount = 0,
   onEndpointDragStart,
   onEndpointDrag,
-  onEndpointDragEnd
+  onEndpointDragEnd,
+  onFreeformPointAdd,
+  onFreeformClose,
+  canvasRef
 }) => {
   const objectRef = useRef<HTMLDivElement>(null);
   // Text editing disabled for shapes\n  // const [isEditingText, setIsEditingText] = useState(false);
+  
+  // Freeform shape creation state - track mouse position for preview line
+  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
+  
   // Use style dimensions if available, otherwise fall back to object dimensions
   const shapeSize = {
     width: object.style?.width || object.width || 200,
@@ -96,6 +107,258 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       onStartDrag?.(e);
     }
   };
+
+  // Freeform shape creation handlers
+  const isFreeformCreating = object.data.shapeType === 'freeform' && object.data.isCreating;
+  const freeformPoints = object.data.points || [];
+  
+  // Use ref to track latest freeformPoints to avoid stale closure in event handlers
+  const freeformPointsRef = useRef(freeformPoints);
+  freeformPointsRef.current = freeformPoints;
+  
+  // Canvas-level click handler for freeform creation (uses canvas coordinates)
+  // Uses proper clientToWorld conversion: canvasX = (clientX - rect.left) / zoom + viewportX
+  useEffect(() => {
+    if (!isFreeformCreating || !canvasRef?.current) return;
+    
+    const canvas = canvasRef.current;
+    
+    const handleCanvasClick = (e: MouseEvent) => {
+      // Only handle left clicks
+      if (e.button !== 0) return;
+      
+      // Ignore clicks on UI elements (buttons, inputs, etc.)
+      const target = e.target as HTMLElement;
+      if (target.closest('button') || target.closest('input') || target.closest('[role="button"]')) {
+        return;
+      }
+      
+      const canvasRect = canvas.getBoundingClientRect();
+      const zoom = viewport?.zoom || 1;
+      const viewportX = viewport?.x || 0;
+      const viewportY = viewport?.y || 0;
+      
+      // Convert screen coordinates to canvas/world coordinates using proper formula
+      // Same as clientToWorld helper: canvasCoord = (clientCoord - rectOffset) / zoom + viewportOffset
+      const canvasX = (e.clientX - canvasRect.left) / zoom + viewportX;
+      const canvasY = (e.clientY - canvasRect.top) / zoom + viewportY;
+      
+      // Convert to shape-local coordinates
+      const localX = canvasX - object.position.x;
+      const localY = canvasY - object.position.y;
+      
+      // Get latest points from ref to avoid stale closure
+      const currentPoints = freeformPointsRef.current;
+      
+      // Check if clicking near the first point to close the shape
+      if (currentPoints.length >= 3) {
+        const firstPt = currentPoints[0];
+        const dist = Math.hypot(localX - firstPt.x, localY - firstPt.y);
+        if (dist < 20) {
+          console.log('🖊️ Freeform: Closing shape by clicking first point');
+          if (onFreeformClose) {
+            onFreeformClose(object.id);
+          } else {
+            onUpdate?.({ isClosed: true, isCreating: false });
+          }
+          e.stopPropagation();
+          e.preventDefault();
+          return;
+        }
+      }
+      
+      // Add the new point using canvas-level callback or direct update
+      console.log('🖊️ Freeform: Adding point via canvas click', { localX, localY, canvasX, canvasY, totalPoints: currentPoints.length + 1 });
+      
+      if (onFreeformPointAdd) {
+        onFreeformPointAdd(object.id, { x: localX, y: localY });
+      } else {
+        onUpdate?.({ points: [...currentPoints, { x: localX, y: localY }] });
+      }
+      
+      e.stopPropagation();
+      e.preventDefault();
+    };
+    
+    const handleCanvasDoubleClick = (e: MouseEvent) => {
+      // Get latest points from ref
+      const currentPoints = freeformPointsRef.current;
+      
+      // Close the shape if we have at least 3 points
+      if (currentPoints.length >= 3) {
+        console.log('🖊️ Freeform: Closing shape via double-click', currentPoints.length, 'points');
+        if (onFreeformClose) {
+          onFreeformClose(object.id);
+        } else {
+          onUpdate?.({ isClosed: true, isCreating: false });
+        }
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    };
+    
+    const handleCanvasMouseMove = (e: MouseEvent) => {
+      const canvasRect = canvas.getBoundingClientRect();
+      const zoom = viewport?.zoom || 1;
+      const viewportX = viewport?.x || 0;
+      const viewportY = viewport?.y || 0;
+      
+      // Convert to shape-local coordinates using proper formula
+      const canvasX = (e.clientX - canvasRect.left) / zoom + viewportX;
+      const canvasY = (e.clientY - canvasRect.top) / zoom + viewportY;
+      const localX = canvasX - object.position.x;
+      const localY = canvasY - object.position.y;
+      
+      setMousePos({ x: localX, y: localY });
+    };
+    
+    canvas.addEventListener('click', handleCanvasClick, true);
+    canvas.addEventListener('dblclick', handleCanvasDoubleClick, true);
+    canvas.addEventListener('mousemove', handleCanvasMouseMove);
+    
+    return () => {
+      canvas.removeEventListener('click', handleCanvasClick, true);
+      canvas.removeEventListener('dblclick', handleCanvasDoubleClick, true);
+      canvas.removeEventListener('mousemove', handleCanvasMouseMove);
+    };
+  }, [isFreeformCreating, canvasRef, viewport, object.position, object.id, onUpdate, onFreeformPointAdd, onFreeformClose]);
+  
+  const handleFreeformClick = useCallback((e: React.MouseEvent) => {
+    // This is now a fallback - canvas-level handler is primary
+    if (!isFreeformCreating) return;
+    
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const rect = objectRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const zoom = viewport?.zoom || 1;
+    const x = (e.clientX - rect.left) / zoom;
+    const y = (e.clientY - rect.top) / zoom;
+    
+    const newPoints = [...freeformPoints, { x, y }];
+    
+    console.log('🖊️ Freeform: Adding point (fallback)', { x, y, totalPoints: newPoints.length });
+    
+    onUpdate?.({ points: newPoints });
+  }, [isFreeformCreating, freeformPoints, viewport, onUpdate]);
+  
+  const handleFreeformDoubleClick = useCallback((e: React.MouseEvent) => {
+    // This is now a fallback - canvas-level handler is primary
+    if (!isFreeformCreating) return;
+    
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // Close the shape if we have at least 3 points
+    if (freeformPoints.length >= 3) {
+      console.log('🖊️ Freeform: Closing shape (fallback)', freeformPoints.length, 'points');
+      onUpdate?.({ isClosed: true, isCreating: false });
+    }
+  }, [isFreeformCreating, freeformPoints.length, onUpdate]);
+  
+  const handleFreeformMouseMove = useCallback((e: React.MouseEvent) => {
+    // This is now a fallback - canvas-level handler is primary
+    if (!isFreeformCreating) return;
+    
+    const rect = objectRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const zoom = viewport?.zoom || 1;
+    const x = (e.clientX - rect.left) / zoom;
+    const y = (e.clientY - rect.top) / zoom;
+    
+    setMousePos({ x, y });
+  }, [isFreeformCreating, viewport]);
+  
+  const handleFreeformMouseLeave = useCallback(() => {
+    setMousePos(null);
+  }, []);
+  
+  // Check if clicking near the first point (to close the shape)
+  const handleFreeformPointClick = useCallback((pointIndex: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // If clicking on first point and we have at least 3 points, close the shape
+    if (pointIndex === 0 && freeformPoints.length >= 3 && isFreeformCreating) {
+      console.log('🖊️ Freeform: Closing shape by clicking first point');
+      if (onFreeformClose) {
+        onFreeformClose(object.id);
+      } else {
+        onUpdate?.({ isClosed: true, isCreating: false });
+      }
+    }
+  }, [isFreeformCreating, freeformPoints.length, onUpdate, onFreeformClose, object.id]);
+  
+  // Vertex dragging state for freeform shapes (editing mode, not creation mode)
+  const [draggingVertexIndex, setDraggingVertexIndex] = useState<number | null>(null);
+  const [hoveredSegmentIndex, setHoveredSegmentIndex] = useState<number | null>(null);
+  const isFreeformEditing = object.data.shapeType === 'freeform' && !object.data.isCreating && object.selected;
+  
+  const handleVertexDragStart = useCallback((vertexIndex: number, e: React.MouseEvent) => {
+    if (!isFreeformEditing) return;
+    
+    e.stopPropagation();
+    e.preventDefault();
+    
+    setDraggingVertexIndex(vertexIndex);
+    console.log('🖊️ Freeform: Start dragging vertex', vertexIndex);
+    
+    const rect = objectRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const zoom = viewport?.zoom || 1;
+    
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const x = (moveEvent.clientX - rect.left) / zoom;
+      const y = (moveEvent.clientY - rect.top) / zoom;
+      
+      // Update the vertex position
+      const newPoints = [...freeformPoints];
+      newPoints[vertexIndex] = { x, y };
+      onUpdate?.({ points: newPoints });
+    };
+    
+    const handleMouseUp = () => {
+      setDraggingVertexIndex(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      console.log('🖊️ Freeform: End dragging vertex', vertexIndex);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [isFreeformEditing, freeformPoints, viewport, onUpdate]);
+  
+  // Insert a new vertex at the midpoint of a segment
+  const handleSegmentMidpointClick = useCallback((segmentIndex: number, e: React.MouseEvent) => {
+    if (!isFreeformEditing) return;
+    
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const p1 = freeformPoints[segmentIndex];
+    const p2 = freeformPoints[(segmentIndex + 1) % freeformPoints.length];
+    
+    // Calculate midpoint
+    const midpoint = {
+      x: (p1.x + p2.x) / 2,
+      y: (p1.y + p2.y) / 2
+    };
+    
+    // Insert the new point after segmentIndex
+    const newPoints = [
+      ...freeformPoints.slice(0, segmentIndex + 1),
+      midpoint,
+      ...freeformPoints.slice(segmentIndex + 1)
+    ];
+    
+    console.log('🖊️ Freeform: Inserting vertex at segment', segmentIndex, 'midpoint:', midpoint);
+    onUpdate?.({ points: newPoints });
+    setHoveredSegmentIndex(null);
+  }, [isFreeformEditing, freeformPoints, onUpdate]);
 
   // Helper function to convert hex color to rgba with opacity
   const hexToRgba = (hex: string, opacity: number): string => {
@@ -368,6 +631,170 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
           </svg>
         );
 
+      case 'freeform':
+        const renderFreeformPoints = object.data.points || [];
+        const isFreeformClosed = object.data.isClosed ?? false;
+        const isCreating = object.data.isCreating ?? false;
+        
+        // If no points yet, show a placeholder
+        if (renderFreeformPoints.length === 0) {
+          return (
+            <div 
+              className="w-full h-full flex items-center justify-center border-2 border-dashed border-gray-300 rounded cursor-crosshair"
+              style={{ minWidth: 100, minHeight: 100 }}
+            >
+              <span className="text-gray-400 text-sm pointer-events-none">Click to add points</span>
+            </div>
+          );
+        }
+        
+        // Convert points array to SVG points string
+        const freeformPointsString = renderFreeformPoints.map(p => `${p.x},${p.y}`).join(' ');
+        
+        // Get last point for preview line
+        const lastPoint = renderFreeformPoints[renderFreeformPoints.length - 1];
+        const firstPoint = renderFreeformPoints[0];
+        
+        return (
+          <svg 
+            width={width} 
+            height={height} 
+            viewBox={`0 0 ${width} ${height}`} 
+            className="overflow-visible absolute top-0 left-0"
+            style={{ cursor: isCreating ? 'crosshair' : 'default' }}
+          >
+            {isFreeformClosed ? (
+              // Closed polygon - render with fill
+              <polygon
+                points={freeformPointsString}
+                style={{
+                  fill: computedFillColor,
+                  stroke: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#6b7280' : 'none',
+                  strokeOpacity: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) && strokeOpacity !== undefined ? strokeOpacity : 1.0,
+                  strokeWidth: strokeWidth || 2,
+                  strokeDasharray: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
+                  strokeLinejoin: 'round',
+                  filter: object.data.shadow?.enabled 
+                    ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
+                    : 'none',
+                }}
+                data-testid="shape-freeform-polygon"
+              />
+            ) : (
+              <>
+                {/* Open polyline - no fill, just stroke */}
+                <polyline
+                  points={freeformPointsString}
+                  style={{
+                    fill: 'none',
+                    stroke: strokeColor || '#6b7280',
+                    strokeOpacity: strokeOpacity !== undefined ? strokeOpacity : 1.0,
+                    strokeWidth: strokeWidth || 2,
+                    strokeDasharray: getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2),
+                    strokeLinecap: lineCap || 'round',
+                    strokeLinejoin: 'round',
+                    filter: object.data.shadow?.enabled 
+                      ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
+                      : 'none',
+                  }}
+                  data-testid="shape-freeform-polyline"
+                />
+                {/* Preview line from last point to mouse during creation */}
+                {isCreating && mousePos && lastPoint && (
+                  <line
+                    x1={lastPoint.x}
+                    y1={lastPoint.y}
+                    x2={mousePos.x}
+                    y2={mousePos.y}
+                    style={{
+                      stroke: strokeColor || '#6b7280',
+                      strokeOpacity: 0.5,
+                      strokeWidth: strokeWidth || 2,
+                      strokeDasharray: '4 4',
+                    }}
+                  />
+                )}
+                {/* Preview line to first point when close enough */}
+                {isCreating && mousePos && firstPoint && renderFreeformPoints.length >= 3 && (
+                  (() => {
+                    const distToFirst = Math.hypot(mousePos.x - firstPoint.x, mousePos.y - firstPoint.y);
+                    if (distToFirst < 20) {
+                      return (
+                        <line
+                          x1={lastPoint.x}
+                          y1={lastPoint.y}
+                          x2={firstPoint.x}
+                          y2={firstPoint.y}
+                          style={{
+                            stroke: '#22c55e',
+                            strokeOpacity: 0.7,
+                            strokeWidth: strokeWidth || 2,
+                            strokeDasharray: '4 4',
+                          }}
+                        />
+                      );
+                    }
+                    return null;
+                  })()
+                )}
+              </>
+            )}
+            {/* Segment midpoint indicators - show when editing (selected but not creating) */}
+            {!isCreating && object.selected && renderFreeformPoints.length >= 2 && (() => {
+              const segments = [];
+              const numSegments = isFreeformClosed ? renderFreeformPoints.length : renderFreeformPoints.length - 1;
+              
+              for (let i = 0; i < numSegments; i++) {
+                const p1 = renderFreeformPoints[i];
+                const p2 = renderFreeformPoints[(i + 1) % renderFreeformPoints.length];
+                const midX = (p1.x + p2.x) / 2;
+                const midY = (p1.y + p2.y) / 2;
+                
+                segments.push(
+                  <circle
+                    key={`midpoint-${i}`}
+                    cx={midX}
+                    cy={midY}
+                    r={hoveredSegmentIndex === i ? 5 : 3}
+                    fill={hoveredSegmentIndex === i ? '#22c55e' : '#9ca3af'}
+                    stroke="white"
+                    strokeWidth={1}
+                    style={{ cursor: 'pointer', opacity: hoveredSegmentIndex === i ? 1 : 0.6 }}
+                    onMouseEnter={() => setHoveredSegmentIndex(i)}
+                    onMouseLeave={() => setHoveredSegmentIndex(null)}
+                    onMouseDown={(e) => handleSegmentMidpointClick(i, e)}
+                    data-testid={`freeform-midpoint-${i}`}
+                  />
+                );
+              }
+              return segments;
+            })()}
+            {/* Vertex points - show during creation and when selected */}
+            {(isCreating || object.selected) && renderFreeformPoints.map((point, idx) => (
+              <circle
+                key={idx}
+                cx={point.x}
+                cy={point.y}
+                r={idx === 0 && isCreating && renderFreeformPoints.length >= 3 ? 8 : 
+                   (draggingVertexIndex === idx ? 7 : 5)}
+                fill={idx === 0 && isCreating && renderFreeformPoints.length >= 3 ? '#22c55e' : 
+                      (draggingVertexIndex === idx ? '#1d4ed8' : '#3b82f6')}
+                stroke="white"
+                strokeWidth={2}
+                style={{ cursor: idx === 0 && isCreating ? 'pointer' : 'move' }}
+                onMouseDown={(e) => {
+                  if (isCreating && idx === 0 && renderFreeformPoints.length >= 3) {
+                    handleFreeformPointClick(idx, e);
+                  } else if (!isCreating) {
+                    handleVertexDragStart(idx, e);
+                  }
+                }}
+                data-testid={`freeform-vertex-${idx}`}
+              />
+            ))}
+          </svg>
+        );
+
       default:
         return (
           <div
@@ -383,14 +810,15 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
     }
   };
 
-  // Line and arrow shapes don't need bounding box (they have endpoint handles instead)
-  const isLineShape = object.data.shapeType === 'line' || object.data.shapeType === 'arrow';
+  // Line, arrow, and freeform shapes don't need bounding box (they have point/vertex handles instead)
+  const isLineShape = object.data.shapeType === 'line' || object.data.shapeType === 'arrow' || object.data.shapeType === 'freeform';
 
   return (
     <div
       ref={objectRef}
       className={cn(
-        "group relative cursor-pointer",
+        "group relative",
+        isFreeformCreating ? "cursor-crosshair" : "cursor-pointer",
         object.selected && !isLineShape && "outline outline-2 outline-blue-500"
       )}
       style={{
@@ -404,9 +832,38 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       data-testid={`shape-object-${object.id}`}
       draggable={false}
       onDragStart={(e) => e.preventDefault()}
-      onMouseDown={handleMouseDown}
-      onClick={onClick}
+      onMouseDown={(e) => {
+        // In freeform creation mode, don't start dragging - let clicks add points
+        if (isFreeformCreating) {
+          e.preventDefault();
+          return;
+        }
+        handleMouseDown(e);
+      }}
+      onClick={(e) => {
+        // In freeform creation mode, handle point addition
+        if (isFreeformCreating) {
+          // Check if we're clicking near the first point to close the shape
+          if (freeformPoints.length >= 3 && mousePos) {
+            const firstPt = freeformPoints[0];
+            const dist = Math.hypot(mousePos.x - firstPt.x, mousePos.y - firstPt.y);
+            if (dist < 20) {
+              handleFreeformPointClick(0, e);
+              return;
+            }
+          }
+          handleFreeformClick(e);
+          return;
+        }
+        onClick?.(e);
+      }}
       onDoubleClick={(e) => {
+        // In freeform creation mode, close the shape
+        if (isFreeformCreating) {
+          handleFreeformDoubleClick(e);
+          return;
+        }
+        
         // Text editing disabled for shapes
         if (DISABLE_SHAPE_TEXT) {
           e.preventDefault();
@@ -420,6 +877,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         e.stopPropagation();
         onDoubleClick?.(e);
       }}
+      onMouseMove={isFreeformCreating ? handleFreeformMouseMove : undefined}
+      onMouseLeave={isFreeformCreating ? handleFreeformMouseLeave : undefined}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();

@@ -4273,14 +4273,25 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   onCreateShape={(shapeType: string) => {
                     saveToHistory();
                     
+                    // Build shape data with freeform-specific initialization if needed
+                    const shapeData = {
+                      ...DEFAULT_SHAPE_NODE_DATA,
+                      shapeType,
+                      ...(shapeType === 'freeform' ? {
+                        points: [],
+                        isClosed: false,
+                        isCreating: true
+                      } : {})
+                    };
+                    
                     const newCanvasObject: CanvasObject = {
                       id: `object-${Date.now()}`,
                       type: 'shape',
                       position: getViewportCenteredPosition(),
-                      data: { ...DEFAULT_SHAPE_NODE_DATA, shapeType } as any,
-                      width: 200,
-                      height: shapeType === 'rectangle' ? 200 : 100,
-                      selected: false
+                      data: shapeData as any,
+                      width: shapeType === 'freeform' ? 300 : 200,  // Larger size for freeform creation
+                      height: shapeType === 'freeform' ? 300 : (shapeType === 'rectangle' ? 200 : 100),
+                      selected: shapeType === 'freeform' // Auto-select freeform for immediate creation mode
                     };
                     
                     updateActiveTab({ 
@@ -4297,14 +4308,25 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   onCreateShapeAtPosition={(shapeType: string, position: { x: number; y: number }) => {
                     saveToHistory();
                     
+                    // Build shape data with freeform-specific initialization if needed
+                    const shapeData = {
+                      ...DEFAULT_SHAPE_NODE_DATA,
+                      shapeType,
+                      ...(shapeType === 'freeform' ? {
+                        points: [],
+                        isClosed: false,
+                        isCreating: true
+                      } : {})
+                    };
+                    
                     const newCanvasObject: CanvasObject = {
                       id: `object-${Date.now()}`,
                       type: 'shape',
                       position, // Use the provided position instead of center
-                      data: { ...DEFAULT_SHAPE_NODE_DATA, shapeType } as any,
-                      width: 200,
-                      height: shapeType === 'rectangle' ? 200 : 100,
-                      selected: false
+                      data: shapeData as any,
+                      width: shapeType === 'freeform' ? 300 : 200,  // Larger size for freeform creation
+                      height: shapeType === 'freeform' ? 300 : (shapeType === 'rectangle' ? 200 : 100),
+                      selected: shapeType === 'freeform' // Auto-select freeform for immediate creation mode
                     };
                     
                     updateActiveTab({ 
@@ -6711,11 +6733,34 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => {
                     if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                    
+                    // When switching to freeform, initialize with empty points and creation mode
+                    if (shapeType === 'freeform') {
+                      return { 
+                        ...obj, 
+                        data: { 
+                          ...obj.data, 
+                          shapeType: shapeType,
+                          points: [],
+                          isClosed: false,
+                          isCreating: true,
+                          // Clear line/arrow specific properties
+                          startPoint: undefined,
+                          endPoint: undefined
+                        } 
+                      };
+                    }
+                    
+                    // When switching from freeform to other shapes, clear freeform properties
                     return { 
                       ...obj, 
                       data: { 
                         ...obj.data, 
-                        shapeType: shapeType
+                        shapeType: shapeType,
+                        // Clear freeform properties
+                        points: undefined,
+                        isClosed: undefined,
+                        isCreating: undefined
                       } 
                     };
                   })
@@ -6786,32 +6831,45 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onCreateShape={(pos, shapeType) => {
               const isDark = document.documentElement.classList.contains('dark');
+              
+              // Build shape data with freeform-specific initialization if needed
+              const baseShapeData = {
+                shapeType,
+                fillColor: isDark ? '#374151' : '#e2e8f0',
+                fillOpacity: 0.5,
+                fillStyle: 'solid',
+                strokeColor: isDark ? '#6b7280' : '#94a3b8',
+                strokeWidth: 2,
+                strokeOpacity: 1.0,
+                strokeStyle: 'solid',
+                opacity: 1,
+                borderRadius: shapeType === 'rectangle' ? 8 : 0,
+              };
+              
+              const shapeData = {
+                ...baseShapeData,
+                ...(shapeType === 'freeform' ? {
+                  points: [],
+                  isClosed: false,
+                  isCreating: true
+                } : {})
+              } as ShapeNodeData;
+              
               const newShapeObject: CanvasObject = {
                 id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 type: 'shape',
-                position: { x: pos.x - 50, y: pos.y - 50 },
-                width: shapeType === 'line' || shapeType === 'arrow' ? 150 : 100,
-                height: shapeType === 'line' || shapeType === 'arrow' ? 4 : 100,
+                position: { x: pos.x - (shapeType === 'freeform' ? 150 : 50), y: pos.y - (shapeType === 'freeform' ? 150 : 50) },
+                width: shapeType === 'freeform' ? 300 : (shapeType === 'line' || shapeType === 'arrow' ? 150 : 100),
+                height: shapeType === 'freeform' ? 300 : (shapeType === 'line' || shapeType === 'arrow' ? 4 : 100),
                 selected: true,
-                data: {
-                  shapeType,
-                  fillColor: isDark ? '#374151' : '#e2e8f0',
-                  fillOpacity: 0.5,
-                  fillStyle: 'solid',
-                  strokeColor: isDark ? '#6b7280' : '#94a3b8',
-                  strokeWidth: 2,
-                  strokeOpacity: 1.0,
-                  strokeStyle: 'solid',
-                  opacity: 1,
-                  borderRadius: shapeType === 'rectangle' ? 8 : 0,
-                } as ShapeNodeData
+                data: shapeData
               };
               const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
               updateActiveTab({ canvasObjects: [...updatedObjects, newShapeObject] });
               saveToHistory();
               toast({
                 title: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} Added`,
-                description: "Click to select and style",
+                description: shapeType === 'freeform' ? "Click to add points, double-click to close" : "Click to select and style",
               });
             }}
             onCreateSticky={(pos) => {

@@ -4124,6 +4124,69 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       console.log('🎯 Endpoint drag start:', { objectId: obj.id, endpoint, endpointPos });
                       e.stopPropagation();
                     }}
+                    canvasRef={containerRef}
+                    onFreeformPointAdd={(objectId, point) => {
+                      // Add point and auto-expand bounds
+                      const shapeData = obj.data as import("../types").ShapeNodeData;
+                      const currentPoints = shapeData.points || [];
+                      const newPoints = [...currentPoints, point];
+                      
+                      // Calculate bounding box of all points (in local coordinates)
+                      const padding = 20;
+                      const minX = Math.min(...newPoints.map(p => p.x));
+                      const minY = Math.min(...newPoints.map(p => p.y));
+                      const maxX = Math.max(...newPoints.map(p => p.x));
+                      const maxY = Math.max(...newPoints.map(p => p.y));
+                      
+                      // Calculate new dimensions with padding
+                      const newWidth = Math.max(maxX - minX + padding * 2, 100);
+                      const newHeight = Math.max(maxY - minY + padding * 2, 100);
+                      
+                      // If points extend into negative local space, we need to:
+                      // 1. Shift shape position in world space
+                      // 2. Normalize points so they stay in positive local space
+                      const shiftX = minX < padding ? minX - padding : 0;
+                      const shiftY = minY < padding ? minY - padding : 0;
+                      
+                      // Normalize points to new local origin (shifted by -shiftX, -shiftY)
+                      const normalizedPoints = newPoints.map(p => ({
+                        x: p.x - shiftX,
+                        y: p.y - shiftY
+                      }));
+                      
+                      // Update world position to compensate for the shift
+                      const newPosition = {
+                        x: obj.position.x + shiftX,
+                        y: obj.position.y + shiftY
+                      };
+                      
+                      const updatedObjects = (props.canvasObjects || []).map(
+                        (canvasObject) =>
+                          canvasObject.id === objectId
+                            ? {
+                                ...canvasObject,
+                                data: { ...canvasObject.data, points: normalizedPoints },
+                                position: newPosition,
+                                width: newWidth,
+                                height: newHeight,
+                                style: { ...canvasObject.style, width: newWidth, height: newHeight }
+                              }
+                            : canvasObject,
+                      );
+                      props.onCanvasObjectsChange?.(updatedObjects);
+                    }}
+                    onFreeformClose={(objectId) => {
+                      const updatedObjects = (props.canvasObjects || []).map(
+                        (canvasObject) =>
+                          canvasObject.id === objectId
+                            ? {
+                                ...canvasObject,
+                                data: { ...canvasObject.data, isClosed: true, isCreating: false },
+                              }
+                            : canvasObject,
+                      );
+                      props.onCanvasObjectsChange?.(updatedObjects);
+                    }}
                   />
                 );
               }
