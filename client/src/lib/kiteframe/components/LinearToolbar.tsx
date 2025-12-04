@@ -88,6 +88,7 @@ interface LinearToolbarProps {
     textAlign?: 'left' | 'center' | 'right';
   }) => void;
   scale?: number;
+  isInlineEditing?: boolean; // Show text style options when inline editing is active
 }
 
 type EndpointType = 'none' | 'arrow' | 'circle' | 'diamond';
@@ -184,7 +185,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   onCanvasObjectColorChange,
   onCanvasObjectStyleChange,
   onCanvasObjectTextStyleChange,
-  scale = 1
+  scale = 1,
+  isInlineEditing = false
 }) => {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const [iconVisible, setIconVisible] = useState(node?.data?.iconVisible ?? true);
@@ -248,7 +250,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   // Build buttons based on target type
   const getButtons = (): ToolbarButton[] => {
     if (isNodeTarget) {
-      return [
+      const buttons: ToolbarButton[] = [
         {
           id: 'color',
           icon: <Palette size={18} />,
@@ -256,15 +258,22 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           color: 'bg-blue-500',
           hoverColor: 'hover:bg-blue-600',
           hasSubmenu: true
-        },
-        {
+        }
+      ];
+      
+      // Text style only shown when inline editing is active
+      if (isInlineEditing) {
+        buttons.push({
           id: 'text',
           icon: <Type size={18} />,
           label: 'Text Style',
           color: 'bg-purple-500',
           hoverColor: 'hover:bg-purple-600',
           hasSubmenu: true
-        },
+        });
+      }
+      
+      buttons.push(
         {
           id: 'style',
           icon: <Brush size={18} />,
@@ -297,7 +306,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           hoverColor: 'hover:bg-red-600',
           onClick: () => { onDelete?.(); onClose(); }
         }
-      ];
+      );
+      
+      return buttons;
     } else if (isEdgeTarget) {
       return [
         {

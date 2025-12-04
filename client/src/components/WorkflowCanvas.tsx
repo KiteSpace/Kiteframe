@@ -17,7 +17,7 @@ interface WorkflowCanvasProps {
   onCanvasObjectsChange?: (objects: CanvasObject[]) => void;
   onConnect: (connection: { source: string; target: string }) => void;
   onNodeClick?: (e: React.MouseEvent, node: Node) => void;
-  onNodeDoubleClick?: (e: React.MouseEvent, node: Node) => void;
+  onNodeDoubleClick?: (e: React.MouseEvent, node: Node, part?: 'header' | 'body') => void;
   onEdgeClick?: (edge: Edge) => void;
   onCanvasClick?: () => void;
   onNodeRightClick?: (e: React.MouseEvent, node: Node) => void;

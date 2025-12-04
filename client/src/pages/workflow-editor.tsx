@@ -3338,7 +3338,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     canvasPosition: { x: number; y: number };
   } | null>(null);
   const mousePositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [inlineEditingNodeId, setInlineEditingNodeId] = useState<string | null>(null);
+  const [inlineEditing, setInlineEditing] = useState<{ 
+    nodeId?: string; 
+    edgeId?: string; 
+    part: 'header' | 'body' | 'edgeLabel';
+  } | null>(null);
   const [isEditingWorkflowName, setIsEditingWorkflowName] = useState(false);
   const [workflowNameInput, setWorkflowNameInput] = useState('');
   const [copiedProperties, setCopiedProperties] = useState<{ colors?: any; data?: Partial<Node['data']> } | null>(null);
@@ -5300,7 +5304,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 updateActiveTab({ canvasObjects: updatedObjects });
                 setSelectedEdgeId('');
                 setContextMenu(null);
-                setInlineEditingNodeId(null);
+                setInlineEditing(null);
                 
                 console.log(`📝 SELECTION STATE SET:`, { 
                   selectedNodeId: e.shiftKey ? selectedNodeId : 'delayed for drag detection',
@@ -5308,15 +5312,35 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   tabId: activeTab 
                 });
               }}
-              onNodeDoubleClick={(e: React.MouseEvent, node: Node) => {
+              onNodeDoubleClick={(e: React.MouseEvent, node: Node, part?: 'header' | 'body') => {
                 console.log(`📝 EDITOR NODE DOUBLE-CLICK HANDLER - Triggering inline edit:`, { 
                   nodeId: node.id, 
                   nodeType: node.type,
+                  part: part || 'header',
                   tabId: activeTab 
                 });
-                // Double-click triggers inline text editing
-                setInlineEditingNodeId(node.id);
-                setLinearToolbar(null);
+                // Double-click triggers inline text editing for specific part
+                setInlineEditing({ nodeId: node.id, part: part || 'header' });
+                // Also show the linear toolbar with text style options
+                const nodeWidth = node.style?.width ?? node.width ?? 200;
+                const nodeHeight = node.style?.height ?? node.height ?? 100;
+                const screenX = node.position.x * viewport.zoom + viewport.x;
+                const screenY = node.position.y * viewport.zoom + viewport.y;
+                const screenWidth = nodeWidth * viewport.zoom;
+                const screenHeight = nodeHeight * viewport.zoom;
+                
+                setLinearToolbar({
+                  x: screenX + screenWidth / 2,
+                  y: screenY,
+                  nodeRect: {
+                    top: screenY,
+                    bottom: screenY + screenHeight,
+                    left: screenX,
+                    right: screenX + screenWidth,
+                    width: screenWidth
+                  },
+                  node
+                });
                 setContextMenu(null);
               }}
               onEdgeClick={(edge: Edge) => {
@@ -5414,7 +5438,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setSelectedEdgeId('');
                 setContextMenu(null);
                 setLinearToolbar(null);
-                setInlineEditingNodeId(null);
+                setInlineEditing(null);
                 // Clear canvas objects selection too
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => ({ ...obj, selected: false }))
@@ -5481,7 +5505,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setSelectedNodeId('');
                 setSelectedEdgeId('');
                 setContextMenu(null);
-                setInlineEditingNodeId(null);
+                setInlineEditing(null);
               }}
               onCanvasObjectRightClick={(e: React.MouseEvent, canvasObject: CanvasObject) => {
                 setContextMenu({ x: e.clientX, y: e.clientY, canvasObject });
@@ -6273,8 +6297,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onTextEdit={() => {
               if (linearToolbar.node) {
-                setInlineEditingNodeId(linearToolbar.node.id);
-                setLinearToolbar(null);
+                setInlineEditing({ nodeId: linearToolbar.node.id, part: 'body' });
+                // Keep toolbar open for text styling
               }
             }}
             onStyleChange={(style) => {
@@ -6342,8 +6366,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onAddLink={() => {
               if (linearToolbar.node) {
                 // Trigger inline editing for adding a link
-                setInlineEditingNodeId(linearToolbar.node.id);
-                setLinearToolbar(null);
+                setInlineEditing({ nodeId: linearToolbar.node.id, part: 'body' });
+                // Keep toolbar open for text styling
               }
             }}
             onEdgeStyleChange={(style) => {
@@ -6622,6 +6646,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             }}
             scale={viewport.zoom}
+            isInlineEditing={!!(inlineEditing && linearToolbar.node && inlineEditing.nodeId === linearToolbar.node.id)}
           />
         )}
 

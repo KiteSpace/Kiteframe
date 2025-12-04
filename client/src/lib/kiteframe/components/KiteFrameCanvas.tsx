@@ -824,7 +824,7 @@ type Props = {
   selectedNodes?: string[];
   onNodeClick?: (e: React.MouseEvent, node: Node) => void;
   onCanvasClick?: () => void;
-  onNodeDoubleClick?: (e: React.MouseEvent, node: Node) => void;
+  onNodeDoubleClick?: (e: React.MouseEvent, node: Node, part?: 'header' | 'body') => void;
   onNodeRightClick?: (e: React.MouseEvent, node: Node) => void;
   onCanvasObjectClick?: (
     e: React.MouseEvent,
@@ -3315,7 +3315,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       }
                     }
                   }}
-                  onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -3375,6 +3374,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         backgroundColor: headerBg,
                         color: headerText,
                         borderBottom: `1px solid ${border}`,
+                        cursor: 'text',
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        props.onNodeDoubleClick?.(e, n, 'header');
                       }}
                     >
                       {n.data?.label || n.type || n.id}
@@ -3398,6 +3402,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                             : undefined, // Account for title height
                         justifyContent:
                           n.type === "image" ? "center" : undefined,
+                        cursor: n.type !== "image" ? 'text' : undefined,
+                      }}
+                      onDoubleClick={(e) => {
+                        if (n.type !== "image") {
+                          e.stopPropagation();
+                          props.onNodeDoubleClick?.(e, n, 'body');
+                        }
                       }}
                     >
                       {/* Icon/Emoji display - side by side with text */}
