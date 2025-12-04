@@ -378,11 +378,12 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         });
       }
       
-      if (objType === 'shape') {
+      // Style button for shapes and sticky notes (stroke/border style)
+      if (objType === 'shape' || objType === 'sticky') {
         buttons.push({
           id: 'style',
           icon: <Brush size={18} />,
-          label: 'Border Style',
+          label: objType === 'shape' ? 'Stroke Style' : 'Border Style',
           color: 'bg-emerald-500',
           hoverColor: 'hover:bg-emerald-600',
           hasSubmenu: true
