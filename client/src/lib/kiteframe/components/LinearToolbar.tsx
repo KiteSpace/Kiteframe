@@ -841,7 +841,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     const currentFillStyle = (canvasObject?.data as any)?.fillStyle || 'solid';
     
     const fillStyleOptions = [
-      { id: 'solid', label: 'Solid', description: '50% opacity', icon: <Square size={16} className="fill-current" /> },
+      { id: 'solid', label: 'Solid', description: '50% intensity (lighter hue)', icon: <Square size={16} className="fill-current" /> },
       { id: 'transparent', label: 'Transparent', description: '30% opacity', icon: <Square size={16} className="opacity-30" /> },
       { id: 'none', label: 'No Fill', description: 'Border only', icon: <Square size={16} className="fill-none" /> }
     ];
@@ -902,13 +902,13 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       <div 
         ref={submenuRef}
         className={cn(
-          "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150",
+          "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150 min-w-[280px]",
           showAbove ? "bottom-full mb-2" : "top-full mt-2"
         )}
       >
         <div className="space-y-2">
           <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Change Shape</div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-3">
             {shapeOptions.map((opt) => (
               <button
                 type="button"

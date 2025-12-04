@@ -18,6 +18,10 @@ interface ShapeObjectProps {
   onRemoveReaction?: (objectId: string, emoji: string) => void;
   viewport?: { x: number; y: number; zoom: number };
   selectedCanvasObjectCount?: number; // For resize handle gating
+  // Endpoint dragging callbacks for line/arrow shapes
+  onEndpointDragStart?: (endpoint: 'start' | 'end', e: React.MouseEvent) => void;
+  onEndpointDrag?: (endpoint: 'start' | 'end', position: { x: number; y: number }) => void;
+  onEndpointDragEnd?: (endpoint: 'start' | 'end', position: { x: number; y: number }) => void;
 }
 
 export const ShapeObject: React.FC<ShapeObjectProps> = ({
@@ -31,7 +35,10 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   onAddReaction,
   onRemoveReaction,
   viewport,
-  selectedCanvasObjectCount = 0
+  selectedCanvasObjectCount = 0,
+  onEndpointDragStart,
+  onEndpointDrag,
+  onEndpointDragEnd
 }) => {
   const objectRef = useRef<HTMLDivElement>(null);
   // Text editing disabled for shapes\n  // const [isEditingText, setIsEditingText] = useState(false);
@@ -107,6 +114,55 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   };
 
+  // Helper function to lighten a color by blending with white at a given intensity
+  // intensity: 1.0 = original color, 0.5 = 50% lighter (blended with white), 0 = white
+  const lightenColor = (hex: string, intensity: number): string => {
+    // Remove # if present
+    hex = hex.replace('#', '');
+    
+    // Handle 3-character hex codes
+    if (hex.length === 3) {
+      hex = hex.split('').map(char => char + char).join('');
+    }
+    
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Blend with white (255, 255, 255) based on intensity
+    // intensity 1.0 = original color, 0.5 = halfway to white, 0 = white
+    const newR = Math.round(r * intensity + 255 * (1 - intensity));
+    const newG = Math.round(g * intensity + 255 * (1 - intensity));
+    const newB = Math.round(b * intensity + 255 * (1 - intensity));
+    
+    // Convert back to hex
+    const toHex = (n: number) => n.toString(16).padStart(2, '0');
+    return `#${toHex(newR)}${toHex(newG)}${toHex(newB)}`;
+  };
+
+  // Get the fill color based on fillStyle
+  // solid = 50% intensity (lighter hue) at 100% opacity
+  // transparent = 30% opacity 
+  // none = no fill
+  const getFillColor = (color: string, fillStyle?: string, fillOpacity?: number): string => {
+    if (fillStyle === 'none' || fillOpacity === 0) {
+      return 'transparent';
+    }
+    if (fillStyle === 'solid') {
+      // 50% intensity = lighter hue at 100% opacity
+      return lightenColor(color, 0.5);
+    }
+    if (fillStyle === 'transparent') {
+      // 30% opacity
+      return hexToRgba(color, 0.3);
+    }
+    // Default fallback: use opacity if provided
+    if (fillOpacity !== undefined) {
+      return hexToRgba(color, fillOpacity);
+    }
+    return color;
+  };
+
   const renderShape = () => {
     const { 
       shapeType, 
@@ -116,12 +172,16 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       borderRadius, 
       opacity,
       fillOpacity,
+      fillStyle,
       strokeOpacity,
       strokeStyle,
       lineCap,
       arrowSize 
     } = object.data;
     const { width, height } = shapeSize;
+    
+    // Calculate the actual fill color based on fillStyle
+    const computedFillColor = getFillColor(fillColor || '#3b82f6', fillStyle, fillOpacity);
 
     const commonStyles = {
       width: '100%',
@@ -154,7 +214,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             className="w-full h-full"
             style={{
               ...commonStyles,
-              backgroundColor: fillOpacity !== undefined ? hexToRgba(fillColor || '#3b82f6', fillOpacity) : (fillColor || '#3b82f6'),
+              backgroundColor: computedFillColor,
               border: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0)
                 ? `${strokeWidth}px ${strokeStyle === 'none' ? 'none' : (strokeStyle || 'solid')} ${strokeOpacity !== undefined ? hexToRgba(strokeColor || '#1d4ed8', strokeOpacity) : (strokeColor || '#1d4ed8')}` 
                 : 'none',
@@ -178,8 +238,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               cy={centerY}
               r={radius}
               style={{
-                fill: fillColor || '#10b981',
-                fillOpacity: fillOpacity !== undefined ? fillOpacity : 0.7,
+                fill: computedFillColor,
                 stroke: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#059669' : 'none',
                 strokeOpacity: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) && strokeOpacity !== undefined ? strokeOpacity : 1.0,
                 strokeWidth: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeWidth || 0 : 0,
@@ -199,8 +258,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             <polygon
               points="50,10 10,90 90,90"
               style={{
-                fill: fillColor || '#f59e0b',
-                fillOpacity: fillOpacity !== undefined ? fillOpacity : 0.7,
+                fill: computedFillColor,
                 stroke: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#d97706' : 'none',
                 strokeOpacity: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) && strokeOpacity !== undefined ? strokeOpacity : 1.0,
                 strokeWidth: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
@@ -220,8 +278,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             <polygon
               points="50,5 85,25 85,75 50,95 15,75 15,25"
               style={{
-                fill: fillColor || '#8b5cf6',
-                fillOpacity: fillOpacity !== undefined ? fillOpacity : 0.7,
+                fill: computedFillColor,
                 stroke: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#7c3aed' : 'none',
                 strokeOpacity: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) && strokeOpacity !== undefined ? strokeOpacity : 1.0,
                 strokeWidth: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
@@ -236,18 +293,23 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         );
 
       case 'line':
+        // Use startPoint and endPoint if available, otherwise use defaults
+        const lineStartX = object.data.startPoint?.x ?? 0;
+        const lineStartY = object.data.startPoint?.y ?? height / 2;
+        const lineEndX = object.data.endPoint?.x ?? width;
+        const lineEndY = object.data.endPoint?.y ?? height / 2;
         return (
-          <svg width="100%" height="100%" viewBox="0 0 100 100" className="overflow-visible">
+          <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible absolute top-0 left-0">
             <line
-              x1="10"
-              y1="50"
-              x2="90"
-              y2="50"
+              x1={lineStartX}
+              y1={lineStartY}
+              x2={lineEndX}
+              y2={lineEndY}
               style={{
-                stroke: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#6b7280' : 'none',
-                strokeOpacity: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) && strokeOpacity !== undefined ? strokeOpacity : 1.0,
-                strokeWidth: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
-                strokeDasharray: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
+                stroke: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#6b7280' : '#6b7280',
+                strokeOpacity: strokeOpacity !== undefined ? strokeOpacity : 1.0,
+                strokeWidth: strokeWidth || 2,
+                strokeDasharray: getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2),
                 strokeLinecap: lineCap || 'round',
                 filter: object.data.shadow?.enabled 
                   ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
@@ -259,9 +321,14 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         );
 
       case 'arrow':
+        // Use startPoint and endPoint if available, otherwise use defaults
+        const arrowStartX = object.data.startPoint?.x ?? 0;
+        const arrowStartY = object.data.startPoint?.y ?? height / 2;
+        const arrowEndX = object.data.endPoint?.x ?? width;
+        const arrowEndY = object.data.endPoint?.y ?? height / 2;
         const arrowMarkerSize = (arrowSize || 1) * 10;
         return (
-          <svg width="100%" height="100%" viewBox="0 0 100 100" className="overflow-visible">
+          <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible absolute top-0 left-0">
             <defs>
               <marker
                 id={`arrowhead-${object.id}`}
@@ -274,22 +341,22 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
                 <polygon
                   points={`0 0, ${arrowMarkerSize} ${arrowMarkerSize * 0.35}, 0 ${arrowMarkerSize * 0.7}`}
                   style={{
-                    fill: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#6b7280' : 'none',
-                    fillOpacity: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) && strokeOpacity !== undefined ? strokeOpacity : 1.0
+                    fill: strokeColor || '#6b7280',
+                    fillOpacity: strokeOpacity !== undefined ? strokeOpacity : 1.0
                   }}
                 />
               </marker>
             </defs>
             <line
-              x1="10"
-              y1="50"
-              x2="85"
-              y2="50"
+              x1={arrowStartX}
+              y1={arrowStartY}
+              x2={arrowEndX}
+              y2={arrowEndY}
               style={{
-                stroke: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#6b7280' : 'none',
-                strokeOpacity: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) && strokeOpacity !== undefined ? strokeOpacity : 1.0,
-                strokeWidth: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? (strokeWidth || 2) * (100 / Math.min(width, height)) : 0,
-                strokeDasharray: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2) : 'none',
+                stroke: strokeColor || '#6b7280',
+                strokeOpacity: strokeOpacity !== undefined ? strokeOpacity : 1.0,
+                strokeWidth: strokeWidth || 2,
+                strokeDasharray: getStrokeDashArray(strokeStyle || 'solid', strokeWidth || 2),
                 strokeLinecap: lineCap || 'round',
                 filter: object.data.shadow?.enabled 
                   ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
@@ -526,6 +593,55 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             maxHeight={5000}
             viewport={viewport}
           />
+        </>
+      )}
+
+      {/* Endpoint handles for line/arrow shapes - shown when selected */}
+      {object.selected && selectedCanvasObjectCount === 1 && 
+       (object.data.shapeType === 'line' || object.data.shapeType === 'arrow') && (
+        <>
+          {/* Start endpoint handle */}
+          <div
+            className="absolute w-4 h-4 bg-white border-2 border-blue-500 rounded-full cursor-move shadow-md hover:bg-blue-50 hover:scale-110 transition-transform"
+            style={{
+              left: (object.data.startPoint?.x ?? 0) - 8,
+              top: (object.data.startPoint?.y ?? shapeSize.height / 2) - 8,
+              transform: viewport ? `scale(${1 / viewport.zoom})` : undefined,
+              transformOrigin: 'center center',
+              zIndex: 1000,
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onEndpointDragStart?.('start', e);
+            }}
+            data-testid="endpoint-handle-start"
+          >
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+            </div>
+          </div>
+          {/* End endpoint handle */}
+          <div
+            className="absolute w-4 h-4 bg-white border-2 border-blue-500 rounded-full cursor-move shadow-md hover:bg-blue-50 hover:scale-110 transition-transform"
+            style={{
+              left: (object.data.endPoint?.x ?? shapeSize.width) - 8,
+              top: (object.data.endPoint?.y ?? shapeSize.height / 2) - 8,
+              transform: viewport ? `scale(${1 / viewport.zoom})` : undefined,
+              transformOrigin: 'center center',
+              zIndex: 1000,
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onEndpointDragStart?.('end', e);
+            }}
+            data-testid="endpoint-handle-end"
+          >
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+            </div>
+          </div>
         </>
       )}
 

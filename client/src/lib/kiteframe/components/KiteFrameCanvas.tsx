@@ -1868,6 +1868,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     originalEvent: React.MouseEvent; // Store original event for proper click handling
   } | null>(null);
 
+  // Endpoint dragging for arrow/line shapes
+  const endpointDragInfo = useRef<{
+    objectId: string;
+    endpoint: 'start' | 'end';
+    start: { x: number; y: number };
+    origin: { x: number; y: number };
+  } | null>(null);
+
   // Add capture-phase mousedown handler for shift+drag lasso from anywhere
   useEffect(() => {
     const handleCaptureMouseDown = (e: Event) => {
@@ -1927,6 +1935,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   useEffect(() => {
     const onMove = (e: Event) => {
       const mouseEvent = e as MouseEvent;
+      // Handle endpoint dragging for arrow/line shapes
+      if (endpointDragInfo.current) {
+        handleEndpointDragMove(mouseEvent);
+        return;
+      }
+
       // Handle node dragging
       if (dragInfo.current) {
         handleNodeDragMove(mouseEvent);
@@ -1938,6 +1952,45 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         handleCanvasObjectDragMove(mouseEvent);
         return;
       }
+    };
+
+    const handleEndpointDragMove = (e: MouseEvent) => {
+      if (!endpointDragInfo.current || !containerRef.current) return;
+
+      const rect = containerRef.current.getBoundingClientRect();
+      const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+      
+      // Calculate delta from drag start
+      const startWorld = clientToWorld(
+        endpointDragInfo.current.start.x,
+        endpointDragInfo.current.start.y,
+        viewport,
+        rect
+      );
+      const dx = wp.x - startWorld.x;
+      const dy = wp.y - startWorld.y;
+
+      // Calculate new endpoint position
+      const newEndpointPos = {
+        x: endpointDragInfo.current.origin.x + dx,
+        y: endpointDragInfo.current.origin.y + dy,
+      };
+
+      // Update the canvas object with new endpoint position
+      const updatedObjects = (props.canvasObjects || []).map((obj) => {
+        if (obj.id !== endpointDragInfo.current!.objectId) return obj;
+        
+        const updateKey = endpointDragInfo.current!.endpoint === 'start' ? 'startPoint' : 'endPoint';
+        return {
+          ...obj,
+          data: {
+            ...obj.data,
+            [updateKey]: newEndpointPos,
+          },
+        };
+      });
+      
+      props.onCanvasObjectsChange?.(updatedObjects);
     };
 
     const handleNodeDragMove = (e: MouseEvent) => {
@@ -2207,6 +2260,19 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     };
 
     const onUp = () => {
+      // Handle endpoint drag end first (highest priority)
+      if (endpointDragInfo.current) {
+        console.log('🎯 Endpoint drag end:', { 
+          objectId: endpointDragInfo.current.objectId, 
+          endpoint: endpointDragInfo.current.endpoint 
+        });
+        
+        // TODO: Check for node handle snapping here
+        // For now, just clear the drag state
+        endpointDragInfo.current = null;
+        return;
+      }
+
       // Handle canvas object drag end first (priority gate)
       if (canvasObjectDragInfo.current) {
         console.log("🔧 CANVAS OBJECT DRAG END:", canvasObjectDragInfo.current);
@@ -4038,6 +4104,26 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     onAddReaction={addCanvasObjectReaction}
                     onRemoveReaction={removeCanvasObjectReaction}
                     viewport={viewport}
+                    onEndpointDragStart={(endpoint, e) => {
+                      // Get the shape data to find current endpoint position
+                      const shapeData = obj.data as import("../types").ShapeNodeData;
+                      const shapeWidth = obj.style?.width || obj.width || 150;
+                      const shapeHeight = obj.style?.height || obj.height || 50;
+                      
+                      // Get the current endpoint position (relative to shape)
+                      const endpointPos = endpoint === 'start' 
+                        ? (shapeData.startPoint ?? { x: 0, y: shapeHeight / 2 })
+                        : (shapeData.endPoint ?? { x: shapeWidth, y: shapeHeight / 2 });
+                      
+                      endpointDragInfo.current = {
+                        objectId: obj.id,
+                        endpoint,
+                        start: { x: e.clientX, y: e.clientY },
+                        origin: endpointPos,
+                      };
+                      console.log('🎯 Endpoint drag start:', { objectId: obj.id, endpoint, endpointPos });
+                      e.stopPropagation();
+                    }}
                   />
                 );
               }

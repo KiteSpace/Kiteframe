@@ -421,6 +421,13 @@ export interface ShapeNodeData {
   // Special properties for lines and arrows
   lineCap?: 'butt' | 'round' | 'square'; // For lines
   arrowSize?: number; // For arrows (1-3 multiplier)
+  // Endpoint properties for lines and arrows (relative to shape position)
+  startPoint?: { x: number; y: number }; // Start endpoint (relative to position)
+  endPoint?: { x: number; y: number }; // End endpoint (relative to position)
+  startConnectedTo?: string; // Node ID if connected to a node
+  endConnectedTo?: string; // Node ID if connected to a node
+  startHandlePosition?: 'top' | 'right' | 'bottom' | 'left'; // Which handle on the node
+  endHandlePosition?: 'top' | 'right' | 'bottom' | 'left'; // Which handle on the node
   [key: string]: any;
 }
 
