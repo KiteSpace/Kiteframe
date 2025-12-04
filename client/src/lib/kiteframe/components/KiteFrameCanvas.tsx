@@ -3784,7 +3784,22 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                               autoFocus
                             />
                           ) : (
-                            n.data?.description || "Drop content here…"
+                            <span
+                              style={{
+                                fontSize: n.data?.fontSize ? `${n.data.fontSize}px` : '12px',
+                                fontWeight: n.data?.bold ? 700 : 400,
+                                fontStyle: n.data?.italic ? 'italic' : 'normal',
+                                textDecoration: [
+                                  n.data?.underline ? 'underline' : '',
+                                  n.data?.strikethrough ? 'line-through' : ''
+                                ].filter(Boolean).join(' ') || 'none',
+                                textAlign: n.data?.textAlign || 'left',
+                                display: 'block',
+                                width: '100%',
+                              }}
+                            >
+                              {n.data?.description || "Drop content here…"}
+                            </span>
                           )}
                         </div>
                       )}
