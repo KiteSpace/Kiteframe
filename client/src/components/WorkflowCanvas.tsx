@@ -99,7 +99,7 @@ export function WorkflowCanvas({
   }, []);
 
   const [, force] = React.useReducer(x=>x+1, 0);
-  useEffect(()=>{ return VLStore.subscribe(force); },[]);
+  useEffect(()=>{ const unsub = VLStore.subscribe(force); return () => { unsub(); }; },[]);
   const { hidden, locked } = VLStore.get();
 
   const hiddenNodeIds = new Set(
@@ -366,7 +366,6 @@ export function WorkflowCanvas({
         viewport={viewport}
         onViewportChange={onViewportChange}
         selectedNodes={selectedNodeIds || []}
-        gridType="none"
         minZoom={0.1}
         maxZoom={3}
         enablePlugins={enablePlugins}
