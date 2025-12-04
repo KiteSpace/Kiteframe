@@ -203,12 +203,22 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   const [iconVisible, setIconVisible] = useState(node?.data?.iconVisible ?? true);
   const menuRef = useRef<HTMLDivElement>(null);
   const submenuRef = useRef<HTMLDivElement>(null);
+  
+  // Remember the editing part when text submenu opens (before blur clears inlineEditing state)
+  const [rememberedEditingPart, setRememberedEditingPart] = useState<'header' | 'body' | undefined>(undefined);
 
   // Sync icon visibility and reset submenu when node changes
   useEffect(() => {
     setIconVisible(node?.data?.iconVisible ?? true);
     setActiveSubmenu(null);
   }, [node?.id, node?.data?.iconVisible]);
+  
+  // Remember the editing part when inline editing starts or changes
+  useEffect(() => {
+    if (isInlineEditing && inlineEditingPart) {
+      setRememberedEditingPart(inlineEditingPart as 'header' | 'body');
+    }
+  }, [isInlineEditing, inlineEditingPart]);
 
   const isNodeTarget = target?.type === 'node';
   const isEdgeTarget = target?.type === 'edge';
@@ -949,8 +959,11 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     const nodeData = node?.data;
     const objData = canvasObject?.data;
     
+    // Use remembered editing part (survives blur events) or fall back to current prop
+    const effectiveEditingPart = rememberedEditingPart || inlineEditingPart;
+    
     // Determine if editing header or body for nodes
-    const isEditingHeaderCheck = inlineEditingPart === 'header';
+    const isEditingHeaderCheck = effectiveEditingPart === 'header';
     
     // Determine current fontSize - same property name for both
     const currentFontSize = isCanvasObjectTarget 
@@ -983,9 +996,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       ? objData?.textAlign 
       : (isEditingHeaderCheck ? nodeData?.headerTextAlign : nodeData?.textAlign);
     
-    // Determine which part's styles to read based on inline editing part
-    const isEditingHeader = inlineEditingPart === 'header';
-    const relevantStyles = isEditingHeader 
+    // Determine which part's styles to read based on effective editing part
+    const relevantStyles = isEditingHeaderCheck 
       ? { 
           fontSize: nodeData?.headerFontSize, 
           bold: nodeData?.headerBold, 
@@ -1005,7 +1017,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     
     const handleFontSizeChange = (size: number) => {
       if (isNodeTarget) {
-        onTextStyleChange?.({ fontSize: size }, inlineEditingPart as 'header' | 'body');
+        // Use remembered editing part to survive blur events
+        onTextStyleChange?.({ fontSize: size }, effectiveEditingPart as 'header' | 'body');
       } else if (isCanvasObjectTarget) {
         onCanvasObjectTextStyleChange?.({ fontSize: size });
       }
@@ -1013,7 +1026,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     
     const handleBoldToggle = () => {
       if (isNodeTarget) {
-        onTextStyleChange?.({ bold: !relevantStyles.bold }, inlineEditingPart as 'header' | 'body');
+        onTextStyleChange?.({ bold: !relevantStyles.bold }, effectiveEditingPart as 'header' | 'body');
       } else if (isCanvasObjectTarget) {
         // Toggle between 'bold' and 'normal'
         const newBold = objData?.fontWeight !== 'bold';
@@ -1023,7 +1036,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     
     const handleItalicToggle = () => {
       if (isNodeTarget) {
-        onTextStyleChange?.({ italic: !relevantStyles.italic }, inlineEditingPart as 'header' | 'body');
+        onTextStyleChange?.({ italic: !relevantStyles.italic }, effectiveEditingPart as 'header' | 'body');
       } else if (isCanvasObjectTarget) {
         // Toggle italic in textDecoration
         const currentDecoration = objData?.textDecoration || 'none';
@@ -1034,7 +1047,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     
     const handleStrikethroughToggle = () => {
       if (isNodeTarget) {
-        onTextStyleChange?.({ strikethrough: !relevantStyles.strikethrough }, inlineEditingPart as 'header' | 'body');
+        onTextStyleChange?.({ strikethrough: !relevantStyles.strikethrough }, effectiveEditingPart as 'header' | 'body');
       } else if (isCanvasObjectTarget) {
         // Toggle line-through in textDecoration
         const currentDecoration = objData?.textDecoration || 'none';
@@ -1045,7 +1058,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     
     const handleAlignChange = (align: 'left' | 'center' | 'right') => {
       if (isNodeTarget) {
-        onTextStyleChange?.({ align }, inlineEditingPart as 'header' | 'body');
+        onTextStyleChange?.({ align }, effectiveEditingPart as 'header' | 'body');
       } else if (isCanvasObjectTarget) {
         onCanvasObjectTextStyleChange?.({ textAlign: align });
       }

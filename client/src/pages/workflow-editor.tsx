@@ -6493,11 +6493,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             }}
             onTextStyleChange={(style, part) => {
+              console.log('📝 TEXT STYLE CHANGE:', { style, part, nodeId: linearToolbar.node?.id });
               if (linearToolbar.node) {
                 saveToHistory();
                 setNodes(prev => prev.map(n => {
                   if (n.id !== linearToolbar.node!.id) return n;
                   
+                  console.log('📝 APPLYING STYLE:', { part, isHeader: part === 'header' });
                   // Apply styles to header or body based on 'part' parameter
                   if (part === 'header') {
                     return { 
