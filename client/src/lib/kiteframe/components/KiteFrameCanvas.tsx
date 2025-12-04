@@ -1167,24 +1167,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   const visibleCanvasObjects = useMemo(() => {
     if (!props.canvasObjects) return [];
-    // Filter canvas objects based on viewport visibility
-    return props.canvasObjects.filter((obj) => {
-      const width = obj.style?.width || obj.width || 200;
-      const height = obj.style?.height || obj.height || 150;
-
-      // Create a pseudo-node for visibility check
-      const pseudoNode: Node = {
-        id: obj.id,
-        type: "text" as NodeType,
-        position: obj.position,
-        data: {},
-        width,
-        height,
-      };
-
-      return virtualizationManager.isNodeVisible(pseudoNode, viewport.zoom);
-    });
-  }, [props.canvasObjects, viewport, virtualizationManager]);
+    // Disable virtualization for canvas objects to prevent disappearing at certain zoom levels
+    // Canvas objects are typically fewer than nodes and need to always be visible
+    return props.canvasObjects;
+  }, [props.canvasObjects]);
 
   // Performance metrics in development mode
   const [showPerformance, setShowPerformance] = useState(false);
@@ -1216,11 +1202,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   // ========== FREEFORM CREATION CLICK HANDLER ==========
   // Detect if there's a freeform shape in creation mode and handle canvas clicks
   const freeformCreatingShape = useMemo(() => {
-    return (props.canvasObjects || []).find(
+    const creating = (props.canvasObjects || []).find(
       obj => obj.type === 'shape' && 
              (obj.data as any)?.shapeType === 'freeform' && 
              (obj.data as any)?.isCreating === true
     );
+    return creating || null;
   }, [props.canvasObjects]);
 
   useEffect(() => {

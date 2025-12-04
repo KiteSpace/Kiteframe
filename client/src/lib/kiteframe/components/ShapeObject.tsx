@@ -109,154 +109,24 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   };
 
   // Freeform shape creation handlers
+  // Note: Canvas-level click handling is managed by KiteFrameCanvas for freeform creation
+  // These handlers are kept for fallback and mouse position tracking only
   const isFreeformCreating = object.data.shapeType === 'freeform' && object.data.isCreating;
   const freeformPoints = object.data.points || [];
   
-  // Use ref to track latest freeformPoints to avoid stale closure in event handlers
-  const freeformPointsRef = useRef(freeformPoints);
-  freeformPointsRef.current = freeformPoints;
-  
-  // Canvas-level click handler for freeform creation (uses canvas coordinates)
-  // Uses proper clientToWorld conversion: canvasX = (clientX - rect.left) / zoom + viewportX
-  useEffect(() => {
-    if (!isFreeformCreating || !canvasRef?.current) return;
-    
-    const canvas = canvasRef.current;
-    
-    const handleCanvasClick = (e: MouseEvent) => {
-      // Only handle left clicks
-      if (e.button !== 0) return;
-      
-      // Ignore clicks on UI elements (buttons, inputs, etc.)
-      const target = e.target as HTMLElement;
-      if (target.closest('button') || target.closest('input') || target.closest('[role="button"]')) {
-        return;
-      }
-      
-      const canvasRect = canvas.getBoundingClientRect();
-      const zoom = viewport?.zoom || 1;
-      const viewportX = viewport?.x || 0;
-      const viewportY = viewport?.y || 0;
-      
-      // Convert screen coordinates to canvas/world coordinates using proper formula
-      // Same as clientToWorld helper: canvasCoord = (clientCoord - rectOffset) / zoom + viewportOffset
-      const canvasX = (e.clientX - canvasRect.left) / zoom + viewportX;
-      const canvasY = (e.clientY - canvasRect.top) / zoom + viewportY;
-      
-      // Convert to shape-local coordinates
-      const localX = canvasX - object.position.x;
-      const localY = canvasY - object.position.y;
-      
-      // Get latest points from ref to avoid stale closure
-      const currentPoints = freeformPointsRef.current;
-      
-      // Check if clicking near the first point to close the shape
-      if (currentPoints.length >= 3) {
-        const firstPt = currentPoints[0];
-        const dist = Math.hypot(localX - firstPt.x, localY - firstPt.y);
-        if (dist < 20) {
-          console.log('🖊️ Freeform: Closing shape by clicking first point');
-          if (onFreeformClose) {
-            onFreeformClose(object.id);
-          } else {
-            onUpdate?.({ isClosed: true, isCreating: false });
-          }
-          e.stopPropagation();
-          e.preventDefault();
-          return;
-        }
-      }
-      
-      // Add the new point using canvas-level callback or direct update
-      console.log('🖊️ Freeform: Adding point via canvas click', { localX, localY, canvasX, canvasY, totalPoints: currentPoints.length + 1 });
-      
-      if (onFreeformPointAdd) {
-        onFreeformPointAdd(object.id, { x: localX, y: localY });
-      } else {
-        onUpdate?.({ points: [...currentPoints, { x: localX, y: localY }] });
-      }
-      
-      e.stopPropagation();
-      e.preventDefault();
-    };
-    
-    const handleCanvasDoubleClick = (e: MouseEvent) => {
-      // Get latest points from ref
-      const currentPoints = freeformPointsRef.current;
-      
-      // Close the shape if we have at least 3 points
-      if (currentPoints.length >= 3) {
-        console.log('🖊️ Freeform: Closing shape via double-click', currentPoints.length, 'points');
-        if (onFreeformClose) {
-          onFreeformClose(object.id);
-        } else {
-          onUpdate?.({ isClosed: true, isCreating: false });
-        }
-        e.stopPropagation();
-        e.preventDefault();
-      }
-    };
-    
-    const handleCanvasMouseMove = (e: MouseEvent) => {
-      const canvasRect = canvas.getBoundingClientRect();
-      const zoom = viewport?.zoom || 1;
-      const viewportX = viewport?.x || 0;
-      const viewportY = viewport?.y || 0;
-      
-      // Convert to shape-local coordinates using proper formula
-      const canvasX = (e.clientX - canvasRect.left) / zoom + viewportX;
-      const canvasY = (e.clientY - canvasRect.top) / zoom + viewportY;
-      const localX = canvasX - object.position.x;
-      const localY = canvasY - object.position.y;
-      
-      setMousePos({ x: localX, y: localY });
-    };
-    
-    canvas.addEventListener('click', handleCanvasClick, true);
-    canvas.addEventListener('dblclick', handleCanvasDoubleClick, true);
-    canvas.addEventListener('mousemove', handleCanvasMouseMove);
-    
-    return () => {
-      canvas.removeEventListener('click', handleCanvasClick, true);
-      canvas.removeEventListener('dblclick', handleCanvasDoubleClick, true);
-      canvas.removeEventListener('mousemove', handleCanvasMouseMove);
-    };
-  }, [isFreeformCreating, canvasRef, viewport, object.position, object.id, onUpdate, onFreeformPointAdd, onFreeformClose]);
-  
   const handleFreeformClick = useCallback((e: React.MouseEvent) => {
-    // This is now a fallback - canvas-level handler is primary
+    // Handled by KiteFrameCanvas - this is kept for legacy fallback only
     if (!isFreeformCreating) return;
-    
     e.stopPropagation();
     e.preventDefault();
-    
-    const rect = objectRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    const zoom = viewport?.zoom || 1;
-    const x = (e.clientX - rect.left) / zoom;
-    const y = (e.clientY - rect.top) / zoom;
-    
-    const newPoints = [...freeformPoints, { x, y }];
-    
-    console.log('🖊️ Freeform: Adding point (fallback)', { x, y, totalPoints: newPoints.length });
-    
-    onUpdate?.({ points: newPoints });
-  }, [isFreeformCreating, freeformPoints, viewport, onUpdate]);
+  }, [isFreeformCreating]);
   
   const handleFreeformDoubleClick = useCallback((e: React.MouseEvent) => {
-    // This is now a fallback - canvas-level handler is primary
+    // Handled by KiteFrameCanvas - this is kept for legacy fallback only
     if (!isFreeformCreating) return;
-    
     e.stopPropagation();
     e.preventDefault();
-    
-    // Close the shape if we have at least 3 points
-    if (freeformPoints.length >= 3) {
-      console.log('🖊️ Freeform: Closing shape (fallback)', freeformPoints.length, 'points');
-      onUpdate?.({ isClosed: true, isCreating: false });
-    }
-  }, [isFreeformCreating, freeformPoints.length, onUpdate]);
+  }, [isFreeformCreating]);
   
   const handleFreeformMouseMove = useCallback((e: React.MouseEvent) => {
     // This is now a fallback - canvas-level handler is primary
