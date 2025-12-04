@@ -3460,6 +3460,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
+                    // Don't start drag when inline editing is active on this node
+                    if (props.inlineEditing?.nodeId === n.id) {
+                      console.log('🚫 DRAG SUPPRESSED - inline editing active:', { nodeId: n.id });
+                      return;
+                    }
                     if (!containerRef.current) return;
                     const rect = containerRef.current.getBoundingClientRect();
                     const wp = clientToWorld(
@@ -3587,7 +3592,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         backgroundColor: headerBg,
                         color: headerText,
                         borderBottom: `1px solid ${border}`,
-                        cursor: 'text',
+                        cursor: props.inlineEditing?.nodeId === n.id && props.inlineEditing?.part === 'header' ? 'text' : 'grab',
                         overflow: 'hidden',
                         borderRadius: n.data?.hideDescription 
                           ? `${cornerRadius - 2}px` // All corners if no body
@@ -3634,7 +3639,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                             : undefined, // Account for title height
                         justifyContent:
                           n.type === "image" ? "center" : undefined,
-                        cursor: n.type !== "image" ? 'text' : undefined,
+                        cursor: n.type !== "image" 
+                          ? (props.inlineEditing?.nodeId === n.id && props.inlineEditing?.part === 'body' ? 'text' : 'grab')
+                          : undefined,
                         overflow: 'hidden',
                         borderRadius: n.data?.hideHeader 
                           ? `${cornerRadius - 2}px` // All corners if no header
