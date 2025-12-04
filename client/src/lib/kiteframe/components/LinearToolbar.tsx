@@ -260,7 +260,36 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   // Build buttons based on target type
   const getButtons = (): ToolbarButton[] => {
     if (isNodeTarget) {
-      const buttons: ToolbarButton[] = [
+      // During inline editing, show ONLY text-related buttons
+      if (isInlineEditing) {
+        const inlineButtons: ToolbarButton[] = [
+          {
+            id: 'text',
+            icon: <Type size={18} />,
+            label: 'Text Style',
+            color: 'bg-purple-500',
+            hoverColor: 'hover:bg-purple-600',
+            hasSubmenu: true
+          }
+        ];
+        
+        // Hyperlink only available for body text, not header
+        if (inlineEditingPart === 'body') {
+          inlineButtons.push({
+            id: 'link',
+            icon: <Link2 size={18} />,
+            label: 'Add Link',
+            color: 'bg-cyan-500',
+            hoverColor: 'hover:bg-cyan-600',
+            onClick: onAddLink
+          });
+        }
+        
+        return inlineButtons;
+      }
+      
+      // Normal node toolbar (not inline editing)
+      return [
         {
           id: 'color',
           icon: <Palette size={18} />,
@@ -268,22 +297,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           color: 'bg-blue-500',
           hoverColor: 'hover:bg-blue-600',
           hasSubmenu: true
-        }
-      ];
-      
-      // Text style only shown when inline editing is active
-      if (isInlineEditing) {
-        buttons.push({
-          id: 'text',
-          icon: <Type size={18} />,
-          label: 'Text Style',
-          color: 'bg-purple-500',
-          hoverColor: 'hover:bg-purple-600',
-          hasSubmenu: true
-        });
-      }
-      
-      buttons.push(
+        },
         {
           id: 'style',
           icon: <Brush size={18} />,
@@ -299,31 +313,16 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           color: 'bg-amber-500',
           hoverColor: 'hover:bg-amber-600',
           hasSubmenu: true
+        },
+        {
+          id: 'delete',
+          icon: <Trash2 size={18} />,
+          label: 'Delete',
+          color: 'bg-red-500',
+          hoverColor: 'hover:bg-red-600',
+          onClick: () => { onDelete?.(); onClose(); }
         }
-      );
-      
-      // Hyperlink only available during body text inline editing (not header)
-      if (isInlineEditing && inlineEditingPart === 'body') {
-        buttons.push({
-          id: 'link',
-          icon: <Link2 size={18} />,
-          label: 'Add Link',
-          color: 'bg-cyan-500',
-          hoverColor: 'hover:bg-cyan-600',
-          onClick: onAddLink
-        });
-      }
-      
-      buttons.push({
-        id: 'delete',
-        icon: <Trash2 size={18} />,
-        label: 'Delete',
-        color: 'bg-red-500',
-        hoverColor: 'hover:bg-red-600',
-        onClick: () => { onDelete?.(); onClose(); }
-      });
-      
-      return buttons;
+      ];
     } else if (isEdgeTarget) {
       return [
         {
