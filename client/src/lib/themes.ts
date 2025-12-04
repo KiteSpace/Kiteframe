@@ -200,8 +200,8 @@ export function applyThemeToNode(nodeData: any, theme: WorkflowTheme): any {
   // Use theme's predefined header text color, but let body text use auto-contrast
   const headerTextColor = theme.nodeStyles.headerText || getContrastTextColor(theme.nodeStyles.headerBackground);
   
-  // Calculate border color from header color
-  const borderColor = getBorderColorFromHeader(theme.nodeStyles.headerBackground);
+  // Use theme's border color directly
+  const borderColor = theme.nodeStyles.border;
   
   return {
     ...nodeData,
