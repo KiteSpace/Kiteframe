@@ -677,6 +677,45 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   );
 };
 
+// Utility to calculate contrast text color (white or black) based on background
+const getContrastTextColor = (backgroundColor: string): string => {
+  // Parse hex color to RGB
+  let r = 0, g = 0, b = 0;
+  
+  if (backgroundColor.startsWith('#')) {
+    const hex = backgroundColor.slice(1);
+    if (hex.length === 3) {
+      r = parseInt(hex[0] + hex[0], 16);
+      g = parseInt(hex[1] + hex[1], 16);
+      b = parseInt(hex[2] + hex[2], 16);
+    } else if (hex.length === 6) {
+      r = parseInt(hex.slice(0, 2), 16);
+      g = parseInt(hex.slice(2, 4), 16);
+      b = parseInt(hex.slice(4, 6), 16);
+    }
+  } else if (backgroundColor.startsWith('rgb')) {
+    const match = backgroundColor.match(/\d+/g);
+    if (match && match.length >= 3) {
+      r = parseInt(match[0]);
+      g = parseInt(match[1]);
+      b = parseInt(match[2]);
+    }
+  } else if (backgroundColor.startsWith('hsl')) {
+    // For HSL, use a simpler approach - check lightness value
+    const match = backgroundColor.match(/\d+\.?\d*/g);
+    if (match && match.length >= 3) {
+      const lightness = parseFloat(match[2]);
+      return lightness > 50 ? '#0f172a' : '#ffffff';
+    }
+  }
+  
+  // Calculate relative luminance using sRGB formula
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  
+  // Return white for dark backgrounds, dark slate for light backgrounds
+  return luminance > 0.5 ? '#0f172a' : '#ffffff';
+};
+
 // Utility to calculate dynamic node height based on content
 const calculateNodeHeight = (node: Node, nodeWidth: number): number => {
   const minHeight = 100;
@@ -2788,16 +2827,17 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               const bodyBg = colors.bodyBackground || n.data?.color || "white";
               const border =
                 colors.borderColor || n.data?.borderColor || "#e2e8f0";
+              // Auto-contrast: use explicit color if set, otherwise calculate based on header background
               const headerText =
                 colors.headerTextColor ||
                 colors.textColor ||
                 n.data?.textColor ||
-                "#0f172a";
+                getContrastTextColor(headerBg);
               const bodyText =
                 colors.bodyTextColor ||
                 colors.textColor ||
                 n.data?.textColor ||
-                "#475569";
+                getContrastTextColor(bodyBg);
 
               // Helper function to add reactions to nodes
               const addReaction = (nodeId: string, emoji: string) => {
