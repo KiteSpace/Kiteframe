@@ -5653,6 +5653,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   nodes={nodes}
                   edges={edges}
                   frames={[]}
+                  canvasObjects={canvasObjects}
                 />
                 
                 {/* KiteAI Floating Chat */}

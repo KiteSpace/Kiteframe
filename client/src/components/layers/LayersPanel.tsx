@@ -8,7 +8,8 @@ import { buildMultiViewTrees } from './multiViewBuilder';
 import { AncestorsStore } from './ancestorsStore';
 import { useWorkflowNames, generateDefaultWorkflowNames } from '@/stores/workflowNameStore';
 import { focusBus } from '@/stores/focusBus';
-import { Search } from 'lucide-react';
+import { Search, Circle, Square, Triangle, Hexagon, Minus, ArrowRight, Pen, Type, StickyNote } from 'lucide-react';
+import type { CanvasObject, ShapeNodeData } from '@/lib/kiteframe/types';
 
 // Collapse state management
 class CollapseStore {
@@ -63,8 +64,112 @@ class CollapseStore {
 
 const collapseStore = new CollapseStore();
 
-export function LayersPanel({ nodes, edges, frames }:{
-  nodes:any[]; edges:any[]; frames?:any[];
+function getShapeIcon(shapeType: string) {
+  switch (shapeType) {
+    case 'rectangle': return Square;
+    case 'circle': return Circle;
+    case 'triangle': return Triangle;
+    case 'hexagon': return Hexagon;
+    case 'line': return Minus;
+    case 'arrow': return ArrowRight;
+    case 'freeform': return Pen;
+    default: return Square;
+  }
+}
+
+function getCanvasObjectIcon(type: string, data: any) {
+  if (type === 'shape') {
+    return getShapeIcon(data.shapeType);
+  } else if (type === 'text') {
+    return Type;
+  } else if (type === 'sticky') {
+    return StickyNote;
+  }
+  return Square;
+}
+
+function getCanvasObjectLabel(type: string, data: any): string {
+  if (type === 'shape') {
+    const shapeType = data.shapeType as string;
+    return shapeType.charAt(0).toUpperCase() + shapeType.slice(1);
+  } else if (type === 'text') {
+    return 'Text';
+  } else if (type === 'sticky') {
+    return 'Sticky Note';
+  }
+  return 'Object';
+}
+
+function getCanvasObjectColor(type: string, data: any): string {
+  if (type === 'shape') {
+    return (data as ShapeNodeData).fillColor || '#3b82f6';
+  } else if (type === 'sticky') {
+    return data.backgroundColor || '#fef08a';
+  } else if (type === 'text') {
+    return data.textColor || '#000000';
+  }
+  return '#3b82f6';
+}
+
+function ShapesListView({ canvasObjects, searchQuery }: { canvasObjects: CanvasObject[]; searchQuery: string }) {
+  const filteredObjects = useMemo(() => {
+    if (!searchQuery.trim()) return canvasObjects;
+    const lowerQuery = searchQuery.toLowerCase();
+    return canvasObjects.filter(obj => {
+      const label = getCanvasObjectLabel(obj.type, obj.data);
+      return label.toLowerCase().includes(lowerQuery);
+    });
+  }, [canvasObjects, searchQuery]);
+
+  if (filteredObjects.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 p-4">
+        <Square className="h-8 w-8 mb-2 opacity-50" />
+        <p className="text-sm text-center">
+          {canvasObjects.length === 0 
+            ? "No shapes on canvas" 
+            : "No shapes match your search"}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-y-auto h-full">
+      {filteredObjects.map((obj) => {
+        const Icon = getCanvasObjectIcon(obj.type, obj.data);
+        const label = getCanvasObjectLabel(obj.type, obj.data);
+        const color = getCanvasObjectColor(obj.type, obj.data);
+        
+        return (
+          <div
+            key={obj.id}
+            onClick={() => focusBus.focusCanvasObject(obj.id, { select: true })}
+            className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors
+              hover:bg-gray-100 dark:hover:bg-gray-800
+              ${obj.selected ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
+            data-testid={`shape-layer-${obj.id}`}
+          >
+            <Icon 
+              size={16} 
+              style={{ color }}
+              className="flex-shrink-0"
+            />
+            <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+              {label}
+            </span>
+            {obj.hidden && (
+              <span className="text-xs text-gray-400 ml-auto">(hidden)</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function LayersPanel({ nodes, edges, frames, canvasObjects }:{
+  nodes:any[]; edges:any[]; frames?:any[]; canvasObjects?:CanvasObject[];
 }) {
   const [mode, setMode] = useState<LayerMode>('structure');
   const [tree, setTree] = useState<any>(null);
@@ -232,75 +337,82 @@ export function LayersPanel({ nodes, edges, frames }:{
       </div>
       
       <div className="flex-1 overflow-hidden bg-gray-50/30 dark:bg-gray-800/30">
-        <VirtualTree
-          rows={rows}
-          Row={({type,id,label,depth,childIds,role,collapsed,nodeType}:{type:'group'|'leaf';id:string;label:string;depth:number;childIds?:string[];role?:string;collapsed?:boolean;nodeType?:string})=>{
-            if (type==='group') {
-              const triHidden:Tri = computeTri(childIds ?? [], flags.hidden);
-              const triLocked:Tri = computeTri(childIds ?? [], flags.locked);
-              const onToggleHidden = () => {
-                const next = { hidden: { ...flags.hidden }, locked: { ...flags.locked } };
-                cascade(id, !(triHidden==='on'), getChildren, next.hidden);
-                VLStore.set(next);
-              };
-              const onToggleLocked = () => {
-                const next = { hidden: { ...flags.hidden }, locked: { ...flags.locked } };
-                cascade(id, !(triLocked==='on'), getChildren, next.locked);
-                VLStore.set(next);
-              };
-              const handleClick = () => {
-                if (role === 'workflow' && childIds) {
-                  const nodeIds = childIds.filter(cid => !cid.startsWith('e:'));
-                  focusBus.focusWorkflow(nodeIds);
-                }
-              };
-              
-              const handleNameChange = role === 'workflow' ? (newName: string) => {
-                // Let errors propagate to GroupRow for proper toast feedback
-                workflowNames.set(id, newName);
-              } : undefined;
-              
-              const handleToggleCollapse = () => {
-                collapseStore.toggle(id);
-              };
-              
-              return <GroupRow 
-                id={id} depth={depth} label={label} childIds={childIds ?? []}
-                triHidden={triHidden} triLocked={triLocked}
-                onToggleHidden={onToggleHidden} onToggleLocked={onToggleLocked}
-                onClick={handleClick}
-                onNameChange={handleNameChange}
-                role={role}
-                collapsed={collapsed}
-                onToggleCollapse={handleToggleCollapse}
-              />;
-            } else {
-              const ancestors = ancestorsIndex[id] ?? [];
-              const effHidden = isEffectivelyOn(id, ancestors, flags.hidden);
-              const effLocked = isEffectivelyOn(id, ancestors, flags.locked);
-              
-              const handleClick = () => {
-                if (role === 'node') {
-                  focusBus.focusNodes([id], { select: true });
-                } else if (role === 'edge' && id.startsWith('e:')) {
-                  const edgeId = id.slice(2);
-                  const edge = edges.find(e => e.id === edgeId);
-                  if (edge) {
-                    focusBus.focusNodes([edge.source, edge.target]);
+        {mode === 'shapes' ? (
+          <ShapesListView 
+            canvasObjects={canvasObjects || []} 
+            searchQuery={searchQuery}
+          />
+        ) : (
+          <VirtualTree
+            rows={rows}
+            Row={({type,id,label,depth,childIds,role,collapsed,nodeType}:{type:'group'|'leaf';id:string;label:string;depth:number;childIds?:string[];role?:string;collapsed?:boolean;nodeType?:string})=>{
+              if (type==='group') {
+                const triHidden:Tri = computeTri(childIds ?? [], flags.hidden);
+                const triLocked:Tri = computeTri(childIds ?? [], flags.locked);
+                const onToggleHidden = () => {
+                  const next = { hidden: { ...flags.hidden }, locked: { ...flags.locked } };
+                  cascade(id, !(triHidden==='on'), getChildren, next.hidden);
+                  VLStore.set(next);
+                };
+                const onToggleLocked = () => {
+                  const next = { hidden: { ...flags.hidden }, locked: { ...flags.locked } };
+                  cascade(id, !(triLocked==='on'), getChildren, next.locked);
+                  VLStore.set(next);
+                };
+                const handleClick = () => {
+                  if (role === 'workflow' && childIds) {
+                    const nodeIds = childIds.filter(cid => !cid.startsWith('e:'));
+                    focusBus.focusWorkflow(nodeIds);
                   }
-                }
-              };
-              
-              return <LeafRow 
-                id={id} depth={depth} label={label} 
-                effHidden={effHidden} effLocked={effLocked}
-                onClick={handleClick}
-                role={role}
-                nodeType={role === 'node' ? nodes.find(n => n.id === id)?.type : undefined}
-              />;
-            }
-          }}
-        />
+                };
+                
+                const handleNameChange = role === 'workflow' ? (newName: string) => {
+                  // Let errors propagate to GroupRow for proper toast feedback
+                  workflowNames.set(id, newName);
+                } : undefined;
+                
+                const handleToggleCollapse = () => {
+                  collapseStore.toggle(id);
+                };
+                
+                return <GroupRow 
+                  id={id} depth={depth} label={label} childIds={childIds ?? []}
+                  triHidden={triHidden} triLocked={triLocked}
+                  onToggleHidden={onToggleHidden} onToggleLocked={onToggleLocked}
+                  onClick={handleClick}
+                  onNameChange={handleNameChange}
+                  role={role}
+                  collapsed={collapsed}
+                  onToggleCollapse={handleToggleCollapse}
+                />;
+              } else {
+                const ancestors = ancestorsIndex[id] ?? [];
+                const effHidden = isEffectivelyOn(id, ancestors, flags.hidden);
+                const effLocked = isEffectivelyOn(id, ancestors, flags.locked);
+                
+                const handleClick = () => {
+                  if (role === 'node') {
+                    focusBus.focusNodes([id], { select: true });
+                  } else if (role === 'edge' && id.startsWith('e:')) {
+                    const edgeId = id.slice(2);
+                    const edge = edges.find(e => e.id === edgeId);
+                    if (edge) {
+                      focusBus.focusNodes([edge.source, edge.target]);
+                    }
+                  }
+                };
+                
+                return <LeafRow 
+                  id={id} depth={depth} label={label} 
+                  effHidden={effHidden} effLocked={effLocked}
+                  onClick={handleClick}
+                  role={role}
+                  nodeType={role === 'node' ? nodes.find(n => n.id === id)?.type : undefined}
+                />;
+              }
+            }}
+          />
+        )}
       </div>
     </div>
   );

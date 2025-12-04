@@ -93,7 +93,7 @@ export function WorkflowCanvas({
   }, []);
 
   const [, force] = React.useReducer(x=>x+1, 0);
-  useEffect(()=>VLStore.subscribe(force),[]);
+  useEffect(()=>{ return VLStore.subscribe(force); },[]);
   const { hidden, locked } = VLStore.get();
 
   const hiddenNodeIds = new Set(
@@ -195,9 +195,88 @@ export function WorkflowCanvas({
     }
   }, [nodes, onViewportChange, viewport]);
   
+  // Focus to a specific canvas object
+  const fitToCanvasObject = useCallback((objectId: string, options: { padding?: number; animate?: boolean } = {}) => {
+    const obj = canvasObjects.find(o => o.id === objectId);
+    if (!obj || !canvasRef.current) return;
+    
+    const padding = options.padding || 100;
+    const animate = options.animate !== false;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const objWidth = obj.width || obj.style?.width || 200;
+    const objHeight = obj.height || obj.style?.height || 100;
+    
+    // Calculate bounding box including padding
+    const minX = obj.position.x - padding;
+    const minY = obj.position.y - padding;
+    const maxX = obj.position.x + objWidth + padding;
+    const maxY = obj.position.y + objHeight + padding;
+    
+    const boundingWidth = maxX - minX;
+    const boundingHeight = maxY - minY;
+    
+    // Calculate zoom to fit
+    const zoomX = rect.width / boundingWidth;
+    const zoomY = rect.height / boundingHeight;
+    const targetZoom = Math.min(zoomX, zoomY, 2); // Cap at 2x
+    
+    // Calculate viewport position to center the object
+    const targetViewport = {
+      x: minX - (rect.width / targetZoom - boundingWidth) / 2,
+      y: minY - (rect.height / targetZoom - boundingHeight) / 2,
+      zoom: targetZoom
+    };
+    
+    if (animate) {
+      const startViewport = viewport;
+      const startTime = Date.now();
+      const duration = 300;
+      
+      const animateStep = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        
+        const currentViewport = {
+          x: startViewport.x + (targetViewport.x - startViewport.x) * eased,
+          y: startViewport.y + (targetViewport.y - startViewport.y) * eased,
+          zoom: startViewport.zoom + (targetViewport.zoom - startViewport.zoom) * eased
+        };
+        
+        onViewportChange(currentViewport);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateStep);
+        }
+      };
+      
+      animateStep();
+    } else {
+      onViewportChange(targetViewport);
+    }
+  }, [canvasObjects, onViewportChange, viewport]);
+
   // FocusBus integration
   useEffect(() => {
     const handleFocusEvent = (event: FocusEvent) => {
+      // Handle canvas object focus
+      if (event.type === 'focus-canvas-object' && event.canvasObjectId) {
+        fitToCanvasObject(event.canvasObjectId, {
+          padding: event.padding || 100,
+          animate: event.animate !== false
+        });
+        
+        // Handle canvas object selection
+        if (event.selectCanvasObject && onCanvasObjectsChange) {
+          onCanvasObjectsChange(canvasObjects.map(obj => ({
+            ...obj,
+            selected: obj.id === event.selectCanvasObject
+          })));
+        }
+        return;
+      }
+      
       let targetNodeIds: string[] = [];
       
       if (event.nodeIds && event.nodeIds.length > 0) {
@@ -232,7 +311,7 @@ export function WorkflowCanvas({
     
     const unsubscribe = focusBus.subscribe(handleFocusEvent);
     return unsubscribe;
-  }, [fitToNodes, onSelectionChange, edges]);
+  }, [fitToNodes, fitToCanvasObject, onSelectionChange, onCanvasObjectsChange, edges, canvasObjects]);
   
 
   // Minimap handlers removed for performance

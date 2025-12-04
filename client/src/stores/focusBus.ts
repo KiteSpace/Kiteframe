@@ -3,11 +3,13 @@
  */
 
 export interface FocusEvent {
-  type: 'focus-nodes' | 'focus-edges' | 'focus-mixed';
+  type: 'focus-nodes' | 'focus-edges' | 'focus-mixed' | 'focus-canvas-object';
   nodeIds?: string[];
   edgeIds?: string[];
+  canvasObjectId?: string;
   selectNodes?: string[];
   selectEdges?: string[];
+  selectCanvasObject?: string;
   animate?: boolean;
   padding?: number;
 }
@@ -62,6 +64,16 @@ class FocusBusImpl {
       selectNodes: [nodeIds[0]], // Select first node of workflow
       animate: options.animate !== false,
       padding: options.padding || 100
+    });
+  }
+
+  focusCanvasObject(objectId: string, options: { select?: boolean; animate?: boolean; padding?: number } = {}): void {
+    this.publish({
+      type: 'focus-canvas-object',
+      canvasObjectId: objectId,
+      selectCanvasObject: options.select ? objectId : undefined,
+      animate: options.animate !== false,
+      padding: options.padding || 50
     });
   }
 }

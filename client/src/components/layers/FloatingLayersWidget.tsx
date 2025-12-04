@@ -1,12 +1,13 @@
 import * as React from 'react';
 import { ListTree } from 'lucide-react';
 import LayersPanel from './LayersPanel';
+import type { CanvasObject } from '@/lib/kiteframe/types';
 
 type Props = {
-  nodes:any[]; edges:any[]; frames?:any[];
+  nodes:any[]; edges:any[]; frames?:any[]; canvasObjects?:CanvasObject[];
 };
 
-export function FloatingLayersWidget({ nodes, edges, frames }: Props){
+export function FloatingLayersWidget({ nodes, edges, frames, canvasObjects }: Props){
   const [open, setOpen] = React.useState(false);
   return (
     <div className="absolute top-4 right-4 z-50">
@@ -34,7 +35,7 @@ export function FloatingLayersWidget({ nodes, edges, frames }: Props){
             </button>
           </div>
           <div className="h-[calc(100%-40px)]">
-            <LayersPanel nodes={nodes} edges={edges} frames={frames}/>
+            <LayersPanel nodes={nodes} edges={edges} frames={frames} canvasObjects={canvasObjects}/>
           </div>
         </div>
       )}
