@@ -2,7 +2,6 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import type { Node, ProFeaturesConfig } from '../types';
 import { useEventCleanup } from '../utils/eventCleanup';
 
-// ADD: normalize width/height that may be strings like "250px"
 const toPxNumber = (v: unknown, fallback: number): number => {
   if (typeof v === 'number') return isNaN(v) ? fallback : v;
   if (typeof v === 'string') {
@@ -31,39 +30,33 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   const [showQuickAddButton, setShowQuickAddButton] = useState<'top'|'bottom'|'left'|'right' | null>(null);
   const [showGhostPreview, setShowGhostPreview] = useState<'top'|'bottom'|'left'|'right' | null>(null);
   const [isMouseInNodeArea, setIsMouseInNodeArea] = useState(false);
-  const [actualDimensions, setActualDimensions] = useState<{width: number, height: number} | null>(null);
+  const [screenDimensions, setScreenDimensions] = useState<{width: number, height: number} | null>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const showTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const cleanupManager = useEventCleanup();
   
-  // CHANGE: use normalized numeric sizes as fallback
   const fallbackW = toPxNumber((node as any).width ?? node.style?.width, 200);
   const fallbackH = toPxNumber((node as any).height ?? node.style?.height, 100);
 
-  // Measure actual node dimensions
   useEffect(() => {
     const measureNode = () => {
-      // Find the parent node element using DOM traversal
       if (nodeRef.current) {
         const nodeElement = nodeRef.current.closest('.kiteframe-node');
         if (nodeElement) {
           const rect = nodeElement.getBoundingClientRect();
           if (rect.width > 0 && rect.height > 0) {
-            // Convert viewport-scaled dimensions to node-local coordinates
-            setActualDimensions({ 
-              width: rect.width / scale, 
-              height: rect.height / scale 
+            setScreenDimensions({ 
+              width: rect.width, 
+              height: rect.height 
             });
           }
         }
       }
     };
 
-    // Measure on mount and when content might change
     measureNode();
     
-    // Use ResizeObserver if available to track size changes
     if (nodeRef.current && window.ResizeObserver) {
       const nodeElement = nodeRef.current.closest('.kiteframe-node');
       if (nodeElement) {
@@ -75,74 +68,88 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
         return () => resizeObserver.disconnect();
       }
     }
-  }, [node.data.label, node.data.description, scale, cleanupManager]); // Re-measure when content or scale changes
+  }, [node.data.label, node.data.description, scale, cleanupManager]);
   
-  // Use actual dimensions when available, fallback to node properties
-  const w = actualDimensions?.width ?? fallbackW;
-  const h = actualDimensions?.height ?? fallbackH;
+  const screenW = screenDimensions?.width ?? (fallbackW * scale);
+  const screenH = screenDimensions?.height ?? (fallbackH * scale);
   
-  const size = 12, r = size/2;
-  
-  // Scale-compensated offsets for quick-add buttons and ghost previews
-  // These values are in local coordinate space and will be scaled by the viewport
-  // Divide by scale to achieve constant screen-space distance
-  const quickAddOffset = 35 / scale; // Results in constant ~35 screen pixels at any zoom
-  const ghostSpacing = 250 / scale; // Ghost preview spacing
+  const handleSize = 12;
+  const handleRadius = handleSize / 2;
+  const quickAddOffset = 35;
+  const quickAddSize = 24;
+  const ghostSpacing = proFeatures?.quickAdd?.defaultSpacing ?? 250;
   
   const isQuickAddEnabled = proFeatures?.quickAdd?.enabled !== false && node.type !== 'image';
   
-  const pos = {
-    top:    { cx: w/2, cy: 0 },
-    bottom: { cx: w/2, cy: h },
-    left:   { cx: 0,   cy: h/2 },
-    right:  { cx: w,   cy: h/2 }
+  const handlePositions = {
+    top:    { cx: screenW / 2, cy: 0 },
+    bottom: { cx: screenW / 2, cy: screenH },
+    left:   { cx: 0, cy: screenH / 2 },
+    right:  { cx: screenW, cy: screenH / 2 }
   } as const;
 
-  const getQuickAddButtonPosition = (position: 'top'|'bottom'|'left'|'right') => {
+  const getQuickAddButtonStyle = (position: 'top'|'bottom'|'left'|'right'): React.CSSProperties => {
     const offset = quickAddOffset;
     switch (position) {
       case 'top':
-        return { top: -offset, left: '50%', transform: 'translateX(-50%)' };
+        return { 
+          position: 'absolute',
+          top: -offset - quickAddSize / 2, 
+          left: screenW / 2 - quickAddSize / 2
+        };
       case 'bottom':
-        return { bottom: -offset, left: '50%', transform: 'translateX(-50%)' };
+        return { 
+          position: 'absolute',
+          top: screenH + offset - quickAddSize / 2, 
+          left: screenW / 2 - quickAddSize / 2
+        };
       case 'left':
-        return { left: -offset, top: '50%', transform: 'translateY(-50%)' };
+        return { 
+          position: 'absolute',
+          left: -offset - quickAddSize / 2, 
+          top: screenH / 2 - quickAddSize / 2
+        };
       case 'right':
-        return { right: -offset, top: '50%', transform: 'translateY(-50%)' };
+        return { 
+          position: 'absolute',
+          left: screenW + offset - quickAddSize / 2, 
+          top: screenH / 2 - quickAddSize / 2
+        };
     }
   };
 
-  const getGhostPreviewPosition = (position: 'top'|'bottom'|'left'|'right') => {
-    const spacing = proFeatures?.quickAdd?.defaultSpacing ? proFeatures.quickAdd.defaultSpacing / scale : ghostSpacing;
+  const getGhostPreviewStyle = (position: 'top'|'bottom'|'left'|'right'): React.CSSProperties => {
+    const spacing = ghostSpacing;
+    const ghostW = screenW;
+    const ghostH = screenH;
     switch (position) {
       case 'top':
-        return { top: -spacing, left: 0 };
+        return { position: 'absolute', top: -spacing - ghostH, left: 0 };
       case 'bottom':
-        return { top: spacing, left: 0 };
+        return { position: 'absolute', top: screenH + spacing, left: 0 };
       case 'left':
-        return { left: -spacing, top: 0 };
+        return { position: 'absolute', left: -spacing - ghostW, top: 0 };
       case 'right':
-        return { left: spacing, top: 0 };
+        return { position: 'absolute', left: screenW + spacing, top: 0 };
     }
   };
 
   const getConnectionLinePoints = (position: 'top'|'bottom'|'left'|'right') => {
-    const handlePos = pos[position];
-    const spacing = proFeatures?.quickAdd?.defaultSpacing ? proFeatures.quickAdd.defaultSpacing / scale : ghostSpacing;
+    const handlePos = handlePositions[position];
+    const spacing = ghostSpacing;
     
     switch (position) {
       case 'top':
-        return { x1: handlePos.cx, y1: handlePos.cy, x2: w/2, y2: -spacing + h };
+        return { x1: handlePos.cx, y1: handlePos.cy, x2: screenW / 2, y2: -spacing };
       case 'bottom':
-        return { x1: handlePos.cx, y1: handlePos.cy, x2: w/2, y2: spacing };
+        return { x1: handlePos.cx, y1: handlePos.cy, x2: screenW / 2, y2: screenH + spacing };
       case 'left':
-        return { x1: handlePos.cx, y1: handlePos.cy, x2: -spacing + w, y2: h/2 };
+        return { x1: handlePos.cx, y1: handlePos.cy, x2: -spacing, y2: screenH / 2 };
       case 'right':
-        return { x1: handlePos.cx, y1: handlePos.cy, x2: spacing, y2: h/2 };
+        return { x1: handlePos.cx, y1: handlePos.cy, x2: screenW + spacing, y2: screenH / 2 };
     }
   };
 
-  // Clean up all timeouts and state
   const clearAllTimeouts = useCallback(() => {
     if (hideTimeoutRef.current) {
       clearTimeout(hideTimeoutRef.current);
@@ -154,7 +161,6 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
     }
   }, []);
 
-  // Debounced hide function to prevent buttons from disappearing too quickly
   const scheduleHide = useCallback(() => {
     clearAllTimeouts();
     hideTimeoutRef.current = setTimeout(() => {
@@ -162,7 +168,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
       setHoveredHandle(null);
       setShowQuickAddButton(null);
       setShowGhostPreview(null);
-    }, 200); // 200ms delay before hiding
+    }, 200);
   }, [clearAllTimeouts]);
 
   const cancelHide = useCallback(() => {
@@ -172,7 +178,6 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
     }
   }, []);
 
-  // Delayed show function to prevent buttons from appearing too quickly
   const scheduleShow = useCallback((position: 'top'|'bottom'|'left'|'right') => {
     if (showTimeoutRef.current) {
       clearTimeout(showTimeoutRef.current);
@@ -181,7 +186,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
       if (isQuickAddEnabled) {
         setShowQuickAddButton(position);
       }
-    }, 270); // 270ms delay before showing
+    }, 270);
   }, [isQuickAddEnabled]);
 
   const cancelShow = useCallback(() => {
@@ -191,7 +196,6 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
     }
   }, []);
 
-  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       clearAllTimeouts();
@@ -202,13 +206,11 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
     e.preventDefault();
     e.stopPropagation();
     
-    // Clear all timeouts and state immediately
     clearAllTimeouts();
     setShowGhostPreview(null);
     setShowQuickAddButton(null);
     setIsMouseInNodeArea(false);
     
-    // Create actual node through callback
     if (onQuickAdd) {
       onQuickAdd(node, position);
     }
@@ -216,138 +218,160 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
 
   return (
     <>
-      {/* Original node area for handles */}
+      {/* Invisible ref element to measure node */}
       <div 
         ref={nodeRef}
-        className="node-handles absolute top-0 left-0 w-full h-full"
-        onMouseEnter={() => {
-          setIsMouseInNodeArea(true);
-          cancelHide();
-        }}
-        onMouseLeave={() => {
-          setIsMouseInNodeArea(false);
-          // Start hide process when leaving node area
-          scheduleHide();
-        }}
-      >
-        <svg 
-          width={w} 
-          height={h} 
-          className="absolute top-0 left-0 overflow-visible pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          {(['top','bottom','left','right'] as const).map((p) => (
-            <circle
-              key={p}
-              cx={pos[p].cx} 
-              cy={pos[p].cy} 
-              r={r}
-              className="pointer-events-auto cursor-crosshair"
-              fill="white" 
-              stroke="#3b82f6" 
-              strokeWidth={2}
-              onMouseDown={(e) => { 
-                e.stopPropagation(); 
-                onHandleConnect?.(p, e); 
-              }}
-              onMouseEnter={() => {
-                setHoveredHandle(p);
-                cancelHide();
-                scheduleShow(p);
-              }}
-              onMouseLeave={() => {
-                setHoveredHandle(null);
-                cancelShow();
-                // Start hide process when leaving handle
-                scheduleHide();
-              }}
-            />
-          ))}
-        </svg>
-      </div>
-
-      {/* Expanded hover area for button zones */}
-      <div 
-        className="absolute pointer-events-none"
-        style={{
-          top: -50,
-          left: -50,
-          width: w + 100,
-          height: h + 100,
-        }}
-        onMouseEnter={() => {
-          cancelHide();
-        }}
-        onMouseLeave={() => {
-          cancelShow();
-          scheduleHide();
-        }}
+        className="absolute top-0 left-0 w-full h-full pointer-events-none"
       />
       
-      {/* Quick-add buttons */}
-      {isQuickAddEnabled && showQuickAddButton && (
-        <button
-          className="absolute w-6 h-6 bg-green-500 hover:bg-green-600 text-white border-2 border-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-all duration-200 hover:scale-110 z-10 pointer-events-auto"
-          style={getQuickAddButtonPosition(showQuickAddButton)}
-          onClick={(e) => handleQuickAddClick(showQuickAddButton, e)}
+      {/* Counter-scaled overlay for constant screen-space sizing */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          top: 0,
+          left: 0,
+          width: screenW,
+          height: screenH,
+          transform: `scale(${1 / scale})`,
+          transformOrigin: 'top left',
+        }}
+      >
+        {/* Node hover area for handles */}
+        <div 
+          className="node-handles absolute top-0 left-0 pointer-events-auto"
+          style={{ width: screenW, height: screenH }}
           onMouseEnter={() => {
+            setIsMouseInNodeArea(true);
             cancelHide();
-            cancelShow(); // Stop any pending show operations
-            setShowGhostPreview(showQuickAddButton);
           }}
           onMouseLeave={() => {
-            setShowGhostPreview(null);
+            setIsMouseInNodeArea(false);
             scheduleHide();
           }}
-          data-testid={`quick-add-${showQuickAddButton}`}
         >
-          +
-        </button>
-      )}
-      
-      {/* Ghost preview of the new node */}
-      {isQuickAddEnabled && showGhostPreview && (
-        <>
-          {/* Ghost connection line - positioned in parent coordinate system */}
+          {/* Edge handles SVG */}
           <svg 
-            className="absolute top-0 left-0 overflow-visible pointer-events-none z-15"
-            width={w} 
-            height={h}
+            width={screenW} 
+            height={screenH} 
+            className="absolute top-0 left-0 overflow-visible pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
           >
-            {(() => {
-              const linePoints = getConnectionLinePoints(showGhostPreview);
-              return (
-                <line 
-                  x1={linePoints.x1} 
-                  y1={linePoints.y1} 
-                  x2={linePoints.x2} 
-                  y2={linePoints.y2} 
-                  stroke="#cbd5e1" 
-                  strokeWidth="2" 
-                  strokeDasharray="4 4" 
-                />
-              );
-            })()}
+            {(['top','bottom','left','right'] as const).map((p) => (
+              <circle
+                key={p}
+                cx={handlePositions[p].cx} 
+                cy={handlePositions[p].cy} 
+                r={handleRadius}
+                className="pointer-events-auto cursor-crosshair"
+                fill="white" 
+                stroke="#3b82f6" 
+                strokeWidth={2}
+                onMouseDown={(e) => { 
+                  e.stopPropagation(); 
+                  onHandleConnect?.(p, e); 
+                }}
+                onMouseEnter={() => {
+                  setHoveredHandle(p);
+                  cancelHide();
+                  scheduleShow(p);
+                }}
+                onMouseLeave={() => {
+                  setHoveredHandle(null);
+                  cancelShow();
+                  scheduleHide();
+                }}
+              />
+            ))}
           </svg>
-          
-          {/* Ghost node preview */}
-          <div
-            className="absolute pointer-events-none z-20"
-            style={getGhostPreviewPosition(showGhostPreview)}
+        </div>
+
+        {/* Expanded hover area for button zones */}
+        <div 
+          className="absolute pointer-events-none"
+          style={{
+            top: -50,
+            left: -50,
+            width: screenW + 100,
+            height: screenH + 100,
+          }}
+          onMouseEnter={() => {
+            cancelHide();
+          }}
+          onMouseLeave={() => {
+            cancelShow();
+            scheduleHide();
+          }}
+        />
+        
+        {/* Quick-add button */}
+        {isQuickAddEnabled && showQuickAddButton && (
+          <button
+            className="bg-green-500 hover:bg-green-600 text-white border-2 border-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition-all duration-200 hover:scale-110 z-10 pointer-events-auto"
+            style={{
+              ...getQuickAddButtonStyle(showQuickAddButton),
+              width: quickAddSize,
+              height: quickAddSize,
+            }}
+            onClick={(e) => handleQuickAddClick(showQuickAddButton, e)}
+            onMouseEnter={() => {
+              cancelHide();
+              cancelShow();
+              setShowGhostPreview(showQuickAddButton);
+            }}
+            onMouseLeave={() => {
+              setShowGhostPreview(null);
+              scheduleHide();
+            }}
+            data-testid={`quick-add-${showQuickAddButton}`}
           >
-            <div
-              className="relative bg-white border border-dashed border-gray-400 rounded-lg shadow-lg opacity-60"
-              style={{ width: w, height: h }}
+            +
+          </button>
+        )}
+        
+        {/* Ghost preview */}
+        {isQuickAddEnabled && showGhostPreview && (
+          <>
+            {/* Ghost connection line */}
+            <svg 
+              className="absolute top-0 left-0 overflow-visible pointer-events-none z-15"
+              width={screenW} 
+              height={screenH}
             >
-              <div className="absolute top-2 left-2 right-2 text-sm font-medium text-gray-600 truncate">
-                {proFeatures?.quickAdd?.defaultNodeTemplate?.label || 'New Process'}
-              </div>
-              <div className="absolute top-8 left-2 right-2 bottom-2 text-xs text-gray-500 overflow-hidden">
-                {proFeatures?.quickAdd?.defaultNodeTemplate?.description || 'Configure process settings'}
+              {(() => {
+                const linePoints = getConnectionLinePoints(showGhostPreview);
+                return (
+                  <line 
+                    x1={linePoints.x1} 
+                    y1={linePoints.y1} 
+                    x2={linePoints.x2} 
+                    y2={linePoints.y2} 
+                    stroke="#cbd5e1" 
+                    strokeWidth="2" 
+                    strokeDasharray="4 4" 
+                  />
+                );
+              })()}
+            </svg>
+            
+            {/* Ghost node preview */}
+            <div
+              className="pointer-events-none z-20"
+              style={getGhostPreviewStyle(showGhostPreview)}
+            >
+              <div
+                className="relative bg-white border border-dashed border-gray-400 rounded-lg shadow-lg opacity-60"
+                style={{ width: screenW, height: screenH }}
+              >
+                <div className="absolute top-2 left-2 right-2 text-sm font-medium text-gray-600 truncate">
+                  {proFeatures?.quickAdd?.defaultNodeTemplate?.label || 'New Process'}
+                </div>
+                <div className="absolute top-8 left-2 right-2 bottom-2 text-xs text-gray-500 overflow-hidden">
+                  {proFeatures?.quickAdd?.defaultNodeTemplate?.description || 'Configure process settings'}
+                </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </>
   );
 };
