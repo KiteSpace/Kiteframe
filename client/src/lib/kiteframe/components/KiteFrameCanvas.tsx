@@ -40,6 +40,7 @@ import { ImageNode } from "./ImageNode";
 import { TextObject } from "./TextObject";
 import { StickyNoteObject } from "./StickyNoteObject";
 import { ShapeObject } from "./ShapeObject";
+import { InlineTextEditor } from "./InlineTextEditor";
 import { EmojiReactions } from "./EmojiReactions";
 import {
   AnimatedConnectionPreview,
@@ -878,6 +879,14 @@ type Props = {
 
   // User identification for reactions and interactions
   currentUserId?: string;
+  
+  // Inline text editing state
+  inlineEditing?: {
+    nodeId: string;
+    part: 'header' | 'body';
+  } | null;
+  onInlineEditingSave?: (nodeId: string, part: 'header' | 'body', value: string) => void;
+  onInlineEditingCancel?: () => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -3589,7 +3598,20 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         props.onNodeDoubleClick?.(e, n, 'header');
                       }}
                     >
-                      {n.data?.label || n.type || n.id}
+                      {props.inlineEditing?.nodeId === n.id && props.inlineEditing?.part === 'header' ? (
+                        <InlineTextEditor
+                          initialValue={n.data?.label || ''}
+                          placeholder="Enter label..."
+                          onSave={(value) => props.onInlineEditingSave?.(n.id, 'header', value)}
+                          onCancel={() => props.onInlineEditingCancel?.()}
+                          color={headerText}
+                          fontSize={12}
+                          fontWeight={600}
+                          autoFocus
+                        />
+                      ) : (
+                        n.data?.label || n.type || n.id
+                      )}
                     </div>
                   )}
                   {!n.data?.hideDescription && (
@@ -3736,7 +3758,22 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         )
                       ) : (
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          {n.data?.description || "Drop content here…"}
+                          {props.inlineEditing?.nodeId === n.id && props.inlineEditing?.part === 'body' ? (
+                            <InlineTextEditor
+                              initialValue={n.data?.description || ''}
+                              placeholder="Enter description..."
+                              onSave={(value) => props.onInlineEditingSave?.(n.id, 'body', value)}
+                              onCancel={() => props.onInlineEditingCancel?.()}
+                              color={bodyText}
+                              fontSize={n.data?.fontSize || 12}
+                              fontWeight={n.data?.bold ? 700 : 400}
+                              textAlign={n.data?.textAlign || 'left'}
+                              multiline
+                              autoFocus
+                            />
+                          ) : (
+                            n.data?.description || "Drop content here…"
+                          )}
                         </div>
                       )}
                     </div>

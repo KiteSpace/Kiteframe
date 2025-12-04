@@ -44,6 +44,9 @@ interface WorkflowCanvasProps {
   onEdgeReconnect?: (edgeId: string, newSource: string, newTarget: string) => void;
   connectionAnimationConfig?: any;
   connectionPreview?: { source: string; target: string } | null;
+  inlineEditing?: { nodeId: string; part: 'header' | 'body' } | null;
+  onInlineEditingSave?: (nodeId: string, part: 'header' | 'body', value: string) => void;
+  onInlineEditingCancel?: () => void;
 }
 
 export function WorkflowCanvas({
@@ -81,7 +84,10 @@ export function WorkflowCanvas({
   onWorkflowMetadataChange,
   onEdgeReconnect,
   connectionAnimationConfig,
-  connectionPreview
+  connectionPreview,
+  inlineEditing,
+  onInlineEditingSave,
+  onInlineEditingCancel
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -373,6 +379,9 @@ export function WorkflowCanvas({
         onEdgeReconnect={onEdgeReconnect}
         connectionAnimationConfig={connectionAnimationConfig}
         connectionPreview={connectionPreview}
+        inlineEditing={inlineEditing}
+        onInlineEditingSave={onInlineEditingSave}
+        onInlineEditingCancel={onInlineEditingCancel}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

@@ -5735,6 +5735,26 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   setSelectedEdgeId('');
                 }
               }}
+              inlineEditing={inlineEditing}
+              onInlineEditingSave={(nodeId: string, part: 'header' | 'body', value: string) => {
+                console.log('📝 Inline editing save:', { nodeId, part, value });
+                setNodes(prev => prev.map(node => {
+                  if (node.id === nodeId) {
+                    if (part === 'header') {
+                      return { ...node, data: { ...node.data, label: value } };
+                    } else {
+                      return { ...node, data: { ...node.data, description: value } };
+                    }
+                  }
+                  return node;
+                }));
+                setInlineEditing(null);
+                saveToHistory();
+              }}
+              onInlineEditingCancel={() => {
+                console.log('📝 Inline editing cancelled');
+                setInlineEditing(null);
+              }}
             />
                 
                 <FloatingLayersWidget
