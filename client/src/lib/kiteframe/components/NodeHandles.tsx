@@ -236,9 +236,9 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
           transformOrigin: 'top left',
         }}
       >
-        {/* Node hover area for handles */}
+        {/* Node hover area for handles - pointer-events-none to allow click-through to node content */}
         <div 
-          className="node-handles absolute top-0 left-0 pointer-events-auto"
+          className="node-handles absolute top-0 left-0 pointer-events-none"
           style={{ width: screenW, height: screenH }}
           onMouseEnter={() => {
             setIsMouseInNodeArea(true);
