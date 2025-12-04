@@ -4257,7 +4257,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       e.stopPropagation();
                     }}
                     canvasRef={containerRef}
-                    onFreeformPointAdd={(objectId, point) => {
+                    onPolygonPointAdd={(objectId: string, point: { x: number; y: number }) => {
                       // Add point and auto-expand bounds
                       const shapeData = obj.data as import("../types").ShapeNodeData;
                       const currentPoints = shapeData.points || [];
@@ -4307,7 +4307,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       );
                       props.onCanvasObjectsChange?.(updatedObjects);
                     }}
-                    onFreeformClose={(objectId) => {
+                    onPolygonClose={(objectId: string) => {
                       const updatedObjects = (props.canvasObjects || []).map(
                         (canvasObject) =>
                           canvasObject.id === objectId

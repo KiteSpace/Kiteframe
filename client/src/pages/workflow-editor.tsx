@@ -1480,8 +1480,9 @@ Position nodes 250px apart horizontally.`;
     const canvasHeight = 600;
     
     // Calculate viewport center in world coordinates
-    const viewportCenterX = (-viewport.x + canvasWidth / 2) / viewport.zoom;
-    const viewportCenterY = (-viewport.y + canvasHeight / 2) / viewport.zoom;
+    // Formula: worldCoord = screenCoord / zoom + viewportOffset
+    const viewportCenterX = (canvasWidth / 2) / viewport.zoom + viewport.x;
+    const viewportCenterY = (canvasHeight / 2) / viewport.zoom + viewport.y;
     
     // Count existing nodes and canvas objects for offset
     const existingCount = (nodes?.length || 0) + (canvasObjects?.length || 0);
@@ -2860,6 +2861,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           setLinearToolbar(null);
           saveToHistory();
         }
+        
+        // Delete selected canvas objects
+        if (selectedCanvasObjects.length > 0) {
+          e.preventDefault();
+          updateActiveTab({
+            canvasObjects: canvasObjects.filter(obj => !obj.selected)
+          });
+          setLinearToolbar(null);
+          saveToHistory();
+        }
         return;
       }
       
@@ -3365,6 +3376,81 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   useEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
+
+  // Track toolbar position when node/canvas object is being dragged
+  useEffect(() => {
+    if (!linearToolbar) return;
+    
+    const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+    const containerLeft = containerRect?.left ?? 0;
+    const containerTop = containerRect?.top ?? 0;
+    
+    if (linearToolbar.node) {
+      // Find the current position of the node
+      const currentNode = nodes.find(n => n.id === linearToolbar.node!.id);
+      if (!currentNode) {
+        // Node was deleted, clear toolbar
+        setLinearToolbar(null);
+        return;
+      }
+      
+      const nodeWidth = currentNode.width ?? 200;
+      const nodeHeight = currentNode.height ?? 100;
+      const screenX = currentNode.position.x * viewport.zoom + viewport.x + containerLeft;
+      const screenY = currentNode.position.y * viewport.zoom + viewport.y + containerTop;
+      const screenWidth = nodeWidth * viewport.zoom;
+      const screenHeight = nodeHeight * viewport.zoom;
+      
+      // Only update if position changed
+      if (linearToolbar.x !== screenX + screenWidth / 2 || linearToolbar.y !== screenY) {
+        setLinearToolbar(prev => prev ? {
+          ...prev,
+          x: screenX + screenWidth / 2,
+          y: screenY,
+          nodeRect: {
+            top: screenY,
+            bottom: screenY + screenHeight,
+            left: screenX,
+            right: screenX + screenWidth,
+            width: screenWidth
+          },
+          node: currentNode
+        } : null);
+      }
+    } else if (linearToolbar.canvasObject) {
+      // Find the current position of the canvas object
+      const currentObject = canvasObjects.find(obj => obj.id === linearToolbar.canvasObject!.id);
+      if (!currentObject) {
+        // Object was deleted, clear toolbar
+        setLinearToolbar(null);
+        return;
+      }
+      
+      const objWidth = currentObject.width ?? 150;
+      const objHeight = currentObject.height ?? 100;
+      const screenX = currentObject.position.x * viewport.zoom + viewport.x + containerLeft;
+      const screenY = currentObject.position.y * viewport.zoom + viewport.y + containerTop;
+      const screenWidth = objWidth * viewport.zoom;
+      const screenHeight = objHeight * viewport.zoom;
+      
+      // Only update if position changed
+      if (linearToolbar.x !== screenX + screenWidth / 2 || linearToolbar.y !== screenY) {
+        setLinearToolbar(prev => prev ? {
+          ...prev,
+          x: screenX + screenWidth / 2,
+          y: screenY,
+          nodeRect: {
+            top: screenY,
+            bottom: screenY + screenHeight,
+            left: screenX,
+            right: screenX + screenWidth,
+            width: screenWidth
+          },
+          canvasObject: currentObject
+        } : null);
+      }
+    }
+  }, [linearToolbar?.node?.id, linearToolbar?.canvasObject?.id, nodes, canvasObjects, viewport]);
 
   // Sidebar collapse state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -6266,11 +6352,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 saveToHistory();
                 setNodes(prev => prev.filter(n => n.id !== contextMenu.node!.id));
                 setEdges(prev => prev.filter(e => e.source !== contextMenu.node!.id && e.target !== contextMenu.node!.id));
+                setLinearToolbar(null);
                 setContextMenu(null);
               } else if (contextMenu.canvasObject) {
                 saveToHistory();
                 const updatedObjects = canvasObjects.filter(obj => obj.id !== contextMenu.canvasObject!.id);
                 updateActiveTab({ canvasObjects: updatedObjects });
+                setLinearToolbar(null);
                 console.log('🗑️ Canvas object deleted:', contextMenu.canvasObject.id);
                 setContextMenu(null);
               }

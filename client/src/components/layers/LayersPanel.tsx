@@ -127,8 +127,8 @@ function ShapesListView({ canvasObjects, searchQuery }: { canvasObjects: CanvasO
         <Square className="h-8 w-8 mb-2 opacity-50" />
         <p className="text-sm text-center">
           {canvasObjects.length === 0 
-            ? "No shapes on canvas" 
-            : "No shapes match your search"}
+            ? "No objects on canvas" 
+            : "No objects match your search"}
         </p>
       </div>
     );
