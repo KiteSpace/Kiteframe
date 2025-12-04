@@ -237,19 +237,6 @@ export function WorkflowCanvas({
       zoom: targetZoom
     };
     
-    console.log('🔍 fitToCanvasObject:', {
-      objectId,
-      objectPosition: obj.position,
-      objWidth,
-      objHeight,
-      objectCenterX,
-      objectCenterY,
-      canvasRect: { width: rect.width, height: rect.height },
-      targetZoom,
-      targetViewport,
-      currentViewport: viewport
-    });
-    
     if (animate) {
       const startViewport = viewport;
       const startTime = Date.now();

@@ -1247,20 +1247,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const localX = worldX - polygonCreatingShape.position.x;
       const localY = worldY - polygonCreatingShape.position.y;
       
-      console.log('🖊️ Polygon click coords:', {
-        clientX: e.clientX,
-        clientY: e.clientY,
-        canvasRect: { left: canvasRect.left, top: canvasRect.top, width: canvasRect.width, height: canvasRect.height },
-        screenX,
-        screenY,
-        viewport: { x: viewportX, y: viewportY, zoom },
-        worldX,
-        worldY,
-        shapePosition: polygonCreatingShape.position,
-        localX,
-        localY
-      });
-      
       // Get fresh points from the shape (avoid stale closure)
       const freshShape = (props.canvasObjects || []).find(obj => obj.id === polygonCreatingShape.id);
       const freshPoints = (freshShape?.data as any)?.points || [];
