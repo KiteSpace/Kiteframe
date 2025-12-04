@@ -202,7 +202,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
     document.addEventListener('mouseup', handleMouseUp);
   }, [isPolygonEditing, polygonPoints, viewport, onUpdate]);
   
-  // Insert a new vertex at the midpoint of a segment
+  // Insert a new vertex at the midpoint of a segment and immediately start dragging it
   const handleSegmentMidpointClick = useCallback((segmentIndex: number, e: React.MouseEvent) => {
     if (!isPolygonEditing) return;
     
@@ -225,10 +225,43 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       ...polygonPoints.slice(segmentIndex + 1)
     ];
     
-    console.log('🖊️ Polygon: Inserting vertex at segment', segmentIndex, 'midpoint:', midpoint);
+    // The new vertex index is segmentIndex + 1
+    const newVertexIndex = segmentIndex + 1;
+    
+    console.log('🖊️ Polygon: Inserting vertex at segment', segmentIndex, 'midpoint:', midpoint, 'new vertex index:', newVertexIndex);
     onUpdate?.({ points: newPoints });
     setHoveredSegmentIndex(null);
-  }, [isPolygonEditing, polygonPoints, onUpdate]);
+    
+    // Immediately start dragging the newly inserted vertex
+    setDraggingVertexIndex(newVertexIndex);
+    
+    const rect = objectRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const zoom = viewport?.zoom || 1;
+    
+    // Use a mutable reference to track current points (starts with the new points array)
+    let currentPoints = [...newPoints];
+    
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const x = (moveEvent.clientX - rect.left) / zoom;
+      const y = (moveEvent.clientY - rect.top) / zoom;
+      
+      // Update the vertex position
+      currentPoints[newVertexIndex] = { x, y };
+      onUpdate?.({ points: [...currentPoints] });
+    };
+    
+    const handleMouseUp = () => {
+      setDraggingVertexIndex(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      console.log('🖊️ Polygon: End dragging new vertex', newVertexIndex);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [isPolygonEditing, polygonPoints, viewport, onUpdate]);
 
   // Helper function to convert hex color to rgba with opacity
   const hexToRgba = (hex: string, opacity: number): string => {
