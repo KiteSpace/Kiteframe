@@ -1240,6 +1240,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         transform: toolbarTransform
       }}
       data-testid="linear-toolbar"
+      data-toolbar="linear"
     >
       <div className="relative">
         {/* Main toolbar - horizontal row of circular buttons */}
