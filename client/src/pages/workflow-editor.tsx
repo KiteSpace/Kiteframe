@@ -6492,24 +6492,42 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 ));
               }
             }}
-            onTextStyleChange={(style) => {
+            onTextStyleChange={(style, part) => {
               if (linearToolbar.node) {
                 saveToHistory();
-                setNodes(prev => prev.map(n => 
-                  n.id === linearToolbar.node!.id 
-                    ? { 
-                        ...n, 
-                        data: { 
-                          ...n.data, 
-                          fontSize: style.fontSize ?? n.data?.fontSize,
-                          bold: style.bold ?? n.data?.bold,
-                          italic: style.italic ?? n.data?.italic,
-                          strikethrough: style.strikethrough ?? n.data?.strikethrough,
-                          textAlign: style.align ?? n.data?.textAlign
-                        } 
-                      }
-                    : n
-                ));
+                setNodes(prev => prev.map(n => {
+                  if (n.id !== linearToolbar.node!.id) return n;
+                  
+                  // Apply styles to header or body based on 'part' parameter
+                  if (part === 'header') {
+                    return { 
+                      ...n, 
+                      data: { 
+                        ...n.data, 
+                        headerFontSize: style.fontSize ?? n.data?.headerFontSize,
+                        headerBold: style.bold ?? n.data?.headerBold,
+                        headerItalic: style.italic ?? n.data?.headerItalic,
+                        headerStrikethrough: style.strikethrough ?? n.data?.headerStrikethrough,
+                        headerUnderline: style.underline ?? n.data?.headerUnderline,
+                        headerTextAlign: style.align ?? n.data?.headerTextAlign
+                      } 
+                    };
+                  } else {
+                    // Default to body styles
+                    return { 
+                      ...n, 
+                      data: { 
+                        ...n.data, 
+                        fontSize: style.fontSize ?? n.data?.fontSize,
+                        bold: style.bold ?? n.data?.bold,
+                        italic: style.italic ?? n.data?.italic,
+                        strikethrough: style.strikethrough ?? n.data?.strikethrough,
+                        underline: style.underline ?? n.data?.underline,
+                        textAlign: style.align ?? n.data?.textAlign
+                      } 
+                    };
+                  }
+                }));
               }
             }}
             onIconSelect={(iconData) => {

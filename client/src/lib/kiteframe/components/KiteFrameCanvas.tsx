@@ -3613,12 +3613,28 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                           onSave={(value) => props.onInlineEditingSave?.(n.id, 'header', value)}
                           onCancel={() => props.onInlineEditingCancel?.()}
                           color={headerText}
-                          fontSize={12}
-                          fontWeight={600}
+                          fontSize={n.data?.headerFontSize || 12}
+                          fontWeight={n.data?.headerBold ? 700 : 600}
+                          textAlign={n.data?.headerTextAlign || 'left'}
                           autoFocus
                         />
                       ) : (
-                        n.data?.label || n.type || n.id
+                        <span
+                          style={{
+                            fontSize: n.data?.headerFontSize ? `${n.data.headerFontSize}px` : '12px',
+                            fontWeight: n.data?.headerBold ? 700 : 600,
+                            fontStyle: n.data?.headerItalic ? 'italic' : 'normal',
+                            textDecoration: [
+                              n.data?.headerUnderline ? 'underline' : '',
+                              n.data?.headerStrikethrough ? 'line-through' : ''
+                            ].filter(Boolean).join(' ') || 'none',
+                            textAlign: n.data?.headerTextAlign || 'left',
+                            display: 'block',
+                            width: '100%',
+                          }}
+                        >
+                          {n.data?.label || n.type || n.id}
+                        </span>
                       )}
                     </div>
                   )}

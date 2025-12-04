@@ -62,8 +62,9 @@ interface LinearToolbarProps {
     bold?: boolean;
     italic?: boolean;
     strikethrough?: boolean;
+    underline?: boolean;
     align?: 'left' | 'center' | 'right';
-  }) => void;
+  }, part?: 'header' | 'body') => void;
   onAddLink?: () => void;
   onDelete?: () => void;
   onEdgeStyleChange?: (style: {
@@ -948,36 +949,63 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     const nodeData = node?.data;
     const objData = canvasObject?.data;
     
+    // Determine if editing header or body for nodes
+    const isEditingHeaderCheck = inlineEditingPart === 'header';
+    
     // Determine current fontSize - same property name for both
-    const currentFontSize = isCanvasObjectTarget ? objData?.fontSize : nodeData?.fontSize;
+    const currentFontSize = isCanvasObjectTarget 
+      ? objData?.fontSize 
+      : (isEditingHeaderCheck ? nodeData?.headerFontSize : nodeData?.fontSize);
     
     // Determine if bold is active
-    // For nodes: uses 'bold' boolean
+    // For nodes: uses 'bold' boolean (or 'headerBold' for header)
     // For canvas objects: uses 'fontWeight' = 'bold' | 'normal'
     const isBold = isCanvasObjectTarget 
       ? objData?.fontWeight === 'bold' 
-      : nodeData?.bold;
+      : (isEditingHeaderCheck ? nodeData?.headerBold : nodeData?.bold);
     
     // Determine if italic is active
-    // For nodes: uses 'italic' boolean
+    // For nodes: uses 'italic' boolean (or 'headerItalic' for header)
     // For canvas objects: uses 'textDecoration' containing 'italic'
     const isItalic = isCanvasObjectTarget 
       ? (objData?.textDecoration || '').includes('italic')
-      : nodeData?.italic;
+      : (isEditingHeaderCheck ? nodeData?.headerItalic : nodeData?.italic);
     
     // Determine if strikethrough is active
-    // For nodes: uses 'strikethrough' boolean
+    // For nodes: uses 'strikethrough' boolean (or 'headerStrikethrough' for header)
     // For canvas objects: uses 'textDecoration' containing 'line-through'
     const isStrikethrough = isCanvasObjectTarget 
       ? (objData?.textDecoration || '').includes('line-through')
-      : nodeData?.strikethrough;
+      : (isEditingHeaderCheck ? nodeData?.headerStrikethrough : nodeData?.strikethrough);
     
     // Determine current text alignment
-    const currentAlign = isCanvasObjectTarget ? objData?.textAlign : nodeData?.textAlign;
+    const currentAlign = isCanvasObjectTarget 
+      ? objData?.textAlign 
+      : (isEditingHeaderCheck ? nodeData?.headerTextAlign : nodeData?.textAlign);
+    
+    // Determine which part's styles to read based on inline editing part
+    const isEditingHeader = inlineEditingPart === 'header';
+    const relevantStyles = isEditingHeader 
+      ? { 
+          fontSize: nodeData?.headerFontSize, 
+          bold: nodeData?.headerBold, 
+          italic: nodeData?.headerItalic, 
+          strikethrough: nodeData?.headerStrikethrough,
+          underline: nodeData?.headerUnderline,
+          textAlign: nodeData?.headerTextAlign 
+        }
+      : { 
+          fontSize: nodeData?.fontSize, 
+          bold: nodeData?.bold, 
+          italic: nodeData?.italic, 
+          strikethrough: nodeData?.strikethrough,
+          underline: nodeData?.underline,
+          textAlign: nodeData?.textAlign 
+        };
     
     const handleFontSizeChange = (size: number) => {
       if (isNodeTarget) {
-        onTextStyleChange?.({ fontSize: size });
+        onTextStyleChange?.({ fontSize: size }, inlineEditingPart as 'header' | 'body');
       } else if (isCanvasObjectTarget) {
         onCanvasObjectTextStyleChange?.({ fontSize: size });
       }
@@ -985,7 +1013,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     
     const handleBoldToggle = () => {
       if (isNodeTarget) {
-        onTextStyleChange?.({ bold: !nodeData?.bold });
+        onTextStyleChange?.({ bold: !relevantStyles.bold }, inlineEditingPart as 'header' | 'body');
       } else if (isCanvasObjectTarget) {
         // Toggle between 'bold' and 'normal'
         const newBold = objData?.fontWeight !== 'bold';
@@ -995,7 +1023,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     
     const handleItalicToggle = () => {
       if (isNodeTarget) {
-        onTextStyleChange?.({ italic: !nodeData?.italic });
+        onTextStyleChange?.({ italic: !relevantStyles.italic }, inlineEditingPart as 'header' | 'body');
       } else if (isCanvasObjectTarget) {
         // Toggle italic in textDecoration
         const currentDecoration = objData?.textDecoration || 'none';
@@ -1006,7 +1034,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     
     const handleStrikethroughToggle = () => {
       if (isNodeTarget) {
-        onTextStyleChange?.({ strikethrough: !nodeData?.strikethrough });
+        onTextStyleChange?.({ strikethrough: !relevantStyles.strikethrough }, inlineEditingPart as 'header' | 'body');
       } else if (isCanvasObjectTarget) {
         // Toggle line-through in textDecoration
         const currentDecoration = objData?.textDecoration || 'none';
@@ -1017,7 +1045,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     
     const handleAlignChange = (align: 'left' | 'center' | 'right') => {
       if (isNodeTarget) {
-        onTextStyleChange?.({ align });
+        onTextStyleChange?.({ align }, inlineEditingPart as 'header' | 'body');
       } else if (isCanvasObjectTarget) {
         onCanvasObjectTextStyleChange?.({ textAlign: align });
       }
