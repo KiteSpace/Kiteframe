@@ -3997,7 +3997,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           id: `object-${Date.now()}`,
                           type: 'shape',
                           position: getViewportCenteredPosition(),
-                          data: { shapeType: 'rectangle', fillColor: '#3b82f6', strokeColor: '#1e40af', strokeWidth: 2 } as any,
+                          data: { shapeType: 'rectangle', fillColor: '#3b82f6', fillOpacity: 0.5, fillStyle: 'solid', strokeColor: '#3b82f6', strokeOpacity: 1.0, strokeWidth: 2, strokeStyle: 'solid', opacity: 1 } as any,
                           width: 150,
                           height: 100,
                           selected: false
@@ -4041,7 +4041,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           id: `object-${Date.now()}`,
                           type: 'shape',
                           position,
-                          data: { shapeType: 'rectangle', fillColor: '#3b82f6', strokeColor: '#1e40af', strokeWidth: 2 } as any,
+                          data: { shapeType: 'rectangle', fillColor: '#3b82f6', fillOpacity: 0.5, fillStyle: 'solid', strokeColor: '#3b82f6', strokeOpacity: 1.0, strokeWidth: 2, strokeStyle: 'solid', opacity: 1 } as any,
                           width: 150,
                           height: 100,
                           selected: false
@@ -4476,7 +4476,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       id: `object-${Date.now()}`,
                       type: 'shape',
                       position: getViewportCenteredPosition(),
-                      data: { shapeType: 'rectangle', fillColor: '#3b82f6', strokeColor: '#1d4ed8', strokeWidth: 2, strokeStyle: 'solid', opacity: 1 } as any,
+                      data: { shapeType: 'rectangle', fillColor: '#3b82f6', fillOpacity: 0.5, fillStyle: 'solid', strokeColor: '#3b82f6', strokeOpacity: 1.0, strokeWidth: 2, strokeStyle: 'solid', opacity: 1 } as any,
                       style: { width: 200, height: 100 },
                       width: 200,
                       height: 100,
@@ -4583,7 +4583,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       id: `object-${Date.now()}`,
                       type: 'shape',
                       position: worldPosition,
-                      data: { shapeType: 'rectangle', fillColor: '#3b82f6', strokeColor: '#1d4ed8', strokeWidth: 2, strokeStyle: 'solid', opacity: 1 } as any,
+                      data: { shapeType: 'rectangle', fillColor: '#3b82f6', fillOpacity: 0.5, fillStyle: 'solid', strokeColor: '#3b82f6', strokeOpacity: 1.0, strokeWidth: 2, strokeStyle: 'solid', opacity: 1 } as any,
                       style: { width: 200, height: 100 },
                       width: 200,
                       height: 100,
@@ -6576,7 +6576,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     if (objType === 'sticky') {
                       return { ...obj, data: { ...obj.data, backgroundColor: color, borderColor: color } };
                     } else if (objType === 'shape') {
-                      return { ...obj, data: { ...obj.data, fillColor: color, strokeColor: color } };
+                      const currentFillStyle = (obj.data as any).fillStyle || 'solid';
+                      const fillOpacity = currentFillStyle === 'solid' ? 0.5 : currentFillStyle === 'transparent' ? 0.3 : 0;
+                      return { 
+                        ...obj, 
+                        data: { 
+                          ...obj.data, 
+                          fillColor: color, 
+                          strokeColor: color,
+                          fillOpacity: fillOpacity,
+                          strokeOpacity: 1.0
+                        } 
+                      };
                     } else if (objType === 'text') {
                       return { ...obj, data: { ...obj.data, textColor: color } };
                     }
@@ -6675,6 +6686,42 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 });
               }
             }}
+            onCanvasObjectFillStyleChange={(fillStyle) => {
+              if (linearToolbar.canvasObject && linearToolbar.canvasObject.type === 'shape') {
+                saveToHistory();
+                const fillOpacity = fillStyle === 'solid' ? 0.5 : fillStyle === 'transparent' ? 0.3 : 0;
+                updateActiveTab({
+                  canvasObjects: canvasObjects.map(obj => {
+                    if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                    return { 
+                      ...obj, 
+                      data: { 
+                        ...obj.data, 
+                        fillStyle: fillStyle,
+                        fillOpacity: fillOpacity
+                      } 
+                    };
+                  })
+                });
+              }
+            }}
+            onShapeTypeChange={(shapeType) => {
+              if (linearToolbar.canvasObject && linearToolbar.canvasObject.type === 'shape') {
+                saveToHistory();
+                updateActiveTab({
+                  canvasObjects: canvasObjects.map(obj => {
+                    if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                    return { 
+                      ...obj, 
+                      data: { 
+                        ...obj.data, 
+                        shapeType: shapeType
+                      } 
+                    };
+                  })
+                });
+              }
+            }}
             scale={viewport.zoom}
             isInlineEditing={!!(inlineEditing && linearToolbar.node && inlineEditing.nodeId === linearToolbar.node.id)}
           />
@@ -6749,9 +6796,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 data: {
                   shapeType,
                   fillColor: isDark ? '#374151' : '#e2e8f0',
-                  fillOpacity: 1,
+                  fillOpacity: 0.5,
+                  fillStyle: 'solid',
                   strokeColor: isDark ? '#6b7280' : '#94a3b8',
                   strokeWidth: 2,
+                  strokeOpacity: 1.0,
                   strokeStyle: 'solid',
                   opacity: 1,
                   borderRadius: shapeType === 'rectangle' ? 8 : 0,

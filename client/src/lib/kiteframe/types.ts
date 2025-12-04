@@ -384,6 +384,7 @@ export interface ShapeNodeData {
   // Fill styling
   fillColor: string;
   fillOpacity?: number; // 0-1
+  fillStyle?: 'solid' | 'transparent' | 'none'; // solid=100%, transparent=30%, none=0%
   gradient?: {
     enabled: boolean;
     type: 'linear' | 'radial';

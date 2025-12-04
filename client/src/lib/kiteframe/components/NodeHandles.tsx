@@ -75,7 +75,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   
   const handleSize = 12;
   const handleRadius = handleSize / 2;
-  const quickAddOffset = 35;
+  const quickAddOffset = 17;
   const quickAddSize = 24;
   const ghostSpacing = proFeatures?.quickAdd?.defaultSpacing ?? 250;
   

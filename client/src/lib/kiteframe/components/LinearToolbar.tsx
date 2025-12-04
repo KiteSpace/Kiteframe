@@ -25,7 +25,10 @@ import {
   ArrowRight,
   ChevronDown,
   Zap,
-  Sparkles
+  Sparkles,
+  Square,
+  Triangle,
+  Hexagon
 } from 'lucide-react';
 import type { Node, Edge, NodeColors, CanvasObject, EdgeMarker } from '../types';
 
@@ -87,6 +90,8 @@ interface LinearToolbarProps {
     strikethrough?: boolean;
     textAlign?: 'left' | 'center' | 'right';
   }) => void;
+  onCanvasObjectFillStyleChange?: (fillStyle: 'solid' | 'transparent' | 'none') => void;
+  onShapeTypeChange?: (shapeType: 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'line' | 'arrow') => void;
   scale?: number;
   isInlineEditing?: boolean; // Show text style options when inline editing is active
 }
@@ -185,6 +190,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   onCanvasObjectColorChange,
   onCanvasObjectStyleChange,
   onCanvasObjectTextStyleChange,
+  onCanvasObjectFillStyleChange,
+  onShapeTypeChange,
   scale = 1,
   isInlineEditing = false
 }) => {
@@ -397,6 +404,28 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           label: objType === 'shape' ? 'Stroke Style' : 'Border Style',
           color: 'bg-emerald-500',
           hoverColor: 'hover:bg-emerald-600',
+          hasSubmenu: true
+        });
+      }
+      
+      // Fill style button for shapes only
+      if (objType === 'shape') {
+        buttons.push({
+          id: 'fillStyle',
+          icon: <Eye size={18} />,
+          label: 'Fill Style',
+          color: 'bg-cyan-500',
+          hoverColor: 'hover:bg-cyan-600',
+          hasSubmenu: true
+        });
+        
+        // Shape type button
+        buttons.push({
+          id: 'shapeType',
+          icon: <Square size={18} />,
+          label: 'Change Shape',
+          color: 'bg-orange-500',
+          hoverColor: 'hover:bg-orange-600',
           hasSubmenu: true
         });
       }
@@ -808,6 +837,105 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     );
   };
 
+  const renderFillStyleSubmenu = () => {
+    const currentFillStyle = (canvasObject?.data as any)?.fillStyle || 'solid';
+    
+    const fillStyleOptions = [
+      { id: 'solid', label: 'Solid', description: '50% opacity', icon: <Square size={16} className="fill-current" /> },
+      { id: 'transparent', label: 'Transparent', description: '30% opacity', icon: <Square size={16} className="opacity-30" /> },
+      { id: 'none', label: 'No Fill', description: 'Border only', icon: <Square size={16} className="fill-none" /> }
+    ];
+    
+    return (
+      <div 
+        ref={submenuRef}
+        className={cn(
+          "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150 min-w-[180px]",
+          showAbove ? "bottom-full mb-2" : "top-full mt-2"
+        )}
+      >
+        <div className="space-y-2">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Fill Style</div>
+          <div className="flex flex-col gap-1">
+            {fillStyleOptions.map((opt) => (
+              <button
+                type="button"
+                key={opt.id}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-all hover:bg-gray-100 dark:hover:bg-gray-700 text-left",
+                  currentFillStyle === opt.id && "bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-500"
+                )}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onCanvasObjectFillStyleChange?.(opt.id as 'solid' | 'transparent' | 'none');
+                }}
+                data-testid={`toolbar-fill-${opt.id}`}
+              >
+                <span className="text-gray-600 dark:text-gray-300">{opt.icon}</span>
+                <div>
+                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200">{opt.label}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{opt.description}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderShapeTypeSubmenu = () => {
+    const currentShapeType = (canvasObject?.data as any)?.shapeType || 'rectangle';
+    
+    const shapeOptions = [
+      { id: 'rectangle', label: 'Rectangle', icon: <Square size={18} /> },
+      { id: 'circle', label: 'Circle', icon: <Circle size={18} /> },
+      { id: 'triangle', label: 'Triangle', icon: <Triangle size={18} /> },
+      { id: 'hexagon', label: 'Hexagon', icon: <Hexagon size={18} /> },
+      { id: 'diamond', label: 'Diamond', icon: <Diamond size={18} /> },
+      { id: 'arrow', label: 'Arrow', icon: <ArrowRight size={18} /> }
+    ];
+    
+    return (
+      <div 
+        ref={submenuRef}
+        className={cn(
+          "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150",
+          showAbove ? "bottom-full mb-2" : "top-full mt-2"
+        )}
+      >
+        <div className="space-y-2">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Change Shape</div>
+          <div className="grid grid-cols-3 gap-2">
+            {shapeOptions.map((opt) => (
+              <button
+                type="button"
+                key={opt.id}
+                className={cn(
+                  "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105",
+                  currentShapeType === opt.id && "bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-500"
+                )}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onShapeTypeChange?.(opt.id as 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'line' | 'arrow');
+                }}
+                title={opt.label}
+                data-testid={`toolbar-shape-${opt.id}`}
+              >
+                <span className="text-gray-600 dark:text-gray-300">{opt.icon}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderTextSubmenu = () => {
     // Get node data for nodes, canvas object data for canvas objects
     const nodeData = node?.data;
@@ -1174,6 +1302,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         {activeSubmenu === 'strokeStyle' && renderStrokeStyleSubmenu()}
         {activeSubmenu === 'lineType' && renderLineTypeSubmenu()}
         {activeSubmenu === 'endpoints' && renderEndpointsSubmenu()}
+        {activeSubmenu === 'fillStyle' && renderFillStyleSubmenu()}
+        {activeSubmenu === 'shapeType' && renderShapeTypeSubmenu()}
       </div>
     </div>
   );
