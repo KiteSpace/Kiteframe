@@ -1213,6 +1213,151 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // ========== FREEFORM CREATION CLICK HANDLER ==========
+  // Detect if there's a freeform shape in creation mode and handle canvas clicks
+  const freeformCreatingShape = useMemo(() => {
+    return (props.canvasObjects || []).find(
+      obj => obj.type === 'shape' && 
+             (obj.data as any)?.shapeType === 'freeform' && 
+             (obj.data as any)?.isCreating === true
+    );
+  }, [props.canvasObjects]);
+
+  useEffect(() => {
+    if (!freeformCreatingShape || !containerRef.current) return;
+
+    const canvas = containerRef.current;
+    const shapeData = freeformCreatingShape.data as any;
+    const currentPoints = shapeData.points || [];
+    
+    const handleFreeformClick = (e: MouseEvent) => {
+      // Only handle left clicks
+      if (e.button !== 0) return;
+      
+      // Ignore clicks on UI elements
+      const target = e.target as HTMLElement;
+      if (target.closest('button') || target.closest('input') || target.closest('[role="button"]') || target.closest('[data-toolbar]')) {
+        return;
+      }
+      
+      const canvasRect = canvas.getBoundingClientRect();
+      const zoom = viewport.zoom || 1;
+      const viewportX = viewport.x || 0;
+      const viewportY = viewport.y || 0;
+      
+      // Convert screen coordinates to world coordinates
+      // Formula: worldCoord = (screenCoord - canvasOffset) / zoom + viewportOffset
+      const worldX = (e.clientX - canvasRect.left) / zoom + viewportX;
+      const worldY = (e.clientY - canvasRect.top) / zoom + viewportY;
+      
+      // Convert to shape-local coordinates
+      const localX = worldX - freeformCreatingShape.position.x;
+      const localY = worldY - freeformCreatingShape.position.y;
+      
+      // Get fresh points from the shape (avoid stale closure)
+      const freshShape = (props.canvasObjects || []).find(obj => obj.id === freeformCreatingShape.id);
+      const freshPoints = (freshShape?.data as any)?.points || [];
+      
+      // Check if clicking near the first point to close the shape
+      if (freshPoints.length >= 3) {
+        const firstPt = freshPoints[0];
+        const dist = Math.hypot(localX - firstPt.x, localY - firstPt.y);
+        if (dist < 20) {
+          console.log('🖊️ Freeform: Closing shape by clicking first point');
+          const updatedObjects = (props.canvasObjects || []).map(obj =>
+            obj.id === freeformCreatingShape.id
+              ? { ...obj, data: { ...obj.data, isClosed: true, isCreating: false } }
+              : obj
+          );
+          props.onCanvasObjectsChange?.(updatedObjects);
+          e.stopPropagation();
+          e.preventDefault();
+          return;
+        }
+      }
+      
+      console.log('🖊️ Freeform: Adding point via canvas click', { localX, localY, worldX, worldY, totalPoints: freshPoints.length + 1 });
+      
+      // Add the new point with bounds expansion
+      const newPoints = [...freshPoints, { x: localX, y: localY }];
+      
+      // Calculate bounding box of all points
+      const padding = 20;
+      const minX = Math.min(...newPoints.map(p => p.x));
+      const minY = Math.min(...newPoints.map(p => p.y));
+      const maxX = Math.max(...newPoints.map(p => p.x));
+      const maxY = Math.max(...newPoints.map(p => p.y));
+      
+      // Calculate new dimensions with padding
+      const newWidth = Math.max(maxX - minX + padding * 2, 100);
+      const newHeight = Math.max(maxY - minY + padding * 2, 100);
+      
+      // If points extend into negative local space, shift
+      const shiftX = minX < padding ? minX - padding : 0;
+      const shiftY = minY < padding ? minY - padding : 0;
+      
+      // Normalize points to new local origin
+      const normalizedPoints = newPoints.map(p => ({
+        x: p.x - shiftX,
+        y: p.y - shiftY
+      }));
+      
+      // Update world position to compensate for the shift
+      const newPosition = {
+        x: freeformCreatingShape.position.x + shiftX,
+        y: freeformCreatingShape.position.y + shiftY
+      };
+      
+      const updatedObjects = (props.canvasObjects || []).map(obj =>
+        obj.id === freeformCreatingShape.id
+          ? {
+              ...obj,
+              data: { ...obj.data, points: normalizedPoints },
+              position: newPosition,
+              width: newWidth,
+              height: newHeight,
+              style: { ...obj.style, width: newWidth, height: newHeight }
+            }
+          : obj
+      );
+      props.onCanvasObjectsChange?.(updatedObjects);
+      
+      e.stopPropagation();
+      e.preventDefault();
+    };
+    
+    const handleFreeformDoubleClick = (e: MouseEvent) => {
+      // Get fresh points
+      const freshShape = (props.canvasObjects || []).find(obj => obj.id === freeformCreatingShape.id);
+      const freshPoints = (freshShape?.data as any)?.points || [];
+      
+      // Close the shape if we have at least 3 points
+      if (freshPoints.length >= 3) {
+        console.log('🖊️ Freeform: Closing shape via double-click', freshPoints.length, 'points');
+        const updatedObjects = (props.canvasObjects || []).map(obj =>
+          obj.id === freeformCreatingShape.id
+            ? { ...obj, data: { ...obj.data, isClosed: true, isCreating: false } }
+            : obj
+        );
+        props.onCanvasObjectsChange?.(updatedObjects);
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    };
+    
+    // Add cursor style to indicate freeform mode
+    canvas.style.cursor = 'crosshair';
+    
+    canvas.addEventListener('click', handleFreeformClick, true);
+    canvas.addEventListener('dblclick', handleFreeformDoubleClick, true);
+    
+    return () => {
+      canvas.style.cursor = '';
+      canvas.removeEventListener('click', handleFreeformClick, true);
+      canvas.removeEventListener('dblclick', handleFreeformDoubleClick, true);
+    };
+  }, [freeformCreatingShape, viewport, props.canvasObjects, props.onCanvasObjectsChange]);
+
   // ========== PRODUCTION FEATURES EFFECTS ==========
   // 1. Memory Monitoring
   useEffect(() => {
