@@ -1,0 +1,402 @@
+Plugin "advanced-interactions-pro" v2.0.0 initialized successfully
+injected.js:37 📂 Workflows loaded from local storage: 3
+injected.js:37 🔄 Restored workflows from local storage
+injected.js:37 🎯 PluginProvider: Initializing plugin system...
+injected.js:37 🔌 PluginProvider: Core Node Integration plugin not found, registering now...
+injected.js:37 🚀 Core Node Integration: Starting initialization...
+injected.js:37 📦 Core Node Integration: Preparing to register node renderers:
+injected.js:37   - BasicNode: ✗ Component missing
+injected.js:37   - ImageNode: Handled by main canvas for advanced features
+injected.js:37 📝 Core Node Integration: Registering hooks with core system...
+injected.js:37 🔍 Core Node Integration: Verifying registration...
+injected.js:37   Total registered node renderers: 1
+injected.js:37   Registered types: basic
+injected.js:37 ✅ Core Node Integration: SUCCESS - Node renderers registered correctly
+injected.js:37   ✓ basic -> BasicNode
+injected.js:37   ✓ image -> Main Canvas (advanced features)
+injected.js:37 Plugin "core-node-integration" v1.0.0 initialized successfully
+injected.js:37 ✅ PluginProvider: Core Node Integration plugin registered successfully
+injected.js:37 ✓ PluginProvider: Verified plugin registration
+injected.js:37   - Plugin name: core-node-integration
+injected.js:37   - Plugin version: 1.0.0
+injected.js:37 📊 PluginProvider: Current node renderers after registration:
+injected.js:37   - Total renderers: 1
+injected.js:37   - Renderer types: basic
+injected.js:37 ⚠️ PluginProvider: WARNING - Expected node renderers not found after registration
+(anonymous) @ injected.js:37
+injected.js:37   basic: present
+(anonymous) @ injected.js:37
+injected.js:37   image: missing
+(anonymous) @ injected.js:37
+injected.js:37 ✅ PluginProvider: Plugin context initialized
+injected.js:37 Plugin "console-demo" is already installed, replacing...
+(anonymous) @ injected.js:37
+injected.js:37 🔌 ConsolePlugin: Initializing...
+injected.js:37 🔌 ConsolePlugin: Ready! Watch the console for activity.
+injected.js:37 Plugin "console-demo" v1.0.0 initialized successfully
+injected.js:37 Plugin "test-demo" is already installed, replacing...
+(anonymous) @ injected.js:37
+injected.js:37 🔧 TestPlugin initialized successfully
+injected.js:37 Plugin "test-demo" v1.0.0 initialized successfully
+injected.js:37 Plugin "advanced-interactions-pro" is already installed, replacing...
+(anonymous) @ injected.js:37
+injected.js:37 🚀 AdvancedInteractions Pro Plugin v2.0: Initializing with prop-based configuration...
+injected.js:37 🚀 AdvancedInteractions Pro Plugin v2.0: Ready!
+injected.js:37    ✨ Prop-based configuration enabled
+injected.js:37    ✨ ProFeaturesManager integration active
+injected.js:37    ✨ Cross-platform copy/paste support (Cmd/Ctrl)
+injected.js:37 Plugin "advanced-interactions-pro" v2.0.0 initialized successfully
+injected.js:37 📚 Version Control Pro Plugin: Initializing...
+injected.js:37    ✅ Snapshot system enabled
+injected.js:37    ✅ Version comparison tools active
+injected.js:37    ✅ Auto-save every 2 minutes
+injected.js:37    ✅ Advanced rollback functionality
+injected.js:37 📚 Version Control Pro Plugin: Ready!
+injected.js:37 Plugin "version-control-pro" v1.0.0 initialized successfully
+injected.js:37 🔗 SmartConnect Pro Plugin v1.0: Initializing...
+injected.js:37 🔗 SmartConnect Pro Plugin v1.0: Ready!
+injected.js:37    ✨ Proximity-based auto-connection active
+injected.js:37    ✨ Ghost edge preview enabled
+injected.js:37    ✨ Connection validation integrated
+injected.js:37 Plugin "smart-connect-pro" v1.0.0 initialized successfully
+injected.js:37 ✅ Demo + Pro plugins registered successfully
+injected.js:37 🔌 Plugin System Ready! Check Settings → Test Plugins or watch console for activity
+injected.js:37 🚀 Advanced Interactions Pro: Quick-add handles enabled on node hover!
+injected.js:37 🔗 SmartConnect Pro: Auto-connect enabled! Drag nodes close together to auto-connect.
+a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/auth/user:1  Failed to load resource: the server responded with a status of 401 (Unauthorized)
+a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/subscription:1  Failed to load resource: the server responded with a status of 401 (Unauthorized)
+/public/js/beacon.js:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+3injected.js:37 🔄 Auth state changed: No user
+3injected.js:37 ℹ️ No redirect result found
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764884730516&sid=45865963-889b-4e87-84d6-841753af95f7&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764884731026&sid=45865963-889b-4e87-84d6-841753af95f7&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 RESETTING formData from metadata (mode: collapsed): Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔐 useAuth: Component mounted, checking auth state...
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔄 Auth state changed: No user
+injected.js:37 ℹ️ No redirect result found
+a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/subscription:1  Failed to load resource: the server responded with a status of 401 (Unauthorized)
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764884733037&sid=45865963-889b-4e87-84d6-841753af95f7&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 DRAG START: Object
+injected.js:37 🔧 DRAG END: Object
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🎯 NODE CLICK: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 DIRECT NODE UPDATE (drag): Object
+injected.js:37 ✅ Node Regular click select: Object
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: Object
+injected.js:37 📝 SELECTION STATE SET: Object
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764796269674-gw4pi2x6b
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 DRAG STATE RESET - ready for next click
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 DRAG START: Object
+injected.js:37 🔧 DRAG END: Object
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🎯 NODE CLICK: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 DIRECT NODE UPDATE (drag): Object
+injected.js:37 ✅ Node Regular click select: Object
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: Object
+injected.js:37 📝 SELECTION STATE SET: Object
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🖱️ BODY DOUBLE-CLICK: Object
+injected.js:37 📝 EDITOR NODE DOUBLE-CLICK HANDLER - Triggering inline edit: Object
+injected.js:37 📝 TEXT EDITOR: Component mounted Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+content_script.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at elementWasFocused (content_script.js:1:423712)
+    at HTMLDocument.focusInEventHandler (content_script.js:1:423069)
+injected.js:37 👂 TEXT EDITOR: Event listeners attached Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764884733675&sid=45865963-889b-4e87-84d6-841753af95f7&ec=2540&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ca20a1fe0bc4f889.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764884733675&sid=45865963-889b-4e87-84d6-841753af95f7&ec=2540&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at ca20a1fe0bc4f889.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at 06e68893bdd5c424.js:2:42706
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ ca20a1fe0bc4f889.js:2
+ca20a1fe0bc4f889.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ ca20a1fe0bc4f889.js:2
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764796269674-gw4pi2x6b
+injected.js:37 📝 TEXT EDITOR: Component mounted Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+ca20a1fe0bc4f889.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ ca20a1fe0bc4f889.js:2
+injected.js:37 📝 DRAG STATE RESET - ready for next click
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🖱️ TEXT EDITOR: Click event detected Object
+injected.js:37 🖱️ TEXT EDITOR: Toolbar click detected - keeping editor open
+injected.js:37 💾 TEXT EDITOR: Blur save (backup)
+injected.js:37 💾 TEXT EDITOR: Save triggered Object
+injected.js:37 📝 Inline editing save: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🧹 TEXT EDITOR: Event listeners removed
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 💾 Workflows saved to local storage
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764884737544&sid=45865963-889b-4e87-84d6-841753af95f7&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ca20a1fe0bc4f889.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764884737544&sid=45865963-889b-4e87-84d6-841753af95f7&ec=1&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at ca20a1fe0bc4f889.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at 06e68893bdd5c424.js:2:42706
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ ca20a1fe0bc4f889.js:2
+ca20a1fe0bc4f889.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ ca20a1fe0bc4f889.js:2
+250 log entries are not shown.
+injected.js:37 🔍 CAPTURE PHASE mousedown: {shiftKey: false, ctrlKey: false, target: div, targetTag: 'DIV', targetClass: '', …}
+injected.js:37 🔧 DRAG START: {nodeId: 'node-1764796269674-gw4pi2x6b', worldPos: {…}, nodePosition: {…}, selectedNodes: Array(1), isGroupDrag: false, …}
+injected.js:37 🔧 DRAG END: {id: 'node-1764796269674-gw4pi2x6b', start: {…}, origin: {…}, origins: Array(1), canvasObjectOrigins: Array(0), …}
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: {distance: 0, threshold: 5}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🎯 NODE CLICK: {nodeId: 'node-1764796269674-gw4pi2x6b', wasSelected: true, shiftKey: false}
+injected.js:37 📊 onNodesChange CALLED: {changes: Array(20), isArray: true, length: 20, firstItem: {…}}
+injected.js:37 📊 DIRECT NODE UPDATE (drag): {nodeCount: 20, sample: {…}}
+injected.js:37 ✅ Node Regular click select: {nodeId: 'node-1764796269674-gw4pi2x6b'}
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: {nodeId: 'node-1764796269674-gw4pi2x6b', currentSelected: 'node-1764796269674-gw4pi2x6b', shiftKey: false, tabId: {…}}
+injected.js:37 📝 SELECTION STATE SET: {selectedNodeId: 'delayed for drag detection', selectedEdgeId: '', tabId: {…}}
+injected.js:37 📝 SINGLE SELECT UPDATE: {selected: Array(1), total: 20}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔍 CAPTURE PHASE mousedown: {shiftKey: false, ctrlKey: false, target: div, targetTag: 'DIV', targetClass: '', …}
+injected.js:37 🔧 DRAG START: {nodeId: 'node-1764796269674-gw4pi2x6b', worldPos: {…}, nodePosition: {…}, selectedNodes: Array(1), isGroupDrag: false, …}
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764796269674-gw4pi2x6b
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 DRAG STATE RESET - ready for next click
+injected.js:37 🔧 DRAG END: {id: 'node-1764796269674-gw4pi2x6b', start: {…}, origin: {…}, origins: Array(1), canvasObjectOrigins: Array(0), …}
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: {distance: 0, threshold: 5}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🎯 NODE CLICK: {nodeId: 'node-1764796269674-gw4pi2x6b', wasSelected: true, shiftKey: false}
+injected.js:37 📊 onNodesChange CALLED: {changes: Array(20), isArray: true, length: 20, firstItem: {…}}
+injected.js:37 📊 DIRECT NODE UPDATE (drag): {nodeCount: 20, sample: {…}}
+injected.js:37 ✅ Node Regular click select: {nodeId: 'node-1764796269674-gw4pi2x6b'}
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: {nodeId: 'node-1764796269674-gw4pi2x6b', currentSelected: 'node-1764796269674-gw4pi2x6b', shiftKey: false, tabId: {…}}
+injected.js:37 📝 SELECTION STATE SET: {selectedNodeId: 'delayed for drag detection', selectedEdgeId: '', tabId: {…}}
+injected.js:37 📝 SINGLE SELECT UPDATE: {selected: Array(1), total: 20}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🖱️ BODY DOUBLE-CLICK: {nodeId: 'node-1764796269674-gw4pi2x6b', part: 'body'}
+injected.js:37 📝 EDITOR NODE DOUBLE-CLICK HANDLER - Triggering inline edit: {nodeId: 'node-1764796269674-gw4pi2x6b', nodeType: 'process', part: 'body', tabId: {…}}
+injected.js:37 📝 TEXT EDITOR: Component mounted {initialValue: 'Configure process settings this is more thexta talerea', placeholder: 'Enter description...', multiline: true, fontSize: 12, fontFamily: 'Inter', …}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+content_script.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at elementWasFocused (content_script.js:1:423712)
+    at HTMLDocument.focusInEventHandler (content_script.js:1:423069)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+elementWasFocused @ content_script.js:1
+focusInEventHandler @ content_script.js:1
+injected.js:37 👂 TEXT EDITOR: Event listeners attached {isEditing: true, inputRef: true}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764796269674-gw4pi2x6b
+injected.js:37 📝 TEXT EDITOR: Component mounted {initialValue: 'Configure process settings this is more thexta talerea', placeholder: 'Enter description...', multiline: true, fontSize: 12, fontFamily: 'Inter', …}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 DRAG STATE RESET - ready for next click
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🔍 CAPTURE PHASE mousedown: {shiftKey: false, ctrlKey: false, target: svg.lucide.lucide-type, targetTag: 'svg', targetClass: SVGAnimatedString, …}
+injected.js:37 🖱️ TEXT EDITOR: Click event detected {target: 'svg', targetClass: SVGAnimatedString, inputElement: 'TEXTAREA', inputClass: 'inline-text-editor ', isEditing: true, …}
+injected.js:37 🖱️ TEXT EDITOR: Toolbar click detected - keeping editor open
+injected.js:37 💾 TEXT EDITOR: Blur save (backup)
+injected.js:37 💾 TEXT EDITOR: Save triggered {originalValue: 'Configure process settings this is more thexta talerea', currentValue: 'Configure process settings this is more thexta talerea', trimmedValue: 'Configure process settings this is more thexta talerea', wasEditing: true, alreadySaved: false, …}
+injected.js:37 📝 Inline editing save: {nodeId: 'node-1764796269674-gw4pi2x6b', part: 'body', value: 'Configure process settings this is more thexta talerea'}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🧹 TEXT EDITOR: Event listeners removed
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🔍 CAPTURE PHASE mousedown: {shiftKey: false, ctrlKey: false, target: div, targetTag: 'DIV', targetClass: '', …}
+injected.js:37 🔧 DRAG START: {nodeId: 'node-1764796269674-gw4pi2x6b', worldPos: {…}, nodePosition: {…}, selectedNodes: Array(1), isGroupDrag: false, …}
+injected.js:37 🔧 DRAG END: {id: 'node-1764796269674-gw4pi2x6b', start: {…}, origin: {…}, origins: Array(1), canvasObjectOrigins: Array(0), …}
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: {distance: 0, threshold: 5}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🎯 NODE CLICK: {nodeId: 'node-1764796269674-gw4pi2x6b', wasSelected: true, shiftKey: false}
+injected.js:37 📊 onNodesChange CALLED: {changes: Array(20), isArray: true, length: 20, firstItem: {…}}
+injected.js:37 📊 DIRECT NODE UPDATE (drag): {nodeCount: 20, sample: {…}}
+injected.js:37 ✅ Node Regular click select: {nodeId: 'node-1764796269674-gw4pi2x6b'}
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: {nodeId: 'node-1764796269674-gw4pi2x6b', currentSelected: 'node-1764796269674-gw4pi2x6b', shiftKey: false, tabId: {…}}
+injected.js:37 📝 SELECTION STATE SET: {selectedNodeId: 'delayed for drag detection', selectedEdgeId: '', tabId: {…}}
+injected.js:37 📝 SINGLE SELECT UPDATE: {selected: Array(1), total: 20}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔍 CAPTURE PHASE mousedown: {shiftKey: false, ctrlKey: false, target: div, targetTag: 'DIV', targetClass: '', …}
+injected.js:37 🔧 DRAG START: {nodeId: 'node-1764796269674-gw4pi2x6b', worldPos: {…}, nodePosition: {…}, selectedNodes: Array(1), isGroupDrag: false, …}
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764796269674-gw4pi2x6b
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 DRAG END: {id: 'node-1764796269674-gw4pi2x6b', start: {…}, origin: {…}, origins: Array(1), canvasObjectOrigins: Array(0), …}
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: {distance: 0, threshold: 5}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🎯 NODE CLICK: {nodeId: 'node-1764796269674-gw4pi2x6b', wasSelected: true, shiftKey: false}
+injected.js:37 📊 onNodesChange CALLED: {changes: Array(20), isArray: true, length: 20, firstItem: {…}}
+injected.js:37 📊 DIRECT NODE UPDATE (drag): {nodeCount: 20, sample: {…}}
+injected.js:37 ✅ Node Regular click select: {nodeId: 'node-1764796269674-gw4pi2x6b'}
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: {nodeId: 'node-1764796269674-gw4pi2x6b', currentSelected: 'node-1764796269674-gw4pi2x6b', shiftKey: false, tabId: {…}}
+injected.js:37 📝 SELECTION STATE SET: {selectedNodeId: 'delayed for drag detection', selectedEdgeId: '', tabId: {…}}
+injected.js:37 📝 SINGLE SELECT UPDATE: {selected: Array(1), total: 20}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🖱️ BODY DOUBLE-CLICK: {nodeId: 'node-1764796269674-gw4pi2x6b', part: 'body'}
+injected.js:37 📝 EDITOR NODE DOUBLE-CLICK HANDLER - Triggering inline edit: {nodeId: 'node-1764796269674-gw4pi2x6b', nodeType: 'process', part: 'body', tabId: {…}}
+injected.js:37 📝 TEXT EDITOR: Component mounted {initialValue: 'Configure process settings this is more thexta talerea', placeholder: 'Enter description...', multiline: true, fontSize: 12, fontFamily: 'Inter', …}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+content_script.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at elementWasFocused (content_script.js:1:423712)
+    at HTMLDocument.focusInEventHandler (content_script.js:1:423069)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+elementWasFocused @ content_script.js:1
+focusInEventHandler @ content_script.js:1
+injected.js:37 👂 TEXT EDITOR: Event listeners attached {isEditing: true, inputRef: true}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764796269674-gw4pi2x6b
+injected.js:37 📝 TEXT EDITOR: Component mounted {initialValue: 'Configure process settings this is more thexta talerea', placeholder: 'Enter description...', multiline: true, fontSize: 12, fontFamily: 'Inter', …}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 DRAG STATE RESET - ready for next click
+injected.js:37 🔍 CAPTURE PHASE mousedown: {shiftKey: false, ctrlKey: false, target: line, targetTag: 'line', targetClass: SVGAnimatedString, …}
+injected.js:37 🖱️ TEXT EDITOR: Click event detected {target: 'line', targetClass: SVGAnimatedString, inputElement: 'TEXTAREA', inputClass: 'inline-text-editor ', isEditing: true, …}
+injected.js:37 🖱️ TEXT EDITOR: Toolbar click detected - keeping editor open
+injected.js:37 💾 TEXT EDITOR: Blur save (backup)
+injected.js:37 💾 TEXT EDITOR: Save triggered {originalValue: 'Configure process settings this is more thexta talerea', currentValue: 'Configure process settings this is more thexta talerea', trimmedValue: 'Configure process settings this is more thexta talerea', wasEditing: true, alreadySaved: false, …}
+injected.js:37 📝 Inline editing save: {nodeId: 'node-1764796269674-gw4pi2x6b', part: 'body', value: 'Configure process settings this is more thexta talerea'}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🧹 TEXT EDITOR: Event listeners removed
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🔍 CAPTURE PHASE mousedown: {shiftKey: false, ctrlKey: false, target: div.title, targetTag: 'DIV', targetClass: 'title', …}
+injected.js:37 🔧 DRAG START: {nodeId: 'node-1764796269674-gw4pi2x6b', worldPos: {…}, nodePosition: {…}, selectedNodes: Array(1), isGroupDrag: false, …}
+injected.js:37 🔧 DRAG END: {id: 'node-1764796269674-gw4pi2x6b', start: {…}, origin: {…}, origins: Array(1), canvasObjectOrigins: Array(0), …}
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: {distance: 0, threshold: 5}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🎯 NODE CLICK: {nodeId: 'node-1764796269674-gw4pi2x6b', wasSelected: true, shiftKey: false}
+injected.js:37 📊 onNodesChange CALLED: {changes: Array(20), isArray: true, length: 20, firstItem: {…}}
+injected.js:37 📊 DIRECT NODE UPDATE (drag): {nodeCount: 20, sample: {…}}
+injected.js:37 ✅ Node Regular click select: {nodeId: 'node-1764796269674-gw4pi2x6b'}
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: {nodeId: 'node-1764796269674-gw4pi2x6b', currentSelected: 'node-1764796269674-gw4pi2x6b', shiftKey: false, tabId: {…}}
+injected.js:37 📝 SELECTION STATE SET: {selectedNodeId: 'delayed for drag detection', selectedEdgeId: '', tabId: {…}}
+injected.js:37 📝 SINGLE SELECT UPDATE: {selected: Array(1), total: 20}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔍 CAPTURE PHASE mousedown: {shiftKey: false, ctrlKey: false, target: div.title, targetTag: 'DIV', targetClass: 'title', …}
+injected.js:37 🔧 DRAG START: {nodeId: 'node-1764796269674-gw4pi2x6b', worldPos: {…}, nodePosition: {…}, selectedNodes: Array(1), isGroupDrag: false, …}
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764796269674-gw4pi2x6b
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 DRAG END: {id: 'node-1764796269674-gw4pi2x6b', start: {…}, origin: {…}, origins: Array(1), canvasObjectOrigins: Array(0), …}
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: {distance: 0, threshold: 5}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🎯 NODE CLICK: {nodeId: 'node-1764796269674-gw4pi2x6b', wasSelected: true, shiftKey: false}
+injected.js:37 📊 onNodesChange CALLED: {changes: Array(20), isArray: true, length: 20, firstItem: {…}}
+injected.js:37 📊 DIRECT NODE UPDATE (drag): {nodeCount: 20, sample: {…}}
+injected.js:37 ✅ Node Regular click select: {nodeId: 'node-1764796269674-gw4pi2x6b'}
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: {nodeId: 'node-1764796269674-gw4pi2x6b', currentSelected: 'node-1764796269674-gw4pi2x6b', shiftKey: false, tabId: {…}}
+injected.js:37 📝 SELECTION STATE SET: {selectedNodeId: 'delayed for drag detection', selectedEdgeId: '', tabId: {…}}
+injected.js:37 📝 SINGLE SELECT UPDATE: {selected: Array(1), total: 20}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🖱️ HEADER DOUBLE-CLICK: {nodeId: 'node-1764796269674-gw4pi2x6b', part: 'header'}
+injected.js:37 📝 EDITOR NODE DOUBLE-CLICK HANDLER - Triggering inline edit: {nodeId: 'node-1764796269674-gw4pi2x6b', nodeType: 'process', part: 'header', tabId: {…}}
+injected.js:37 📝 TEXT EDITOR: Component mounted {initialValue: 'New Process', placeholder: 'Enter label...', multiline: false, fontSize: 12, fontFamily: 'Inter', …}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+content_script.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at elementWasFocused (content_script.js:1:423712)
+    at HTMLDocument.focusInEventHandler (content_script.js:1:423069)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+elementWasFocused @ content_script.js:1
+focusInEventHandler @ content_script.js:1
+injected.js:37 👂 TEXT EDITOR: Event listeners attached {isEditing: true, inputRef: true}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764796269674-gw4pi2x6b
+injected.js:37 📝 TEXT EDITOR: Component mounted {initialValue: 'New Process', placeholder: 'Enter label...', multiline: false, fontSize: 12, fontFamily: 'Inter', …}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 DRAG STATE RESET - ready for next click
+injected.js:37 🔍 CAPTURE PHASE mousedown: {shiftKey: false, ctrlKey: false, target: button.w-10.h-10.rounded-full.flex.items-center.justify-center.text-white.shadow-md.transition-all.…, targetTag: 'BUTTON', targetClass: 'w-10 h-10 rounded-full flex items-center justify-c…ver:bg-purple-600 hover:scale-110 active:scale-95', …}
+injected.js:37 🖱️ TEXT EDITOR: Click event detected {target: 'BUTTON', targetClass: 'w-10 h-10 rounded-full flex items-center justify-c…ver:bg-purple-600 hover:scale-110 active:scale-95', inputElement: 'INPUT', inputClass: 'inline-text-editor ', isEditing: true, …}
+injected.js:37 🖱️ TEXT EDITOR: Toolbar click detected - keeping editor open
+injected.js:37 💾 TEXT EDITOR: Blur save (backup)
+injected.js:37 💾 TEXT EDITOR: Save triggered {originalValue: 'New Process', currentValue: 'New Process', trimmedValue: 'New Process', wasEditing: true, alreadySaved: false, …}
+injected.js:37 📝 Inline editing save: {nodeId: 'node-1764796269674-gw4pi2x6b', part: 'header', value: 'New Process'}
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 🧹 TEXT EDITOR: Event listeners removed
+injected.js:37 🔧 AdvancedInteractions configured with pro features: {quickAdd: true, copyPaste: true, advancedSelection: true, nodeCount: 20, canvasObjectCount: 2}
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📏 SHAPE OBJECT: Size calculations {objectId: 'canvas-object-1764879624187-2fmvuvffa', shapeType: 'rectangle', calculatedSize: {…}, boundingBoxSize: {…}, styleSize: undefined, …}
+injected.js:37 💾 Workflows saved to local storage

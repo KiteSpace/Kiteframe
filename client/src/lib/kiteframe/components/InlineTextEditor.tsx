@@ -193,6 +193,25 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
     return null;
   }
 
+  const handleBlur = (e: React.FocusEvent) => {
+    // Check if blur is going to the toolbar - don't save in that case
+    const relatedTarget = e.relatedTarget as Element | null;
+    const isToolbarClick = relatedTarget?.closest?.('[data-toolbar="linear"]') !== null;
+    
+    if (isToolbarClick) {
+      console.log('💾 TEXT EDITOR: Blur to toolbar - keeping editor open');
+      // Refocus the input to keep editing active
+      setTimeout(() => inputRef.current?.focus(), 0);
+      return;
+    }
+    
+    // Don't save on blur if document listener is active to prevent double saves
+    if (!savedRef.current) {
+      console.log('💾 TEXT EDITOR: Blur save (backup)');
+      handleSave();
+    }
+  };
+
   if (multiline) {
     return (
       <textarea
@@ -200,13 +219,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
-        onBlur={() => {
-          // Don't save on blur if document listener is active to prevent double saves
-          if (!savedRef.current) {
-            console.log('💾 TEXT EDITOR: Blur save (backup)');
-            handleSave();
-          }
-        }}
+        onBlur={handleBlur}
         placeholder={placeholder}
         className={`inline-text-editor ${className}`}
         style={inputStyle}
@@ -223,13 +236,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={handleKeyDown}
-      onBlur={() => {
-        // Don't save on blur if document listener is active to prevent double saves
-        if (!savedRef.current) {
-          console.log('💾 TEXT EDITOR: Blur save (backup)');
-          handleSave();
-        }
-      }}
+      onBlur={handleBlur}
       placeholder={placeholder}
       className={`inline-text-editor ${className}`}
       style={inputStyle}
