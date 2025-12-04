@@ -4317,8 +4317,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }}
                 />
 
-                {/* Properties Card for selected objects - only show when sidebar is collapsed */}
-                {isSidebarCollapsed && (selectedNodeId || selectedEdgeId || canvasObjects.some(obj => obj.selected)) && (
+                {/* Properties Card for selected objects - DISABLED: using toolbar mechanism instead */}
+                {false && isSidebarCollapsed && (selectedNodeId || selectedEdgeId || canvasObjects.some(obj => obj.selected)) && (
                   <PropertiesCard
                     selectedNode={nodes.find(n => n.id === selectedNodeId)}
                     selectedEdge={edges.find(e => e.id === selectedEdgeId)}
