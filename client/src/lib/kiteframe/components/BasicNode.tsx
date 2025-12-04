@@ -377,14 +377,17 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
             ) : node.data.description ? (
               <p 
                 className={cn(
-                  "text-xs leading-relaxed",
+                  "leading-relaxed",
+                  !node.data.fontSize && "text-xs",
                   node.data.bold && "font-bold",
                   node.data.italic && "italic",
                   node.data.strikethrough && "line-through",
+                  node.data.underline && "underline",
                 )}
                 style={{
                   fontSize: node.data.fontSize ? `${node.data.fontSize}px` : undefined,
                   textAlign: node.data.textAlign || 'left',
+                  color: colors.bodyTextColor,
                 }}
                 aria-label="Node description"
               >
