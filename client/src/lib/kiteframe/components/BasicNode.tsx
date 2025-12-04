@@ -375,24 +375,54 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
                 data-testid="basic-node-description-textarea"
               />
             ) : node.data.description ? (
-              <p 
-                className={cn(
-                  "leading-relaxed",
-                  !node.data.fontSize && "text-xs",
-                  node.data.bold && "font-bold",
-                  node.data.italic && "italic",
-                  node.data.strikethrough && "line-through",
-                  node.data.underline && "underline",
-                )}
-                style={{
-                  fontSize: node.data.fontSize ? `${node.data.fontSize}px` : undefined,
-                  textAlign: node.data.textAlign || 'left',
-                  color: colors.bodyTextColor,
-                }}
-                aria-label="Node description"
-              >
-                {sanitizeText(node.data.description)}
-              </p>
+              <>
+                {(() => {
+                  console.log('📝 BASICNODE TEXT RENDER:', {
+                    nodeId: node.id,
+                    description: node.data.description,
+                    textStyles: {
+                      fontSize: node.data.fontSize,
+                      bold: node.data.bold,
+                      italic: node.data.italic,
+                      strikethrough: node.data.strikethrough,
+                      underline: node.data.underline,
+                      textAlign: node.data.textAlign,
+                    },
+                    appliedClasses: cn(
+                      "leading-relaxed",
+                      !node.data.fontSize && "text-xs",
+                      node.data.bold && "font-bold",
+                      node.data.italic && "italic",
+                      node.data.strikethrough && "line-through",
+                      node.data.underline && "underline",
+                    ),
+                    appliedStyles: {
+                      fontSize: node.data.fontSize ? `${node.data.fontSize}px` : undefined,
+                      textAlign: node.data.textAlign || 'left',
+                      color: colors.bodyTextColor,
+                    }
+                  });
+                  return null;
+                })()}
+                <p 
+                  className={cn(
+                    "leading-relaxed",
+                    !node.data.fontSize && "text-xs",
+                    node.data.bold && "font-bold",
+                    node.data.italic && "italic",
+                    node.data.strikethrough && "line-through",
+                    node.data.underline && "underline",
+                  )}
+                  style={{
+                    fontSize: node.data.fontSize ? `${node.data.fontSize}px` : undefined,
+                    textAlign: node.data.textAlign || 'left',
+                    color: colors.bodyTextColor,
+                  }}
+                  aria-label="Node description"
+                >
+                  {sanitizeText(node.data.description)}
+                </p>
+              </>
             ) : (
               <div
                 className="text-xs opacity-60 italic"
