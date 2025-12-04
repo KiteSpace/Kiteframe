@@ -1082,11 +1082,18 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
 
   if (!isOpen) return null;
 
-  // Calculate toolbar position
+  // Calculate toolbar position with proper 16px gap
   const toolbarX = nodeRect ? nodeRect.left + nodeRect.width / 2 : position.x;
+  // When above: anchor to node top, transform moves toolbar up by 100% + 16px gap
+  // When below: anchor to node bottom, transform moves toolbar down by 16px gap
   const toolbarY = showAbove 
-    ? (nodeRect ? nodeRect.top - 16 : position.y - 60)
-    : (nodeRect ? nodeRect.bottom + 16 : position.y + 60);
+    ? (nodeRect ? nodeRect.top : position.y)
+    : (nodeRect ? nodeRect.bottom : position.y);
+  
+  // Different transforms for above vs below positioning
+  const toolbarTransform = showAbove
+    ? 'translate(-50%, calc(-100% - 16px))' // Bottom of toolbar is 16px above anchor
+    : 'translate(-50%, 16px)'; // Top of toolbar is 16px below anchor
 
   return (
     <div
@@ -1095,7 +1102,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       style={{
         left: toolbarX,
         top: toolbarY,
-        transform: 'translate(-50%, -50%)'
+        transform: toolbarTransform
       }}
       data-testid="linear-toolbar"
     >

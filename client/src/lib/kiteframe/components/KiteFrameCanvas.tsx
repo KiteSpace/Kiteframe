@@ -3243,7 +3243,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     flexDirection: "column",
                     zIndex: n.zIndex || 0,
                     boxSizing: 'border-box',
-                    overflow: 'hidden', // Clip inner content to container radius
+                    // Note: overflow visible to allow edge handles to extend beyond node bounds
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
@@ -3375,6 +3375,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         color: headerText,
                         borderBottom: `1px solid ${border}`,
                         cursor: 'text',
+                        overflow: 'hidden',
+                        borderRadius: n.data?.hideDescription 
+                          ? `${cornerRadius - 2}px` // All corners if no body
+                          : `${cornerRadius - 2}px ${cornerRadius - 2}px 0 0`, // Top corners only
                       }}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
@@ -3403,6 +3407,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         justifyContent:
                           n.type === "image" ? "center" : undefined,
                         cursor: n.type !== "image" ? 'text' : undefined,
+                        overflow: 'hidden',
+                        borderRadius: n.data?.hideHeader 
+                          ? `${cornerRadius - 2}px` // All corners if no header
+                          : `0 0 ${cornerRadius - 2}px ${cornerRadius - 2}px`, // Bottom corners only
                       }}
                       onDoubleClick={(e) => {
                         if (n.type !== "image") {
