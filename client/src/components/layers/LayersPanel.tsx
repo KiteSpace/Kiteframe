@@ -72,7 +72,7 @@ function getShapeIcon(shapeType: string) {
     case 'hexagon': return Hexagon;
     case 'line': return Minus;
     case 'arrow': return ArrowRight;
-    case 'freeform': return Pen;
+    case 'polygon': return Pen;
     default: return Square;
   }
 }
@@ -337,7 +337,7 @@ export function LayersPanel({ nodes, edges, frames, canvasObjects }:{
       </div>
       
       <div className="flex-1 overflow-hidden bg-gray-50/30 dark:bg-gray-800/30">
-        {mode === 'shapes' ? (
+        {mode === 'objects' ? (
           <ShapesListView 
             canvasObjects={canvasObjects || []} 
             searchQuery={searchQuery}

@@ -22,9 +22,9 @@ interface ShapeObjectProps {
   onEndpointDragStart?: (endpoint: 'start' | 'end', e: React.MouseEvent) => void;
   onEndpointDrag?: (endpoint: 'start' | 'end', position: { x: number; y: number }) => void;
   onEndpointDragEnd?: (endpoint: 'start' | 'end', position: { x: number; y: number }) => void;
-  // Freeform point management with auto-bounds
-  onFreeformPointAdd?: (objectId: string, point: { x: number; y: number }) => void;
-  onFreeformClose?: (objectId: string) => void;
+  // Polygon point management with auto-bounds
+  onPolygonPointAdd?: (objectId: string, point: { x: number; y: number }) => void;
+  onPolygonClose?: (objectId: string) => void;
   canvasRef?: React.RefObject<HTMLDivElement>;
 }
 
@@ -43,14 +43,14 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   onEndpointDragStart,
   onEndpointDrag,
   onEndpointDragEnd,
-  onFreeformPointAdd,
-  onFreeformClose,
+  onPolygonPointAdd,
+  onPolygonClose,
   canvasRef
 }) => {
   const objectRef = useRef<HTMLDivElement>(null);
   // Text editing disabled for shapes\n  // const [isEditingText, setIsEditingText] = useState(false);
   
-  // Freeform shape creation state - track mouse position for preview line
+  // Polygon shape creation state - track mouse position for preview line
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   
   // Use style dimensions if available, otherwise fall back to object dimensions
@@ -108,29 +108,29 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
     }
   };
 
-  // Freeform shape creation handlers
-  // Note: Canvas-level click handling is managed by KiteFrameCanvas for freeform creation
+  // Polygon shape creation handlers
+  // Note: Canvas-level click handling is managed by KiteFrameCanvas for polygon creation
   // These handlers are kept for fallback and mouse position tracking only
-  const isFreeformCreating = object.data.shapeType === 'freeform' && object.data.isCreating;
-  const freeformPoints = object.data.points || [];
+  const isPolygonCreating = object.data.shapeType === 'polygon' && object.data.isCreating;
+  const polygonPoints = object.data.points || [];
   
-  const handleFreeformClick = useCallback((e: React.MouseEvent) => {
+  const handlePolygonClick = useCallback((e: React.MouseEvent) => {
     // Handled by KiteFrameCanvas - this is kept for legacy fallback only
-    if (!isFreeformCreating) return;
+    if (!isPolygonCreating) return;
     e.stopPropagation();
     e.preventDefault();
-  }, [isFreeformCreating]);
+  }, [isPolygonCreating]);
   
-  const handleFreeformDoubleClick = useCallback((e: React.MouseEvent) => {
+  const handlePolygonDoubleClick = useCallback((e: React.MouseEvent) => {
     // Handled by KiteFrameCanvas - this is kept for legacy fallback only
-    if (!isFreeformCreating) return;
+    if (!isPolygonCreating) return;
     e.stopPropagation();
     e.preventDefault();
-  }, [isFreeformCreating]);
+  }, [isPolygonCreating]);
   
-  const handleFreeformMouseMove = useCallback((e: React.MouseEvent) => {
+  const handlePolygonMouseMove = useCallback((e: React.MouseEvent) => {
     // This is now a fallback - canvas-level handler is primary
-    if (!isFreeformCreating) return;
+    if (!isPolygonCreating) return;
     
     const rect = objectRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -140,41 +140,41 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
     const y = (e.clientY - rect.top) / zoom;
     
     setMousePos({ x, y });
-  }, [isFreeformCreating, viewport]);
+  }, [isPolygonCreating, viewport]);
   
-  const handleFreeformMouseLeave = useCallback(() => {
+  const handlePolygonMouseLeave = useCallback(() => {
     setMousePos(null);
   }, []);
   
   // Check if clicking near the first point (to close the shape)
-  const handleFreeformPointClick = useCallback((pointIndex: number, e: React.MouseEvent) => {
+  const handlePolygonPointClick = useCallback((pointIndex: number, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     
     // If clicking on first point and we have at least 3 points, close the shape
-    if (pointIndex === 0 && freeformPoints.length >= 3 && isFreeformCreating) {
-      console.log('🖊️ Freeform: Closing shape by clicking first point');
-      if (onFreeformClose) {
-        onFreeformClose(object.id);
+    if (pointIndex === 0 && polygonPoints.length >= 3 && isPolygonCreating) {
+      console.log('🖊️ Polygon: Closing shape by clicking first point');
+      if (onPolygonClose) {
+        onPolygonClose(object.id);
       } else {
         onUpdate?.({ isClosed: true, isCreating: false });
       }
     }
-  }, [isFreeformCreating, freeformPoints.length, onUpdate, onFreeformClose, object.id]);
+  }, [isPolygonCreating, polygonPoints.length, onUpdate, onPolygonClose, object.id]);
   
-  // Vertex dragging state for freeform shapes (editing mode, not creation mode)
+  // Vertex dragging state for polygon shapes (editing mode, not creation mode)
   const [draggingVertexIndex, setDraggingVertexIndex] = useState<number | null>(null);
   const [hoveredSegmentIndex, setHoveredSegmentIndex] = useState<number | null>(null);
-  const isFreeformEditing = object.data.shapeType === 'freeform' && !object.data.isCreating && object.selected;
+  const isPolygonEditing = object.data.shapeType === 'polygon' && !object.data.isCreating && object.selected;
   
   const handleVertexDragStart = useCallback((vertexIndex: number, e: React.MouseEvent) => {
-    if (!isFreeformEditing) return;
+    if (!isPolygonEditing) return;
     
     e.stopPropagation();
     e.preventDefault();
     
     setDraggingVertexIndex(vertexIndex);
-    console.log('🖊️ Freeform: Start dragging vertex', vertexIndex);
+    console.log('🖊️ Polygon: Start dragging vertex', vertexIndex);
     
     const rect = objectRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -186,7 +186,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       const y = (moveEvent.clientY - rect.top) / zoom;
       
       // Update the vertex position
-      const newPoints = [...freeformPoints];
+      const newPoints = [...polygonPoints];
       newPoints[vertexIndex] = { x, y };
       onUpdate?.({ points: newPoints });
     };
@@ -195,22 +195,22 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       setDraggingVertexIndex(null);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
-      console.log('🖊️ Freeform: End dragging vertex', vertexIndex);
+      console.log('🖊️ Polygon: End dragging vertex', vertexIndex);
     };
     
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [isFreeformEditing, freeformPoints, viewport, onUpdate]);
+  }, [isPolygonEditing, polygonPoints, viewport, onUpdate]);
   
   // Insert a new vertex at the midpoint of a segment
   const handleSegmentMidpointClick = useCallback((segmentIndex: number, e: React.MouseEvent) => {
-    if (!isFreeformEditing) return;
+    if (!isPolygonEditing) return;
     
     e.stopPropagation();
     e.preventDefault();
     
-    const p1 = freeformPoints[segmentIndex];
-    const p2 = freeformPoints[(segmentIndex + 1) % freeformPoints.length];
+    const p1 = polygonPoints[segmentIndex];
+    const p2 = polygonPoints[(segmentIndex + 1) % polygonPoints.length];
     
     // Calculate midpoint
     const midpoint = {
@@ -220,15 +220,15 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
     
     // Insert the new point after segmentIndex
     const newPoints = [
-      ...freeformPoints.slice(0, segmentIndex + 1),
+      ...polygonPoints.slice(0, segmentIndex + 1),
       midpoint,
-      ...freeformPoints.slice(segmentIndex + 1)
+      ...polygonPoints.slice(segmentIndex + 1)
     ];
     
-    console.log('🖊️ Freeform: Inserting vertex at segment', segmentIndex, 'midpoint:', midpoint);
+    console.log('🖊️ Polygon: Inserting vertex at segment', segmentIndex, 'midpoint:', midpoint);
     onUpdate?.({ points: newPoints });
     setHoveredSegmentIndex(null);
-  }, [isFreeformEditing, freeformPoints, onUpdate]);
+  }, [isPolygonEditing, polygonPoints, onUpdate]);
 
   // Helper function to convert hex color to rgba with opacity
   const hexToRgba = (hex: string, opacity: number): string => {
@@ -501,36 +501,36 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
           </svg>
         );
 
-      case 'freeform':
-        const renderFreeformPoints = object.data.points || [];
-        const isFreeformClosed = object.data.isClosed ?? false;
+      case 'polygon':
+        const renderPolygonPoints = object.data.points || [];
+        const isPolygonClosed = object.data.isClosed ?? false;
         const isCreating = object.data.isCreating ?? false;
         
         // During creation mode with no points, render nothing visible here
         // The canvas-level click handler captures clicks anywhere on the canvas
-        if (renderFreeformPoints.length === 0 && isCreating) {
+        if (renderPolygonPoints.length === 0 && isCreating) {
           // Return invisible placeholder - all clicks go to canvas-level handler
           return null;
         }
         
         // If not in creation mode and no points, show minimal indicator
-        if (renderFreeformPoints.length === 0) {
+        if (renderPolygonPoints.length === 0) {
           return (
             <div 
               className="w-full h-full flex items-center justify-center border-2 border-dashed border-gray-300 rounded cursor-crosshair pointer-events-none"
               style={{ minWidth: 100, minHeight: 100 }}
             >
-              <span className="text-gray-400 text-sm">Empty freeform shape</span>
+              <span className="text-gray-400 text-sm">Empty polygon shape</span>
             </div>
           );
         }
         
         // Convert points array to SVG points string
-        const freeformPointsString = renderFreeformPoints.map(p => `${p.x},${p.y}`).join(' ');
+        const polygonPointsString = renderPolygonPoints.map(p => `${p.x},${p.y}`).join(' ');
         
         // Get last point for preview line
-        const lastPoint = renderFreeformPoints[renderFreeformPoints.length - 1];
-        const firstPoint = renderFreeformPoints[0];
+        const lastPoint = renderPolygonPoints[renderPolygonPoints.length - 1];
+        const firstPoint = renderPolygonPoints[0];
         
         return (
           <svg 
@@ -540,10 +540,10 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
             className="overflow-visible absolute top-0 left-0"
             style={{ cursor: isCreating ? 'crosshair' : 'default' }}
           >
-            {isFreeformClosed ? (
+            {isPolygonClosed ? (
               // Closed polygon - render with fill
               <polygon
-                points={freeformPointsString}
+                points={polygonPointsString}
                 style={{
                   fill: computedFillColor,
                   stroke: shouldRenderStroke(strokeStyle || 'solid', strokeWidth || 0) ? strokeColor || '#6b7280' : 'none',
@@ -555,13 +555,13 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
                     ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
                     : 'none',
                 }}
-                data-testid="shape-freeform-polygon"
+                data-testid="shape-polygon-polygon"
               />
             ) : (
               <>
                 {/* Open polyline - no fill, just stroke */}
                 <polyline
-                  points={freeformPointsString}
+                  points={polygonPointsString}
                   style={{
                     fill: 'none',
                     stroke: strokeColor || '#6b7280',
@@ -574,7 +574,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
                       ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
                       : 'none',
                   }}
-                  data-testid="shape-freeform-polyline"
+                  data-testid="shape-polygon-polyline"
                 />
                 {/* Preview line from last point to mouse during creation */}
                 {isCreating && mousePos && lastPoint && (
@@ -592,7 +592,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
                   />
                 )}
                 {/* Preview line to first point when close enough */}
-                {isCreating && mousePos && firstPoint && renderFreeformPoints.length >= 3 && (
+                {isCreating && mousePos && firstPoint && renderPolygonPoints.length >= 3 && (
                   (() => {
                     const distToFirst = Math.hypot(mousePos.x - firstPoint.x, mousePos.y - firstPoint.y);
                     if (distToFirst < 20) {
@@ -617,13 +617,13 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               </>
             )}
             {/* Segment midpoint indicators - show when editing (selected but not creating) */}
-            {!isCreating && object.selected && renderFreeformPoints.length >= 2 && (() => {
+            {!isCreating && object.selected && renderPolygonPoints.length >= 2 && (() => {
               const segments = [];
-              const numSegments = isFreeformClosed ? renderFreeformPoints.length : renderFreeformPoints.length - 1;
+              const numSegments = isPolygonClosed ? renderPolygonPoints.length : renderPolygonPoints.length - 1;
               
               for (let i = 0; i < numSegments; i++) {
-                const p1 = renderFreeformPoints[i];
-                const p2 = renderFreeformPoints[(i + 1) % renderFreeformPoints.length];
+                const p1 = renderPolygonPoints[i];
+                const p2 = renderPolygonPoints[(i + 1) % renderPolygonPoints.length];
                 const midX = (p1.x + p2.x) / 2;
                 const midY = (p1.y + p2.y) / 2;
                 
@@ -640,33 +640,33 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
                     onMouseEnter={() => setHoveredSegmentIndex(i)}
                     onMouseLeave={() => setHoveredSegmentIndex(null)}
                     onMouseDown={(e) => handleSegmentMidpointClick(i, e)}
-                    data-testid={`freeform-midpoint-${i}`}
+                    data-testid={`polygon-midpoint-${i}`}
                   />
                 );
               }
               return segments;
             })()}
             {/* Vertex points - show during creation and when selected */}
-            {(isCreating || object.selected) && renderFreeformPoints.map((point, idx) => (
+            {(isCreating || object.selected) && renderPolygonPoints.map((point, idx) => (
               <circle
                 key={idx}
                 cx={point.x}
                 cy={point.y}
-                r={idx === 0 && isCreating && renderFreeformPoints.length >= 3 ? 8 : 
+                r={idx === 0 && isCreating && renderPolygonPoints.length >= 3 ? 8 : 
                    (draggingVertexIndex === idx ? 7 : 5)}
-                fill={idx === 0 && isCreating && renderFreeformPoints.length >= 3 ? '#22c55e' : 
+                fill={idx === 0 && isCreating && renderPolygonPoints.length >= 3 ? '#22c55e' : 
                       (draggingVertexIndex === idx ? '#1d4ed8' : '#3b82f6')}
                 stroke="white"
                 strokeWidth={2}
                 style={{ cursor: idx === 0 && isCreating ? 'pointer' : 'move' }}
                 onMouseDown={(e) => {
-                  if (isCreating && idx === 0 && renderFreeformPoints.length >= 3) {
-                    handleFreeformPointClick(idx, e);
+                  if (isCreating && idx === 0 && renderPolygonPoints.length >= 3) {
+                    handlePolygonPointClick(idx, e);
                   } else if (!isCreating) {
                     handleVertexDragStart(idx, e);
                   }
                 }}
-                data-testid={`freeform-vertex-${idx}`}
+                data-testid={`polygon-vertex-${idx}`}
               />
             ))}
           </svg>
@@ -687,15 +687,15 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
     }
   };
 
-  // Line, arrow, and freeform shapes don't need bounding box (they have point/vertex handles instead)
-  const isLineShape = object.data.shapeType === 'line' || object.data.shapeType === 'arrow' || object.data.shapeType === 'freeform';
+  // Line, arrow, and polygon shapes don't need bounding box (they have point/vertex handles instead)
+  const isLineShape = object.data.shapeType === 'line' || object.data.shapeType === 'arrow' || object.data.shapeType === 'polygon';
 
   return (
     <div
       ref={objectRef}
       className={cn(
         "group relative",
-        isFreeformCreating ? "cursor-crosshair" : "cursor-pointer",
+        isPolygonCreating ? "cursor-crosshair" : "cursor-pointer",
         object.selected && !isLineShape && "outline outline-2 outline-blue-500"
       )}
       style={{
@@ -710,34 +710,34 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       draggable={false}
       onDragStart={(e) => e.preventDefault()}
       onMouseDown={(e) => {
-        // In freeform creation mode, don't start dragging - let clicks add points
-        if (isFreeformCreating) {
+        // In polygon creation mode, don't start dragging - let clicks add points
+        if (isPolygonCreating) {
           e.preventDefault();
           return;
         }
         handleMouseDown(e);
       }}
       onClick={(e) => {
-        // In freeform creation mode, handle point addition
-        if (isFreeformCreating) {
+        // In polygon creation mode, handle point addition
+        if (isPolygonCreating) {
           // Check if we're clicking near the first point to close the shape
-          if (freeformPoints.length >= 3 && mousePos) {
-            const firstPt = freeformPoints[0];
+          if (polygonPoints.length >= 3 && mousePos) {
+            const firstPt = polygonPoints[0];
             const dist = Math.hypot(mousePos.x - firstPt.x, mousePos.y - firstPt.y);
             if (dist < 20) {
-              handleFreeformPointClick(0, e);
+              handlePolygonPointClick(0, e);
               return;
             }
           }
-          handleFreeformClick(e);
+          handlePolygonClick(e);
           return;
         }
         onClick?.(e);
       }}
       onDoubleClick={(e) => {
-        // In freeform creation mode, close the shape
-        if (isFreeformCreating) {
-          handleFreeformDoubleClick(e);
+        // In polygon creation mode, close the shape
+        if (isPolygonCreating) {
+          handlePolygonDoubleClick(e);
           return;
         }
         
@@ -754,8 +754,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         e.stopPropagation();
         onDoubleClick?.(e);
       }}
-      onMouseMove={isFreeformCreating ? handleFreeformMouseMove : undefined}
-      onMouseLeave={isFreeformCreating ? handleFreeformMouseLeave : undefined}
+      onMouseMove={isPolygonCreating ? handlePolygonMouseMove : undefined}
+      onMouseLeave={isPolygonCreating ? handlePolygonMouseLeave : undefined}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();

@@ -1,6 +1,6 @@
-export type LayerMode = 'structure'|'topology'|'spatial'|'links'|'shapes';
+export type LayerMode = 'structure'|'topology'|'spatial'|'links'|'objects';
 export function LayerModeTabs({mode,setMode}:{mode:LayerMode,setMode:(m:LayerMode)=>void}){
-  const tabs:LayerMode[]=['structure','topology','spatial','links','shapes'];
+  const tabs:LayerMode[]=['structure','topology','spatial','links','objects'];
   return <div className="flex gap-1 p-2 border-b border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-900/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60">
     {tabs.map(t=>
       <button key={t}

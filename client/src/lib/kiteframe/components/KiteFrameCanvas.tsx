@@ -1200,21 +1200,21 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   }, []);
 
   // ========== FREEFORM CREATION CLICK HANDLER ==========
-  // Detect if there's a freeform shape in creation mode and handle canvas clicks
-  const freeformCreatingShape = useMemo(() => {
+  // Detect if there's a polygon shape in creation mode and handle canvas clicks
+  const polygonCreatingShape = useMemo(() => {
     const creating = (props.canvasObjects || []).find(
       obj => obj.type === 'shape' && 
-             (obj.data as any)?.shapeType === 'freeform' && 
+             (obj.data as any)?.shapeType === 'polygon' && 
              (obj.data as any)?.isCreating === true
     );
     return creating || null;
   }, [props.canvasObjects]);
 
   useEffect(() => {
-    if (!freeformCreatingShape || !containerRef.current) return;
+    if (!polygonCreatingShape || !containerRef.current) return;
 
     const canvas = containerRef.current;
-    const shapeData = freeformCreatingShape.data as any;
+    const shapeData = polygonCreatingShape.data as any;
     const currentPoints = shapeData.points || [];
     
     const handleFreeformClick = (e: MouseEvent) => {
@@ -1238,11 +1238,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const worldY = (e.clientY - canvasRect.top) / zoom + viewportY;
       
       // Convert to shape-local coordinates
-      const localX = worldX - freeformCreatingShape.position.x;
-      const localY = worldY - freeformCreatingShape.position.y;
+      const localX = worldX - polygonCreatingShape.position.x;
+      const localY = worldY - polygonCreatingShape.position.y;
       
       // Get fresh points from the shape (avoid stale closure)
-      const freshShape = (props.canvasObjects || []).find(obj => obj.id === freeformCreatingShape.id);
+      const freshShape = (props.canvasObjects || []).find(obj => obj.id === polygonCreatingShape.id);
       const freshPoints = (freshShape?.data as any)?.points || [];
       
       // Check if clicking near the first point to close the shape
@@ -1252,7 +1252,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         if (dist < 20) {
           console.log('🖊️ Freeform: Closing shape by clicking first point');
           const updatedObjects = (props.canvasObjects || []).map(obj =>
-            obj.id === freeformCreatingShape.id
+            obj.id === polygonCreatingShape.id
               ? { ...obj, data: { ...obj.data, isClosed: true, isCreating: false } }
               : obj
           );
@@ -1291,12 +1291,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       
       // Update world position to compensate for the shift
       const newPosition = {
-        x: freeformCreatingShape.position.x + shiftX,
-        y: freeformCreatingShape.position.y + shiftY
+        x: polygonCreatingShape.position.x + shiftX,
+        y: polygonCreatingShape.position.y + shiftY
       };
       
       const updatedObjects = (props.canvasObjects || []).map(obj =>
-        obj.id === freeformCreatingShape.id
+        obj.id === polygonCreatingShape.id
           ? {
               ...obj,
               data: { ...obj.data, points: normalizedPoints },
@@ -1315,14 +1315,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     
     const handleFreeformDoubleClick = (e: MouseEvent) => {
       // Get fresh points
-      const freshShape = (props.canvasObjects || []).find(obj => obj.id === freeformCreatingShape.id);
+      const freshShape = (props.canvasObjects || []).find(obj => obj.id === polygonCreatingShape.id);
       const freshPoints = (freshShape?.data as any)?.points || [];
       
       // Close the shape if we have at least 3 points
       if (freshPoints.length >= 3) {
         console.log('🖊️ Freeform: Closing shape via double-click', freshPoints.length, 'points');
         const updatedObjects = (props.canvasObjects || []).map(obj =>
-          obj.id === freeformCreatingShape.id
+          obj.id === polygonCreatingShape.id
             ? { ...obj, data: { ...obj.data, isClosed: true, isCreating: false } }
             : obj
         );
@@ -1332,7 +1332,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       }
     };
     
-    // Add cursor style to indicate freeform mode
+    // Add cursor style to indicate polygon mode
     canvas.style.cursor = 'crosshair';
     
     canvas.addEventListener('click', handleFreeformClick, true);
@@ -1343,7 +1343,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       canvas.removeEventListener('click', handleFreeformClick, true);
       canvas.removeEventListener('dblclick', handleFreeformDoubleClick, true);
     };
-  }, [freeformCreatingShape, viewport, props.canvasObjects, props.onCanvasObjectsChange]);
+  }, [polygonCreatingShape, viewport, props.canvasObjects, props.onCanvasObjectsChange]);
 
   // ========== PRODUCTION FEATURES EFFECTS ==========
   // 1. Memory Monitoring

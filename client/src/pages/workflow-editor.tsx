@@ -4273,11 +4273,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   onCreateShape={(shapeType: string) => {
                     saveToHistory();
                     
-                    // Build shape data with freeform-specific initialization if needed
+                    // Build shape data with polygon-specific initialization if needed
                     const shapeData = {
                       ...DEFAULT_SHAPE_NODE_DATA,
                       shapeType,
-                      ...(shapeType === 'freeform' ? {
+                      ...(shapeType === 'polygon' ? {
                         points: [],
                         isClosed: false,
                         isCreating: true
@@ -4289,9 +4289,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       type: 'shape',
                       position: getViewportCenteredPosition(),
                       data: shapeData as any,
-                      width: shapeType === 'freeform' ? 300 : 200,  // Larger size for freeform creation
-                      height: shapeType === 'freeform' ? 300 : (shapeType === 'rectangle' ? 200 : 100),
-                      selected: shapeType === 'freeform' // Auto-select freeform for immediate creation mode
+                      width: shapeType === 'polygon' ? 300 : 200,  // Larger size for polygon creation
+                      height: shapeType === 'polygon' ? 300 : (shapeType === 'rectangle' ? 200 : 100),
+                      selected: shapeType === 'polygon' // Auto-select polygon for immediate creation mode
                     };
                     
                     updateActiveTab({ 
@@ -4308,11 +4308,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   onCreateShapeAtPosition={(shapeType: string, position: { x: number; y: number }) => {
                     saveToHistory();
                     
-                    // Build shape data with freeform-specific initialization if needed
+                    // Build shape data with polygon-specific initialization if needed
                     const shapeData = {
                       ...DEFAULT_SHAPE_NODE_DATA,
                       shapeType,
-                      ...(shapeType === 'freeform' ? {
+                      ...(shapeType === 'polygon' ? {
                         points: [],
                         isClosed: false,
                         isCreating: true
@@ -4324,9 +4324,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       type: 'shape',
                       position, // Use the provided position instead of center
                       data: shapeData as any,
-                      width: shapeType === 'freeform' ? 300 : 200,  // Larger size for freeform creation
-                      height: shapeType === 'freeform' ? 300 : (shapeType === 'rectangle' ? 200 : 100),
-                      selected: shapeType === 'freeform' // Auto-select freeform for immediate creation mode
+                      width: shapeType === 'polygon' ? 300 : 200,  // Larger size for polygon creation
+                      height: shapeType === 'polygon' ? 300 : (shapeType === 'rectangle' ? 200 : 100),
+                      selected: shapeType === 'polygon' // Auto-select polygon for immediate creation mode
                     };
                     
                     updateActiveTab({ 
@@ -6735,8 +6735,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   canvasObjects: canvasObjects.map(obj => {
                     if (obj.id !== linearToolbar.canvasObject!.id) return obj;
                     
-                    // When switching to freeform, initialize with empty points and creation mode
-                    if (shapeType === 'freeform') {
+                    // When switching to polygon, initialize with empty points and creation mode
+                    if (shapeType === 'polygon') {
                       return { 
                         ...obj, 
                         data: { 
@@ -6752,13 +6752,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       };
                     }
                     
-                    // When switching from freeform to other shapes, clear freeform properties
+                    // When switching from polygon to other shapes, clear polygon properties
                     return { 
                       ...obj, 
                       data: { 
                         ...obj.data, 
                         shapeType: shapeType,
-                        // Clear freeform properties
+                        // Clear polygon properties
                         points: undefined,
                         isClosed: undefined,
                         isCreating: undefined
@@ -6833,7 +6833,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onCreateShape={(pos, shapeType) => {
               const isDark = document.documentElement.classList.contains('dark');
               
-              // Build shape data with freeform-specific initialization if needed
+              // Build shape data with polygon-specific initialization if needed
               const baseShapeData = {
                 shapeType,
                 fillColor: isDark ? '#374151' : '#e2e8f0',
@@ -6849,7 +6849,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               
               const shapeData = {
                 ...baseShapeData,
-                ...(shapeType === 'freeform' ? {
+                ...(shapeType === 'polygon' ? {
                   points: [],
                   isClosed: false,
                   isCreating: true
@@ -6859,9 +6859,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               const newShapeObject: CanvasObject = {
                 id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 type: 'shape',
-                position: { x: pos.x - (shapeType === 'freeform' ? 150 : 50), y: pos.y - (shapeType === 'freeform' ? 150 : 50) },
-                width: shapeType === 'freeform' ? 300 : (shapeType === 'line' || shapeType === 'arrow' ? 150 : 100),
-                height: shapeType === 'freeform' ? 300 : (shapeType === 'line' || shapeType === 'arrow' ? 4 : 100),
+                position: { x: pos.x - (shapeType === 'polygon' ? 150 : 50), y: pos.y - (shapeType === 'polygon' ? 150 : 50) },
+                width: shapeType === 'polygon' ? 300 : (shapeType === 'line' || shapeType === 'arrow' ? 150 : 100),
+                height: shapeType === 'polygon' ? 300 : (shapeType === 'line' || shapeType === 'arrow' ? 4 : 100),
                 selected: true,
                 data: shapeData
               };
@@ -6870,7 +6870,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               saveToHistory();
               toast({
                 title: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} Added`,
-                description: shapeType === 'freeform' ? "Click to add points, double-click to close" : "Click to select and style",
+                description: shapeType === 'polygon' ? "Click to add points, double-click to close" : "Click to select and style",
               });
             }}
             onCreateSticky={(pos) => {

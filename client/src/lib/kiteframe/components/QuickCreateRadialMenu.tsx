@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export type QuickCreateType = 'node' | 'text' | 'shape' | 'sticky';
-export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'freeform' | 'arrow';
+export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'polygon' | 'arrow';
 
 interface QuickCreateRadialMenuProps {
   isOpen: boolean;
@@ -40,7 +40,7 @@ const SHAPE_OPTIONS: { id: ShapeType; icon: React.ReactNode; label: string }[] =
   { id: 'circle', icon: <Circle size={18} />, label: 'Circle' },
   { id: 'triangle', icon: <Triangle size={18} />, label: 'Triangle' },
   { id: 'hexagon', icon: <Hexagon size={18} />, label: 'Hexagon' },
-  { id: 'freeform', icon: <PenTool size={18} />, label: 'Freeform' },
+  { id: 'polygon', icon: <PenTool size={18} />, label: 'Polygon' },
   { id: 'arrow', icon: <ArrowRight size={18} />, label: 'Arrow' },
 ];
 
