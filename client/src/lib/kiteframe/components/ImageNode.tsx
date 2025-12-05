@@ -239,7 +239,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     ) : {};
     
     const positionStyles = {
-      position: 'absolute',
+      position: 'absolute' as const,
       left: `${node.position.x}px`,
       top: `${node.position.y}px`,
       width: `${nodeWidth}px`,
@@ -261,9 +261,9 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     <div
       ref={nodeRef}
       className={cn(
-        'kiteframe-node group',
+        'kiteframe-node group flex flex-col',
         'border-2 rounded-lg shadow-md transition-all duration-200',
-        'hover:shadow-lg cursor-move',
+        'hover:shadow-lg cursor-move overflow-hidden',
         node.selected ? 'ring-2 ring-blue-500 shadow-lg' : '',
         node.hidden ? 'opacity-0 pointer-events-none' : '',
         nodePositionClass,
@@ -286,7 +286,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       data-testid={`image-node-${node.id}`}
     >
       <div
-        className={cn('h-8 px-3 flex items-center justify-between rounded-t-md', styleClasses.headerClass)}
+        className={cn('h-8 px-3 flex items-center justify-between rounded-t-md flex-shrink-0', styleClasses.headerClass)}
         role="heading"
         aria-level={3}
         onDoubleClick={handleLabelDoubleClick}
@@ -323,20 +323,21 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       </div>
 
       <div
-        className={cn('flex-1 rounded-b-md overflow-hidden',
+        className={cn('flex-1 rounded-b-md overflow-hidden min-h-0',
           getDynamicClassName({ backgroundColor: colors.bodyBg }, `image-body-${node.id}`)
         )}
+        style={{ height: `calc(100% - ${HEADER_H}px)` }}
         role="region"
         aria-label="Image content"
       >
         {hasImage && !isUploading ? (
-          <div className="relative w-full cursor-move">
+          <div className="relative w-full h-full cursor-move overflow-hidden">
             <img
               ref={imgRef}
               src={node.data.src}
               alt={node.data.altText || node.data.label || node.data.filename || 'Image'}
               className="block select-none"
-              style={{ ...imageStyle, pointerEvents: 'none' }}  /* keep interactions on container */
+              style={{ ...imageStyle, pointerEvents: 'none', maxHeight: '100%' }}
               onLoad={handleImageLoad}
               onError={handleImageError}
               draggable={false}
@@ -361,7 +362,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
               if (e.key === 'Enter' || e.key === ' ') handleAddImageClick();
             }}
             className={cn(
-              'flex flex-col items-center justify-center h-full p-4 text-center cursor-pointer rounded-md hover:bg-slate-50',
+              'flex flex-col items-center justify-center h-full p-4 text-center cursor-pointer rounded-md hover:bg-slate-50 overflow-hidden',
               getDynamicClassName({ color: colors.bodyTextColor }, `placeholder-text-${node.id}`)
             )}
             data-testid="placeholder-add-image"
