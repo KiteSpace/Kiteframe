@@ -3356,6 +3356,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     edgeId?: string; 
     part: 'header' | 'body' | 'edgeLabel';
   } | null>(null);
+  const [selectedText, setSelectedText] = useState('');
   const [isEditingWorkflowName, setIsEditingWorkflowName] = useState(false);
   const [workflowNameInput, setWorkflowNameInput] = useState('');
   const [copiedProperties, setCopiedProperties] = useState<{ colors?: any; data?: Partial<Node['data']> } | null>(null);
@@ -5752,11 +5753,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   return node;
                 }));
                 setInlineEditing(null);
+                setSelectedText('');
                 saveToHistory();
               }}
               onInlineEditingCancel={() => {
                 console.log('📝 Inline editing cancelled');
                 setInlineEditing(null);
+                setSelectedText('');
+              }}
+              onTextSelectionChange={(text) => {
+                setSelectedText(text);
               }}
             />
                 
@@ -6549,11 +6555,27 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 ));
               }
             }}
-            onAddLink={() => {
-              if (linearToolbar.node) {
-                // Trigger inline editing for adding a link
-                setInlineEditing({ nodeId: linearToolbar.node.id, part: 'body' });
-                // Keep toolbar open for text styling
+            selectedText={selectedText}
+            onAddHyperlink={(hyperlink) => {
+              const { text: linkText, url } = hyperlink;
+              console.log('🔗 Adding hyperlink:', { linkText, url, nodeId: linearToolbar.node?.id });
+              if (linearToolbar.node && url) {
+                saveToHistory();
+                setNodes(prev => prev.map(n => {
+                  if (n.id !== linearToolbar.node!.id) return n;
+                  const currentDescription = n.data?.description || '';
+                  const markdown = `[${linkText}](${url})`;
+                  const newDescription = selectedText 
+                    ? currentDescription.replace(selectedText, markdown)
+                    : currentDescription + (currentDescription ? '\n' : '') + markdown;
+                  return { 
+                    ...n, 
+                    data: { 
+                      ...n.data, 
+                      description: newDescription
+                    } 
+                  };
+                }));
               }
             }}
             onEdgeStyleChange={(style) => {

@@ -888,6 +888,7 @@ type Props = {
   } | null;
   onInlineEditingSave?: (nodeId: string, part: 'header' | 'body', value: string) => void;
   onInlineEditingCancel?: () => void;
+  onTextSelectionChange?: (selectedText: string) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -3808,6 +3809,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                               placeholder="Enter description..."
                               onSave={(value) => props.onInlineEditingSave?.(n.id, 'body', value)}
                               onCancel={() => props.onInlineEditingCancel?.()}
+                              onSelectionChange={props.onTextSelectionChange}
                               color={bodyText}
                               fontSize={n.data?.fontSize || 12}
                               fontWeight={n.data?.bold ? 700 : 400}
