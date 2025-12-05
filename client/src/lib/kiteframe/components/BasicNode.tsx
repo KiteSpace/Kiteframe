@@ -44,7 +44,7 @@ const HyperlinkButton: React.FC<HyperlinkButtonProps> = ({ hyperlink, onEdit, bo
   
   return (
     <div 
-      className="relative inline-block mt-2"
+      className="relative mt-2 w-fit"
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
     >
@@ -491,7 +491,7 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
           )}
           
           {/* Text content */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex flex-col">
             {isEditingDescription ? (
               <textarea
                 ref={descriptionRef}
