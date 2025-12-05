@@ -48,6 +48,7 @@ import {
   Type, 
   Shapes, 
   StickyNote, 
+  Table2,
   Route,
   Palette,
   MapPin,
@@ -3564,6 +3565,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     'type': Type,
     'shapes': Shapes,
     'sticky-note': StickyNote,
+    'table': Table2,
     'route': Route,
     'palette': Palette,
     'map-pin': MapPin,
@@ -4369,8 +4371,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
                         iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
                       },
-                      width: isTableNode ? 280 : 200,
-                      height: isTableNode ? 200 : 100
+                      width: isTableNode ? 560 : 200,
+                      height: isTableNode ? 400 : 100,
+                      style: isTableNode ? { width: 560, height: 400 } : undefined,
+                      resizable: isTableNode ? true : undefined
                     };
 
                     setNodes(prev => [...prev, newNode]);
@@ -4427,8 +4431,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
                         iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
                       },
-                      width: isTableNode ? 280 : 200,
-                      height: isTableNode ? 200 : 100
+                      width: isTableNode ? 560 : 200,
+                      height: isTableNode ? 400 : 100,
+                      style: isTableNode ? { width: 560, height: 400 } : undefined,
+                      resizable: isTableNode ? true : undefined
                     };
 
                     setNodes(prev => [...prev, newNode]);
@@ -4648,8 +4654,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
                         iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
                       },
-                      width: isTableNode ? 280 : 200,
-                      height: isTableNode ? 200 : 100
+                      width: isTableNode ? 560 : 200,
+                      height: isTableNode ? 400 : 100,
+                      style: isTableNode ? { width: 560, height: 400 } : undefined,
+                      resizable: isTableNode ? true : undefined
                     };
 
                     setNodes([newNode]);
@@ -4754,8 +4762,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
                     iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
                   },
-                  width: isTableNode ? 280 : 200,
-                  height: isTableNode ? 200 : 100
+                  width: isTableNode ? 560 : 200,
+                  height: isTableNode ? 400 : 100,
+                  style: isTableNode ? { width: 560, height: 400 } : undefined,
+                  resizable: isTableNode ? true : undefined
                 };
 
                 setNodes(prev => [...prev, newNode]);
@@ -4859,7 +4869,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 const newNode: Node = {
                   id: nodeId,
                   type,
-                  position: { x: worldPosition.x - (isTableNode ? 140 : 100), y: worldPosition.y - (isTableNode ? 100 : 50) }, // Center the node
+                  position: { x: worldPosition.x - (isTableNode ? 280 : 100), y: worldPosition.y - (isTableNode ? 200 : 50) }, // Center the node
                   data: isTableNode ? {
                     label: 'Table',
                     tableId,
@@ -4878,8 +4888,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
                     iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
                   },
-                  width: isTableNode ? 280 : 200,
-                  height: isTableNode ? 200 : 100
+                  width: isTableNode ? 560 : 200,
+                  height: isTableNode ? 400 : 100,
+                  style: isTableNode ? { width: 560, height: 400 } : undefined,
+                  resizable: isTableNode ? true : undefined
                 };
 
                 setNodes(prev => [...prev, newNode]);
@@ -5999,6 +6011,50 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   ...prev,
                   [tableId]: table
                 }));
+              }}
+              onCreateNodeFromRow={(tableId, row, rowIndex) => {
+                console.log('📊 Creating node from table row:', { tableId, rowIndex, row });
+                
+                // Find the table node to get its position for offset
+                const tableNode = nodes.find(n => n.type === 'table' && n.data?.tableId === tableId);
+                const basePosition = tableNode ? {
+                  x: tableNode.position.x + (tableNode.width || 560) + 50,
+                  y: tableNode.position.y + (rowIndex * 120)
+                } : getViewportCenteredPosition();
+                
+                // Create a new process node with the row data
+                const nodeId = `node-${Date.now()}`;
+                const rowLabel = Object.values(row).slice(0, 2).filter(Boolean).join(' - ') || `Row ${rowIndex + 1}`;
+                const rowDescription = Object.entries(row)
+                  .map(([key, value]) => `${key}: ${value}`)
+                  .slice(0, 5)
+                  .join('\n');
+                
+                const newNode: Node = {
+                  id: nodeId,
+                  type: 'process',
+                  position: basePosition,
+                  data: {
+                    label: String(rowLabel).slice(0, 50),
+                    description: rowDescription,
+                    icon: 'Cog',
+                    iconColor: 'text-green-500',
+                    rowData: row,
+                    sourceTable: tableId,
+                    sourceRowIndex: rowIndex,
+                  },
+                  width: 200,
+                  height: 100
+                };
+                
+                setNodes(prev => [...prev, newNode]);
+                saveToHistory();
+                
+                toast({
+                  title: "Node Created",
+                  description: `Created node from table row ${rowIndex + 1}`,
+                  variant: "default"
+                });
               }}
             />
                 

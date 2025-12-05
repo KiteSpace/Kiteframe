@@ -1264,6 +1264,7 @@ type Props = {
   tableData?: Record<string, import('../types').DataTable>;
   onOpenTable?: (tableId: string) => void;
   onTableDataChange?: (tableId: string, table: import('../types').DataTable) => void;
+  onCreateNodeFromRow?: (tableId: string, row: Record<string, unknown>, rowIndex: number) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -3834,15 +3835,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   <TableNode
                     key={n.id}
                     node={nodeWithTable as any}
-                    onOpenTablePanel={(tid: string) => {
-                      props.onOpenTable?.(tid);
+                    onUpdateTable={(tid: string, table: import('../types').DataTable) => {
+                      // Persist table data changes to the workflow
+                      props.onTableDataChange?.(tid, table);
                     }}
-                    onImportData={(tid: string) => {
-                      // This is triggered when Import Data button is clicked
-                      // The actual import handling happens in the TablePanel
-                      if (tableId) {
-                        props.onOpenTable?.(tableId);
-                      }
+                    onCreateNodeFromRow={(tid: string, row: Record<string, unknown>, rowIndex: number) => {
+                      // Create a new node from the row data
+                      props.onCreateNodeFromRow?.(tid, row, rowIndex);
                     }}
                     onUpdate={(nodeId: string, updates: Partial<Node>) => {
                       const updated = props.nodes.map((node) =>

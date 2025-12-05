@@ -74,6 +74,10 @@ export function CollapsedSidebar({
         // Click creates sticky note at center, drag-and-drop creates at mouse position
         onCreateNode('sticky');
         break;
+      case 'table':
+        // Click creates table at center, drag-and-drop creates at mouse position
+        onCreateNode('table');
+        break;
       case 'shapes':
         const newShapesState = activePopout === 'shapes' ? null : 'shapes';
         console.log('🎯 SETTING SHAPES POPOUT:', { from: activePopout, to: newShapesState });
@@ -113,7 +117,7 @@ export function CollapsedSidebar({
     iconKey: string,
   ) => {
     // Only handle draggable icons
-    if (!['type', 'sticky-note'].includes(iconKey)) return;
+    if (!['type', 'sticky-note', 'table'].includes(iconKey)) return;
     
     // Only handle left mouse button
     if (e.button !== 0) return;
@@ -167,7 +171,7 @@ export function CollapsedSidebar({
             const worldPos = clientToWorld(e.clientX, e.clientY, viewport, canvasRect);
             console.log('🎯 CALLING onCreateNodeAtPosition from collapsed sidebar:', { iconKey, worldPosition: worldPos, screenPos: { x: e.clientX, y: e.clientY }, viewport, canvasRect });
             // Convert icon key to node type and call position-based creation
-            const nodeType = iconKey === 'type' ? 'text' : iconKey === 'sticky-note' ? 'sticky' : iconKey;
+            const nodeType = iconKey === 'type' ? 'text' : iconKey === 'sticky-note' ? 'sticky' : iconKey === 'table' ? 'table' : iconKey;
             onCreateNodeAtPosition?.(nodeType, worldPos);
           } else {
             console.log('🎯 DROP OUTSIDE CANVAS - NO OBJECT CREATED');
@@ -285,6 +289,7 @@ export function CollapsedSidebar({
       case 'workflow': return 'Node Types';
       case 'type': return 'Text';
       case 'sticky-note': return 'Sticky Note';
+      case 'table': return 'Table';
       case 'shapes': return 'Shapes';
       case 'route': return 'Templates';
       case 'palette': return 'Themes';
@@ -310,7 +315,7 @@ export function CollapsedSidebar({
 
   // Split icons into main, template/theme, and action groups
   // Note: 'brain' removed - AI assistant is now the floating KiteAI button
-  const mainIcons = ['workflow', 'type', 'shapes', 'sticky-note'];
+  const mainIcons = ['workflow', 'type', 'shapes', 'sticky-note', 'table'];
   const templateThemeIcons = ['route', 'palette'];
   const actionIcons = ['clear', 'export', 'import'];
 
