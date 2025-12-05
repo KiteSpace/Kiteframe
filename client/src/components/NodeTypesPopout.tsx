@@ -49,6 +49,7 @@ export function NodeTypesPopout({
     },
     { type: "output", icon: ArrowLeft, color: "text-red-500", label: "Output" },
     { type: "ai", icon: Bot, color: "text-purple-500", label: "AI Task" },
+    { type: "image", icon: Image, color: "text-pink-500", label: "Image" },
     { type: "form", icon: FileText, color: "text-indigo-500", label: "Form" },
   ];
 
