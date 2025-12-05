@@ -4037,7 +4037,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         cursor: n.type !== "image" 
                           ? (props.inlineEditing?.nodeId === n.id && props.inlineEditing?.part === 'body' ? 'text' : 'grab')
                           : undefined,
-                        overflow: 'hidden',
+                        overflow: props.inlineEditing?.nodeId === n.id && props.inlineEditing?.part === 'body' ? 'visible' : 'hidden',
                         borderRadius: (() => {
                           const hasHeader = !n.data?.hideHeader;
                           const hasHyperlink = n.data?.hyperlink?.url;

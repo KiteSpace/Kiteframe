@@ -247,12 +247,27 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
     }
   };
 
+  const autoResizeTextarea = (textarea: HTMLTextAreaElement) => {
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  };
+
+  useEffect(() => {
+    if (multiline && inputRef.current) {
+      const textarea = inputRef.current as HTMLTextAreaElement;
+      autoResizeTextarea(textarea);
+    }
+  }, [multiline, value]);
+
   if (multiline) {
     return (
       <textarea
         ref={inputRef as React.RefObject<HTMLTextAreaElement>}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          setValue(e.target.value);
+          autoResizeTextarea(e.target);
+        }}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
         onSelect={handleSelectionChange}
@@ -260,7 +275,11 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
         onKeyUp={handleSelectionChange}
         placeholder={placeholder}
         className={`inline-text-editor ${className}`}
-        style={inputStyle}
+        style={{
+          ...inputStyle,
+          overflow: 'hidden',
+          minHeight: '1.5em',
+        }}
         rows={1}
         data-testid="inline-text-editor-textarea"
       />
