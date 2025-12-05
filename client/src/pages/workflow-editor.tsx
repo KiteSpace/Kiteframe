@@ -6548,6 +6548,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         {/* Linear Toolbar for Node/Edge Styling */}
         {linearToolbar && (
           <LinearToolbar
+            key={`toolbar-${linearToolbar.node?.id || linearToolbar.edge?.id || linearToolbar.canvasObject?.id}-${linearToolbar.editingHyperlinkId || ''}-${linearToolbar.initialSubmenu || ''}`}
             isOpen={true}
             position={{ x: linearToolbar.x, y: linearToolbar.y }}
             nodeRect={linearToolbar.nodeRect}
@@ -7149,6 +7150,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             isInlineEditing={!!(inlineEditing && linearToolbar.node && inlineEditing.nodeId === linearToolbar.node.id)}
             inlineEditingPart={inlineEditing?.nodeId === linearToolbar.node?.id ? inlineEditing?.part : undefined}
             initialSubmenu={linearToolbar.initialSubmenu}
+            onTextObjectHyperlinkChange={(hyperlink) => {
+              if (linearToolbar.canvasObject && linearToolbar.canvasObject.type === 'text') {
+                saveToHistory();
+                updateActiveTab({
+                  canvasObjects: canvasObjects.map(obj => {
+                    if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                    return {
+                      ...obj,
+                      data: {
+                        ...obj.data,
+                        hyperlink: hyperlink ?? undefined,
+                      }
+                    };
+                  })
+                });
+              }
+            }}
           />
         )}
 

@@ -17,6 +17,7 @@ import {
   AlignCenter,
   AlignRight,
   Link2,
+  Link as LinkIcon,
   ArrowLeftRight,
   Minus,
   MoveRight,
@@ -108,6 +109,12 @@ interface LinearToolbarProps {
   isInlineEditing?: boolean; // Show text style options when inline editing is active
   inlineEditingPart?: 'header' | 'body' | 'edgeLabel'; // Which part is being edited
   initialSubmenu?: string | null; // Submenu to open initially (e.g., 'link' to open link editor)
+  onTextObjectHyperlinkChange?: (hyperlink: {
+    url: string;
+    showPreview: boolean;
+    showText: boolean;
+    metadata?: OgMetadata;
+  } | null) => void; // Callback for text object hyperlink changes
 }
 
 type EndpointType = 'none' | 'arrow' | 'circle' | 'diamond';
@@ -213,7 +220,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   scale = 1,
   isInlineEditing = false,
   inlineEditingPart,
-  initialSubmenu = null
+  initialSubmenu = null,
+  onTextObjectHyperlinkChange
 }) => {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(initialSubmenu);
   const [iconVisible, setIconVisible] = useState(node?.data?.iconVisible ?? true);
@@ -236,6 +244,19 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   const [showPreview, setShowPreview] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewMetadata, setPreviewMetadata] = useState<{
+    title?: string;
+    description?: string;
+    favicon?: string;
+    image?: string;
+    siteName?: string;
+  } | null>(null);
+  
+  // Text object hyperlink state
+  const [textLinkUrl, setTextLinkUrl] = useState('');
+  const [textShowPreview, setTextShowPreview] = useState(false);
+  const [textShowText, setTextShowText] = useState(true);
+  const [textPreviewLoading, setTextPreviewLoading] = useState(false);
+  const [textPreviewMetadata, setTextPreviewMetadata] = useState<{
     title?: string;
     description?: string;
     favicon?: string;
@@ -272,6 +293,24 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       }
     }
   }, [activeSubmenu, node?.data?.hyperlink, hyperlinks, editingHyperlinkId]); // Re-run when hyperlink data changes
+
+  // Pre-fill text object hyperlink inputs when textLink submenu opens
+  useEffect(() => {
+    if (activeSubmenu === 'textLink' && canvasObject?.type === 'text') {
+      const existingHyperlink = (canvasObject.data as any)?.hyperlink;
+      if (existingHyperlink?.url) {
+        setTextLinkUrl(existingHyperlink.url);
+        setTextShowPreview(existingHyperlink.showPreview ?? false);
+        setTextShowText(existingHyperlink.showText ?? true);
+        setTextPreviewMetadata(existingHyperlink.metadata ?? null);
+      } else {
+        setTextLinkUrl('');
+        setTextShowPreview(false);
+        setTextShowText(true);
+        setTextPreviewMetadata(null);
+      }
+    }
+  }, [activeSubmenu, canvasObject]);
 
   // Sync icon visibility and reset submenu when node changes (but preserve initialSubmenu)
   const prevNodeIdRef = useRef<string | undefined>(undefined);
@@ -467,6 +506,18 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           label: 'Text Style',
           color: 'bg-purple-500',
           hoverColor: 'hover:bg-purple-600',
+          hasSubmenu: true
+        });
+      }
+      
+      // Hyperlink button for text objects only
+      if (objType === 'text') {
+        buttons.push({
+          id: 'textLink',
+          icon: <LinkIcon size={18} />,
+          label: 'Hyperlink',
+          color: 'bg-indigo-500',
+          hoverColor: 'hover:bg-indigo-600',
           hasSubmenu: true
         });
       }
@@ -1280,6 +1331,262 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     );
   };
 
+  // Render text object hyperlink submenu (URL only, with show preview and show text toggles)
+  const renderTextLinkSubmenu = () => {
+    const existingHyperlink = (canvasObject?.data as any)?.hyperlink;
+    const isEditing = !!existingHyperlink?.url;
+    
+    const fetchTextMetadata = async (url: string) => {
+      setTextPreviewLoading(true);
+      try {
+        let normalizedUrl = url;
+        if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+          normalizedUrl = 'https://' + normalizedUrl;
+        }
+        
+        const response = await fetch('/api/og-metadata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: normalizedUrl }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.metadata) {
+            setTextPreviewMetadata(data.metadata);
+            return data.metadata;
+          }
+        }
+        return null;
+      } catch (error) {
+        console.error('Failed to fetch metadata:', error);
+        return null;
+      } finally {
+        setTextPreviewLoading(false);
+      }
+    };
+    
+    const handleToggleTextPreview = async () => {
+      const newShowPreview = !textShowPreview;
+      setTextShowPreview(newShowPreview);
+      
+      if (newShowPreview && !textPreviewMetadata && textLinkUrl) {
+        await fetchTextMetadata(textLinkUrl);
+      }
+    };
+    
+    const handleToggleTextShow = () => {
+      setTextShowText(!textShowText);
+    };
+    
+    const handleApplyTextLink = async () => {
+      const finalUrl = textLinkUrl.trim();
+      
+      if (finalUrl) {
+        let url = finalUrl;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          url = 'https://' + url;
+        }
+        
+        let metadata = textPreviewMetadata;
+        if (textShowPreview && !metadata) {
+          metadata = await fetchTextMetadata(url);
+        }
+        
+        onTextObjectHyperlinkChange?.({
+          url,
+          showPreview: textShowPreview,
+          showText: textShowText,
+          metadata: textShowPreview ? metadata ?? undefined : undefined,
+        });
+        setActiveSubmenu(null);
+      }
+    };
+    
+    const handleRemoveTextLink = () => {
+      onTextObjectHyperlinkChange?.(null);
+      setActiveSubmenu(null);
+      setTextLinkUrl('');
+      setTextShowPreview(false);
+      setTextShowText(true);
+      setTextPreviewMetadata(null);
+    };
+    
+    const isValidUrl = (url: string) => {
+      if (!url) return false;
+      try {
+        new URL(url.startsWith('http') ? url : `https://${url}`);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    
+    const canSubmit = isValidUrl(textLinkUrl);
+    
+    return (
+      <div 
+        ref={submenuRef}
+        className={cn(
+          "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150 min-w-[280px]",
+          showAbove ? "bottom-full mb-2" : "top-full mt-2"
+        )}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-3">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            {isEditing ? 'Edit Hyperlink' : 'Add Hyperlink'}
+          </div>
+          
+          {/* URL Input */}
+          <div className="space-y-1">
+            <label className="text-xs text-gray-500 dark:text-gray-400">URL</label>
+            <input
+              type="text"
+              value={textLinkUrl}
+              onChange={(e) => setTextLinkUrl(e.target.value)}
+              placeholder="https://example.com"
+              className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canSubmit && !textPreviewLoading) {
+                  e.preventDefault();
+                  handleApplyTextLink();
+                }
+              }}
+              data-testid="text-link-url-input"
+            />
+          </div>
+          
+          {/* Show Text Toggle */}
+          <div className="flex items-center justify-between py-1">
+            <label className="text-xs text-gray-600 dark:text-gray-300 flex items-center gap-2">
+              <Type className="w-3.5 h-3.5" />
+              Show text
+            </label>
+            <button
+              type="button"
+              onClick={handleToggleTextShow}
+              className={cn(
+                "relative w-9 h-5 rounded-full transition-colors flex-shrink-0",
+                textShowText 
+                  ? "bg-indigo-500" 
+                  : "bg-gray-300 dark:bg-gray-600"
+              )}
+              data-testid="text-link-show-text-toggle"
+            >
+              <span 
+                className={cn(
+                  "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm",
+                  textShowText && "translate-x-4"
+                )}
+              />
+            </button>
+          </div>
+          
+          {/* Show Preview Toggle */}
+          <div className="flex items-center justify-between py-1">
+            <label className="text-xs text-gray-600 dark:text-gray-300 flex items-center gap-2">
+              <Eye className="w-3.5 h-3.5" />
+              Show link preview
+            </label>
+            <button
+              type="button"
+              onClick={handleToggleTextPreview}
+              disabled={textPreviewLoading}
+              className={cn(
+                "relative w-9 h-5 rounded-full transition-colors flex-shrink-0",
+                textShowPreview 
+                  ? "bg-indigo-500" 
+                  : "bg-gray-300 dark:bg-gray-600",
+                textPreviewLoading && "opacity-50 cursor-wait"
+              )}
+              data-testid="text-link-preview-toggle"
+            >
+              <span 
+                className={cn(
+                  "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm",
+                  textShowPreview && "translate-x-4"
+                )}
+              />
+            </button>
+          </div>
+          
+          {/* Preview Loading Indicator */}
+          {textPreviewLoading && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <div className="w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              Fetching preview...
+            </div>
+          )}
+          
+          {/* Preview Card (when metadata is loaded) */}
+          {textShowPreview && textPreviewMetadata && !textPreviewLoading && (
+            <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+              <div className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
+                {textPreviewMetadata.title || 'No title'}
+              </div>
+              {textPreviewMetadata.description && (
+                <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">
+                  {textPreviewMetadata.description}
+                </div>
+              )}
+              <div className="flex items-center gap-1 mt-1">
+                {textPreviewMetadata.favicon && (
+                  <img 
+                    src={textPreviewMetadata.favicon} 
+                    alt="" 
+                    className="w-3 h-3 rounded-sm"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
+                <span className="text-[10px] text-gray-400">
+                  {(() => {
+                    try {
+                      const url = textLinkUrl.startsWith('http') ? textLinkUrl : `https://${textLinkUrl}`;
+                      return new URL(url).hostname;
+                    } catch {
+                      return textLinkUrl;
+                    }
+                  })()}
+                </span>
+              </div>
+            </div>
+          )}
+          
+          {/* Buttons */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleApplyTextLink}
+              disabled={!canSubmit || textPreviewLoading}
+              className={cn(
+                "flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors",
+                canSubmit && !textPreviewLoading
+                  ? "bg-indigo-500 hover:bg-indigo-600 text-white"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+              )}
+              data-testid="text-link-apply-button"
+            >
+              {isEditing ? 'Update' : 'Add Link'}
+            </button>
+            
+            {isEditing && (
+              <button
+                type="button"
+                onClick={handleRemoveTextLink}
+                className="py-2 px-4 rounded-lg text-sm font-medium transition-colors bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
+                data-testid="text-link-remove-button"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderTextSubmenu = () => {
     // Get node data for nodes, canvas object data for canvas objects
     const nodeData = node?.data;
@@ -1912,6 +2219,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         {activeSubmenu === 'style' && renderStyleSubmenu()}
         {activeSubmenu === 'text' && renderTextSubmenu()}
         {activeSubmenu === 'link' && renderLinkSubmenu()}
+        {activeSubmenu === 'textLink' && renderTextLinkSubmenu()}
         {activeSubmenu === 'icon' && renderIconSubmenu()}
         {activeSubmenu === 'strokeStyle' && renderStrokeStyleSubmenu()}
         {activeSubmenu === 'lineType' && renderLineTypeSubmenu()}

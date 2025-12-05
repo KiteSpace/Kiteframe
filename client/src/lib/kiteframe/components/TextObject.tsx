@@ -4,6 +4,7 @@ import { EmojiReactions } from './EmojiReactions';
 import type { CanvasObject, TextNodeData } from '../types';
 import { cn } from '@/lib/utils';
 import { useEventCleanup } from '../utils/eventCleanup';
+import { ExternalLink } from 'lucide-react';
 
 interface TextObjectProps {
   object: CanvasObject & { data: TextNodeData };
@@ -101,9 +102,20 @@ export const TextObject: React.FC<TextObjectProps> = ({
       // For auto-sizing, allow text to expand horizontally to a max width
       const maxAutoWidth = 400;
       const minWidth = 150;
+      // Use minWidth for preview-only mode (showText=false, showPreview=true)
+      const previewMinWidth = 200;
       
-      let width = Math.max(minWidth, Math.min(maxAutoWidth, measureRef.current.scrollWidth + 20));
-      let height = Math.max(50, measureRef.current.scrollHeight + 20);
+      // Measure the entire container (includes both text and preview clone)
+      const measuredWidth = measureRef.current.scrollWidth;
+      const measuredHeight = measureRef.current.scrollHeight;
+      
+      // Determine min width based on what's visible
+      const effectiveMinWidth = (object.data.hyperlink?.showText === false && object.data.hyperlink?.showPreview) 
+        ? previewMinWidth 
+        : minWidth;
+      
+      let width = Math.max(effectiveMinWidth, Math.min(maxAutoWidth, measuredWidth + 20));
+      let height = Math.max(50, measuredHeight + 10);
       
       setTextSize(prevSize => {
         // Only update if dimensions actually changed
@@ -117,7 +129,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
       });
     } else if (measureRef.current && isManuallyResized) {
       // For manually resized text, only adjust height to fit content within the set width
-      const height = Math.max(50, measureRef.current.scrollHeight + 20);
+      const measuredHeight = measureRef.current.scrollHeight;
+      const height = Math.max(50, measuredHeight + 10);
       
       setTextSize(prevSize => {
         if (prevSize.height !== height) {
@@ -129,7 +142,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
         return prevSize;
       });
     }
-  }, [text, object.data.fontSize, object.data.fontFamily, isManuallyResized]);
+  }, [text, object.data.fontSize, object.data.fontFamily, isManuallyResized, object.data.hyperlink?.showPreview, object.data.hyperlink?.showText, object.data.hyperlink?.metadata]);
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -283,49 +296,172 @@ export const TextObject: React.FC<TextObjectProps> = ({
       onTouchEnd={handleTouchEnd}
       data-testid={`text-object-${object.id}`}
     >
-      {/* Invisible text for measuring */}
+      {/* Invisible container for measuring total height (text + preview) */}
       <div
         ref={measureRef}
         style={{
-          ...textStyles,
           position: 'absolute',
           visibility: 'hidden',
           pointerEvents: 'none',
           top: 0,
           left: 0,
-          width: isManuallyResized ? `${textSize.width - 20}px` : 'auto',
+          width: isManuallyResized ? `${textSize.width}px` : 'auto',
+          minWidth: object.data.hyperlink?.showPreview ? '200px' : undefined,
           height: 'auto',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          padding: '8px',
-          border: 'none',
-          outline: 'none',
-          resize: 'none',
-          overflow: 'hidden'
         }}
         aria-hidden="true"
       >
-        {text || object.data.text || 'Type here...'}
+        {/* Hidden text for measuring */}
+        {(object.data.hyperlink?.showText !== false) && (
+          <div
+            style={{
+              ...textStyles,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              padding: '8px',
+            }}
+          >
+            {text || object.data.text || 'Type here...'}
+          </div>
+        )}
+        {/* Hidden preview clone for measuring */}
+        {object.data.hyperlink?.showPreview && object.data.hyperlink?.metadata && (
+          <div
+            style={{
+              marginTop: object.data.hyperlink?.showText !== false ? '8px' : '0',
+              backgroundColor: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              padding: '10px',
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>
+              {object.data.hyperlink.metadata.title || 'No title'}
+            </div>
+            {object.data.hyperlink.metadata.description && (
+              <div style={{ 
+                fontSize: '11px', 
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                marginBottom: '6px',
+              }}>
+                {object.data.hyperlink.metadata.description}
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '16px' }}>
+              {/* Favicon and hostname */}
+            </div>
+          </div>
+        )}
       </div>
 
-      {isEditing ? (
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={(e) => handleTextChange(e.target.value)}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          placeholder="Type here..."
-          className="w-full h-full p-2 border-none outline-none resize-none bg-transparent"
-          style={textStyles}
-          data-testid="text-object-textarea"
-        />
-      ) : (
+      {/* Text content - conditionally visible based on hyperlink.showText */}
+      {(object.data.hyperlink?.showText !== false) && (
+        <>
+          {isEditing ? (
+            <textarea
+              ref={textareaRef}
+              value={text}
+              onChange={(e) => handleTextChange(e.target.value)}
+              onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
+              placeholder="Type here..."
+              className="w-full h-full p-2 border-none outline-none resize-none bg-transparent"
+              style={textStyles}
+              data-testid="text-object-textarea"
+            />
+          ) : object.data.hyperlink?.url ? (
+            <a
+              href={object.data.hyperlink.url.startsWith('http') ? object.data.hyperlink.url : `https://${object.data.hyperlink.url}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full h-full p-2 whitespace-pre-wrap break-words block hover:underline cursor-pointer"
+              style={{...textStyles, color: textStyles.color || '#3b82f6', textDecoration: 'underline'}}
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              data-testid="text-object-link"
+            >
+              {text || object.data.text || 'Type here...'}
+            </a>
+          ) : (
+            <div
+              className="w-full h-full p-2 whitespace-pre-wrap break-words"
+              style={textStyles}
+            >
+              {text || object.data.text || 'Type here...'}
+            </div>
+          )}
+        </>
+      )}
+      
+      {/* Hyperlink Preview Card */}
+      {object.data.hyperlink?.showPreview && object.data.hyperlink?.metadata && (
         <div
-          className="w-full h-full p-2 whitespace-pre-wrap break-words"
-          style={textStyles}
+          className="hyperlink-preview-card"
+          style={{
+            marginTop: object.data.hyperlink?.showText !== false ? '8px' : '0',
+            backgroundColor: '#f9fafb',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            padding: '10px',
+            cursor: 'pointer',
+            pointerEvents: 'auto',
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            const url = object.data.hyperlink?.url;
+            if (url) {
+              window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
+            }
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          data-testid={`text-object-preview-${object.id}`}
         >
-          {text || object.data.text || 'Type here...'}
+          <div style={{ fontWeight: 600, fontSize: '13px', color: '#1f2937', marginBottom: '4px' }}>
+            {object.data.hyperlink.metadata.title || 'No title'}
+          </div>
+          {object.data.hyperlink.metadata.description && (
+            <div style={{ 
+              fontSize: '11px', 
+              color: '#6b7280',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              marginBottom: '6px',
+            }}>
+              {object.data.hyperlink.metadata.description}
+            </div>
+          )}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '6px',
+          }}>
+            {object.data.hyperlink.metadata.favicon && (
+              <img 
+                src={object.data.hyperlink.metadata.favicon} 
+                alt="" 
+                style={{ width: '14px', height: '14px', borderRadius: '2px' }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            )}
+            <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+              {(() => {
+                try {
+                  const url = object.data.hyperlink?.url;
+                  return url ? new URL(url.startsWith('http') ? url : `https://${url}`).hostname : '';
+                } catch {
+                  return object.data.hyperlink?.url || '';
+                }
+              })()}
+            </span>
+            <ExternalLink size={12} style={{ color: '#9ca3af', marginLeft: 'auto' }} />
+          </div>
         </div>
       )}
 

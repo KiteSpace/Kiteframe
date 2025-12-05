@@ -351,6 +351,19 @@ export interface TextNodeData {
   borderWidth?: number; // 0-10px
   borderStyle?: 'solid' | 'dashed' | 'dotted' | 'none';
   borderRadius?: number; // 0-50px
+  // Hyperlink support for text objects
+  hyperlink?: {
+    url: string;
+    showPreview: boolean;
+    showText: boolean;
+    metadata?: {
+      title?: string;
+      description?: string;
+      favicon?: string;
+      image?: string;
+      siteName?: string;
+    };
+  };
   // Effects
   opacity?: number; // 0-1
   shadow?: {
