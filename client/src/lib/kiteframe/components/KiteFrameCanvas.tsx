@@ -77,6 +77,59 @@ import {
   SecurityMonitor,
 } from "../utils/securityHardening";
 
+const renderTextWithLinks = (text: string): React.ReactNode => {
+  if (!text) return null;
+  
+  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  let keyIndex = 0;
+  
+  while ((match = markdownLinkRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(
+        <span key={`text-${keyIndex++}`}>
+          {text.slice(lastIndex, match.index)}
+        </span>
+      );
+    }
+    
+    const linkText = match[1];
+    let url = match[2];
+    
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    
+    parts.push(
+      <a
+        key={`link-${keyIndex++}`}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer"
+        onClick={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
+        {linkText}
+      </a>
+    );
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  if (lastIndex < text.length) {
+    parts.push(
+      <span key={`text-${keyIndex++}`}>
+        {text.slice(lastIndex)}
+      </span>
+    );
+  }
+  
+  return parts.length > 0 ? parts : text;
+};
+
 // Floating workflow name input component
 interface WorkflowLink {
   id: string;
@@ -3832,7 +3885,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                                 width: '100%',
                               }}
                             >
-                              {n.data?.description || "Drop content here…"}
+                              {n.data?.description ? renderTextWithLinks(n.data.description) : "Drop content here…"}
                             </span>
                           )}
                         </div>
