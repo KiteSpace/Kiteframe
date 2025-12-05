@@ -290,32 +290,10 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   // Build buttons based on target type
   const getButtons = (): ToolbarButton[] => {
     if (isNodeTarget) {
-      // During inline editing, show ONLY text-related buttons
+      // During inline editing, we render a custom text toolbar instead of buttons
+      // Return empty array - the text toolbar is rendered separately
       if (isInlineEditing) {
-        const inlineButtons: ToolbarButton[] = [
-          {
-            id: 'text',
-            icon: <Type size={18} />,
-            label: 'Text Style',
-            color: 'bg-purple-500',
-            hoverColor: 'hover:bg-purple-600',
-            hasSubmenu: true
-          }
-        ];
-        
-        // Hyperlink only available for body text, not header
-        if (inlineEditingPart === 'body') {
-          inlineButtons.push({
-            id: 'link',
-            icon: <Link2 size={18} />,
-            label: 'Add Link',
-            color: 'bg-cyan-500',
-            hoverColor: 'hover:bg-cyan-600',
-            hasSubmenu: true
-          });
-        }
-        
-        return inlineButtons;
+        return [];
       }
       
       // Normal node toolbar (not inline editing)
@@ -1308,6 +1286,222 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     );
   };
 
+  // Size labels for the dropdown
+  const FONT_SIZE_LABELS: Record<number, string> = {
+    10: 'XS',
+    12: 'Small',
+    14: 'Medium',
+    16: 'Large',
+    18: 'XL',
+    20: 'XXL',
+    24: 'Huge'
+  };
+
+  // Render inline text formatting toolbar (shown when editing text)
+  const renderInlineTextToolbar = () => {
+    const nodeData = node?.data;
+    const effectiveEditingPart = rememberedEditingPart || inlineEditingPart;
+    const isEditingHeaderCheck = effectiveEditingPart === 'header';
+    
+    const currentFontSize = isEditingHeaderCheck ? nodeData?.headerFontSize : nodeData?.fontSize;
+    const isBold = isEditingHeaderCheck ? nodeData?.headerBold : nodeData?.bold;
+    const isItalic = isEditingHeaderCheck ? nodeData?.headerItalic : nodeData?.italic;
+    const isStrikethrough = isEditingHeaderCheck ? nodeData?.headerStrikethrough : nodeData?.strikethrough;
+    const currentAlign = isEditingHeaderCheck ? nodeData?.headerTextAlign : nodeData?.textAlign;
+    
+    const handleFontSizeChange = (size: number) => {
+      onTextStyleChange?.({ fontSize: size }, effectiveEditingPart as 'header' | 'body');
+      setActiveSubmenu(null);
+    };
+    
+    const handleBoldToggle = () => {
+      onTextStyleChange?.({ bold: !isBold }, effectiveEditingPart as 'header' | 'body');
+    };
+    
+    const handleItalicToggle = () => {
+      onTextStyleChange?.({ italic: !isItalic }, effectiveEditingPart as 'header' | 'body');
+    };
+    
+    const handleStrikethroughToggle = () => {
+      onTextStyleChange?.({ strikethrough: !isStrikethrough }, effectiveEditingPart as 'header' | 'body');
+    };
+    
+    const handleAlignChange = (align: 'left' | 'center' | 'right') => {
+      onTextStyleChange?.({ align }, effectiveEditingPart as 'header' | 'body');
+      setActiveSubmenu(null);
+    };
+    
+    const currentSizeLabel = FONT_SIZE_LABELS[currentFontSize || 12] || 'Small';
+    
+    const getCurrentAlignIcon = () => {
+      switch (currentAlign) {
+        case 'center': return <AlignCenter size={16} />;
+        case 'right': return <AlignRight size={16} />;
+        default: return <AlignLeft size={16} />;
+      }
+    };
+    
+    return (
+      <div className="relative">
+        {/* Main inline text toolbar */}
+        <div className="flex items-center bg-gray-900 dark:bg-gray-800 rounded-full shadow-xl border border-gray-700 dark:border-gray-600 animate-in fade-in-0 zoom-in-95 duration-200">
+          {/* Text Size Dropdown */}
+          <button
+            className={cn(
+              "flex items-center gap-1.5 h-10 px-4 text-white text-sm font-medium rounded-l-full transition-colors",
+              "hover:bg-gray-800 dark:hover:bg-gray-700",
+              activeSubmenu === 'textSize' && "bg-gray-800 dark:bg-gray-700"
+            )}
+            onClick={() => setActiveSubmenu(activeSubmenu === 'textSize' ? null : 'textSize')}
+            data-testid="toolbar-textsize-dropdown"
+          >
+            <span>{currentSizeLabel}</span>
+            <ChevronDown size={14} className={cn("transition-transform", activeSubmenu === 'textSize' && "rotate-180")} />
+          </button>
+          
+          {/* Divider */}
+          <div className="w-px h-6 bg-gray-700 dark:bg-gray-600" />
+          
+          {/* Bold */}
+          <button
+            className={cn(
+              "w-10 h-10 flex items-center justify-center text-white transition-colors",
+              "hover:bg-gray-800 dark:hover:bg-gray-700",
+              isBold && "bg-violet-600 dark:bg-violet-700"
+            )}
+            onClick={handleBoldToggle}
+            title="Bold"
+            data-testid="toolbar-inline-bold"
+          >
+            <Bold size={16} />
+          </button>
+          
+          {/* Strikethrough */}
+          <button
+            className={cn(
+              "w-10 h-10 flex items-center justify-center text-white transition-colors",
+              "hover:bg-gray-800 dark:hover:bg-gray-700",
+              isStrikethrough && "bg-violet-600 dark:bg-violet-700"
+            )}
+            onClick={handleStrikethroughToggle}
+            title="Strikethrough"
+            data-testid="toolbar-inline-strikethrough"
+          >
+            <Strikethrough size={16} />
+          </button>
+          
+          {/* Italic */}
+          <button
+            className={cn(
+              "w-10 h-10 flex items-center justify-center text-white transition-colors",
+              "hover:bg-gray-800 dark:hover:bg-gray-700",
+              isItalic && "bg-violet-600 dark:bg-violet-700"
+            )}
+            onClick={handleItalicToggle}
+            title="Italic"
+            data-testid="toolbar-inline-italic"
+          >
+            <Italic size={16} />
+          </button>
+          
+          {/* Divider */}
+          <div className="w-px h-6 bg-gray-700 dark:bg-gray-600" />
+          
+          {/* Alignment Dropdown */}
+          <button
+            className={cn(
+              "flex items-center gap-1.5 h-10 px-3 text-white rounded-r-full transition-colors",
+              "hover:bg-gray-800 dark:hover:bg-gray-700",
+              activeSubmenu === 'textAlign' && "bg-gray-800 dark:bg-gray-700"
+            )}
+            onClick={() => setActiveSubmenu(activeSubmenu === 'textAlign' ? null : 'textAlign')}
+            title="Alignment"
+            data-testid="toolbar-align-dropdown"
+          >
+            {getCurrentAlignIcon()}
+            <ChevronDown size={14} className={cn("transition-transform", activeSubmenu === 'textAlign' && "rotate-180")} />
+          </button>
+        </div>
+        
+        {/* Text Size Submenu */}
+        {activeSubmenu === 'textSize' && (
+          <div 
+            ref={submenuRef}
+            className={cn(
+              "absolute left-0 p-1 bg-gray-900 dark:bg-gray-800 rounded-xl shadow-xl border border-gray-700 dark:border-gray-600 animate-in fade-in-0 zoom-in-95 duration-150 min-w-[100px]",
+              showAbove ? "bottom-full mb-2" : "top-full mt-2"
+            )}
+          >
+            {FONT_SIZES.map((size) => (
+              <button
+                key={size}
+                className={cn(
+                  "w-full flex items-center gap-2 px-3 py-2 text-sm text-white rounded-lg transition-colors",
+                  "hover:bg-gray-800 dark:hover:bg-gray-700",
+                  currentFontSize === size && "bg-violet-600 dark:bg-violet-700"
+                )}
+                onClick={() => handleFontSizeChange(size)}
+                data-testid={`toolbar-inline-fontsize-${size}`}
+              >
+                {FONT_SIZE_LABELS[size]}
+              </button>
+            ))}
+          </div>
+        )}
+        
+        {/* Alignment Submenu */}
+        {activeSubmenu === 'textAlign' && (
+          <div 
+            ref={submenuRef}
+            className={cn(
+              "absolute right-0 p-1 bg-gray-900 dark:bg-gray-800 rounded-xl shadow-xl border border-gray-700 dark:border-gray-600 animate-in fade-in-0 zoom-in-95 duration-150",
+              showAbove ? "bottom-full mb-2" : "top-full mt-2"
+            )}
+          >
+            <div className="flex gap-1">
+              <button
+                className={cn(
+                  "w-10 h-10 flex items-center justify-center text-white rounded-lg transition-colors",
+                  "hover:bg-gray-800 dark:hover:bg-gray-700",
+                  (currentAlign === 'left' || !currentAlign) && "bg-violet-600 dark:bg-violet-700"
+                )}
+                onClick={() => handleAlignChange('left')}
+                title="Align Left"
+                data-testid="toolbar-inline-align-left"
+              >
+                <AlignLeft size={16} />
+              </button>
+              <button
+                className={cn(
+                  "w-10 h-10 flex items-center justify-center text-white rounded-lg transition-colors",
+                  "hover:bg-gray-800 dark:hover:bg-gray-700",
+                  currentAlign === 'center' && "bg-violet-600 dark:bg-violet-700"
+                )}
+                onClick={() => handleAlignChange('center')}
+                title="Align Center"
+                data-testid="toolbar-inline-align-center"
+              >
+                <AlignCenter size={16} />
+              </button>
+              <button
+                className={cn(
+                  "w-10 h-10 flex items-center justify-center text-white rounded-lg transition-colors",
+                  "hover:bg-gray-800 dark:hover:bg-gray-700",
+                  currentAlign === 'right' && "bg-violet-600 dark:bg-violet-700"
+                )}
+                onClick={() => handleAlignChange('right')}
+                title="Align Right"
+                data-testid="toolbar-inline-align-right"
+              >
+                <AlignRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderIconSubmenu = () => {
     const headerColor = node?.data?.colors?.headerBackground || '#8b5cf6';
     const bgColor = headerColor + '80'; // 50% opacity
@@ -1402,6 +1596,25 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     ? 'translate(-50%, calc(-100% - 16px))' // Bottom of toolbar is 16px above anchor
     : 'translate(-50%, 16px)'; // Top of toolbar is 16px below anchor
 
+  // When inline editing a node, show the inline text toolbar
+  if (isNodeTarget && isInlineEditing) {
+    return (
+      <div
+        ref={menuRef}
+        className="fixed z-[100] pointer-events-auto"
+        style={{
+          left: toolbarX,
+          top: toolbarY,
+          transform: toolbarTransform
+        }}
+        data-testid="linear-toolbar"
+        data-toolbar="linear-text"
+      >
+        {renderInlineTextToolbar()}
+      </div>
+    );
+  }
+
   return (
     <div
       ref={menuRef}
@@ -1440,8 +1653,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             );
           })}
           
-          {/* Wireframe button - only for nodes */}
-          {isNodeTarget && node?.type !== 'image' && (
+          {/* Wireframe button - only for nodes (not during inline editing) */}
+          {isNodeTarget && node?.type !== 'image' && !isInlineEditing && (
             <button
               className={cn(
                 "h-9 px-3 rounded-full flex items-center gap-1.5 text-white text-sm font-medium shadow-md transition-all duration-200",
