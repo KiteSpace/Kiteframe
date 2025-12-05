@@ -5794,11 +5794,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 console.log('📝 Inline editing save:', { nodeId, part, value });
                 setNodes(prev => prev.map(node => {
                   if (node.id === nodeId) {
-                    if (part === 'header') {
-                      return { ...node, data: { ...node.data, label: value } };
-                    } else {
-                      return { ...node, data: { ...node.data, description: value } };
-                    }
+                    // Clear measuredHeight when inline editing ends to restore autoHeight behavior
+                    const updatedNode = {
+                      ...node,
+                      measuredHeight: undefined,
+                      data: part === 'header' 
+                        ? { ...node.data, label: value }
+                        : { ...node.data, description: value }
+                    };
+                    return updatedNode;
                   }
                   return node;
                 }));
@@ -5841,7 +5845,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   let existingLinks = n.data?.hyperlinks || [];
                   if (existingLinks.length === 0 && n.data?.hyperlink?.url) {
                     if (hyperlinkId === 'legacy-0') {
-                      return { ...n, data: { ...n.data, hyperlink: undefined, hyperlinks: [] } };
+                      // Clear measuredHeight to allow node to shrink, clear style.height to restore autoHeight
+                      return { 
+                        ...n, 
+                        measuredHeight: undefined,
+                        style: n.style ? { ...n.style, height: undefined } : undefined,
+                        data: { ...n.data, hyperlink: undefined, hyperlinks: [] } 
+                      };
                     }
                     existingLinks = [{
                       id: 'legacy-0',
@@ -5859,8 +5869,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     return true;
                   });
                   
+                  // Clear measuredHeight to allow node to shrink, clear style.height to restore autoHeight
                   return { 
                     ...n, 
+                    measuredHeight: undefined,
+                    style: n.style ? { ...n.style, height: undefined } : undefined,
                     data: { 
                       ...n.data, 
                       hyperlinks: filteredLinks,

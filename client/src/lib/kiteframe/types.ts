@@ -29,6 +29,7 @@ export type Node = {
   width?: number;
   height?: number;
   zIndex?: number;
+  measuredHeight?: number; // Transient: DOM-measured height for edge anchoring (not persisted)
 };
 
 export type EdgeStyle = {

@@ -127,7 +127,12 @@ const HyperlinkFooterItem: React.FC<HyperlinkFooterItemProps> = ({
 
   return (
     <div 
-      className="hyperlink-item relative"
+      className="hyperlink-item"
+      style={{ 
+        position: 'relative',
+        overflow: 'visible',
+        zIndex: showMenu ? 101 : 1,
+      }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -1590,7 +1595,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           }
           
           resizeDebounceRef.current = setTimeout(() => {
-            // Update the node's height in state to trigger edge recalculation
+            // Trigger edge recalculation by updating measuredHeight (transient property)
+            // We don't set explicit height/style.height because that would disable autoHeight
             const node = props.nodes.find(n => n.id === nodeId);
             if (node) {
               const borderWidth = 4; // Account for 2px borders on each side
@@ -1598,12 +1604,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               const minHeight = 80; // Minimum node height
               const finalHeight = Math.max(totalHeight, minHeight);
               
-              // Update height for both growth AND shrink (within min bounds)
-              const modelHeight = node.height || node.style?.height || 100;
+              // Store measured height in measuredHeight (transient, not persisted)
+              // This triggers re-render for edge recalculation without breaking autoHeight
+              const modelHeight = node.measuredHeight || node.height || 100;
               if (Math.abs(finalHeight - modelHeight) > 2) {
                 const updatedNodes = props.nodes.map(n => 
                   n.id === nodeId 
-                    ? { ...n, height: finalHeight, style: { ...n.style, height: finalHeight } }
+                    ? { ...n, measuredHeight: finalHeight }
                     : n
                 );
                 props.onNodesChange(updatedNodes);
@@ -3898,7 +3905,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     flexDirection: "column",
                     zIndex: n.zIndex || 0,
                     boxSizing: 'border-box',
-                    // Note: overflow visible to allow edge handles to extend beyond node bounds
+                    overflow: 'visible', // Allow edge handles and hover menus to extend beyond node bounds
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
@@ -4106,10 +4113,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         overflow: props.inlineEditing?.nodeId === n.id && props.inlineEditing?.part === 'body' ? 'visible' : 'hidden',
                         borderRadius: (() => {
                           const hasHeader = !n.data?.hideHeader;
-                          const hasHyperlink = n.data?.hyperlink?.url;
-                          if (!hasHeader && !hasHyperlink) return `${cornerRadius - 2}px`; // All corners
-                          if (!hasHeader && hasHyperlink) return `${cornerRadius - 2}px ${cornerRadius - 2}px 0 0`; // Top only
-                          if (hasHeader && !hasHyperlink) return `0 0 ${cornerRadius - 2}px ${cornerRadius - 2}px`; // Bottom only
+                          const hasHyperlinks = normalizeHyperlinks(n.data).length > 0;
+                          if (!hasHeader && !hasHyperlinks) return `${cornerRadius - 2}px`; // All corners
+                          if (!hasHeader && hasHyperlinks) return `${cornerRadius - 2}px ${cornerRadius - 2}px 0 0`; // Top only
+                          if (hasHeader && !hasHyperlinks) return `0 0 ${cornerRadius - 2}px ${cornerRadius - 2}px`; // Bottom only
                           return '0'; // No corners (header has top, footer has bottom)
                         })(),
                       }}
@@ -4286,6 +4293,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '8px',
+                          overflow: 'visible',
                         }}
                         data-testid={`node-hyperlinks-${n.id}`}
                       >
