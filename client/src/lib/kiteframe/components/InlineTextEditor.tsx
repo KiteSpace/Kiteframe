@@ -38,6 +38,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const originalValueRef = useRef(initialValue);
   const savedRef = useRef(false); // Prevent double saves
+  const toolbarInteractionRef = useRef(false); // Track toolbar interactions to prevent blur closing editor
 
   console.log('📝 TEXT EDITOR: Component mounted', {
     initialValue,
@@ -75,6 +76,12 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
       const isToolbarClick = target?.closest?.('[data-toolbar="linear"], [data-toolbar="linear-text"]') !== null;
       if (isToolbarClick) {
         console.log('🖱️ TEXT EDITOR: Toolbar click detected - keeping editor open');
+        // Set flag to prevent blur from closing the editor
+        toolbarInteractionRef.current = true;
+        // Reset the flag after a short delay (after blur event fires)
+        setTimeout(() => {
+          toolbarInteractionRef.current = false;
+        }, 100);
         return;
       }
       
@@ -212,11 +219,19 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   }
 
   const handleBlur = (e: React.FocusEvent) => {
+    // Check if we're interacting with the toolbar (flag set by mousedown handler)
+    if (toolbarInteractionRef.current) {
+      console.log('💾 TEXT EDITOR: Blur during toolbar interaction - keeping editor open');
+      return;
+    }
+    
     // Check if blur is going to the toolbar - don't save in that case
     const relatedTarget = e.relatedTarget as Element | null;
     
     // Only skip save if relatedTarget exists AND is inside the toolbar
-    const isToolbarClick = relatedTarget !== null && relatedTarget.closest?.('[data-toolbar="linear"]') !== null;
+    // Check both 'linear' and 'linear-text' data attributes
+    const isToolbarClick = relatedTarget !== null && 
+      relatedTarget.closest?.('[data-toolbar="linear"], [data-toolbar="linear-text"]') !== null;
     
     if (isToolbarClick) {
       console.log('💾 TEXT EDITOR: Blur to toolbar - allowing toolbar interaction');
