@@ -219,8 +219,20 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
     
     if (isToolbarClick) {
       console.log('💾 TEXT EDITOR: Blur to toolbar - keeping editor open');
-      // Refocus the input to keep editing active
-      setTimeout(() => inputRef.current?.focus(), 0);
+      
+      // Capture current selection before blur
+      const input = inputRef.current;
+      const selectionStart = input?.selectionStart ?? 0;
+      const selectionEnd = input?.selectionEnd ?? 0;
+      
+      // Refocus the input and restore selection
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          // Restore the selection after refocus
+          inputRef.current.setSelectionRange(selectionStart, selectionEnd);
+        }
+      }, 0);
       return;
     }
     
