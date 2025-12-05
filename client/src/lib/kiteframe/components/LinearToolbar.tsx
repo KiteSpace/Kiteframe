@@ -65,7 +65,8 @@ interface LinearToolbarProps {
     underline?: boolean;
     align?: 'left' | 'center' | 'right';
   }, part?: 'header' | 'body') => void;
-  onAddLink?: () => void;
+  onAddHyperlink?: (hyperlink: { text: string; url: string }) => void;
+  selectedText?: string;
   onDelete?: () => void;
   onEdgeStyleChange?: (style: {
     strokeStyle?: 'solid' | 'dashed' | 'dotted';
@@ -184,7 +185,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   onStyleChange,
   onIconSelect,
   onTextStyleChange,
-  onAddLink,
+  onAddHyperlink,
+  selectedText = '',
   onDelete,
   onEdgeStyleChange,
   onEdgeDirectionSwap,
@@ -292,7 +294,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             label: 'Add Link',
             color: 'bg-cyan-500',
             hoverColor: 'hover:bg-cyan-600',
-            onClick: onAddLink
+            hasSubmenu: true
           });
         }
         
