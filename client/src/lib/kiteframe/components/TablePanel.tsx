@@ -153,23 +153,15 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
     if (!file) return;
     
     try {
-      const text = await file.text();
-      const fileName = file.name.toLowerCase();
+      const { importFromFile } = await import('../utils/dataImport');
+      const parsedTable = await importFromFile(file);
       
-      let parsedTable: DataTable;
+      const tableWithId: DataTable = {
+        ...parsedTable,
+        id: tableId,
+      };
       
-      if (fileName.endsWith('.json')) {
-        const { parseJSONToTable } = await import('../utils/dataImport');
-        parsedTable = parseJSONToTable(text, tableId);
-      } else if (fileName.endsWith('.csv')) {
-        const { parseCSVToTable } = await import('../utils/dataImport');
-        parsedTable = parseCSVToTable(text, tableId);
-      } else {
-        console.error('Unsupported file type');
-        return;
-      }
-      
-      onUpdateTable?.(parsedTable);
+      onUpdateTable?.(tableWithId);
     } catch (error) {
       console.error('Error parsing file:', error);
     }

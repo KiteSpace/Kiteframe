@@ -1,0 +1,56 @@
+📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📊 Opening table panel for: table-node-1764972532327
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764974067434&sid=b7f0bfba-4c65-4fe7-adb1-224937ef9b80&ec=2510&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+d1a4b30d2070e2b4.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764974067434&sid=b7f0bfba-4c65-4fe7-adb1-224937ef9b80&ec=2510&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at d1a4b30d2070e2b4.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ d1a4b30d2070e2b4.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 Error parsing file: TypeError: parseJSONToTable is not a function
+    at TablePanel.tsx:163:23
+(anonymous) @ injected.js:37
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔄 Auto-snapshot created successfully
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=608e9083-6cb3-4adb-ba00-19b45e160a69:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=da5b6d27-4305-4076-a17f-b31209d68e8e:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 Error parsing file: TypeError: parseJSONToTable is not a function
+    at TablePanel.tsx:163:23
+(anonymous) @ injected.js:37
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
