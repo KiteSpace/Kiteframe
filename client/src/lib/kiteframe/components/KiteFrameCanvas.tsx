@@ -3658,14 +3658,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         backgroundColor: bodyBg,
                         color: bodyText,
                         padding: n.type === "image" ? "0" : "8px 12px",
-                        // When autoHeight, don't use flex:1 - let content determine height
-                        // When fixed height, use flex:1 to fill remaining space
-                        ...(autoHeight && n.type !== "image" 
-                          ? { minHeight: 40 }  // Minimum body height for auto-height nodes
-                          : { flex: 1 }),
+                        flex: 1, // Always use flex:1 to fill remaining space
+                        minHeight: autoHeight ? 48 : undefined, // Minimum body height for auto-height nodes
                         display: "flex",
                         flexDirection: n.type === "image" ? "column" : "row", // Row layout for icon+text
-                        // When autoHeight, align items to start so text flows naturally
+                        // For auto-height, align items to top so text starts at top of body area
+                        // For fixed height, center items vertically
                         alignItems: autoHeight && n.type !== "image" ? "flex-start" : "center",
                         gap: n.type === "image" ? undefined : "10px",
                         height:
