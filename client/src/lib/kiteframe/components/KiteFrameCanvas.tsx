@@ -1558,6 +1558,72 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     }
   }, [showMetrics, renderBatchManager]);
 
+  // ResizeObserver to track node height changes during inline editing
+  // This ensures edges update their positions when node body text expands or shrinks
+  const resizeDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  
+  useEffect(() => {
+    if (!props.inlineEditing?.nodeId || props.inlineEditing?.part !== 'body') {
+      return;
+    }
+    
+    const nodeId = props.inlineEditing.nodeId;
+    const nodeElement = nodeRefs.current.get(nodeId);
+    
+    if (!nodeElement) {
+      return;
+    }
+    
+    let lastReportedHeight = nodeElement.offsetHeight;
+    
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const newHeight = entry.contentRect.height;
+        
+        // Only update if height has actually changed significantly (to avoid loops)
+        if (Math.abs(newHeight - lastReportedHeight) > 2) {
+          lastReportedHeight = newHeight;
+          
+          // Debounce the state update to avoid thrashing
+          if (resizeDebounceRef.current) {
+            clearTimeout(resizeDebounceRef.current);
+          }
+          
+          resizeDebounceRef.current = setTimeout(() => {
+            // Update the node's height in state to trigger edge recalculation
+            const node = props.nodes.find(n => n.id === nodeId);
+            if (node) {
+              const borderWidth = 4; // Account for 2px borders on each side
+              const totalHeight = newHeight + borderWidth;
+              const minHeight = 80; // Minimum node height
+              const finalHeight = Math.max(totalHeight, minHeight);
+              
+              // Update height for both growth AND shrink (within min bounds)
+              const modelHeight = node.height || node.style?.height || 100;
+              if (Math.abs(finalHeight - modelHeight) > 2) {
+                const updatedNodes = props.nodes.map(n => 
+                  n.id === nodeId 
+                    ? { ...n, height: finalHeight, style: { ...n.style, height: finalHeight } }
+                    : n
+                );
+                props.onNodesChange(updatedNodes);
+              }
+            }
+          }, 50); // 50ms debounce
+        }
+      }
+    });
+    
+    resizeObserver.observe(nodeElement);
+    
+    return () => {
+      resizeObserver.disconnect();
+      if (resizeDebounceRef.current) {
+        clearTimeout(resizeDebounceRef.current);
+      }
+    };
+  }, [props.inlineEditing?.nodeId, props.inlineEditing?.part, props.nodes, props.onNodesChange]);
+
   // Keyboard event listener for Alt+P to toggle Performance element
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
