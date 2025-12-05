@@ -1,0 +1,346 @@
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+  memo,
+} from "react";
+import { cn } from "@/lib/utils";
+import { 
+  X, 
+  Table2, 
+  Plus, 
+  Upload, 
+  ChevronDown, 
+  ChevronUp,
+  GripHorizontal,
+  Maximize2,
+  Minimize2,
+  Search,
+  Filter
+} from "lucide-react";
+import type { DataTable, DataTableColumn, DataTableRow } from "../types";
+import { sanitizeText } from "../utils/validation";
+
+const MAX_VISIBLE_ROWS = 50;
+const MAX_ROW_TO_NODE = 25;
+
+interface TablePanelProps {
+  table: DataTable | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onCreateNodeFromRow?: (tableId: string, rowId: string, rowData: Record<string, string | number | boolean | null>) => void;
+  onImportData?: (tableId: string) => void;
+  initialPosition?: { x: number; y: number };
+  className?: string;
+}
+
+const TablePanelComponent: React.FC<TablePanelProps> = ({
+  table,
+  isOpen,
+  onClose,
+  onCreateNodeFromRow,
+  onImportData,
+  initialPosition,
+  className,
+}) => {
+  const [position, setPosition] = useState(initialPosition || { x: 100, y: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  
+  const panelRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setPosition({
+        x: e.clientX - dragOffset.x,
+        y: e.clientY - dragOffset.y,
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (headerRef.current && headerRef.current.contains(e.target as Node)) {
+      setIsDragging(true);
+      setDragOffset({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y,
+      });
+    }
+  }, [position]);
+
+  const handleColumnSort = useCallback((columnId: string) => {
+    if (sortColumn === columnId) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(columnId);
+      setSortDirection('asc');
+    }
+  }, [sortColumn]);
+
+  const filteredAndSortedRows = useMemo(() => {
+    if (!table) return [];
+    
+    let rows = [...table.rows];
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      rows = rows.filter(row => 
+        Object.values(row.values).some(value => 
+          String(value ?? '').toLowerCase().includes(query)
+        )
+      );
+    }
+    
+    if (sortColumn) {
+      rows.sort((a, b) => {
+        const aVal = a.values[sortColumn];
+        const bVal = b.values[sortColumn];
+        
+        if (aVal === null || aVal === undefined) return 1;
+        if (bVal === null || bVal === undefined) return -1;
+        
+        const comparison = String(aVal).localeCompare(String(bVal), undefined, { numeric: true });
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
+    
+    return rows.slice(0, MAX_VISIBLE_ROWS);
+  }, [table, searchQuery, sortColumn, sortDirection]);
+
+  const canCreateFromRow = useCallback((index: number) => index < MAX_ROW_TO_NODE, []);
+
+  const handleCreateNode = useCallback((row: DataTableRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (table) {
+      onCreateNodeFromRow?.(table.id, row.id, row.values);
+    }
+  }, [table, onCreateNodeFromRow]);
+
+  const handleImport = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (table) {
+      onImportData?.(table.id);
+    }
+  }, [table, onImportData]);
+
+  if (!isOpen || !table) return null;
+
+  const panelStyle: React.CSSProperties = isMaximized 
+    ? {
+        position: 'fixed',
+        top: 20,
+        left: 20,
+        right: 20,
+        bottom: 20,
+        width: 'auto',
+        height: 'auto',
+        zIndex: 1000,
+      }
+    : {
+        position: 'fixed',
+        left: position.x,
+        top: position.y,
+        width: 700,
+        maxHeight: '70vh',
+        zIndex: 1000,
+      };
+
+  return (
+    <div
+      ref={panelRef}
+      className={cn(
+        "bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden",
+        isDragging && "cursor-grabbing select-none",
+        className,
+      )}
+      style={panelStyle}
+      data-testid="table-panel"
+    >
+      {/* Header - Draggable */}
+      <div
+        ref={headerRef}
+        className={cn(
+          "flex items-center justify-between px-4 py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white cursor-grab",
+          isDragging && "cursor-grabbing"
+        )}
+        onMouseDown={handleMouseDown}
+      >
+        <div className="flex items-center gap-3">
+          <GripHorizontal size={18} className="opacity-50" />
+          <Table2 size={20} />
+          <span className="font-semibold text-lg">{sanitizeText(table.name)}</span>
+          <span className="px-2 py-0.5 bg-white/20 rounded text-sm">
+            {table.rows.length} rows × {table.columns.length} cols
+          </span>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsMaximized(!isMaximized)}
+            className="p-1.5 hover:bg-white/20 rounded transition-colors"
+            title={isMaximized ? "Restore" : "Maximize"}
+            data-testid="table-panel-maximize"
+          >
+            {isMaximized ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-white/20 rounded transition-colors"
+            title="Close"
+            data-testid="table-panel-close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+        <div className="relative flex-1 max-w-xs">
+          <Search size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search..."
+            className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            data-testid="table-panel-search"
+          />
+        </div>
+        
+        <button
+          onClick={handleImport}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          data-testid="table-panel-import"
+        >
+          <Upload size={16} />
+          Import
+        </button>
+        
+        <div className="ml-auto text-sm text-gray-500 dark:text-gray-400">
+          Showing {filteredAndSortedRows.length} of {table.meta?.totalRowCount ?? table.rows.length} rows
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="flex-1 overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
+            <tr>
+              <th className="w-10 px-3 py-2 text-left text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-gray-700">
+                #
+              </th>
+              {table.columns.map((col: DataTableColumn) => (
+                <th 
+                  key={col.id}
+                  onClick={() => handleColumnSort(col.id)}
+                  className="px-3 py-2 text-left font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  style={{ minWidth: col.width || 100 }}
+                >
+                  <div className="flex items-center gap-1">
+                    <span>{sanitizeText(col.name)}</span>
+                    {sortColumn === col.id && (
+                      sortDirection === 'asc' 
+                        ? <ChevronUp size={14} className="text-indigo-500" />
+                        : <ChevronDown size={14} className="text-indigo-500" />
+                    )}
+                  </div>
+                </th>
+              ))}
+              <th className="w-14 px-3 py-2 text-center font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredAndSortedRows.map((row: DataTableRow, rowIndex: number) => (
+              <tr 
+                key={row.id}
+                className={cn(
+                  "border-b border-gray-100 dark:border-gray-800 transition-colors",
+                  hoveredRowId === row.id && "bg-indigo-50 dark:bg-indigo-900/20"
+                )}
+                onMouseEnter={() => setHoveredRowId(row.id)}
+                onMouseLeave={() => setHoveredRowId(null)}
+              >
+                <td className="px-3 py-2 text-gray-400">
+                  {rowIndex + 1}
+                </td>
+                {table.columns.map((col: DataTableColumn) => (
+                  <td 
+                    key={col.id}
+                    className="px-3 py-2 text-gray-600 dark:text-gray-400"
+                    title={String(row.values[col.id] ?? "")}
+                  >
+                    <div className="truncate max-w-[200px]">
+                      {String(row.values[col.id] ?? "")}
+                    </div>
+                  </td>
+                ))}
+                <td className="px-3 py-2 text-center">
+                  {canCreateFromRow(rowIndex) ? (
+                    <button
+                      onClick={(e) => handleCreateNode(row, e)}
+                      className={cn(
+                        "p-1 rounded transition-all",
+                        hoveredRowId === row.id 
+                          ? "bg-indigo-500 text-white shadow-sm" 
+                          : "text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                      )}
+                      title="Create node from this row"
+                      data-testid={`table-row-create-node-${row.id}`}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  ) : (
+                    <span className="text-gray-300 dark:text-gray-600" title="Row limit reached">
+                      —
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Footer */}
+      {table.rows.length > MAX_ROW_TO_NODE && (
+        <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm">
+          <span className="font-medium">Note:</span> Row-to-node creation is limited to the first {MAX_ROW_TO_NODE} rows for performance.
+        </div>
+      )}
+      
+      {table.meta?.sourceFileName && (
+        <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs">
+          Source: {table.meta.sourceFileName}
+          {table.meta.importedAt && ` • Imported ${new Date(table.meta.importedAt).toLocaleString()}`}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const TablePanel = memo(TablePanelComponent);

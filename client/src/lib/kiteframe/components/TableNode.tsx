@@ -111,8 +111,8 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
 
   const handleImportClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    onImportData?.(node.id);
-  }, [node.id, onImportData]);
+    onImportData?.(node.data.tableId);
+  }, [node.data.tableId, onImportData]);
 
   const colors = useMemo(() => {
     const nodeColors = node.data.colors || {};

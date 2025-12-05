@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
 import { FloatingToolbar } from './FloatingToolbar';
-import type { Node, Edge, CanvasObject, ProFeaturesConfig, TextNodeData, ShapeNodeData, StickyNoteData } from '../lib/kiteframe/types';
+import type { Node, Edge, CanvasObject, ProFeaturesConfig, TextNodeData, ShapeNodeData, StickyNoteData, DataTable } from '../lib/kiteframe/types';
 import { VLStore } from '@/components/layers/visibilityLockStore';
 import { AncestorsStore } from '@/components/layers/ancestorsStore';
 import { isEffectivelyOn } from '@/components/layers/triStateUtils';
@@ -51,6 +51,9 @@ interface WorkflowCanvasProps {
   onHyperlinkEdit?: (nodeId: string, hyperlinkId: string) => void;
   onHyperlinkDelete?: (nodeId: string, hyperlinkId: string) => void;
   onTextObjectHyperlinkEdit?: (canvasObjectId: string) => void;
+  tableData?: Record<string, DataTable>;
+  onOpenTable?: (tableId: string) => void;
+  onTableDataChange?: (tableId: string, table: DataTable) => void;
 }
 
 export function WorkflowCanvas({
@@ -95,7 +98,10 @@ export function WorkflowCanvas({
   onTextSelectionChange,
   onHyperlinkEdit,
   onHyperlinkDelete,
-  onTextObjectHyperlinkEdit
+  onTextObjectHyperlinkEdit,
+  tableData,
+  onOpenTable,
+  onTableDataChange
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -393,6 +399,9 @@ export function WorkflowCanvas({
         onHyperlinkEdit={onHyperlinkEdit}
         onHyperlinkDelete={onHyperlinkDelete}
         onTextObjectHyperlinkEdit={onTextObjectHyperlinkEdit}
+        tableData={tableData}
+        onOpenTable={onOpenTable}
+        onTableDataChange={onTableDataChange}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

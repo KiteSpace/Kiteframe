@@ -9,6 +9,7 @@ export { NodeHandles } from './components/NodeHandles';
 export { BasicNode } from './components/BasicNode';
 export { ImageNode } from './components/ImageNode';
 export { TableNode, createTableNode } from './components/TableNode';
+export { TablePanel } from './components/TablePanel';
 
 // Edge components and utilities
 export { EdgeProperties } from './components/EdgeProperties';
@@ -135,6 +136,16 @@ export {
   CURRENT_VERSION as EXPORT_VERSION,
   type WorkflowExport
 } from './utils/exportImport';
+
+// Data Import utilities for Table Nodes
+export {
+  parseCSV,
+  parseJSON,
+  createDataTableFromCSV,
+  createDataTableFromJSON,
+  importFromFile,
+  createSampleTable
+} from './utils/dataImport';
 
 // Error Recovery & Resilience
 export {

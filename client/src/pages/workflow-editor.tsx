@@ -24,6 +24,7 @@ import { NewTabModal } from '@/components/NewTabModal';
 import { ImageUploadModal } from '@/lib/kiteframe/components/modals/ImageUploadModal';
 import { LinearToolbar } from '@/lib/kiteframe/components/LinearToolbar';
 import { QuickCreateRadialMenu, ShapeType } from '@/lib/kiteframe/components/QuickCreateRadialMenu';
+import { TablePanel } from '@/lib/kiteframe/components/TablePanel';
 import { SavedProjectsDrawer } from '@/components/SavedProjectsDrawer';
 import { HomeScreen } from '@/components/HomeScreen';
 import { AiProvider, useAi } from '../ai/AiProvider';
@@ -33,7 +34,7 @@ import { ObjectUploader } from '@/components/ObjectUploader';
 import { useFirebaseWorkflows } from '../hooks/useFirebaseWorkflows';
 import { useAuth } from '../hooks/useAuth';
 import { useCreditsGate } from '../hooks/useCreditsGate';
-import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeData, ShapeNodeData, StickyNoteData } from '../lib/kiteframe/types';
+import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeData, ShapeNodeData, StickyNoteData, DataTable, TableNodeData } from '../lib/kiteframe/types';
 import { DEFAULT_SHAPE_NODE_DATA } from '../lib/kiteframe/constants/defaults';
 import { recalculateAllEdgeZIndexes } from '../lib/kiteframe/utils/edgeZIndex';
 import { applyThemeToNode, applyThemeToEdge, workflowThemes, getThemeById, type WorkflowTheme } from '../lib/themes';
@@ -965,6 +966,10 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
   
   // SmartConnect preview state
   const [connectionPreview, setConnectionPreview] = useState<{ source: string; target: string } | null>(null);
+
+  // Table data management state
+  const [tableData, setTableData] = useState<Record<string, DataTable>>({});
+  const [openTablePanel, setOpenTablePanel] = useState<string | null>(null);
 
   // Save animation config to localStorage
   useEffect(() => {
@@ -4334,21 +4339,38 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
                       output: { icon: 'ArrowLeft', color: 'text-red-500' },
                       ai: { icon: 'Bot', color: 'text-purple-500' },
-                      image: { icon: 'Image', color: 'text-indigo-500' }
+                      image: { icon: 'Image', color: 'text-indigo-500' },
+                      table: { icon: 'Table2', color: 'text-indigo-500' }
                     };
 
+                    const nodeId = `node-${Date.now()}`;
+                    const isTableNode = type === 'table';
+                    const tableId = isTableNode ? `table-${nodeId}` : undefined;
+
                     const newNode: Node = {
-                      id: `node-${Date.now()}`,
+                      id: nodeId,
                       type,
                       position: getViewportCenteredPosition(),
-                      data: {
+                      data: isTableNode ? {
+                        label: 'Table',
+                        tableId,
+                        previewRowCount: 3,
+                        previewColumnCount: 4,
+                        showRowNumbers: true,
+                        colors: {
+                          headerBackground: '#4f46e5',
+                          bodyBackground: '#ffffff',
+                          headerTextColor: '#ffffff',
+                          bodyTextColor: '#374151',
+                        }
+                      } : {
                         label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                         description: `Configure ${type} settings`,
                         icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
                         iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
                       },
-                      width: 200,
-                      height: 100
+                      width: isTableNode ? 280 : 200,
+                      height: isTableNode ? 200 : 100
                     };
 
                     setNodes(prev => [...prev, newNode]);
@@ -4375,21 +4397,38 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
                       output: { icon: 'ArrowLeft', color: 'text-red-500' },
                       ai: { icon: 'Bot', color: 'text-purple-500' },
-                      image: { icon: 'Image', color: 'text-indigo-500' }
+                      image: { icon: 'Image', color: 'text-indigo-500' },
+                      table: { icon: 'Table2', color: 'text-indigo-500' }
                     };
 
+                    const nodeId = `node-${Date.now()}`;
+                    const isTableNode = type === 'table';
+                    const tableId = isTableNode ? `table-${nodeId}` : undefined;
+
                     const newNode: Node = {
-                      id: `node-${Date.now()}`,
+                      id: nodeId,
                       type,
                       position,
-                      data: {
+                      data: isTableNode ? {
+                        label: 'Table',
+                        tableId,
+                        previewRowCount: 3,
+                        previewColumnCount: 4,
+                        showRowNumbers: true,
+                        colors: {
+                          headerBackground: '#4f46e5',
+                          bodyBackground: '#ffffff',
+                          headerTextColor: '#ffffff',
+                          bodyTextColor: '#374151',
+                        }
+                      } : {
                         label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                         description: `Configure ${type} settings`,
                         icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
                         iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
                       },
-                      width: 200,
-                      height: 100
+                      width: isTableNode ? 280 : 200,
+                      height: isTableNode ? 200 : 100
                     };
 
                     setNodes(prev => [...prev, newNode]);
@@ -4579,21 +4618,38 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
                       output: { icon: 'ArrowLeft', color: 'text-red-500' },
                       ai: { icon: 'Bot', color: 'text-purple-500' },
-                      image: { icon: 'Image', color: 'text-indigo-500' }
+                      image: { icon: 'Image', color: 'text-indigo-500' },
+                      table: { icon: 'Table2', color: 'text-indigo-500' }
                     };
 
+                    const nodeId = `node-${Date.now()}`;
+                    const isTableNode = type === 'table';
+                    const tableId = isTableNode ? `table-${nodeId}` : undefined;
+
                     const newNode: Node = {
-                      id: `node-${Date.now()}`,
+                      id: nodeId,
                       type,
                       position: getViewportCenteredPosition(),
-                      data: {
+                      data: isTableNode ? {
+                        label: 'Table',
+                        tableId,
+                        previewRowCount: 3,
+                        previewColumnCount: 4,
+                        showRowNumbers: true,
+                        colors: {
+                          headerBackground: '#4f46e5',
+                          bodyBackground: '#ffffff',
+                          headerTextColor: '#ffffff',
+                          bodyTextColor: '#374151',
+                        }
+                      } : {
                         label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                         description: `Configure ${type} settings`,
                         icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
                         iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
                       },
-                      width: 200,
-                      height: 100
+                      width: isTableNode ? 280 : 200,
+                      height: isTableNode ? 200 : 100
                     };
 
                     setNodes([newNode]);
@@ -4660,7 +4716,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   return;
                 }
 
-                // Normal case - add to existing tab (for input, process, condition, output, ai, image)
+                // Normal case - add to existing tab (for input, process, condition, output, ai, image, table)
                 saveToHistory(); // Save current state before adding node
                 const icons = {
                   input: { icon: 'ArrowRight', color: 'text-blue-500' },
@@ -4668,21 +4724,38 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
                   output: { icon: 'ArrowLeft', color: 'text-red-500' },
                   ai: { icon: 'Bot', color: 'text-purple-500' },
-                  image: { icon: 'Image', color: 'text-indigo-500' }
+                  image: { icon: 'Image', color: 'text-indigo-500' },
+                  table: { icon: 'Table2', color: 'text-indigo-500' }
                 };
 
+                const nodeId = `node-${Date.now()}`;
+                const isTableNode = type === 'table';
+                const tableId = isTableNode ? `table-${nodeId}` : undefined;
+
                 const newNode: Node = {
-                  id: `node-${Date.now()}`,
+                  id: nodeId,
                   type,
                   position: getViewportCenteredPosition(),
-                  data: {
+                  data: isTableNode ? {
+                    label: 'Table',
+                    tableId,
+                    previewRowCount: 3,
+                    previewColumnCount: 4,
+                    showRowNumbers: true,
+                    colors: {
+                      headerBackground: '#4f46e5',
+                      bodyBackground: '#ffffff',
+                      headerTextColor: '#ffffff',
+                      bodyTextColor: '#374151',
+                    }
+                  } : {
                     label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                     description: `Configure ${type} settings`,
                     icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
                     iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
                   },
-                  width: 200,
-                  height: 100
+                  width: isTableNode ? 280 : 200,
+                  height: isTableNode ? 200 : 100
                 };
 
                 setNodes(prev => [...prev, newNode]);
@@ -4766,7 +4839,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   return;
                 }
 
-                // For regular nodes (input, process, condition, output, ai, image)
+                // For regular nodes (input, process, condition, output, ai, image, table)
                 saveToHistory();
                 
                 const icons = {
@@ -4775,21 +4848,38 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
                   output: { icon: 'ArrowLeft', color: 'text-red-500' },
                   ai: { icon: 'Bot', color: 'text-purple-500' },
-                  image: { icon: 'Image', color: 'text-indigo-500' }
+                  image: { icon: 'Image', color: 'text-indigo-500' },
+                  table: { icon: 'Table2', color: 'text-indigo-500' }
                 };
 
+                const nodeId = `node-${Date.now()}`;
+                const isTableNode = type === 'table';
+                const tableId = isTableNode ? `table-${nodeId}` : undefined;
+
                 const newNode: Node = {
-                  id: `node-${Date.now()}`,
+                  id: nodeId,
                   type,
-                  position: { x: worldPosition.x - 100, y: worldPosition.y - 50 }, // Center the node
-                  data: {
+                  position: { x: worldPosition.x - (isTableNode ? 140 : 100), y: worldPosition.y - (isTableNode ? 100 : 50) }, // Center the node
+                  data: isTableNode ? {
+                    label: 'Table',
+                    tableId,
+                    previewRowCount: 3,
+                    previewColumnCount: 4,
+                    showRowNumbers: true,
+                    colors: {
+                      headerBackground: '#4f46e5',
+                      bodyBackground: '#ffffff',
+                      headerTextColor: '#ffffff',
+                      bodyTextColor: '#374151',
+                    }
+                  } : {
                     label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                     description: `Configure ${type} settings`,
                     icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
                     iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
                   },
-                  width: 200,
-                  height: 100
+                  width: isTableNode ? 280 : 200,
+                  height: isTableNode ? 200 : 100
                 };
 
                 setNodes(prev => [...prev, newNode]);
@@ -5898,6 +5988,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }
                 }
               }}
+              tableData={tableData}
+              onOpenTable={(tableId) => {
+                console.log('📊 Opening table panel for:', tableId);
+                setOpenTablePanel(tableId);
+              }}
+              onTableDataChange={(tableId, table) => {
+                console.log('📊 Table data changed:', tableId);
+                setTableData(prev => ({
+                  ...prev,
+                  [tableId]: table
+                }));
+              }}
             />
                 
                 <FloatingLayersWidget
@@ -6317,6 +6419,65 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   ? { ...n, data: { ...n.data, src: url, sourceType: 'url' } }
                   : n
               ));
+            }}
+          />
+        )}
+
+        {/* Table Panel */}
+        {openTablePanel && (
+          <TablePanel
+            tableId={openTablePanel}
+            table={tableData[openTablePanel]}
+            position={{ x: 100, y: 100 }}
+            onClose={() => setOpenTablePanel(null)}
+            onUpdateTable={(updatedTable) => {
+              setTableData(prev => ({
+                ...prev,
+                [openTablePanel]: updatedTable
+              }));
+              // Also update the node to trigger re-render
+              setNodes(prev => prev.map(n => 
+                n.data?.tableId === openTablePanel
+                  ? { ...n, data: { ...n.data, _tableUpdated: Date.now() } }
+                  : n
+              ));
+            }}
+            onCreateNodeFromRow={(row, rowIndex) => {
+              const tableNode = nodes.find(n => n.data?.tableId === openTablePanel);
+              const position = tableNode 
+                ? { 
+                    x: tableNode.position.x + (tableNode.width || 280) + 50, 
+                    y: tableNode.position.y + (rowIndex * 120) 
+                  }
+                : getViewportCenteredPosition();
+              
+              const rowLabel = Object.values(row)[0]?.toString() || `Row ${rowIndex + 1}`;
+              
+              const newNode: Node = {
+                id: `node-${Date.now()}`,
+                type: 'process',
+                position,
+                data: {
+                  label: rowLabel,
+                  description: `Data from ${openTablePanel}`,
+                  icon: 'Database',
+                  iconColor: 'text-indigo-500',
+                  sourceTableId: openTablePanel,
+                  sourceRowIndex: rowIndex,
+                  rowData: row
+                },
+                width: 200,
+                height: 100
+              };
+              
+              setNodes(prev => [...prev, newNode]);
+              saveToHistory();
+              
+              toast({
+                title: "Data Node Created",
+                description: `Created node from row ${rowIndex + 1}`,
+                variant: "default"
+              });
             }}
           />
         )}

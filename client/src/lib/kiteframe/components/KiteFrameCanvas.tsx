@@ -37,6 +37,7 @@ import { TextNode } from "./TextNode";
 import { StickyNote } from "./StickyNote";
 import { ShapeNode } from "./ShapeNode";
 import { ImageNode } from "./ImageNode";
+import { TableNode } from "./TableNode";
 import { TextObject } from "./TextObject";
 import { StickyNoteObject } from "./StickyNoteObject";
 import { ShapeObject } from "./ShapeObject";
@@ -1258,6 +1259,11 @@ type Props = {
   
   // Text object hyperlink edit callback
   onTextObjectHyperlinkEdit?: (canvasObjectId: string) => void;
+  
+  // Table node callbacks
+  tableData?: Record<string, import('../types').DataTable>;
+  onOpenTable?: (tableId: string) => void;
+  onTableDataChange?: (tableId: string, table: import('../types').DataTable) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -3802,6 +3808,52 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       });
                     }}
                     viewport={viewport}
+                    style={{
+                      position: "absolute",
+                      left: n.position.x,
+                      top: n.position.y,
+                      zIndex: n.zIndex || 0,
+                    }}
+                    className={n.selected ? "selected" : ""}
+                  />
+                );
+              }
+
+              // Handle table nodes
+              if (n.type === "table") {
+                const tableId = n.data?.tableId;
+                const tableFromProps = tableId ? props.tableData?.[tableId] : undefined;
+                
+                // Merge table data from props into node.data for the component
+                const nodeWithTable = tableFromProps ? {
+                  ...n,
+                  data: { ...n.data, table: tableFromProps }
+                } : n;
+                
+                return (
+                  <TableNode
+                    key={n.id}
+                    node={nodeWithTable as any}
+                    onOpenTablePanel={(tid: string) => {
+                      props.onOpenTable?.(tid);
+                    }}
+                    onImportData={(nodeId: string) => {
+                      // This is triggered when Import Data button is clicked
+                      // The actual import handling happens in the TablePanel
+                      if (tableId) {
+                        props.onOpenTable?.(tableId);
+                      }
+                    }}
+                    onUpdate={(nodeId: string, updates: Partial<Node>) => {
+                      const updated = props.nodes.map((node) =>
+                        node.id === nodeId
+                          ? { ...node, ...updates }
+                          : node,
+                      );
+                      props.onNodesChange?.(updated);
+                    }}
+                    showHandles={n.showHandles !== false}
+                    showResizeHandle={n.resizable !== false}
                     style={{
                       position: "absolute",
                       left: n.position.x,
