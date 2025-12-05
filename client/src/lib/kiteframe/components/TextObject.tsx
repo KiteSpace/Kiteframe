@@ -4,7 +4,7 @@ import { EmojiReactions } from './EmojiReactions';
 import type { CanvasObject, TextNodeData } from '../types';
 import { cn } from '@/lib/utils';
 import { useEventCleanup } from '../utils/eventCleanup';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Pencil, Trash2 } from 'lucide-react';
 
 interface TextObjectProps {
   object: CanvasObject & { data: TextNodeData };
@@ -15,6 +15,8 @@ interface TextObjectProps {
   onContextMenu?: (e: React.MouseEvent) => void;
   onAddReaction?: (objectId: string, emoji: string) => void;
   onRemoveReaction?: (objectId: string, emoji: string) => void;
+  onHyperlinkEdit?: () => void;
+  onHyperlinkDelete?: () => void;
   style?: React.CSSProperties;
   autoFocus?: boolean;
   onExitEdit?: () => void;
@@ -31,6 +33,8 @@ export const TextObject: React.FC<TextObjectProps> = ({
   onContextMenu,
   onAddReaction,
   onRemoveReaction,
+  onHyperlinkEdit,
+  onHyperlinkDelete,
   style,
   autoFocus = false,
   onExitEdit,
@@ -69,6 +73,9 @@ export const TextObject: React.FC<TextObjectProps> = ({
   // Mobile touch handling
   const [touchStartTime, setTouchStartTime] = useState(0);
   const [lastTapTime, setLastTapTime] = useState(0);
+  
+  // Hover state for hyperlink menu
+  const [showHyperlinkMenu, setShowHyperlinkMenu] = useState(false);
 
   // Sync local text state with prop changes (important for TypographyPanel updates)
   useEffect(() => {
@@ -357,8 +364,171 @@ export const TextObject: React.FC<TextObjectProps> = ({
         )}
       </div>
 
-      {/* Text content - conditionally visible based on hyperlink.showText */}
-      {(object.data.hyperlink?.showText !== false) && (
+      {/* Hyperlink container with hover menu */}
+      {object.data.hyperlink?.url ? (
+        <div
+          className="relative"
+          onMouseEnter={() => setShowHyperlinkMenu(true)}
+          onMouseLeave={() => setShowHyperlinkMenu(false)}
+        >
+          {/* Hover menu - Edit/Delete */}
+          {showHyperlinkMenu && !isEditing && (
+            <div
+              className="absolute left-0 bottom-full mb-1 z-50 animate-in fade-in-0 zoom-in-95 duration-150"
+              onMouseEnter={() => setShowHyperlinkMenu(true)}
+              onMouseLeave={() => setShowHyperlinkMenu(false)}
+            >
+              <div className="flex items-center gap-1 p-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const url = object.data.hyperlink?.url;
+                    if (url) {
+                      window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                  data-testid="text-hyperlink-go-button"
+                >
+                  <ExternalLink size={12} />
+                  <span>Go to link</span>
+                </button>
+                <div className="w-px h-4 bg-gray-200 dark:bg-gray-600" />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onHyperlinkEdit?.();
+                  }}
+                  className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  data-testid="text-hyperlink-edit-button"
+                >
+                  <Pencil size={12} />
+                  <span>Edit</span>
+                </button>
+                <div className="w-px h-4 bg-gray-200 dark:bg-gray-600" />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onHyperlinkDelete?.();
+                  }}
+                  className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+                  data-testid="text-hyperlink-delete-button"
+                >
+                  <Trash2 size={12} />
+                  <span>Delete</span>
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Text content - conditionally visible based on hyperlink.showText */}
+          {(object.data.hyperlink?.showText !== false) && (
+            <>
+              {isEditing ? (
+                <textarea
+                  ref={textareaRef}
+                  value={text}
+                  onChange={(e) => handleTextChange(e.target.value)}
+                  onBlur={handleBlur}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type here..."
+                  className="w-full p-2 border-none outline-none resize-none bg-transparent"
+                  style={textStyles}
+                  data-testid="text-object-textarea"
+                />
+              ) : (
+                <a
+                  href={object.data.hyperlink.url.startsWith('http') ? object.data.hyperlink.url : `https://${object.data.hyperlink.url}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full p-2 whitespace-pre-wrap break-words block hover:underline cursor-pointer"
+                  style={{...textStyles, color: textStyles.color || '#3b82f6', textDecoration: 'underline'}}
+                  onClick={(e) => e.stopPropagation()}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  data-testid="text-object-link"
+                >
+                  {text || object.data.text || 'Type here...'}
+                </a>
+              )}
+            </>
+          )}
+          
+          {/* Hyperlink Preview Card - draggable to move text object */}
+          {object.data.hyperlink?.showPreview && object.data.hyperlink?.metadata && (
+            <div
+              className="hyperlink-preview-card"
+              style={{
+                marginTop: object.data.hyperlink?.showText !== false ? '8px' : '0',
+                backgroundColor: '#f9fafb',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                padding: '10px',
+                cursor: 'grab',
+                pointerEvents: 'auto',
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                const url = object.data.hyperlink?.url;
+                if (url) {
+                  window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
+                }
+              }}
+              onMouseDown={(e) => {
+                // Allow dragging the text object via the preview card
+                if (e.button === 0 && !isEditing) {
+                  onStartDrag?.(e);
+                }
+              }}
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
+              data-testid={`text-object-preview-${object.id}`}
+            >
+              <div style={{ fontWeight: 600, fontSize: '13px', color: '#1f2937', marginBottom: '4px' }}>
+                {object.data.hyperlink.metadata.title || 'No title'}
+              </div>
+              {object.data.hyperlink.metadata.description && (
+                <div style={{ 
+                  fontSize: '11px', 
+                  color: '#6b7280',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  marginBottom: '6px',
+                }}>
+                  {object.data.hyperlink.metadata.description}
+                </div>
+              )}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px',
+              }}>
+                {object.data.hyperlink.metadata.favicon && (
+                  <img 
+                    src={object.data.hyperlink.metadata.favicon} 
+                    alt="" 
+                    style={{ width: '14px', height: '14px', borderRadius: '2px' }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
+                <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+                  {(() => {
+                    try {
+                      const url = object.data.hyperlink?.url;
+                      return url ? new URL(url.startsWith('http') ? url : `https://${url}`).hostname : '';
+                    } catch {
+                      return object.data.hyperlink?.url || '';
+                    }
+                  })()}
+                </span>
+                <ExternalLink size={12} style={{ color: '#9ca3af', marginLeft: 'auto' }} />
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Non-hyperlink text content */
         <>
           {isEditing ? (
             <textarea
@@ -372,19 +542,6 @@ export const TextObject: React.FC<TextObjectProps> = ({
               style={textStyles}
               data-testid="text-object-textarea"
             />
-          ) : object.data.hyperlink?.url ? (
-            <a
-              href={object.data.hyperlink.url.startsWith('http') ? object.data.hyperlink.url : `https://${object.data.hyperlink.url}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full h-full p-2 whitespace-pre-wrap break-words block hover:underline cursor-pointer"
-              style={{...textStyles, color: textStyles.color || '#3b82f6', textDecoration: 'underline'}}
-              onClick={(e) => e.stopPropagation()}
-              onDoubleClick={(e) => e.stopPropagation()}
-              data-testid="text-object-link"
-            >
-              {text || object.data.text || 'Type here...'}
-            </a>
           ) : (
             <div
               className="w-full h-full p-2 whitespace-pre-wrap break-words"
@@ -394,75 +551,6 @@ export const TextObject: React.FC<TextObjectProps> = ({
             </div>
           )}
         </>
-      )}
-      
-      {/* Hyperlink Preview Card */}
-      {object.data.hyperlink?.showPreview && object.data.hyperlink?.metadata && (
-        <div
-          className="hyperlink-preview-card"
-          style={{
-            marginTop: object.data.hyperlink?.showText !== false ? '8px' : '0',
-            backgroundColor: '#f9fafb',
-            border: '1px solid #e5e7eb',
-            borderRadius: '8px',
-            padding: '10px',
-            cursor: 'pointer',
-            pointerEvents: 'auto',
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            const url = object.data.hyperlink?.url;
-            if (url) {
-              window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
-            }
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-          draggable={false}
-          onDragStart={(e) => e.preventDefault()}
-          data-testid={`text-object-preview-${object.id}`}
-        >
-          <div style={{ fontWeight: 600, fontSize: '13px', color: '#1f2937', marginBottom: '4px' }}>
-            {object.data.hyperlink.metadata.title || 'No title'}
-          </div>
-          {object.data.hyperlink.metadata.description && (
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#6b7280',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              marginBottom: '6px',
-            }}>
-              {object.data.hyperlink.metadata.description}
-            </div>
-          )}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '6px',
-          }}>
-            {object.data.hyperlink.metadata.favicon && (
-              <img 
-                src={object.data.hyperlink.metadata.favicon} 
-                alt="" 
-                style={{ width: '14px', height: '14px', borderRadius: '2px' }}
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-            )}
-            <span style={{ fontSize: '11px', color: '#9ca3af' }}>
-              {(() => {
-                try {
-                  const url = object.data.hyperlink?.url;
-                  return url ? new URL(url.startsWith('http') ? url : `https://${url}`).hostname : '';
-                } catch {
-                  return object.data.hyperlink?.url || '';
-                }
-              })()}
-            </span>
-            <ExternalLink size={12} style={{ color: '#9ca3af', marginLeft: 'auto' }} />
-          </div>
-        </div>
       )}
 
       {/* Resize handles - only visible when exactly one canvas object is selected */}

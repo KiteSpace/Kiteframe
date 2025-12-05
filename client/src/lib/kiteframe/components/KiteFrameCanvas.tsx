@@ -1255,6 +1255,9 @@ type Props = {
   // Hyperlink management callbacks
   onHyperlinkEdit?: (nodeId: string, hyperlinkId: string) => void;
   onHyperlinkDelete?: (nodeId: string, hyperlinkId: string) => void;
+  
+  // Text object hyperlink edit callback
+  onTextObjectHyperlinkEdit?: (canvasObjectId: string) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -4613,6 +4616,21 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     }}
                     onAddReaction={addCanvasObjectReaction}
                     onRemoveReaction={removeCanvasObjectReaction}
+                    onHyperlinkEdit={() => {
+                      props.onTextObjectHyperlinkEdit?.(obj.id);
+                    }}
+                    onHyperlinkDelete={() => {
+                      const updatedObjects = (props.canvasObjects || []).map(
+                        (canvasObject) =>
+                          canvasObject.id === obj.id
+                            ? {
+                                ...canvasObject,
+                                data: { ...canvasObject.data, hyperlink: undefined },
+                              }
+                            : canvasObject,
+                      );
+                      props.onCanvasObjectsChange?.(updatedObjects);
+                    }}
                     viewport={viewport}
                   />
                 );

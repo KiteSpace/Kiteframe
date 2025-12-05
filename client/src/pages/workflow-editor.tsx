@@ -5882,6 +5882,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   };
                 }));
               }}
+              onTextObjectHyperlinkEdit={(canvasObjectId) => {
+                console.log('🔗 Text object hyperlink edit requested:', { canvasObjectId });
+                const textObject = canvasObjects.find(obj => obj.id === canvasObjectId);
+                if (textObject) {
+                  const rect = document.querySelector(`[data-testid="text-object-${textObject.id}"]`)?.getBoundingClientRect();
+                  if (rect) {
+                    setLinearToolbar({
+                      x: rect.left + rect.width / 2,
+                      y: rect.top,
+                      nodeRect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width },
+                      canvasObject: textObject,
+                      initialSubmenu: 'textLink',
+                    });
+                  }
+                }
+              }}
             />
                 
                 <FloatingLayersWidget
