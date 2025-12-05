@@ -213,14 +213,18 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   const [linkText, setLinkText] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   
-  // Reset link inputs when link submenu opens
+  // Cache the selected text when link submenu opens (before blur clears it)
+  const cachedSelectedTextRef = useRef('');
+  
+  // Reset link inputs when link submenu opens - only trigger on submenu change, not selectedText change
   useEffect(() => {
     if (activeSubmenu === 'link') {
-      // If text is selected, use it as default link text
+      // Capture the selected text at the moment the submenu opens
+      cachedSelectedTextRef.current = selectedText || '';
       setLinkText(selectedText || '');
       setLinkUrl('');
     }
-  }, [activeSubmenu, selectedText]);
+  }, [activeSubmenu]); // Intentionally exclude selectedText - only capture on open
 
   // Sync icon visibility and reset submenu when node changes
   useEffect(() => {
@@ -970,17 +974,23 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   };
 
   const renderLinkSubmenu = () => {
-    const hasSelectedText = selectedText.length > 0;
+    // Use cached selected text that was captured when submenu opened
+    const cachedText = cachedSelectedTextRef.current;
+    const hasSelectedText = cachedText.length > 0;
     
     const handleAddLink = () => {
-      const finalText = linkText.trim() || selectedText;
+      // Use linkText input, or fall back to cached selected text
+      const finalText = linkText.trim() || cachedText;
       const finalUrl = linkUrl.trim();
+      
+      console.log('🔗 Link submenu handleAddLink:', { linkText, cachedText, finalText, finalUrl });
       
       if (finalText && finalUrl) {
         onAddHyperlink?.({ text: finalText, url: finalUrl });
         setActiveSubmenu(null);
         setLinkText('');
         setLinkUrl('');
+        cachedSelectedTextRef.current = '';
       }
     };
     
@@ -994,7 +1004,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       }
     };
     
-    const canSubmit = (linkText.trim() || selectedText) && isValidUrl(linkUrl);
+    const canSubmit = (linkText.trim() || cachedText) && isValidUrl(linkUrl);
     
     return (
       <div 

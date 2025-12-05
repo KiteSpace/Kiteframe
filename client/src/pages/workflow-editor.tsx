@@ -6558,16 +6558,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             selectedText={selectedText}
             onAddHyperlink={(hyperlink) => {
               const { text: linkText, url } = hyperlink;
-              console.log('🔗 Adding hyperlink:', { linkText, url, nodeId: linearToolbar.node?.id });
+              console.log('🔗 Adding hyperlink:', { linkText, url, nodeId: linearToolbar.node?.id, selectedText });
               if (linearToolbar.node && url) {
                 saveToHistory();
                 setNodes(prev => prev.map(n => {
                   if (n.id !== linearToolbar.node!.id) return n;
                   const currentDescription = n.data?.description || '';
                   const markdown = `[${linkText}](${url})`;
-                  const newDescription = selectedText 
-                    ? currentDescription.replace(selectedText, markdown)
+                  // Use linkText to find/replace in description (linkText came from cached selection)
+                  // If linkText exists in description, replace it; otherwise append
+                  const newDescription = currentDescription.includes(linkText)
+                    ? currentDescription.replace(linkText, markdown)
                     : currentDescription + (currentDescription ? '\n' : '') + markdown;
+                  console.log('🔗 Updated description:', { currentDescription, markdown, newDescription });
                   return { 
                     ...n, 
                     data: { 
@@ -6576,6 +6579,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     } 
                   };
                 }));
+                // Reset selected text after adding link
+                setSelectedText('');
               }
             }}
             onEdgeStyleChange={(style) => {
