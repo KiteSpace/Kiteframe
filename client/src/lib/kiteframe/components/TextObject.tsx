@@ -76,6 +76,9 @@ export const TextObject: React.FC<TextObjectProps> = ({
   
   // Hover state for hyperlink menu
   const [showHyperlinkMenu, setShowHyperlinkMenu] = useState(false);
+  
+  // Drag detection to prevent link opening after drag
+  const dragStartPosRef = useRef<{ x: number; y: number } | null>(null);
 
   // Sync local text state with prop changes (important for TypographyPanel updates)
   useEffect(() => {
@@ -371,7 +374,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
           onMouseEnter={() => setShowHyperlinkMenu(true)}
           onMouseLeave={() => setShowHyperlinkMenu(false)}
         >
-          {/* Hover menu - Edit/Delete */}
+          {/* Hover menu - Edit/Delete only (click on link itself opens it) */}
           {showHyperlinkMenu && !isEditing && (
             <div
               className="absolute left-0 bottom-full mb-1 z-50 animate-in fade-in-0 zoom-in-95 duration-150"
@@ -379,21 +382,6 @@ export const TextObject: React.FC<TextObjectProps> = ({
               onMouseLeave={() => setShowHyperlinkMenu(false)}
             >
               <div className="flex items-center gap-1 p-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const url = object.data.hyperlink?.url;
-                    if (url) {
-                      window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
-                  data-testid="text-hyperlink-go-button"
-                >
-                  <ExternalLink size={12} />
-                  <span>Go to link</span>
-                </button>
-                <div className="w-px h-4 bg-gray-200 dark:bg-gray-600" />
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -437,18 +425,34 @@ export const TextObject: React.FC<TextObjectProps> = ({
                   data-testid="text-object-textarea"
                 />
               ) : (
-                <a
-                  href={object.data.hyperlink.url.startsWith('http') ? object.data.hyperlink.url : `https://${object.data.hyperlink.url}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <div
                   className="w-full p-2 whitespace-pre-wrap break-words block hover:underline cursor-pointer"
                   style={{...textStyles, color: textStyles.color || '#3b82f6', textDecoration: 'underline'}}
-                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => {
+                    dragStartPosRef.current = { x: e.clientX, y: e.clientY };
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Check if mouse moved significantly from mousedown position (drag detection)
+                    if (dragStartPosRef.current) {
+                      const dx = Math.abs(e.clientX - dragStartPosRef.current.x);
+                      const dy = Math.abs(e.clientY - dragStartPosRef.current.y);
+                      if (dx > 5 || dy > 5) {
+                        dragStartPosRef.current = null;
+                        return; // Was a drag, don't open link
+                      }
+                    }
+                    dragStartPosRef.current = null;
+                    const url = object.data.hyperlink?.url;
+                    if (url) {
+                      window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
                   onDoubleClick={(e) => e.stopPropagation()}
                   data-testid="text-object-link"
                 >
                   {text || object.data.text || 'Type here...'}
-                </a>
+                </div>
               )}
             </>
           )}
@@ -466,17 +470,28 @@ export const TextObject: React.FC<TextObjectProps> = ({
                 cursor: 'grab',
                 pointerEvents: 'auto',
               }}
-              onClick={(e) => {
-                e.stopPropagation();
-                const url = object.data.hyperlink?.url;
-                if (url) {
-                  window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
-                }
-              }}
               onMouseDown={(e) => {
+                dragStartPosRef.current = { x: e.clientX, y: e.clientY };
                 // Allow dragging the text object via the preview card
                 if (e.button === 0 && !isEditing) {
                   onStartDrag?.(e);
+                }
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Check if mouse moved significantly from mousedown position (drag detection)
+                if (dragStartPosRef.current) {
+                  const dx = Math.abs(e.clientX - dragStartPosRef.current.x);
+                  const dy = Math.abs(e.clientY - dragStartPosRef.current.y);
+                  if (dx > 5 || dy > 5) {
+                    dragStartPosRef.current = null;
+                    return; // Was a drag, don't open link
+                  }
+                }
+                dragStartPosRef.current = null;
+                const url = object.data.hyperlink?.url;
+                if (url) {
+                  window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
                 }
               }}
               draggable={false}
