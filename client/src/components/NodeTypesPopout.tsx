@@ -9,6 +9,7 @@ import {
   Type,
   StickyNote,
   Square,
+  FileText,
 } from "lucide-react";
 import { clientToWorld } from "@/lib/kiteframe/utils/geometry";
 
@@ -48,6 +49,7 @@ export function NodeTypesPopout({
     },
     { type: "output", icon: ArrowLeft, color: "text-red-500", label: "Output" },
     { type: "ai", icon: Bot, color: "text-purple-500", label: "AI Task" },
+    { type: "form", icon: FileText, color: "text-indigo-500", label: "Form" },
   ];
 
   // Drag and drop handlers
