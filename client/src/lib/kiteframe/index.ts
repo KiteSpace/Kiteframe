@@ -8,6 +8,7 @@ export { NodeHandles } from './components/NodeHandles';
 // Library node components
 export { BasicNode } from './components/BasicNode';
 export { ImageNode } from './components/ImageNode';
+export { TableNode, createTableNode } from './components/TableNode';
 
 // Edge components and utilities
 export { EdgeProperties } from './components/EdgeProperties';
@@ -47,7 +48,16 @@ export type {
   CopyPasteConfig,
   AdvancedSelectionConfig,
   VersionControlConfig,
-  NodeType
+  NodeType,
+  DataTable,
+  DataTableColumn,
+  DataTableRow,
+  DataTableMeta,
+  TableNodeData,
+  DataBackedNodeData,
+  TableRowBinding,
+  NodeFieldBinding,
+  DataBindingsState
 } from './types';
 
 // Utilities

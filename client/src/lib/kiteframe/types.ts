@@ -95,8 +95,63 @@ export type Edge = {
   data?: any; // Keep for backward compatibility
 };
 
-export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image';
+export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table';
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
+
+// ============= DATA TABLE TYPES =============
+// Used for Table Nodes to store and display imported CSV/JSON data
+
+export type DataTableColumnType = 'string' | 'number' | 'boolean' | 'date' | 'unknown';
+
+export interface DataTableColumn {
+  id: string;
+  name: string;
+  type?: DataTableColumnType;
+  width?: number;
+}
+
+export interface DataTableRow {
+  id: string;
+  values: Record<string, string | number | boolean | null>;
+}
+
+export interface DataTableMeta {
+  primaryColumnId?: string;
+  sourceFileName?: string;
+  totalRowCount?: number;
+  importedAt?: string;
+}
+
+export interface DataTable {
+  id: string;
+  name: string;
+  columns: DataTableColumn[];
+  rows: DataTableRow[];
+  meta?: DataTableMeta;
+}
+
+// Data binding types for linking nodes to table rows
+export interface TableRowBinding {
+  type: 'tableRow';
+  tableId: string;
+  rowId: string;
+}
+
+export type NodeFieldBindingMode = 'lookupRow';
+
+export interface NodeFieldBinding {
+  id: string;
+  nodeId: string;
+  fieldKey: string;
+  mode: NodeFieldBindingMode;
+  tableId: string;
+  rowId: string;
+}
+
+export interface DataBindingsState {
+  rowBindings: TableRowBinding[];
+  fieldBindings: NodeFieldBinding[];
+}
 
 // Open Graph metadata for link previews
 export interface OgMetadata {
@@ -168,6 +223,24 @@ export interface ImageNodeData {
   };
 }
 
+// Table Node Data - extends BasicNodeData with table-specific properties
+export interface TableNodeData extends BasicNodeData {
+  tableId: string;
+  table?: DataTable;
+  previewRowCount?: number;
+  previewColumnCount?: number;
+  showRowNumbers?: boolean;
+  isPanelOpen?: boolean;
+}
+
+// Data-backed Node Data - nodes created from table rows
+export interface DataBackedNodeData extends BasicNodeData {
+  sourceTableId: string;
+  sourceRowId: string;
+  boundFields?: Record<string, string>;
+  autoSync?: boolean;
+}
+
 // Typed Node Variants for Type Safety
 export type BasicNode = Node & { 
   type: 'basic';
@@ -179,8 +252,18 @@ export type ImageNode = Node & {
   data: ImageNodeData;
 };
 
+export type TableNode = Node & {
+  type: 'table';
+  data: TableNodeData;
+};
+
+export type DataBackedNode = Node & {
+  type: 'basic';
+  data: DataBackedNodeData;
+};
+
 // Union type for core library nodes
-export type KiteFrameNode = BasicNode | ImageNode;
+export type KiteFrameNode = BasicNode | ImageNode | TableNode | DataBackedNode;
 
 // Node Creation/Factory Types
 export interface NodeTemplate<T = any> {
@@ -199,6 +282,10 @@ export interface BasicNodeTemplate extends NodeTemplate<BasicNodeData> {
 
 export interface ImageNodeTemplate extends NodeTemplate<ImageNodeData> {
   type: 'image';
+}
+
+export interface TableNodeTemplate extends NodeTemplate<TableNodeData> {
+  type: 'table';
 }
 
 // Properties System Types
