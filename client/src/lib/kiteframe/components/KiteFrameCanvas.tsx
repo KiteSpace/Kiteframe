@@ -3047,13 +3047,23 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             .filter((n) => !n.hidden)
             .map((n) => {
               const w = n.style?.width ?? n.width ?? 200;
-              // Use dynamic height calculation, but respect explicit style height or image node heights
+              // Check if node should auto-resize height based on content
+              // Auto-height is enabled by default, unless explicitly disabled or node has fixed height
+              const hasExplicitHeight = n.style?.height !== undefined || 
+                (n.type === "image" && n.data?.src && n.height !== undefined);
+              const autoHeight = n.data?.autoHeight !== false && !hasExplicitHeight;
+              
+              // Calculate minimum height (the default node height)
+              const minHeight = 100;
+              
+              // Use dynamic height calculation for fixed-height nodes
               const dynamicHeight = calculateNodeHeight(n, w);
               const explicitHeight =
                 n.style?.height ??
                 (n.type === "image" && n.data?.src ? n.height : undefined);
-              const h =
-                explicitHeight ?? Math.max(dynamicHeight, n.height ?? 100);
+              const h = autoHeight 
+                ? minHeight  // Auto-height uses min-height, content determines actual height
+                : (explicitHeight ?? Math.max(dynamicHeight, n.height ?? minHeight));
               // Enhanced color system with separate header/body colors
               const colors = n.data?.colors || {};
               const headerBg =
@@ -3444,7 +3454,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     left: n.position.x,
                     top: n.position.y,
                     width: w,
-                    height: h,
+                    // Auto-height: use minHeight and let content expand; fixed height: use fixed h
+                    ...(autoHeight 
+                      ? { minHeight: h, height: 'auto' } 
+                      : { height: h }),
                     // Use real CSS border (like StickyNoteObject) instead of box-shadow
                     borderWidth: hasNoBorder ? '0px' : '2px',
                     borderStyle: hasNoBorder ? 'none' : borderStyleValue,
@@ -3645,10 +3658,15 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         backgroundColor: bodyBg,
                         color: bodyText,
                         padding: n.type === "image" ? "0" : "8px 12px",
-                        flex: 1, // Make the body fill remaining space
+                        // When autoHeight, don't use flex:1 - let content determine height
+                        // When fixed height, use flex:1 to fill remaining space
+                        ...(autoHeight && n.type !== "image" 
+                          ? { minHeight: 40 }  // Minimum body height for auto-height nodes
+                          : { flex: 1 }),
                         display: "flex",
                         flexDirection: n.type === "image" ? "column" : "row", // Row layout for icon+text
-                        alignItems: "center", // Vertically center icon with text
+                        // When autoHeight, align items to start so text flows naturally
+                        alignItems: autoHeight && n.type !== "image" ? "flex-start" : "center",
                         gap: n.type === "image" ? undefined : "10px",
                         height:
                           n.type === "image"
