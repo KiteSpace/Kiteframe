@@ -208,6 +208,19 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   
   // Remember the editing part when text submenu opens (before blur clears inlineEditing state)
   const [rememberedEditingPart, setRememberedEditingPart] = useState<'header' | 'body' | undefined>(undefined);
+  
+  // Hyperlink input state
+  const [linkText, setLinkText] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  
+  // Reset link inputs when link submenu opens
+  useEffect(() => {
+    if (activeSubmenu === 'link') {
+      // If text is selected, use it as default link text
+      setLinkText(selectedText || '');
+      setLinkUrl('');
+    }
+  }, [activeSubmenu, selectedText]);
 
   // Sync icon visibility and reset submenu when node changes
   useEffect(() => {
@@ -956,6 +969,112 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     );
   };
 
+  const renderLinkSubmenu = () => {
+    const hasSelectedText = selectedText.length > 0;
+    
+    const handleAddLink = () => {
+      const finalText = linkText.trim() || selectedText;
+      const finalUrl = linkUrl.trim();
+      
+      if (finalText && finalUrl) {
+        onAddHyperlink?.({ text: finalText, url: finalUrl });
+        setActiveSubmenu(null);
+        setLinkText('');
+        setLinkUrl('');
+      }
+    };
+    
+    const isValidUrl = (url: string) => {
+      if (!url) return false;
+      try {
+        new URL(url.startsWith('http') ? url : `https://${url}`);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    
+    const canSubmit = (linkText.trim() || selectedText) && isValidUrl(linkUrl);
+    
+    return (
+      <div 
+        ref={submenuRef}
+        className={cn(
+          "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150 min-w-[280px]",
+          showAbove ? "bottom-full mb-2" : "top-full mt-2"
+        )}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-3">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Add Hyperlink
+          </div>
+          
+          {/* Link Text Field - only show if no text is selected */}
+          {!hasSelectedText && (
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500 dark:text-gray-400">Link Text</label>
+              <input
+                type="text"
+                value={linkText}
+                onChange={(e) => setLinkText(e.target.value)}
+                placeholder="Enter link text..."
+                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+                data-testid="link-text-input"
+              />
+            </div>
+          )}
+          
+          {/* Show selected text preview if text is selected */}
+          {hasSelectedText && (
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500 dark:text-gray-400">Link Text</label>
+              <div className="px-3 py-2 text-sm rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
+                "{selectedText}"
+              </div>
+            </div>
+          )}
+          
+          {/* URL Field */}
+          <div className="space-y-1">
+            <label className="text-xs text-gray-500 dark:text-gray-400">URL</label>
+            <input
+              type="text"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              placeholder="https://example.com"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus={hasSelectedText}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canSubmit) {
+                  handleAddLink();
+                }
+              }}
+              data-testid="link-url-input"
+            />
+          </div>
+          
+          {/* Add Button */}
+          <button
+            type="button"
+            onClick={handleAddLink}
+            disabled={!canSubmit}
+            className={cn(
+              "w-full py-2 px-4 rounded-lg text-sm font-medium transition-colors",
+              canSubmit
+                ? "bg-cyan-500 hover:bg-cyan-600 text-white"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+            )}
+            data-testid="link-add-button"
+          >
+            Add Link
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const renderTextSubmenu = () => {
     // Get node data for nodes, canvas object data for canvas objects
     const nodeData = node?.data;
@@ -1352,6 +1471,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         {activeSubmenu === 'color' && renderColorSubmenu()}
         {activeSubmenu === 'style' && renderStyleSubmenu()}
         {activeSubmenu === 'text' && renderTextSubmenu()}
+        {activeSubmenu === 'link' && renderLinkSubmenu()}
         {activeSubmenu === 'icon' && renderIconSubmenu()}
         {activeSubmenu === 'strokeStyle' && renderStrokeStyleSubmenu()}
         {activeSubmenu === 'lineType' && renderLineTypeSubmenu()}
