@@ -3837,7 +3837,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     onOpenTablePanel={(tid: string) => {
                       props.onOpenTable?.(tid);
                     }}
-                    onImportData={(nodeId: string) => {
+                    onImportData={(tid: string) => {
                       // This is triggered when Import Data button is clicked
                       // The actual import handling happens in the TablePanel
                       if (tableId) {
@@ -3851,6 +3851,87 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                           : node,
                       );
                       props.onNodesChange?.(updated);
+                    }}
+                    onStartDrag={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      if (!containerRef.current) return;
+                      const rect = containerRef.current.getBoundingClientRect();
+                      const wp = clientToWorld(
+                        e.clientX,
+                        e.clientY,
+                        viewport,
+                        rect,
+                      );
+
+                      // Check if this node is selected and if there are other selected nodes or canvas objects
+                      const selectedNodes = props.nodes.filter(
+                        (node) => node.selected === true,
+                      );
+                      const selectedCanvasObjects = (
+                        props.canvasObjects || []
+                      ).filter((obj) => obj.selected === true);
+                      const totalSelected =
+                        selectedNodes.length + selectedCanvasObjects.length;
+                      const isGroupDrag =
+                        totalSelected > 1 && n.selected === true;
+
+                      // Prepare origins for all nodes that will be dragged
+                      const origins = isGroupDrag
+                        ? selectedNodes.map((node) => ({
+                            id: node.id,
+                            origin: { ...node.position },
+                          }))
+                        : [{ id: n.id, origin: { ...n.position } }];
+
+                      // Prepare origins for all canvas objects that will be dragged
+                      const canvasObjectOrigins = isGroupDrag
+                        ? selectedCanvasObjects.map((obj) => ({
+                            id: obj.id,
+                            origin: { ...obj.position },
+                          }))
+                        : [];
+
+                      dragInfo.current = {
+                        id: n.id,
+                        start: wp,
+                        origin: { ...n.position },
+                        origins: origins,
+                        canvasObjectOrigins: canvasObjectOrigins,
+                        isGroupDrag: isGroupDrag,
+                      };
+
+                      console.log("🔧 TABLE DRAG START:", {
+                        nodeId: n.id,
+                        worldPos: wp,
+                        nodePosition: n.position,
+                        selectedNodes: selectedNodes.map((sn) => sn.id),
+                        isGroupDrag,
+                        dragInfo: dragInfo.current,
+                      });
+                    }}
+                    onClick={(e: React.MouseEvent) => {
+                      console.log(`🎯 TABLE NODE CLICK:`, {
+                        nodeId: n.id,
+                        wasSelected: n.selected,
+                      });
+                      props.onNodeClick?.(e, n);
+                    }}
+                    onHandleConnect={(position, e) => {
+                      if (!containerRef.current) return;
+                      const rect = containerRef.current.getBoundingClientRect();
+                      const wp = clientToWorld(
+                        e.clientX,
+                        e.clientY,
+                        viewport,
+                        rect,
+                      );
+                      setConnecting({
+                        sourceId: n.id,
+                        wx: wp.x,
+                        wy: wp.y,
+                        hoverTargetId: null,
+                        eligible: false,
+                      });
                     }}
                     showHandles={n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}

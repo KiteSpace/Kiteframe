@@ -25,6 +25,9 @@ interface TableNodeComponentProps {
   onDoubleClick?: (e: React.MouseEvent) => void;
   onOpenTablePanel?: (tableId: string) => void;
   onImportData?: (nodeId: string) => void;
+  onStartDrag?: (e: React.MouseEvent) => void;
+  onClick?: (e: React.MouseEvent) => void;
+  onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
   className?: string;
   style?: React.CSSProperties;
   showHandles?: boolean;
@@ -38,6 +41,9 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   onDoubleClick,
   onOpenTablePanel,
   onImportData,
+  onStartDrag,
+  onClick,
+  onHandleConnect,
   className,
   style,
   showHandles = true,
@@ -150,34 +156,23 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   const nodeWidth = node.style?.width || node.width || 280;
   const nodeHeight = node.style?.height || node.height || 200;
 
-  const nodePositionClass = useMemo(() => {
-    const filteredStyle = style ? Object.fromEntries(
-      Object.entries(style).filter(([key]) => 
-        !['position', 'left', 'top', 'right', 'bottom', 'transform', 'width', 'height'].includes(key)
-      )
-    ) : {};
-    
-    return getDynamicClassName(
-      {
-        position: "absolute",
-        left: `${node.position.x}px`,
-        top: `${node.position.y}px`,
-        width: `${nodeWidth}px`,
-        height: `${nodeHeight}px`,
-        zIndex: node.zIndex || 0,
-        ...filteredStyle,
-      },
-      `table-node-${node.id}`,
-    );
-  }, [
-    node.position.x,
-    node.position.y,
-    nodeWidth,
-    nodeHeight,
-    node.zIndex,
-    node.id,
-    style,
-  ]);
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input') || target.closest('[role="button"]')) {
+      return;
+    }
+    e.stopPropagation();
+    onStartDrag?.(e);
+  }, [onStartDrag]);
+
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input') || target.closest('[role="button"]')) {
+      return;
+    }
+    e.stopPropagation();
+    onClick?.(e);
+  }, [onClick]);
 
   const previewColumns = table?.columns?.slice(0, node.data.previewColumnCount || MAX_PREVIEW_COLUMNS) || [];
   const previewRows = table?.rows?.slice(0, node.data.previewRowCount || MAX_PREVIEW_ROWS) || [];
@@ -185,15 +180,6 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   const hasMoreColumns = (table?.columns?.length || 0) > previewColumns.length;
 
   const dropShadow = isHovering ? '0 4px 12px rgba(0,0,0,0.12)' : '0 2px 8px rgba(0,0,0,0.08)';
-  
-  const nodeStyle: React.CSSProperties = {
-    borderWidth: '2px',
-    borderStyle: 'solid',
-    borderColor: colors.borderColor,
-    boxShadow: dropShadow,
-    background: 'transparent',
-    overflow: 'visible',
-  };
 
   const renderEmptyState = () => (
     <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
@@ -290,6 +276,18 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
     </div>
   );
 
+  const containerStyle: React.CSSProperties = {
+    ...style,
+    width: nodeWidth,
+    height: nodeHeight,
+    borderWidth: '2px',
+    borderStyle: 'solid',
+    borderColor: colors.borderColor,
+    boxShadow: dropShadow,
+    background: 'transparent',
+    overflow: 'visible',
+  };
+
   return (
     <div
       ref={nodeRef}
@@ -300,18 +298,20 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
         "cursor-move",
         node.selected && "outline outline-2 outline-blue-500",
         node.hidden ? "opacity-0 pointer-events-none" : "",
-        nodePositionClass,
         className,
       )}
-      style={nodeStyle}
+      style={containerStyle}
       role="article"
       aria-label={`Table node: ${node.data.label || "Untitled"}. ${table?.rows?.length || 0} rows, ${table?.columns?.length || 0} columns`}
       aria-selected={node.selected}
       tabIndex={node.selected ? 0 : -1}
+      onMouseDown={handleMouseDown}
+      onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
       data-testid={`table-node-${node.id}`}
+      data-node-id={node.id}
     >
       {/* Header */}
       <div
@@ -406,12 +406,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
         <NodeHandles
           node={node}
           scale={1}
-          onHandleConnect={useCallback(
-            (pos: "top" | "bottom" | "left" | "right", e: React.MouseEvent) => {
-              console.log("Table node handle connect:", pos, e);
-            },
-            [],
-          )}
+          onHandleConnect={onHandleConnect}
         />
       )}
 
