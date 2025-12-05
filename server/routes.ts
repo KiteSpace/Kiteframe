@@ -1582,6 +1582,163 @@ Respond with only the corrected JSON data:`;
   // Bug Report endpoint
   app.post('/api/bug-report', handleBugReport);
 
+  // Open Graph metadata fetching for link previews
+  app.post('/api/og-metadata', async (req, res) => {
+    try {
+      const { url } = req.body;
+      
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ error: 'URL is required' });
+      }
+
+      // Validate URL format
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url);
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+          return res.status(400).json({ error: 'Only HTTP/HTTPS URLs are supported' });
+        }
+      } catch {
+        return res.status(400).json({ error: 'Invalid URL format' });
+      }
+
+      // SSRF protection: Block private/local network addresses
+      const hostname = parsedUrl.hostname.toLowerCase();
+      const blockedPatterns = [
+        /^localhost$/i,
+        /^127\./,
+        /^10\./,
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+        /^192\.168\./,
+        /^0\./,
+        /^169\.254\./,  // Link-local
+        /^::1$/,
+        /^fc00:/i,      // IPv6 private
+        /^fe80:/i,      // IPv6 link-local
+        /\.local$/i,
+        /\.internal$/i,
+        /\.localhost$/i,
+      ];
+
+      if (blockedPatterns.some(pattern => pattern.test(hostname))) {
+        return res.status(400).json({ error: 'URL not allowed' });
+      }
+
+      // Fetch the URL with a timeout
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; KiteframeBot/1.0; +https://kiteframe.app)',
+          'Accept': 'text/html,application/xhtml+xml,application/xml',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return res.status(400).json({ error: `Failed to fetch URL: ${response.status}` });
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) {
+        return res.status(400).json({ error: 'URL does not return HTML content' });
+      }
+
+      const html = await response.text();
+
+      // Extract Open Graph and meta tags
+      const metadata: {
+        title?: string;
+        description?: string;
+        favicon?: string;
+        image?: string;
+        siteName?: string;
+      } = {};
+
+      // Helper to extract meta content
+      const extractMeta = (name: string): string | undefined => {
+        const patterns = [
+          new RegExp(`<meta[^>]+property=["']${name}["'][^>]+content=["']([^"']+)["']`, 'i'),
+          new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${name}["']`, 'i'),
+          new RegExp(`<meta[^>]+name=["']${name}["'][^>]+content=["']([^"']+)["']`, 'i'),
+          new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+name=["']${name}["']`, 'i'),
+        ];
+        for (const pattern of patterns) {
+          const match = html.match(pattern);
+          if (match) return match[1];
+        }
+        return undefined;
+      };
+
+      // Extract OG tags
+      metadata.title = extractMeta('og:title') || extractMeta('twitter:title');
+      metadata.description = extractMeta('og:description') || extractMeta('twitter:description') || extractMeta('description');
+      metadata.image = extractMeta('og:image') || extractMeta('twitter:image');
+      metadata.siteName = extractMeta('og:site_name');
+
+      // Fallback title from <title> tag
+      if (!metadata.title) {
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        if (titleMatch) {
+          metadata.title = titleMatch[1].trim();
+        }
+      }
+
+      // Extract favicon
+      const faviconPatterns = [
+        /<link[^>]+rel=["'](?:shortcut )?icon["'][^>]+href=["']([^"']+)["']/i,
+        /<link[^>]+href=["']([^"']+)["'][^>]+rel=["'](?:shortcut )?icon["']/i,
+        /<link[^>]+rel=["']apple-touch-icon["'][^>]+href=["']([^"']+)["']/i,
+      ];
+
+      for (const pattern of faviconPatterns) {
+        const match = html.match(pattern);
+        if (match) {
+          let faviconUrl = match[1];
+          // Resolve relative URLs
+          if (faviconUrl.startsWith('//')) {
+            faviconUrl = parsedUrl.protocol + faviconUrl;
+          } else if (faviconUrl.startsWith('/')) {
+            faviconUrl = parsedUrl.origin + faviconUrl;
+          } else if (!faviconUrl.startsWith('http')) {
+            faviconUrl = new URL(faviconUrl, url).href;
+          }
+          metadata.favicon = faviconUrl;
+          break;
+        }
+      }
+
+      // Default favicon fallback
+      if (!metadata.favicon) {
+        metadata.favicon = `${parsedUrl.origin}/favicon.ico`;
+      }
+
+      // Resolve relative image URLs
+      if (metadata.image && !metadata.image.startsWith('http')) {
+        if (metadata.image.startsWith('//')) {
+          metadata.image = parsedUrl.protocol + metadata.image;
+        } else if (metadata.image.startsWith('/')) {
+          metadata.image = parsedUrl.origin + metadata.image;
+        } else {
+          metadata.image = new URL(metadata.image, url).href;
+        }
+      }
+
+      res.json({ success: true, metadata });
+
+    } catch (error: any) {
+      console.error('OG metadata fetch error:', error);
+      if (error.name === 'AbortError') {
+        return res.status(408).json({ error: 'Request timeout' });
+      }
+      res.status(500).json({ error: 'Failed to fetch metadata' });
+    }
+  });
+
   // SMTP Configuration info (GET)
   app.get('/api/smtp-config', (req, res) => {
     res.json({

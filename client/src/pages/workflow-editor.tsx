@@ -6606,14 +6606,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             selectedText={selectedText}
             onAddHyperlink={(hyperlink) => {
-              const { text: linkText, url } = hyperlink;
-              console.log('🔗 Adding hyperlink:', { linkText, url, nodeId: linearToolbar.node?.id });
+              const { text: linkText, url, showPreview, metadata } = hyperlink;
+              console.log('🔗 Adding hyperlink:', { linkText, url, showPreview, metadata, nodeId: linearToolbar.node?.id });
               if (linearToolbar.node) {
                 saveToHistory();
                 setNodes(prev => prev.map(n => {
                   if (n.id !== linearToolbar.node!.id) return n;
                   // Store hyperlink as separate data property (or remove if empty)
-                  const newHyperlink = (linkText && url) ? { text: linkText, url } : undefined;
+                  const newHyperlink = (linkText && url) ? { 
+                    text: linkText, 
+                    url,
+                    showPreview: showPreview ?? false,
+                    metadata: metadata ?? undefined
+                  } : undefined;
                   console.log('🔗 Updated hyperlink:', { newHyperlink });
                   return { 
                     ...n, 

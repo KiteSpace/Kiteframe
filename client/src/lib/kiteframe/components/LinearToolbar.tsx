@@ -65,7 +65,18 @@ interface LinearToolbarProps {
     underline?: boolean;
     align?: 'left' | 'center' | 'right';
   }, part?: 'header' | 'body') => void;
-  onAddHyperlink?: (hyperlink: { text: string; url: string }) => void;
+  onAddHyperlink?: (hyperlink: { 
+    text: string; 
+    url: string; 
+    showPreview?: boolean;
+    metadata?: {
+      title?: string;
+      description?: string;
+      favicon?: string;
+      image?: string;
+      siteName?: string;
+    };
+  }) => void;
   selectedText?: string;
   onDelete?: () => void;
   onEdgeStyleChange?: (style: {
@@ -221,6 +232,15 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   // Hyperlink input state
   const [linkText, setLinkText] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewMetadata, setPreviewMetadata] = useState<{
+    title?: string;
+    description?: string;
+    favicon?: string;
+    image?: string;
+    siteName?: string;
+  } | null>(null);
   
   // Cache the selected text when link submenu opens (before blur clears it)
   const cachedSelectedTextRef = useRef('');
@@ -233,9 +253,13 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       if (existingLink?.text && existingLink?.url) {
         setLinkText(existingLink.text);
         setLinkUrl(existingLink.url);
+        setShowPreview(existingLink.showPreview ?? false);
+        setPreviewMetadata(existingLink.metadata ?? null);
       } else {
         setLinkText('');
         setLinkUrl('');
+        setShowPreview(false);
+        setPreviewMetadata(null);
       }
     }
   }, [activeSubmenu, node?.data?.hyperlink]); // Re-run when hyperlink data changes
@@ -983,21 +1007,75 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     const existingLink = node?.data?.hyperlink;
     const isEditing = !!existingLink;
     
-    const handleAddLink = () => {
+    const fetchMetadata = async (url: string) => {
+      setPreviewLoading(true);
+      try {
+        let normalizedUrl = url;
+        if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+          normalizedUrl = 'https://' + normalizedUrl;
+        }
+        
+        const response = await fetch('/api/og-metadata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: normalizedUrl }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.metadata) {
+            setPreviewMetadata(data.metadata);
+            return data.metadata;
+          }
+        }
+        return null;
+      } catch (error) {
+        console.error('Failed to fetch metadata:', error);
+        return null;
+      } finally {
+        setPreviewLoading(false);
+      }
+    };
+    
+    const handleTogglePreview = async () => {
+      const newShowPreview = !showPreview;
+      setShowPreview(newShowPreview);
+      
+      if (newShowPreview && !previewMetadata && linkUrl) {
+        // Fetch metadata when enabling preview
+        await fetchMetadata(linkUrl);
+      }
+    };
+    
+    const handleAddLink = async () => {
       const finalText = linkText.trim();
       const finalUrl = linkUrl.trim();
       
-      console.log('🔗 Link submenu handleAddLink:', { linkText: finalText, linkUrl: finalUrl, isEditing });
+      console.log('🔗 Link submenu handleAddLink:', { linkText: finalText, linkUrl: finalUrl, isEditing, showPreview });
       
       if (finalText && finalUrl) {
         let url = finalUrl;
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
           url = 'https://' + url;
         }
-        onAddHyperlink?.({ text: finalText, url });
+        
+        // If showPreview is enabled but metadata isn't fetched yet, fetch it now
+        let metadata = previewMetadata;
+        if (showPreview && !metadata) {
+          metadata = await fetchMetadata(url);
+        }
+        
+        onAddHyperlink?.({ 
+          text: finalText, 
+          url,
+          showPreview,
+          metadata: showPreview ? metadata ?? undefined : undefined,
+        });
         setActiveSubmenu(null);
         setLinkText('');
         setLinkUrl('');
+        setShowPreview(false);
+        setPreviewMetadata(null);
       }
     };
     
@@ -1006,6 +1084,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       setActiveSubmenu(null);
       setLinkText('');
       setLinkUrl('');
+      setShowPreview(false);
+      setPreviewMetadata(null);
     };
     
     const isValidUrl = (url: string) => {
@@ -1054,7 +1134,13 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             <input
               type="text"
               value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
+              onChange={(e) => {
+                setLinkUrl(e.target.value);
+                // Reset preview metadata when URL changes
+                if (previewMetadata) {
+                  setPreviewMetadata(null);
+                }
+              }}
               placeholder="https://example.com"
               className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               onKeyDown={(e) => {
@@ -1066,15 +1152,85 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             />
           </div>
           
+          {/* Show Preview Toggle */}
+          <div className="flex items-center justify-between py-1">
+            <label className="text-xs text-gray-600 dark:text-gray-300 flex items-center gap-2">
+              <Eye className="w-3.5 h-3.5" />
+              Show link preview
+            </label>
+            <button
+              type="button"
+              onClick={handleTogglePreview}
+              disabled={previewLoading}
+              className={cn(
+                "relative w-10 h-5 rounded-full transition-colors",
+                showPreview 
+                  ? "bg-cyan-500" 
+                  : "bg-gray-300 dark:bg-gray-600",
+                previewLoading && "opacity-50 cursor-wait"
+              )}
+              data-testid="link-preview-toggle"
+            >
+              <span 
+                className={cn(
+                  "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm",
+                  showPreview ? "translate-x-5" : "translate-x-0.5"
+                )}
+              />
+            </button>
+          </div>
+          
+          {/* Preview Loading Indicator */}
+          {previewLoading && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <div className="w-3 h-3 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+              Fetching preview...
+            </div>
+          )}
+          
+          {/* Preview Card (when metadata is loaded) */}
+          {showPreview && previewMetadata && !previewLoading && (
+            <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+              <div className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
+                {previewMetadata.title || 'No title'}
+              </div>
+              {previewMetadata.description && (
+                <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">
+                  {previewMetadata.description}
+                </div>
+              )}
+              <div className="flex items-center gap-1 mt-1">
+                {previewMetadata.favicon && (
+                  <img 
+                    src={previewMetadata.favicon} 
+                    alt="" 
+                    className="w-3 h-3 rounded-sm"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
+                <span className="text-[10px] text-gray-400">
+                  {(() => {
+                    try {
+                      const url = linkUrl.startsWith('http') ? linkUrl : `https://${linkUrl}`;
+                      return new URL(url).hostname;
+                    } catch {
+                      return linkUrl;
+                    }
+                  })()}
+                </span>
+              </div>
+            </div>
+          )}
+          
           {/* Buttons */}
           <div className="flex gap-2">
             <button
               type="button"
               onClick={handleAddLink}
-              disabled={!canSubmit}
+              disabled={!canSubmit || previewLoading}
               className={cn(
                 "flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors",
-                canSubmit
+                canSubmit && !previewLoading
                   ? "bg-cyan-500 hover:bg-cyan-600 text-white"
                   : "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
               )}

@@ -3730,9 +3730,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                           ? (props.inlineEditing?.nodeId === n.id && props.inlineEditing?.part === 'body' ? 'text' : 'grab')
                           : undefined,
                         overflow: 'hidden',
-                        borderRadius: n.data?.hideHeader 
-                          ? `${cornerRadius - 2}px` // All corners if no header
-                          : `0 0 ${cornerRadius - 2}px ${cornerRadius - 2}px`, // Bottom corners only
+                        borderRadius: (() => {
+                          const hasHeader = !n.data?.hideHeader;
+                          const hasHyperlink = n.data?.hyperlink?.url;
+                          if (!hasHeader && !hasHyperlink) return `${cornerRadius - 2}px`; // All corners
+                          if (!hasHeader && hasHyperlink) return `${cornerRadius - 2}px ${cornerRadius - 2}px 0 0`; // Top only
+                          if (hasHeader && !hasHyperlink) return `0 0 ${cornerRadius - 2}px ${cornerRadius - 2}px`; // Bottom only
+                          return '0'; // No corners (header has top, footer has bottom)
+                        })(),
                       }}
                       onDoubleClick={(e) => {
                         if (n.type !== "image") {
@@ -3892,6 +3897,119 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       )}
                     </div>
                   )}
+                  
+                  {/* Hyperlink Footer Section */}
+                  {n.data?.hyperlink?.url && (
+                    <div
+                      className="hyperlink-footer"
+                      style={{
+                        backgroundColor: bodyBg,
+                        borderTop: `1px solid ${border}`,
+                        padding: '8px 12px',
+                        borderRadius: `0 0 ${cornerRadius - 2}px ${cornerRadius - 2}px`,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                      }}
+                    >
+                      {/* Link row with icon and text */}
+                      <a
+                        href={n.data.hyperlink.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          color: '#3b82f6',
+                          textDecoration: 'none',
+                          fontSize: '12px',
+                          wordBreak: 'break-all',
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.textDecoration = 'underline';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.textDecoration = 'none';
+                        }}
+                      >
+                        <svg 
+                          width="14" 
+                          height="14" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ flexShrink: 0 }}
+                        >
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                          <polyline points="15 3 21 3 21 9" />
+                          <line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                        {n.data.hyperlink.text || n.data.hyperlink.url}
+                      </a>
+                      
+                      {/* Link Preview Card (when showPreview is enabled) */}
+                      {n.data.hyperlink.showPreview && n.data.hyperlink.metadata && (
+                        <div
+                          style={{
+                            backgroundColor: '#fff',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            padding: '10px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div style={{ fontWeight: 600, fontSize: '13px', color: '#1f2937' }}>
+                            {n.data.hyperlink.metadata.title || 'No title'}
+                          </div>
+                          {n.data.hyperlink.metadata.description && (
+                            <div style={{ 
+                              fontSize: '11px', 
+                              color: '#6b7280',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                            }}>
+                              {n.data.hyperlink.metadata.description}
+                            </div>
+                          )}
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '6px',
+                            marginTop: '4px',
+                          }}>
+                            {n.data.hyperlink.metadata.favicon && (
+                              <img 
+                                src={n.data.hyperlink.metadata.favicon} 
+                                alt="" 
+                                style={{ width: '16px', height: '16px', borderRadius: '2px' }}
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              />
+                            )}
+                            <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+                              {(() => {
+                                try {
+                                  return new URL(n.data.hyperlink.url).hostname;
+                                } catch {
+                                  return n.data.hyperlink.url;
+                                }
+                              })()}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   {n.showHandles !== false && (
                     <NodeHandles
                       node={n}
