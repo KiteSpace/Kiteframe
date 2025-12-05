@@ -27,22 +27,24 @@ const MAX_VISIBLE_ROWS = 50;
 const MAX_ROW_TO_NODE = 25;
 
 interface TablePanelProps {
-  table: DataTable | null;
-  isOpen: boolean;
+  tableId: string;
+  table: DataTable | undefined;
+  position?: { x: number; y: number };
   onClose: () => void;
-  onCreateNodeFromRow?: (tableId: string, rowId: string, rowData: Record<string, string | number | boolean | null>) => void;
+  onUpdateTable?: (updatedTable: DataTable) => void;
+  onCreateNodeFromRow?: (row: Record<string, unknown>, rowIndex: number) => void;
   onImportData?: (tableId: string) => void;
-  initialPosition?: { x: number; y: number };
   className?: string;
 }
 
 const TablePanelComponent: React.FC<TablePanelProps> = ({
+  tableId,
   table,
-  isOpen,
+  position: initialPosition,
   onClose,
+  onUpdateTable,
   onCreateNodeFromRow,
   onImportData,
-  initialPosition,
   className,
 }) => {
   const [position, setPosition] = useState(initialPosition || { x: 100, y: 100 });
@@ -130,22 +132,52 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
   }, [table, searchQuery, sortColumn, sortDirection]);
 
   const canCreateFromRow = useCallback((index: number) => index < MAX_ROW_TO_NODE, []);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleCreateNode = useCallback((row: DataTableRow, e: React.MouseEvent) => {
+  const handleCreateNode = useCallback((row: DataTableRow, rowIndex: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (table) {
-      onCreateNodeFromRow?.(table.id, row.id, row.values);
-    }
-  }, [table, onCreateNodeFromRow]);
+    onCreateNodeFromRow?.(row.values as Record<string, unknown>, rowIndex);
+  }, [onCreateNodeFromRow]);
 
-  const handleImport = useCallback((e: React.MouseEvent) => {
+  const handleImportClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (table) {
-      onImportData?.(table.id);
+    if (onImportData) {
+      onImportData(tableId);
+    } else {
+      fileInputRef.current?.click();
     }
-  }, [table, onImportData]);
+  }, [onImportData, tableId]);
 
-  if (!isOpen || !table) return null;
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      const text = await file.text();
+      const fileName = file.name.toLowerCase();
+      
+      let parsedTable: DataTable;
+      
+      if (fileName.endsWith('.json')) {
+        const { parseJSONToTable } = await import('../utils/dataImport');
+        parsedTable = parseJSONToTable(text, tableId);
+      } else if (fileName.endsWith('.csv')) {
+        const { parseCSVToTable } = await import('../utils/dataImport');
+        parsedTable = parseCSVToTable(text, tableId);
+      } else {
+        console.error('Unsupported file type');
+        return;
+      }
+      
+      onUpdateTable?.(parsedTable);
+    } catch (error) {
+      console.error('Error parsing file:', error);
+    }
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [tableId, onUpdateTable]);
 
   const panelStyle: React.CSSProperties = isMaximized 
     ? {
@@ -167,6 +199,10 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
         zIndex: 1000,
       };
 
+  const tableName = table?.name || 'Table';
+  const rowCount = table?.rows?.length || 0;
+  const colCount = table?.columns?.length || 0;
+
   return (
     <div
       ref={panelRef}
@@ -178,6 +214,16 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
       style={panelStyle}
       data-testid="table-panel"
     >
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,.json"
+        onChange={handleFileChange}
+        className="hidden"
+        data-testid="table-panel-file-input"
+      />
+
       {/* Header - Draggable */}
       <div
         ref={headerRef}
@@ -190,9 +236,9 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
         <div className="flex items-center gap-3">
           <GripHorizontal size={18} className="opacity-50" />
           <Table2 size={20} />
-          <span className="font-semibold text-lg">{sanitizeText(table.name)}</span>
+          <span className="font-semibold text-lg">{sanitizeText(tableName)}</span>
           <span className="px-2 py-0.5 bg-white/20 rounded text-sm">
-            {table.rows.length} rows × {table.columns.length} cols
+            {rowCount} rows × {colCount} cols
           </span>
         </div>
         
@@ -231,7 +277,7 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
         </div>
         
         <button
-          onClick={handleImport}
+          onClick={handleImportClick}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           data-testid="table-panel-import"
         >
@@ -240,100 +286,118 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
         </button>
         
         <div className="ml-auto text-sm text-gray-500 dark:text-gray-400">
-          Showing {filteredAndSortedRows.length} of {table.meta?.totalRowCount ?? table.rows.length} rows
+          Showing {filteredAndSortedRows.length} of {table?.meta?.totalRowCount ?? rowCount} rows
         </div>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
-            <tr>
-              <th className="w-10 px-3 py-2 text-left text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-gray-700">
-                #
-              </th>
-              {table.columns.map((col: DataTableColumn) => (
-                <th 
-                  key={col.id}
-                  onClick={() => handleColumnSort(col.id)}
-                  className="px-3 py-2 text-left font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  style={{ minWidth: col.width || 100 }}
-                >
-                  <div className="flex items-center gap-1">
-                    <span>{sanitizeText(col.name)}</span>
-                    {sortColumn === col.id && (
-                      sortDirection === 'asc' 
-                        ? <ChevronUp size={14} className="text-indigo-500" />
-                        : <ChevronDown size={14} className="text-indigo-500" />
-                    )}
-                  </div>
+      {/* Table Content */}
+      {table && table.columns && table.columns.length > 0 ? (
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
+              <tr>
+                <th className="w-10 px-3 py-2 text-left text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-gray-700">
+                  #
                 </th>
-              ))}
-              <th className="w-14 px-3 py-2 text-center font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAndSortedRows.map((row: DataTableRow, rowIndex: number) => (
-              <tr 
-                key={row.id}
-                className={cn(
-                  "border-b border-gray-100 dark:border-gray-800 transition-colors",
-                  hoveredRowId === row.id && "bg-indigo-50 dark:bg-indigo-900/20"
-                )}
-                onMouseEnter={() => setHoveredRowId(row.id)}
-                onMouseLeave={() => setHoveredRowId(null)}
-              >
-                <td className="px-3 py-2 text-gray-400">
-                  {rowIndex + 1}
-                </td>
                 {table.columns.map((col: DataTableColumn) => (
-                  <td 
+                  <th 
                     key={col.id}
-                    className="px-3 py-2 text-gray-600 dark:text-gray-400"
-                    title={String(row.values[col.id] ?? "")}
+                    onClick={() => handleColumnSort(col.id)}
+                    className="px-3 py-2 text-left font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    style={{ minWidth: col.width || 100 }}
                   >
-                    <div className="truncate max-w-[200px]">
-                      {String(row.values[col.id] ?? "")}
-                    </div>
-                  </td>
-                ))}
-                <td className="px-3 py-2 text-center">
-                  {canCreateFromRow(rowIndex) ? (
-                    <button
-                      onClick={(e) => handleCreateNode(row, e)}
-                      className={cn(
-                        "p-1 rounded transition-all",
-                        hoveredRowId === row.id 
-                          ? "bg-indigo-500 text-white shadow-sm" 
-                          : "text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                    <div className="flex items-center gap-1">
+                      <span>{sanitizeText(col.name)}</span>
+                      {sortColumn === col.id && (
+                        sortDirection === 'asc' 
+                          ? <ChevronUp size={14} className="text-indigo-500" />
+                          : <ChevronDown size={14} className="text-indigo-500" />
                       )}
-                      title="Create node from this row"
-                      data-testid={`table-row-create-node-${row.id}`}
-                    >
-                      <Plus size={16} />
-                    </button>
-                  ) : (
-                    <span className="text-gray-300 dark:text-gray-600" title="Row limit reached">
-                      —
-                    </span>
-                  )}
-                </td>
+                    </div>
+                  </th>
+                ))}
+                <th className="w-14 px-3 py-2 text-center font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                  Actions
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filteredAndSortedRows.map((row: DataTableRow, rowIndex: number) => (
+                <tr 
+                  key={row.id}
+                  className={cn(
+                    "border-b border-gray-100 dark:border-gray-800 transition-colors",
+                    hoveredRowId === row.id && "bg-indigo-50 dark:bg-indigo-900/20"
+                  )}
+                  onMouseEnter={() => setHoveredRowId(row.id)}
+                  onMouseLeave={() => setHoveredRowId(null)}
+                >
+                  <td className="px-3 py-2 text-gray-400">
+                    {rowIndex + 1}
+                  </td>
+                  {table.columns.map((col: DataTableColumn) => (
+                    <td 
+                      key={col.id}
+                      className="px-3 py-2 text-gray-600 dark:text-gray-400"
+                      title={String(row.values[col.id] ?? "")}
+                    >
+                      <div className="truncate max-w-[200px]">
+                        {String(row.values[col.id] ?? "")}
+                      </div>
+                    </td>
+                  ))}
+                  <td className="px-3 py-2 text-center">
+                    {canCreateFromRow(rowIndex) ? (
+                      <button
+                        onClick={(e) => handleCreateNode(row, rowIndex, e)}
+                        className={cn(
+                          "p-1 rounded transition-all",
+                          hoveredRowId === row.id 
+                            ? "bg-indigo-500 text-white shadow-sm" 
+                            : "text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                        )}
+                        title="Create node from this row"
+                        data-testid={`table-row-create-node-${row.id}`}
+                      >
+                        <Plus size={16} />
+                      </button>
+                    ) : (
+                      <span className="text-gray-300 dark:text-gray-600" title="Row limit reached">
+                        —
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4">
+            <Upload size={32} className="text-gray-400" />
+          </div>
+          <p className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">No data imported</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Import a CSV or JSON file to get started</p>
+          <button
+            onClick={handleImportClick}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
+            data-testid="table-panel-import-empty"
+          >
+            <Plus size={18} />
+            Import CSV/JSON
+          </button>
+        </div>
+      )}
 
       {/* Footer */}
-      {table.rows.length > MAX_ROW_TO_NODE && (
+      {rowCount > MAX_ROW_TO_NODE && (
         <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm">
           <span className="font-medium">Note:</span> Row-to-node creation is limited to the first {MAX_ROW_TO_NODE} rows for performance.
         </div>
       )}
       
-      {table.meta?.sourceFileName && (
+      {table?.meta?.sourceFileName && (
         <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs">
           Source: {table.meta.sourceFileName}
           {table.meta.importedAt && ` • Imported ${new Date(table.meta.importedAt).toLocaleString()}`}
