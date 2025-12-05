@@ -1,7 +1,16 @@
 import React from 'react';
 import type { Edge, Node, EdgeStyle, EdgeMarker } from '../types';
 
-function anchor(node: Node, toward: Node){
+// Direction type for edge anchor points
+type AnchorDirection = 'left' | 'right' | 'top' | 'bottom';
+
+interface AnchorResult {
+  x: number;
+  y: number;
+  direction: AnchorDirection;
+}
+
+function anchor(node: Node, toward: Node): AnchorResult {
   const w = node.style?.width ?? node.width ?? 200;
   const h = node.style?.height ?? node.height ?? 100;
   const x = node.position.x, y = node.position.y;
@@ -14,64 +23,155 @@ function anchor(node: Node, toward: Node){
   const ha = Math.abs(angle) < Math.PI/4 || Math.abs(angle) > 3*Math.PI/4;
   
   // Edge endpoints connect at exact node boundaries to align with NodeHandles centers
-  if (ha) return dx > 0 ? { x: x + w, y: cy } : { x, y: cy };
-  return dy > 0 ? { x: cx, y: y + h } : { x: cx, y };
+  if (ha) {
+    return dx > 0 
+      ? { x: x + w, y: cy, direction: 'right' } 
+      : { x, y: cy, direction: 'left' };
+  }
+  return dy > 0 
+    ? { x: cx, y: y + h, direction: 'bottom' } 
+    : { x: cx, y, direction: 'top' };
 }
 
 // Helper function to round coordinates for crisp rendering
 const r = (n: number) => Math.round(n);
 
 // Helper function to generate path based on edge type
-function generatePath(type: string, s: { x: number; y: number }, t: { x: number; y: number }, options: any = {}) {
+function generatePath(
+  type: string, 
+  s: AnchorResult, 
+  t: AnchorResult, 
+  options: any = {}
+) {
   const { curvature = 0.5, cornerRadius = 10 } = options;
   
   // Round source and target coordinates for pixel-perfect rendering
   const sx = r(s.x), sy = r(s.y);
   const tx = r(t.x), ty = r(t.y);
   
+  // Calculate control point offset based on distance, clamped for reasonable curves
+  const distance = Math.sqrt(Math.pow(tx - sx, 2) + Math.pow(ty - sy, 2));
+  const controlOffset = Math.min(Math.max(30, distance * 0.4), 150); // Clamp between 30-150
+  
+  // Get control point offsets based on anchor directions (with safe default)
+  const getControlOffset = (dir: AnchorDirection | undefined, offset: number): { dx: number; dy: number } => {
+    switch (dir) {
+      case 'right': return { dx: offset, dy: 0 };
+      case 'left': return { dx: -offset, dy: 0 };
+      case 'bottom': return { dx: 0, dy: offset };
+      case 'top': return { dx: 0, dy: -offset };
+      default: return { dx: 0, dy: 0 }; // Safe fallback
+    }
+  };
+  
+  // Get direction-aware control points for source and target
+  const sourceOffset = getControlOffset(s.direction, controlOffset);
+  const targetOffset = getControlOffset(t.direction, controlOffset);
+  
   switch (type) {
     case 'straight':
       return `M ${sx} ${sy} L ${tx} ${ty}`;
       
-    case 'step':
-      const mx = r(sx + (tx - sx) / 2);
-      if (cornerRadius > 0) {
-        // Rounded step edge
-        const rad = Math.min(cornerRadius, Math.abs(tx - mx) / 2, Math.abs(ty - sy) / 2);
-        const dx = tx > mx ? 1 : -1;
-        const dy = ty > sy ? 1 : -1;
-        return `M ${sx} ${sy} L ${r(mx - rad * dx)} ${sy} Q ${mx} ${sy} ${mx} ${r(sy + rad * dy)} L ${mx} ${r(ty - rad * dy)} Q ${mx} ${ty} ${r(mx + rad * dx)} ${ty} L ${tx} ${ty}`;
+    case 'step': {
+      // Direction-aware step: use source direction to determine first leg
+      const isSourceHorizontal = s.direction === 'left' || s.direction === 'right';
+      const isTargetHorizontal = t.direction === 'left' || t.direction === 'right';
+      
+      if (isSourceHorizontal && isTargetHorizontal) {
+        // Both horizontal: go horizontal first, then vertical
+        const mx = r(sx + (tx - sx) / 2);
+        if (cornerRadius > 0) {
+          const rad = Math.min(cornerRadius, Math.abs(tx - mx) / 2, Math.abs(ty - sy) / 2);
+          const dx = tx > mx ? 1 : -1;
+          const dy = ty > sy ? 1 : -1;
+          return `M ${sx} ${sy} L ${r(mx - rad * dx)} ${sy} Q ${mx} ${sy} ${mx} ${r(sy + rad * dy)} L ${mx} ${r(ty - rad * dy)} Q ${mx} ${ty} ${r(mx + rad * dx)} ${ty} L ${tx} ${ty}`;
+        }
+        return `M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ty} L ${tx} ${ty}`;
+      } else if (!isSourceHorizontal && !isTargetHorizontal) {
+        // Both vertical: go vertical first, then horizontal
+        const my = r(sy + (ty - sy) / 2);
+        if (cornerRadius > 0) {
+          const rad = Math.min(cornerRadius, Math.abs(ty - my) / 2, Math.abs(tx - sx) / 2);
+          const dx = tx > sx ? 1 : -1;
+          const dy = ty > my ? 1 : -1;
+          return `M ${sx} ${sy} L ${sx} ${r(my - rad * dy)} Q ${sx} ${my} ${r(sx + rad * dx)} ${my} L ${r(tx - rad * dx)} ${my} Q ${tx} ${my} ${tx} ${r(my + rad * dy)} L ${tx} ${ty}`;
+        }
+        return `M ${sx} ${sy} L ${sx} ${my} L ${tx} ${my} L ${tx} ${ty}`;
+      } else {
+        // Mixed: go in source direction first
+        if (cornerRadius > 0) {
+          const rad = Math.min(cornerRadius, Math.abs(tx - sx) / 2, Math.abs(ty - sy) / 2);
+          if (isSourceHorizontal) {
+            const dx = tx > sx ? 1 : -1;
+            const dy = ty > sy ? 1 : -1;
+            return `M ${sx} ${sy} L ${r(tx - rad * dx)} ${sy} Q ${tx} ${sy} ${tx} ${r(sy + rad * dy)} L ${tx} ${ty}`;
+          } else {
+            const dx = tx > sx ? 1 : -1;
+            const dy = ty > sy ? 1 : -1;
+            return `M ${sx} ${sy} L ${sx} ${r(ty - rad * dy)} Q ${sx} ${ty} ${r(sx + rad * dx)} ${ty} L ${tx} ${ty}`;
+          }
+        }
+        if (isSourceHorizontal) {
+          return `M ${sx} ${sy} L ${tx} ${sy} L ${tx} ${ty}`;
+        } else {
+          return `M ${sx} ${sy} L ${sx} ${ty} L ${tx} ${ty}`;
+        }
       }
-      return `M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ty} L ${tx} ${ty}`;
+    }
       
-    case 'smoothstep':
-      const smx = r(sx + (tx - sx) / 2);
-      const curve = r(Math.abs(ty - sy) * 0.3);
-      return `M ${sx} ${sy} C ${r(sx + curve)} ${sy}, ${r(smx - curve)} ${sy}, ${smx} ${sy} L ${smx} ${ty} C ${r(smx + curve)} ${ty}, ${r(tx - curve)} ${ty}, ${tx} ${ty}`;
+    case 'smoothstep': {
+      // Direction-aware smoothstep
+      const isSourceHorizontal = s.direction === 'left' || s.direction === 'right';
+      if (isSourceHorizontal) {
+        const smx = r(sx + (tx - sx) / 2);
+        const curve = r(Math.min(Math.abs(ty - sy) * 0.3, 50));
+        return `M ${sx} ${sy} C ${r(sx + curve)} ${sy}, ${r(smx - curve)} ${sy}, ${smx} ${sy} L ${smx} ${ty} C ${r(smx + curve)} ${ty}, ${r(tx - curve)} ${ty}, ${tx} ${ty}`;
+      } else {
+        const smy = r(sy + (ty - sy) / 2);
+        const curve = r(Math.min(Math.abs(tx - sx) * 0.3, 50));
+        return `M ${sx} ${sy} C ${sx} ${r(sy + curve)}, ${sx} ${r(smy - curve)}, ${sx} ${smy} L ${tx} ${smy} C ${tx} ${r(smy + curve)}, ${tx} ${r(ty - curve)}, ${tx} ${ty}`;
+      }
+    }
       
-    case 'curved':
-      const distance = Math.sqrt(Math.pow(tx - sx, 2) + Math.pow(ty - sy, 2));
-      const offset = distance * curvature * 0.5;
+    case 'curved': {
+      // Direction-aware curved path using quadratic bezier
+      const curvedOffset = Math.min(distance * curvature * 0.5, 100);
       const midX = (sx + tx) / 2;
       const midY = (sy + ty) / 2;
       const angle = Math.atan2(ty - sy, tx - sx) + Math.PI / 2;
-      const cx = r(midX + Math.cos(angle) * offset);
-      const cy = r(midY + Math.sin(angle) * offset);
+      const cx = r(midX + Math.cos(angle) * curvedOffset);
+      const cy = r(midY + Math.sin(angle) * curvedOffset);
       return `M ${sx} ${sy} Q ${cx} ${cy} ${tx} ${ty}`;
+    }
       
-    case 'orthogonal':
-      const isHorizontalFirst = Math.abs(tx - sx) > Math.abs(ty - sy);
-      if (isHorizontalFirst) {
+    case 'orthogonal': {
+      // Direction-aware orthogonal: enter/exit perpendicular to connected sides
+      const isSourceHorizontal = s.direction === 'left' || s.direction === 'right';
+      const isTargetHorizontal = t.direction === 'left' || t.direction === 'right';
+      
+      if (isSourceHorizontal && isTargetHorizontal) {
+        // Both horizontal: go horizontal, then vertical, then horizontal
+        const mx = r((sx + tx) / 2);
+        return `M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ty} L ${tx} ${ty}`;
+      } else if (!isSourceHorizontal && !isTargetHorizontal) {
+        // Both vertical: go vertical, then horizontal, then vertical
+        const my = r((sy + ty) / 2);
+        return `M ${sx} ${sy} L ${sx} ${my} L ${tx} ${my} L ${tx} ${ty}`;
+      } else if (isSourceHorizontal && !isTargetHorizontal) {
+        // Source horizontal, target vertical: horizontal then vertical
         return `M ${sx} ${sy} L ${tx} ${sy} L ${tx} ${ty}`;
       } else {
+        // Source vertical, target horizontal: vertical then horizontal
         return `M ${sx} ${sy} L ${sx} ${ty} L ${tx} ${ty}`;
       }
+    }
       
-    default: // bezier
-      const c1x = r(sx + (tx - sx) * 0.5);
-      const c1y = sy;
-      const c2x = r(tx - (tx - sx) * 0.5);
-      const c2y = ty;
+    default: // bezier - direction-aware control points
+      const c1x = r(sx + sourceOffset.dx);
+      const c1y = r(sy + sourceOffset.dy);
+      const c2x = r(tx + targetOffset.dx);
+      const c2y = r(ty + targetOffset.dy);
+      
       return `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tx} ${ty}`;
   }
 }
