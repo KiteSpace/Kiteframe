@@ -74,8 +74,33 @@ export const TextObject: React.FC<TextObjectProps> = ({
   const [touchStartTime, setTouchStartTime] = useState(0);
   const [lastTapTime, setLastTapTime] = useState(0);
   
-  // Hover state for hyperlink menu
+  // Hover state for hyperlink menu with delay to prevent quick disappearance
   const [showHyperlinkMenu, setShowHyperlinkMenu] = useState(false);
+  const hyperlinkMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const handleHyperlinkMenuEnter = useCallback(() => {
+    if (hyperlinkMenuTimeoutRef.current) {
+      clearTimeout(hyperlinkMenuTimeoutRef.current);
+      hyperlinkMenuTimeoutRef.current = null;
+    }
+    setShowHyperlinkMenu(true);
+  }, []);
+  
+  const handleHyperlinkMenuLeave = useCallback(() => {
+    // Add delay before hiding to give user time to move to the menu
+    hyperlinkMenuTimeoutRef.current = setTimeout(() => {
+      setShowHyperlinkMenu(false);
+    }, 200);
+  }, []);
+  
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hyperlinkMenuTimeoutRef.current) {
+        clearTimeout(hyperlinkMenuTimeoutRef.current);
+      }
+    };
+  }, []);
   
   // Drag detection to prevent link opening after drag
   const dragStartPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -371,15 +396,15 @@ export const TextObject: React.FC<TextObjectProps> = ({
       {object.data.hyperlink?.url ? (
         <div
           className="relative"
-          onMouseEnter={() => setShowHyperlinkMenu(true)}
-          onMouseLeave={() => setShowHyperlinkMenu(false)}
+          onMouseEnter={handleHyperlinkMenuEnter}
+          onMouseLeave={handleHyperlinkMenuLeave}
         >
           {/* Hover menu - Edit/Delete only (click on link itself opens it) */}
           {showHyperlinkMenu && !isEditing && (
             <div
               className="absolute left-0 bottom-full mb-1 z-50 animate-in fade-in-0 zoom-in-95 duration-150"
-              onMouseEnter={() => setShowHyperlinkMenu(true)}
-              onMouseLeave={() => setShowHyperlinkMenu(false)}
+              onMouseEnter={handleHyperlinkMenuEnter}
+              onMouseLeave={handleHyperlinkMenuLeave}
             >
               <div 
                 style={{

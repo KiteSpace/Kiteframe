@@ -1186,47 +1186,37 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="space-y-3">
-          <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
-            {isEditing ? 'Edit Link' : 'Add Link'}
-          </div>
-          
           {/* Link Text Field */}
-          <div className="space-y-1">
-            <label className="text-xs text-gray-500 dark:text-gray-400">Button Text</label>
-            <input
-              type="text"
-              value={linkText}
-              onChange={(e) => setLinkText(e.target.value)}
-              placeholder="Enter button text..."
-              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              autoFocus
-              data-testid="link-text-input"
-            />
-          </div>
+          <input
+            type="text"
+            value={linkText}
+            onChange={(e) => setLinkText(e.target.value)}
+            placeholder="Button text..."
+            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            autoFocus
+            data-testid="link-text-input"
+          />
           
           {/* URL Field */}
-          <div className="space-y-1">
-            <label className="text-xs text-gray-500 dark:text-gray-400">URL</label>
-            <input
-              type="text"
-              value={linkUrl}
-              onChange={(e) => {
-                setLinkUrl(e.target.value);
-                // Reset preview metadata when URL changes
-                if (previewMetadata) {
-                  setPreviewMetadata(null);
-                }
-              }}
-              placeholder="https://example.com"
-              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && canSubmit) {
-                  handleAddLink();
-                }
-              }}
-              data-testid="link-url-input"
-            />
-          </div>
+          <input
+            type="text"
+            value={linkUrl}
+            onChange={(e) => {
+              setLinkUrl(e.target.value);
+              // Reset preview metadata when URL changes
+              if (previewMetadata) {
+                setPreviewMetadata(null);
+              }
+            }}
+            placeholder="https://example.com"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && canSubmit) {
+                handleAddLink();
+              }
+            }}
+            data-testid="link-url-input"
+          />
           
           {/* Show Preview Toggle */}
           <div className="flex items-center justify-between py-1">
@@ -1312,7 +1302,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               )}
               data-testid="link-add-button"
             >
-              {isEditing ? 'Update' : 'Add Link'}
+              {isEditing ? 'Update' : 'Add'}
             </button>
             
             {isEditing && (
@@ -1435,28 +1425,22 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="space-y-3">
-          <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
-            {isEditing ? 'Edit Hyperlink' : 'Add Hyperlink'}
-          </div>
-          
           {/* URL Input */}
-          <div className="space-y-1">
-            <label className="text-xs text-gray-500 dark:text-gray-400">URL</label>
-            <input
-              type="text"
-              value={textLinkUrl}
-              onChange={(e) => setTextLinkUrl(e.target.value)}
-              placeholder="https://example.com"
-              className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && canSubmit && !textPreviewLoading) {
-                  e.preventDefault();
-                  handleApplyTextLink();
-                }
-              }}
-              data-testid="text-link-url-input"
-            />
-          </div>
+          <input
+            type="text"
+            value={textLinkUrl}
+            onChange={(e) => setTextLinkUrl(e.target.value)}
+            placeholder="https://example.com"
+            className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && canSubmit && !textPreviewLoading) {
+                e.preventDefault();
+                handleApplyTextLink();
+              }
+            }}
+            data-testid="text-link-url-input"
+            autoFocus
+          />
           
           {/* Show Text Toggle */}
           <div className="flex items-center justify-between py-1">
@@ -1568,7 +1552,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               )}
               data-testid="text-link-apply-button"
             >
-              {isEditing ? 'Update' : 'Add Link'}
+              {isEditing ? 'Update' : 'Add'}
             </button>
             
             {isEditing && (
