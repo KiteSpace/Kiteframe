@@ -3934,6 +3934,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     }}
                     showHandles={n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
+                    viewport={viewport}
                     style={{
                       position: "absolute",
                       left: n.position.x,

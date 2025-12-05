@@ -44,6 +44,7 @@ interface TableNodeComponentProps {
   style?: React.CSSProperties;
   showHandles?: boolean;
   showResizeHandle?: boolean;
+  viewport?: { x: number; y: number; zoom: number };
 }
 
 const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
@@ -60,6 +61,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   style,
   showHandles = true,
   showResizeHandle = true,
+  viewport,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(node.data.label || "");
@@ -521,8 +523,8 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       {/* Connection Handles - positioned outside visual container */}
       {showHandles && (
         <NodeHandles
-          node={node}
-          scale={1}
+          node={{ ...node, width: nodeWidth, height: nodeHeight }}
+          scale={viewport?.zoom || 1}
           onHandleConnect={onHandleConnect}
         />
       )}
