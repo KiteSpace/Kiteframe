@@ -1343,14 +1343,14 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     
     return (
       <div className="relative">
-        {/* Main inline text toolbar */}
-        <div className="flex items-center bg-gray-900 dark:bg-gray-800 rounded-full shadow-xl border border-gray-700 dark:border-gray-600 animate-in fade-in-0 zoom-in-95 duration-200">
+        {/* Main inline text toolbar - themed to match main toolbar */}
+        <div className="flex items-center bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-full shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-200">
           {/* Text Size Dropdown */}
           <button
             className={cn(
-              "flex items-center gap-1.5 h-10 px-4 text-white text-sm font-medium rounded-l-full transition-colors",
-              "hover:bg-gray-800 dark:hover:bg-gray-700",
-              activeSubmenu === 'textSize' && "bg-gray-800 dark:bg-gray-700"
+              "flex items-center gap-1.5 h-10 px-4 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-l-full transition-colors",
+              "hover:bg-gray-100 dark:hover:bg-gray-700",
+              activeSubmenu === 'textSize' && "bg-gray-100 dark:bg-gray-700"
             )}
             onClick={() => setActiveSubmenu(activeSubmenu === 'textSize' ? null : 'textSize')}
             data-testid="toolbar-textsize-dropdown"
@@ -1360,14 +1360,14 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           </button>
           
           {/* Divider */}
-          <div className="w-px h-6 bg-gray-700 dark:bg-gray-600" />
+          <div className="w-px h-6 bg-gray-200 dark:bg-gray-600" />
           
           {/* Bold */}
           <button
             className={cn(
-              "w-10 h-10 flex items-center justify-center text-white transition-colors",
-              "hover:bg-gray-800 dark:hover:bg-gray-700",
-              isBold && "bg-violet-600 dark:bg-violet-700"
+              "w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-200 transition-colors",
+              "hover:bg-gray-100 dark:hover:bg-gray-700",
+              isBold && "bg-violet-100 dark:bg-violet-600 text-violet-700 dark:text-white"
             )}
             onClick={handleBoldToggle}
             title="Bold"
@@ -1379,9 +1379,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           {/* Strikethrough */}
           <button
             className={cn(
-              "w-10 h-10 flex items-center justify-center text-white transition-colors",
-              "hover:bg-gray-800 dark:hover:bg-gray-700",
-              isStrikethrough && "bg-violet-600 dark:bg-violet-700"
+              "w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-200 transition-colors",
+              "hover:bg-gray-100 dark:hover:bg-gray-700",
+              isStrikethrough && "bg-violet-100 dark:bg-violet-600 text-violet-700 dark:text-white"
             )}
             onClick={handleStrikethroughToggle}
             title="Strikethrough"
@@ -1393,9 +1393,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           {/* Italic */}
           <button
             className={cn(
-              "w-10 h-10 flex items-center justify-center text-white transition-colors",
-              "hover:bg-gray-800 dark:hover:bg-gray-700",
-              isItalic && "bg-violet-600 dark:bg-violet-700"
+              "w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-200 transition-colors",
+              "hover:bg-gray-100 dark:hover:bg-gray-700",
+              isItalic && "bg-violet-100 dark:bg-violet-600 text-violet-700 dark:text-white"
             )}
             onClick={handleItalicToggle}
             title="Italic"
@@ -1405,14 +1405,14 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           </button>
           
           {/* Divider */}
-          <div className="w-px h-6 bg-gray-700 dark:bg-gray-600" />
+          <div className="w-px h-6 bg-gray-200 dark:bg-gray-600" />
           
           {/* Alignment Dropdown */}
           <button
             className={cn(
-              "flex items-center gap-1.5 h-10 px-3 text-white rounded-r-full transition-colors",
-              "hover:bg-gray-800 dark:hover:bg-gray-700",
-              activeSubmenu === 'textAlign' && "bg-gray-800 dark:bg-gray-700"
+              "flex items-center gap-1.5 h-10 px-3 text-gray-700 dark:text-gray-200 rounded-r-full transition-colors",
+              "hover:bg-gray-100 dark:hover:bg-gray-700",
+              activeSubmenu === 'textAlign' && "bg-gray-100 dark:bg-gray-700"
             )}
             onClick={() => setActiveSubmenu(activeSubmenu === 'textAlign' ? null : 'textAlign')}
             title="Alignment"
@@ -1423,12 +1423,12 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           </button>
         </div>
         
-        {/* Text Size Submenu */}
+        {/* Text Size Submenu - themed to match */}
         {activeSubmenu === 'textSize' && (
           <div 
             ref={submenuRef}
             className={cn(
-              "absolute left-0 p-1 bg-gray-900 dark:bg-gray-800 rounded-xl shadow-xl border border-gray-700 dark:border-gray-600 animate-in fade-in-0 zoom-in-95 duration-150 min-w-[100px]",
+              "absolute left-0 p-1 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150 min-w-[100px]",
               showAbove ? "bottom-full mb-2" : "top-full mt-2"
             )}
           >
@@ -1436,9 +1436,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               <button
                 key={size}
                 className={cn(
-                  "w-full flex items-center gap-2 px-3 py-2 text-sm text-white rounded-lg transition-colors",
-                  "hover:bg-gray-800 dark:hover:bg-gray-700",
-                  currentFontSize === size && "bg-violet-600 dark:bg-violet-700"
+                  "w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 rounded-lg transition-colors",
+                  "hover:bg-gray-100 dark:hover:bg-gray-700",
+                  currentFontSize === size && "bg-violet-100 dark:bg-violet-600 text-violet-700 dark:text-white"
                 )}
                 onClick={() => handleFontSizeChange(size)}
                 data-testid={`toolbar-inline-fontsize-${size}`}
@@ -1449,21 +1449,21 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           </div>
         )}
         
-        {/* Alignment Submenu */}
+        {/* Alignment Submenu - themed to match */}
         {activeSubmenu === 'textAlign' && (
           <div 
             ref={submenuRef}
             className={cn(
-              "absolute right-0 p-1 bg-gray-900 dark:bg-gray-800 rounded-xl shadow-xl border border-gray-700 dark:border-gray-600 animate-in fade-in-0 zoom-in-95 duration-150",
+              "absolute right-0 p-1 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150",
               showAbove ? "bottom-full mb-2" : "top-full mt-2"
             )}
           >
             <div className="flex gap-1">
               <button
                 className={cn(
-                  "w-10 h-10 flex items-center justify-center text-white rounded-lg transition-colors",
-                  "hover:bg-gray-800 dark:hover:bg-gray-700",
-                  (currentAlign === 'left' || !currentAlign) && "bg-violet-600 dark:bg-violet-700"
+                  "w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-200 rounded-lg transition-colors",
+                  "hover:bg-gray-100 dark:hover:bg-gray-700",
+                  (currentAlign === 'left' || !currentAlign) && "bg-violet-100 dark:bg-violet-600 text-violet-700 dark:text-white"
                 )}
                 onClick={() => handleAlignChange('left')}
                 title="Align Left"
@@ -1473,9 +1473,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               </button>
               <button
                 className={cn(
-                  "w-10 h-10 flex items-center justify-center text-white rounded-lg transition-colors",
-                  "hover:bg-gray-800 dark:hover:bg-gray-700",
-                  currentAlign === 'center' && "bg-violet-600 dark:bg-violet-700"
+                  "w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-200 rounded-lg transition-colors",
+                  "hover:bg-gray-100 dark:hover:bg-gray-700",
+                  currentAlign === 'center' && "bg-violet-100 dark:bg-violet-600 text-violet-700 dark:text-white"
                 )}
                 onClick={() => handleAlignChange('center')}
                 title="Align Center"
@@ -1485,9 +1485,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               </button>
               <button
                 className={cn(
-                  "w-10 h-10 flex items-center justify-center text-white rounded-lg transition-colors",
-                  "hover:bg-gray-800 dark:hover:bg-gray-700",
-                  currentAlign === 'right' && "bg-violet-600 dark:bg-violet-700"
+                  "w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-200 rounded-lg transition-colors",
+                  "hover:bg-gray-100 dark:hover:bg-gray-700",
+                  currentAlign === 'right' && "bg-violet-100 dark:bg-violet-600 text-violet-700 dark:text-white"
                 )}
                 onClick={() => handleAlignChange('right')}
                 title="Align Right"

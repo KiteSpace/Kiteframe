@@ -71,7 +71,8 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
       });
       
       // Check if click is on the LinearToolbar - don't close editing for toolbar interactions
-      const isToolbarClick = target?.closest?.('[data-toolbar="linear"]') !== null;
+      // Check both 'linear' and 'linear-text' data attributes
+      const isToolbarClick = target?.closest?.('[data-toolbar="linear"], [data-toolbar="linear-text"]') !== null;
       if (isToolbarClick) {
         console.log('🖱️ TEXT EDITOR: Toolbar click detected - keeping editor open');
         return;
