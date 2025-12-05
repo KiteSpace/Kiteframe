@@ -53,7 +53,311 @@ import {
   ExternalLink,
   List,
   Type,
+  Pencil,
+  Trash2,
 } from "lucide-react";
+import type { NodeHyperlink, LegacyNodeHyperlink, OgMetadata } from "../types";
+
+const normalizeHyperlinks = (data: any): NodeHyperlink[] => {
+  if (data?.hyperlinks && Array.isArray(data.hyperlinks)) {
+    return data.hyperlinks.map((h: any, index: number) => ({
+      ...h,
+      id: h.id || `link-idx-${index}`,
+    }));
+  }
+  if (data?.hyperlink?.url) {
+    return [{
+      id: 'legacy-0',
+      text: data.hyperlink.text || '',
+      url: data.hyperlink.url,
+      showPreview: data.hyperlink.showPreview,
+      metadata: data.hyperlink.metadata,
+    }];
+  }
+  return [];
+};
+
+const normalizeUrl = (url: string): string => {
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return 'https://' + url;
+  }
+  return url;
+};
+
+interface HyperlinkFooterItemProps {
+  hyperlink: NodeHyperlink;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}
+
+const HyperlinkFooterItem: React.FC<HyperlinkFooterItemProps> = ({
+  hyperlink,
+  onEdit,
+  onDelete,
+}) => {
+  const [showMenu, setShowMenu] = useState(false);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseEnter = () => {
+    hoverTimerRef.current = setTimeout(() => {
+      setShowMenu(true);
+    }, 400);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setShowMenu(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+      }
+    };
+  }, []);
+
+  const normalizedUrl = normalizeUrl(hyperlink.url);
+  const hasPreview = hyperlink.showPreview && hyperlink.metadata;
+  const previewFailed = hyperlink.showPreview && !hyperlink.metadata;
+
+  return (
+    <div 
+      className="hyperlink-item relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {hasPreview ? (
+        <a
+          href={normalizedUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            display: 'block',
+            backgroundColor: '#f9fafb',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            padding: '10px',
+            textDecoration: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.backgroundColor = '#f3f4f6';
+            e.currentTarget.style.borderColor = '#d1d5db';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.backgroundColor = '#f9fafb';
+            e.currentTarget.style.borderColor = '#e5e7eb';
+          }}
+          data-testid={`hyperlink-preview-${hyperlink.id}`}
+        >
+          <div style={{ fontWeight: 600, fontSize: '13px', color: '#1f2937', marginBottom: '4px' }}>
+            {hyperlink.metadata!.title || hyperlink.text || 'No title'}
+          </div>
+          {hyperlink.metadata!.description && (
+            <div style={{ 
+              fontSize: '11px', 
+              color: '#6b7280',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              marginBottom: '6px',
+            }}>
+              {hyperlink.metadata!.description}
+            </div>
+          )}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '6px',
+          }}>
+            {hyperlink.metadata!.favicon && (
+              <img 
+                src={hyperlink.metadata!.favicon} 
+                alt="" 
+                style={{ width: '14px', height: '14px', borderRadius: '2px' }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            )}
+            <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+              {(() => {
+                try {
+                  return new URL(hyperlink.url).hostname;
+                } catch {
+                  return hyperlink.url;
+                }
+              })()}
+            </span>
+          </div>
+        </a>
+      ) : previewFailed ? (
+        <a
+          href={normalizedUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            display: 'block',
+            backgroundColor: '#f9fafb',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            padding: '10px',
+            textDecoration: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.backgroundColor = '#f3f4f6';
+            e.currentTarget.style.borderColor = '#d1d5db';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.backgroundColor = '#f9fafb';
+            e.currentTarget.style.borderColor = '#e5e7eb';
+          }}
+          data-testid={`hyperlink-preview-fallback-${hyperlink.id}`}
+        >
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '6px',
+            color: '#3b82f6',
+            fontSize: '12px',
+          }}>
+            <ExternalLink size={14} style={{ flexShrink: 0 }} />
+            <span style={{ wordBreak: 'break-all' }}>
+              {hyperlink.text || hyperlink.url}
+            </span>
+          </div>
+        </a>
+      ) : (
+        <a
+          href={normalizedUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            color: '#3b82f6',
+            textDecoration: 'none',
+            fontSize: '12px',
+            wordBreak: 'break-all',
+            padding: '4px 0',
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.textDecoration = 'underline';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.textDecoration = 'none';
+          }}
+          data-testid={`hyperlink-text-${hyperlink.id}`}
+        >
+          <ExternalLink size={14} style={{ flexShrink: 0 }} />
+          <span>{hyperlink.text || hyperlink.url}</span>
+        </a>
+      )}
+      
+      {showMenu && (onEdit || onDelete) && (
+        <div
+          ref={menuRef}
+          className="hyperlink-hover-menu"
+          style={{
+            position: 'absolute',
+            top: '-32px',
+            right: '4px',
+            display: 'flex',
+            gap: '2px',
+            padding: '4px',
+            backgroundColor: 'white',
+            borderRadius: '6px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            border: '1px solid #e5e7eb',
+            zIndex: 100,
+          }}
+          onMouseEnter={() => setShowMenu(true)}
+          onMouseLeave={handleMouseLeave}
+        >
+          {onEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+                setShowMenu(false);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '28px',
+                height: '28px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                color: '#6b7280',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = '#f3f4f6';
+                e.currentTarget.style.color = '#3b82f6';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#6b7280';
+              }}
+              data-testid={`hyperlink-edit-${hyperlink.id}`}
+              title="Edit link"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+                setShowMenu(false);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '28px',
+                height: '28px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                color: '#6b7280',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = '#fef2f2';
+                e.currentTarget.style.color = '#ef4444';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#6b7280';
+              }}
+              data-testid={`hyperlink-delete-${hyperlink.id}`}
+              title="Delete link"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 import {
   RenderBatchManager,
   VirtualizationManager,
@@ -942,6 +1246,10 @@ type Props = {
   onInlineEditingSave?: (nodeId: string, part: 'header' | 'body', value: string) => void;
   onInlineEditingCancel?: () => void;
   onTextSelectionChange?: (selectedText: string) => void;
+  
+  // Hyperlink management callbacks
+  onHyperlinkEdit?: (nodeId: string, hyperlinkId: string) => void;
+  onHyperlinkDelete?: (nodeId: string, hyperlinkId: string) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -3898,117 +4206,34 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     </div>
                   )}
                   
-                  {/* Hyperlink Footer Section */}
-                  {n.data?.hyperlink?.url && (
-                    <div
-                      className="hyperlink-footer"
-                      style={{
-                        backgroundColor: bodyBg,
-                        borderTop: `1px solid ${border}`,
-                        padding: '8px 12px',
-                        borderRadius: `0 0 ${cornerRadius - 2}px ${cornerRadius - 2}px`,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px',
-                      }}
-                    >
-                      {/* Link row with icon and text */}
-                      <a
-                        href={n.data.hyperlink.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                  {/* Hyperlink Footer Section - Supports Multiple Links */}
+                  {(() => {
+                    const hyperlinks = normalizeHyperlinks(n.data);
+                    if (hyperlinks.length === 0) return null;
+                    return (
+                      <div
+                        className="hyperlink-footer"
                         style={{
+                          backgroundColor: bodyBg,
+                          padding: '8px 12px',
+                          borderRadius: `0 0 ${cornerRadius - 2}px ${cornerRadius - 2}px`,
                           display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          color: '#3b82f6',
-                          textDecoration: 'none',
-                          fontSize: '12px',
-                          wordBreak: 'break-all',
+                          flexDirection: 'column',
+                          gap: '8px',
                         }}
-                        onMouseOver={(e) => {
-                          e.currentTarget.style.textDecoration = 'underline';
-                        }}
-                        onMouseOut={(e) => {
-                          e.currentTarget.style.textDecoration = 'none';
-                        }}
+                        data-testid={`node-hyperlinks-${n.id}`}
                       >
-                        <svg 
-                          width="14" 
-                          height="14" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          style={{ flexShrink: 0 }}
-                        >
-                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                          <polyline points="15 3 21 3 21 9" />
-                          <line x1="10" y1="14" x2="21" y2="3" />
-                        </svg>
-                        {n.data.hyperlink.text || n.data.hyperlink.url}
-                      </a>
-                      
-                      {/* Link Preview Card (when showPreview is enabled) */}
-                      {n.data.hyperlink.showPreview && n.data.hyperlink.metadata && (
-                        <div
-                          style={{
-                            backgroundColor: '#fff',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
-                            padding: '10px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px',
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div style={{ fontWeight: 600, fontSize: '13px', color: '#1f2937' }}>
-                            {n.data.hyperlink.metadata.title || 'No title'}
-                          </div>
-                          {n.data.hyperlink.metadata.description && (
-                            <div style={{ 
-                              fontSize: '11px', 
-                              color: '#6b7280',
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                            }}>
-                              {n.data.hyperlink.metadata.description}
-                            </div>
-                          )}
-                          <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '6px',
-                            marginTop: '4px',
-                          }}>
-                            {n.data.hyperlink.metadata.favicon && (
-                              <img 
-                                src={n.data.hyperlink.metadata.favicon} 
-                                alt="" 
-                                style={{ width: '16px', height: '16px', borderRadius: '2px' }}
-                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                              />
-                            )}
-                            <span style={{ fontSize: '11px', color: '#9ca3af' }}>
-                              {(() => {
-                                try {
-                                  return new URL(n.data.hyperlink.url).hostname;
-                                } catch {
-                                  return n.data.hyperlink.url;
-                                }
-                              })()}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        {hyperlinks.map((link) => (
+                          <HyperlinkFooterItem
+                            key={link.id}
+                            hyperlink={link}
+                            onEdit={() => props.onHyperlinkEdit?.(n.id, link.id)}
+                            onDelete={() => props.onHyperlinkDelete?.(n.id, link.id)}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })()}
                   
                   {n.showHandles !== false && (
                     <NodeHandles

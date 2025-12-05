@@ -31,7 +31,7 @@ import {
   Hexagon,
   PenTool
 } from 'lucide-react';
-import type { Node, Edge, NodeColors, CanvasObject, EdgeMarker } from '../types';
+import type { Node, Edge, NodeColors, CanvasObject, EdgeMarker, NodeHyperlink, OgMetadata } from '../types';
 
 interface LinearToolbarProps {
   isOpen: boolean;
@@ -66,17 +66,15 @@ interface LinearToolbarProps {
     align?: 'left' | 'center' | 'right';
   }, part?: 'header' | 'body') => void;
   onAddHyperlink?: (hyperlink: { 
+    id?: string; // If provided, update existing; otherwise add new
     text: string; 
     url: string; 
     showPreview?: boolean;
-    metadata?: {
-      title?: string;
-      description?: string;
-      favicon?: string;
-      image?: string;
-      siteName?: string;
-    };
+    metadata?: OgMetadata;
   }) => void;
+  onDeleteHyperlink?: (hyperlinkId: string) => void;
+  hyperlinks?: NodeHyperlink[]; // Current hyperlinks for the node
+  editingHyperlinkId?: string | null; // ID of hyperlink being edited
   selectedText?: string;
   onDelete?: () => void;
   onEdgeStyleChange?: (style: {
@@ -198,6 +196,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   onIconSelect,
   onTextStyleChange,
   onAddHyperlink,
+  onDeleteHyperlink,
+  hyperlinks = [],
+  editingHyperlinkId = null,
   selectedText = '',
   onDelete,
   onEdgeStyleChange,
@@ -248,13 +249,21 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   // Pre-fill link inputs when link submenu opens
   useEffect(() => {
     if (activeSubmenu === 'link') {
-      // Check if node has existing hyperlink data
-      const existingLink = node?.data?.hyperlink;
-      if (existingLink?.text && existingLink?.url) {
-        setLinkText(existingLink.text);
-        setLinkUrl(existingLink.url);
-        setShowPreview(existingLink.showPreview ?? false);
-        setPreviewMetadata(existingLink.metadata ?? null);
+      // Check for editing specific hyperlink (new multi-link system)
+      const editingLink = editingHyperlinkId 
+        ? hyperlinks.find(h => h.id === editingHyperlinkId)
+        : null;
+      
+      // Fallback to legacy single hyperlink
+      const legacyLink = node?.data?.hyperlink;
+      
+      const linkToEdit = editingLink || (legacyLink?.url ? legacyLink : null);
+      
+      if (linkToEdit?.text && linkToEdit?.url) {
+        setLinkText(linkToEdit.text);
+        setLinkUrl(linkToEdit.url);
+        setShowPreview(linkToEdit.showPreview ?? false);
+        setPreviewMetadata(linkToEdit.metadata ?? null);
       } else {
         setLinkText('');
         setLinkUrl('');
@@ -262,7 +271,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         setPreviewMetadata(null);
       }
     }
-  }, [activeSubmenu, node?.data?.hyperlink]); // Re-run when hyperlink data changes
+  }, [activeSubmenu, node?.data?.hyperlink, hyperlinks, editingHyperlinkId]); // Re-run when hyperlink data changes
 
   // Sync icon visibility and reset submenu when node changes (but preserve initialSubmenu)
   const prevNodeIdRef = useRef<string | undefined>(undefined);
@@ -1003,9 +1012,19 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   };
 
   const renderLinkSubmenu = () => {
-    // Check if node has existing hyperlink
-    const existingLink = node?.data?.hyperlink;
-    const isEditing = !!existingLink;
+    // Support for multiple hyperlinks - check both legacy single and new array format
+    const existingHyperlinks = hyperlinks || [];
+    const editingLink = editingHyperlinkId 
+      ? existingHyperlinks.find(h => h.id === editingHyperlinkId)
+      : node?.data?.hyperlink ? { 
+          id: 'legacy-0', 
+          text: node.data.hyperlink.text, 
+          url: node.data.hyperlink.url,
+          showPreview: node.data.hyperlink.showPreview,
+          metadata: node.data.hyperlink.metadata,
+        } 
+      : null;
+    const isEditing = !!editingLink;
     
     const fetchMetadata = async (url: string) => {
       setPreviewLoading(true);
@@ -1051,7 +1070,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       const finalText = linkText.trim();
       const finalUrl = linkUrl.trim();
       
-      console.log('🔗 Link submenu handleAddLink:', { linkText: finalText, linkUrl: finalUrl, isEditing, showPreview });
+      console.log('🔗 Link submenu handleAddLink:', { linkText: finalText, linkUrl: finalUrl, isEditing, editingLink, showPreview });
       
       if (finalText && finalUrl) {
         let url = finalUrl;
@@ -1066,6 +1085,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         }
         
         onAddHyperlink?.({ 
+          id: isEditing ? editingLink?.id : undefined, // Include id when editing
           text: finalText, 
           url,
           showPreview,
@@ -1080,7 +1100,12 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     };
     
     const handleRemoveLink = () => {
-      onAddHyperlink?.({ text: '', url: '' });
+      if (isEditing && editingLink?.id && onDeleteHyperlink) {
+        onDeleteHyperlink(editingLink.id);
+      } else {
+        // Fallback for legacy single hyperlink
+        onAddHyperlink?.({ text: '', url: '' });
+      }
       setActiveSubmenu(null);
       setLinkText('');
       setLinkUrl('');
@@ -1163,7 +1188,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               onClick={handleTogglePreview}
               disabled={previewLoading}
               className={cn(
-                "relative w-10 h-5 rounded-full transition-colors",
+                "relative w-9 h-5 rounded-full transition-colors flex-shrink-0",
                 showPreview 
                   ? "bg-cyan-500" 
                   : "bg-gray-300 dark:bg-gray-600",
@@ -1173,8 +1198,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             >
               <span 
                 className={cn(
-                  "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm",
-                  showPreview ? "translate-x-5" : "translate-x-0.5"
+                  "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm",
+                  showPreview && "translate-x-4"
                 )}
               />
             </button>

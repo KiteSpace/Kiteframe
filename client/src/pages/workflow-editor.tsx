@@ -3394,6 +3394,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     edge?: Edge;
     canvasObject?: CanvasObject;
     initialSubmenu?: string | null;
+    editingHyperlinkId?: string;
   } | null>(null);
   const [quickCreateMenu, setQuickCreateMenu] = useState<{
     screenPosition: { x: number; y: number };
@@ -5813,6 +5814,61 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onTextSelectionChange={(text) => {
                 setSelectedText(text);
               }}
+              onHyperlinkEdit={(nodeId, hyperlinkId) => {
+                console.log('🔗 Hyperlink edit requested:', { nodeId, hyperlinkId });
+                const node = nodes.find(n => n.id === nodeId);
+                if (node) {
+                  // Find the node's screen position for the toolbar
+                  const rect = document.querySelector(`[data-testid="node-${node.type}-${node.id}"]`)?.getBoundingClientRect();
+                  if (rect) {
+                    setLinearToolbar({
+                      x: rect.left + rect.width / 2,
+                      y: rect.top,
+                      nodeRect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width },
+                      node,
+                      initialSubmenu: 'link',
+                      editingHyperlinkId: hyperlinkId,
+                    });
+                  }
+                }
+              }}
+              onHyperlinkDelete={(nodeId, hyperlinkId) => {
+                console.log('🔗 Hyperlink delete requested:', { nodeId, hyperlinkId });
+                saveToHistory();
+                setNodes(prev => prev.map(n => {
+                  if (n.id !== nodeId) return n;
+                  
+                  let existingLinks = n.data?.hyperlinks || [];
+                  if (existingLinks.length === 0 && n.data?.hyperlink?.url) {
+                    if (hyperlinkId === 'legacy-0') {
+                      return { ...n, data: { ...n.data, hyperlink: undefined, hyperlinks: [] } };
+                    }
+                    existingLinks = [{
+                      id: 'legacy-0',
+                      text: n.data.hyperlink.text,
+                      url: n.data.hyperlink.url,
+                    }];
+                  }
+                  
+                  const filteredLinks = existingLinks.filter((h: any, index: number) => {
+                    if (h.id === hyperlinkId) return false;
+                    if (hyperlinkId.startsWith('link-idx-')) {
+                      const idx = parseInt(hyperlinkId.replace('link-idx-', ''), 10);
+                      if (index === idx && !h.id) return false;
+                    }
+                    return true;
+                  });
+                  
+                  return { 
+                    ...n, 
+                    data: { 
+                      ...n.data, 
+                      hyperlinks: filteredLinks,
+                      hyperlink: undefined,
+                    } 
+                  };
+                }));
+              }}
             />
                 
                 <FloatingLayersWidget
@@ -6605,29 +6661,130 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             }}
             selectedText={selectedText}
+            hyperlinks={linearToolbar.node?.data?.hyperlinks || []}
+            editingHyperlinkId={linearToolbar.editingHyperlinkId || null}
             onAddHyperlink={(hyperlink) => {
-              const { text: linkText, url, showPreview, metadata } = hyperlink;
-              console.log('🔗 Adding hyperlink:', { linkText, url, showPreview, metadata, nodeId: linearToolbar.node?.id });
+              const { id, text: linkText, url, showPreview, metadata } = hyperlink;
+              console.log('🔗 Adding/updating hyperlink:', { id, linkText, url, showPreview, metadata, nodeId: linearToolbar.node?.id });
               if (linearToolbar.node) {
                 saveToHistory();
                 setNodes(prev => prev.map(n => {
                   if (n.id !== linearToolbar.node!.id) return n;
-                  // Store hyperlink as separate data property (or remove if empty)
-                  const newHyperlink = (linkText && url) ? { 
-                    text: linkText, 
+                  
+                  // Get existing hyperlinks array or create from legacy
+                  let existingLinks = n.data?.hyperlinks || [];
+                  if (existingLinks.length === 0 && n.data?.hyperlink?.url) {
+                    existingLinks = [{
+                      id: 'legacy-0',
+                      text: n.data.hyperlink.text,
+                      url: n.data.hyperlink.url,
+                      showPreview: n.data.hyperlink.showPreview,
+                      metadata: n.data.hyperlink.metadata,
+                    }];
+                  }
+                  
+                  // If text or url is empty, this is a delete for legacy
+                  if (!linkText || !url) {
+                    return { 
+                      ...n, 
+                      data: { 
+                        ...n.data, 
+                        hyperlinks: existingLinks.filter((h: any) => h.id !== id),
+                        hyperlink: undefined,
+                      } 
+                    };
+                  }
+                  
+                  const newLink = {
+                    id: id || `link-${Date.now()}`,
+                    text: linkText,
                     url,
                     showPreview: showPreview ?? false,
-                    metadata: metadata ?? undefined
-                  } : undefined;
-                  console.log('🔗 Updated hyperlink:', { newHyperlink });
+                    metadata: metadata ?? undefined,
+                  };
+                  
+                  // Update existing or add new
+                  const isEditing = id && (
+                    existingLinks.some((h: any) => h.id === id) ||
+                    (id.startsWith('link-idx-') && parseInt(id.replace('link-idx-', ''), 10) < existingLinks.length)
+                  );
+                  
+                  if (isEditing) {
+                    return { 
+                      ...n, 
+                      data: { 
+                        ...n.data, 
+                        hyperlinks: existingLinks.map((h: any, index: number) => {
+                          if (h.id === id) return newLink;
+                          if (id.startsWith('link-idx-')) {
+                            const idx = parseInt(id.replace('link-idx-', ''), 10);
+                            if (index === idx && !h.id) return newLink;
+                          }
+                          return h;
+                        }),
+                        hyperlink: undefined,
+                      } 
+                    };
+                  } else {
+                    return { 
+                      ...n, 
+                      data: { 
+                        ...n.data, 
+                        hyperlinks: [...existingLinks, newLink],
+                        hyperlink: undefined,
+                      } 
+                    };
+                  }
+                }));
+                // Clear editing state
+                if (linearToolbar) {
+                  setLinearToolbar({ ...linearToolbar, editingHyperlinkId: undefined });
+                }
+              }
+            }}
+            onDeleteHyperlink={(hyperlinkId) => {
+              console.log('🔗 Deleting hyperlink:', { hyperlinkId, nodeId: linearToolbar.node?.id });
+              if (linearToolbar.node) {
+                saveToHistory();
+                setNodes(prev => prev.map(n => {
+                  if (n.id !== linearToolbar.node!.id) return n;
+                  
+                  // Get existing hyperlinks array
+                  let existingLinks = n.data?.hyperlinks || [];
+                  if (existingLinks.length === 0 && n.data?.hyperlink?.url) {
+                    // Handle legacy - if deleting legacy, clear it
+                    if (hyperlinkId === 'legacy-0') {
+                      return { ...n, data: { ...n.data, hyperlink: undefined, hyperlinks: [] } };
+                    }
+                    existingLinks = [{
+                      id: 'legacy-0',
+                      text: n.data.hyperlink.text,
+                      url: n.data.hyperlink.url,
+                    }];
+                  }
+                  
+                  const filteredLinks = existingLinks.filter((h: any, index: number) => {
+                    if (h.id === hyperlinkId) return false;
+                    if (hyperlinkId.startsWith('link-idx-')) {
+                      const idx = parseInt(hyperlinkId.replace('link-idx-', ''), 10);
+                      if (index === idx && !h.id) return false;
+                    }
+                    return true;
+                  });
+                  
                   return { 
                     ...n, 
                     data: { 
                       ...n.data, 
-                      hyperlink: newHyperlink
+                      hyperlinks: filteredLinks,
+                      hyperlink: undefined,
                     } 
                   };
                 }));
+                // Clear editing state
+                if (linearToolbar) {
+                  setLinearToolbar({ ...linearToolbar, editingHyperlinkId: undefined });
+                }
               }
             }}
             onEdgeStyleChange={(style) => {

@@ -48,6 +48,8 @@ interface WorkflowCanvasProps {
   onInlineEditingSave?: (nodeId: string, part: 'header' | 'body', value: string) => void;
   onInlineEditingCancel?: () => void;
   onTextSelectionChange?: (selectedText: string) => void;
+  onHyperlinkEdit?: (nodeId: string, hyperlinkId: string) => void;
+  onHyperlinkDelete?: (nodeId: string, hyperlinkId: string) => void;
 }
 
 export function WorkflowCanvas({
@@ -89,7 +91,9 @@ export function WorkflowCanvas({
   inlineEditing,
   onInlineEditingSave,
   onInlineEditingCancel,
-  onTextSelectionChange
+  onTextSelectionChange,
+  onHyperlinkEdit,
+  onHyperlinkDelete
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -384,6 +388,8 @@ export function WorkflowCanvas({
         onInlineEditingSave={onInlineEditingSave}
         onInlineEditingCancel={onInlineEditingCancel}
         onTextSelectionChange={onTextSelectionChange}
+        onHyperlinkEdit={onHyperlinkEdit}
+        onHyperlinkDelete={onHyperlinkDelete}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

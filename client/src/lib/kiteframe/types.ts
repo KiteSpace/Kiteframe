@@ -97,10 +97,30 @@ export type Edge = {
 export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image';
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 
+// Open Graph metadata for link previews
+export interface OgMetadata {
+  title?: string;
+  description?: string;
+  image?: string;
+  favicon?: string;
+  siteName?: string;
+}
+
 // Hyperlink type for node links
 export interface NodeHyperlink {
+  id: string;
   text: string;
   url: string;
+  showPreview?: boolean;
+  metadata?: OgMetadata;
+}
+
+// Legacy single hyperlink type (for backward compatibility)
+export interface LegacyNodeHyperlink {
+  text: string;
+  url: string;
+  showPreview?: boolean;
+  metadata?: OgMetadata;
 }
 
 // Core KiteFrame Node Data Interfaces
@@ -117,8 +137,10 @@ export interface BasicNodeData {
   // Border styling for nodes
   borderStyle?: 'solid' | 'dashed' | 'dotted' | 'none';
   borderWidth?: number;
-  // Hyperlink displayed below body text
-  hyperlink?: NodeHyperlink;
+  // Hyperlinks displayed below body text (array for multiple links)
+  hyperlinks?: NodeHyperlink[];
+  // Legacy single hyperlink (for backward compatibility)
+  hyperlink?: LegacyNodeHyperlink;
 }
 
 // Image fit type definition
