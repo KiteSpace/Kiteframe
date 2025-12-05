@@ -260,16 +260,24 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
 
   const dropShadow = isHovering ? '0 8px 24px rgba(0,0,0,0.15)' : '0 4px 16px rgba(0,0,0,0.1)';
 
-  const containerStyle: React.CSSProperties = {
+  const outerWrapperStyle: React.CSSProperties = {
     ...style,
     width: nodeWidth,
     height: nodeHeight,
+    position: 'relative',
+    overflow: 'visible',
+  };
+
+  const containerStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
     borderWidth: '2px',
     borderStyle: 'solid',
     borderColor: colors.borderColor,
     boxShadow: dropShadow,
     background: colors.bodyBg,
     overflow: 'hidden',
+    borderRadius: '12px',
   };
 
   const renderEmptyState = () => (
@@ -378,14 +386,11 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       ref={nodeRef}
       className={cn(
         "kiteframe-node kiteframe-table-node group",
-        "rounded-xl flex flex-col",
         "transition-all duration-200",
-        "cursor-move",
-        node.selected && "ring-2 ring-blue-500 ring-offset-2",
         node.hidden ? "opacity-0 pointer-events-none" : "",
         className,
       )}
-      style={containerStyle}
+      style={outerWrapperStyle}
       role="article"
       aria-label={`Table: ${tableName}. ${rowCount} rows, ${colCount} columns`}
       aria-selected={node.selected}
@@ -398,24 +403,34 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       data-testid={`table-node-${node.id}`}
       data-node-id={node.id}
     >
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".csv,.json"
-        onChange={handleFileChange}
-        className="hidden"
-        data-testid={`table-file-input-${node.id}`}
-      />
-
-      {/* Header - Draggable */}
+      {/* Visual table container */}
       <div
-        className="flex items-center justify-between px-3 py-2 rounded-t-xl cursor-grab"
-        style={{ 
-          background: `linear-gradient(135deg, ${colors.headerBg} 0%, ${colors.headerBg}dd 100%)`,
-          color: colors.headerTextColor,
-        }}
+        className={cn(
+          "flex flex-col cursor-move",
+          node.selected && "ring-2 ring-blue-500 ring-offset-2"
+        )}
+        style={containerStyle}
       >
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.json"
+          onChange={handleFileChange}
+          className="hidden"
+          data-testid={`table-file-input-${node.id}`}
+        />
+
+        {/* Header - Draggable */}
+        <div
+          className="flex items-center justify-between px-3 py-2 cursor-grab"
+          style={{ 
+            background: `linear-gradient(135deg, ${colors.headerBg} 0%, ${colors.headerBg}dd 100%)`,
+            color: colors.headerTextColor,
+            borderTopLeftRadius: '10px',
+            borderTopRightRadius: '10px',
+          }}
+        >
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <GripHorizontal size={14} className="opacity-50 flex-shrink-0" />
           <Table2 size={16} className="flex-shrink-0" />
@@ -501,8 +516,9 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
           {table.meta.importedAt && ` • ${new Date(table.meta.importedAt).toLocaleDateString()}`}
         </div>
       )}
+      </div>
 
-      {/* Connection Handles */}
+      {/* Connection Handles - positioned outside visual container */}
       {showHandles && (
         <NodeHandles
           node={node}
@@ -511,7 +527,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
         />
       )}
 
-      {/* Resize Handle */}
+      {/* Resize Handle - positioned outside visual container */}
       {showResizeHandle && node.resizable !== false && (
         <ResizeHandle
           position="bottom-right"
