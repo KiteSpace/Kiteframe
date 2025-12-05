@@ -6,12 +6,96 @@ import React, {
   useMemo,
 } from "react";
 import { cn } from "@/lib/utils";
+import { ExternalLink, Pencil } from "lucide-react";
 import { NodeHandles } from "./NodeHandles";
 import { ResizeHandle } from "./ResizeHandle";
-import type { Node, BasicNodeData, BasicNodeComponentProps } from "../types";
+import type { Node, BasicNodeData, BasicNodeComponentProps, NodeHyperlink } from "../types";
 import { sanitizeText, validateColor } from "../utils/validation";
 import { getDynamicClassName, getNodeStyleClasses } from "../utils/styles";
 import { getBorderColorFromHeader } from "@/lib/themes";
+
+interface HyperlinkButtonProps {
+  hyperlink: NodeHyperlink;
+  onEdit?: () => void;
+  borderColor?: string;
+}
+
+const HyperlinkButton: React.FC<HyperlinkButtonProps> = ({ hyperlink, onEdit, borderColor }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  
+  const handleGoToLink = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    let url = hyperlink.url;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setShowTooltip(false);
+  };
+  
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onEdit?.();
+    setShowTooltip(false);
+  };
+  
+  return (
+    <div 
+      className="relative inline-block mt-2"
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      {/* Outline Button */}
+      <button
+        onClick={handleGoToLink}
+        onDoubleClick={(e) => e.stopPropagation()}
+        className={cn(
+          "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+          "border-2 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800",
+          "text-gray-700 dark:text-gray-300"
+        )}
+        style={{ borderColor: borderColor || '#64748b' }}
+        data-testid="node-hyperlink-button"
+      >
+        <ExternalLink size={12} />
+        <span>{sanitizeText(hyperlink.text)}</span>
+      </button>
+      
+      {/* Hover Tooltip */}
+      {showTooltip && (
+        <div
+          ref={tooltipRef}
+          className="absolute left-0 bottom-full mb-1 z-50 animate-in fade-in-0 zoom-in-95 duration-150"
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+        >
+          <div className="flex items-center gap-1 p-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+            <button
+              onClick={handleGoToLink}
+              className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+              data-testid="hyperlink-go-button"
+            >
+              <ExternalLink size={12} />
+              <span>Go to link</span>
+            </button>
+            <div className="w-px h-4 bg-gray-200 dark:bg-gray-600" />
+            <button
+              onClick={handleEdit}
+              className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+              data-testid="hyperlink-edit-button"
+            >
+              <Pencil size={12} />
+              <span>Edit</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const renderTextWithLinks = (text: string): React.ReactNode => {
   if (!text) return null;
@@ -483,6 +567,21 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
               >
                 Double-click to edit
               </div>
+            )}
+            
+            {/* Hyperlink Button - displayed below body text */}
+            {node.data.hyperlink?.text && node.data.hyperlink?.url && (
+              <HyperlinkButton 
+                hyperlink={node.data.hyperlink}
+                borderColor={colors.borderColor}
+                onEdit={() => {
+                  // Emit custom event to trigger edit in toolbar
+                  const event = new CustomEvent('editNodeHyperlink', {
+                    detail: { nodeId: node.id }
+                  });
+                  window.dispatchEvent(event);
+                }}
+              />
             )}
           </div>
         </div>

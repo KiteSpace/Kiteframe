@@ -98,6 +98,7 @@ interface LinearToolbarProps {
   scale?: number;
   isInlineEditing?: boolean; // Show text style options when inline editing is active
   inlineEditingPart?: 'header' | 'body' | 'edgeLabel'; // Which part is being edited
+  initialSubmenu?: string | null; // Submenu to open initially (e.g., 'link' to open link editor)
 }
 
 type EndpointType = 'none' | 'arrow' | 'circle' | 'diamond';
@@ -199,12 +200,20 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   onShapeTypeChange,
   scale = 1,
   isInlineEditing = false,
-  inlineEditingPart
+  inlineEditingPart,
+  initialSubmenu = null
 }) => {
-  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
+  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(initialSubmenu);
   const [iconVisible, setIconVisible] = useState(node?.data?.iconVisible ?? true);
   const menuRef = useRef<HTMLDivElement>(null);
   const submenuRef = useRef<HTMLDivElement>(null);
+  
+  // Handle initialSubmenu prop changes (e.g., when edit hyperlink is requested)
+  useEffect(() => {
+    if (initialSubmenu) {
+      setActiveSubmenu(initialSubmenu);
+    }
+  }, [initialSubmenu]);
   
   // Remember the editing part when text submenu opens (before blur clears inlineEditing state)
   const [rememberedEditingPart, setRememberedEditingPart] = useState<'header' | 'body' | undefined>(undefined);
@@ -216,21 +225,31 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   // Cache the selected text when link submenu opens (before blur clears it)
   const cachedSelectedTextRef = useRef('');
   
-  // Reset link inputs when link submenu opens - only trigger on submenu change, not selectedText change
+  // Pre-fill link inputs when link submenu opens
   useEffect(() => {
     if (activeSubmenu === 'link') {
-      // Capture the selected text at the moment the submenu opens
-      cachedSelectedTextRef.current = selectedText || '';
-      setLinkText(selectedText || '');
-      setLinkUrl('');
+      // Check if node has existing hyperlink data
+      const existingLink = node?.data?.hyperlink;
+      if (existingLink?.text && existingLink?.url) {
+        setLinkText(existingLink.text);
+        setLinkUrl(existingLink.url);
+      } else {
+        setLinkText('');
+        setLinkUrl('');
+      }
     }
-  }, [activeSubmenu]); // Intentionally exclude selectedText - only capture on open
+  }, [activeSubmenu, node?.data?.hyperlink]); // Re-run when hyperlink data changes
 
-  // Sync icon visibility and reset submenu when node changes
+  // Sync icon visibility and reset submenu when node changes (but preserve initialSubmenu)
+  const prevNodeIdRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     setIconVisible(node?.data?.iconVisible ?? true);
-    setActiveSubmenu(null);
-  }, [node?.id, node?.data?.iconVisible]);
+    // Only reset submenu if node id actually changed, not on first mount with initialSubmenu
+    if (prevNodeIdRef.current !== undefined && prevNodeIdRef.current !== node?.id) {
+      setActiveSubmenu(initialSubmenu ?? null);
+    }
+    prevNodeIdRef.current = node?.id;
+  }, [node?.id, node?.data?.iconVisible, initialSubmenu]);
   
   // Remember the editing part when inline editing starts or changes
   useEffect(() => {
@@ -320,6 +339,14 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           label: 'Icon/Emoji',
           color: 'bg-amber-500',
           hoverColor: 'hover:bg-amber-600',
+          hasSubmenu: true
+        },
+        {
+          id: 'link',
+          icon: <Link2 size={18} />,
+          label: 'Add Link',
+          color: 'bg-cyan-500',
+          hoverColor: 'hover:bg-cyan-600',
           hasSubmenu: true
         },
         {
@@ -952,24 +979,33 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   };
 
   const renderLinkSubmenu = () => {
-    // Use cached selected text that was captured when submenu opened
-    const cachedText = cachedSelectedTextRef.current;
-    const hasSelectedText = cachedText.length > 0;
+    // Check if node has existing hyperlink
+    const existingLink = node?.data?.hyperlink;
+    const isEditing = !!existingLink;
     
     const handleAddLink = () => {
-      // Use linkText input, or fall back to cached selected text
-      const finalText = linkText.trim() || cachedText;
+      const finalText = linkText.trim();
       const finalUrl = linkUrl.trim();
       
-      console.log('🔗 Link submenu handleAddLink:', { linkText, cachedText, finalText, finalUrl });
+      console.log('🔗 Link submenu handleAddLink:', { linkText: finalText, linkUrl: finalUrl, isEditing });
       
       if (finalText && finalUrl) {
-        onAddHyperlink?.({ text: finalText, url: finalUrl });
+        let url = finalUrl;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          url = 'https://' + url;
+        }
+        onAddHyperlink?.({ text: finalText, url });
         setActiveSubmenu(null);
         setLinkText('');
         setLinkUrl('');
-        cachedSelectedTextRef.current = '';
       }
+    };
+    
+    const handleRemoveLink = () => {
+      onAddHyperlink?.({ text: '', url: '' });
+      setActiveSubmenu(null);
+      setLinkText('');
+      setLinkUrl('');
     };
     
     const isValidUrl = (url: string) => {
@@ -982,7 +1018,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       }
     };
     
-    const canSubmit = (linkText.trim() || cachedText) && isValidUrl(linkUrl);
+    const canSubmit = linkText.trim() && isValidUrl(linkUrl);
     
     return (
       <div 
@@ -995,34 +1031,22 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       >
         <div className="space-y-3">
           <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
-            Add Hyperlink
+            {isEditing ? 'Edit Link' : 'Add Link'}
           </div>
           
-          {/* Link Text Field - only show if no text is selected */}
-          {!hasSelectedText && (
-            <div className="space-y-1">
-              <label className="text-xs text-gray-500 dark:text-gray-400">Link Text</label>
-              <input
-                type="text"
-                value={linkText}
-                onChange={(e) => setLinkText(e.target.value)}
-                placeholder="Enter link text..."
-                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoFocus
-                data-testid="link-text-input"
-              />
-            </div>
-          )}
-          
-          {/* Show selected text preview if text is selected */}
-          {hasSelectedText && (
-            <div className="space-y-1">
-              <label className="text-xs text-gray-500 dark:text-gray-400">Link Text</label>
-              <div className="px-3 py-2 text-sm rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
-                "{selectedText}"
-              </div>
-            </div>
-          )}
+          {/* Link Text Field */}
+          <div className="space-y-1">
+            <label className="text-xs text-gray-500 dark:text-gray-400">Button Text</label>
+            <input
+              type="text"
+              value={linkText}
+              onChange={(e) => setLinkText(e.target.value)}
+              placeholder="Enter button text..."
+              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus
+              data-testid="link-text-input"
+            />
+          </div>
           
           {/* URL Field */}
           <div className="space-y-1">
@@ -1033,7 +1057,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               onChange={(e) => setLinkUrl(e.target.value)}
               placeholder="https://example.com"
               className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              autoFocus={hasSelectedText}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && canSubmit) {
                   handleAddLink();
@@ -1043,21 +1066,34 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             />
           </div>
           
-          {/* Add Button */}
-          <button
-            type="button"
-            onClick={handleAddLink}
-            disabled={!canSubmit}
-            className={cn(
-              "w-full py-2 px-4 rounded-lg text-sm font-medium transition-colors",
-              canSubmit
-                ? "bg-cyan-500 hover:bg-cyan-600 text-white"
-                : "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+          {/* Buttons */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleAddLink}
+              disabled={!canSubmit}
+              className={cn(
+                "flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors",
+                canSubmit
+                  ? "bg-cyan-500 hover:bg-cyan-600 text-white"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+              )}
+              data-testid="link-add-button"
+            >
+              {isEditing ? 'Update' : 'Add Link'}
+            </button>
+            
+            {isEditing && (
+              <button
+                type="button"
+                onClick={handleRemoveLink}
+                className="py-2 px-4 rounded-lg text-sm font-medium transition-colors bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
+                data-testid="link-remove-button"
+              >
+                Remove
+              </button>
             )}
-            data-testid="link-add-button"
-          >
-            Add Link
-          </button>
+          </div>
         </div>
       </div>
     );

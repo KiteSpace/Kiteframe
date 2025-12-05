@@ -97,6 +97,12 @@ export type Edge = {
 export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image';
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 
+// Hyperlink type for node links
+export interface NodeHyperlink {
+  text: string;
+  url: string;
+}
+
 // Core KiteFrame Node Data Interfaces
 export interface BasicNodeData {
   label?: string;
@@ -111,6 +117,8 @@ export interface BasicNodeData {
   // Border styling for nodes
   borderStyle?: 'solid' | 'dashed' | 'dotted' | 'none';
   borderWidth?: number;
+  // Hyperlink displayed below body text
+  hyperlink?: NodeHyperlink;
 }
 
 // Image fit type definition

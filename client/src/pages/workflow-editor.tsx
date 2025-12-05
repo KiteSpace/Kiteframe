@@ -1354,6 +1354,54 @@ Position nodes 250px apart horizontally.`;
     };
   }, [tabs, activeTabId, toast, updateActiveTab, generatingWireframe]);
 
+  // Listen for editNodeHyperlink event from HyperlinkButton edit action
+  useEffect(() => {
+    const handleEditHyperlink = (event: CustomEvent<{ nodeId: string }>) => {
+      const { nodeId } = event.detail;
+      console.log('🔗 Edit hyperlink requested for node:', nodeId);
+      
+      // Find the node and open the toolbar with link submenu
+      const node = nodes.find(n => n.id === nodeId);
+      if (node) {
+        // Set this node as selected
+        setSelectedNodeId(nodeId);
+        setSelectedEdgeId('');
+        
+        // Calculate toolbar position for this node
+        const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+        const containerLeft = containerRect?.left ?? 0;
+        const containerTop = containerRect?.top ?? 0;
+        
+        const nodeWidth = node.width ?? 200;
+        const nodeHeight = node.height ?? 100;
+        const screenX = node.position.x * viewport.zoom + viewport.x + containerLeft;
+        const screenY = node.position.y * viewport.zoom + viewport.y + containerTop;
+        const screenWidth = nodeWidth * viewport.zoom;
+        const screenHeight = nodeHeight * viewport.zoom;
+        
+        // Open the linear toolbar with link submenu active
+        setLinearToolbar({
+          x: screenX + screenWidth / 2,
+          y: screenY,
+          nodeRect: {
+            top: screenY,
+            bottom: screenY + screenHeight,
+            left: screenX,
+            right: screenX + screenWidth,
+            width: screenWidth
+          },
+          node,
+          initialSubmenu: 'link'
+        });
+      }
+    };
+    
+    window.addEventListener('editNodeHyperlink', handleEditHyperlink as EventListener);
+    return () => {
+      window.removeEventListener('editNodeHyperlink', handleEditHyperlink as EventListener);
+    };
+  }, [nodes, viewport]);
+
   // Theme change detection for text color updates using MutationObserver
   useEffect(() => {
     if (!activeTab) return;
@@ -3345,6 +3393,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     node?: Node; 
     edge?: Edge;
     canvasObject?: CanvasObject;
+    initialSubmenu?: string | null;
   } | null>(null);
   const [quickCreateMenu, setQuickCreateMenu] = useState<{
     screenPosition: { x: number; y: number };
@@ -6558,29 +6607,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             selectedText={selectedText}
             onAddHyperlink={(hyperlink) => {
               const { text: linkText, url } = hyperlink;
-              console.log('🔗 Adding hyperlink:', { linkText, url, nodeId: linearToolbar.node?.id, selectedText });
-              if (linearToolbar.node && url) {
+              console.log('🔗 Adding hyperlink:', { linkText, url, nodeId: linearToolbar.node?.id });
+              if (linearToolbar.node) {
                 saveToHistory();
                 setNodes(prev => prev.map(n => {
                   if (n.id !== linearToolbar.node!.id) return n;
-                  const currentDescription = n.data?.description || '';
-                  const markdown = `[${linkText}](${url})`;
-                  // Use linkText to find/replace in description (linkText came from cached selection)
-                  // If linkText exists in description, replace it; otherwise append
-                  const newDescription = currentDescription.includes(linkText)
-                    ? currentDescription.replace(linkText, markdown)
-                    : currentDescription + (currentDescription ? '\n' : '') + markdown;
-                  console.log('🔗 Updated description:', { currentDescription, markdown, newDescription });
+                  // Store hyperlink as separate data property (or remove if empty)
+                  const newHyperlink = (linkText && url) ? { text: linkText, url } : undefined;
+                  console.log('🔗 Updated hyperlink:', { newHyperlink });
                   return { 
                     ...n, 
                     data: { 
                       ...n.data, 
-                      description: newDescription
+                      hyperlink: newHyperlink
                     } 
                   };
                 }));
-                // Reset selected text after adding link
-                setSelectedText('');
               }
             }}
             onEdgeStyleChange={(style) => {
@@ -6931,6 +6973,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             scale={viewport.zoom}
             isInlineEditing={!!(inlineEditing && linearToolbar.node && inlineEditing.nodeId === linearToolbar.node.id)}
             inlineEditingPart={inlineEditing?.nodeId === linearToolbar.node?.id ? inlineEditing?.part : undefined}
+            initialSubmenu={linearToolbar.initialSubmenu}
           />
         )}
 
