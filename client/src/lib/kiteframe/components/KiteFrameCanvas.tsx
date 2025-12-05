@@ -144,7 +144,7 @@ const HyperlinkFooterItem: React.FC<HyperlinkFooterItemProps> = ({
           onClick={(e) => e.stopPropagation()}
           style={{
             display: 'block',
-            backgroundColor: '#f9fafb',
+            backgroundColor: 'white',
             border: '1px solid #e5e7eb',
             borderRadius: '8px',
             padding: '10px',
@@ -153,11 +153,11 @@ const HyperlinkFooterItem: React.FC<HyperlinkFooterItemProps> = ({
             transition: 'all 0.15s ease',
           }}
           onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = '#f3f4f6';
+            e.currentTarget.style.backgroundColor = '#f9fafb';
             e.currentTarget.style.borderColor = '#d1d5db';
           }}
           onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = '#f9fafb';
+            e.currentTarget.style.backgroundColor = 'white';
             e.currentTarget.style.borderColor = '#e5e7eb';
           }}
           data-testid={`hyperlink-preview-${hyperlink.id}`}
@@ -210,7 +210,7 @@ const HyperlinkFooterItem: React.FC<HyperlinkFooterItemProps> = ({
           onClick={(e) => e.stopPropagation()}
           style={{
             display: 'block',
-            backgroundColor: '#f9fafb',
+            backgroundColor: 'white',
             border: '1px solid #e5e7eb',
             borderRadius: '8px',
             padding: '10px',
@@ -219,11 +219,11 @@ const HyperlinkFooterItem: React.FC<HyperlinkFooterItemProps> = ({
             transition: 'all 0.15s ease',
           }}
           onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = '#f3f4f6';
+            e.currentTarget.style.backgroundColor = '#f9fafb';
             e.currentTarget.style.borderColor = '#d1d5db';
           }}
           onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = '#f9fafb';
+            e.currentTarget.style.backgroundColor = 'white';
             e.currentTarget.style.borderColor = '#e5e7eb';
           }}
           data-testid={`hyperlink-preview-fallback-${hyperlink.id}`}
@@ -1566,73 +1566,91 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     }
   }, [showMetrics, renderBatchManager]);
 
-  // ResizeObserver to track node height changes during inline editing
+  // ResizeObserver to track ALL node height changes for accurate edge positioning
   // This ensures edges update their positions when node body text expands or shrinks
   const resizeDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const nodeHeightCacheRef = useRef<Map<string, number>>(new Map());
   
   useEffect(() => {
-    if (!props.inlineEditing?.nodeId || props.inlineEditing?.part !== 'body') {
-      return;
-    }
-    
-    const nodeId = props.inlineEditing.nodeId;
-    const nodeElement = nodeRefs.current.get(nodeId);
-    
-    if (!nodeElement) {
-      return;
-    }
-    
-    let lastReportedHeight = nodeElement.offsetHeight;
+    if (!containerRef.current) return;
     
     const resizeObserver = new ResizeObserver((entries) => {
+      const nodesToUpdate: Array<{id: string, height: number}> = [];
+      
       for (const entry of entries) {
+        const nodeElement = entry.target as HTMLElement;
+        const nodeId = nodeElement.getAttribute('data-node-id');
+        if (!nodeId) continue;
+        
         const newHeight = entry.contentRect.height;
+        const cachedHeight = nodeHeightCacheRef.current.get(nodeId) || 0;
         
         // Only update if height has actually changed significantly (to avoid loops)
-        if (Math.abs(newHeight - lastReportedHeight) > 2) {
-          lastReportedHeight = newHeight;
+        if (Math.abs(newHeight - cachedHeight) > 2) {
+          nodeHeightCacheRef.current.set(nodeId, newHeight);
           
-          // Debounce the state update to avoid thrashing
-          if (resizeDebounceRef.current) {
-            clearTimeout(resizeDebounceRef.current);
-          }
+          const borderWidth = 4; // Account for 2px borders on each side
+          const totalHeight = newHeight + borderWidth;
+          const minHeight = 80; // Minimum node height
+          const finalHeight = Math.max(totalHeight, minHeight);
           
-          resizeDebounceRef.current = setTimeout(() => {
-            // Trigger edge recalculation by updating measuredHeight (transient property)
-            // We don't set explicit height/style.height because that would disable autoHeight
-            const node = props.nodes.find(n => n.id === nodeId);
-            if (node) {
-              const borderWidth = 4; // Account for 2px borders on each side
-              const totalHeight = newHeight + borderWidth;
-              const minHeight = 80; // Minimum node height
-              const finalHeight = Math.max(totalHeight, minHeight);
-              
-              // Store measured height in measuredHeight (transient, not persisted)
-              // This triggers re-render for edge recalculation without breaking autoHeight
-              const modelHeight = node.measuredHeight || node.height || 100;
-              if (Math.abs(finalHeight - modelHeight) > 2) {
-                const updatedNodes = props.nodes.map(n => 
-                  n.id === nodeId 
-                    ? { ...n, measuredHeight: finalHeight }
-                    : n
-                );
-                props.onNodesChange(updatedNodes);
+          nodesToUpdate.push({ id: nodeId, height: finalHeight });
+        }
+      }
+      
+      if (nodesToUpdate.length > 0) {
+        // Debounce the state update to avoid thrashing
+        if (resizeDebounceRef.current) {
+          clearTimeout(resizeDebounceRef.current);
+        }
+        
+        resizeDebounceRef.current = setTimeout(() => {
+          const updatedNodes = props.nodes.map(n => {
+            const update = nodesToUpdate.find(u => u.id === n.id);
+            if (update) {
+              const modelHeight = n.measuredHeight || n.height || 100;
+              if (Math.abs(update.height - modelHeight) > 2) {
+                return { ...n, measuredHeight: update.height };
               }
             }
-          }, 50); // 50ms debounce
+            return n;
+          });
+          
+          // Only update if there were actual changes
+          const hasChanges = updatedNodes.some((n, i) => n !== props.nodes[i]);
+          if (hasChanges) {
+            props.onNodesChange(updatedNodes);
+          }
+        }, 50); // 50ms debounce
+      }
+    });
+    
+    // Observe all node elements
+    const nodeElements = containerRef.current.querySelectorAll('.kiteframe-node[data-node-id]');
+    nodeElements.forEach(el => resizeObserver.observe(el));
+    
+    // Also observe for new nodes added to the container
+    const mutationObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof HTMLElement) {
+            const nodeEl = node.classList?.contains('kiteframe-node') ? node : node.querySelector?.('.kiteframe-node[data-node-id]');
+            if (nodeEl) resizeObserver.observe(nodeEl);
+          }
         }
       }
     });
     
-    resizeObserver.observe(nodeElement);
+    mutationObserver.observe(containerRef.current, { childList: true, subtree: true });
     
     return () => {
       resizeObserver.disconnect();
+      mutationObserver.disconnect();
       if (resizeDebounceRef.current) {
         clearTimeout(resizeDebounceRef.current);
       }
     };
-  }, [props.inlineEditing?.nodeId, props.inlineEditing?.part, props.nodes, props.onNodesChange]);
+  }, [props.nodes, props.onNodesChange]);
 
   // Keyboard event listener for Alt+P to toggle Performance element
   useEffect(() => {
@@ -4113,7 +4131,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         cursor: n.type !== "image" 
                           ? (props.inlineEditing?.nodeId === n.id && props.inlineEditing?.part === 'body' ? 'text' : 'grab')
                           : undefined,
-                        overflow: props.inlineEditing?.nodeId === n.id && props.inlineEditing?.part === 'body' ? 'visible' : 'hidden',
+                        overflow: (props.inlineEditing?.nodeId === n.id && props.inlineEditing?.part === 'body') || autoHeight ? 'visible' : 'hidden',
                         borderRadius: (() => {
                           const hasHeader = !n.data?.hideHeader;
                           const hasHyperlinks = normalizeHyperlinks(n.data).length > 0;
@@ -4272,6 +4290,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                                 textAlign: n.data?.textAlign || 'left',
                                 display: 'block',
                                 width: '100%',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
                               }}
                             >
                               {n.data?.description ? renderTextWithLinks(n.data.description) : "Drop content here…"}
