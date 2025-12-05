@@ -5,6 +5,7 @@ interface InlineTextEditorProps {
   placeholder?: string;
   onSave: (value: string) => void;
   onCancel: () => void;
+  onSelectionChange?: (selectedText: string) => void;
   className?: string;
   style?: React.CSSProperties;
   autoFocus?: boolean;
@@ -21,6 +22,7 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   placeholder = "Enter text...",
   onSave,
   onCancel,
+  onSelectionChange,
   className = "",
   style = {},
   autoFocus = true,
@@ -174,6 +176,21 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
     }
   };
 
+  const handleSelectionChange = () => {
+    if (!inputRef.current || !onSelectionChange) return;
+    
+    const input = inputRef.current;
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? 0;
+    
+    if (start !== end) {
+      const selectedText = value.substring(start, end);
+      onSelectionChange(selectedText);
+    } else {
+      onSelectionChange('');
+    }
+  };
+
   const inputStyle: React.CSSProperties = {
     fontSize: `${fontSize}px`,
     fontFamily,
@@ -222,6 +239,9 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
+        onSelect={handleSelectionChange}
+        onMouseUp={handleSelectionChange}
+        onKeyUp={handleSelectionChange}
         placeholder={placeholder}
         className={`inline-text-editor ${className}`}
         style={inputStyle}
@@ -239,6 +259,9 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={handleKeyDown}
       onBlur={handleBlur}
+      onSelect={handleSelectionChange}
+      onMouseUp={handleSelectionChange}
+      onKeyUp={handleSelectionChange}
       placeholder={placeholder}
       className={`inline-text-editor ${className}`}
       style={inputStyle}
