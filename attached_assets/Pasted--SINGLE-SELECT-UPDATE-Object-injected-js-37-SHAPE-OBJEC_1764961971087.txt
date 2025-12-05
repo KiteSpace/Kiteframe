@@ -1,0 +1,227 @@
+📝 SINGLE SELECT UPDATE: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764884626096-oab7nkxpp
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 DRAG STATE RESET - ready for next click
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 DRAG START: Object
+injected.js:37 🔧 DRAG END: Object
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🎯 NODE CLICK: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 DIRECT NODE UPDATE (drag): Object
+injected.js:37 ✅ Node Regular click select: Object
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: Object
+injected.js:37 📝 SELECTION STATE SET: Object
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🖱️ BODY DOUBLE-CLICK: Object
+injected.js:37 📝 EDITOR NODE DOUBLE-CLICK HANDLER - Triggering inline edit: Object
+injected.js:37 📝 TEXT EDITOR: Component mounted Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+content_script.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at elementWasFocused (content_script.js:1:423712)
+    at HTMLDocument.focusInEventHandler (content_script.js:1:423069)
+injected.js:37 👂 TEXT EDITOR: Event listeners attached Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764884626096-oab7nkxpp
+injected.js:37 📝 TEXT EDITOR: Component mounted Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 DRAG STATE RESET - ready for next click
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🖱️ TEXT EDITOR: Click event detected Object
+injected.js:37 🚫 DRAG SUPPRESSED - inline editing active: Object
+injected.js:37 📝 TEXT EDITOR: Component mounted Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 TEXT EDITOR: Component mounted Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🎯 NODE CLICK: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 DIRECT NODE UPDATE (drag): Object
+injected.js:37 ✅ Node Regular click select: Object
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: Object
+injected.js:37 📝 SELECTION STATE SET: Object
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 📝 TEXT EDITOR: Component mounted Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764884626096-oab7nkxpp
+injected.js:37 📝 TEXT EDITOR: Component mounted Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 DRAG STATE RESET - ready for next click
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 ⌨️ TEXT EDITOR: Key pressed Object
+injected.js:37 📝 TEXT EDITOR: Component mounted Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 ⌨️ TEXT EDITOR: Escape key detected in document listener
+injected.js:37 📝 TEXT EDITOR: Component mounted Object
+injected.js:37 🧹 TEXT EDITOR: Event listeners removed
+injected.js:37 👂 TEXT EDITOR: Event listeners attached Object
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🖱️ TEXT EDITOR: Click event detected Object
+injected.js:37 🖱️ TEXT EDITOR: Toolbar click detected - keeping editor open
+injected.js:37 💾 TEXT EDITOR: Blur to toolbar - keeping editor open
+content_script.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at elementWasFocused (content_script.js:1:423712)
+    at HTMLDocument.focusInEventHandler (content_script.js:1:423069)
+injected.js:37 📝 TEXT EDITOR: Component mounted Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 💾 TEXT EDITOR: Blur to toolbar - keeping editor open
+2content_script.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at elementWasFocused (content_script.js:1:423712)
+    at HTMLDocument.focusInEventHandler (content_script.js:1:423069)
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🖱️ TEXT EDITOR: Click event detected Object
+injected.js:37 🖱️ TEXT EDITOR: Toolbar click detected - keeping editor open
+injected.js:37 💾 TEXT EDITOR: Blur to toolbar - keeping editor open
+2content_script.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at elementWasFocused (content_script.js:1:423712)
+    at HTMLDocument.focusInEventHandler (content_script.js:1:423069)
+injected.js:37 📝 TEXT EDITOR: Component mounted Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 ⌨️ TEXT EDITOR: Key pressed Object
+injected.js:37 ⌨️ TEXT EDITOR: Escape key detected in document listener
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🖱️ TEXT EDITOR: Click event detected Object
+injected.js:37 🖱️ TEXT EDITOR: Toolbar click detected - keeping editor open
+injected.js:37 💾 TEXT EDITOR: Blur to toolbar - keeping editor open
+2content_script.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at elementWasFocused (content_script.js:1:423712)
+    at HTMLDocument.focusInEventHandler (content_script.js:1:423069)
+injected.js:37 📝 TEXT EDITOR: Component mounted Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 💾 TEXT EDITOR: Blur save (backup)
+injected.js:37 💾 TEXT EDITOR: Save triggered Object
+injected.js:37 📝 Inline editing save: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🧹 TEXT EDITOR: Event listeners removed
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764955911338&sid=15ed2125-73d8-44e8-bdf4-b639dbbbb383&ec=2543&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764955911858&sid=15ed2125-73d8-44e8-bdf4-b639dbbbb383&ec=2543&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 DIRECT NODE UPDATE (drag): Object
+injected.js:37 📝 CANVAS CLICK: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 DRAG STATE RESET - ready for next click
+injected.js:37 💾 Workflows saved to local storage
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764955913905&sid=15ed2125-73d8-44e8-bdf4-b639dbbbb383&ec=2543&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+cf.js?config=%257B%2522projectId%2522%253A%252268c9ad4d4cddb58cf3a1f93d%2522%252C%2522startTime%2522%253A1764869930641%252C%2522timeoutMs%2522%253A1000%252C%2522currentUrl%2522%253A%2522https%253A%252F%252Freplit.com%252F%2540adalydesign%252FKiteframe%2522%252C%2522trackingOnly%2522%253Atrue%257D:10  POST https://ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/ net::ERR_BLOCKED_BY_CLIENT
+q @ cf.js?config=%257B%2522projectId%2522%253A%252268c9ad4d4cddb58cf3a1f93d%2522%252C%2522startTime%2522%253A1764869930641%252C%2522timeoutMs%2522%253A1000%252C%2522currentUrl%2522%253A%2522https%253A%252F%252Freplit.com%252F%2540adalydesign%252FKiteframe%2522%252C%2522trackingOnly%2522%253Atrue%257D:10
+M @ cf.js?config=%257B%2522projectId%2522%253A%252268c9ad4d4cddb58cf3a1f93d%2522%252C%2522startTime%2522%253A1764869930641%252C%2522timeoutMs%2522%253A1000%252C%2522currentUrl%2522%253A%2522https%253A%252F%252Freplit.com%252F%2540adalydesign%252FKiteframe%2522%252C%2522trackingOnly%2522%253Atrue%257D:10
+(anonymous) @ cf.js?config=%257B%2522projectId%2522%253A%252268c9ad4d4cddb58cf3a1f93d%2522%252C%2522startTime%2522%253A1764869930641%252C%2522timeoutMs%2522%253A1000%252C%2522currentUrl%2522%253A%2522https%253A%252F%252Freplit.com%252F%2540adalydesign%252FKiteframe%2522%252C%2522trackingOnly%2522%253Atrue%257D:10
+o @ ca20a1fe0bc4f889.js:2
+397 log entries are not shown.
+ca20a1fe0bc4f889.js:2  POST https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764955918457&sid=15ed2125-73d8-44e8-bdf4-b639dbbbb383&ec=2543&gz=1 net::ERR_BLOCKED_BY_CLIENT
+(anonymous) @ ca20a1fe0bc4f889.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+value @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+value @ 06e68893bdd5c424.js:2
+e.<computed> @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+s @ 06e68893bdd5c424.js:2
+ca20a1fe0bc4f889.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764955918457&sid=15ed2125-73d8-44e8-bdf4-b639dbbbb383&ec=2543&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at ca20a1fe0bc4f889.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at 06e68893bdd5c424.js:2:42706
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ ca20a1fe0bc4f889.js:2
+value @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+s @ 06e68893bdd5c424.js:2
+Promise.then
+l @ 06e68893bdd5c424.js:2
+u @ 06e68893bdd5c424.js:2
+Promise.then
+l @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+value @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+value @ 06e68893bdd5c424.js:2
+e.<computed> @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+s @ 06e68893bdd5c424.js:2
+ca20a1fe0bc4f889.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ ca20a1fe0bc4f889.js:2
+value @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+s @ 06e68893bdd5c424.js:2
+ca20a1fe0bc4f889.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ ca20a1fe0bc4f889.js:2
+value @ 06e68893bdd5c424.js:2
+value @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+value @ 06e68893bdd5c424.js:2
+e.<computed> @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+s @ 06e68893bdd5c424.js:2

@@ -19,10 +19,15 @@ export const coreNodeIntegrationPlugin: KiteFramePlugin = {
     console.log('  - BasicNode:', typeof BasicNode === 'function' ? '✓ Component found' : '✗ Component missing');
     console.log('  - ImageNode: Handled by main canvas for advanced features');
     
-    // Register BasicNode as custom node renderer
+    // Register BasicNode as custom node renderer for all standard node types
     // Note: ImageNode moved to main canvas rendering for advanced features
     const nodeRenderers = {
-      'basic': BasicNode
+      'basic': BasicNode,
+      'input': BasicNode,
+      'process': BasicNode,
+      'condition': BasicNode,
+      'output': BasicNode,
+      'ai': BasicNode
       // 'image': ImageNode - Moved to main canvas rendering for selection, handles, and advanced imageSize modes
     };
     
@@ -40,21 +45,22 @@ export const coreNodeIntegrationPlugin: KiteFramePlugin = {
     console.log('  Registered types:', Object.keys(registeredRenderers).join(', ') || 'none');
     
     // Verify our specific renderers
-    const basicRegistered = registeredRenderers['basic'] === BasicNode;
+    const allTypesRegistered = ['basic', 'input', 'process', 'condition', 'output', 'ai'].every(
+      type => registeredRenderers[type] === BasicNode
+    );
     
-    if (basicRegistered) {
+    if (allTypesRegistered) {
       console.log('✅ Core Node Integration: SUCCESS - Node renderers registered correctly');
-      console.log('  ✓ basic -> BasicNode');
+      console.log('  ✓ basic, input, process, condition, output, ai -> BasicNode');
       console.log('  ✓ image -> Main Canvas (advanced features)');
     } else {
       console.error('❌ Core Node Integration: FAILED - BasicNode renderer not registered properly');
-      console.error('  basic registered:', basicRegistered ? '✓' : '✗');
       throw new Error('Core Node Integration failed to register BasicNode renderer');
     }
     
     // Emit success event
     core.emit('core-node-integration:initialized', {
-      renderers: ['basic'],
+      renderers: ['basic', 'input', 'process', 'condition', 'output', 'ai'],
       mainCanvasRenderers: ['image'],
       timestamp: new Date().toISOString()
     });
