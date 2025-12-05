@@ -95,7 +95,7 @@ export type Edge = {
   data?: any; // Keep for backward compatibility
 };
 
-export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table';
+export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form';
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 
 // ============= DATA TABLE TYPES =============
@@ -241,6 +241,36 @@ export interface DataBackedNodeData extends BasicNodeData {
   autoSync?: boolean;
 }
 
+// ============= FORM NODE TYPES =============
+// Used for Form Nodes with input fields that can be typed or linked to table data
+
+// Data link reference - links a form field to a specific table cell
+export interface FormFieldDataLink {
+  tableId: string;      // ID of the source table node
+  columnId: string;     // Column ID in the table
+  rowId: string;        // Row ID in the table
+  displayValue?: string; // Cached display value from the linked cell
+}
+
+// Individual form field definition
+export interface FormNodeField {
+  id: string;           // Unique field identifier
+  label: string;        // Field label displayed to the user
+  value: string;        // Current text value (used when not linked)
+  dataLink?: FormFieldDataLink; // Optional link to table cell
+  placeholder?: string; // Placeholder text when empty
+  required?: boolean;   // Whether field is required
+  type?: 'text' | 'number' | 'email' | 'url' | 'date'; // Input type hint
+}
+
+// Form Node Data - extends BasicNodeData with form-specific properties
+export interface FormNodeData extends BasicNodeData {
+  fields: FormNodeField[];
+  formTitle?: string;   // Optional form title/header
+  showLabels?: boolean; // Whether to show field labels (default true)
+  layout?: 'vertical' | 'horizontal'; // Field layout direction
+}
+
 // Typed Node Variants for Type Safety
 export type BasicNode = Node & { 
   type: 'basic';
@@ -262,8 +292,13 @@ export type DataBackedNode = Node & {
   data: DataBackedNodeData;
 };
 
+export type FormNode = Node & {
+  type: 'form';
+  data: FormNodeData;
+};
+
 // Union type for core library nodes
-export type KiteFrameNode = BasicNode | ImageNode | TableNode | DataBackedNode;
+export type KiteFrameNode = BasicNode | ImageNode | TableNode | DataBackedNode | FormNode;
 
 // Node Creation/Factory Types
 export interface NodeTemplate<T = any> {
@@ -286,6 +321,10 @@ export interface ImageNodeTemplate extends NodeTemplate<ImageNodeData> {
 
 export interface TableNodeTemplate extends NodeTemplate<TableNodeData> {
   type: 'table';
+}
+
+export interface FormNodeTemplate extends NodeTemplate<FormNodeData> {
+  type: 'form';
 }
 
 // Properties System Types

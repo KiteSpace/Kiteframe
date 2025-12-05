@@ -488,14 +488,17 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
           />
         </div>
         
-        <button
-          onClick={handleImportClick}
-          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          data-testid={`table-import-${node.id}`}
-        >
-          <Upload size={12} />
-          Import
-        </button>
+        {/* Only show import button when table has no data */}
+        {(!table || !table.rows || table.rows.length === 0) && (
+          <button
+            onClick={handleImportClick}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            data-testid={`table-import-${node.id}`}
+          >
+            <Upload size={12} />
+            Import
+          </button>
+        )}
         
         <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
           {filteredAndSortedRows.length} of {table?.meta?.totalRowCount ?? rowCount}

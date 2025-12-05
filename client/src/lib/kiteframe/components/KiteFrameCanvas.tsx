@@ -38,6 +38,8 @@ import { StickyNote } from "./StickyNote";
 import { ShapeNode } from "./ShapeNode";
 import { ImageNode } from "./ImageNode";
 import { TableNode } from "./TableNode";
+import { FormNode } from "./FormNode";
+import { DataLinkPicker } from "./DataLinkPicker";
 import { TextObject } from "./TextObject";
 import { StickyNoteObject } from "./StickyNoteObject";
 import { ShapeObject } from "./ShapeObject";
@@ -1469,6 +1471,19 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     (obj) => obj.selected,
   ).length;
   const [connecting, setConnecting] = useState<ConnectingState | null>(null);
+
+  // Data Link Picker state for Form nodes
+  const [dataLinkPicker, setDataLinkPicker] = useState<{
+    isOpen: boolean;
+    formNodeId: string;
+    fieldId: string;
+    currentLink?: {
+      tableId: string;
+      columnId: string;
+      rowId: string;
+      displayValue?: string;
+    };
+  } | null>(null);
 
   // Smart Guides state
   const [currentGuides, setCurrentGuides] = useState<SnapGuide[]>([]);
@@ -3946,6 +3961,108 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 );
               }
 
+              // Handle form nodes
+              if (n.type === "form") {
+                return (
+                  <FormNode
+                    key={n.id}
+                    node={n as any}
+                    onUpdate={(nodeId: string, updates: Partial<Node>) => {
+                      const updated = props.nodes.map((node) =>
+                        node.id === nodeId
+                          ? { ...node, ...updates }
+                          : node,
+                      );
+                      props.onNodesChange?.(updated);
+                    }}
+                    onStartDrag={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      if (!containerRef.current) return;
+                      const rect = containerRef.current.getBoundingClientRect();
+                      const wp = clientToWorld(
+                        e.clientX,
+                        e.clientY,
+                        viewport,
+                        rect,
+                      );
+
+                      const selectedNodes = props.nodes.filter(
+                        (node) => node.selected === true,
+                      );
+                      const selectedCanvasObjects = (
+                        props.canvasObjects || []
+                      ).filter((obj) => obj.selected === true);
+                      const totalSelected =
+                        selectedNodes.length + selectedCanvasObjects.length;
+                      const isGroupDrag =
+                        totalSelected > 1 && n.selected === true;
+
+                      const origins = isGroupDrag
+                        ? selectedNodes.map((node) => ({
+                            id: node.id,
+                            origin: { ...node.position },
+                          }))
+                        : [{ id: n.id, origin: { ...n.position } }];
+
+                      const canvasObjectOrigins = isGroupDrag
+                        ? selectedCanvasObjects.map((obj) => ({
+                            id: obj.id,
+                            origin: { ...obj.position },
+                          }))
+                        : [];
+
+                      dragInfo.current = {
+                        id: n.id,
+                        start: wp,
+                        origin: { ...n.position },
+                        origins: origins,
+                        canvasObjectOrigins: canvasObjectOrigins,
+                        isGroupDrag: isGroupDrag,
+                      };
+                    }}
+                    onClick={(e: React.MouseEvent) => {
+                      props.onNodeClick?.(e, n);
+                    }}
+                    onHandleConnect={(position, e) => {
+                      if (!containerRef.current) return;
+                      const rect = containerRef.current.getBoundingClientRect();
+                      const wp = clientToWorld(
+                        e.clientX,
+                        e.clientY,
+                        viewport,
+                        rect,
+                      );
+                      setConnecting({
+                        sourceId: n.id,
+                        wx: wp.x,
+                        wy: wp.y,
+                        hoverTargetId: null,
+                        eligible: false,
+                      });
+                    }}
+                    showHandles={n.showHandles !== false}
+                    showResizeHandle={n.resizable !== false}
+                    viewport={viewport}
+                    tables={Object.values(props.tableData || {})}
+                    onOpenDataLinkPicker={(fieldId, currentLink) => {
+                      setDataLinkPicker({
+                        isOpen: true,
+                        formNodeId: n.id,
+                        fieldId,
+                        currentLink,
+                      });
+                    }}
+                    style={{
+                      position: "absolute",
+                      left: n.position.x,
+                      top: n.position.y,
+                      zIndex: n.zIndex || 0,
+                    }}
+                    className={n.selected ? "selected" : ""}
+                  />
+                );
+              }
+
               // Check for plugin renderers before falling back to default rendering
               if (enablePlugins && n.type) {
                 const hooks = core.getHooks();
@@ -5318,6 +5435,38 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               </>
             )}
           </div>
+        )}
+
+        {/* Data Link Picker Modal for Form Nodes */}
+        {dataLinkPicker && (
+          <DataLinkPicker
+            isOpen={dataLinkPicker.isOpen}
+            onClose={() => setDataLinkPicker(null)}
+            tables={Object.values(props.tableData || {})}
+            currentLink={dataLinkPicker.currentLink}
+            onSelect={(link) => {
+              if (!dataLinkPicker || !link) return;
+              
+              const formNode = props.nodes.find(n => n.id === dataLinkPicker.formNodeId);
+              if (!formNode || formNode.type !== 'form') return;
+              
+              const formData = formNode.data as any;
+              const updatedFields = (formData.fields || []).map((field: any) =>
+                field.id === dataLinkPicker.fieldId
+                  ? { ...field, dataLink: link, value: link.displayValue || '' }
+                  : field
+              );
+              
+              const updatedNodes = props.nodes.map(node =>
+                node.id === dataLinkPicker.formNodeId
+                  ? { ...node, data: { ...formData, fields: updatedFields } }
+                  : node
+              );
+              
+              props.onNodesChange?.(updatedNodes);
+              setDataLinkPicker(null);
+            }}
+          />
         )}
       </div>
     </>

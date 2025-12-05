@@ -49,6 +49,7 @@ import {
   Shapes, 
   StickyNote, 
   Table2,
+  FileText,
   Route,
   Palette,
   MapPin,
@@ -3566,6 +3567,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     'shapes': Shapes,
     'sticky-note': StickyNote,
     'table': Table2,
+    'form': FileText,
     'route': Route,
     'palette': Palette,
     'map-pin': MapPin,
@@ -4347,34 +4349,57 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                     const nodeId = `node-${Date.now()}`;
                     const isTableNode = type === 'table';
+                    const isFormNode = type === 'form';
                     const tableId = isTableNode ? `table-${nodeId}` : undefined;
+
+                    const getNodeData = () => {
+                      if (isTableNode) {
+                        return {
+                          label: 'Table',
+                          tableId,
+                          previewRowCount: 3,
+                          previewColumnCount: 4,
+                          showRowNumbers: true,
+                          colors: {
+                            headerBackground: '#4f46e5',
+                            bodyBackground: '#ffffff',
+                            headerTextColor: '#ffffff',
+                            bodyTextColor: '#374151',
+                          }
+                        };
+                      }
+                      if (isFormNode) {
+                        return {
+                          label: 'Form',
+                          formTitle: 'Form',
+                          fields: [],
+                          showLabels: true,
+                          layout: 'vertical',
+                          colors: {
+                            headerBackground: '#6366f1',
+                            bodyBackground: '#ffffff',
+                            borderColor: '#818cf8',
+                            headerTextColor: '#ffffff',
+                          }
+                        };
+                      }
+                      return {
+                        label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+                        description: `Configure ${type} settings`,
+                        icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
+                        iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
+                      };
+                    };
 
                     const newNode: Node = {
                       id: nodeId,
                       type,
                       position: getViewportCenteredPosition(),
-                      data: isTableNode ? {
-                        label: 'Table',
-                        tableId,
-                        previewRowCount: 3,
-                        previewColumnCount: 4,
-                        showRowNumbers: true,
-                        colors: {
-                          headerBackground: '#4f46e5',
-                          bodyBackground: '#ffffff',
-                          headerTextColor: '#ffffff',
-                          bodyTextColor: '#374151',
-                        }
-                      } : {
-                        label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
-                        description: `Configure ${type} settings`,
-                        icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
-                        iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
-                      },
-                      width: isTableNode ? 560 : 200,
-                      height: isTableNode ? 400 : 100,
-                      style: isTableNode ? { width: 560, height: 400 } : undefined,
-                      resizable: isTableNode ? true : undefined
+                      data: getNodeData(),
+                      width: isTableNode ? 560 : isFormNode ? 320 : 200,
+                      height: isTableNode ? 400 : isFormNode ? 200 : 100,
+                      style: isTableNode ? { width: 560, height: 400 } : isFormNode ? { width: 320, height: 200 } : undefined,
+                      resizable: isTableNode || isFormNode ? true : undefined
                     };
 
                     setNodes(prev => [...prev, newNode]);
@@ -4630,34 +4655,57 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                     const nodeId = `node-${Date.now()}`;
                     const isTableNode = type === 'table';
+                    const isFormNode = type === 'form';
                     const tableId = isTableNode ? `table-${nodeId}` : undefined;
+
+                    const getNodeData = () => {
+                      if (isTableNode) {
+                        return {
+                          label: 'Table',
+                          tableId,
+                          previewRowCount: 3,
+                          previewColumnCount: 4,
+                          showRowNumbers: true,
+                          colors: {
+                            headerBackground: '#4f46e5',
+                            bodyBackground: '#ffffff',
+                            headerTextColor: '#ffffff',
+                            bodyTextColor: '#374151',
+                          }
+                        };
+                      }
+                      if (isFormNode) {
+                        return {
+                          label: 'Form',
+                          formTitle: 'Form',
+                          fields: [],
+                          showLabels: true,
+                          layout: 'vertical',
+                          colors: {
+                            headerBackground: '#6366f1',
+                            bodyBackground: '#ffffff',
+                            borderColor: '#818cf8',
+                            headerTextColor: '#ffffff',
+                          }
+                        };
+                      }
+                      return {
+                        label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+                        description: `Configure ${type} settings`,
+                        icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
+                        iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
+                      };
+                    };
 
                     const newNode: Node = {
                       id: nodeId,
                       type,
                       position: getViewportCenteredPosition(),
-                      data: isTableNode ? {
-                        label: 'Table',
-                        tableId,
-                        previewRowCount: 3,
-                        previewColumnCount: 4,
-                        showRowNumbers: true,
-                        colors: {
-                          headerBackground: '#4f46e5',
-                          bodyBackground: '#ffffff',
-                          headerTextColor: '#ffffff',
-                          bodyTextColor: '#374151',
-                        }
-                      } : {
-                        label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
-                        description: `Configure ${type} settings`,
-                        icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
-                        iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
-                      },
-                      width: isTableNode ? 560 : 200,
-                      height: isTableNode ? 400 : 100,
-                      style: isTableNode ? { width: 560, height: 400 } : undefined,
-                      resizable: isTableNode ? true : undefined
+                      data: getNodeData(),
+                      width: isTableNode ? 560 : isFormNode ? 320 : 200,
+                      height: isTableNode ? 400 : isFormNode ? 200 : 100,
+                      style: isTableNode ? { width: 560, height: 400 } : isFormNode ? { width: 320, height: 200 } : undefined,
+                      resizable: isTableNode || isFormNode ? true : undefined
                     };
 
                     setNodes([newNode]);
@@ -4738,34 +4786,57 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                 const nodeId = `node-${Date.now()}`;
                 const isTableNode = type === 'table';
+                const isFormNode = type === 'form';
                 const tableId = isTableNode ? `table-${nodeId}` : undefined;
+
+                const getNodeData = () => {
+                  if (isTableNode) {
+                    return {
+                      label: 'Table',
+                      tableId,
+                      previewRowCount: 3,
+                      previewColumnCount: 4,
+                      showRowNumbers: true,
+                      colors: {
+                        headerBackground: '#4f46e5',
+                        bodyBackground: '#ffffff',
+                        headerTextColor: '#ffffff',
+                        bodyTextColor: '#374151',
+                      }
+                    };
+                  }
+                  if (isFormNode) {
+                    return {
+                      label: 'Form',
+                      formTitle: 'Form',
+                      fields: [],
+                      showLabels: true,
+                      layout: 'vertical',
+                      colors: {
+                        headerBackground: '#6366f1',
+                        bodyBackground: '#ffffff',
+                        borderColor: '#818cf8',
+                        headerTextColor: '#ffffff',
+                      }
+                    };
+                  }
+                  return {
+                    label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+                    description: `Configure ${type} settings`,
+                    icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
+                    iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
+                  };
+                };
 
                 const newNode: Node = {
                   id: nodeId,
                   type,
                   position: getViewportCenteredPosition(),
-                  data: isTableNode ? {
-                    label: 'Table',
-                    tableId,
-                    previewRowCount: 3,
-                    previewColumnCount: 4,
-                    showRowNumbers: true,
-                    colors: {
-                      headerBackground: '#4f46e5',
-                      bodyBackground: '#ffffff',
-                      headerTextColor: '#ffffff',
-                      bodyTextColor: '#374151',
-                    }
-                  } : {
-                    label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
-                    description: `Configure ${type} settings`,
-                    icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
-                    iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
-                  },
-                  width: isTableNode ? 560 : 200,
-                  height: isTableNode ? 400 : 100,
-                  style: isTableNode ? { width: 560, height: 400 } : undefined,
-                  resizable: isTableNode ? true : undefined
+                  data: getNodeData(),
+                  width: isTableNode ? 560 : isFormNode ? 320 : 200,
+                  height: isTableNode ? 400 : isFormNode ? 200 : 100,
+                  style: isTableNode ? { width: 560, height: 400 } : isFormNode ? { width: 320, height: 200 } : undefined,
+                  resizable: isTableNode || isFormNode ? true : undefined
                 };
 
                 setNodes(prev => [...prev, newNode]);
@@ -4864,34 +4935,61 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                 const nodeId = `node-${Date.now()}`;
                 const isTableNode = type === 'table';
+                const isFormNode = type === 'form';
                 const tableId = isTableNode ? `table-${nodeId}` : undefined;
 
-                const newNode: Node = {
-                  id: nodeId,
-                  type,
-                  position: { x: worldPosition.x - (isTableNode ? 280 : 100), y: worldPosition.y - (isTableNode ? 200 : 50) }, // Center the node
-                  data: isTableNode ? {
-                    label: 'Table',
-                    tableId,
-                    previewRowCount: 3,
-                    previewColumnCount: 4,
-                    showRowNumbers: true,
-                    colors: {
-                      headerBackground: '#4f46e5',
-                      bodyBackground: '#ffffff',
-                      headerTextColor: '#ffffff',
-                      bodyTextColor: '#374151',
-                    }
-                  } : {
+                const getNodeData = () => {
+                  if (isTableNode) {
+                    return {
+                      label: 'Table',
+                      tableId,
+                      previewRowCount: 3,
+                      previewColumnCount: 4,
+                      showRowNumbers: true,
+                      colors: {
+                        headerBackground: '#4f46e5',
+                        bodyBackground: '#ffffff',
+                        headerTextColor: '#ffffff',
+                        bodyTextColor: '#374151',
+                      }
+                    };
+                  }
+                  if (isFormNode) {
+                    return {
+                      label: 'Form',
+                      formTitle: 'Form',
+                      fields: [],
+                      showLabels: true,
+                      layout: 'vertical',
+                      colors: {
+                        headerBackground: '#6366f1',
+                        bodyBackground: '#ffffff',
+                        borderColor: '#818cf8',
+                        headerTextColor: '#ffffff',
+                      }
+                    };
+                  }
+                  return {
                     label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                     description: `Configure ${type} settings`,
                     icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
                     iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
-                  },
-                  width: isTableNode ? 560 : 200,
-                  height: isTableNode ? 400 : 100,
-                  style: isTableNode ? { width: 560, height: 400 } : undefined,
-                  resizable: isTableNode ? true : undefined
+                  };
+                };
+
+                // Calculate position offset based on node type for centering
+                const halfWidth = isTableNode ? 280 : isFormNode ? 160 : 100;
+                const halfHeight = isTableNode ? 200 : isFormNode ? 100 : 50;
+
+                const newNode: Node = {
+                  id: nodeId,
+                  type,
+                  position: { x: worldPosition.x - halfWidth, y: worldPosition.y - halfHeight },
+                  data: getNodeData(),
+                  width: isTableNode ? 560 : isFormNode ? 320 : 200,
+                  height: isTableNode ? 400 : isFormNode ? 200 : 100,
+                  style: isTableNode ? { width: 560, height: 400 } : isFormNode ? { width: 320, height: 200 } : undefined,
+                  resizable: isTableNode || isFormNode ? true : undefined
                 };
 
                 setNodes(prev => [...prev, newNode]);

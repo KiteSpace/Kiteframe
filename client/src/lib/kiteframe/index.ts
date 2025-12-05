@@ -10,6 +10,8 @@ export { BasicNode } from './components/BasicNode';
 export { ImageNode } from './components/ImageNode';
 export { TableNode, createTableNode } from './components/TableNode';
 export { TablePanel } from './components/TablePanel';
+export { FormNode, createFormNode } from './components/FormNode';
+export { DataLinkPicker } from './components/DataLinkPicker';
 
 // Edge components and utilities
 export { EdgeProperties } from './components/EdgeProperties';
@@ -58,7 +60,10 @@ export type {
   DataBackedNodeData,
   TableRowBinding,
   NodeFieldBinding,
-  DataBindingsState
+  DataBindingsState,
+  FormNodeData,
+  FormNodeField,
+  FormFieldDataLink
 } from './types';
 
 // Utilities
