@@ -381,29 +381,78 @@ export const TextObject: React.FC<TextObjectProps> = ({
               onMouseEnter={() => setShowHyperlinkMenu(true)}
               onMouseLeave={() => setShowHyperlinkMenu(false)}
             >
-              <div className="flex items-center gap-1 p-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+              <div 
+                style={{
+                  display: 'flex',
+                  gap: '2px',
+                  padding: '4px',
+                  backgroundColor: 'white',
+                  borderRadius: '6px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  border: '1px solid #e5e7eb',
+                }}
+              >
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onHyperlinkEdit?.();
                   }}
-                  className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '28px',
+                    height: '28px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    color: '#6b7280',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f3f4f6';
+                    e.currentTarget.style.color = '#3b82f6';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#6b7280';
+                  }}
                   data-testid="text-hyperlink-edit-button"
+                  title="Edit link"
                 >
-                  <Pencil size={12} />
-                  <span>Edit</span>
+                  <Pencil size={14} />
                 </button>
-                <div className="w-px h-4 bg-gray-200 dark:bg-gray-600" />
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onHyperlinkDelete?.();
                   }}
-                  className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '28px',
+                    height: '28px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    color: '#6b7280',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = '#fef2f2';
+                    e.currentTarget.style.color = '#ef4444';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#6b7280';
+                  }}
                   data-testid="text-hyperlink-delete-button"
+                  title="Delete link"
                 >
-                  <Trash2 size={12} />
-                  <span>Delete</span>
+                  <Trash2 size={14} />
                 </button>
               </div>
             </div>
@@ -463,7 +512,7 @@ export const TextObject: React.FC<TextObjectProps> = ({
               className="hyperlink-preview-card"
               style={{
                 marginTop: object.data.hyperlink?.showText !== false ? '8px' : '0',
-                backgroundColor: '#f9fafb',
+                backgroundColor: 'white',
                 border: '1px solid #e5e7eb',
                 borderRadius: '8px',
                 padding: '10px',
