@@ -570,6 +570,16 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
             )}
             
             {/* Hyperlink Button - displayed below body text */}
+            {(() => {
+              console.log('🔗 HYPERLINK RENDER CHECK:', {
+                nodeId: node.id,
+                hyperlink: node.data.hyperlink,
+                hasText: !!node.data.hyperlink?.text,
+                hasUrl: !!node.data.hyperlink?.url,
+                shouldRender: !!(node.data.hyperlink?.text && node.data.hyperlink?.url)
+              });
+              return null;
+            })()}
             {node.data.hyperlink?.text && node.data.hyperlink?.url && (
               <HyperlinkButton 
                 hyperlink={node.data.hyperlink}
