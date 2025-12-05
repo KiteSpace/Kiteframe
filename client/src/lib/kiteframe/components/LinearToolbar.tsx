@@ -2183,8 +2183,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             );
           })}
           
-          {/* Wireframe button - only for nodes (not during inline editing) */}
-          {isNodeTarget && node?.type !== 'image' && !isInlineEditing && (
+          {/* Wireframe button - only for nodes (not during inline editing, not for image/table nodes) */}
+          {isNodeTarget && node?.type !== 'image' && node?.type !== 'table' && !isInlineEditing && (
             <button
               className={cn(
                 "h-9 px-3 rounded-full flex items-center gap-1.5 text-white text-sm font-medium shadow-md transition-all duration-200",
