@@ -261,6 +261,9 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
           method: apiConfig.method || 'GET',
           headers: apiConfig.headers || [],
           responseDataPath: apiConfig.responseDataPath,
+          authType: apiConfig.authType,
+          apiKey: apiConfig.apiKey,
+          apiKeyHeaderName: apiConfig.apiKeyHeaderName,
         }),
       });
       

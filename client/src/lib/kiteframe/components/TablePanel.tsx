@@ -20,8 +20,10 @@ import {
   Search,
   Globe,
   Trash2,
+  Key,
+  Lock,
 } from "lucide-react";
-import type { DataTable, DataTableColumn, DataTableRow, TableApiConfig } from "../types";
+import type { DataTable, DataTableColumn, DataTableRow, TableApiConfig, TableApiAuthType } from "../types";
 import { sanitizeText } from "../utils/validation";
 
 const MAX_VISIBLE_ROWS = 50;
@@ -67,6 +69,9 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
   const [showApiConfig, setShowApiConfig] = useState(false);
   const [apiUrl, setApiUrl] = useState(apiConfig?.url || '');
   const [apiDataPath, setApiDataPath] = useState(apiConfig?.responseDataPath || '');
+  const [apiAuthType, setApiAuthType] = useState<TableApiAuthType>(apiConfig?.authType || 'none');
+  const [apiKey, setApiKey] = useState(apiConfig?.apiKey || '');
+  const [apiKeyHeaderName, setApiKeyHeaderName] = useState(apiConfig?.apiKeyHeaderName || 'X-API-Key');
   
   const panelRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -75,6 +80,9 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
     if (apiConfig) {
       setApiUrl(apiConfig.url || '');
       setApiDataPath(apiConfig.responseDataPath || '');
+      setApiAuthType(apiConfig.authType || 'none');
+      setApiKey(apiConfig.apiKey || '');
+      setApiKeyHeaderName(apiConfig.apiKeyHeaderName || 'X-API-Key');
     }
   }, [apiConfig]);
 
@@ -202,16 +210,22 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
       method: 'GET',
       headers: [],
       responseDataPath: apiDataPath.trim() || undefined,
+      authType: apiAuthType !== 'none' ? apiAuthType : undefined,
+      apiKey: apiKey.trim() || undefined,
+      apiKeyHeaderName: apiAuthType === 'apiKey' ? (apiKeyHeaderName.trim() || 'X-API-Key') : undefined,
     };
     
     onUpdateApiConfig?.(config);
     setShowApiConfig(false);
-  }, [apiUrl, apiDataPath, onUpdateApiConfig]);
+  }, [apiUrl, apiDataPath, apiAuthType, apiKey, apiKeyHeaderName, onUpdateApiConfig]);
 
   const handleRemoveApiConfig = useCallback(() => {
     onUpdateApiConfig?.(undefined);
     setApiUrl('');
     setApiDataPath('');
+    setApiAuthType('none');
+    setApiKey('');
+    setApiKeyHeaderName('X-API-Key');
     setShowApiConfig(false);
   }, [onUpdateApiConfig]);
 
@@ -343,50 +357,96 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
 
       {/* API Configuration - Inline */}
       {showApiConfig && (
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20">
-          <input
-            type="text"
-            value={apiUrl}
-            onChange={(e) => setApiUrl(e.target.value)}
-            placeholder="API URL (e.g. https://api.example.com/data)"
-            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            data-testid="table-panel-api-url"
-          />
-          <input
-            type="text"
-            value={apiDataPath}
-            onChange={(e) => setApiDataPath(e.target.value)}
-            placeholder="Data path (optional)"
-            className="w-40 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            title="Path to array in response (e.g. data.items, results.users)"
-            data-testid="table-panel-api-path"
-          />
-          <button
-            onClick={handleSaveApiConfig}
-            disabled={!apiUrl.trim()}
-            className="px-3 py-1.5 text-sm font-medium rounded-md bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            data-testid="table-panel-api-save"
-          >
-            Fetch
-          </button>
-          {apiConfig?.enabled && (
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20 space-y-2">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={apiUrl}
+              onChange={(e) => setApiUrl(e.target.value)}
+              placeholder="API URL (e.g. https://api.example.com/data)"
+              className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              data-testid="table-panel-api-url"
+            />
+            <input
+              type="text"
+              value={apiDataPath}
+              onChange={(e) => setApiDataPath(e.target.value)}
+              placeholder="Data path (optional)"
+              className="w-40 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title="Path to array in response (e.g. data.items, results.users)"
+              data-testid="table-panel-api-path"
+            />
             <button
-              onClick={handleRemoveApiConfig}
-              className="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-              title="Remove API connection"
-              data-testid="table-panel-remove-api"
+              onClick={handleSaveApiConfig}
+              disabled={!apiUrl.trim()}
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              data-testid="table-panel-api-save"
             >
-              <Trash2 size={16} />
+              Fetch
             </button>
-          )}
-          <button
-            onClick={() => setShowApiConfig(false)}
-            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-            title="Close"
-            data-testid="table-panel-api-cancel"
-          >
-            <X size={16} />
-          </button>
+            {apiConfig?.enabled && (
+              <button
+                onClick={handleRemoveApiConfig}
+                className="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                title="Remove API connection"
+                data-testid="table-panel-remove-api"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+            <button
+              onClick={() => setShowApiConfig(false)}
+              className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+              title="Close"
+              data-testid="table-panel-api-cancel"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          
+          {/* Authentication Section */}
+          <div className="flex items-center gap-2 pt-1 border-t border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+              <Key size={12} className="text-amber-500" />
+              <span>Auth:</span>
+            </div>
+            <select
+              value={apiAuthType}
+              onChange={(e) => setApiAuthType(e.target.value as TableApiAuthType)}
+              className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              data-testid="table-panel-api-auth-type"
+            >
+              <option value="none">None</option>
+              <option value="apiKey">API Key</option>
+              <option value="bearer">Bearer Token</option>
+            </select>
+            
+            {apiAuthType !== 'none' && (
+              <>
+                {apiAuthType === 'apiKey' && (
+                  <input
+                    type="text"
+                    value={apiKeyHeaderName}
+                    onChange={(e) => setApiKeyHeaderName(e.target.value)}
+                    placeholder="Header name"
+                    className="w-32 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    data-testid="table-panel-api-header-name"
+                  />
+                )}
+                <div className="relative flex-1 max-w-xs">
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder={apiAuthType === 'bearer' ? "Bearer token" : "API key"}
+                    className="w-full px-2 py-1 pr-7 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    data-testid="table-panel-api-key"
+                  />
+                  <Lock size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 
