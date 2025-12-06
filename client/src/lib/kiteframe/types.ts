@@ -147,6 +147,18 @@ export interface CompoundLinkSubcomponent extends CompoundSubcomponentBase {
   };
 }
 
+// Data link for compound input - links input value to a table cell
+export interface CompoundInputDataLink {
+  tableId: string;      // ID of the source table node
+  tableNodeId: string;  // Node ID of the table (for focusing)
+  tableName: string;    // Display name of the table
+  columnId: string;     // Column ID in the table
+  columnName: string;   // Display name of the column
+  rowId: string;        // Row ID in the table
+  rowIndex: number;     // Row index for display
+  displayValue?: string; // Cached display value from the linked cell
+}
+
 export interface CompoundInputSubcomponent extends CompoundSubcomponentBase {
   type: 'input';
   data: {
@@ -154,6 +166,7 @@ export interface CompoundInputSubcomponent extends CompoundSubcomponentBase {
     value: string;
     placeholder?: string;
     inputType?: 'text' | 'number' | 'email' | 'url';
+    dataLink?: CompoundInputDataLink; // Optional link to table cell
   };
 }
 
@@ -262,6 +275,12 @@ export interface BasicNodeData {
   hyperlinks?: NodeHyperlink[];
   // Legacy single hyperlink (for backward compatibility)
   hyperlink?: LegacyNodeHyperlink;
+  // Source table tracking - when node is created from a table row
+  sourceTable?: string; // Original table ID (legacy)
+  sourceTableNodeId?: string; // Table node ID for focusing
+  sourceTableName?: string; // Display name of source table
+  sourceRowIndex?: number; // Row index in source table
+  rowData?: Record<string, unknown>; // Original row data
 }
 
 // Image fit type definition
@@ -296,6 +315,7 @@ export interface TableNodeData extends BasicNodeData {
   previewColumnCount?: number;
   showRowNumbers?: boolean;
   isPanelOpen?: boolean;
+  isCollapsed?: boolean; // Collapsed view shows only name and expand button
 }
 
 // Data-backed Node Data - nodes created from table rows
@@ -436,6 +456,7 @@ export interface BaseNodeComponentProps<TData = any> {
   onUpdate?: (nodeId: string, updates: Partial<Node>) => void;
   onConnect?: (connection: { source: string; target: string }) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
+  onFocusNode?: (nodeId: string) => void; // Focus/pan canvas to a specific node
   className?: string;
   style?: React.CSSProperties;
   showHandles?: boolean;

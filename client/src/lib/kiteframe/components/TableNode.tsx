@@ -15,7 +15,9 @@ import {
   ChevronUp,
   GripHorizontal,
   Search,
-  X
+  X,
+  Maximize2,
+  Minimize2
 } from "lucide-react";
 import { NodeHandles } from "./NodeHandles";
 import { ResizeHandle } from "./ResizeHandle";
@@ -29,6 +31,7 @@ const MIN_TABLE_WIDTH = 280;
 const MIN_TABLE_HEIGHT = 200;
 const DEFAULT_TABLE_WIDTH = 560;
 const DEFAULT_TABLE_HEIGHT = 400;
+const COLLAPSED_TABLE_HEIGHT = 56;
 
 interface TableNodeComponentProps {
   node: Node & { data: TableNodeData };
@@ -259,13 +262,25 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   const tableName = node.data.label || table?.name || 'Table';
   const rowCount = table?.rows?.length || 0;
   const colCount = table?.columns?.length || 0;
+  const isCollapsed = node.data.isCollapsed || false;
+
+  const handleToggleCollapse = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onUpdate) {
+      onUpdate(node.id, {
+        data: { ...node.data, isCollapsed: !isCollapsed },
+      });
+    }
+  }, [node.id, node.data, isCollapsed, onUpdate]);
 
   const dropShadow = isHovering ? '0 8px 24px rgba(0,0,0,0.15)' : '0 4px 16px rgba(0,0,0,0.1)';
 
+  const actualHeight = isCollapsed ? COLLAPSED_TABLE_HEIGHT : nodeHeight;
+  
   const outerWrapperStyle: React.CSSProperties = {
     ...style,
     width: nodeWidth,
-    height: nodeHeight,
+    height: actualHeight,
     position: 'relative',
     overflow: 'visible',
   };
@@ -462,17 +477,20 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
           </span>
         </div>
         
-        <button
-          onClick={(e) => { e.stopPropagation(); }}
-          className="p-1 hover:bg-white/20 rounded transition-colors opacity-0 group-hover:opacity-100"
-          title="Close"
-          data-testid={`table-close-${node.id}`}
-        >
-          <X size={14} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleToggleCollapse}
+            className="p-1 hover:bg-white/20 rounded transition-colors"
+            title={isCollapsed ? "Expand table" : "Collapse table"}
+            data-testid={`table-toggle-collapse-${node.id}`}
+          >
+            {isCollapsed ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
+          </button>
+        </div>
       </div>
 
-      {/* Toolbar */}
+      {/* Toolbar - hidden when collapsed */}
+      {!isCollapsed && (
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
         <div className="relative flex-1">
           <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -504,18 +522,21 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
           {filteredAndSortedRows.length} of {table?.meta?.totalRowCount ?? rowCount}
         </div>
       </div>
+      )}
 
-      {/* Table Content or Empty State */}
-      {table && table.columns && table.columns.length > 0 ? renderTableContent() : renderEmptyState()}
+      {/* Table Content or Empty State - hidden when collapsed */}
+      {!isCollapsed && (
+        table && table.columns && table.columns.length > 0 ? renderTableContent() : renderEmptyState()
+      )}
 
-      {/* Footer */}
-      {rowCount > MAX_ROW_TO_NODE && (
+      {/* Footer - hidden when collapsed */}
+      {!isCollapsed && rowCount > MAX_ROW_TO_NODE && (
         <div className="px-3 py-1.5 border-t border-gray-200 dark:border-gray-700 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs">
           Row-to-node limited to first {MAX_ROW_TO_NODE} rows
         </div>
       )}
       
-      {table?.meta?.sourceFileName && (
+      {!isCollapsed && table?.meta?.sourceFileName && (
         <div className="px-3 py-1 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs truncate">
           {table.meta.sourceFileName}
           {table.meta.importedAt && ` • ${new Date(table.meta.importedAt).toLocaleDateString()}`}
@@ -526,14 +547,14 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       {/* Connection Handles - positioned outside visual container */}
       {showHandles && (
         <NodeHandles
-          node={{ ...node, width: nodeWidth, height: nodeHeight }}
+          node={{ ...node, width: nodeWidth, height: actualHeight }}
           scale={viewport?.zoom || 1}
           onHandleConnect={onHandleConnect}
         />
       )}
 
-      {/* Resize Handle - only visible when selected */}
-      {showResizeHandle && node.resizable !== false && node.selected && (
+      {/* Resize Handle - only visible when selected and not collapsed */}
+      {showResizeHandle && node.resizable !== false && node.selected && !isCollapsed && (
         <ResizeHandle
           position="bottom-right"
           nodeRef={nodeRef}

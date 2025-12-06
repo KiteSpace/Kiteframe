@@ -1268,6 +1268,9 @@ type Props = {
   onOpenTable?: (tableId: string) => void;
   onTableDataChange?: (tableId: string, table: import('../types').DataTable) => void;
   onCreateNodeFromRow?: (tableId: string, row: Record<string, unknown>, rowIndex: number) => void;
+  
+  // Node focus callback - pan canvas to focus on a specific node
+  onFocusNode?: (nodeId: string) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -4199,6 +4202,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       onDoubleClick={(e: React.MouseEvent) =>
                         props.onNodeDoubleClick?.(e, n)
                       }
+                      onFocusNode={props.onFocusNode}
                       onStartDrag={(e: React.MouseEvent, node: any) => {
                         e.stopPropagation();
                         if (!containerRef.current) return;

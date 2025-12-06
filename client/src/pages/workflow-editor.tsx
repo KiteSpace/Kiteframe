@@ -1579,6 +1579,43 @@ Position nodes 250px apart horizontally.`;
     };
   }, [viewport, nodes, canvasObjects]);
 
+  // Focus on a specific node by panning the viewport to center it
+  const focusOnNode = useCallback((nodeId: string) => {
+    const targetNode = nodes.find(n => n.id === nodeId);
+    if (!targetNode) {
+      console.warn(`Cannot focus on node ${nodeId}: node not found`);
+      return;
+    }
+    
+    // Get canvas container dimensions
+    const canvasWidth = canvasContainerRef.current?.clientWidth || 800;
+    const canvasHeight = canvasContainerRef.current?.clientHeight || 600;
+    
+    // Calculate node center in world coordinates
+    const nodeWidth = targetNode.width || targetNode.style?.width || 200;
+    const nodeHeight = targetNode.height || targetNode.style?.height || 100;
+    const nodeCenterX = targetNode.position.x + nodeWidth / 2;
+    const nodeCenterY = targetNode.position.y + nodeHeight / 2;
+    
+    // Calculate new viewport position to center the node
+    // screen = world * zoom + viewport
+    // viewport = screen - world * zoom
+    // For centering: screenCenter = canvasWidth/2, canvasHeight/2
+    const newX = canvasWidth / 2 - nodeCenterX * viewport.zoom;
+    const newY = canvasHeight / 2 - nodeCenterY * viewport.zoom;
+    
+    // Animate viewport with smooth transition
+    setViewport({ x: newX, y: newY, zoom: viewport.zoom });
+    
+    // Also select the node for visibility
+    setNodes(prev => prev.map(n => ({
+      ...n,
+      selected: n.id === nodeId
+    })));
+    
+    console.log(`🎯 Focused on node: ${nodeId}`, { nodeCenterX, nodeCenterY, newX, newY });
+  }, [nodes, viewport.zoom, setViewport, setNodes]);
+
   const setSelectedNodeId = useCallback((id: string) => {
     updateActiveTab({ selectedNodeId: id });
   }, [updateActiveTab]);
@@ -6434,6 +6471,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     iconColor: 'text-green-500',
                     rowData: row,
                     sourceTable: tableId,
+                    sourceTableNodeId: tableNode?.id,
+                    sourceTableName: tableNode?.data?.label || 'Table',
                     sourceRowIndex: rowIndex,
                   },
                   width: 200,
@@ -6449,6 +6488,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   variant: "default"
                 });
               }}
+              onFocusNode={focusOnNode}
             />
                 
                 <FloatingLayersWidget
@@ -6912,6 +6952,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   icon: 'Database',
                   iconColor: 'text-indigo-500',
                   sourceTableId: openTablePanel,
+                  sourceTableNodeId: tableNode?.id,
+                  sourceTableName: tableNode?.data?.label || 'Table',
                   sourceRowIndex: rowIndex,
                   rowData: row
                 },

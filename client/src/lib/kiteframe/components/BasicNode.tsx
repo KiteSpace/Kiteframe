@@ -6,7 +6,7 @@ import React, {
   useMemo,
 } from "react";
 import { cn } from "@/lib/utils";
-import { ExternalLink, Pencil } from "lucide-react";
+import { ExternalLink, Pencil, Table2, Database } from "lucide-react";
 import { NodeHandles } from "./NodeHandles";
 import { ResizeHandle } from "./ResizeHandle";
 import type { Node, BasicNodeData, BasicNodeComponentProps, NodeHyperlink } from "../types";
@@ -155,6 +155,7 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
   onUpdate,
   onConnect,
   onDoubleClick,
+  onFocusNode,
   className,
   style,
   showHandles = true,
@@ -592,6 +593,34 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
                   window.dispatchEvent(event);
                 }}
               />
+            )}
+            
+            {/* Source Table Badge - shown when node was created from table row */}
+            {node.data.sourceTableNodeId && node.data.sourceTableName && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (onFocusNode && node.data.sourceTableNodeId) {
+                    onFocusNode(node.data.sourceTableNodeId);
+                  }
+                }}
+                onDoubleClick={(e) => e.stopPropagation()}
+                className={cn(
+                  "mt-2 inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md transition-all",
+                  "bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700",
+                  "text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-800/40",
+                  "cursor-pointer"
+                )}
+                title={`Created from table: ${node.data.sourceTableName}. Click to focus on source table.`}
+                data-testid={`source-table-badge-${node.id}`}
+              >
+                <Database size={12} className="text-indigo-500 dark:text-indigo-400" />
+                <span>From: {sanitizeText(node.data.sourceTableName)}</span>
+                {node.data.sourceRowIndex !== undefined && (
+                  <span className="text-indigo-500 dark:text-indigo-400">(Row {node.data.sourceRowIndex + 1})</span>
+                )}
+              </button>
             )}
           </div>
         </div>

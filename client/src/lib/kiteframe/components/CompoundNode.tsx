@@ -26,7 +26,11 @@ import {
   Minus as MinusIcon,
   Plus as PlusIcon,
   ExternalLink,
-  Eye
+  Eye,
+  Database,
+  Table2,
+  LinkIcon,
+  Unlink
 } from 'lucide-react';
 import type { 
   Node, 
@@ -35,7 +39,9 @@ import type {
   CompoundTextSubcomponent,
   CompoundImageSubcomponent,
   CompoundLinkSubcomponent,
-  CompoundInputSubcomponent
+  CompoundInputSubcomponent,
+  CompoundInputDataLink,
+  DataTable
 } from '../types';
 import { sanitizeText } from '../utils/validation';
 import { getBorderColorFromHeader } from '@/lib/themes';
@@ -44,6 +50,13 @@ const MIN_COMPOUND_WIDTH = 280;
 const MIN_COMPOUND_HEIGHT = 180;
 const DEFAULT_COMPOUND_WIDTH = 320;
 const DEFAULT_COMPOUND_HEIGHT = 280;
+
+interface TableNodeInfo {
+  nodeId: string;
+  tableId: string;
+  tableName: string;
+  table?: DataTable;
+}
 
 interface CompoundNodeComponentProps {
   node: Node & { data: CompoundNodeData };
@@ -58,6 +71,8 @@ interface CompoundNodeComponentProps {
   onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
   viewport?: { x: number; y: number; zoom: number };
   onImageUpload?: (nodeId: string, file: File) => Promise<string>;
+  tables?: TableNodeInfo[];
+  onFocusNode?: (nodeId: string) => void;
 }
 
 interface ComponentMenuProps {
@@ -142,6 +157,134 @@ const ComponentMenu: React.FC<ComponentMenuProps> = ({
   return createPortal(menuContent, document.body);
 };
 
+// DataLinkPicker - allows selecting a table cell to link to an input
+interface DataLinkPickerProps {
+  tables: TableNodeInfo[];
+  onSelect: (link: CompoundInputDataLink) => void;
+  onClose: () => void;
+}
+
+const DataLinkPicker: React.FC<DataLinkPickerProps> = ({ tables, onSelect, onClose }) => {
+  const [selectedTable, setSelectedTable] = useState<TableNodeInfo | null>(null);
+  const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
+  
+  const selectedTableData = selectedTable?.table;
+  const columns = selectedTableData?.columns || [];
+  const rows = selectedTableData?.rows?.slice(0, 10) || []; // Limit to first 10 rows for picker
+  
+  return (
+    <div 
+      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden"
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      data-testid="data-link-picker"
+    >
+      <div className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+        <div className="flex items-center gap-2">
+          <Database size={14} className="text-indigo-500" />
+          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Link to Table Data</span>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+        >
+          <X size={14} className="text-gray-500" />
+        </button>
+      </div>
+      
+      <div className="max-h-48 overflow-y-auto">
+        {!selectedTable ? (
+          <div className="p-2">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 px-1">Select a table:</div>
+            {tables.map((t) => (
+              <button
+                key={t.tableId}
+                onClick={() => setSelectedTable(t)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-md transition-colors"
+                data-testid={`data-link-table-${t.tableId}`}
+              >
+                <Table2 size={14} className="text-indigo-500 flex-shrink-0" />
+                <span className="truncate">{t.tableName}</span>
+                <span className="text-xs text-gray-400 ml-auto">
+                  {t.table?.rows?.length || 0} rows
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : !selectedColumn ? (
+          <div className="p-2">
+            <button
+              onClick={() => setSelectedTable(null)}
+              className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline mb-2"
+            >
+              ← Back to tables
+            </button>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 px-1">
+              Select a column from <span className="font-medium">{selectedTable.tableName}</span>:
+            </div>
+            {columns.map((col) => (
+              <button
+                key={col.id}
+                onClick={() => setSelectedColumn(col.id)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-md transition-colors"
+                data-testid={`data-link-column-${col.id}`}
+              >
+                <span className="truncate">{col.name}</span>
+                {col.type && (
+                  <span className="text-xs text-gray-400 ml-auto">{col.type}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="p-2">
+            <button
+              onClick={() => setSelectedColumn(null)}
+              className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline mb-2"
+            >
+              ← Back to columns
+            </button>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 px-1">
+              Select a row value:
+            </div>
+            {rows.map((row, idx) => {
+              const value = row.values[selectedColumn];
+              const displayVal = value !== null && value !== undefined ? String(value) : '(empty)';
+              const column = columns.find(c => c.id === selectedColumn);
+              
+              return (
+                <button
+                  key={row.id}
+                  onClick={() => {
+                    onSelect({
+                      tableId: selectedTable.tableId,
+                      tableNodeId: selectedTable.nodeId,
+                      tableName: selectedTable.tableName,
+                      columnId: selectedColumn,
+                      columnName: column?.name || selectedColumn,
+                      rowId: row.id,
+                      rowIndex: idx,
+                      displayValue: displayVal !== '(empty)' ? displayVal : '',
+                    });
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-md transition-colors"
+                  data-testid={`data-link-row-${row.id}`}
+                >
+                  <span className="text-xs text-gray-400 w-6">#{idx + 1}</span>
+                  <span className="truncate">{displayVal}</span>
+                </button>
+              );
+            })}
+            {rows.length === 0 && (
+              <div className="text-xs text-gray-400 text-center py-4">No rows in this table</div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 interface SubcomponentRendererProps {
   subcomponent: CompoundSubcomponent;
   onUpdate: (id: string, data: any) => void;
@@ -154,6 +297,10 @@ interface SubcomponentRendererProps {
   showingUrlInputFor: string | null;
   setShowingUrlInputFor: (id: string | null) => void;
   onHeightChange?: (id: string, height: number) => void;
+  tables?: TableNodeInfo[];
+  onFocusNode?: (nodeId: string) => void;
+  showDataLinkPickerFor: string | null;
+  setShowDataLinkPickerFor: (id: string | null) => void;
 }
 
 const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
@@ -167,7 +314,11 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
   onImageUpload,
   showingUrlInputFor,
   setShowingUrlInputFor,
-  onHeightChange
+  onHeightChange,
+  tables,
+  onFocusNode,
+  showDataLinkPickerFor,
+  setShowDataLinkPickerFor
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -641,6 +792,12 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
       
       case 'input':
         const inputData = (subcomponent as CompoundInputSubcomponent).data;
+        const hasDataLink = !!inputData.dataLink;
+        const displayValue = hasDataLink 
+          ? (inputData.dataLink?.displayValue || `${inputData.dataLink?.tableName} → ${inputData.dataLink?.columnName}`)
+          : (inputData.value || inputData.placeholder || 'Empty');
+        const showDataLinkPicker = showDataLinkPickerFor === subcomponent.id;
+        
         if (!isSelected) {
           return (
             <div className="flex flex-col gap-1">
@@ -653,14 +810,27 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
                 </span>
               )}
               <div 
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                className={cn(
+                  "w-full px-2 py-1.5 text-sm border rounded",
+                  hasDataLink 
+                    ? "border-indigo-300 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20" 
+                    : "border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800"
+                )}
                 data-testid={`subcomponent-input-display-${subcomponent.id}`}
               >
-                {inputData.value || inputData.placeholder || 'Empty'}
+                {hasDataLink ? (
+                  <div className="flex items-center gap-1.5">
+                    <Database size={12} className="text-indigo-500 flex-shrink-0" />
+                    <span className="text-gray-700 dark:text-gray-300 truncate">{displayValue}</span>
+                  </div>
+                ) : (
+                  <span className="text-gray-700 dark:text-gray-300">{displayValue}</span>
+                )}
               </div>
             </div>
           );
         }
+        
         return (
           <div className="flex flex-col gap-1">
             {inputData.label && (
@@ -675,16 +845,85 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
                 data-testid={`subcomponent-input-label-${subcomponent.id}`}
               />
             )}
-            <input
-              type={inputData.inputType || 'text'}
-              value={inputData.value}
-              onChange={(e) => onUpdate(subcomponent.id, { value: e.target.value })}
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              placeholder={inputData.placeholder || 'Enter value...'}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              data-testid={`subcomponent-input-${subcomponent.id}`}
-            />
+            
+            {hasDataLink ? (
+              <div className="flex flex-col gap-1.5">
+                <div 
+                  className="flex items-center gap-2 px-2 py-1.5 text-sm border border-indigo-300 dark:border-indigo-600 rounded bg-indigo-50 dark:bg-indigo-900/20"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Database size={14} className="text-indigo-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium truncate">
+                      {inputData.dataLink?.tableName}
+                    </div>
+                    <div className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                      {inputData.dataLink?.displayValue || `Row ${(inputData.dataLink?.rowIndex || 0) + 1} → ${inputData.dataLink?.columnName}`}
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFocusNode?.(inputData.dataLink!.tableNodeId);
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="p-1 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-100 dark:hover:bg-indigo-800 rounded"
+                    title="Go to table"
+                    data-testid={`subcomponent-input-goto-table-${subcomponent.id}`}
+                  >
+                    <Table2 size={14} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdate(subcomponent.id, { dataLink: undefined, value: inputData.dataLink?.displayValue || '' });
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+                    title="Unlink from table"
+                    data-testid={`subcomponent-input-unlink-${subcomponent.id}`}
+                  >
+                    <Unlink size={14} />
+                  </button>
+                </div>
+              </div>
+            ) : showDataLinkPicker && tables && tables.length > 0 ? (
+              <DataLinkPicker
+                tables={tables}
+                onSelect={(link) => {
+                  onUpdate(subcomponent.id, { dataLink: link, value: link.displayValue || '' });
+                  setShowDataLinkPickerFor(null);
+                }}
+                onClose={() => setShowDataLinkPickerFor(null)}
+              />
+            ) : (
+              <div className="flex gap-1">
+                <input
+                  type={inputData.inputType || 'text'}
+                  value={inputData.value}
+                  onChange={(e) => onUpdate(subcomponent.id, { value: e.target.value })}
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  placeholder={inputData.placeholder || 'Enter value...'}
+                  className="flex-1 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  data-testid={`subcomponent-input-${subcomponent.id}`}
+                />
+                {tables && tables.length > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDataLinkPickerFor(subcomponent.id);
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="px-2 py-1.5 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-indigo-300 dark:border-indigo-600 rounded transition-colors"
+                    title="Link to table data"
+                    data-testid={`subcomponent-input-link-btn-${subcomponent.id}`}
+                  >
+                    <LinkIcon size={14} />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         );
       
@@ -780,6 +1019,8 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   onHandleConnect,
   viewport,
   onImageUpload,
+  tables,
+  onFocusNode,
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState(node.data.label || 'Compound');
@@ -792,6 +1033,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   const [showingUrlInputFor, setShowingUrlInputFor] = useState<string | null>(null);
   const [measuredHeights, setMeasuredHeights] = useState<Record<string, number>>({});
   const [isEditing, setIsEditing] = useState(false);
+  const [showDataLinkPickerFor, setShowDataLinkPickerFor] = useState<string | null>(null);
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -1299,6 +1541,10 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
                     showingUrlInputFor={showingUrlInputFor}
                     setShowingUrlInputFor={setShowingUrlInputFor}
                     onHeightChange={handleHeightChange}
+                    tables={tables}
+                    onFocusNode={onFocusNode}
+                    showDataLinkPickerFor={showDataLinkPickerFor}
+                    setShowDataLinkPickerFor={setShowDataLinkPickerFor}
                   />
                 ))}
                 {isEditing && (
