@@ -113,6 +113,7 @@ interface LinearToolbarProps {
   initialSubmenu?: string | null; // Submenu to open initially (e.g., 'link' to open link editor)
   onTextObjectHyperlinkChange?: (hyperlink: {
     url: string;
+    text?: string;
     showPreview: boolean;
     showText: boolean;
     metadata?: OgMetadata;
@@ -257,6 +258,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   
   // Text object hyperlink state
   const [textLinkUrl, setTextLinkUrl] = useState('');
+  const [textLinkText, setTextLinkText] = useState('');
   const [textShowPreview, setTextShowPreview] = useState(false);
   const [textShowText, setTextShowText] = useState(true);
   const [textPreviewLoading, setTextPreviewLoading] = useState(false);
@@ -302,13 +304,18 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   useEffect(() => {
     if (activeSubmenu === 'textLink' && canvasObject?.type === 'text') {
       const existingHyperlink = (canvasObject.data as any)?.hyperlink;
+      const objectText = (canvasObject.data as any)?.text || '';
       if (existingHyperlink?.url) {
         setTextLinkUrl(existingHyperlink.url);
+        // Use hyperlink text if set, otherwise use object's main text
+        setTextLinkText(existingHyperlink.text || objectText);
         setTextShowPreview(existingHyperlink.showPreview ?? false);
         setTextShowText(existingHyperlink.showText ?? true);
         setTextPreviewMetadata(existingHyperlink.metadata ?? null);
       } else {
         setTextLinkUrl('');
+        // Default to object's main text when creating new hyperlink
+        setTextLinkText(objectText);
         setTextShowPreview(false);
         setTextShowText(true);
         setTextPreviewMetadata(null);
@@ -1422,6 +1429,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     
     const handleApplyTextLink = async () => {
       const finalUrl = textLinkUrl.trim();
+      const finalText = textLinkText.trim();
       
       if (finalUrl) {
         let url = finalUrl;
@@ -1436,6 +1444,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         
         onTextObjectHyperlinkChange?.({
           url,
+          text: finalText || undefined,
           showPreview: textShowPreview,
           showText: textShowText,
           metadata: textShowPreview ? metadata ?? undefined : undefined,
@@ -1448,6 +1457,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       onTextObjectHyperlinkChange?.(null);
       setActiveSubmenu(null);
       setTextLinkUrl('');
+      setTextLinkText('');
       setTextShowPreview(false);
       setTextShowText(true);
       setTextPreviewMetadata(null);
@@ -1463,7 +1473,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       }
     };
     
-    const canSubmit = isValidUrl(textLinkUrl);
+    // Must have valid URL AND at least one display option enabled
+    const hasDisplayOption = textShowText || textShowPreview;
+    const canSubmit = isValidUrl(textLinkUrl) && hasDisplayOption;
     
     return (
       <div 
@@ -1477,21 +1489,49 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       >
         <div className="space-y-3">
           {/* URL Input */}
-          <input
-            type="text"
-            value={textLinkUrl}
-            onChange={(e) => setTextLinkUrl(e.target.value)}
-            placeholder="https://example.com"
-            className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && canSubmit && !textPreviewLoading) {
-                e.preventDefault();
-                handleApplyTextLink();
-              }
-            }}
-            data-testid="text-link-url-input"
-            autoFocus
-          />
+          <div className="space-y-1">
+            <label className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+              <Link2 className="w-3 h-3" />
+              URL
+            </label>
+            <input
+              type="text"
+              value={textLinkUrl}
+              onChange={(e) => setTextLinkUrl(e.target.value)}
+              placeholder="https://example.com"
+              className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canSubmit && !textPreviewLoading) {
+                  e.preventDefault();
+                  handleApplyTextLink();
+                }
+              }}
+              data-testid="text-link-url-input"
+              autoFocus
+            />
+          </div>
+          
+          {/* Text Input */}
+          <div className="space-y-1">
+            <label className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+              <Type className="w-3 h-3" />
+              Text
+            </label>
+            <input
+              type="text"
+              value={textLinkText}
+              onChange={(e) => setTextLinkText(e.target.value)}
+              placeholder="Link text (optional)"
+              className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canSubmit && !textPreviewLoading) {
+                  e.preventDefault();
+                  handleApplyTextLink();
+                }
+              }}
+              data-testid="text-link-text-input"
+            />
+          </div>
           
           {/* Show Text Toggle */}
           <div className="flex items-center justify-between py-1">
@@ -1552,6 +1592,13 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
               <div className="w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
               Fetching preview...
+            </div>
+          )}
+          
+          {/* Warning when no display option is selected */}
+          {!hasDisplayOption && (
+            <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md text-xs text-amber-700 dark:text-amber-400">
+              <span>At least one display option must be enabled</span>
             </div>
           )}
           

@@ -1360,11 +1360,9 @@ Position nodes 250px apart horizontally.`;
   useEffect(() => {
     const handleEditHyperlink = (event: CustomEvent<{ nodeId: string }>) => {
       const { nodeId } = event.detail;
-      console.log('🔗 editNodeHyperlink event received:', { nodeId, nodesCount: nodes.length });
       
       // Find the node and open the toolbar with link submenu
       const node = nodes.find(n => n.id === nodeId);
-      console.log('🔗 Found node:', node ? 'yes' : 'no', node?.type);
       if (node) {
         // Set this node as selected
         setSelectedNodeId(nodeId);
@@ -7560,6 +7558,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       data: {
                         ...obj.data,
                         hyperlink: hyperlink ?? undefined,
+                        // If hyperlink text is provided, update the main text of the object
+                        ...(hyperlink?.text ? { text: hyperlink.text } : {}),
                       }
                     };
                   })
