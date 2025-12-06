@@ -525,42 +525,28 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
         };
         
         if (!isSelected) {
+          const hostname = getHostname(linkData.url || '');
+          
           if (linkData.showPreview && linkData.url) {
-            const hostname = getHostname(linkData.url);
+            // Simpler inline preview style for compound nodes
+            // Shows link text with hostname and external link icon
             return (
               <a 
                 href={linkData.url.startsWith('http') ? linkData.url : `https://${linkData.url}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block w-full p-2.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 group"
                 onClick={(e) => e.stopPropagation()}
                 data-testid={`subcomponent-link-preview-${subcomponent.id}`}
               >
-                <div className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200 line-clamp-1">
-                    {linkData.metadata?.title || linkData.text || hostname}
-                  </span>
-                  {linkData.metadata?.description && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
-                      {linkData.metadata.description}
-                    </span>
-                  )}
-                  <div className="flex items-center gap-1.5 mt-1">
-                    {linkData.metadata?.favicon ? (
-                      <img 
-                        src={linkData.metadata.favicon} 
-                        alt="" 
-                        className="w-4 h-4 rounded-sm"
-                      />
-                    ) : (
-                      <Globe size={14} className="text-gray-400" />
-                    )}
-                    <span className="text-xs text-gray-400 truncate">
-                      {hostname}
-                    </span>
-                    <ExternalLink size={12} className="text-gray-400 ml-auto flex-shrink-0" />
-                  </div>
-                </div>
+                <Link size={14} className="flex-shrink-0" />
+                <span className="underline decoration-dotted underline-offset-2">
+                  {linkData.text || hostname}
+                </span>
+                <span className="text-xs text-gray-400 dark:text-gray-500">
+                  ({hostname})
+                </span>
+                <ExternalLink size={12} className="text-gray-400 group-hover:text-blue-500 flex-shrink-0" />
               </a>
             );
           }
@@ -569,11 +555,12 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
               href={linkData.url || '#'}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300"
+              className="inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300"
               onClick={(e) => e.stopPropagation()}
               data-testid={`subcomponent-link-display-${subcomponent.id}`}
             >
               {linkData.text || 'Link'}
+              <ExternalLink size={12} className="flex-shrink-0" />
             </a>
           );
         }
@@ -798,6 +785,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   const [menuDragOffset, setMenuDragOffset] = useState({ x: 0, y: 0 });
   const [showingUrlInputFor, setShowingUrlInputFor] = useState<string | null>(null);
   const [measuredHeights, setMeasuredHeights] = useState<Record<string, number>>({});
+  const [isEditing, setIsEditing] = useState(false);
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -843,11 +831,11 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
       }
     });
     
-    // Add extra space when selected for add button at bottom
-    const editingBuffer = node.selected ? 50 : 10;
+    // Add extra space when editing for add button at bottom
+    const editingBuffer = isEditing ? 50 : 10;
     
     return headerHeight + padding + totalMeasured + editingBuffer;
-  }, [subcomponents, measuredHeights, node.selected, node.data.gap]);
+  }, [subcomponents, measuredHeights, isEditing, node.data.gap]);
   
   // Use the larger of: measured height, explicit height, or minimum height
   // This ensures content is never clipped AND manual resizing is honored
@@ -863,9 +851,11 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   const borderColor = node.data.colors?.borderColor || getBorderColorFromHeader(headerColor);
   const headerTextColor = node.data.colors?.headerTextColor || '#ffffff';
 
+  // Reset editing state when node is deselected
   useEffect(() => {
-    if (!node.selected && menuOpen) {
-      setMenuOpen(false);
+    if (!node.selected) {
+      if (menuOpen) setMenuOpen(false);
+      if (isEditing) setIsEditing(false);
     }
   }, [node.selected]);
 
@@ -904,6 +894,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   useEffect(() => {
     const handleOpenComponentMenu = (e: CustomEvent<{ nodeId: string }>) => {
       if (e.detail.nodeId === node.id) {
+        setIsEditing(true);
         const rect = nodeRef.current?.getBoundingClientRect();
         if (rect) {
           setMenuPosition(calculateMenuPosition(rect));
@@ -1243,26 +1234,25 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
               <div className="flex flex-col items-center justify-center h-full text-center py-4">
                 <Layers size={24} className="text-gray-300 dark:text-gray-600 mb-2" />
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">No components yet</p>
-                {node.selected ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const rect = nodeRef.current?.getBoundingClientRect();
-                      if (rect) {
-                        setMenuPosition(calculateMenuPosition(rect));
-                        setMenuOpen(true);
-                      }
-                    }}
-                    className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                    data-testid={`compound-add-btn-empty-${node.id}`}
-                  >
-                    <Plus size={20} className="text-gray-500 dark:text-gray-400" />
-                  </button>
-                ) : (
-                  <p className="text-xs text-gray-400 dark:text-gray-500">
-                    Select this node to add components
-                  </p>
-                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // If not selected, trigger selection first
+                    if (!node.selected && onClick) {
+                      onClick(e, node);
+                    }
+                    setIsEditing(true);
+                    const rect = nodeRef.current?.getBoundingClientRect();
+                    if (rect) {
+                      setMenuPosition(calculateMenuPosition(rect));
+                      setMenuOpen(true);
+                    }
+                  }}
+                  className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  data-testid={`compound-add-btn-empty-${node.id}`}
+                >
+                  <Plus size={20} className="text-gray-500 dark:text-gray-400" />
+                </button>
               </div>
             ) : (
               <div className="flex flex-col" style={{ gap: node.data.gap || 8 }}>
@@ -1275,14 +1265,14 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
                     isDragging={draggingSubcomponent === sub.id}
                     onDragStart={handleSubcomponentDragStart}
                     dropIndicator={dropTarget && dropTarget.id === sub.id ? dropTarget.position : null}
-                    isSelected={node.selected || false}
+                    isSelected={isEditing}
                     onImageUpload={onImageUpload ? (subId, file) => onImageUpload(node.id, file) : undefined}
                     showingUrlInputFor={showingUrlInputFor}
                     setShowingUrlInputFor={setShowingUrlInputFor}
                     onHeightChange={handleHeightChange}
                   />
                 ))}
-                {node.selected && (
+                {isEditing && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
