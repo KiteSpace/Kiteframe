@@ -402,6 +402,7 @@ export interface CompoundNodeData extends BasicNodeData {
   subcomponents: CompoundSubcomponent[];
   containerPadding?: number;
   gap?: number; // Gap between subcomponents
+  userResized?: boolean; // Flag to track if user has manually resized the node
 }
 
 // Typed Node Variants for Type Safety

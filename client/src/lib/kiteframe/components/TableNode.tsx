@@ -703,8 +703,12 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
     </div>
   );
 
+  const handleScrollWheel = useCallback((e: React.WheelEvent) => {
+    e.stopPropagation();
+  }, []);
+
   const renderTableContent = () => (
-    <div className="flex-1 overflow-auto">
+    <div className="flex-1 overflow-auto" onWheel={handleScrollWheel}>
       <table className="w-full text-xs">
         <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
           <tr>

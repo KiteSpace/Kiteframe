@@ -175,7 +175,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     };
 
     if (node.data.autoHeight !== false && naturalWidth > 0) {
-      const nodeWidthNum = toPxNumber(node.style?.width ?? node.width, 200);
+      const nodeWidthNum = toPxNumber(node.style?.width ?? node.width, 240);
       const imageSize: ImageFit | undefined = (node.data.imageSize as ImageFit) || 'contain';
       const aspectRatio = naturalHeight / naturalWidth;
       if (imageSize === 'contain') {
@@ -215,8 +215,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     onUpdate(node.id, { style: { ...node.style, width, height: finalHeight } });
   }, [node.id, node.style, node.data, onUpdate]);
 
-  const nodeWidth = toPxNumber(node.style?.width ?? node.width, 250);
-  const nodeHeight = toPxNumber(node.style?.height ?? node.height, 200);
+  const nodeWidth = toPxNumber(node.style?.width ?? node.width, 240);
+  const nodeHeight = toPxNumber(node.style?.height ?? node.height, 240);
 
   useEffect(() => {
     if (!node.data.src || !node.data.naturalWidth || !node.data.naturalHeight || node.data.autoHeight === false) return;
@@ -232,7 +232,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       computedHeight = Math.max(100, Math.round(nodeWidth * aspectRatio));
     }
 
-    const currentHeight = toPxNumber(node.style?.height ?? node.height, 200);
+    const currentHeight = toPxNumber(node.style?.height ?? node.height, 240);
     if (Math.abs(currentHeight - computedHeight) > 1) {
       onUpdate?.(node.id, { style: { ...node.style, height: computedHeight } });
     }
@@ -581,8 +581,8 @@ export const createImageNode = (
     // imageSize: data.imageSize || 'contain',
     // autoHeight: data.autoHeight ?? true,
   },
-  width: 250,
-  height: 200,
+  width: 240,
+  height: 240,
   draggable: true,
   selectable: true,
   doubleClickable: true,

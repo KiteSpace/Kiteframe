@@ -47,9 +47,11 @@ import type {
 } from '../types';
 import { sanitizeText } from '../utils/validation';
 import { getBorderColorFromHeader } from '@/lib/themes';
+import { toPxNumber } from '@/utils/size';
 
 const MIN_COMPOUND_WIDTH = 280;
 const MIN_COMPOUND_HEIGHT = 180;
+const MAX_COMPOUND_HEIGHT = 600;
 const DEFAULT_COMPOUND_WIDTH = 320;
 const DEFAULT_COMPOUND_HEIGHT = 280;
 
@@ -1030,7 +1032,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
     [node.data.subcomponents]
   );
   
-  const nodeWidth = node.style?.width || node.width || DEFAULT_COMPOUND_WIDTH;
+  const nodeWidth = toPxNumber(node.style?.width ?? node.width, DEFAULT_COMPOUND_WIDTH);
   
   // Calculate height from measured DOM heights when available
   const measuredContentHeight = useMemo(() => {
@@ -1063,14 +1065,21 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
     return headerHeight + padding + totalMeasured + editingBuffer;
   }, [subcomponents, measuredHeights, isEditing, node.data.gap]);
   
-  // Use the larger of: measured height, explicit height, or minimum height
-  // This ensures content is never clipped AND manual resizing is honored
-  const explicitHeight = node.style?.height || node.height || 0;
-  const nodeHeight = Math.max(
-    measuredContentHeight,
-    explicitHeight,
-    MIN_COMPOUND_HEIGHT
-  );
+  // Height calculation:
+  // - If user has manually resized (tracked via userResized flag OR explicit height differs from defaults), 
+  //   use their explicit height
+  // - Otherwise, use measured content height capped at MAX_COMPOUND_HEIGHT (600px)
+  // - Content scrolls if it exceeds the container height
+  // Use toPxNumber to normalize string values like "420px" to numbers
+  const explicitHeight = toPxNumber(node.style?.height ?? node.height, 0);
+  // Detect user resize: explicit flag OR explicit height exists that differs from default
+  // This ensures backward compatibility with nodes resized before the flag was introduced
+  const hasUserResized = node.data.userResized === true || 
+    (explicitHeight > 0 && explicitHeight !== DEFAULT_COMPOUND_HEIGHT);
+  
+  const nodeHeight = hasUserResized
+    ? Math.max(explicitHeight, MIN_COMPOUND_HEIGHT) // User resized: respect their setting
+    : Math.min(Math.max(measuredContentHeight, MIN_COMPOUND_HEIGHT), MAX_COMPOUND_HEIGHT); // Auto: cap at 600px
   
   const headerColor = node.data.colors?.headerBackground || '#059669';
   const bodyColor = node.data.colors?.bodyBackground || '#ffffff';
@@ -1227,9 +1236,10 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
     if (onUpdate) {
       onUpdate(node.id, {
         style: { ...node.style, width, height },
+        data: { ...node.data, userResized: true },
       });
     }
-  }, [node.id, node.style, onUpdate]);
+  }, [node.id, node.style, node.data, onUpdate]);
 
   const handleAddComponent = useCallback((type: 'text' | 'image' | 'link' | 'input') => {
     const maxOrder = subcomponents.reduce((max, s) => Math.max(max, s.order), -1);
@@ -1463,6 +1473,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
             ref={containerRef}
             className="flex-1 overflow-y-auto p-3"
             style={{ gap: node.data.gap || 8 }}
+            onWheel={(e) => e.stopPropagation()}
           >
             {subcomponents.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-4">

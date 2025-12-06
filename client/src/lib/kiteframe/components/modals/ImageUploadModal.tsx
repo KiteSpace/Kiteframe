@@ -49,9 +49,9 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
       return;
     }
 
-    // Validate file size (10MB max)
-    if (file.size > 10485760) {
-      console.error('File size must be less than 10MB');
+    // Validate file size (250KB max)
+    if (file.size > 256000) {
+      console.error('File size must be less than 250KB');
       return;
     }
 
@@ -141,7 +141,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
                   {isUploading ? 'Uploading...' : 'Choose File'}
                 </Button>
                 <p className="text-sm text-muted-foreground">
-                  Supported formats: JPG, PNG, GIF, WebP, SVG (max 10MB)
+                  Supported formats: JPG, PNG, GIF, WebP, SVG (max 250KB)
                 </p>
               </div>
             </div>
