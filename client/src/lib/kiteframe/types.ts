@@ -215,7 +215,7 @@ export interface TableApiHeader {
   value: string;
 }
 
-export type TableApiAuthType = 'none' | 'apiKey' | 'bearer' | 'basic';
+export type TableApiAuthType = 'none' | 'apiKey' | 'bearer';
 
 export interface TableApiConfig {
   enabled: boolean;
@@ -228,8 +228,6 @@ export interface TableApiConfig {
   authType?: TableApiAuthType;
   apiKey?: string;
   apiKeyHeaderName?: string;
-  basicAuthUsername?: string;
-  basicAuthPassword?: string;
 }
 
 export const TABLE_LIMITS = {

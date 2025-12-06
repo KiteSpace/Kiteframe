@@ -2316,7 +2316,16 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   // Proxy endpoint for table API data fetching (avoids CORS issues)
   app.post("/api/table/fetch", async (req, res) => {
     try {
-      const { url, method = 'GET', headers = [], responseDataPath, timeout = 30000 } = req.body;
+      const { 
+        url, 
+        method = 'GET', 
+        headers = [], 
+        responseDataPath, 
+        timeout = 30000,
+        authType,
+        apiKey,
+        apiKeyHeaderName,
+      } = req.body;
       
       if (!url || typeof url !== 'string') {
         return res.status(400).json({ error: 'URL is required' });
@@ -2365,12 +2374,33 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       if (Array.isArray(headers)) {
         for (const header of headers) {
           if (header.key && header.value && typeof header.key === 'string' && typeof header.value === 'string') {
-            // Skip sensitive headers
+            // Skip sensitive headers (except authorization which we handle separately)
             const lowerKey = header.key.toLowerCase();
-            if (!['host', 'cookie', 'authorization'].includes(lowerKey) || lowerKey === 'authorization') {
+            if (!['host', 'cookie', 'authorization'].includes(lowerKey)) {
               requestHeaders[header.key] = header.value;
             }
           }
+        }
+      }
+      
+      // Add authentication header based on auth type
+      // Validate auth type to only allow known values
+      const validAuthTypes = ['none', 'apiKey', 'bearer'];
+      const normalizedAuthType = (authType && typeof authType === 'string' && validAuthTypes.includes(authType)) 
+        ? authType 
+        : 'none';
+      
+      if (normalizedAuthType !== 'none' && apiKey && typeof apiKey === 'string' && apiKey.trim()) {
+        switch (normalizedAuthType) {
+          case 'apiKey':
+            const headerName = (apiKeyHeaderName && typeof apiKeyHeaderName === 'string' && apiKeyHeaderName.trim()) 
+              ? apiKeyHeaderName.trim()
+              : 'X-API-Key';
+            requestHeaders[headerName] = apiKey.trim();
+            break;
+          case 'bearer':
+            requestHeaders['Authorization'] = `Bearer ${apiKey.trim()}`;
+            break;
         }
       }
       
