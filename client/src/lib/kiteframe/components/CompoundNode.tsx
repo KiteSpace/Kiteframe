@@ -11,7 +11,8 @@ import {
   GripVertical,
   Trash2,
   X,
-  Move
+  Move,
+  Plus
 } from 'lucide-react';
 import type { 
   Node, 
@@ -125,6 +126,7 @@ interface SubcomponentRendererProps {
   isDragging: boolean;
   onDragStart: (e: React.MouseEvent, id: string) => void;
   dropIndicator: 'above' | 'below' | null;
+  isSelected: boolean;
 }
 
 const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
@@ -133,24 +135,42 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
   onRemove,
   isDragging,
   onDragStart,
-  dropIndicator
+  dropIndicator,
+  isSelected
 }) => {
   const renderContent = () => {
     switch (subcomponent.type) {
       case 'text':
+        const textData = subcomponent as CompoundTextSubcomponent;
+        if (!isSelected) {
+          return (
+            <p
+              className="text-sm text-gray-700 dark:text-gray-300"
+              style={{
+                fontSize: textData.data.fontSize || 14,
+                fontWeight: textData.data.fontWeight || 'normal',
+                textAlign: textData.data.textAlign || 'left',
+                color: textData.data.textColor,
+              }}
+              data-testid={`subcomponent-text-display-${subcomponent.id}`}
+            >
+              {textData.data.content || 'Empty text'}
+            </p>
+          );
+        }
         return (
           <textarea
-            value={(subcomponent as CompoundTextSubcomponent).data.content}
+            value={textData.data.content}
             onChange={(e) => onUpdate(subcomponent.id, { content: e.target.value })}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             placeholder="Enter text..."
             className="w-full bg-transparent resize-none text-sm text-gray-700 dark:text-gray-300 focus:outline-none"
             style={{
-              fontSize: (subcomponent as CompoundTextSubcomponent).data.fontSize || 14,
-              fontWeight: (subcomponent as CompoundTextSubcomponent).data.fontWeight || 'normal',
-              textAlign: (subcomponent as CompoundTextSubcomponent).data.textAlign || 'left',
-              color: (subcomponent as CompoundTextSubcomponent).data.textColor,
+              fontSize: textData.data.fontSize || 14,
+              fontWeight: textData.data.fontWeight || 'normal',
+              textAlign: textData.data.textAlign || 'left',
+              color: textData.data.textColor,
             }}
             rows={2}
             data-testid={`subcomponent-text-${subcomponent.id}`}
@@ -164,40 +184,64 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
             src={imgData.src}
             alt={imgData.alt || 'Image'}
             className="w-full object-cover rounded"
-            style={{ height: imgData.height || 80 }}
+            style={{ height: isSelected ? (imgData.height || 80) : 'auto' }}
             data-testid={`subcomponent-image-${subcomponent.id}`}
           />
         ) : (
-          <div 
-            className="w-full bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center text-gray-400"
-            style={{ height: imgData.height || 80 }}
-            data-testid={`subcomponent-image-placeholder-${subcomponent.id}`}
-          >
-            <div className="text-center">
-              <Image size={20} className="mx-auto mb-1" />
-              <input
-                type="text"
-                placeholder="Paste image URL..."
-                className="text-xs bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none text-center w-32"
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-                onBlur={(e) => {
-                  if (e.target.value) {
-                    onUpdate(subcomponent.id, { src: e.target.value });
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.target as HTMLInputElement).value) {
-                    onUpdate(subcomponent.id, { src: (e.target as HTMLInputElement).value });
-                  }
-                }}
-              />
+          isSelected ? (
+            <div 
+              className="w-full bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center text-gray-400"
+              style={{ height: imgData.height || 80 }}
+              data-testid={`subcomponent-image-placeholder-${subcomponent.id}`}
+            >
+              <div className="text-center">
+                <Image size={20} className="mx-auto mb-1" />
+                <input
+                  type="text"
+                  placeholder="Paste image URL..."
+                  className="text-xs bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none text-center w-32"
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onBlur={(e) => {
+                    if (e.target.value) {
+                      onUpdate(subcomponent.id, { src: e.target.value });
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.target as HTMLInputElement).value) {
+                      onUpdate(subcomponent.id, { src: (e.target as HTMLInputElement).value });
+                    }
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div 
+              className="w-full bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center text-gray-400"
+              style={{ height: 60 }}
+              data-testid={`subcomponent-image-placeholder-display-${subcomponent.id}`}
+            >
+              <Image size={20} />
+            </div>
+          )
         );
       
       case 'link':
         const linkData = (subcomponent as CompoundLinkSubcomponent).data;
+        if (!isSelected) {
+          return (
+            <a
+              href={linkData.url || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300"
+              onClick={(e) => e.stopPropagation()}
+              data-testid={`subcomponent-link-display-${subcomponent.id}`}
+            >
+              {linkData.text || 'Link'}
+            </a>
+          );
+        }
         return (
           <div className="flex flex-col gap-1">
             <input
@@ -225,6 +269,26 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
       
       case 'input':
         const inputData = (subcomponent as CompoundInputSubcomponent).data;
+        if (!isSelected) {
+          return (
+            <div className="flex flex-col gap-1">
+              {inputData.label && (
+                <span 
+                  className="text-xs font-medium text-gray-600 dark:text-gray-400"
+                  data-testid={`subcomponent-input-label-display-${subcomponent.id}`}
+                >
+                  {inputData.label}
+                </span>
+              )}
+              <div 
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                data-testid={`subcomponent-input-display-${subcomponent.id}`}
+              >
+                {inputData.value || inputData.placeholder || 'Empty'}
+              </div>
+            </div>
+          );
+        }
         return (
           <div className="flex flex-col gap-1">
             {inputData.label && (
@@ -265,6 +329,19 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
   };
 
   const Icon = iconMap[subcomponent.type];
+
+  if (!isSelected) {
+    return (
+      <div
+        className="relative"
+        data-testid={`subcomponent-${subcomponent.id}`}
+      >
+        <div className="p-2">
+          {renderContent()}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -676,12 +753,33 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
                 </span>
               )}
             </div>
-            <span 
-              className="px-1.5 py-0.5 bg-white/20 rounded text-xs flex-shrink-0"
-              style={{ color: headerTextColor }}
-            >
-              {subcomponents.length} items
-            </span>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {node.selected && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = nodeRef.current?.getBoundingClientRect();
+                    if (rect) {
+                      setMenuPosition({
+                        x: rect.right + 16,
+                        y: rect.top
+                      });
+                    }
+                    setMenuOpen(prev => !prev);
+                  }}
+                  className="p-1 rounded hover:bg-white/20 transition-colors"
+                  data-testid={`compound-add-btn-header-${node.id}`}
+                >
+                  <Plus size={14} style={{ color: headerTextColor }} />
+                </button>
+              )}
+              <span 
+                className="px-1.5 py-0.5 bg-white/20 rounded text-xs"
+                style={{ color: headerTextColor }}
+              >
+                {subcomponents.length} items
+              </span>
+            </div>
           </div>
 
           <div 
@@ -693,9 +791,29 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
               <div className="flex flex-col items-center justify-center h-full text-center py-4">
                 <Layers size={24} className="text-gray-300 dark:text-gray-600 mb-2" />
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">No components yet</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  Select this node to add components
-                </p>
+                {node.selected ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const rect = nodeRef.current?.getBoundingClientRect();
+                      if (rect) {
+                        setMenuPosition({
+                          x: rect.right + 16,
+                          y: rect.top
+                        });
+                      }
+                      setMenuOpen(true);
+                    }}
+                    className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    data-testid={`compound-add-btn-empty-${node.id}`}
+                  >
+                    <Plus size={20} className="text-gray-500 dark:text-gray-400" />
+                  </button>
+                ) : (
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    Select this node to add components
+                  </p>
+                )}
               </div>
             ) : (
               <div className="flex flex-col" style={{ gap: node.data.gap || 8 }}>
@@ -708,8 +826,28 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
                     isDragging={draggingSubcomponent === sub.id}
                     onDragStart={handleSubcomponentDragStart}
                     dropIndicator={dropTarget && dropTarget.id === sub.id ? dropTarget.position : null}
+                    isSelected={node.selected || false}
                   />
                 ))}
+                {node.selected && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const rect = nodeRef.current?.getBoundingClientRect();
+                      if (rect) {
+                        setMenuPosition({
+                          x: rect.right + 16,
+                          y: rect.top
+                        });
+                      }
+                      setMenuOpen(true);
+                    }}
+                    className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors mx-auto mt-2"
+                    data-testid={`compound-add-btn-body-${node.id}`}
+                  >
+                    <Plus size={16} className="text-gray-500 dark:text-gray-400" />
+                  </button>
+                )}
               </div>
             )}
           </div>
