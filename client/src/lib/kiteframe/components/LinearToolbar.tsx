@@ -2222,7 +2222,12 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                 "hover:scale-105 active:scale-95 hover:shadow-lg",
                 !canUseWireframe && "opacity-75"
               )}
-              onClick={() => onWireframe?.()}
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('🎨 Wireframe button clicked', { canUseWireframe, hasHandler: !!onWireframe, nodeId: node?.id });
+                onWireframe?.();
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
               title={canUseWireframe ? "Generate wireframe mockup" : "Upgrade to use Wireframe (Pro feature)"}
               data-testid="toolbar-button-wireframe"
               tabIndex={0}
