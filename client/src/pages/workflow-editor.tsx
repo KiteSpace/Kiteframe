@@ -4330,7 +4330,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   onClose={() => setActivePopout(null)}
                   viewport={viewport}
                   onCreateNode={(type: string) => {
-                    // Handle regular node creation
+                    // Handle regular node creation from popout
                     if (tabs.length === 0) {
                       const newTab = createBlankTab();
                       setTabs([newTab]);
@@ -4344,12 +4344,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       output: { icon: 'ArrowLeft', color: 'text-red-500' },
                       ai: { icon: 'Bot', color: 'text-purple-500' },
                       image: { icon: 'Image', color: 'text-indigo-500' },
-                      table: { icon: 'Table2', color: 'text-indigo-500' }
+                      table: { icon: 'Table2', color: 'text-indigo-500' },
+                      compound: { icon: 'Layers', color: 'text-emerald-500' }
                     };
 
                     const nodeId = `node-${Date.now()}`;
                     const isTableNode = type === 'table';
                     const isFormNode = type === 'form';
+                    const isCompoundNode = type === 'compound';
                     const tableId = isTableNode ? `table-${nodeId}` : undefined;
 
                     const getNodeData = () => {
@@ -4383,6 +4385,21 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           }
                         };
                       }
+                      if (isCompoundNode) {
+                        return {
+                          label: 'Compound',
+                          description: '',
+                          subcomponents: [],
+                          containerPadding: 12,
+                          gap: 8,
+                          colors: {
+                            headerBackground: '#059669',
+                            bodyBackground: '#ffffff',
+                            borderColor: '#10b981',
+                            headerTextColor: '#ffffff',
+                          }
+                        };
+                      }
                       return {
                         label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                         description: `Configure ${type} settings`,
@@ -4391,15 +4408,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       };
                     };
 
+                    const getNodeDimensions = () => {
+                      if (isTableNode) return { width: 560, height: 400 };
+                      if (isFormNode) return { width: 320, height: 200 };
+                      if (isCompoundNode) return { width: 320, height: 280 };
+                      return { width: 200, height: 100 };
+                    };
+
+                    const dimensions = getNodeDimensions();
                     const newNode: Node = {
                       id: nodeId,
                       type,
                       position: getViewportCenteredPosition(),
                       data: getNodeData(),
-                      width: isTableNode ? 560 : isFormNode ? 320 : 200,
-                      height: isTableNode ? 400 : isFormNode ? 200 : 100,
-                      style: isTableNode ? { width: 560, height: 400 } : isFormNode ? { width: 320, height: 200 } : undefined,
-                      resizable: isTableNode || isFormNode ? true : undefined
+                      width: dimensions.width,
+                      height: dimensions.height,
+                      style: (isTableNode || isFormNode || isCompoundNode) ? dimensions : undefined,
+                      resizable: (isTableNode || isFormNode || isCompoundNode) ? true : undefined
                     };
 
                     setNodes(prev => [...prev, newNode]);
@@ -4413,7 +4438,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     });
                   }}
                   onCreateNodeAtPosition={(type: string, position: { x: number; y: number }) => {
-                    // Handle drag-and-drop node creation
+                    // Handle drag-and-drop node creation from popout
                     if (tabs.length === 0) {
                       const newTab = createBlankTab();
                       setTabs([newTab]);
@@ -4427,39 +4452,87 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       output: { icon: 'ArrowLeft', color: 'text-red-500' },
                       ai: { icon: 'Bot', color: 'text-purple-500' },
                       image: { icon: 'Image', color: 'text-indigo-500' },
-                      table: { icon: 'Table2', color: 'text-indigo-500' }
+                      table: { icon: 'Table2', color: 'text-indigo-500' },
+                      compound: { icon: 'Layers', color: 'text-emerald-500' }
                     };
 
                     const nodeId = `node-${Date.now()}`;
                     const isTableNode = type === 'table';
+                    const isFormNode = type === 'form';
+                    const isCompoundNode = type === 'compound';
                     const tableId = isTableNode ? `table-${nodeId}` : undefined;
 
-                    const newNode: Node = {
-                      id: nodeId,
-                      type,
-                      position,
-                      data: isTableNode ? {
-                        label: 'Table',
-                        tableId,
-                        previewRowCount: 3,
-                        previewColumnCount: 4,
-                        showRowNumbers: true,
-                        colors: {
-                          headerBackground: '#4f46e5',
-                          bodyBackground: '#ffffff',
-                          headerTextColor: '#ffffff',
-                          bodyTextColor: '#374151',
-                        }
-                      } : {
+                    const getNodeData = () => {
+                      if (isTableNode) {
+                        return {
+                          label: 'Table',
+                          tableId,
+                          previewRowCount: 3,
+                          previewColumnCount: 4,
+                          showRowNumbers: true,
+                          colors: {
+                            headerBackground: '#4f46e5',
+                            bodyBackground: '#ffffff',
+                            headerTextColor: '#ffffff',
+                            bodyTextColor: '#374151',
+                          }
+                        };
+                      }
+                      if (isFormNode) {
+                        return {
+                          label: 'Form',
+                          formTitle: 'Form',
+                          fields: [],
+                          showLabels: true,
+                          layout: 'vertical',
+                          colors: {
+                            headerBackground: '#6366f1',
+                            bodyBackground: '#ffffff',
+                            borderColor: '#818cf8',
+                            headerTextColor: '#ffffff',
+                          }
+                        };
+                      }
+                      if (isCompoundNode) {
+                        return {
+                          label: 'Compound',
+                          description: '',
+                          subcomponents: [],
+                          containerPadding: 12,
+                          gap: 8,
+                          colors: {
+                            headerBackground: '#059669',
+                            bodyBackground: '#ffffff',
+                            borderColor: '#10b981',
+                            headerTextColor: '#ffffff',
+                          }
+                        };
+                      }
+                      return {
                         label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                         description: `Configure ${type} settings`,
                         icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
                         iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
-                      },
-                      width: isTableNode ? 560 : 200,
-                      height: isTableNode ? 400 : 100,
-                      style: isTableNode ? { width: 560, height: 400 } : undefined,
-                      resizable: isTableNode ? true : undefined
+                      };
+                    };
+
+                    const getNodeDimensions = () => {
+                      if (isTableNode) return { width: 560, height: 400 };
+                      if (isFormNode) return { width: 320, height: 200 };
+                      if (isCompoundNode) return { width: 320, height: 280 };
+                      return { width: 200, height: 100 };
+                    };
+
+                    const dimensions = getNodeDimensions();
+                    const newNode: Node = {
+                      id: nodeId,
+                      type,
+                      position,
+                      data: getNodeData(),
+                      width: dimensions.width,
+                      height: dimensions.height,
+                      style: (isTableNode || isFormNode || isCompoundNode) ? dimensions : undefined,
+                      resizable: (isTableNode || isFormNode || isCompoundNode) ? true : undefined
                     };
 
                     setNodes(prev => [...prev, newNode]);
@@ -4636,7 +4709,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 nodes={nodes}
                 onToggleSidebar={toggleSidebar}
                 onCreateNode={(type: string) => {
-                // Create a new tab if none exist
+                // Create a new tab if none exist (Sidebar handler)
                 if (tabs.length === 0) {
                   const newTab = createBlankTab();
                   setTabs([newTab]);
@@ -4650,12 +4723,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       output: { icon: 'ArrowLeft', color: 'text-red-500' },
                       ai: { icon: 'Bot', color: 'text-purple-500' },
                       image: { icon: 'Image', color: 'text-indigo-500' },
-                      table: { icon: 'Table2', color: 'text-indigo-500' }
+                      table: { icon: 'Table2', color: 'text-indigo-500' },
+                      compound: { icon: 'Layers', color: 'text-emerald-500' }
                     };
 
                     const nodeId = `node-${Date.now()}`;
                     const isTableNode = type === 'table';
                     const isFormNode = type === 'form';
+                    const isCompoundNode = type === 'compound';
                     const tableId = isTableNode ? `table-${nodeId}` : undefined;
 
                     const getNodeData = () => {
@@ -4689,6 +4764,21 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           }
                         };
                       }
+                      if (isCompoundNode) {
+                        return {
+                          label: 'Compound',
+                          description: '',
+                          subcomponents: [],
+                          containerPadding: 12,
+                          gap: 8,
+                          colors: {
+                            headerBackground: '#059669',
+                            bodyBackground: '#ffffff',
+                            borderColor: '#10b981',
+                            headerTextColor: '#ffffff',
+                          }
+                        };
+                      }
                       return {
                         label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                         description: `Configure ${type} settings`,
@@ -4697,15 +4787,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       };
                     };
 
+                    const getNodeDimensions = () => {
+                      if (isTableNode) return { width: 560, height: 400 };
+                      if (isFormNode) return { width: 320, height: 200 };
+                      if (isCompoundNode) return { width: 320, height: 280 };
+                      return { width: 200, height: 100 };
+                    };
+
+                    const dimensions = getNodeDimensions();
                     const newNode: Node = {
                       id: nodeId,
                       type,
                       position: getViewportCenteredPosition(),
                       data: getNodeData(),
-                      width: isTableNode ? 560 : isFormNode ? 320 : 200,
-                      height: isTableNode ? 400 : isFormNode ? 200 : 100,
-                      style: isTableNode ? { width: 560, height: 400 } : isFormNode ? { width: 320, height: 200 } : undefined,
-                      resizable: isTableNode || isFormNode ? true : undefined
+                      width: dimensions.width,
+                      height: dimensions.height,
+                      style: (isTableNode || isFormNode || isCompoundNode) ? dimensions : undefined,
+                      resizable: (isTableNode || isFormNode || isCompoundNode) ? true : undefined
                     };
 
                     setNodes([newNode]);
@@ -4772,7 +4870,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   return;
                 }
 
-                // Normal case - add to existing tab (for input, process, condition, output, ai, image, table)
+                // Normal case - add to existing tab (for input, process, condition, output, ai, image, table, form, compound)
                 saveToHistory(); // Save current state before adding node
                 const icons = {
                   input: { icon: 'ArrowRight', color: 'text-blue-500' },
@@ -4781,12 +4879,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   output: { icon: 'ArrowLeft', color: 'text-red-500' },
                   ai: { icon: 'Bot', color: 'text-purple-500' },
                   image: { icon: 'Image', color: 'text-indigo-500' },
-                  table: { icon: 'Table2', color: 'text-indigo-500' }
+                  table: { icon: 'Table2', color: 'text-indigo-500' },
+                  compound: { icon: 'Layers', color: 'text-emerald-500' }
                 };
 
                 const nodeId = `node-${Date.now()}`;
                 const isTableNode = type === 'table';
                 const isFormNode = type === 'form';
+                const isCompoundNode = type === 'compound';
                 const tableId = isTableNode ? `table-${nodeId}` : undefined;
 
                 const getNodeData = () => {
@@ -4820,6 +4920,21 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     };
                   }
+                  if (isCompoundNode) {
+                    return {
+                      label: 'Compound',
+                      description: '',
+                      subcomponents: [],
+                      containerPadding: 12,
+                      gap: 8,
+                      colors: {
+                        headerBackground: '#059669',
+                        bodyBackground: '#ffffff',
+                        borderColor: '#10b981',
+                        headerTextColor: '#ffffff',
+                      }
+                    };
+                  }
                   return {
                     label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                     description: `Configure ${type} settings`,
@@ -4828,15 +4943,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   };
                 };
 
+                const getNodeDimensions = () => {
+                  if (isTableNode) return { width: 560, height: 400 };
+                  if (isFormNode) return { width: 320, height: 200 };
+                  if (isCompoundNode) return { width: 320, height: 280 };
+                  return { width: 200, height: 100 };
+                };
+
+                const dimensions = getNodeDimensions();
                 const newNode: Node = {
                   id: nodeId,
                   type,
                   position: getViewportCenteredPosition(),
                   data: getNodeData(),
-                  width: isTableNode ? 560 : isFormNode ? 320 : 200,
-                  height: isTableNode ? 400 : isFormNode ? 200 : 100,
-                  style: isTableNode ? { width: 560, height: 400 } : isFormNode ? { width: 320, height: 200 } : undefined,
-                  resizable: isTableNode || isFormNode ? true : undefined
+                  width: dimensions.width,
+                  height: dimensions.height,
+                  style: (isTableNode || isFormNode || isCompoundNode) ? dimensions : undefined,
+                  resizable: (isTableNode || isFormNode || isCompoundNode) ? true : undefined
                 };
 
                 setNodes(prev => [...prev, newNode]);

@@ -39,6 +39,7 @@ import { ShapeNode } from "./ShapeNode";
 import { ImageNode } from "./ImageNode";
 import { TableNode } from "./TableNode";
 import { FormNode } from "./FormNode";
+import { CompoundNode } from "./CompoundNode";
 import { DataLinkPicker } from "./DataLinkPicker";
 import { TextObject } from "./TextObject";
 import { StickyNoteObject } from "./StickyNoteObject";
@@ -4052,6 +4053,99 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         currentLink,
                       });
                     }}
+                    style={{
+                      position: "absolute",
+                      left: n.position.x,
+                      top: n.position.y,
+                      zIndex: n.zIndex || 0,
+                    }}
+                    className={n.selected ? "selected" : ""}
+                  />
+                );
+              }
+
+              // Handle compound nodes
+              if (n.type === "compound") {
+                return (
+                  <CompoundNode
+                    key={n.id}
+                    node={n as any}
+                    onUpdate={(nodeId: string, updates: Partial<Node>) => {
+                      const updated = props.nodes.map((node) =>
+                        node.id === nodeId
+                          ? { ...node, ...updates }
+                          : node,
+                      );
+                      props.onNodesChange?.(updated);
+                    }}
+                    onStartDrag={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      if (!containerRef.current) return;
+                      const rect = containerRef.current.getBoundingClientRect();
+                      const wp = clientToWorld(
+                        e.clientX,
+                        e.clientY,
+                        viewport,
+                        rect,
+                      );
+
+                      const selectedNodes = props.nodes.filter(
+                        (node) => node.selected === true,
+                      );
+                      const selectedCanvasObjects = (
+                        props.canvasObjects || []
+                      ).filter((obj) => obj.selected === true);
+                      const totalSelected =
+                        selectedNodes.length + selectedCanvasObjects.length;
+                      const isGroupDrag =
+                        totalSelected > 1 && n.selected === true;
+
+                      const origins = isGroupDrag
+                        ? selectedNodes.map((node) => ({
+                            id: node.id,
+                            origin: { ...node.position },
+                          }))
+                        : [{ id: n.id, origin: { ...n.position } }];
+
+                      const canvasObjectOrigins = isGroupDrag
+                        ? selectedCanvasObjects.map((obj) => ({
+                            id: obj.id,
+                            origin: { ...obj.position },
+                          }))
+                        : [];
+
+                      dragInfo.current = {
+                        id: n.id,
+                        start: wp,
+                        origin: { ...n.position },
+                        origins: origins,
+                        canvasObjectOrigins: canvasObjectOrigins,
+                        isGroupDrag: isGroupDrag,
+                      };
+                    }}
+                    onClick={(e: React.MouseEvent) => {
+                      props.onNodeClick?.(e, n);
+                    }}
+                    onHandleConnect={(position, e) => {
+                      if (!containerRef.current) return;
+                      const rect = containerRef.current.getBoundingClientRect();
+                      const wp = clientToWorld(
+                        e.clientX,
+                        e.clientY,
+                        viewport,
+                        rect,
+                      );
+                      setConnecting({
+                        sourceId: n.id,
+                        wx: wp.x,
+                        wy: wp.y,
+                        hoverTargetId: null,
+                        eligible: false,
+                      });
+                    }}
+                    showHandles={n.showHandles !== false}
+                    showResizeHandle={n.resizable !== false}
+                    viewport={viewport}
                     style={{
                       position: "absolute",
                       left: n.position.x,
