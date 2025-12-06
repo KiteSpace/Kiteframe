@@ -2018,8 +2018,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     }
   };
 
-  // Wheel/pinch zoom (cursor-anchored)
-  const onWheel = (e: React.WheelEvent) => {
+  // Wheel/pinch zoom (cursor-anchored) - using native event for passive: false
+  const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
     
     // Skip zoom if disabled, but still prevent default scroll behavior
@@ -2027,7 +2027,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       return;
     }
     
-    const rect = containerRef.current!.getBoundingClientRect();
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
     const old = viewport;
     const newZoom = zoomAroundPoint(
       old.zoom,
@@ -2047,7 +2048,18 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       value: newZoom,
       metadata: { zoom: newZoom, method: "wheel" },
     });
-  };
+  }, [viewport, setViewport, props.disableWheelZoom, telemetry]);
+  
+  // Attach wheel event listener with { passive: false } to allow preventDefault
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, [handleWheel]);
 
   // Function to start unified selection - can be called from anywhere
   const startUnifiedSelection = (clientX: number, clientY: number) => {
@@ -3070,7 +3082,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         aria-describedby="canvas-keyboard-shortcuts"
         tabIndex={0}
         data-testid="workflow-canvas"
-        onWheel={onWheel}
         onMouseDown={onBackgroundDown}
         onMouseMove={onBackgroundMove}
         onMouseUp={onBackgroundUp}
