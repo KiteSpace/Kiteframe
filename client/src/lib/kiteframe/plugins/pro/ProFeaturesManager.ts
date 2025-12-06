@@ -334,7 +334,7 @@ export class ProFeaturesManager {
 
   // Smart Guides Feature
   isSmartGuidesEnabled(): boolean {
-    return this.config.smartGuides?.enabled !== false;
+    return this.config.smartGuides?.enabled === true;
   }
 
   setGuideUpdateCallback(callback: (guides: SnapGuide[]) => void): void {
@@ -365,13 +365,13 @@ export class ProFeaturesManager {
     }
 
     const snapSettings: SnapSettings = {
-      enabled: this.config.smartGuides?.enabled !== false,
+      enabled: this.config.smartGuides?.enabled === true,
       threshold: this.config.smartGuides?.threshold || 10,
-      showGuides: this.config.smartGuides?.showGuides !== false,
-      snapToNodes: this.config.smartGuides?.snapToNodes !== false,
+      showGuides: this.config.smartGuides?.showGuides === true,
+      snapToNodes: this.config.smartGuides?.snapToNodes === true,
       snapToGrid: this.config.smartGuides?.snapToGrid === true,
       gridSize: this.config.smartGuides?.gridSize || 20,
-      snapToCanvas: this.config.smartGuides?.snapToCanvas !== false
+      snapToCanvas: this.config.smartGuides?.snapToCanvas === true
     };
 
     const snapResult = calculateSnapPosition(

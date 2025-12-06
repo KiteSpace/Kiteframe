@@ -197,7 +197,7 @@ export class SmartGuidesPlugin implements KiteFramePlugin {
   }
 
   private isEnabled(): boolean {
-    return this.config.enabled !== false;
+    return this.config.enabled === true;
   }
 
   // Public API for external use
