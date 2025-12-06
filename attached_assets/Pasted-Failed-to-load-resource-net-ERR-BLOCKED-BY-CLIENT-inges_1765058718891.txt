@@ -1,0 +1,1773 @@
+Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058477001&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058479012&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058483516&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+181a81e7bdf2fe17.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058483516&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 181a81e7bdf2fe17.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 181a81e7bdf2fe17.js:2
+181a81e7bdf2fe17.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 181a81e7bdf2fe17.js:2
+181a81e7bdf2fe17.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ 181a81e7bdf2fe17.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058502376&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058502890&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058504900&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A8b8c93fa&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=d3590044-508b-415c-9629-81608974506d:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A8b8c93fa&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=df348ca0-4852-487a-ae2e-934e989d6f90:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058509406&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+181a81e7bdf2fe17.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058509406&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 181a81e7bdf2fe17.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 181a81e7bdf2fe17.js:2
+181a81e7bdf2fe17.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 181a81e7bdf2fe17.js:2
+181a81e7bdf2fe17.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ 181a81e7bdf2fe17.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A8b8c93fa&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=8c8fc87a-030a-4402-9abc-04210e5d6b1c:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A8b8c93fa&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=438e5e40-bcc3-4875-b609-9e8ae5f15c7f:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+attached_assets/Screenshot_2025-12-06_at_2.01.09_PM_1765058502081.png:1  Failed to load resource: the server responded with a status of 404 ()
+o1151714.ingest.sentry.io/api/6318792/envelope/?sentry_key=8aa91189a4274b5a8c9b7b01d46ea360&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.112.0:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Abeacon%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A8b8c93fa&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=5bc5d4a0-85b2-4b39-b6cf-99bd10c04fc5:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058584516&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058585032&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058587044&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 ❌ Failed to save workflows to local storage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'kiteframe_workflows' exceeded the quota.
+    at workflow-editor.tsx:3717:20
+    at workflow-editor.tsx:3746:9
+(anonymous) @ injected.js:37
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058591551&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+181a81e7bdf2fe17.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1765058591551&sid=26069168-f074-4105-a3ed-fc0a663534d9&ec=2523&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 181a81e7bdf2fe17.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 181a81e7bdf2fe17.js:2
+181a81e7bdf2fe17.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 181a81e7bdf2fe17.js:2
+181a81e7bdf2fe17.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ 181a81e7bdf2fe17.js:2
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 ❌ Failed to save workflows to local storage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'kiteframe_workflows' exceeded the quota.
+    at workflow-editor.tsx:3717:20
+    at workflow-editor.tsx:3746:9
+(anonymous) @ injected.js:37
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A8b8c93fa&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=a6e1ed9d-4198-4377-8309-eaf5a23c1b08:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A8b8c93fa&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=0dfdeb31-b948-43db-b871-0b194b6162a6:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+injected.js:37 🎯 COLLAPSED SIDEBAR DRAG START: Object
+injected.js:37 🎯 COLLAPSED SIDEBAR DRAG END: Object
+injected.js:37 🎯 HANDLE ICON CLICK CALLED: Object
+content_script.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at elementWasFocused (content_script.js:1:423712)
+    at HTMLDocument.focusInEventHandler (content_script.js:1:423069)
+9content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+injected.js:37 ❌ Failed to save workflows to local storage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'kiteframe_workflows' exceeded the quota.
+    at workflow-editor.tsx:3717:20
+    at workflow-editor.tsx:3746:9
+(anonymous) @ injected.js:37
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+181a81e7bdf2fe17.js:2  POST https://events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820 net::ERR_BLOCKED_BY_CLIENT
+(anonymous) @ 181a81e7bdf2fe17.js:2
+(anonymous) @ 181a81e7bdf2fe17.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+t @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+e @ dd0acf06db3eb933.js:2
+o @ 181a81e7bdf2fe17.js:2
+181a81e7bdf2fe17.js:2  POST https://events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820 net::ERR_BLOCKED_BY_CLIENT
+(anonymous) @ 181a81e7bdf2fe17.js:2
+(anonymous) @ 181a81e7bdf2fe17.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+t @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+Promise.catch
+t @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+e @ dd0acf06db3eb933.js:2
+o @ 181a81e7bdf2fe17.js:2
+injected.js:37 ❌ Failed to save workflows to local storage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'kiteframe_workflows' exceeded the quota.
+    at workflow-editor.tsx:3717:20
+    at workflow-editor.tsx:3746:9
+(anonymous) @ injected.js:37
+(anonymous) @ workflow-editor.tsx:3719
+(anonymous) @ workflow-editor.tsx:3746
+129 log entries are not shown.
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+181a81e7bdf2fe17.js:2  POST https://logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A8b8c93fa&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=194d8c34-b6b7-4f72-92e5-d20a35a1519a net::ERR_BLOCKED_BY_CLIENT
+(anonymous) @ 181a81e7bdf2fe17.js:2
+n @ dd0acf06db3eb933.js:2
+rr @ dd0acf06db3eb933.js:2
+rt @ dd0acf06db3eb933.js:2
+send @ dd0acf06db3eb933.js:2
+e.flush @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+e.notify @ dd0acf06db3eb933.js:2
+u @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+M @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+o @ 181a81e7bdf2fe17.js:2
+181a81e7bdf2fe17.js:2  POST https://logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A8b8c93fa&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=ee111352-b9f3-4e1a-9fee-20d4b2894f88 net::ERR_BLOCKED_BY_CLIENT
+(anonymous) @ 181a81e7bdf2fe17.js:2
+(anonymous) @ 181a81e7bdf2fe17.js:2
+rs @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+M @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+Promise.then
+n @ dd0acf06db3eb933.js:2
+rr @ dd0acf06db3eb933.js:2
+rt @ dd0acf06db3eb933.js:2
+send @ dd0acf06db3eb933.js:2
+e.flush @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+e.notify @ dd0acf06db3eb933.js:2
+u @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+M @ dd0acf06db3eb933.js:2
+(anonymous) @ dd0acf06db3eb933.js:2
+o @ 181a81e7bdf2fe17.js:2
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+KiteFrameCanvas.tsx:2023 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+onWheel @ KiteFrameCanvas.tsx:2023
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchContinuousEvent @ react-dom.development.js:6444
+injected.js:37 ❌ Failed to save workflows to local storage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'kiteframe_workflows' exceeded the quota.
+    at workflow-editor.tsx:3717:20
+    at workflow-editor.tsx:3746:9
+(anonymous) @ injected.js:37
+(anonymous) @ workflow-editor.tsx:3719
+(anonymous) @ workflow-editor.tsx:3746
+setTimeout
+(anonymous) @ workflow-editor.tsx:3739
+commitHookEffectListMount @ react-dom.development.js:23189
+commitPassiveMountOnFiber @ react-dom.development.js:24965
+commitPassiveMountEffects_complete @ react-dom.development.js:24930
+commitPassiveMountEffects_begin @ react-dom.development.js:24917
+commitPassiveMountEffects @ react-dom.development.js:24905
+flushPassiveEffectsImpl @ react-dom.development.js:27078
+flushPassiveEffects @ react-dom.development.js:27023
+performSyncWorkOnRoot @ react-dom.development.js:26115
+flushSyncCallbacks @ react-dom.development.js:12042
+commitRootImpl @ react-dom.development.js:26998
+commitRoot @ react-dom.development.js:26721
+finishConcurrentRender @ react-dom.development.js:26020
+performConcurrentWorkOnRoot @ react-dom.development.js:25848
+workLoop @ scheduler.development.js:266
+flushWork @ scheduler.development.js:239
+performWorkUntilDeadline @ scheduler.development.js:533

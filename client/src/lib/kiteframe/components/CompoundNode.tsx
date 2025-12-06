@@ -665,25 +665,47 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
           const hostname = getHostname(linkData.url || '');
           
           if (linkData.showPreview && linkData.url) {
-            // Simpler inline preview style for compound nodes
-            // Shows link text with hostname and external link icon
             return (
               <a 
                 href={linkData.url.startsWith('http') ? linkData.url : `https://${linkData.url}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 group"
                 onClick={(e) => e.stopPropagation()}
                 data-testid={`subcomponent-link-preview-${subcomponent.id}`}
+                style={{
+                  display: 'block',
+                  padding: '10px 12px',
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '8px',
+                  border: '1px solid #e5e7eb',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.15s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f3f4f6'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f9fafb'; }}
               >
-                <Link size={14} className="flex-shrink-0" />
-                <span className="underline decoration-dotted underline-offset-2">
-                  {linkData.text || hostname}
-                </span>
-                <span className="text-xs text-gray-400 dark:text-gray-500">
-                  ({hostname})
-                </span>
-                <ExternalLink size={12} className="text-gray-400 group-hover:text-blue-500 flex-shrink-0" />
+                <div style={{ fontWeight: 600, fontSize: '13px', color: '#1f2937', marginBottom: '6px' }}>
+                  {linkData.text || linkData.metadata?.title || 'Link'}
+                </div>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                }}>
+                  {linkData.metadata?.favicon && (
+                    <img 
+                      src={linkData.metadata.favicon} 
+                      alt="" 
+                      style={{ width: '14px', height: '14px', borderRadius: '2px', flexShrink: 0 }}
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  )}
+                  <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+                    {hostname}
+                  </span>
+                  <ExternalLink size={12} style={{ color: '#9ca3af', marginLeft: 'auto', flexShrink: 0 }} />
+                </div>
               </a>
             );
           }
