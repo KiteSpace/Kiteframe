@@ -1,14 +1,7 @@
 import { useState } from "react";
 import {
   ArrowRight,
-  Cog,
-  HelpCircle,
-  ArrowLeft,
-  Bot,
   Image,
-  Type,
-  StickyNote,
-  Square,
   FileText,
   Layers,
   Table2,
@@ -41,16 +34,7 @@ export function NodeTypesPopout({
   }>({ isDragging: false, nodeType: null, startPos: null, currentPos: null });
 
   const nodeTypes = [
-    { type: "input", icon: ArrowRight, color: "text-blue-500", label: "Input" },
-    { type: "process", icon: Cog, color: "text-green-500", label: "Process" },
-    {
-      type: "condition",
-      icon: HelpCircle,
-      color: "text-yellow-500",
-      label: "Condition",
-    },
-    { type: "output", icon: ArrowLeft, color: "text-red-500", label: "Output" },
-    { type: "ai", icon: Bot, color: "text-purple-500", label: "AI Task" },
+    { type: "input", icon: ArrowRight, color: "text-blue-500", label: "Step" },
     { type: "image", icon: Image, color: "text-pink-500", label: "Image" },
     { type: "table", icon: Table2, color: "text-indigo-500", label: "Table" },
     { type: "form", icon: FileText, color: "text-indigo-500", label: "Form" },

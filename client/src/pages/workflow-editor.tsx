@@ -2326,19 +2326,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         break;
     }
 
+    const isImageNode = nodeType === 'image';
+    const defaultWidth = isImageNode ? 240 : 200;
+    const defaultHeight = isImageNode ? 240 : 100;
+    
     const newNode: Node = {
       id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: nodeType,
       position: newPosition,
       data: {
-        label: 'New Process',
-        description: 'Configure process settings',
-        icon: 'Cog',
-        iconColor: 'text-gray-500',
+        label: isImageNode ? 'Image' : 'New Process',
+        description: isImageNode ? 'Configure image' : 'Configure process settings',
+        icon: isImageNode ? 'Image' : 'Cog',
+        iconColor: isImageNode ? 'text-pink-500' : 'text-gray-500',
         ...template
       },
-      width: 200,
-      height: 100
+      width: defaultWidth,
+      height: defaultHeight
     };
 
     // Add the new node
@@ -2473,21 +2477,26 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     const timestamp = Date.now();
     
     // Apply offset to new nodes and ensure unique IDs
-    const offsetNodes = templateData.nodes.map(node => ({
-      ...node,
-      id: `${node.id}-${timestamp}`, // Ensure unique IDs
-      position: {
-        x: node.position.x + offset.x,
-        y: node.position.y + offset.y
-      },
-      selected: false,
-      // Ensure proper width/height for handle alignment
-      width: node.width || 200,
-      height: node.height || 100,
-      // Ensure handles are properly aligned
-      draggable: true,
-      selectable: true
-    }));
+    const offsetNodes = templateData.nodes.map(node => {
+      const isImageNode = node.type === 'image';
+      const defaultWidth = isImageNode ? 240 : 200;
+      const defaultHeight = isImageNode ? 240 : 100;
+      return {
+        ...node,
+        id: `${node.id}-${timestamp}`, // Ensure unique IDs
+        position: {
+          x: node.position.x + offset.x,
+          y: node.position.y + offset.y
+        },
+        selected: false,
+        // Ensure proper width/height for handle alignment
+        width: node.width || defaultWidth,
+        height: node.height || defaultHeight,
+        // Ensure handles are properly aligned
+        draggable: true,
+        selectable: true
+      };
+    });
 
     // Apply offset to new edges and update IDs
     const offsetEdges = templateData.edges.map(edge => ({
@@ -2531,15 +2540,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       const offset = calculateWorkflowOffset(spacedWorkflow.nodes);
       
       // Apply offset to new nodes
-      const offsetNodes = spacedWorkflow.nodes.map(node => ({
-        ...node,
-        id: `${node.id}-${Date.now()}`, // Ensure unique IDs
-        position: {
-          x: node.position.x + offset.x,
-          y: node.position.y + offset.y
-        },
-        selected: false
-      }));
+      const offsetNodes = spacedWorkflow.nodes.map(node => {
+        const isImageNode = node.type === 'image';
+        const defaultWidth = isImageNode ? 240 : 200;
+        const defaultHeight = isImageNode ? 240 : 100;
+        return {
+          ...node,
+          id: `${node.id}-${Date.now()}`, // Ensure unique IDs
+          position: {
+            x: node.position.x + offset.x,
+            y: node.position.y + offset.y
+          },
+          width: node.width || defaultWidth,
+          height: node.height || defaultHeight,
+          selected: false
+        };
+      });
 
       // Apply offset to new edges and update IDs
       const offsetEdges = spacedWorkflow.edges.map(edge => ({
