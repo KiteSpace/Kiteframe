@@ -312,7 +312,6 @@ export class ProFeaturesManager {
       if (hasSelection) {
         const success = clipboardManager.copy(selectedNodes, selectedCanvasObjects);
         if (success) {
-          console.log(`📋 Copied ${selectedNodes.length} nodes and ${selectedCanvasObjects.length} canvas objects`);
           event.preventDefault();
           return true;
         }
@@ -324,7 +323,6 @@ export class ProFeaturesManager {
       if (clipboardManager.hasData()) {
         const result = this.pasteFromClipboard();
         if (result.success) {
-          console.log(`📋 Pasted ${result.newNodes.length} nodes and ${result.newCanvasObjects.length} canvas objects`);
           event.preventDefault();
           return true;
         }
@@ -422,14 +420,15 @@ export class ProFeaturesManager {
     const draggedNode = this.nodes.find(n => n.id === nodeId);
     if (!draggedNode) return;
 
-    let closestConnection: { target: string; distance: number } | null = null;
+    let closestTarget: string | null = null;
+    let closestDistance = Infinity;
 
     // Check proximity to other nodes
-    this.nodes.forEach(targetNode => {
-      if (targetNode.id === nodeId) return; // Skip self
+    for (const targetNode of this.nodes) {
+      if (targetNode.id === nodeId) continue; // Skip self
       
       // Check if connection already exists
-      if (this.connectionExists(nodeId, targetNode.id)) return;
+      if (this.connectionExists(nodeId, targetNode.id)) continue;
       
       // Calculate distance between node centers
       const targetWidth = targetNode.width || 200;
@@ -447,16 +446,15 @@ export class ProFeaturesManager {
         Math.pow(targetCenterY - nodeCenterY, 2)
       );
       
-      if (distance <= threshold) {
-        if (!closestConnection || distance < closestConnection.distance) {
-          closestConnection = { target: targetNode.id, distance };
-        }
+      if (distance <= threshold && distance < closestDistance) {
+        closestTarget = targetNode.id;
+        closestDistance = distance;
       }
-    });
+    }
 
     // Update preview
-    if (closestConnection) {
-      const newPreview = { source: nodeId, target: closestConnection.target };
+    if (closestTarget !== null) {
+      const newPreview = { source: nodeId, target: closestTarget };
       this.previewConnection = newPreview;
       if (this.connectionPreviewCallback) {
         this.connectionPreviewCallback(newPreview);
@@ -469,7 +467,6 @@ export class ProFeaturesManager {
   executeAutoConnection(): void {
     if (this.config.smartConnect?.autoConnect && this.previewConnection && this.onConnect) {
       this.onConnect(this.previewConnection);
-      console.log('🔗 SmartConnect: Auto-connected', this.previewConnection.source, '→', this.previewConnection.target);
     }
     this.clearConnectionPreview();
   }
