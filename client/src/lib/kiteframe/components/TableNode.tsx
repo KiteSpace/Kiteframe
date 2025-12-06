@@ -471,24 +471,82 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   const colCount = table?.columns?.length || 0;
   const isCollapsed = node.data.isCollapsed || false;
 
-  // Measure collapsed title width dynamically
+  // Measure collapsed title width dynamically and update node dimensions
   useEffect(() => {
-    if (isCollapsed && collapsedTitleRef.current) {
+    if (collapsedTitleRef.current) {
       const textWidth = collapsedTitleRef.current.scrollWidth;
       // Calculate total width: padding (32px) + icon (20px) + gap (12px) + text + gap (12px) + divider padding (12px) + buttons (80px) + padding (16px)
       const totalWidth = 32 + 20 + 12 + textWidth + 12 + 12 + 80 + 16;
-      setCollapsedWidth(Math.max(MIN_COLLAPSED_WIDTH, totalWidth));
+      const newCollapsedWidth = Math.max(MIN_COLLAPSED_WIDTH, totalWidth);
+      setCollapsedWidth(newCollapsedWidth);
+      
+      // Update node dimensions to trigger edge recalculation
+      if (isCollapsed && onUpdate) {
+        const currentNodeWidth = node.style?.width || node.width || DEFAULT_TABLE_WIDTH;
+        const currentNodeHeight = node.style?.height || node.height || DEFAULT_TABLE_HEIGHT;
+        
+        // Only update if dimensions actually changed
+        if (currentNodeWidth !== newCollapsedWidth || currentNodeHeight !== COLLAPSED_TABLE_HEIGHT) {
+          onUpdate(node.id, {
+            width: newCollapsedWidth,
+            height: COLLAPSED_TABLE_HEIGHT,
+            style: { 
+              ...node.style, 
+              width: newCollapsedWidth, 
+              height: COLLAPSED_TABLE_HEIGHT,
+            },
+          });
+        }
+      }
     }
-  }, [isCollapsed, tableName]);
+  }, [isCollapsed, tableName, node.id]);
+
+  // Store expanded dimensions before collapsing
+  const expandedWidthRef = useRef(nodeWidth);
+  const expandedHeightRef = useRef(nodeHeight);
+  
+  useEffect(() => {
+    // When not collapsed, store the current dimensions for later restoration
+    if (!isCollapsed) {
+      expandedWidthRef.current = nodeWidth;
+      expandedHeightRef.current = nodeHeight;
+    }
+  }, [isCollapsed, nodeWidth, nodeHeight]);
 
   const handleToggleCollapse = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (onUpdate) {
-      onUpdate(node.id, {
-        data: { ...node.data, isCollapsed: !isCollapsed },
-      });
+      const willBeCollapsed = !isCollapsed;
+      
+      if (willBeCollapsed) {
+        // Collapsing - dimensions will be updated by the useEffect after measurement
+        onUpdate(node.id, {
+          data: { 
+            ...node.data, 
+            isCollapsed: true,
+            // Store expanded dimensions for restoration
+            expandedWidth: nodeWidth,
+            expandedHeight: nodeHeight,
+          },
+        });
+      } else {
+        // Expanding - restore original dimensions
+        const restoreWidth = node.data.expandedWidth || expandedWidthRef.current || DEFAULT_TABLE_WIDTH;
+        const restoreHeight = node.data.expandedHeight || expandedHeightRef.current || DEFAULT_TABLE_HEIGHT;
+        
+        onUpdate(node.id, {
+          data: { ...node.data, isCollapsed: false },
+          width: restoreWidth,
+          height: restoreHeight,
+          style: { 
+            ...node.style, 
+            width: restoreWidth, 
+            height: restoreHeight,
+          },
+        });
+      }
     }
-  }, [node.id, node.data, isCollapsed, onUpdate]);
+  }, [node.id, node.data, node.style, isCollapsed, nodeWidth, nodeHeight, onUpdate]);
 
   const dropShadow = isHovering ? '0 8px 24px rgba(0,0,0,0.15)' : '0 4px 16px rgba(0,0,0,0.1)';
 
