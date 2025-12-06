@@ -21,7 +21,9 @@ import {
   RefreshCw,
   Globe,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Key,
+  Lock
 } from "lucide-react";
 import { NodeHandles } from "./NodeHandles";
 import { ResizeHandle } from "./ResizeHandle";
@@ -32,7 +34,8 @@ import type {
   DataTableColumn, 
   DataTableRow,
   TableNodeComponentProps,
-  TableApiConfig
+  TableApiConfig,
+  TableApiAuthType
 } from "../types";
 import { sanitizeText, validateColor } from "../utils/validation";
 import { getBorderColorFromHeader } from "@/lib/themes";
@@ -74,6 +77,9 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   const [showInlineApiForm, setShowInlineApiForm] = useState(false);
   const [inlineApiUrl, setInlineApiUrl] = useState("");
   const [inlineApiDataPath, setInlineApiDataPath] = useState("");
+  const [inlineApiAuthType, setInlineApiAuthType] = useState<TableApiAuthType>('none');
+  const [inlineApiKey, setInlineApiKey] = useState("");
+  const [inlineApiKeyHeaderName, setInlineApiKeyHeaderName] = useState("X-API-Key");
   
   const inputRef = useRef<HTMLInputElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -346,6 +352,9 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
           method: 'GET',
           headers: [],
           responseDataPath: inlineApiDataPath.trim() || undefined,
+          authType: inlineApiAuthType,
+          apiKey: inlineApiKey.trim() || undefined,
+          apiKeyHeaderName: inlineApiKeyHeaderName.trim() || 'X-API-Key',
         }),
       });
       
@@ -362,6 +371,9 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
           method: 'GET',
           headers: [],
           responseDataPath: inlineApiDataPath.trim() || undefined,
+          authType: inlineApiAuthType !== 'none' ? inlineApiAuthType : undefined,
+          apiKey: inlineApiKey.trim() || undefined,
+          apiKeyHeaderName: inlineApiAuthType === 'apiKey' ? (inlineApiKeyHeaderName.trim() || 'X-API-Key') : undefined,
         };
         
         const updatedTable: DataTable = {
@@ -392,6 +404,9 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
         setShowInlineApiForm(false);
         setInlineApiUrl("");
         setInlineApiDataPath("");
+        setInlineApiAuthType('none');
+        setInlineApiKey("");
+        setInlineApiKeyHeaderName("X-API-Key");
       }
     } catch (error: any) {
       console.error('API fetch error:', error);
@@ -399,7 +414,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
     } finally {
       setIsRefreshing(false);
     }
-  }, [inlineApiUrl, inlineApiDataPath, node.id, node.data, onUpdate, onUpdateTable]);
+  }, [inlineApiUrl, inlineApiDataPath, inlineApiAuthType, inlineApiKey, inlineApiKeyHeaderName, node.id, node.data, onUpdate, onUpdateTable]);
 
   const colors = useMemo(() => {
     const nodeColors = node.data.colors || {};
@@ -539,8 +554,14 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
             onMouseDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               e.stopPropagation();
-              if (e.key === 'Enter') handleInlineApiFetch();
-              else if (e.key === 'Escape') { setShowInlineApiForm(false); setInlineApiUrl(""); setInlineApiDataPath(""); }
+              if (e.key === 'Enter' && inlineApiAuthType === 'none') handleInlineApiFetch();
+              else if (e.key === 'Escape') { 
+                setShowInlineApiForm(false); 
+                setInlineApiUrl(""); 
+                setInlineApiDataPath(""); 
+                setInlineApiAuthType('none');
+                setInlineApiKey("");
+              }
             }}
             data-testid={`table-inline-api-url-${node.id}`}
           />
@@ -554,11 +575,74 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
             onMouseDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               e.stopPropagation();
-              if (e.key === 'Enter') handleInlineApiFetch();
-              else if (e.key === 'Escape') { setShowInlineApiForm(false); setInlineApiUrl(""); setInlineApiDataPath(""); }
+              if (e.key === 'Escape') { 
+                setShowInlineApiForm(false); 
+                setInlineApiUrl(""); 
+                setInlineApiDataPath(""); 
+                setInlineApiAuthType('none');
+                setInlineApiKey("");
+              }
             }}
             data-testid={`table-inline-api-path-${node.id}`}
           />
+          
+          {/* Authentication Section */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Key size={14} className="text-amber-500" />
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Authentication (optional)</span>
+            </div>
+            <select
+              value={inlineApiAuthType}
+              onChange={(e) => setInlineApiAuthType(e.target.value as TableApiAuthType)}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2"
+              data-testid={`table-inline-api-auth-type-${node.id}`}
+            >
+              <option value="none">No Authentication</option>
+              <option value="apiKey">API Key (Header)</option>
+              <option value="bearer">Bearer Token</option>
+            </select>
+            
+            {inlineApiAuthType !== 'none' && (
+              <>
+                {inlineApiAuthType === 'apiKey' && (
+                  <input
+                    type="text"
+                    value={inlineApiKeyHeaderName}
+                    onChange={(e) => setInlineApiKeyHeaderName(e.target.value)}
+                    placeholder="Header name (e.g. X-API-Key)"
+                    className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    data-testid={`table-inline-api-header-name-${node.id}`}
+                  />
+                )}
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={inlineApiKey}
+                    onChange={(e) => setInlineApiKey(e.target.value)}
+                    placeholder={inlineApiAuthType === 'bearer' ? "Bearer token" : "API key value"}
+                    className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === 'Enter') handleInlineApiFetch();
+                    }}
+                    data-testid={`table-inline-api-key-${node.id}`}
+                  />
+                  <Lock size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  Key is stored locally, not on server
+                </p>
+              </>
+            )}
+          </div>
+          
           <div className="flex justify-center gap-2 pt-1">
             <button
               onClick={(e) => { e.stopPropagation(); handleInlineApiFetch(); }}
@@ -569,7 +653,15 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
               Fetch Data
             </button>
             <button
-              onClick={(e) => { e.stopPropagation(); setShowInlineApiForm(false); setInlineApiUrl(""); setInlineApiDataPath(""); }}
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                setShowInlineApiForm(false); 
+                setInlineApiUrl(""); 
+                setInlineApiDataPath(""); 
+                setInlineApiAuthType('none');
+                setInlineApiKey("");
+                setInlineApiKeyHeaderName("X-API-Key");
+              }}
               className="px-4 py-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             >
               Cancel
