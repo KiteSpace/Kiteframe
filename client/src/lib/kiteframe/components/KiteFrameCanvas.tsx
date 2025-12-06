@@ -1644,14 +1644,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     
     // Also observe for new nodes added to the container
     const mutationObserver = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) {
+      mutations.forEach((mutation) => {
+        Array.from(mutation.addedNodes).forEach((node) => {
           if (node instanceof HTMLElement) {
             const nodeEl = node.classList?.contains('kiteframe-node') ? node : node.querySelector?.('.kiteframe-node[data-node-id]');
             if (nodeEl) resizeObserver.observe(nodeEl);
           }
-        }
-      }
+        });
+      });
     });
     
     mutationObserver.observe(containerRef.current, { childList: true, subtree: true });

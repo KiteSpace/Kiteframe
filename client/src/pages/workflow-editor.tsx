@@ -5785,9 +5785,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     if (!isDraggingRef.current) {
                       setSelectedNodeId(node.id);
                       
-                      // Don't overwrite toolbar if we're editing a hyperlink
+                      // Don't overwrite toolbar if we're editing a hyperlink or in link submenu
                       setLinearToolbar(prev => {
-                        if (prev?.editingHyperlinkId) return prev;
+                        if (prev?.editingHyperlinkId || prev?.initialSubmenu === 'link') return prev;
                         
                         // Calculate node rect for toolbar positioning
                         // Include canvas container offset for proper fixed positioning
@@ -5836,9 +5836,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 // Double-click triggers inline text editing for specific part
                 setInlineEditing({ nodeId: node.id, part: part || 'header' });
                 // Also show the linear toolbar with text style options
-                // Don't overwrite toolbar if we're editing a hyperlink
+                // Don't overwrite toolbar if we're editing a hyperlink or in link submenu
                 setLinearToolbar(prev => {
-                  if (prev?.editingHyperlinkId) return prev;
+                  if (prev?.editingHyperlinkId || prev?.initialSubmenu === 'link') return prev;
                   
                   // Include canvas container offset for proper fixed positioning
                   const containerRect = canvasContainerRef.current?.getBoundingClientRect();
@@ -5966,31 +5966,36 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   // Delay opening toolbar to detect if this becomes a drag
                   clickDelayTimeoutRef.current = setTimeout(() => {
                     if (!isDraggingRef.current) {
-                      // Calculate object rect for toolbar positioning
-                      // Include canvas container offset for proper fixed positioning
-                      const containerRect = canvasContainerRef.current?.getBoundingClientRect();
-                      const containerLeft = containerRect?.left ?? 0;
-                      const containerTop = containerRect?.top ?? 0;
-                      
-                      const objWidth = canvasObject.width ?? 150;
-                      const objHeight = canvasObject.height ?? 100;
-                      // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
-                      const screenX = canvasObject.position.x * viewport.zoom + viewport.x + containerLeft;
-                      const screenY = canvasObject.position.y * viewport.zoom + viewport.y + containerTop;
-                      const screenWidth = objWidth * viewport.zoom;
-                      const screenHeight = objHeight * viewport.zoom;
-                      
-                      setLinearToolbar({
-                        x: screenX + screenWidth / 2,
-                        y: screenY,
-                        nodeRect: {
-                          top: screenY,
-                          bottom: screenY + screenHeight,
-                          left: screenX,
-                          right: screenX + screenWidth,
-                          width: screenWidth
-                        },
-                        canvasObject
+                      // Don't overwrite toolbar if we're editing a hyperlink or in a submenu
+                      setLinearToolbar(prev => {
+                        if (prev?.editingHyperlinkId || prev?.initialSubmenu === 'textLink') return prev;
+                        
+                        // Calculate object rect for toolbar positioning
+                        // Include canvas container offset for proper fixed positioning
+                        const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+                        const containerLeft = containerRect?.left ?? 0;
+                        const containerTop = containerRect?.top ?? 0;
+                        
+                        const objWidth = canvasObject.width ?? 150;
+                        const objHeight = canvasObject.height ?? 100;
+                        // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
+                        const screenX = canvasObject.position.x * viewport.zoom + viewport.x + containerLeft;
+                        const screenY = canvasObject.position.y * viewport.zoom + viewport.y + containerTop;
+                        const screenWidth = objWidth * viewport.zoom;
+                        const screenHeight = objHeight * viewport.zoom;
+                        
+                        return {
+                          x: screenX + screenWidth / 2,
+                          y: screenY,
+                          nodeRect: {
+                            top: screenY,
+                            bottom: screenY + screenHeight,
+                            left: screenX,
+                            right: screenX + screenWidth,
+                            width: screenWidth
+                          },
+                          canvasObject
+                        };
                       });
                     }
                     clickDelayTimeoutRef.current = null;
