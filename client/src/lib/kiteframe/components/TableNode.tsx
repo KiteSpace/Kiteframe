@@ -71,6 +71,9 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(node.data.isLoading || false);
   const [refreshError, setRefreshError] = useState<string | null>(node.data.lastError || null);
+  const [showInlineApiForm, setShowInlineApiForm] = useState(false);
+  const [inlineApiUrl, setInlineApiUrl] = useState("");
+  const [inlineApiDataPath, setInlineApiDataPath] = useState("");
   
   const inputRef = useRef<HTMLInputElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -328,6 +331,76 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
 
   const lastRefreshedText = formatLastRefreshed(table?.meta?.lastRefreshedAt);
 
+  const handleInlineApiFetch = useCallback(async () => {
+    if (!inlineApiUrl.trim()) return;
+    
+    setIsRefreshing(true);
+    setRefreshError(null);
+    
+    try {
+      const response = await fetch('/api/table/fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: inlineApiUrl.trim(),
+          method: 'GET',
+          headers: [],
+          responseDataPath: inlineApiDataPath.trim() || undefined,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch data');
+      }
+      
+      if (result.success && result.data) {
+        const newApiConfig: TableApiConfig = {
+          enabled: true,
+          url: inlineApiUrl.trim(),
+          method: 'GET',
+          headers: [],
+          responseDataPath: inlineApiDataPath.trim() || undefined,
+        };
+        
+        const updatedTable: DataTable = {
+          id: node.data.tableId,
+          name: node.data.label || 'API Data',
+          columns: result.data.columns,
+          rows: result.data.rows,
+          meta: {
+            ...result.data.meta,
+            lastRefreshedAt: new Date().toISOString(),
+          },
+        };
+        
+        onUpdateTable?.(node.data.tableId, updatedTable);
+        
+        if (onUpdate) {
+          onUpdate(node.id, {
+            data: {
+              ...node.data,
+              table: updatedTable,
+              apiConfig: newApiConfig,
+              isLoading: false,
+              lastError: undefined,
+            },
+          });
+        }
+        
+        setShowInlineApiForm(false);
+        setInlineApiUrl("");
+        setInlineApiDataPath("");
+      }
+    } catch (error: any) {
+      console.error('API fetch error:', error);
+      setRefreshError(error.message || 'Failed to fetch');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [inlineApiUrl, inlineApiDataPath, node.id, node.data, onUpdate, onUpdateTable]);
+
   const colors = useMemo(() => {
     const nodeColors = node.data.colors || {};
     const headerBg = validateColor(nodeColors.headerBackground || "")
@@ -412,19 +485,126 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
 
   const renderEmptyState = () => (
     <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-3">
-        <Upload size={28} className="text-gray-400" />
-      </div>
-      <p className="text-base font-medium text-gray-700 dark:text-gray-300 mb-1">No data imported</p>
-      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Import a CSV or JSON file to get started</p>
-      <button
-        onClick={handleImportClick}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
-        data-testid={`table-import-empty-${node.id}`}
-      >
-        <Plus size={14} />
-        Import CSV/JSON
-      </button>
+      {isRefreshing ? (
+        <>
+          <Loader2 size={32} className="text-indigo-500 animate-spin mb-3" />
+          <p className="text-sm text-gray-600 dark:text-gray-400">Fetching data...</p>
+        </>
+      ) : refreshError && showInlineApiForm ? (
+        <>
+          <AlertCircle size={32} className="text-red-500 mb-2" />
+          <p className="text-sm text-red-600 dark:text-red-400 mb-3">{refreshError}</p>
+          <div className="w-full max-w-xs space-y-2">
+            <input
+              type="text"
+              value={inlineApiUrl}
+              onChange={(e) => setInlineApiUrl(e.target.value)}
+              placeholder="API URL"
+              className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              data-testid={`table-inline-api-url-${node.id}`}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={(e) => { e.stopPropagation(); handleInlineApiFetch(); }}
+                className="flex-1 px-3 py-1.5 text-sm font-medium bg-indigo-500 text-white rounded hover:bg-indigo-600"
+                data-testid={`table-inline-api-fetch-${node.id}`}
+              >
+                Retry
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowInlineApiForm(false); setRefreshError(null); }}
+                className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      ) : showInlineApiForm ? (
+        <div className="w-full max-w-xs space-y-3">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Globe size={20} className="text-green-500" />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Connect API</span>
+          </div>
+          <input
+            type="text"
+            value={inlineApiUrl}
+            onChange={(e) => setInlineApiUrl(e.target.value)}
+            placeholder="API URL (e.g. https://api.example.com/data)"
+            className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') handleInlineApiFetch();
+              else if (e.key === 'Escape') { setShowInlineApiForm(false); setInlineApiUrl(""); setInlineApiDataPath(""); }
+            }}
+            data-testid={`table-inline-api-url-${node.id}`}
+          />
+          <input
+            type="text"
+            value={inlineApiDataPath}
+            onChange={(e) => setInlineApiDataPath(e.target.value)}
+            placeholder="Data path (optional, e.g. data.items)"
+            className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') handleInlineApiFetch();
+              else if (e.key === 'Escape') { setShowInlineApiForm(false); setInlineApiUrl(""); setInlineApiDataPath(""); }
+            }}
+            data-testid={`table-inline-api-path-${node.id}`}
+          />
+          <div className="flex justify-center gap-2 pt-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); handleInlineApiFetch(); }}
+              disabled={!inlineApiUrl.trim()}
+              className="px-4 py-1.5 text-sm font-medium bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              data-testid={`table-inline-api-fetch-${node.id}`}
+            >
+              Fetch Data
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowInlineApiForm(false); setInlineApiUrl(""); setInlineApiDataPath(""); }}
+              className="px-4 py-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <Table2 size={32} className="text-gray-400 mb-3 opacity-60" />
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">No data</p>
+          <div className="flex gap-4 mb-3">
+            <button
+              onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="w-12 h-12 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors shadow-md"
+              title="Upload CSV or JSON file"
+              data-testid={`table-upload-btn-${node.id}`}
+            >
+              <Upload size={20} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowInlineApiForm(true); }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="w-12 h-12 flex items-center justify-center bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors shadow-md"
+              title="Connect to API"
+              data-testid={`table-api-btn-${node.id}`}
+            >
+              <Globe size={20} />
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            Upload CSV/JSON or connect API
+          </p>
+        </>
+      )}
     </div>
   );
 
