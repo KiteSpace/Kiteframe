@@ -446,7 +446,11 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             // Don't close the toolbar - the component menu will handle its own state
           }
         });
+      } else if (node?.type === 'image' || node?.type === 'form') {
+        // Image and Form nodes don't get icon/emoji or link buttons
+        // They only get color, style, and delete
       } else {
+        // Basic nodes (input, process, condition, output, ai) get icon and link
         baseButtons.push(
           {
             id: 'icon',
@@ -2208,8 +2212,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             );
           })}
           
-          {/* Wireframe button - only for nodes (not during inline editing, not for image/table nodes) */}
-          {isNodeTarget && node?.type !== 'image' && node?.type !== 'table' && !isInlineEditing && (
+          {/* Wireframe button - only for Basic nodes and Compound nodes (not for image/table/form nodes) */}
+          {isNodeTarget && node?.type !== 'image' && node?.type !== 'table' && node?.type !== 'form' && !isInlineEditing && (
             <button
               className={cn(
                 "h-9 px-3 rounded-full flex items-center gap-1.5 text-white text-sm font-medium shadow-md transition-all duration-200",

@@ -120,6 +120,12 @@ const ComponentMenu: React.FC<ComponentMenuProps> = ({
           <button
             key={item.type}
             onClick={() => onAddComponent(item.type)}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onAddComponent(item.type);
+            }}
             className="flex flex-col items-center gap-1 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             data-testid={`add-component-${item.type}`}
           >
@@ -1256,6 +1262,21 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
                       setMenuOpen(true);
                     }
                   }}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // If not selected, trigger selection first
+                    if (!node.selected && onClick) {
+                      onClick(e as any, node);
+                    }
+                    setIsEditing(true);
+                    const rect = nodeRef.current?.getBoundingClientRect();
+                    if (rect) {
+                      setMenuPosition(calculateMenuPosition(rect));
+                      setMenuOpen(true);
+                    }
+                  }}
                   className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                   data-testid={`compound-add-btn-empty-${node.id}`}
                 >
@@ -1283,6 +1304,16 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
                 {isEditing && (
                   <button
                     onClick={(e) => {
+                      e.stopPropagation();
+                      const rect = nodeRef.current?.getBoundingClientRect();
+                      if (rect) {
+                        setMenuPosition(calculateMenuPosition(rect));
+                        setMenuOpen(true);
+                      }
+                    }}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
                       const rect = nodeRef.current?.getBoundingClientRect();
                       if (rect) {

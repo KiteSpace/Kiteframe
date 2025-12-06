@@ -427,6 +427,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                   <button
                     onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                     onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); fileInputRef.current?.click(); }}
                     className="w-10 h-10 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors shadow-md"
                     title="Upload image"
                     data-testid={`image-node-upload-btn-${node.id}`}
@@ -436,6 +438,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                   <button
                     onClick={(e) => { e.stopPropagation(); setShowInlineUrlInput(true); }}
                     onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setShowInlineUrlInput(true); }}
                     className="w-10 h-10 flex items-center justify-center bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors shadow-md"
                     title="Add image URL"
                     data-testid={`image-node-url-btn-${node.id}`}
@@ -499,6 +503,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                   <button
                     onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                     onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); fileInputRef.current?.click(); }}
                     className="w-10 h-10 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors shadow-md"
                     title="Upload image"
                     data-testid={`image-node-upload-btn-${node.id}`}
@@ -508,6 +514,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                   <button
                     onClick={(e) => { e.stopPropagation(); setShowInlineUrlInput(true); }}
                     onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setShowInlineUrlInput(true); }}
                     className="w-10 h-10 flex items-center justify-center bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors shadow-md"
                     title="Add image URL"
                     data-testid={`image-node-url-btn-${node.id}`}
