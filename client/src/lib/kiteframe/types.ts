@@ -215,6 +215,8 @@ export interface TableApiHeader {
   value: string;
 }
 
+export type TableApiAuthType = 'none' | 'apiKey' | 'bearer' | 'basic';
+
 export interface TableApiConfig {
   enabled: boolean;
   url: string;
@@ -223,6 +225,11 @@ export interface TableApiConfig {
   responseDataPath?: string;
   autoRefresh?: boolean;
   autoRefreshIntervalMs?: number;
+  authType?: TableApiAuthType;
+  apiKey?: string;
+  apiKeyHeaderName?: string;
+  basicAuthUsername?: string;
+  basicAuthPassword?: string;
 }
 
 export const TABLE_LIMITS = {
