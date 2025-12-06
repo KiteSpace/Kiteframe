@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
-import { Upload, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { Upload, Image as ImageIcon, AlertCircle, Globe } from 'lucide-react';
 import type { Node, ImageNodeData, ImageNodeComponentProps, ImageFit } from '../types';
 import { getDynamicClassName, getNodeStyleClasses } from '../utils/styles';
 import { sanitizeText } from '../utils/validation';
@@ -29,6 +29,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showInlineUrlInput, setShowInlineUrlInput] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isEditingLabel, setIsEditingLabel] = useState(false);
@@ -37,6 +38,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   const nodeRef = useRef<HTMLDivElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -53,6 +55,48 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   }, [isEditingLabel]);
 
   const handleAddImageClick = useCallback(() => setShowUploadModal(true), []);
+
+  const handleFileInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (onImageUpload) {
+      setIsUploading(true);
+      setImageError(false);
+      try {
+        const imageUrl = await onImageUpload(node.id, file);
+        onUpdate?.(node.id, {
+          data: {
+            ...node.data,
+            src: imageUrl,
+            filename: file.name,
+            sourceType: 'upload',
+            isImageBroken: false,
+            naturalWidth: undefined,
+            naturalHeight: undefined
+          }
+        });
+      } catch (err) {
+        console.error('Upload failed:', err);
+        setImageError(true);
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        onUpdate?.(node.id, {
+          data: { ...node.data, src: dataUrl, sourceType: 'upload', filename: file.name }
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [node.id, node.data, onImageUpload, onUpdate]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -263,7 +307,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       className={cn(
         'kiteframe-node group flex flex-col',
         'border-2 rounded-lg shadow-md transition-all duration-200',
-        'hover:shadow-lg cursor-move overflow-hidden',
+        'hover:shadow-lg cursor-move',
         node.selected ? 'ring-2 ring-blue-500 shadow-lg' : '',
         node.hidden ? 'opacity-0 pointer-events-none' : '',
         nodePositionClass,
@@ -323,7 +367,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       </div>
 
       <div
-        className={cn('flex-1 rounded-b-md overflow-hidden min-h-0',
+        className={cn('flex-1 rounded-b-md overflow-hidden min-h-0 relative',
           getDynamicClassName({ backgroundColor: colors.bodyBg }, `image-body-${node.id}`)
         )}
         style={{ height: `calc(100% - ${HEADER_H}px)` }}
@@ -354,20 +398,22 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
           </div>
         ) : (
           <div
-            onClick={() => !isUploading && handleAddImageClick()}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (isUploading) return;
-              if (e.key === 'Enter' || e.key === ' ') handleAddImageClick();
-            }}
             className={cn(
-              'flex flex-col items-center justify-center h-full p-4 text-center cursor-pointer rounded-md hover:bg-slate-50 overflow-hidden',
+              'flex flex-col items-center justify-center h-full p-4 text-center rounded-md overflow-hidden',
               getDynamicClassName({ color: colors.bodyTextColor }, `placeholder-text-${node.id}`)
             )}
             data-testid="placeholder-add-image"
             aria-label="Add image to node"
           >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileInputChange}
+              onClick={(e) => e.stopPropagation()}
+            />
+            
             {isUploading ? (
               <>
                 <Upload className="w-8 h-8 mb-2 animate-pulse" />
@@ -377,20 +423,98 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
               <>
                 <AlertCircle className="w-8 h-8 mb-2 text-red-500" />
                 <span className="text-sm text-red-600">Failed to load image</span>
-                <span className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded mt-2">
-                  Try uploading again
-                </span>
+                <div className="flex gap-3 mt-3">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="w-10 h-10 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors shadow-md"
+                    title="Upload image"
+                    data-testid={`image-node-upload-btn-${node.id}`}
+                  >
+                    <Upload size={18} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowInlineUrlInput(true); }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="w-10 h-10 flex items-center justify-center bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors shadow-md"
+                    title="Add image URL"
+                    data-testid={`image-node-url-btn-${node.id}`}
+                  >
+                    <Globe size={18} />
+                  </button>
+                </div>
               </>
+            ) : showInlineUrlInput ? (
+              <div className="w-full px-4">
+                <input
+                  type="text"
+                  placeholder="Enter image URL..."
+                  className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === 'Enter') {
+                      const value = (e.target as HTMLInputElement).value.trim();
+                      if (value) {
+                        handleModalImageUrl(value);
+                      }
+                      setShowInlineUrlInput(false);
+                    } else if (e.key === 'Escape') {
+                      setShowInlineUrlInput(false);
+                    }
+                  }}
+                />
+                <div className="flex justify-center gap-2 mt-2">
+                  <button
+                    className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const input = e.currentTarget.parentElement?.previousElementSibling as HTMLInputElement;
+                      const value = input?.value?.trim();
+                      if (value) {
+                        handleModalImageUrl(value);
+                      }
+                      setShowInlineUrlInput(false);
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700"
+                    onClick={(e) => { e.stopPropagation(); setShowInlineUrlInput(false); }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : (
               <>
                 <ImageIcon className="w-8 h-8 mb-2 opacity-60" />
-                <span className="text-sm opacity-80 mb-2">
+                <span className="text-sm opacity-80 mb-3">
                   {node.data.displayText || 'No image'}
                 </span>
-                <span className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded">
-                  <ImageIcon className="w-4 h-4 mr-2 inline" />
-                  Add Image
-                </span>
+                <div className="flex gap-3">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="w-10 h-10 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors shadow-md"
+                    title="Upload image"
+                    data-testid={`image-node-upload-btn-${node.id}`}
+                  >
+                    <Upload size={18} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowInlineUrlInput(true); }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="w-10 h-10 flex items-center justify-center bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors shadow-md"
+                    title="Add image URL"
+                    data-testid={`image-node-url-btn-${node.id}`}
+                  >
+                    <Globe size={18} />
+                  </button>
+                </div>
               </>
             )}
           </div>
@@ -405,7 +529,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         />
       )}
 
-      {showResizeHandle && node.resizable !== false && (
+      {showResizeHandle && node.resizable !== false && node.selected && (
         <ResizeHandle
           position="bottom-right"
           nodeRef={nodeRef}

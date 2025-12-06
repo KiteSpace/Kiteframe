@@ -115,6 +115,8 @@ export interface CompoundTextSubcomponent extends CompoundSubcomponentBase {
     content: string;
     fontSize?: number;
     fontWeight?: 'normal' | 'bold';
+    fontStyle?: 'normal' | 'italic';
+    textDecoration?: 'none' | 'line-through';
     textAlign?: 'left' | 'center' | 'right';
     textColor?: string;
   };
@@ -135,6 +137,13 @@ export interface CompoundLinkSubcomponent extends CompoundSubcomponentBase {
     text: string;
     url: string;
     textColor?: string;
+    showPreview?: boolean; // Show rich link preview instead of text
+    metadata?: {
+      title?: string;
+      description?: string;
+      image?: string;
+      favicon?: string;
+    };
   };
 }
 

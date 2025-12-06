@@ -15,7 +15,18 @@ import {
   Move,
   Plus,
   Upload,
-  Globe
+  Globe,
+  Bold,
+  Italic,
+  Strikethrough,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Palette,
+  Minus as MinusIcon,
+  Plus as PlusIcon,
+  ExternalLink,
+  Eye
 } from 'lucide-react';
 import type { 
   Node, 
@@ -157,14 +168,22 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
     switch (subcomponent.type) {
       case 'text':
         const textData = subcomponent as CompoundTextSubcomponent;
+        const currentFontSize = textData.data.fontSize || 14;
+        const isBold = textData.data.fontWeight === 'bold';
+        const isItalic = textData.data.fontStyle === 'italic';
+        const isStrikethrough = textData.data.textDecoration === 'line-through';
+        const currentAlign = textData.data.textAlign || 'left';
+        
         if (!isSelected) {
           return (
             <p
               className="text-sm text-gray-700 dark:text-gray-300"
               style={{
-                fontSize: textData.data.fontSize || 14,
+                fontSize: currentFontSize,
                 fontWeight: textData.data.fontWeight || 'normal',
-                textAlign: textData.data.textAlign || 'left',
+                fontStyle: textData.data.fontStyle || 'normal',
+                textDecoration: textData.data.textDecoration || 'none',
+                textAlign: currentAlign,
                 color: textData.data.textColor,
               }}
               data-testid={`subcomponent-text-display-${subcomponent.id}`}
@@ -174,22 +193,161 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
           );
         }
         return (
-          <textarea
-            value={textData.data.content}
-            onChange={(e) => onUpdate(subcomponent.id, { content: e.target.value })}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            placeholder="Enter text..."
-            className="w-full bg-transparent resize-none text-sm text-gray-700 dark:text-gray-300 focus:outline-none"
-            style={{
-              fontSize: textData.data.fontSize || 14,
-              fontWeight: textData.data.fontWeight || 'normal',
-              textAlign: textData.data.textAlign || 'left',
-              color: textData.data.textColor,
-            }}
-            rows={2}
-            data-testid={`subcomponent-text-${subcomponent.id}`}
-          />
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1 pb-1 border-b border-gray-200 dark:border-gray-600">
+              <div className="flex items-center gap-0.5 mr-2">
+                <button
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    onUpdate(subcomponent.id, { fontSize: Math.max(10, currentFontSize - 2) });
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                  title="Decrease font size"
+                >
+                  <MinusIcon size={12} />
+                </button>
+                <span className="text-xs text-gray-500 w-6 text-center">{currentFontSize}</span>
+                <button
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    onUpdate(subcomponent.id, { fontSize: Math.min(48, currentFontSize + 2) });
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                  title="Increase font size"
+                >
+                  <PlusIcon size={12} />
+                </button>
+              </div>
+              
+              <button
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  onUpdate(subcomponent.id, { fontWeight: isBold ? 'normal' : 'bold' });
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={cn(
+                  "w-6 h-6 flex items-center justify-center rounded transition-colors",
+                  isBold 
+                    ? "bg-blue-500 text-white" 
+                    : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                )}
+                title="Bold"
+              >
+                <Bold size={12} />
+              </button>
+              
+              <button
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  onUpdate(subcomponent.id, { fontStyle: isItalic ? 'normal' : 'italic' });
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={cn(
+                  "w-6 h-6 flex items-center justify-center rounded transition-colors",
+                  isItalic 
+                    ? "bg-blue-500 text-white" 
+                    : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                )}
+                title="Italic"
+              >
+                <Italic size={12} />
+              </button>
+              
+              <button
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  onUpdate(subcomponent.id, { textDecoration: isStrikethrough ? 'none' : 'line-through' });
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={cn(
+                  "w-6 h-6 flex items-center justify-center rounded transition-colors",
+                  isStrikethrough 
+                    ? "bg-blue-500 text-white" 
+                    : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                )}
+                title="Strikethrough"
+              >
+                <Strikethrough size={12} />
+              </button>
+              
+              <div className="w-px h-4 bg-gray-200 dark:bg-gray-600 mx-1" />
+              
+              <button
+                onClick={(e) => { e.stopPropagation(); onUpdate(subcomponent.id, { textAlign: 'left' }); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={cn(
+                  "w-6 h-6 flex items-center justify-center rounded transition-colors",
+                  currentAlign === 'left' 
+                    ? "bg-blue-500 text-white" 
+                    : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                )}
+                title="Align left"
+              >
+                <AlignLeft size={12} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onUpdate(subcomponent.id, { textAlign: 'center' }); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={cn(
+                  "w-6 h-6 flex items-center justify-center rounded transition-colors",
+                  currentAlign === 'center' 
+                    ? "bg-blue-500 text-white" 
+                    : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                )}
+                title="Align center"
+              >
+                <AlignCenter size={12} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onUpdate(subcomponent.id, { textAlign: 'right' }); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={cn(
+                  "w-6 h-6 flex items-center justify-center rounded transition-colors",
+                  currentAlign === 'right' 
+                    ? "bg-blue-500 text-white" 
+                    : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                )}
+                title="Align right"
+              >
+                <AlignRight size={12} />
+              </button>
+              
+              <div className="w-px h-4 bg-gray-200 dark:bg-gray-600 mx-1" />
+              
+              <input
+                type="color"
+                value={textData.data.textColor || '#374151'}
+                onChange={(e) => { 
+                  e.stopPropagation(); 
+                  onUpdate(subcomponent.id, { textColor: e.target.value }); 
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="w-6 h-6 rounded cursor-pointer border border-gray-200 dark:border-gray-600"
+                title="Text color"
+              />
+            </div>
+            <textarea
+              value={textData.data.content}
+              onChange={(e) => onUpdate(subcomponent.id, { content: e.target.value })}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              placeholder="Enter text..."
+              className="w-full bg-transparent resize-none text-sm text-gray-700 dark:text-gray-300 focus:outline-none"
+              style={{
+                fontSize: currentFontSize,
+                fontWeight: textData.data.fontWeight || 'normal',
+                fontStyle: textData.data.fontStyle || 'normal',
+                textDecoration: textData.data.textDecoration || 'none',
+                textAlign: currentAlign,
+                color: textData.data.textColor,
+              }}
+              rows={2}
+              data-testid={`subcomponent-text-${subcomponent.id}`}
+            />
+          </div>
         );
       
       case 'image':
@@ -296,24 +454,24 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <button
                     onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                     onMouseDown={(e) => e.stopPropagation()}
-                    className="flex flex-col items-center gap-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                    className="w-10 h-10 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors shadow-md"
+                    title="Upload image"
                     data-testid={`subcomponent-image-upload-btn-${subcomponent.id}`}
                   >
-                    <Upload size={16} />
-                    <span className="text-xs">Upload</span>
+                    <Upload size={18} />
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); setShowingUrlInputFor(subcomponent.id); }}
                     onMouseDown={(e) => e.stopPropagation()}
-                    className="flex flex-col items-center gap-1 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                    className="w-10 h-10 flex items-center justify-center bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors shadow-md"
+                    title="Add image URL"
                     data-testid={`subcomponent-image-url-btn-${subcomponent.id}`}
                   >
-                    <Globe size={16} />
-                    <span className="text-xs">URL</span>
+                    <Globe size={18} />
                   </button>
                 </div>
               )}
@@ -331,7 +489,40 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
       
       case 'link':
         const linkData = (subcomponent as CompoundLinkSubcomponent).data;
+        const hasLinkContent = linkData.url || linkData.text;
+        
         if (!isSelected) {
+          if (linkData.showPreview && linkData.metadata) {
+            return (
+              <div 
+                className="w-full p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600"
+                data-testid={`subcomponent-link-preview-${subcomponent.id}`}
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-gray-800 dark:text-gray-200 line-clamp-1">
+                    {linkData.metadata.title || linkData.text || 'Link'}
+                  </span>
+                  {linkData.metadata.description && (
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2">
+                      {linkData.metadata.description}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-1 mt-1">
+                    {linkData.metadata.favicon && (
+                      <img 
+                        src={linkData.metadata.favicon} 
+                        alt="" 
+                        className="w-3 h-3 rounded-sm"
+                      />
+                    )}
+                    <span className="text-[10px] text-gray-400 truncate">
+                      {linkData.url ? new URL(linkData.url.startsWith('http') ? linkData.url : `https://${linkData.url}`).hostname : ''}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          }
           return (
             <a
               href={linkData.url || '#'}
@@ -345,28 +536,72 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
             </a>
           );
         }
+        
         return (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
             <input
               type="text"
               value={linkData.text}
               onChange={(e) => onUpdate(subcomponent.id, { text: e.target.value })}
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
-              placeholder="Link text"
-              className="w-full bg-transparent text-sm text-blue-600 dark:text-blue-400 underline focus:outline-none"
+              placeholder="Link text..."
+              className="w-full px-2 py-1.5 text-sm rounded border border-gray-200 dark:border-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               data-testid={`subcomponent-link-text-${subcomponent.id}`}
             />
+            
             <input
-              type="url"
+              type="text"
               value={linkData.url}
               onChange={(e) => onUpdate(subcomponent.id, { url: e.target.value })}
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
-              placeholder="https://..."
-              className="w-full bg-gray-50 dark:bg-gray-700 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="https://example.com"
+              className="w-full px-2 py-1.5 text-sm rounded border border-gray-200 dark:border-gray-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               data-testid={`subcomponent-link-url-${subcomponent.id}`}
             />
+            
+            <div className="flex items-center justify-between py-1">
+              <label className="text-xs text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
+                <Eye size={12} />
+                Show link preview
+              </label>
+              <button
+                type="button"
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  onUpdate(subcomponent.id, { showPreview: !linkData.showPreview });
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={cn(
+                  "relative w-8 h-4 rounded-full transition-colors flex-shrink-0",
+                  linkData.showPreview 
+                    ? "bg-cyan-500" 
+                    : "bg-gray-300 dark:bg-gray-600"
+                )}
+                data-testid={`subcomponent-link-preview-toggle-${subcomponent.id}`}
+              >
+                <span 
+                  className={cn(
+                    "absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform shadow-sm",
+                    linkData.showPreview && "translate-x-4"
+                  )}
+                />
+              </button>
+            </div>
+            
+            {hasLinkContent && (
+              <a
+                href={linkData.url || '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ExternalLink size={12} />
+                Open link
+              </a>
+            )}
           </div>
         );
       
@@ -530,7 +765,55 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   );
   
   const nodeWidth = node.style?.width || node.width || DEFAULT_COMPOUND_WIDTH;
-  const nodeHeight = node.style?.height || node.height || DEFAULT_COMPOUND_HEIGHT;
+  
+  // Calculate dynamic height based on content
+  const calculateContentHeight = useMemo(() => {
+    const headerHeight = 40;
+    const padding = 24; // 12px top + 12px bottom
+    const gap = node.data.gap || 8;
+    
+    if (subcomponents.length === 0) {
+      // Empty state
+      return headerHeight + 80; // Minimal height for empty message
+    }
+    
+    // Estimate height per subcomponent type
+    let contentHeight = 0;
+    subcomponents.forEach((sub) => {
+      switch (sub.type) {
+        case 'text':
+          // Text: when selected show editing controls, when not just text
+          contentHeight += node.selected ? 70 : 30;
+          break;
+        case 'image':
+          const imgData = sub as CompoundImageSubcomponent;
+          if (imgData.data.src) {
+            contentHeight += (imgData.data.height || 80) + 8;
+          } else {
+            // Empty image placeholder
+            contentHeight += node.selected ? 60 : 40;
+          }
+          break;
+        case 'link':
+          contentHeight += node.selected ? 50 : 28;
+          break;
+        case 'input':
+          contentHeight += node.selected ? 70 : 45;
+          break;
+        default:
+          contentHeight += 40;
+      }
+      contentHeight += gap;
+    });
+    
+    // Add extra space when selected for editing controls
+    const editingBuffer = node.selected ? 20 : 0;
+    
+    return headerHeight + padding + contentHeight + editingBuffer;
+  }, [subcomponents, node.selected, node.data.gap]);
+  
+  // Use explicit height if set, otherwise use calculated height
+  const nodeHeight = node.style?.height || node.height || Math.max(calculateContentHeight, MIN_COMPOUND_HEIGHT);
   
   const headerColor = node.data.colors?.headerBackground || '#059669';
   const bodyColor = node.data.colors?.bodyBackground || '#ffffff';
@@ -984,7 +1267,8 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
           />
         )}
 
-        {showResizeHandle && node.resizable !== false && (
+        {/* Resize Handle - only visible when selected */}
+        {showResizeHandle && node.resizable !== false && node.selected && (
           <ResizeHandle
             position="bottom-right"
             nodeRef={nodeRef}

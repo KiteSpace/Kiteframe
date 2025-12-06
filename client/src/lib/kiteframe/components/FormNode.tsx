@@ -404,8 +404,8 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
         />
       )}
 
-      {/* Resize Handle */}
-      {showResizeHandle && node.resizable !== false && (
+      {/* Resize Handle - only visible when selected */}
+      {showResizeHandle && node.resizable !== false && node.selected && (
         <ResizeHandle
           position="bottom-right"
           nodeRef={nodeRef}

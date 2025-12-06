@@ -7025,6 +7025,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 window.dispatchEvent(new CustomEvent('openCompoundComponentMenu', { 
                   detail: { nodeId: linearToolbar.node.id } 
                 }));
+                // Close the linear toolbar when opening component menu
+                setLinearToolbar(null);
               }
             }}
             onColorChange={(colors) => {
