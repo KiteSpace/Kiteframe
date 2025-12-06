@@ -7020,6 +7020,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             edge={linearToolbar.edge ? edges.find(e => e.id === linearToolbar.edge!.id) ?? linearToolbar.edge : undefined}
             canvasObject={linearToolbar.canvasObject ? canvasObjects.find(o => o.id === linearToolbar.canvasObject!.id) ?? linearToolbar.canvasObject : undefined}
             onClose={() => setLinearToolbar(null)}
+            onOpenComponentMenu={() => {
+              if (linearToolbar.node?.type === 'compound') {
+                window.dispatchEvent(new CustomEvent('openCompoundComponentMenu', { 
+                  detail: { nodeId: linearToolbar.node.id } 
+                }));
+              }
+            }}
             onColorChange={(colors) => {
               if (linearToolbar.node) {
                 saveToHistory();

@@ -30,7 +30,8 @@ import {
   Square,
   Triangle,
   Hexagon,
-  PenTool
+  PenTool,
+  Plus
 } from 'lucide-react';
 import type { Node, Edge, NodeColors, CanvasObject, EdgeMarker, NodeHyperlink, OgMetadata } from '../types';
 
@@ -115,6 +116,7 @@ interface LinearToolbarProps {
     showText: boolean;
     metadata?: OgMetadata;
   } | null) => void; // Callback for text object hyperlink changes
+  onOpenComponentMenu?: () => void; // Callback for compound nodes to open component menu
 }
 
 type EndpointType = 'none' | 'arrow' | 'circle' | 'diamond';
@@ -221,7 +223,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   isInlineEditing = false,
   inlineEditingPart,
   initialSubmenu = null,
-  onTextObjectHyperlinkChange
+  onTextObjectHyperlinkChange,
+  onOpenComponentMenu
 }) => {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(initialSubmenu);
   const [iconVisible, setIconVisible] = useState(node?.data?.iconVisible ?? true);
@@ -430,7 +433,20 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       ];
       
       // Compound nodes have their own component menu, skip emoji and link
-      if (node?.type !== 'compound') {
+      if (node?.type === 'compound') {
+        // Add component button for compound nodes
+        baseButtons.push({
+          id: 'addComponent',
+          icon: <Plus size={18} />,
+          label: 'Add Component',
+          color: 'bg-green-500',
+          hoverColor: 'hover:bg-green-600',
+          onClick: () => { 
+            onOpenComponentMenu?.(); 
+            onClose(); 
+          }
+        });
+      } else {
         baseButtons.push(
           {
             id: 'icon',

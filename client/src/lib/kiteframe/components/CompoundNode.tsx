@@ -439,6 +439,26 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   }, [node.selected]);
 
   useEffect(() => {
+    const handleOpenComponentMenu = (e: CustomEvent<{ nodeId: string }>) => {
+      if (e.detail.nodeId === node.id) {
+        const rect = nodeRef.current?.getBoundingClientRect();
+        if (rect) {
+          setMenuPosition({
+            x: rect.right + 16,
+            y: rect.top
+          });
+          setMenuOpen(true);
+        }
+      }
+    };
+
+    window.addEventListener('openCompoundComponentMenu', handleOpenComponentMenu as EventListener);
+    return () => {
+      window.removeEventListener('openCompoundComponentMenu', handleOpenComponentMenu as EventListener);
+    };
+  }, [node.id]);
+
+  useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
       titleInputRef.current.focus();
       titleInputRef.current.select();
@@ -745,25 +765,6 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
               )}
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              {node.selected && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const rect = nodeRef.current?.getBoundingClientRect();
-                    if (rect) {
-                      setMenuPosition({
-                        x: rect.right + 16,
-                        y: rect.top
-                      });
-                      setMenuOpen(true);
-                    }
-                  }}
-                  className="p-1 rounded hover:bg-white/20 transition-colors"
-                  data-testid={`compound-add-btn-header-${node.id}`}
-                >
-                  <Plus size={14} style={{ color: headerTextColor }} />
-                </button>
-              )}
               <span 
                 className="px-1.5 py-0.5 bg-white/20 rounded text-xs"
                 style={{ color: headerTextColor }}
