@@ -7635,23 +7635,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               setLinearToolbar(null);
             }}
             onWireframe={() => {
-              console.log('🎨 onWireframe handler called', { node: linearToolbar.node?.id, tier: subscriptionData?.tier });
               if (linearToolbar.node) {
                 const tier = subscriptionData?.tier;
                 const canUse = tier && tier !== 'free';
-                console.log('🎨 Wireframe generation', { canUse, tier, nodeId: linearToolbar.node.id });
                 if (canUse) {
                   const event = new CustomEvent('generateWireframe', {
                     detail: { nodeId: linearToolbar.node.id, node: linearToolbar.node }
                   });
                   window.dispatchEvent(event);
-                  console.log('🎨 generateWireframe event dispatched');
-                } else {
-                  const event = new CustomEvent('showFeatureUpsell', {
-                    detail: { type: 'wireframe' }
-                  });
-                  window.dispatchEvent(event);
-                  console.log('🎨 showFeatureUpsell event dispatched');
                 }
                 setLinearToolbar(null);
               }

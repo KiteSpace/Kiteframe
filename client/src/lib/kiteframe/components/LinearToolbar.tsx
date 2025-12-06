@@ -31,7 +31,8 @@ import {
   Triangle,
   Hexagon,
   PenTool,
-  Plus
+  Plus,
+  Lock
 } from 'lucide-react';
 import type { Node, Edge, NodeColors, CanvasObject, EdgeMarker, NodeHyperlink, OgMetadata } from '../types';
 
@@ -2217,23 +2218,28 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           {isNodeTarget && node?.type !== 'image' && node?.type !== 'table' && node?.type !== 'form' && !isInlineEditing && (
             <button
               className={cn(
-                "h-9 px-3 rounded-full flex items-center gap-1.5 text-white text-sm font-medium shadow-md transition-all duration-200",
-                "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600",
-                "hover:scale-105 active:scale-95 hover:shadow-lg",
-                !canUseWireframe && "opacity-75"
+                "h-9 px-3 rounded-full flex items-center gap-1.5 text-sm font-medium shadow-md transition-all duration-200",
+                canUseWireframe 
+                  ? "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 hover:scale-105 active:scale-95 hover:shadow-lg cursor-pointer"
+                  : "text-gray-400 bg-gray-300 dark:bg-gray-600 dark:text-gray-500 cursor-not-allowed opacity-60"
               )}
               onClick={(e) => {
                 e.stopPropagation();
-                console.log('🎨 Wireframe button clicked', { canUseWireframe, hasHandler: !!onWireframe, nodeId: node?.id });
-                onWireframe?.();
+                if (canUseWireframe) {
+                  onWireframe?.();
+                }
               }}
               onMouseDown={(e) => e.stopPropagation()}
-              title={canUseWireframe ? "Generate wireframe mockup" : "Upgrade to use Wireframe (Pro feature)"}
+              disabled={!canUseWireframe}
+              title={canUseWireframe ? "Generate wireframe mockup" : "Pro feature - Upgrade to use Wireframe"}
               data-testid="toolbar-button-wireframe"
-              tabIndex={0}
+              tabIndex={canUseWireframe ? 0 : -1}
             >
-              <Sparkles size={14} className="text-white" />
+              <Sparkles size={14} />
               <span>Wireframe</span>
+              {!canUseWireframe && (
+                <Lock size={12} className="ml-0.5" />
+              )}
             </button>
           )}
           
