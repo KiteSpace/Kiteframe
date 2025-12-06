@@ -109,6 +109,15 @@ function getNodeBounds(node: Node): { x: number; y: number; width: number; heigh
   return { x, y, width, height };
 }
 
+// Unicode-safe base64 encoding for SVG thumbnails
+// btoa() fails on non-ASCII characters, this handles Unicode properly
+function utf8ToBase64(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  bytes.forEach(byte => binary += String.fromCharCode(byte));
+  return btoa(binary);
+}
+
 // Generate a simple SVG thumbnail preview of the workflow
 function generateWorkflowThumbnail(nodes: Node[], edges: Edge[]): string {
   if (nodes.length === 0) return '';
@@ -191,8 +200,8 @@ function generateWorkflowThumbnail(nodes: Node[], edges: Edge[]): string {
   
   svg += `</svg>`;
   
-  // Convert to data URL
-  return `data:image/svg+xml;base64,${btoa(svg)}`;
+  // Convert to data URL using Unicode-safe encoding
+  return `data:image/svg+xml;base64,${utf8ToBase64(svg)}`;
 }
 
 function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: () => void }) {

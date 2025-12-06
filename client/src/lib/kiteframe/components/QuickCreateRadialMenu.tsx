@@ -11,11 +11,12 @@ import {
   Triangle,
   Hexagon,
   ArrowRight,
-  PenTool
+  PenTool,
+  Minus
 } from 'lucide-react';
 
 export type QuickCreateType = 'node' | 'text' | 'shape' | 'sticky';
-export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'polygon' | 'arrow';
+export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'polygon' | 'arrow' | 'line';
 
 interface QuickCreateRadialMenuProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ const SHAPE_OPTIONS: { id: ShapeType; icon: React.ReactNode; label: string }[] =
   { id: 'hexagon', icon: <Hexagon size={18} />, label: 'Hexagon' },
   { id: 'polygon', icon: <PenTool size={18} />, label: 'Polygon' },
   { id: 'arrow', icon: <ArrowRight size={18} />, label: 'Arrow' },
+  { id: 'line', icon: <Minus size={18} />, label: 'Line' },
 ];
 
 export const QuickCreateRadialMenu: React.FC<QuickCreateRadialMenuProps> = ({
@@ -208,7 +210,9 @@ export const QuickCreateRadialMenu: React.FC<QuickCreateRadialMenuProps> = ({
 
         {/* Shape submenu - radial fan */}
         {showShapeSubmenu && SHAPE_OPTIONS.map((shape, index) => {
-          const angle = -150 + (index * 60);
+          const totalAngle = 300;
+          const angleStep = totalAngle / Math.max(SHAPE_OPTIONS.length - 1, 1);
+          const angle = -150 + (index * angleStep);
           const angleRad = (angle * Math.PI) / 180;
           const x = Math.cos(angleRad) * shapeRadius;
           const y = Math.sin(angleRad) * shapeRadius;
