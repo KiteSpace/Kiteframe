@@ -1,0 +1,718 @@
+   at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ d1a4b30d2070e2b4.js:2
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Unrecognized feature: 'ambient-light-sensor'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Unrecognized feature: 'battery'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Unrecognized feature: 'execution-while-not-rendered'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Unrecognized feature: 'execution-while-out-of-viewport'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Unrecognized feature: 'layout-animations'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Unrecognized feature: 'legacy-image-formats'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Unrecognized feature: 'navigation-override'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Unrecognized feature: 'oversized-images'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Unrecognized feature: 'publickey-credentials'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Unrecognized feature: 'speaker-selection'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Unrecognized feature: 'unoptimized-images'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Unrecognized feature: 'unsized-media'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Allow attribute will take precedence over 'allowfullscreen'.
+workspace_iframe.html?initialPath=%2F&id=%3Ar57b%3A:32 Allow attribute will take precedence over 'allowpaymentrequest'.
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988313818&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988314332&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988316351&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+client:536 WebSocket connection to 'wss://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/?token=4fu9U48T4Ook' failed: 
+setupWebSocket @ client:536
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=76c733f2-2ca4-4c64-946c-421634b36133:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=ad43b0f7-4826-4b73-9192-f4df787b3b70:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+o1151714.ingest.sentry.io/api/6318792/envelope/?sentry_key=8aa91189a4274b5a8c9b7b01d46ea360&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.112.0:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988321020&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+d1a4b30d2070e2b4.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988321020&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at d1a4b30d2070e2b4.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ d1a4b30d2070e2b4.js:2
+a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/subscription:1  Failed to load resource: the server responded with a status of 401 (Unauthorized)
+a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/auth/user:1  Failed to load resource: the server responded with a status of 401 (Unauthorized)
+/public/js/beacon.js:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988354375&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988354904&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/subscription:1  Failed to load resource: the server responded with a status of 401 (Unauthorized)
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988356919&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=a378f830-d7da-4cea-95ab-19d04ce0e843:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=4dd3e4a1-df54-4cbb-82ec-52c97e2240e2:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988361437&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+d1a4b30d2070e2b4.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988361437&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at d1a4b30d2070e2b4.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ d1a4b30d2070e2b4.js:2
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=3311a3b2-cd76-4d7a-9732-22ae29f60d8c:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=cf7992aa-b00e-4d6c-847c-574105d15a5c:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988377254&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988377802&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+client:536 WebSocket connection to 'wss://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/?token=4fu9U48T4Ook' failed: 
+setupWebSocket @ client:536
+client:536 Uncaught (in promise) SyntaxError: Failed to construct 'WebSocket': The URL 'wss://localhost:undefined/?token=4fu9U48T4Ook' is invalid.
+    at setupWebSocket (client:536:19)
+    at fallback (client:509:16)
+    at WebSocket.<anonymous> (client:555:7)
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988379676&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988379811&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988380187&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+3injected.js:37 🔐 useAuth: Component mounted, checking auth state...
+injected.js:37 Layout Plugin initialized
+injected.js:37 Plugin "layout" v1.0.0 initialized successfully
+injected.js:37 🔌 ConsolePlugin: Initializing...
+injected.js:37 🔌 ConsolePlugin: Ready! Watch the console for activity.
+injected.js:37 Plugin "console-demo" v1.0.0 initialized successfully
+injected.js:37 🔧 TestPlugin initialized successfully
+injected.js:37 Plugin "test-demo" v1.0.0 initialized successfully
+injected.js:37 🚀 AdvancedInteractions Pro Plugin v2.0: Initializing with prop-based configuration...
+injected.js:37 🚀 AdvancedInteractions Pro Plugin v2.0: Ready!
+injected.js:37    ✨ Prop-based configuration enabled
+injected.js:37    ✨ ProFeaturesManager integration active
+injected.js:37    ✨ Cross-platform copy/paste support (Cmd/Ctrl)
+injected.js:37 Plugin "advanced-interactions-pro" v2.0.0 initialized successfully
+injected.js:37 📂 Workflows loaded from local storage: 3
+injected.js:37 🔄 Restored workflows from local storage
+injected.js:37 🎯 PluginProvider: Initializing plugin system...
+injected.js:37 🔌 PluginProvider: Core Node Integration plugin not found, registering now...
+injected.js:37 🚀 Core Node Integration: Starting initialization...
+injected.js:37 📦 Core Node Integration: Preparing to register node renderers:
+injected.js:37   - BasicNode: ✗ Component missing
+injected.js:37   - ImageNode: Handled by main canvas for advanced features
+injected.js:37 📝 Core Node Integration: Registering hooks with core system...
+injected.js:37 🔍 Core Node Integration: Verifying registration...
+injected.js:37   Total registered node renderers: 1
+injected.js:37   Registered types: basic
+injected.js:37 ✅ Core Node Integration: SUCCESS - Node renderers registered correctly
+injected.js:37   ✓ basic -> BasicNode
+injected.js:37   ✓ image -> Main Canvas (advanced features)
+injected.js:37 Plugin "core-node-integration" v1.0.0 initialized successfully
+injected.js:37 ✅ PluginProvider: Core Node Integration plugin registered successfully
+injected.js:37 ✓ PluginProvider: Verified plugin registration
+injected.js:37   - Plugin name: core-node-integration
+injected.js:37   - Plugin version: 1.0.0
+injected.js:37 📊 PluginProvider: Current node renderers after registration:
+injected.js:37   - Total renderers: 1
+injected.js:37   - Renderer types: basic
+injected.js:37 ⚠️ PluginProvider: WARNING - Expected node renderers not found after registration
+(anonymous) @ injected.js:37
+injected.js:37   basic: present
+(anonymous) @ injected.js:37
+injected.js:37   image: missing
+(anonymous) @ injected.js:37
+injected.js:37 ✅ PluginProvider: Plugin context initialized
+injected.js:37 Plugin "console-demo" is already installed, replacing...
+(anonymous) @ injected.js:37
+injected.js:37 🔌 ConsolePlugin: Initializing...
+injected.js:37 🔌 ConsolePlugin: Ready! Watch the console for activity.
+injected.js:37 Plugin "console-demo" v1.0.0 initialized successfully
+injected.js:37 Plugin "test-demo" is already installed, replacing...
+(anonymous) @ injected.js:37
+injected.js:37 🔧 TestPlugin initialized successfully
+injected.js:37 Plugin "test-demo" v1.0.0 initialized successfully
+injected.js:37 Plugin "advanced-interactions-pro" is already installed, replacing...
+(anonymous) @ injected.js:37
+injected.js:37 🚀 AdvancedInteractions Pro Plugin v2.0: Initializing with prop-based configuration...
+injected.js:37 🚀 AdvancedInteractions Pro Plugin v2.0: Ready!
+injected.js:37    ✨ Prop-based configuration enabled
+injected.js:37    ✨ ProFeaturesManager integration active
+injected.js:37    ✨ Cross-platform copy/paste support (Cmd/Ctrl)
+injected.js:37 Plugin "advanced-interactions-pro" v2.0.0 initialized successfully
+injected.js:37 📚 Version Control Pro Plugin: Initializing...
+injected.js:37    ✅ Snapshot system enabled
+injected.js:37    ✅ Version comparison tools active
+injected.js:37    ✅ Auto-save every 2 minutes
+injected.js:37    ✅ Advanced rollback functionality
+injected.js:37 📚 Version Control Pro Plugin: Ready!
+injected.js:37 Plugin "version-control-pro" v1.0.0 initialized successfully
+injected.js:37 🔗 SmartConnect Pro Plugin v1.0: Initializing...
+injected.js:37 🔗 SmartConnect Pro Plugin v1.0: Ready!
+injected.js:37    ✨ Proximity-based auto-connection active
+injected.js:37    ✨ Ghost edge preview enabled
+injected.js:37    ✨ Connection validation integrated
+injected.js:37 Plugin "smart-connect-pro" v1.0.0 initialized successfully
+injected.js:37 ✅ Demo + Pro plugins registered successfully
+injected.js:37 🔌 Plugin System Ready! Check Settings → Test Plugins or watch console for activity
+injected.js:37 🚀 Advanced Interactions Pro: Quick-add handles enabled on node hover!
+injected.js:37 🔗 SmartConnect Pro: Auto-connect enabled! Drag nodes close together to auto-connect.
+a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/subscription:1  Failed to load resource: the server responded with a status of 401 (Unauthorized)
+a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/auth/user:1  Failed to load resource: the server responded with a status of 401 (Unauthorized)
+/public/js/beacon.js:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+3injected.js:37 🔄 Auth state changed: No user
+3injected.js:37 ℹ️ No redirect result found
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🎨 getBorderColorFromHeader called with: #f97316
+injected.js:37 🎨 Returning border color: #f97316
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988382197&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+injected.js:37 🔧 RESETTING formData from metadata (mode: collapsed): Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔐 useAuth: Component mounted, checking auth state...
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔄 Auth state changed: No user
+injected.js:37 ℹ️ No redirect result found
+a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/subscription:1  Failed to load resource: the server responded with a status of 401 (Unauthorized)
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 DRAG END: Object
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: Object
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 📝 SELECTION STATE SET: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764987703740
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988384323&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+d1a4b30d2070e2b4.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988384323&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2522&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at d1a4b30d2070e2b4.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ d1a4b30d2070e2b4.js:2
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 DIRECT NODE UPDATE (drag): Object
+injected.js:37 📝 CANVAS CLICK: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=e51bfef4-f3ef-4ab3-a164-75ab41762724:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=51bd0c6d-b24f-49c9-b132-92405a719f72:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+injected.js:37 📝 DRAG STATE RESET - ready for next click
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988386707&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+d1a4b30d2070e2b4.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988386707&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=1&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at d1a4b30d2070e2b4.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ d1a4b30d2070e2b4.js:2
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🎯 HANDLE ICON CLICK CALLED: Object
+injected.js:37 🎯 SETTING NODE TYPES POPOUT: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🎯 POPOUT DRAG START: Object
+injected.js:37 🎯 POPOUT DRAG END: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 DIRECT NODE UPDATE (drag): Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 DIRECT NODE UPDATE (drag): Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 DIRECT NODE UPDATE (drag): Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 DRAG END: Object
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: Object
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 📝 SELECTION STATE SET: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 DRAG STATE RESET - ready for next click
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764988388446
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 💾 Workflows saved to local storage
+react-dom.development.js:6878 Unable to preventDefault inside passive event listener invocation.
+preventDefault @ react-dom.development.js:6878
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 DIRECT NODE UPDATE (drag): Object
+injected.js:37 📝 CANVAS CLICK: Object
+injected.js:37 📏 SHAPE OBJECT: Size calculations Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 DRAG STATE RESET - ready for next click
+injected.js:37 💾 Workflows saved to local storage
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=b635a749-aa6a-462d-a2ed-9f1acca2090b:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=696c43f6-cc33-4a1c-814a-6f089108ea23:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988403326&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988403866&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988405878&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988410387&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2523&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+d1a4b30d2070e2b4.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764988410387&sid=e7bcb5bc-c21f-4286-bf2c-50ed91389b80&ec=2523&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at d1a4b30d2070e2b4.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ d1a4b30d2070e2b4.js:2
+335 log entries are not shown.
+d1a4b30d2070e2b4.js:2  POST https://logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=639df1d0-d843-4b32-9392-32ff6bd0c1e5 net::ERR_BLOCKED_BY_CLIENT
+(anonymous) @ d1a4b30d2070e2b4.js:2
+n @ 2b3e1cd1843c41ff.js:2
+rr @ 2b3e1cd1843c41ff.js:2
+rt @ 2b3e1cd1843c41ff.js:2
+send @ 2b3e1cd1843c41ff.js:2
+e.flush @ 2b3e1cd1843c41ff.js:2
+(anonymous) @ 2b3e1cd1843c41ff.js:2
+(anonymous) @ 2b3e1cd1843c41ff.js:2
+e.notify @ 2b3e1cd1843c41ff.js:2
+u @ 2b3e1cd1843c41ff.js:2
+(anonymous) @ 2b3e1cd1843c41ff.js:2
+M @ 2b3e1cd1843c41ff.js:2
+(anonymous) @ 2b3e1cd1843c41ff.js:2
+o @ d1a4b30d2070e2b4.js:2
+d1a4b30d2070e2b4.js:2  POST https://logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A87c57d2f&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=526f4e27-4d9e-499d-ac07-2d5985400e32 net::ERR_BLOCKED_BY_CLIENT
+(anonymous) @ d1a4b30d2070e2b4.js:2
+(anonymous) @ d1a4b30d2070e2b4.js:2
+rs @ 2b3e1cd1843c41ff.js:2
+(anonymous) @ 2b3e1cd1843c41ff.js:2
+M @ 2b3e1cd1843c41ff.js:2
+(anonymous) @ 2b3e1cd1843c41ff.js:2
+Promise.then
+n @ 2b3e1cd1843c41ff.js:2
+rr @ 2b3e1cd1843c41ff.js:2
+rt @ 2b3e1cd1843c41ff.js:2
+send @ 2b3e1cd1843c41ff.js:2
+e.flush @ 2b3e1cd1843c41ff.js:2
+(anonymous) @ 2b3e1cd1843c41ff.js:2
+(anonymous) @ 2b3e1cd1843c41ff.js:2
+e.notify @ 2b3e1cd1843c41ff.js:2
+u @ 2b3e1cd1843c41ff.js:2
+(anonymous) @ 2b3e1cd1843c41ff.js:2
+M @ 2b3e1cd1843c41ff.js:2
+(anonymous) @ 2b3e1cd1843c41ff.js:2
+o @ d1a4b30d2070e2b4.js:2

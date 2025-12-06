@@ -1,4 +1,5 @@
 import { memo, useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
@@ -74,7 +75,7 @@ const ComponentMenu: React.FC<ComponentMenuProps> = ({
     { type: 'input' as const, icon: TextCursorInput, label: 'Input', color: 'bg-orange-500' },
   ];
 
-  return (
+  const menuContent = (
     <div
       ref={menuRef}
       className="fixed z-[9999] bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden"
@@ -120,6 +121,8 @@ const ComponentMenu: React.FC<ComponentMenuProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(menuContent, document.body);
 };
 
 interface SubcomponentRendererProps {
