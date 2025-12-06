@@ -134,13 +134,13 @@ export class SmartGuidesPlugin implements KiteFramePlugin {
     if (!draggedNode) return;
     
     const snapSettings: SnapSettings = {
-      enabled: this.config.enabled !== false,
+      enabled: this.config.enabled === true,
       threshold: this.config.threshold || 10,
-      showGuides: this.config.showGuides !== false,
-      snapToNodes: this.config.snapToNodes !== false,
+      showGuides: this.config.showGuides === true,
+      snapToNodes: this.config.snapToNodes === true,
       snapToGrid: this.config.snapToGrid === true,
       gridSize: this.config.gridSize || 20,
-      snapToCanvas: this.config.snapToCanvas !== false
+      snapToCanvas: this.config.snapToCanvas === true
     };
     
     // Use estimated canvas size (this could be improved with actual canvas dimensions)
