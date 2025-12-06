@@ -4146,6 +4146,17 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showHandles={n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
                     viewport={viewport}
+                    onImageUpload={async (nodeId: string, file: File) => {
+                      return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          const dataUrl = reader.result as string;
+                          props.onImageUpload?.(nodeId, dataUrl);
+                          resolve(dataUrl);
+                        };
+                        reader.readAsDataURL(file);
+                      });
+                    }}
                     style={{
                       position: "absolute",
                       left: n.position.x,

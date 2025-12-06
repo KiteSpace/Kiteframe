@@ -12,7 +12,9 @@ import {
   Trash2,
   X,
   Move,
-  Plus
+  Plus,
+  Upload,
+  Globe
 } from 'lucide-react';
 import type { 
   Node, 
@@ -43,6 +45,7 @@ interface CompoundNodeComponentProps {
   onClick?: (e: React.MouseEvent, node: Node) => void;
   onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
   viewport?: { x: number; y: number; zoom: number };
+  onImageUpload?: (nodeId: string, file: File) => Promise<string>;
 }
 
 interface ComponentMenuProps {
@@ -127,6 +130,9 @@ interface SubcomponentRendererProps {
   onDragStart: (e: React.MouseEvent, id: string) => void;
   dropIndicator: 'above' | 'below' | null;
   isSelected: boolean;
+  onImageUpload?: (subcomponentId: string, file: File) => Promise<string>;
+  showingUrlInputFor: string | null;
+  setShowingUrlInputFor: (id: string | null) => void;
 }
 
 const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
@@ -136,8 +142,14 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
   isDragging,
   onDragStart,
   dropIndicator,
-  isSelected
+  isSelected,
+  onImageUpload,
+  showingUrlInputFor,
+  setShowingUrlInputFor
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const showUrlInput = showingUrlInputFor === subcomponent.id;
   const renderContent = () => {
     switch (subcomponent.type) {
       case 'text':
@@ -179,6 +191,33 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
       
       case 'image':
         const imgData = (subcomponent as CompoundImageSubcomponent).data;
+        
+        const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          
+          if (onImageUpload) {
+            setIsUploading(true);
+            try {
+              const url = await onImageUpload(subcomponent.id, file);
+              if (url) {
+                onUpdate(subcomponent.id, { src: url, sourceType: 'upload' });
+              }
+            } catch (err) {
+              console.error('Image upload failed:', err);
+            } finally {
+              setIsUploading(false);
+            }
+          } else {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const dataUrl = reader.result as string;
+              onUpdate(subcomponent.id, { src: dataUrl, sourceType: 'upload' });
+            };
+            reader.readAsDataURL(file);
+          }
+        };
+        
         return imgData.src ? (
           <img
             src={imgData.src}
@@ -190,30 +229,91 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
         ) : (
           isSelected ? (
             <div 
-              className="w-full bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center text-gray-400"
-              style={{ height: imgData.height || 80 }}
+              className="w-full bg-gray-100 dark:bg-gray-700 rounded flex flex-col items-center justify-center text-gray-400 py-3"
+              style={{ minHeight: imgData.height || 80 }}
               data-testid={`subcomponent-image-placeholder-${subcomponent.id}`}
             >
-              <div className="text-center">
-                <Image size={20} className="mx-auto mb-1" />
-                <input
-                  type="text"
-                  placeholder="Paste image URL..."
-                  className="text-xs bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none text-center w-32"
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onBlur={(e) => {
-                    if (e.target.value) {
-                      onUpdate(subcomponent.id, { src: e.target.value });
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (e.target as HTMLInputElement).value) {
-                      onUpdate(subcomponent.id, { src: (e.target as HTMLInputElement).value });
-                    }
-                  }}
-                />
-              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+                onClick={(e) => e.stopPropagation()}
+              />
+              
+              {isUploading ? (
+                <div className="text-center">
+                  <div className="animate-spin w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full mx-auto mb-1" />
+                  <span className="text-xs">Uploading...</span>
+                </div>
+              ) : showUrlInput ? (
+                <div className="text-center w-full px-3">
+                  <input
+                    type="text"
+                    placeholder="Enter image URL..."
+                    className="text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === 'Enter') {
+                        const value = (e.target as HTMLInputElement).value.trim();
+                        if (value) {
+                          onUpdate(subcomponent.id, { src: value, sourceType: 'url' });
+                        }
+                        setShowingUrlInputFor(null);
+                      } else if (e.key === 'Escape') {
+                        setShowingUrlInputFor(null);
+                      }
+                    }}
+                  />
+                  <div className="flex justify-center gap-2 mt-1">
+                    <button
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        const input = e.currentTarget.parentElement?.previousElementSibling as HTMLInputElement;
+                        const value = input?.value?.trim();
+                        if (value) {
+                          onUpdate(subcomponent.id, { src: value, sourceType: 'url' });
+                        }
+                        setShowingUrlInputFor(null);
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button
+                      className="text-xs text-gray-500 hover:text-gray-700"
+                      onClick={(e) => { e.stopPropagation(); setShowingUrlInputFor(null); }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="flex flex-col items-center gap-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                    data-testid={`subcomponent-image-upload-btn-${subcomponent.id}`}
+                  >
+                    <Upload size={16} />
+                    <span className="text-xs">Upload</span>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowingUrlInputFor(subcomponent.id); }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="flex flex-col items-center gap-1 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                    data-testid={`subcomponent-image-url-btn-${subcomponent.id}`}
+                  >
+                    <Globe size={16} />
+                    <span className="text-xs">URL</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div 
@@ -405,6 +505,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   onClick,
   onHandleConnect,
   viewport,
+  onImageUpload,
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState(node.data.label || 'Compound');
@@ -414,6 +515,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   const [dropTarget, setDropTarget] = useState<{ id: string; position: 'above' | 'below' } | null>(null);
   const [isMenuDragging, setIsMenuDragging] = useState(false);
   const [menuDragOffset, setMenuDragOffset] = useState({ x: 0, y: 0 });
+  const [showingUrlInputFor, setShowingUrlInputFor] = useState<string | null>(null);
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -819,6 +921,9 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
                     onDragStart={handleSubcomponentDragStart}
                     dropIndicator={dropTarget && dropTarget.id === sub.id ? dropTarget.position : null}
                     isSelected={node.selected || false}
+                    onImageUpload={onImageUpload ? (subId, file) => onImageUpload(node.id, file) : undefined}
+                    showingUrlInputFor={showingUrlInputFor}
+                    setShowingUrlInputFor={setShowingUrlInputFor}
                   />
                 ))}
                 {node.selected && (
