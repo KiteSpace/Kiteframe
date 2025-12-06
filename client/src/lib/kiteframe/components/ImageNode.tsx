@@ -109,6 +109,12 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     const isInteractiveElement = target.closest('input, button, textarea, select, [contenteditable="true"]');
     if (isInteractiveElement) return;
     e.stopPropagation();
+    console.log('🖼️ IMAGENODE handleMouseDown - starting drag', { 
+      nodeId: node.id, 
+      position: node.position,
+      clientX: e.clientX,
+      clientY: e.clientY
+    });
     onStartDrag?.(e, node);
   }, [onStartDrag, node]);
 

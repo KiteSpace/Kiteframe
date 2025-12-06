@@ -454,6 +454,12 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       return;
     }
     e.stopPropagation();
+    console.log('📊 TABLENODE handleMouseDown - starting drag', { 
+      nodeId: node.id, 
+      position: node.position,
+      clientX: e.clientX,
+      clientY: e.clientY
+    });
     onStartDrag?.(e, node);
   }, [onStartDrag, node]);
 

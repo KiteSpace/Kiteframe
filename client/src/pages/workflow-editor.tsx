@@ -215,12 +215,12 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       const saved = localStorage.getItem('kiteframe-editor-settings');
       return saved ? JSON.parse(saved) : {
         nodeAutoConnect: false,
-        snapToGuides: true
+        snapToGuides: false
       };
     } catch {
       return {
         nodeAutoConnect: false,
-        snapToGuides: true
+        snapToGuides: false
       };
     }
   });
