@@ -2578,23 +2578,23 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         let finalPosition = targetPosition;
         let currentGuides: SnapGuide[] = [];
 
-        if (
-          props.proFeatures &&
-          props.proFeatures.smartGuides?.enabled !== false
-        ) {
+        // Only apply snapping if explicitly enabled (not just "not false")
+        const smartGuidesEnabled = props.proFeatures?.smartGuides?.enabled === true;
+        
+        if (smartGuidesEnabled) {
           const draggedNode = props.nodes.find((n) => n.id === id);
           if (draggedNode) {
-            const smartGuidesConfig = props.proFeatures.smartGuides || {};
+            const smartGuidesConfig = props.proFeatures!.smartGuides!;
             const snapSettings = {
-              enabled: smartGuidesConfig.enabled !== false,
+              enabled: true,
               threshold:
                 smartGuidesConfig.threshold || defaultSnapSettings.threshold,
-              showGuides: smartGuidesConfig.showGuides !== false,
-              snapToNodes: smartGuidesConfig.snapToNodes !== false,
+              showGuides: smartGuidesConfig.showGuides === true,
+              snapToNodes: smartGuidesConfig.snapToNodes === true,
               snapToGrid: smartGuidesConfig.snapToGrid === true,
               gridSize:
                 smartGuidesConfig.gridSize || defaultSnapSettings.gridSize,
-              snapToCanvas: smartGuidesConfig.snapToCanvas !== false,
+              snapToCanvas: smartGuidesConfig.snapToCanvas === true,
             };
 
             const canvasSize = { width: 2000, height: 1500 };
@@ -2609,6 +2609,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             finalPosition = snapResult.position;
             setCurrentGuides(snapResult.guides);
           }
+        } else {
+          // Clear any existing guides when snapping is disabled
+          setCurrentGuides([]);
         }
 
         const updated = props.nodes.map((n) =>
@@ -2667,10 +2670,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       let finalPosition = newPosition;
       let currentGuides: SnapGuide[] = [];
 
-      if (
-        props.snapToGuides !== false &&
-        props.proFeatures?.smartGuides?.enabled !== false
-      ) {
+      // Only apply snapping if explicitly enabled
+      const canvasObjectSnapEnabled = props.proFeatures?.smartGuides?.enabled === true;
+      
+      if (canvasObjectSnapEnabled) {
         const allOtherObjects = [
           ...props.nodes.map((n) => ({ ...getNodeRect(n), id: n.id })),
           ...(props.canvasObjects || [])
@@ -2711,17 +2714,30 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           height: draggedObjectSize.h,
         } as Node;
 
+        const smartGuidesConfig = props.proFeatures!.smartGuides!;
+        const snapSettings = {
+          enabled: true,
+          threshold: smartGuidesConfig.threshold || defaultSnapSettings.threshold,
+          showGuides: smartGuidesConfig.showGuides === true,
+          snapToNodes: smartGuidesConfig.snapToNodes === true,
+          snapToGrid: smartGuidesConfig.snapToGrid === true,
+          gridSize: smartGuidesConfig.gridSize || defaultSnapSettings.gridSize,
+          snapToCanvas: smartGuidesConfig.snapToCanvas === true,
+        };
+
         const snapResult = calculateSnapPosition(
           draggedObjectAsNode,
           newPosition,
           props.nodes,
-          { width: 2000, height: 2000 }, // Canvas size
-          defaultSnapSettings,
+          { width: 2000, height: 2000 },
+          snapSettings,
         );
 
         finalPosition = snapResult.position;
         currentGuides = snapResult.guides;
         setCurrentGuides(currentGuides);
+      } else {
+        setCurrentGuides([]);
       }
 
       // Update canvas object position
