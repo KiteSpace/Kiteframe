@@ -164,6 +164,7 @@ function ShapesListView({ canvasObjects, searchQuery }: { canvasObjects: CanvasO
           </div>
         );
       })}
+      <div className="h-12" />
     </div>
   );
 }
