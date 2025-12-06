@@ -79,7 +79,9 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   const quickAddSize = 24;
   const ghostSpacing = proFeatures?.quickAdd?.defaultSpacing ?? 250;
   
-  const isQuickAddEnabled = proFeatures?.quickAdd?.enabled !== false && node.type !== 'image';
+  // Quick-add is only enabled for basic node types (step, input, process, condition, output, ai)
+  const disabledNodeTypes = ['image', 'table', 'form', 'compound'];
+  const isQuickAddEnabled = proFeatures?.quickAdd?.enabled !== false && !disabledNodeTypes.includes(node.type || '');
   
   const handlePositions = {
     top:    { cx: screenW / 2, cy: 0 },
