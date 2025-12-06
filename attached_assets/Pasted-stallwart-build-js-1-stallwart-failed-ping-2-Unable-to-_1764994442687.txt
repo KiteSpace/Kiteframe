@@ -1,0 +1,2609 @@
+stallwart.build.js:1 stallwart: failed ping 2
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=88ae038d-80e6-49cd-a1e5-eb57cb5af1f7:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=c2d2c67c-963d-4bd8-9b2b-e2c1e80b048b:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+stallwart.build.js:1 stallwart: failed ping 1
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=21e1d0ae-0054-471e-96b8-ac3157916b0b:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=d8e4b7b3-72d2-4191-bc3d-d88a2c2da936:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993754304&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2513&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993754356&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Abeacon%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=c0581708-96f1-49d9-9a4c-6d0a82d566bf:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+o1151714.ingest.sentry.io/api/6318792/envelope/?sentry_key=8aa91189a4274b5a8c9b7b01d46ea360&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.112.0:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993755306&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993755306&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2513&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993755307&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993756302&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993758299&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2513&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993758299&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993759303&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+stallwart.build.js:1 stallwart: failed ping 1
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993763303&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2513&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+15daf9d0f160d8b0.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993763303&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2513&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 15daf9d0f160d8b0.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ 15daf9d0f160d8b0.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993763305&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+15daf9d0f160d8b0.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993763305&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 15daf9d0f160d8b0.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 15daf9d0f160d8b0.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993764303&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+15daf9d0f160d8b0.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993764303&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 15daf9d0f160d8b0.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 15daf9d0f160d8b0.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=67728e8e-a936-40bb-a7f2-4235a4b017c2:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=f0c20b20-da43-46d5-9f0b-f3136d6f2b11:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+stallwart.build.js:1 stallwart: failed ping 1
+stallwart.build.js:1 stallwart: failed ping 2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=bb7bb3f8-171f-4f1a-a81a-172938ba3dbc:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=df8b12ef-cb13-4048-b4b0-cbd28ff43695:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+stallwart.build.js:1 stallwart: failed ping 1
+stallwart.build.js:1 stallwart: failed ping 2
+stallwart.build.js:1 stallwart: failed ping 1
+stallwart.build.js:1 stallwart: failed ping 2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=72e3a516-e29a-4bc8-b351-6beedb83456f:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=ee1d0006-8d20-4459-b568-f2a86a14a0c1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=12d4c7cd-de07-4580-9ec8-b6bff3505b06:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=b58453ae-abe0-4d79-8ace-61cc36d2a40c:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=d7db8a60-3492-4b23-b985-d28ee0977175:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=04ab3f2f-c92d-4631-ae30-4b7f011169f7:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=6588e002-aa83-4d41-b2fd-a581b0d3d174:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=dcb83632-6a72-4828-8db8-5f7b8bc3c2d3:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=7e0678da-43cc-445f-9c7d-705ce57c6ba9:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=4f30c11e-e7b9-43a7-a42b-5f7cb9fd34da:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/diagnostic/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/diagnostic/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764993999602&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994000269&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994002305&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994006825&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+15daf9d0f160d8b0.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994006825&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 15daf9d0f160d8b0.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=adace9ac-4565-466b-8eb5-418a2e185ae8:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=41db81d8-b23b-4010-8771-13730be9ea50:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=7d00df90-d607-4404-8692-483f1b1e80f8:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=d455a6e2-3042-4755-b95b-e6b56bd2f9f0:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+ Unable to preventDefault inside passive event listener invocation.
+preventDefault @ chunk-WERSD76P.js?v=7b5982f1:5760
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994028662&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994029188&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994031198&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=d433e622-6c14-47df-ab01-b2cdbff5cda7:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=5c0edbd5-ff21-477f-8e67-a318a9172893:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994035712&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+15daf9d0f160d8b0.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994035712&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 15daf9d0f160d8b0.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=dfd4ae8a-f434-4831-aab6-01fb08e68730:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=6abcba7b-bf20-47ee-9a2e-16c42e42afaa:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+writeCb @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+onResizeTerminal @ e1931f08c8e3c29c.js:2
+(anonymous) @ b34958ca39a0f554.js:2
+value @ 7bbcd727018fe756.js:2
+(anonymous) @ 7bbcd727018fe756.js:2
+value @ 7bbcd727018fe756.js:2
+value @ 7bbcd727018fe756.js:2
+value @ 7bbcd727018fe756.js:2
+value @ 7bbcd727018fe756.js:2
+value @ 7bbcd727018fe756.js:2
+value @ 409625c931ad32ea.js:2
+fit @ b34958ca39a0f554.js:2
+Q.L.type @ b34958ca39a0f554.js:2
+(anonymous) @ 5c9fff17706c5488.js:2
+m @ 5c9fff17706c5488.js:2
+S @ 5c9fff17706c5488.js:2
+b @ 5c9fff17706c5488.js:2
+o @ 15daf9d0f160d8b0.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=5d0c207c-47a4-47b9-bf39-926603589d28:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=c6d99eb2-9d2b-4c8b-8f69-8ad1b7eced33:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994058771&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994059317&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+client:536 WebSocket connection to 'wss://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/?token=U9vT46rnzROJ' failed: 
+setupWebSocket @ client:536
+(anonymous) @ client:531
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994061388&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/auth/user:1  Failed to load resource: the server responded with a status of 401 (Unauthorized)
+a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/subscription:1  Failed to load resource: the server responded with a status of 401 (Unauthorized)
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+/public/js/beacon.js:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994064250&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/subscription:1  Failed to load resource: the server responded with a status of 401 (Unauthorized)
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994064764&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994065905&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+15daf9d0f160d8b0.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994065905&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2515&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 15daf9d0f160d8b0.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 15daf9d0f160d8b0.js:2
+value @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+s @ 06e68893bdd5c424.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 15daf9d0f160d8b0.js:2
+value @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+s @ 06e68893bdd5c424.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ 15daf9d0f160d8b0.js:2
+value @ 06e68893bdd5c424.js:2
+value @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+value @ 06e68893bdd5c424.js:2
+e.<computed> @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+s @ 06e68893bdd5c424.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994066794&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ b34958ca39a0f554.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ b34958ca39a0f554.js:2
+(anonymous) @ b34958ca39a0f554.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=5937ca30-f4fb-466f-9e39-74b2fc830177:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=c151948a-1796-4c93-afd6-5488386b67a0:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994071303&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+15daf9d0f160d8b0.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994071303&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=1&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 15daf9d0f160d8b0.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 15daf9d0f160d8b0.js:2
+value @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+s @ 06e68893bdd5c424.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 15daf9d0f160d8b0.js:2
+value @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+s @ 06e68893bdd5c424.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 🔧 DRAG END: Object
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📝 CANVAS CLICK: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📝 CANVAS CLICK: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 💾 Workflows saved to local storage
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994078451&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994078971&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994080983&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994085495&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+15daf9d0f160d8b0.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994085495&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 15daf9d0f160d8b0.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ 15daf9d0f160d8b0.js:2
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=f56cf0f8-a15d-4308-ba31-d5a56e544647:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=5d1ec72f-1eb3-4fb8-b489-538db042d063:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=b6bf6722-dba2-43db-90d3-7f2e14d6ee75:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=0137b8e6-3b38-4fee-95d2-fc7d53aeb191:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 DRAG END: Object
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: Object
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: Object
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 📝 SELECTION STATE SET: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764994011420
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 💾 Workflows saved to local storage
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=95e046ed-c168-4c82-b959-1c0552bf56ff:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=56e15048-4be3-4927-8b9c-59c8bbcdde2b:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 💾 Workflows saved to local storage
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+writeCb @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+onResizeTerminal @ e1931f08c8e3c29c.js:2
+(anonymous) @ b34958ca39a0f554.js:2
+value @ 7bbcd727018fe756.js:2
+(anonymous) @ 7bbcd727018fe756.js:2
+value @ 7bbcd727018fe756.js:2
+value @ 7bbcd727018fe756.js:2
+value @ 7bbcd727018fe756.js:2
+value @ 7bbcd727018fe756.js:2
+value @ 7bbcd727018fe756.js:2
+value @ 409625c931ad32ea.js:2
+fit @ b34958ca39a0f554.js:2
+Q.L.type @ b34958ca39a0f554.js:2
+(anonymous) @ 5c9fff17706c5488.js:2
+m @ 5c9fff17706c5488.js:2
+S @ 5c9fff17706c5488.js:2
+b @ 5c9fff17706c5488.js:2
+o @ 15daf9d0f160d8b0.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994123417&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994123939&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994125950&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994130461&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+15daf9d0f160d8b0.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994130461&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 15daf9d0f160d8b0.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 15daf9d0f160d8b0.js:2
+value @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+s @ 06e68893bdd5c424.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 15daf9d0f160d8b0.js:2
+value @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+s @ 06e68893bdd5c424.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ 15daf9d0f160d8b0.js:2
+value @ 06e68893bdd5c424.js:2
+value @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+value @ 06e68893bdd5c424.js:2
+e.<computed> @ 06e68893bdd5c424.js:2
+(anonymous) @ 06e68893bdd5c424.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+s @ 06e68893bdd5c424.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=e7625973-2ffd-4979-bd32-6f9c7979df9d:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=82694156-2c0c-418d-87d3-81a5c6ba243d:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+4content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of null (reading 'ControlLooksLikePasswordCredentialField')
+    at shouldOfferCompletionListForField (content_script.js:1:422251)
+    at HTMLDocument.keyDownEventHandler (content_script.js:1:425526)
+shouldOfferCompletionListForField @ content_script.js:1
+keyDownEventHandler @ content_script.js:1
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 RESIZE HANDLE MOUSE DOWN: Object
+injected.js:37 🔧 RESIZE START: Object
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 RESIZE HANDLE MOUSE UP
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: Object
+injected.js:37 📝 SELECTION STATE SET: Object
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764994011420
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+injected.js:37 🔧 DRAG END: Object
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: Object
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+injected.js:37 💾 Workflows saved to local storage
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+ez @ b4b82e29c31a919b.js:2
+value @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+(anonymous) @ b4b82e29c31a919b.js:2
+apply @ b4b82e29c31a919b.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ e1931f08c8e3c29c.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+t @ ddb1927e4767b871.js:2
+s @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+(anonymous) @ ddb1927e4767b871.js:2
+wait @ e1931f08c8e3c29c.js:2
+u @ 6dc7a950438d7a9e.js:2
+(anonymous) @ 6dc7a950438d7a9e.js:2
+o @ 15daf9d0f160d8b0.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 RESIZE HANDLE MOUSE DOWN: Object
+injected.js:37 🔧 RESIZE START: Object
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔧 RESIZE HANDLE MOUSE UP
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📝 CANVAS CLICK: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔧 DRAG END: Object
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: Object
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: Object
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 📝 SELECTION STATE SET: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764994011420
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 💾 Workflows saved to local storage
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🔧 DRAG MOVE: Object
+injected.js:37 🎯 Smart Guides: Enabled, processing snap...
+injected.js:37 🎯 Smart Guides Applied: Object
+injected.js:37 🔧 INDIVIDUAL DRAG UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 DRAG END: Object
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: Object
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: Object
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 📝 SELECTION STATE SET: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764994011420
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 RESIZE HANDLE MOUSE DOWN: Object
+injected.js:37 🔧 RESIZE START: Object
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 RESIZE COORDINATE DEBUG: Object
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 RESIZE HANDLE MOUSE UP
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📝 CANVAS CLICK: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=9bdadd50-4d4c-4651-83be-5bdfdea1d245:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=b0bb4d0b-45ac-4c0d-9124-e508ada60d67:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔧 DRAG END: Object
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: Object
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: Object
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 📝 SELECTION STATE SET: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764994011420
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔄 Auto-snapshot created successfully
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994186226&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994186751&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994188764&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994193272&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+15daf9d0f160d8b0.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994193272&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 15daf9d0f160d8b0.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ 15daf9d0f160d8b0.js:2
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=bf3b2940-13fa-47c1-972c-a5064a078a0b:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=3ff541d8-ad58-4eac-8b27-3432a55e9df0:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=28760a15-105d-4c9a-9812-0938844cb6c0:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=b2d9b3d1-c1f2-4c7e-8f31-4d1772496da4:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 DRAG END: Object
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: Object
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: Object
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 📝 SELECTION STATE SET: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764994011420
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+injected.js:37 🔧 DRAG END: Object
+injected.js:37 🔧 NODE: Not setting drag flag - insufficient movement: Object
+injected.js:37 📝 EDITOR NODE CLICK HANDLER: Object
+injected.js:37 📝 SINGLE SELECT UPDATE: Object
+injected.js:37 📝 SELECTION STATE SET: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 📝 CLICK CONFIRMED (no drag detected) - showing toolbar for: node-1764994011420
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994257998&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+injected.js:37 💾 Workflows saved to local storage
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994258519&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994260533&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994265042&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+15daf9d0f160d8b0.js:2  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1764994265042&sid=0b5fa63a-928d-4c53-8428-2a9f7428a63e&ec=2516&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 15daf9d0f160d8b0.js:2:106552
+    at t.<anonymous> (06e68893bdd5c424.js:2:45850)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at 06e68893bdd5c424.js:2:42952
+    at new Promise (<anonymous>)
+    at push.u (06e68893bdd5c424.js:2:42706)
+    at t.value (06e68893bdd5c424.js:2:44940)
+    at 06e68893bdd5c424.js:2:31768
+    at e.value (06e68893bdd5c424.js:2:32175)
+    at e.<computed> [as _sendRequest] (06e68893bdd5c424.js:2:31708)
+    at t.<anonymous> (06e68893bdd5c424.js:2:47326)
+    at Object.next (ddb1927e4767b871.js:2:11778)
+    at s (06e68893bdd5c424.js:2:42762)
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 15daf9d0f160d8b0.js:2
+15daf9d0f160d8b0.js:2   WARN  [Statsig] Unable to save failed logs to storage
+(anonymous) @ 15daf9d0f160d8b0.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=4c728ca6-f079-4f49-8e61-c5d16efb1ce3:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Af2e7fbf9&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=dbb12ba4-c8f2-400b-8164-af1129d08ab1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 📊 onNodesChange CALLED: Object
+injected.js:37 📊 CHANGE-BASED UPDATE: Object
+injected.js:37 📊 OTHER NODE CHANGE: Object
+injected.js:37 📝 CANVAS CLICK: Object
+injected.js:37 🔧 AdvancedInteractions configured with pro features: Object
+injected.js:37 🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste
+b4b82e29c31a919b.js:2 WebSocket is already in CLOSING or CLOSED state.
+value @ b4b82e29c31a919b.js:2
+injected.js:37 💾 Workflows saved to local storage
+injected.js:37 🔍 CAPTURE PHASE mousedown: Object

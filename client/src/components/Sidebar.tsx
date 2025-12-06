@@ -58,6 +58,9 @@ import {
   Zap,
   Settings,
   Play,
+  Table2,
+  FormInput,
+  LayoutGrid,
 } from "lucide-react";
 
 interface WorkflowTab {
@@ -272,6 +275,9 @@ export function Sidebar({
       label: "Sticky Note",
     },
     { type: "shape", icon: Square, color: "text-orange-500", label: "Shape" },
+    { type: "table", icon: Table2, color: "text-teal-500", label: "Table" },
+    { type: "form", icon: FormInput, color: "text-pink-500", label: "Form" },
+    { type: "compound", icon: LayoutGrid, color: "text-emerald-500", label: "Compound" },
   ];
 
   const templateTypes = [

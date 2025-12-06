@@ -291,7 +291,7 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
     <div
       ref={nodeRef}
       className={cn(
-        "absolute cursor-move select-none",
+        "kiteframe-node absolute cursor-move select-none",
         node.selected && "z-10",
         className
       )}
@@ -310,7 +310,7 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
       <div
         className={cn(
           "w-full h-full flex flex-col rounded-xl overflow-hidden shadow-lg",
-          node.selected && "ring-2 ring-indigo-500 ring-offset-2"
+          node.selected && "outline outline-2 outline-blue-500"
         )}
         style={{
           backgroundColor: bodyColor,

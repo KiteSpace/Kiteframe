@@ -5043,7 +5043,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   return;
                 }
 
-                // For regular nodes (input, process, condition, output, ai, image, table)
+                // For regular nodes (input, process, condition, output, ai, image, table, form, compound)
                 saveToHistory();
                 
                 const icons = {
@@ -5053,12 +5053,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   output: { icon: 'ArrowLeft', color: 'text-red-500' },
                   ai: { icon: 'Bot', color: 'text-purple-500' },
                   image: { icon: 'Image', color: 'text-indigo-500' },
-                  table: { icon: 'Table2', color: 'text-indigo-500' }
+                  table: { icon: 'Table2', color: 'text-teal-500' },
+                  form: { icon: 'FormInput', color: 'text-pink-500' },
+                  compound: { icon: 'LayoutGrid', color: 'text-emerald-500' }
                 };
 
                 const nodeId = `node-${Date.now()}`;
                 const isTableNode = type === 'table';
                 const isFormNode = type === 'form';
+                const isCompoundNode = type === 'compound';
                 const tableId = isTableNode ? `table-${nodeId}` : undefined;
 
                 const getNodeData = () => {
@@ -5092,6 +5095,21 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     };
                   }
+                  if (isCompoundNode) {
+                    return {
+                      label: 'Compound',
+                      description: '',
+                      subcomponents: [],
+                      containerPadding: 12,
+                      gap: 8,
+                      colors: {
+                        headerBackground: '#059669',
+                        bodyBackground: '#ffffff',
+                        borderColor: '#10b981',
+                        headerTextColor: '#ffffff',
+                      }
+                    };
+                  }
                   return {
                     label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                     description: `Configure ${type} settings`,
@@ -5101,18 +5119,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 };
 
                 // Calculate position offset based on node type for centering
-                const halfWidth = isTableNode ? 280 : isFormNode ? 160 : 100;
-                const halfHeight = isTableNode ? 200 : isFormNode ? 100 : 50;
+                const halfWidth = isTableNode ? 280 : isFormNode ? 160 : isCompoundNode ? 160 : 100;
+                const halfHeight = isTableNode ? 200 : isFormNode ? 100 : isCompoundNode ? 140 : 50;
 
                 const newNode: Node = {
                   id: nodeId,
                   type,
                   position: { x: worldPosition.x - halfWidth, y: worldPosition.y - halfHeight },
                   data: getNodeData(),
-                  width: isTableNode ? 560 : isFormNode ? 320 : 200,
-                  height: isTableNode ? 400 : isFormNode ? 200 : 100,
-                  style: isTableNode ? { width: 560, height: 400 } : isFormNode ? { width: 320, height: 200 } : undefined,
-                  resizable: isTableNode || isFormNode ? true : undefined
+                  width: isTableNode ? 560 : isFormNode ? 320 : isCompoundNode ? 320 : 200,
+                  height: isTableNode ? 400 : isFormNode ? 200 : isCompoundNode ? 280 : 100,
+                  style: isTableNode ? { width: 560, height: 400 } : isFormNode ? { width: 320, height: 200 } : isCompoundNode ? { width: 320, height: 280 } : undefined,
+                  resizable: isTableNode || isFormNode || isCompoundNode ? true : undefined
                 };
 
                 setNodes(prev => [...prev, newNode]);

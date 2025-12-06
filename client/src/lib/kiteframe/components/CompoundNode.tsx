@@ -962,6 +962,14 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // Double-click enters editing mode only (doesn't open menu - that's via + button only)
+    setIsEditing(true);
+    
+    // Close the linear toolbar if it's open
+    window.dispatchEvent(new CustomEvent('closeLinearToolbar'));
+    
+    // Also call the original double-click handler if provided
     onDoubleClick?.(e);
   }, [onDoubleClick]);
 
@@ -1157,7 +1165,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
       <div
         ref={nodeRef}
         className={cn(
-          "absolute cursor-move select-none",
+          "kiteframe-node absolute cursor-move select-none",
           node.selected && "z-10",
           className
         )}
@@ -1176,12 +1184,12 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
         <div
           className={cn(
             "w-full h-full flex flex-col rounded-xl overflow-hidden shadow-lg",
-            node.selected && "ring-2 ring-emerald-500 ring-offset-2"
+            node.selected && "outline outline-2 outline-blue-500"
           )}
           style={{
             backgroundColor: bodyColor,
-            borderWidth: 2,
-            borderStyle: 'solid',
+            borderWidth: node.data.colors?.borderColor ? 2 : 2,
+            borderStyle: node.data.borderStyle || 'solid',
             borderColor: borderColor,
           }}
         >
@@ -1314,7 +1322,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
       </div>
 
       <ComponentMenu
-        isOpen={menuOpen && (node.selected === true)}
+        isOpen={menuOpen}
         position={menuPosition}
         onAddComponent={handleAddComponent}
         onClose={() => setMenuOpen(false)}
