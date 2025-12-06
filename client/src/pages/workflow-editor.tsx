@@ -6951,7 +6951,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   description: `Data from ${openTablePanel}`,
                   icon: 'Database',
                   iconColor: 'text-indigo-500',
-                  sourceTableId: openTablePanel,
+                  sourceTable: openTablePanel,
                   sourceTableNodeId: tableNode?.id,
                   sourceTableName: tableNode?.data?.label || 'Table',
                   sourceRowIndex: rowIndex,

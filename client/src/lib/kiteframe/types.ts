@@ -9,14 +9,19 @@ export type NodeColors = {
   bodyTextColor?: string;
 };
 
+// Base node data with common properties shared by all node types
+export interface BaseNodeData {
+  colors?: NodeColors;
+  reactions?: NodeReactions;
+}
+
+// Node type uses 'any' for backward compatibility
+// Use TypedNode or specific node types (BasicNode, TableNode, etc.) for type-safe code
 export type Node = {
   id: string;
   type?: string;
   position: Position;
-  data: any & {
-    colors?: NodeColors;
-    reactions?: NodeReactions;
-  };
+  data: any & BaseNodeData;
   style?: { width?: number; height?: number };
   draggable?: boolean;
   selectable?: boolean;
@@ -318,12 +323,13 @@ export interface TableNodeData extends BasicNodeData {
   isCollapsed?: boolean; // Collapsed view shows only name and expand button
 }
 
-// Data-backed Node Data - nodes created from table rows
+// Data-backed Node Data - nodes created from table rows with data synchronization
+// Uses sourceTable for consistency with BasicNodeData (not sourceTableId)
 export interface DataBackedNodeData extends BasicNodeData {
-  sourceTableId: string;
-  sourceRowId: string;
-  boundFields?: Record<string, string>;
-  autoSync?: boolean;
+  sourceTable: string;    // Table ID (consistent with BasicNodeData.sourceTable)
+  sourceRowId: string;    // Row ID in the source table
+  boundFields?: Record<string, string>; // Field-to-column bindings (reserved)
+  autoSync?: boolean;     // Auto-sync flag (reserved for future use)
 }
 
 // ============= FORM NODE TYPES =============
@@ -394,8 +400,21 @@ export type CompoundNode = Node & {
   data: CompoundNodeData;
 };
 
-// Union type for core library nodes
+// Union type for core library nodes - use this for type-safe node handling
+// This is the preferred type when you need full type safety on node.data
 export type KiteFrameNode = BasicNode | ImageNode | TableNode | DataBackedNode | FormNode | CompoundNode;
+
+// Alias for type-safe node operations (same as KiteFrameNode)
+export type TypedNode = KiteFrameNode;
+
+// Union of all node data types for type guards and validation
+export type NodeDataUnion = 
+  | BasicNodeData 
+  | ImageNodeData 
+  | TableNodeData 
+  | DataBackedNodeData 
+  | FormNodeData 
+  | CompoundNodeData;
 
 // Node Creation/Factory Types
 export interface NodeTemplate<T = any> {
@@ -475,6 +494,43 @@ export interface ImageNodeComponentProps extends BaseNodeComponentProps<ImageNod
   onClick?: (e: React.MouseEvent, node: Node) => void;
   onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
   viewport?: { x: number; y: number; zoom: number };
+}
+
+// ============= UNIVERSAL NODE COMPONENT PROPS =============
+// Shared props interface for all interactive node types
+// All node components should extend or implement these callbacks for consistency
+
+export interface GenericNodeComponentProps<TData = any> extends BaseNodeComponentProps<TData> {
+  onStartDrag?: (e: React.MouseEvent, node: Node) => void;
+  onClick?: (e: React.MouseEvent, node: Node) => void;
+  onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
+  viewport?: { x: number; y: number; zoom: number };
+}
+
+// Table info for data linking in form/compound nodes
+export interface TableNodeInfo {
+  nodeId: string;
+  tableId: string;
+  tableName: string;
+  table?: DataTable;
+}
+
+export interface TableNodeComponentProps extends GenericNodeComponentProps<TableNodeData> {
+  node: Node & { data: TableNodeData };
+  onUpdateTable?: (tableId: string, table: DataTable) => void;
+  onCreateNodeFromRow?: (tableId: string, row: Record<string, unknown>, rowIndex: number) => void;
+}
+
+export interface FormNodeComponentProps extends GenericNodeComponentProps<FormNodeData> {
+  node: Node & { data: FormNodeData };
+  tables?: DataTable[];
+  onOpenDataLinkPicker?: (fieldId: string, currentLink?: FormFieldDataLink) => void;
+}
+
+export interface CompoundNodeComponentProps extends GenericNodeComponentProps<CompoundNodeData> {
+  node: Node & { data: CompoundNodeData };
+  onImageUpload?: (nodeId: string, file: File) => Promise<string>;
+  tables?: TableNodeInfo[];
 }
 
 // Pro Features Configuration Interfaces

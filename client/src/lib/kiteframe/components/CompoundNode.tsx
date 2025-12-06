@@ -41,7 +41,9 @@ import type {
   CompoundLinkSubcomponent,
   CompoundInputSubcomponent,
   CompoundInputDataLink,
-  DataTable
+  DataTable,
+  TableNodeInfo,
+  CompoundNodeComponentProps
 } from '../types';
 import { sanitizeText } from '../utils/validation';
 import { getBorderColorFromHeader } from '@/lib/themes';
@@ -50,30 +52,6 @@ const MIN_COMPOUND_WIDTH = 280;
 const MIN_COMPOUND_HEIGHT = 180;
 const DEFAULT_COMPOUND_WIDTH = 320;
 const DEFAULT_COMPOUND_HEIGHT = 280;
-
-interface TableNodeInfo {
-  nodeId: string;
-  tableId: string;
-  tableName: string;
-  table?: DataTable;
-}
-
-interface CompoundNodeComponentProps {
-  node: Node & { data: CompoundNodeData };
-  onUpdate?: (nodeId: string, updates: Partial<Node>) => void;
-  onDoubleClick?: (e: React.MouseEvent) => void;
-  className?: string;
-  style?: React.CSSProperties;
-  showHandles?: boolean;
-  showResizeHandle?: boolean;
-  onStartDrag?: (e: React.MouseEvent, node: Node) => void;
-  onClick?: (e: React.MouseEvent, node: Node) => void;
-  onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
-  viewport?: { x: number; y: number; zoom: number };
-  onImageUpload?: (nodeId: string, file: File) => Promise<string>;
-  tables?: TableNodeInfo[];
-  onFocusNode?: (nodeId: string) => void;
-}
 
 interface ComponentMenuProps {
   isOpen: boolean;

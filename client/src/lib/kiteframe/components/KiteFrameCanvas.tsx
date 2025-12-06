@@ -3728,6 +3728,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       );
                       props.onNodesChange?.(updated);
                     }}
+                    onFocusNode={props.onFocusNode}
                     onImageUpload={async (nodeId: string, file: File) => {
                       // Convert File to data URL for compatibility with existing system
                       return new Promise((resolve) => {
@@ -3870,7 +3871,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       );
                       props.onNodesChange?.(updated);
                     }}
-                    onStartDrag={(e: React.MouseEvent) => {
+                    onFocusNode={props.onFocusNode}
+                    onStartDrag={(e: React.MouseEvent, draggedNode: Node) => {
                       e.stopPropagation();
                       if (!containerRef.current) return;
                       const rect = containerRef.current.getBoundingClientRect();
@@ -3891,7 +3893,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       const totalSelected =
                         selectedNodes.length + selectedCanvasObjects.length;
                       const isGroupDrag =
-                        totalSelected > 1 && n.selected === true;
+                        totalSelected > 1 && draggedNode.selected === true;
 
                       // Prepare origins for all nodes that will be dragged
                       const origins = isGroupDrag
@@ -3899,7 +3901,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                             id: node.id,
                             origin: { ...node.position },
                           }))
-                        : [{ id: n.id, origin: { ...n.position } }];
+                        : [{ id: draggedNode.id, origin: { ...draggedNode.position } }];
 
                       // Prepare origins for all canvas objects that will be dragged
                       const canvasObjectOrigins = isGroupDrag
@@ -3910,29 +3912,29 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         : [];
 
                       dragInfo.current = {
-                        id: n.id,
+                        id: draggedNode.id,
                         start: wp,
-                        origin: { ...n.position },
+                        origin: { ...draggedNode.position },
                         origins: origins,
                         canvasObjectOrigins: canvasObjectOrigins,
                         isGroupDrag: isGroupDrag,
                       };
 
                       console.log("🔧 TABLE DRAG START:", {
-                        nodeId: n.id,
+                        nodeId: draggedNode.id,
                         worldPos: wp,
-                        nodePosition: n.position,
+                        nodePosition: draggedNode.position,
                         selectedNodes: selectedNodes.map((sn) => sn.id),
                         isGroupDrag,
                         dragInfo: dragInfo.current,
                       });
                     }}
-                    onClick={(e: React.MouseEvent) => {
+                    onClick={(e: React.MouseEvent, clickedNode: Node) => {
                       console.log(`🎯 TABLE NODE CLICK:`, {
-                        nodeId: n.id,
-                        wasSelected: n.selected,
+                        nodeId: clickedNode.id,
+                        wasSelected: clickedNode.selected,
                       });
-                      props.onNodeClick?.(e, n);
+                      props.onNodeClick?.(e, clickedNode);
                     }}
                     onHandleConnect={(position, e) => {
                       if (!containerRef.current) return;
@@ -3979,6 +3981,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       );
                       props.onNodesChange?.(updated);
                     }}
+                    onFocusNode={props.onFocusNode}
                     onStartDrag={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       if (!containerRef.current) return;
@@ -4081,6 +4084,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       );
                       props.onNodesChange?.(updated);
                     }}
+                    onFocusNode={props.onFocusNode}
                     onStartDrag={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       if (!containerRef.current) return;
@@ -4160,6 +4164,17 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         reader.readAsDataURL(file);
                       });
                     }}
+                    tables={props.tableData ? Object.entries(props.tableData).map(([tableId, table]) => {
+                      const tableNode = props.nodes.find(node => 
+                        node.type === 'table' && node.data?.tableId === tableId
+                      );
+                      return {
+                        nodeId: tableNode?.id || tableId,
+                        tableId,
+                        tableName: table.name || 'Table',
+                        table,
+                      };
+                    }) : []}
                     style={{
                       position: "absolute",
                       left: n.position.x,

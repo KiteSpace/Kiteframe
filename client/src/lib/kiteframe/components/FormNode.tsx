@@ -10,7 +10,13 @@ import {
   GripVertical,
   FileText
 } from 'lucide-react';
-import type { Node, FormNodeData, FormNodeField, DataTable } from '../types';
+import type { 
+  Node, 
+  FormNodeData, 
+  FormNodeField, 
+  DataTable,
+  FormNodeComponentProps 
+} from '../types';
 import { sanitizeText } from '../utils/validation';
 import { getBorderColorFromHeader } from '@/lib/themes';
 
@@ -19,26 +25,11 @@ const MIN_FORM_HEIGHT = 150;
 const DEFAULT_FORM_WIDTH = 320;
 const DEFAULT_FORM_HEIGHT = 200;
 
-interface FormNodeComponentProps {
-  node: Node & { data: FormNodeData };
-  onUpdate?: (nodeId: string, updates: Partial<Node>) => void;
-  onDoubleClick?: (e: React.MouseEvent) => void;
-  className?: string;
-  style?: React.CSSProperties;
-  showHandles?: boolean;
-  showResizeHandle?: boolean;
-  onStartDrag?: (e: React.MouseEvent, node: Node) => void;
-  onClick?: (e: React.MouseEvent, node: Node) => void;
-  onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
-  viewport?: { x: number; y: number; zoom: number };
-  tables?: DataTable[];
-  onOpenDataLinkPicker?: (fieldId: string, currentLink?: FormNodeField['dataLink']) => void;
-}
-
 const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
   node,
   onUpdate,
   onDoubleClick,
+  onFocusNode,
   className,
   style,
   showHandles = true,

@@ -21,7 +21,14 @@ import {
 } from "lucide-react";
 import { NodeHandles } from "./NodeHandles";
 import { ResizeHandle } from "./ResizeHandle";
-import type { Node, TableNodeData, DataTable, DataTableColumn, DataTableRow } from "../types";
+import type { 
+  Node, 
+  TableNodeData, 
+  DataTable, 
+  DataTableColumn, 
+  DataTableRow,
+  TableNodeComponentProps 
+} from "../types";
 import { sanitizeText, validateColor } from "../utils/validation";
 import { getBorderColorFromHeader } from "@/lib/themes";
 
@@ -33,28 +40,12 @@ const DEFAULT_TABLE_WIDTH = 560;
 const DEFAULT_TABLE_HEIGHT = 400;
 const COLLAPSED_TABLE_HEIGHT = 56;
 
-interface TableNodeComponentProps {
-  node: Node & { data: TableNodeData };
-  onUpdate?: (nodeId: string, updates: Partial<Node>) => void;
-  onConnect?: (connection: { source: string; target: string }) => void;
-  onDoubleClick?: (e: React.MouseEvent) => void;
-  onUpdateTable?: (tableId: string, table: DataTable) => void;
-  onCreateNodeFromRow?: (tableId: string, row: Record<string, unknown>, rowIndex: number) => void;
-  onStartDrag?: (e: React.MouseEvent) => void;
-  onClick?: (e: React.MouseEvent) => void;
-  onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
-  className?: string;
-  style?: React.CSSProperties;
-  showHandles?: boolean;
-  showResizeHandle?: boolean;
-  viewport?: { x: number; y: number; zoom: number };
-}
-
 const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   node,
   onUpdate,
   onConnect,
   onDoubleClick,
+  onFocusNode,
   onUpdateTable,
   onCreateNodeFromRow,
   onStartDrag,
@@ -247,8 +238,8 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       return;
     }
     e.stopPropagation();
-    onStartDrag?.(e);
-  }, [onStartDrag]);
+    onStartDrag?.(e, node);
+  }, [onStartDrag, node]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -256,8 +247,8 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       return;
     }
     e.stopPropagation();
-    onClick?.(e);
-  }, [onClick]);
+    onClick?.(e, node);
+  }, [onClick, node]);
 
   const tableName = node.data.label || table?.name || 'Table';
   const rowCount = table?.rows?.length || 0;
