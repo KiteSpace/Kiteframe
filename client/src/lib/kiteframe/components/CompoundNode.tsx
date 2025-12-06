@@ -540,15 +540,44 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
     }
   }, [node.selected]);
 
+  const calculateMenuPosition = useCallback((rect: DOMRect) => {
+    const menuWidth = 200;
+    const menuHeight = 180;
+    const padding = 16;
+    
+    // Position above the node, centered horizontally (like linear toolbar)
+    let x = rect.left + (rect.width / 2) - (menuWidth / 2);
+    let y = rect.top - menuHeight - padding;
+    
+    // Check if menu would go off the left edge
+    if (x < padding) {
+      x = padding;
+    }
+    
+    // Check if menu would go off the right edge
+    if (x + menuWidth > window.innerWidth - padding) {
+      x = window.innerWidth - menuWidth - padding;
+    }
+    
+    // If menu would go above the top, position below the node instead
+    if (y < padding) {
+      y = rect.bottom + padding;
+    }
+    
+    // If still off bottom, clamp to visible area
+    if (y + menuHeight > window.innerHeight - padding) {
+      y = window.innerHeight - menuHeight - padding;
+    }
+    
+    return { x, y };
+  }, []);
+
   useEffect(() => {
     const handleOpenComponentMenu = (e: CustomEvent<{ nodeId: string }>) => {
       if (e.detail.nodeId === node.id) {
         const rect = nodeRef.current?.getBoundingClientRect();
         if (rect) {
-          setMenuPosition({
-            x: rect.right + 16,
-            y: rect.top
-          });
+          setMenuPosition(calculateMenuPosition(rect));
           setMenuOpen(true);
         }
       }
@@ -558,7 +587,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
     return () => {
       window.removeEventListener('openCompoundComponentMenu', handleOpenComponentMenu as EventListener);
     };
-  }, [node.id]);
+  }, [node.id, calculateMenuPosition]);
 
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -891,10 +920,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
                       e.stopPropagation();
                       const rect = nodeRef.current?.getBoundingClientRect();
                       if (rect) {
-                        setMenuPosition({
-                          x: rect.right + 16,
-                          y: rect.top
-                        });
+                        setMenuPosition(calculateMenuPosition(rect));
                         setMenuOpen(true);
                       }
                     }}
@@ -932,10 +958,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
                       e.stopPropagation();
                       const rect = nodeRef.current?.getBoundingClientRect();
                       if (rect) {
-                        setMenuPosition({
-                          x: rect.right + 16,
-                          y: rect.top
-                        });
+                        setMenuPosition(calculateMenuPosition(rect));
                         setMenuOpen(true);
                       }
                     }}
