@@ -812,103 +812,165 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       data-testid={`table-node-${node.id}`}
       data-node-id={node.id}
     >
-      {/* Visual table container */}
-      <div
-        className={cn(
-          "flex flex-col cursor-move",
-          node.selected && "ring-2 ring-blue-500 ring-offset-2"
-        )}
-        style={containerStyle}
-      >
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv,.json"
-          onChange={handleFileChange}
-          className="hidden"
-          data-testid={`table-file-input-${node.id}`}
-        />
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,.json"
+        onChange={handleFileChange}
+        className="hidden"
+        data-testid={`table-file-input-${node.id}`}
+      />
 
-        {/* Header - Draggable */}
+      {/* Collapsed View - Clean compact bar */}
+      {isCollapsed ? (
         <div
-          className="flex items-center justify-between px-3 py-2 cursor-grab"
+          className={cn(
+            "flex items-center justify-between px-4 py-3 cursor-grab h-full",
+            node.selected && "ring-2 ring-blue-500 ring-offset-2"
+          )}
           style={{ 
-            background: `linear-gradient(135deg, ${colors.headerBg} 0%, ${colors.headerBg}dd 100%)`,
+            background: colors.headerBg,
             color: colors.headerTextColor,
-            borderTopLeftRadius: '10px',
-            borderTopRightRadius: '10px',
+            borderRadius: '12px',
           }}
         >
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <GripHorizontal size={14} className="opacity-50 flex-shrink-0" />
-          <Table2 size={16} className="flex-shrink-0" />
-          {isEditing ? (
-            <input
-              ref={inputRef}
-              type="text"
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleLabelSubmit}
-              onKeyDown={handleKeyDown}
-              className="bg-white/20 border-none outline-none text-sm font-medium w-full px-1.5 py-0.5 rounded"
-              style={{ color: colors.headerTextColor }}
-              aria-label="Table name"
-              data-testid="table-node-label-input"
-            />
-          ) : (
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <Table2 size={20} className="flex-shrink-0 opacity-80" />
             <span
-              className="text-sm font-medium truncate"
+              className="text-base font-medium truncate"
               title={tableName}
             >
               {sanitizeText(tableName)}
             </span>
-          )}
-          <span className="px-1.5 py-0.5 bg-white/20 rounded text-xs flex-shrink-0">
-            {rowCount} rows × {colCount} cols
-          </span>
-        </div>
-        
-        <div className="flex items-center gap-1">
-          {apiConfig?.enabled && (
+          </div>
+          
+          <div className="flex items-center gap-1 pl-3" style={{ borderLeft: '1px solid rgba(255,255,255,0.2)' }}>
             <button
               onClick={handleApiRefresh}
               disabled={isRefreshing}
               className={cn(
-                "p-1 rounded transition-colors relative group",
+                "p-1.5 rounded transition-colors relative",
                 isRefreshing ? "opacity-50 cursor-wait" : "hover:bg-white/20"
               )}
               title={
                 isRefreshing 
                   ? "Refreshing..." 
-                  : lastRefreshedText 
-                    ? `Last refreshed: ${lastRefreshedText}\nClick to refresh` 
-                    : "Refresh from API"
+                  : apiConfig?.enabled
+                    ? (lastRefreshedText ? `Last refreshed: ${lastRefreshedText}\nClick to refresh` : "Refresh from API")
+                    : "No API configured"
               }
               data-testid={`table-refresh-${node.id}`}
             >
               {isRefreshing ? (
-                <Loader2 size={14} className="animate-spin" />
+                <Loader2 size={16} className="animate-spin" />
               ) : refreshError ? (
-                <AlertCircle size={14} className="text-red-300" />
+                <AlertCircle size={16} className="text-red-300" />
               ) : (
-                <RefreshCw size={14} />
+                <RefreshCw size={16} />
               )}
-              {apiConfig.enabled && !isRefreshing && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full" />
+              {apiConfig?.enabled && !isRefreshing && (
+                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full border border-white/30" />
               )}
             </button>
-          )}
-          <button
-            onClick={handleToggleCollapse}
-            className="p-1 hover:bg-white/20 rounded transition-colors"
-            title={isCollapsed ? "Expand table" : "Collapse table"}
-            data-testid={`table-toggle-collapse-${node.id}`}
-          >
-            {isCollapsed ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
-          </button>
+            <button
+              onClick={handleToggleCollapse}
+              className="p-1.5 hover:bg-white/20 rounded transition-colors"
+              title="Expand table"
+              data-testid={`table-toggle-collapse-${node.id}`}
+            >
+              <Maximize2 size={16} />
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Expanded View - Full table container */
+        <div
+          className={cn(
+            "flex flex-col cursor-move",
+            node.selected && "ring-2 ring-blue-500 ring-offset-2"
+          )}
+          style={containerStyle}
+        >
+          {/* Header - Draggable */}
+          <div
+            className="flex items-center justify-between px-3 py-2 cursor-grab"
+            style={{ 
+              background: `linear-gradient(135deg, ${colors.headerBg} 0%, ${colors.headerBg}dd 100%)`,
+              color: colors.headerTextColor,
+              borderTopLeftRadius: '10px',
+              borderTopRightRadius: '10px',
+            }}
+          >
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <GripHorizontal size={14} className="opacity-50 flex-shrink-0" />
+            <Table2 size={16} className="flex-shrink-0" />
+            {isEditing ? (
+              <input
+                ref={inputRef}
+                type="text"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={handleLabelSubmit}
+                onKeyDown={handleKeyDown}
+                className="bg-white/20 border-none outline-none text-sm font-medium w-full px-1.5 py-0.5 rounded"
+                style={{ color: colors.headerTextColor }}
+                aria-label="Table name"
+                data-testid="table-node-label-input"
+              />
+            ) : (
+              <span
+                className="text-sm font-medium truncate"
+                title={tableName}
+              >
+                {sanitizeText(tableName)}
+              </span>
+            )}
+            <span className="px-1.5 py-0.5 bg-white/20 rounded text-xs flex-shrink-0">
+              {rowCount} rows × {colCount} cols
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-1">
+            {apiConfig?.enabled && (
+              <button
+                onClick={handleApiRefresh}
+                disabled={isRefreshing}
+                className={cn(
+                  "p-1 rounded transition-colors relative group",
+                  isRefreshing ? "opacity-50 cursor-wait" : "hover:bg-white/20"
+                )}
+                title={
+                  isRefreshing 
+                    ? "Refreshing..." 
+                    : lastRefreshedText 
+                      ? `Last refreshed: ${lastRefreshedText}\nClick to refresh` 
+                      : "Refresh from API"
+                }
+                data-testid={`table-refresh-${node.id}`}
+              >
+                {isRefreshing ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : refreshError ? (
+                  <AlertCircle size={14} className="text-red-300" />
+                ) : (
+                  <RefreshCw size={14} />
+                )}
+                {apiConfig.enabled && !isRefreshing && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full" />
+                )}
+              </button>
+            )}
+            <button
+              onClick={handleToggleCollapse}
+              className="p-1 hover:bg-white/20 rounded transition-colors"
+              title="Collapse table"
+              data-testid={`table-toggle-collapse-${node.id}`}
+            >
+              <Minimize2 size={14} />
+            </button>
+          </div>
+        </div>
 
       {/* Toolbar - hidden when collapsed */}
       {!isCollapsed && (
@@ -983,7 +1045,8 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
           <span className="truncate">{refreshError || node.data.lastError}</span>
         </div>
       )}
-      </div>
+        </div>
+      )}
 
       {/* Connection Handles - positioned outside visual container */}
       {showHandles && (
