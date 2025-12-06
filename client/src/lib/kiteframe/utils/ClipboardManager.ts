@@ -96,7 +96,6 @@ export class ClipboardManager {
       console.warn('Failed to save clipboard to localStorage:', error);
     }
 
-    console.log(`📋 Copied ${items.length} items to clipboard`);
     return true;
   }
 
@@ -175,8 +174,6 @@ export class ClipboardManager {
       }
     });
 
-    console.log(`📋 Pasted ${newNodes.length} nodes and ${newCanvasObjects.length} canvas objects`);
-
     return {
       nodes: newNodes,
       canvasObjects: newCanvasObjects,
@@ -228,7 +225,6 @@ export class ClipboardManager {
     } catch (error) {
       console.warn('Failed to clear clipboard from localStorage:', error);
     }
-    console.log('📋 Clipboard cleared');
   }
 
   // Private helper methods

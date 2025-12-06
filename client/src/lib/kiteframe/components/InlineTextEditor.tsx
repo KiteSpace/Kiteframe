@@ -40,15 +40,6 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   const savedRef = useRef(false); // Prevent double saves
   const toolbarInteractionRef = useRef(false); // Track toolbar interactions to prevent blur closing editor
 
-  console.log('📝 TEXT EDITOR: Component mounted', {
-    initialValue,
-    placeholder,
-    multiline,
-    fontSize,
-    fontFamily,
-    autoFocus
-  });
-
   useEffect(() => {
     if (autoFocus && inputRef.current) {
       inputRef.current.focus();
@@ -62,20 +53,10 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
       const target = event.target as Element;
       const inputElement = inputRef.current;
       
-      console.log('🖱️ TEXT EDITOR: Click event detected', {
-        target: target?.tagName || 'unknown',
-        targetClass: target?.className || 'none',
-        inputElement: inputElement?.tagName || 'none',
-        inputClass: inputElement?.className || 'none',
-        isEditing,
-        currentValue: value
-      });
-      
       // Check if click is on the LinearToolbar - don't close editing for toolbar interactions
       // Check both 'linear' and 'linear-text' data attributes
       const isToolbarClick = target?.closest?.('[data-toolbar="linear"], [data-toolbar="linear-text"]') !== null;
       if (isToolbarClick) {
-        console.log('🖱️ TEXT EDITOR: Toolbar click detected - keeping editor open');
         // Set flag to prevent blur from closing the editor
         toolbarInteractionRef.current = true;
         // Reset the flag after a short delay (after blur event fires)
@@ -86,13 +67,6 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
       }
       
       if (inputElement && target && !inputElement.contains(target)) {
-        console.log('🖱️ TEXT EDITOR: Click outside detected - triggering save', {
-          currentValue: value,
-          originalValue: originalValueRef.current,
-          isEditing,
-          willSave: isEditing
-        });
-        
         // Immediate save without timeout to avoid race conditions
         if (isEditing && !savedRef.current) {
           handleSave();
@@ -101,7 +75,6 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
     };
 
     const handleEscape = (event: KeyboardEvent) => {
-      console.log('⌨️ TEXT EDITOR: Escape key detected in document listener');
       if (event.key === 'Escape') {
         handleCancel();
       }
@@ -111,34 +84,16 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
       // Use capture phase to catch events before they're handled by other elements
       document.addEventListener('mousedown', handleClickOutside, true);
       document.addEventListener('keydown', handleEscape);
-      
-      console.log('👂 TEXT EDITOR: Event listeners attached', {
-        isEditing,
-        inputRef: !!inputRef.current
-      });
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside, true);
       document.removeEventListener('keydown', handleEscape);
-      
-      if (isEditing) {
-        console.log('🧹 TEXT EDITOR: Event listeners removed');
-      }
     };
   }, [isEditing, value]);
 
   const handleSave = () => {
     if (!isEditing || savedRef.current) return;
-    
-    console.log('💾 TEXT EDITOR: Save triggered', {
-      originalValue: originalValueRef.current,
-      currentValue: value,
-      trimmedValue: value.trim(),
-      wasEditing: isEditing,
-      alreadySaved: savedRef.current,
-      source: 'handleSave'
-    });
     
     savedRef.current = true;
     setIsEditing(false);
@@ -148,37 +103,19 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   const handleCancel = () => {
     if (!isEditing) return;
     
-    console.log('❌ TEXT EDITOR: Cancel triggered', {
-      originalValue: originalValueRef.current,
-      currentValue: value,
-      wasEditing: isEditing,
-      source: 'handleCancel'
-    });
-    
     setIsEditing(false);
     setValue(originalValueRef.current);
     onCancel();
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    console.log('⌨️ TEXT EDITOR: Key pressed', {
-      key: event.key,
-      multiline,
-      ctrlKey: event.ctrlKey,
-      currentValue: value,
-      originalValue: originalValueRef.current
-    });
-
     if (event.key === 'Enter' && !multiline) {
-      console.log('🔄 TEXT EDITOR: Enter key save (single line)');
       event.preventDefault();
       handleSave();
     } else if (event.key === 'Enter' && multiline && event.ctrlKey) {
-      console.log('🔄 TEXT EDITOR: Ctrl+Enter save (multiline)');
       event.preventDefault();
       handleSave();
     } else if (event.key === 'Escape') {
-      console.log('🔄 TEXT EDITOR: Escape key cancel');
       event.preventDefault();
       handleCancel();
     }
@@ -221,7 +158,6 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   const handleBlur = (e: React.FocusEvent) => {
     // Check if we're interacting with the toolbar (flag set by mousedown handler)
     if (toolbarInteractionRef.current) {
-      console.log('💾 TEXT EDITOR: Blur during toolbar interaction - keeping editor open');
       return;
     }
     
@@ -234,7 +170,6 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
       relatedTarget.closest?.('[data-toolbar="linear"], [data-toolbar="linear-text"]') !== null;
     
     if (isToolbarClick) {
-      console.log('💾 TEXT EDITOR: Blur to toolbar - allowing toolbar interaction');
       // Don't refocus - let the user interact with toolbar inputs
       // The inline editing state is preserved, so clicking back on the text will work
       return;
@@ -242,7 +177,6 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
     
     // Don't save on blur if document listener is active to prevent double saves
     if (!savedRef.current) {
-      console.log('💾 TEXT EDITOR: Blur save (backup)');
       handleSave();
     }
   };

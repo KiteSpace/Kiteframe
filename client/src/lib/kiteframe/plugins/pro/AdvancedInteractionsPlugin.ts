@@ -24,17 +24,14 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
   private currentNodes: Node[] = [];
   private currentCanvasObjects: CanvasObject[] = [];
   private onNodesChange: ((nodes: Node[]) => void) | null = null;
-  private onCanvasObjectsChange: ((canvasObjects: CanvasObject[]) => void) | null = null;
+  private onCanvasObjectsChange: ((canvasObjects: CanvasObject[]) => void) | null | undefined = null;
   private onConnect: ((connection: { source: string; target: string }) => void) | undefined | null = null;
 
   initialize(core: any): void {
-    console.log('🚀 AdvancedInteractions Pro Plugin v2.0: Initializing with prop-based configuration...');
-    
     // Register hooks for enhanced interactions
     const hooks: PluginHooks = {
       onCanvasClick: (event, worldPos) => {
         // Handle canvas interactions for quick-add functionality
-        console.log('🚀 AdvancedInteractions: Canvas clicked', worldPos);
       }
     };
 
@@ -47,11 +44,6 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
     core.on('quickAdd', this.handleQuickAdd);
     core.on('copyNode', this.handleCopyNode);
     core.on('pasteNode', this.handlePasteNode);
-
-    console.log('🚀 AdvancedInteractions Pro Plugin v2.0: Ready!');
-    console.log('   ✨ Prop-based configuration enabled');
-    console.log('   ✨ ProFeaturesManager integration active');
-    console.log('   ✨ Cross-platform copy/paste support (Cmd/Ctrl)');
   }
 
   // Configure the plugin with pro features configuration
@@ -82,13 +74,6 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
       onCanvasObjectsChange
     );
 
-    console.log('🔧 AdvancedInteractions configured with pro features:', {
-      quickAdd: config.quickAdd?.enabled !== false,
-      copyPaste: config.copyPaste?.enabled !== false,
-      advancedSelection: config.advancedSelection?.enabled !== false,
-      nodeCount: nodes.length,
-      canvasObjectCount: canvasObjects.length
-    });
   }
 
   // Update configuration when props change
@@ -121,9 +106,6 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
       const selectedCanvasObjects = this.getSelectedCanvasObjects();
       const handled = this.proFeaturesManager.handleKeyboardShortcut(event, selectedNodes, selectedCanvasObjects);
       
-      if (handled) {
-        console.log('⌨️ Keyboard shortcut handled by pro features (unified copy-paste)');
-      }
     }
   };
 
@@ -142,27 +124,17 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
   // Event handlers for core events
   private handleQuickAdd = (data: { sourceNode: Node; position: 'top' | 'right' | 'bottom' | 'left' }): void => {
     if (!this.proFeaturesManager) return;
-    
-    console.log('⚡ Quick-add triggered:', data.sourceNode.id, data.position);
     this.proFeaturesManager.handleQuickAdd(data.sourceNode, data.position);
   };
 
   private handleCopyNode = (node: Node): void => {
     if (!this.proFeaturesManager) return;
-    
-    console.log('📋 Copy node triggered:', node.id);
     this.proFeaturesManager.copyNode(node);
   };
 
   private handlePasteNode = (): void => {
     if (!this.proFeaturesManager) return;
-    
-    console.log('📋 Paste node triggered');
-    const pastedNode = this.proFeaturesManager.pasteNode();
-    
-    if (pastedNode) {
-      console.log('📋 Node pasted successfully:', pastedNode.id);
-    }
+    this.proFeaturesManager.pasteNode();
   };
 
   // Public API for external access
@@ -204,8 +176,6 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
     this.onNodesChange = null;
     this.onCanvasObjectsChange = null;
     this.onConnect = null;
-    
-    console.log('🚀 AdvancedInteractions Pro Plugin v2.0: Cleaned up');
   }
 }
 

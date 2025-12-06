@@ -63,37 +63,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   const hasSizeMismatch = (object.style?.width && object.style.width !== object.width) || 
                          (object.style?.height && object.style.height !== object.height);
 
-  console.log('📏 SHAPE OBJECT: Size calculations', {
-    objectId: object.id,
-    shapeType: object.data.shapeType,
-    calculatedSize: shapeSize,
-    boundingBoxSize: {
-      width: object.width,
-      height: object.height
-    },
-    styleSize: object.style,
-    sizeMismatch: hasSizeMismatch ? {
-      style: object.style,
-      base: { width: object.width || 200, height: object.height || 100 },
-      difference: {
-        width: (object.style?.width || object.width || 200) - (object.width || 200),
-        height: (object.style?.height || object.height || 100) - (object.height || 100)
-      },
-      needsSync: true
-    } : false,
-    hasText: !!object.data.text,
-    textContent: object.data.text,
-    isSelected: object.selected
-  });
-
   const handleResize = useCallback((width: number, height: number) => {
-    console.log('🔄 SHAPE OBJECT: Resize triggered - syncing dimensions', {
-      objectId: object.id,
-      newSize: { width, height },
-      currentBoundingBox: { width: object.width, height: object.height },
-      currentStyle: object.style
-    });
-    
     // Sync both style and base dimensions to prevent mismatch
     onUpdate?.({
       style: { ...object.style, width, height }
@@ -153,7 +123,6 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
     
     // If clicking on first point and we have at least 3 points, close the shape
     if (pointIndex === 0 && polygonPoints.length >= 3 && isPolygonCreating) {
-      console.log('🖊️ Polygon: Closing shape by clicking first point');
       if (onPolygonClose) {
         onPolygonClose(object.id);
       } else {
@@ -174,7 +143,6 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
     e.preventDefault();
     
     setDraggingVertexIndex(vertexIndex);
-    console.log('🖊️ Polygon: Start dragging vertex', vertexIndex);
     
     const rect = objectRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -195,7 +163,6 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       setDraggingVertexIndex(null);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
-      console.log('🖊️ Polygon: End dragging vertex', vertexIndex);
     };
     
     document.addEventListener('mousemove', handleMouseMove);
@@ -228,7 +195,6 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
     // The new vertex index is segmentIndex + 1
     const newVertexIndex = segmentIndex + 1;
     
-    console.log('🖊️ Polygon: Inserting vertex at segment', segmentIndex, 'midpoint:', midpoint, 'new vertex index:', newVertexIndex);
     onUpdate?.({ points: newPoints });
     setHoveredSegmentIndex(null);
     
@@ -256,7 +222,6 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       setDraggingVertexIndex(null);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
-      console.log('🖊️ Polygon: End dragging new vertex', newVertexIndex);
     };
     
     document.addEventListener('mousemove', handleMouseMove);

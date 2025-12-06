@@ -523,10 +523,6 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   useEffect(() => {
     if (metadata && mode === "collapsed" && !isJustSaved) {
       // Only update formData when form is collapsed (not being actively edited) and not just saved
-      console.log(
-        "🔧 RESETTING formData from metadata (mode: collapsed):",
-        metadata,
-      );
       setFormData(metadata);
     }
     if (isJustSaved) {
@@ -541,7 +537,6 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
       const keyboardEvent = e as KeyboardEvent;
       if (keyboardEvent.key === "F2" && mode === "collapsed") {
         keyboardEvent.preventDefault();
-        console.log("🔧 F2 pressed - entering name edit mode");
         setMode("editing-name");
         cleanupManager.setTimeout(() => inputRef.current?.focus(), 0);
       }
@@ -554,10 +549,8 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
         formRef.current &&
         !formRef.current.contains(mouseEvent.target as HTMLElement)
       ) {
-        console.log("🔧 Click outside detected - auto-saving form data");
         // Use refs to get the latest values instead of stale closure
         const latestFormData = formDataRef.current;
-        console.log("🔧 Latest formData from ref:", latestFormData);
         onMetadataChangeRef.current?.(latestFormData);
         setIsJustSaved(true);
         setMode("collapsed");
@@ -593,12 +586,10 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   };
 
   const handleExpandForm = () => {
-    console.log("🔧 Expanding workflow details form");
     setMode("expanded");
   };
 
   const handleSaveForm = () => {
-    console.log("🔧 Saving workflow form data:", formData);
     onMetadataChange?.(formData); // Save FIRST
     setIsJustSaved(true); // Prevent immediate metadata reset
     setMode("collapsed"); // Change mode AFTER
@@ -858,11 +849,8 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
         <textarea
           value={formData.description}
           onChange={(e) => {
-            console.log("🔧 Description changed to:", e.target.value);
-            console.log("🔧 Current formData before update:", formData);
             setFormData((prev) => {
               const newData = { ...prev, description: e.target.value };
-              console.log("🔧 Updated formData:", newData);
               return newData;
             });
           }}
@@ -1350,7 +1338,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           props.canvasObjects || [],
           props.onCanvasObjectsChange
         );
-        console.log('🔧 AdvancedInteractions plugin configured with canvas objects for unified copy-paste');
       }
     }
   }, [enablePlugins, props.proFeatures, props.nodes, props.edges, props.canvasObjects, props.onNodesChange, props.onEdgesChange, props.onConnect, props.onCanvasObjectsChange, core]);
@@ -1748,7 +1735,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         const firstPt = freshPoints[0];
         const dist = Math.hypot(localX - firstPt.x, localY - firstPt.y);
         if (dist < 20) {
-          console.log('🖊️ Freeform: Closing shape by clicking first point');
           const updatedObjects = (props.canvasObjects || []).map(obj =>
             obj.id === polygonCreatingShape.id
               ? { ...obj, data: { ...obj.data, isClosed: true, isCreating: false } }
@@ -1760,8 +1746,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           return;
         }
       }
-      
-      console.log('🖊️ Freeform: Adding point via canvas click', { localX, localY, worldX, worldY, totalPoints: freshPoints.length + 1 });
       
       // Add the new point with bounds expansion
       const newPoints = [...freshPoints, { x: localX, y: localY }];
@@ -1818,7 +1802,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       
       // Close the shape if we have at least 3 points
       if (freshPoints.length >= 3) {
-        console.log('🖊️ Freeform: Closing shape via double-click', freshPoints.length, 'points');
         const updatedObjects = (props.canvasObjects || []).map(obj =>
           obj.id === polygonCreatingShape.id
             ? { ...obj, data: { ...obj.data, isClosed: true, isCreating: false } }
@@ -2068,15 +2051,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   // Function to start unified selection - can be called from anywhere
   const startUnifiedSelection = (clientX: number, clientY: number) => {
-    console.log("🎯 startUnifiedSelection called:", {
-      clientX,
-      clientY,
-      containerExists: !!containerRef.current,
-      viewport,
-    });
-
     if (!containerRef.current) {
-      console.log("❌ No container ref - aborting selection");
       return;
     }
 
@@ -2084,23 +2059,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     const containerX = clientX - rect.left;
     const containerY = clientY - rect.top;
 
-    console.log("📐 Client to Container conversion:", {
-      clientX,
-      clientY,
-      containerRect: rect,
-      containerX,
-      containerY,
-    });
-
-    console.log("✅ Setting up unified selection");
     unifiedSelectStart.current = { x: containerX, y: containerY };
     setUnifiedSelectionRect({ x: containerX, y: containerY, w: 0, h: 0 });
     selectionInProgress.current = true;
-
-    console.log("🎯 Selection state updated:", {
-      unifiedSelectStart: unifiedSelectStart.current,
-      selectionInProgress: selectionInProgress.current,
-    });
   };
 
   // Background interactions: pan or selection (Shift+drag)
@@ -2181,22 +2142,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 : node.position;
             const newPosition = { x: origin.x + dx, y: origin.y + dy };
 
-            console.log("🔧 INDIVIDUAL DRAG UPDATE:", {
-              nodeId: node.id,
-              targetPosition: { x: origin.x + dx, y: origin.y + dy },
-              finalPosition: newPosition,
-              snapApplied: false, // Simplified for now
-              updated: { ...node, position: newPosition },
-            });
-
             return { ...node, position: newPosition };
           }
           return node;
-        });
-
-        console.log("🔧 GROUP DRAG UPDATE:", {
-          updatedNodes: updatedNodes.filter((n) => n.selected),
-          totalNodes: props.nodes.length,
         });
 
         // Queue batch updates for group drag
@@ -2213,14 +2161,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
         // Still update immediately for responsiveness
         props.onNodesChange(updatedNodes);
-
-        console.log("🔧 DRAG MOVE:", {
-          dragInfo: dragInfo.current,
-          worldPos: wpos,
-          delta: { dx, dy },
-          viewport,
-          isGroupDrag: dragInfo.current.isGroupDrag,
-        });
       } else {
         // Single node drag
         const targetNode = props.nodes.find(
@@ -2237,17 +2177,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               : node,
           );
 
-          console.log("🔧 INDIVIDUAL DRAG UPDATE:", {
-            nodeId: dragInfo.current.id,
-            targetPosition: {
-              x: dragInfo.current.origin.x + dx,
-              y: dragInfo.current.origin.y + dy,
-            },
-            finalPosition: newPosition,
-            snapApplied: false, // Simplified for now
-            updated: { ...targetNode, position: newPosition },
-          });
-
           // Queue single node update through batch manager
           renderBatchManager.queueUpdate({
             id: dragInfo.current!.id,
@@ -2259,14 +2188,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
           // Still update immediately for responsiveness
           props.onNodesChange(updatedNodes);
-
-          console.log("🔧 DRAG MOVE:", {
-            dragInfo: dragInfo.current,
-            worldPos: wpos,
-            delta: { dx, dy },
-            viewport,
-            isGroupDrag: dragInfo.current.isGroupDrag,
-          });
 
           // Notify SmartConnectPlugin during drag
           if (
@@ -2346,14 +2267,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const nx2 = Math.max(startWorld.x, endWorld.x);
       const ny2 = Math.max(startWorld.y, endWorld.y);
 
-      console.log("🎯 UNIFIED SELECTION:", {
-        screenRect: r,
-        worldRect: { x1: nx1, y1: ny1, x2: nx2, y2: ny2 },
-        viewport,
-        shiftHeld: isShiftHeld,
-        additive: isShiftHeld,
-      });
-
       // Select nodes that intersect with selection rectangle
       const updatedNodes = props.nodes.map((n) => {
         // Start with fallback bounds from stored dimensions
@@ -2411,18 +2324,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         }
 
         return { ...obj, selected };
-      });
-
-      console.log("🎯 UNIFIED SELECTION COMPLETE:", {
-        rect: { x1: nx1, y1: ny1, x2: nx2, y2: ny2 },
-        selectedNodeIds: updatedNodes
-          .filter((n) => n.selected)
-          .map((n) => n.id),
-        selectedObjectIds: updatedObjects
-          .filter((obj) => obj.selected)
-          .map((obj) => obj.id),
-        totalNodes: props.nodes.length,
-        totalObjects: (props.canvasObjects || []).length,
       });
 
       // Update both nodes and canvas objects
@@ -2510,16 +2411,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   useEffect(() => {
     const handleCaptureMouseDown = (e: Event) => {
       const mouseEvent = e as MouseEvent;
-      console.log("🔍 CAPTURE PHASE mousedown:", {
-        shiftKey: mouseEvent.shiftKey,
-        ctrlKey: mouseEvent.ctrlKey,
-        target: mouseEvent.target,
-        targetTag: (mouseEvent.target as HTMLElement)?.tagName,
-        targetClass: (mouseEvent.target as HTMLElement)?.className,
-        clientX: mouseEvent.clientX,
-        clientY: mouseEvent.clientY,
-        containerExists: !!containerRef.current,
-      });
 
       if (mouseEvent.shiftKey && containerRef.current) {
         // Check if target is not an input or contentEditable to avoid interfering with text editing
@@ -2529,20 +2420,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           target.tagName === "TEXTAREA" ||
           target.contentEditable === "true";
 
-        console.log("🎯 SHIFT+MOUSEDOWN detected:", {
-          target: target.tagName,
-          className: target.className,
-          isTextEditable,
-          containerRect: containerRef.current.getBoundingClientRect(),
-          willPrevent: !isTextEditable,
-        });
-
         if (isTextEditable) {
-          console.log("🔤 Skipping shift+mousedown - text editing element");
           return;
         }
 
-        console.log("🚀 PREVENTING default and starting unified selection");
         mouseEvent.preventDefault();
         mouseEvent.stopPropagation();
         startUnifiedSelection(mouseEvent.clientX, mouseEvent.clientY);
@@ -2631,14 +2512,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const dx = wp.x - dragInfo.current.start.x;
       const dy = wp.y - dragInfo.current.start.y;
 
-      console.log("🔧 DRAG MOVE:", {
-        dragInfo: dragInfo.current,
-        worldPos: wp,
-        delta: { dx, dy },
-        viewport,
-        isGroupDrag: dragInfo.current.isGroupDrag,
-      });
-
       if (dragInfo.current.isGroupDrag && dragInfo.current.origins) {
         // Group drag: move all selected nodes
         const updatedNodes = props.nodes.map((n) => {
@@ -2674,17 +2547,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           return obj;
         });
 
-        console.log("🔧 GROUP DRAG UPDATE:", {
-          updatedNodes: updatedNodes.filter((n) =>
-            dragInfo.current!.origins!.some((o) => o.id === n.id),
-          ),
-          updatedCanvasObjects: updatedCanvasObjects.filter((obj) =>
-            dragInfo.current!.canvasObjectOrigins?.some((o) => o.id === obj.id),
-          ),
-          totalNodes: updatedNodes.length,
-          totalCanvasObjects: updatedCanvasObjects.length,
-        });
-
         props.onNodesChange(updatedNodes);
         if (
           dragInfo.current.canvasObjectOrigins &&
@@ -2708,8 +2570,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           props.proFeatures &&
           props.proFeatures.smartGuides?.enabled !== false
         ) {
-          console.log("🎯 Smart Guides: Enabled, processing snap...");
-
           const draggedNode = props.nodes.find((n) => n.id === id);
           if (draggedNode) {
             const smartGuidesConfig = props.proFeatures.smartGuides || {};
@@ -2736,28 +2596,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
             finalPosition = snapResult.position;
             setCurrentGuides(snapResult.guides);
-
-            console.log("🎯 Smart Guides Applied:", {
-              targetPosition,
-              finalPosition,
-              guides: snapResult.guides,
-              snapped: snapResult.snapped,
-            });
           }
         }
 
         const updated = props.nodes.map((n) =>
           n.id === id ? { ...n, position: finalPosition } : n,
         );
-        console.log("🔧 INDIVIDUAL DRAG UPDATE:", {
-          nodeId: id,
-          targetPosition,
-          finalPosition,
-          snapApplied:
-            finalPosition.x !== targetPosition.x ||
-            finalPosition.y !== targetPosition.y,
-          updated: updated.find((n) => n.id === id),
-        });
         props.onNodesChange(updated);
 
         // Notify SmartConnectPlugin of drag movement for real-time preview
@@ -2791,11 +2635,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       // Only start actual dragging after movement threshold is exceeded
       if (distance > worldThreshold && !canvasObjectDragInfo.current.hasMoved) {
         canvasObjectDragInfo.current.hasMoved = true;
-        console.log("🔧 CANVAS OBJECT DRAG THRESHOLD EXCEEDED:", {
-          objectId: canvasObjectDragInfo.current.id,
-          distance,
-          worldPos: wp,
-        });
       }
 
       // Only update position if we're actually dragging (not just tracking potential drag)
@@ -2811,13 +2650,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         x: canvasObjectDragInfo.current.origin.x + dx,
         y: canvasObjectDragInfo.current.origin.y + dy,
       };
-
-      console.log("🔧 CANVAS OBJECT DRAG MOVE:", {
-        objectId: canvasObjectDragInfo.current.id,
-        worldPos: wp,
-        delta: { dx, dy },
-        newPosition,
-      });
 
       // Apply smart guides if enabled
       let finalPosition = newPosition;
@@ -2892,11 +2724,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     const onUp = () => {
       // Handle endpoint drag end first (highest priority)
       if (endpointDragInfo.current) {
-        console.log('🎯 Endpoint drag end:', { 
-          objectId: endpointDragInfo.current.objectId, 
-          endpoint: endpointDragInfo.current.endpoint 
-        });
-        
         // TODO: Check for node handle snapping here
         // For now, just clear the drag state
         endpointDragInfo.current = null;
@@ -2905,8 +2732,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
       // Handle canvas object drag end first (priority gate)
       if (canvasObjectDragInfo.current) {
-        console.log("🔧 CANVAS OBJECT DRAG END:", canvasObjectDragInfo.current);
-
         // If no movement occurred, treat as a click and use centralized click handler
         if (!canvasObjectDragInfo.current.hasMoved) {
           const objectId = canvasObjectDragInfo.current.id;
@@ -2915,8 +2740,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           );
 
           if (targetObject) {
-            console.log("✅ Canvas Object Click (no drag):", { objectId });
-
             // Use centralized click handler with original event (preserves modifier keys)
             handleCanvasObjectClick(
               objectId,
@@ -2948,10 +2771,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
             // Only dispatch if there was substantial movement (similar to dragThreshold)
             if (distance > dragThreshold) {
-              console.log(
-                "🔧 CANVAS OBJECT: Setting drag completed flag due to substantial movement:",
-                { distance, threshold: dragThreshold },
-              );
               justCompletedCanvasObjectDrag.current = true;
               cleanupManagerRef.current?.setTimeout(() => {
                 justCompletedCanvasObjectDrag.current = false;
@@ -2961,11 +2780,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 new CustomEvent("canvasObjectDragEnd", {
                   detail: { objectId: canvasObjectDragInfo.current.id },
                 }),
-              );
-            } else {
-              console.log(
-                "🔧 CANVAS OBJECT: Not dispatching drag end event - insufficient movement:",
-                { distance, threshold: dragThreshold },
               );
             }
           }
@@ -2978,8 +2792,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
       // Handle node drag end only if no canvas object drag is active
       if (dragInfo.current) {
-        console.log("🔧 DRAG END:", dragInfo.current);
-
         // Handle smart connect auto-connection on drag end
         if (
           !dragInfo.current.isGroupDrag &&
@@ -2989,10 +2801,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             (n) => n.id === dragInfo.current?.id,
           );
           if (draggedNode && enablePlugins) {
-            console.log(
-              "🔗 Smart Connect: Checking auto-connection for",
-              dragInfo.current.id,
-            );
             const smartConnectPlugin = core.getPlugin("smart-connect-pro");
             if (smartConnectPlugin) {
               // Call the plugin's handleDragEnd method to execute auto-connection
@@ -3019,19 +2827,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
           // Only set the flag if there was substantial movement (similar to dragThreshold)
           if (distance > dragThreshold) {
-            console.log(
-              "🔧 NODE: Setting drag completed flag due to substantial movement:",
-              { distance, threshold: dragThreshold },
-            );
             justCompletedNodeDrag.current = true;
             cleanupManagerRef.current?.setTimeout(() => {
               justCompletedNodeDrag.current = false;
             }, 100);
-          } else {
-            console.log(
-              "🔧 NODE: Not setting drag flag - insufficient movement:",
-              { distance, threshold: dragThreshold },
-            );
           }
         }
 
@@ -3120,15 +2919,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               blocked: false,
             });
 
-            console.log("🗑️ DELETED SELECTED ITEMS:", {
-              deletedNodes: selectedNodes.length,
-              deletedNodeIds: selectedNodes.map((node) => node.id),
-              deletedObjects: selectedObjects.length,
-              deletedObjectIds: selectedObjects.map((obj) => obj.id),
-              remainingNodes: props.nodes.length - selectedNodes.length,
-              remainingObjects:
-                (props.canvasObjects || []).length - selectedObjects.length,
-            });
           }
         } catch (error) {
           console.error("Failed to delete items:", error);
@@ -3164,9 +2954,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       justCompletedNodeDrag.current ||
       justCompletedCanvasObjectDrag.current
     ) {
-      console.log(
-        "🚫 Click suppressed - selection/drag in progress or just completed",
-      );
       return;
     }
 
@@ -3183,10 +2970,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
         // If we moved more than threshold, this is the end of a drag, not a click
         if (distance > dragThreshold) {
-          console.log("🚫 Click suppressed - too close to drag operation", {
-            distance,
-            threshold: dragThreshold,
-          });
           canvasObjectDragInfo.current = null;
           return;
         }
@@ -3207,17 +2990,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           ? { ...canvasObject, selected: !canvasObject.selected }
           : canvasObject,
       );
-      console.log("✅ Canvas Object Shift+Click toggle:", {
-        objectId,
-        newSelected: !targetObject.selected,
-      });
     } else {
       // Regular click: Select only this object, deselect other canvas objects but preserve node selections
       updatedObjects = (props.canvasObjects || []).map((canvasObject) => ({
         ...canvasObject,
         selected: canvasObject.id === objectId,
       }));
-      console.log("✅ Canvas Object Regular click select:", { objectId });
     }
 
     props.onCanvasObjectsChange?.(updatedObjects);
@@ -3239,10 +3017,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
         // Only dispatch if there was substantial movement (similar to dragThreshold)
         if (distance > dragThreshold) {
-          console.log(
-            "🔧 CANVAS OBJECT CLICK: Setting drag completed flag due to substantial movement:",
-            { distance, threshold: dragThreshold },
-          );
           justCompletedCanvasObjectDrag.current = true;
           cleanupManagerRef.current?.setTimeout(() => {
             justCompletedCanvasObjectDrag.current = false;
@@ -3252,11 +3026,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             new CustomEvent("canvasObjectDragEnd", {
               detail: { objectId: canvasObjectDragInfo.current.id },
             }),
-          );
-        } else {
-          console.log(
-            "🔧 CANVAS OBJECT CLICK: Not dispatching drag end event - insufficient movement:",
-            { distance, threshold: dragThreshold },
           );
         }
       }
@@ -3794,21 +3563,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         canvasObjectOrigins: canvasObjectOrigins,
                         isGroupDrag: isGroupDrag,
                       };
-
-                      console.log("🔧 DRAG START:", {
-                        nodeId: n.id,
-                        worldPos: wp,
-                        nodePosition: n.position,
-                        selectedNodes: selectedNodes.map((sn) => sn.id),
-                        isGroupDrag,
-                        dragInfo: dragInfo.current,
-                      });
                     }}
                     onClick={(e: React.MouseEvent) => {
-                      console.log(`🎯 IMAGE NODE CLICK:`, {
-                        nodeId: n.id,
-                        wasSelected: n.selected,
-                      });
                       props.onNodeClick?.(e, n);
                     }}
                     onHandleConnect={(position, e) => {
@@ -3919,21 +3675,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         canvasObjectOrigins: canvasObjectOrigins,
                         isGroupDrag: isGroupDrag,
                       };
-
-                      console.log("🔧 TABLE DRAG START:", {
-                        nodeId: draggedNode.id,
-                        worldPos: wp,
-                        nodePosition: draggedNode.position,
-                        selectedNodes: selectedNodes.map((sn) => sn.id),
-                        isGroupDrag,
-                        dragInfo: dragInfo.current,
-                      });
                     }}
                     onClick={(e: React.MouseEvent, clickedNode: Node) => {
-                      console.log(`🎯 TABLE NODE CLICK:`, {
-                        nodeId: clickedNode.id,
-                        wasSelected: clickedNode.selected,
-                      });
                       props.onNodeClick?.(e, clickedNode);
                     }}
                     onHandleConnect={(position, e) => {
@@ -4192,10 +3935,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 const PluginRenderer = hooks.nodeRenderers?.[n.type];
 
                 if (PluginRenderer) {
-                  console.log(
-                    `🔌 Using plugin renderer for node type: ${n.type}`,
-                    { nodeId: n.id },
-                  );
                   return (
                     <PluginRenderer
                       key={n.id}
@@ -4208,11 +3947,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       }}
                       onConnect={(sourceId: string, targetId: string) => {
                         // Handle connection logic
-                        console.log(
-                          "Plugin node connection:",
-                          sourceId,
-                          targetId,
-                        );
                       }}
                       onDoubleClick={(e: React.MouseEvent) =>
                         props.onNodeDoubleClick?.(e, n)
@@ -4306,7 +4040,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     e.stopPropagation();
                     // Don't start drag when inline editing is active on this node
                     if (props.inlineEditing?.nodeId === n.id) {
-                      console.log('🚫 DRAG SUPPRESSED - inline editing active:', { nodeId: n.id });
                       return;
                     }
                     if (!containerRef.current) return;
@@ -4355,15 +4088,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       isGroupDrag: isGroupDrag,
                     };
 
-                    console.log("🔧 DRAG START:", {
-                      nodeId: n.id,
-                      worldPos: wp,
-                      nodePosition: n.position,
-                      selectedNodes: selectedNodes.map((sn) => sn.id),
-                      isGroupDrag,
-                      dragInfo: dragInfo.current,
-                    });
-
                     // Notify SmartConnectPlugin of drag start (for both single and group drags)
                     if (
                       enablePlugins &&
@@ -4384,11 +4108,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log(`🎯 NODE CLICK:`, {
-                      nodeId: n.id,
-                      wasSelected: n.selected,
-                      shiftKey: e.shiftKey,
-                    });
 
                     // Suppress clicks during or immediately after unified selection or node drag
                     if (
@@ -4396,9 +4115,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       justCompletedUnifiedSelection.current ||
                       justCompletedNodeDrag.current
                     ) {
-                      console.log(
-                        "🚫 Click suppressed - selection/drag in progress or just completed",
-                      );
                       return;
                     }
 
@@ -4410,10 +4126,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                           : node,
                       );
                       props.onNodesChange(updatedNodes);
-                      console.log("✅ Node Shift+Click toggle:", {
-                        nodeId: n.id,
-                        newSelected: !n.selected,
-                      });
                     } else {
                       // Regular click: Select only this node, deselect other nodes but preserve canvas object selections
                       const updatedNodes = props.nodes.map((node) => ({
@@ -4421,9 +4133,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         selected: node.id === n.id,
                       }));
                       props.onNodesChange(updatedNodes);
-                      console.log("✅ Node Regular click select:", {
-                        nodeId: n.id,
-                      });
                     }
 
                     props.onNodeClick?.(e, n);
@@ -4445,7 +4154,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       onDoubleClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
-                        console.log('🖱️ HEADER DOUBLE-CLICK:', { nodeId: n.id, part: 'header' });
                         props.onNodeDoubleClick?.(e, n, 'header');
                       }}
                     >
@@ -4519,7 +4227,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         if (n.type !== "image") {
                           e.stopPropagation();
                           e.preventDefault();
-                          console.log('🖱️ BODY DOUBLE-CLICK:', { nodeId: n.id, part: 'body' });
                           props.onNodeDoubleClick?.(e, n, 'body');
                         }
                       }}
@@ -4910,12 +4617,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     hasMoved: false,
                     originalEvent: e,
                   };
-
-                  console.log("🔧 CANVAS OBJECT DRAG START:", {
-                    objectId,
-                    worldPos: wp,
-                    objectPosition: targetObject.position,
-                  });
                 }
               };
 
@@ -5239,7 +4940,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         start: { x: e.clientX, y: e.clientY },
                         origin: endpointPos,
                       };
-                      console.log('🎯 Endpoint drag start:', { objectId: obj.id, endpoint, endpointPos });
                       e.stopPropagation();
                     }}
                     canvasRef={containerRef}

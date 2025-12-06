@@ -22,7 +22,6 @@ export class VersionControlPlugin implements KiteFramePlugin {
 
   initialize(core: any): void {
     this.core = core;
-    console.log('📚 Version Control Pro Plugin: Initializing...');
     
     // Store reference for global access
     (window as any).kiteframeVersionControlPlugin = this;
@@ -35,12 +34,6 @@ export class VersionControlPlugin implements KiteFramePlugin {
     
     // Add version control UI elements
     this.setupVersionControlUI();
-    
-    console.log('   ✅ Snapshot system enabled');
-    console.log('   ✅ Version comparison tools active'); 
-    console.log('   ✅ Auto-save every 2 minutes');
-    console.log('   ✅ Advanced rollback functionality');
-    console.log('📚 Version Control Pro Plugin: Ready!');
   }
 
   private setupExtensionPoints(): void {
@@ -97,11 +90,8 @@ export class VersionControlPlugin implements KiteFramePlugin {
         body: JSON.stringify(snapshotData)
       });
 
-      if (response.ok) {
-        console.log('🔄 Auto-snapshot created successfully');
-      }
     } catch (error) {
-      console.error('❌ Auto-snapshot failed:', error);
+      console.error('Auto-snapshot failed:', error);
     }
   }
 
@@ -132,13 +122,12 @@ export class VersionControlPlugin implements KiteFramePlugin {
       });
 
       if (response.ok) {
-        console.log(`📸 Snapshot "${name}" created successfully`);
         return true;
       }
       
       return false;
     } catch (error) {
-      console.error('❌ Snapshot creation failed:', error);
+      console.error('Snapshot creation failed:', error);
       return false;
     }
   }
@@ -151,7 +140,7 @@ export class VersionControlPlugin implements KiteFramePlugin {
       }
       return [];
     } catch (error) {
-      console.error('❌ Failed to fetch snapshots:', error);
+      console.error('Failed to fetch snapshots:', error);
       return [];
     }
   }
@@ -180,10 +169,9 @@ export class VersionControlPlugin implements KiteFramePlugin {
             const event = new CustomEvent('workflow:restored', { detail: snapshot });
             window.dispatchEvent(event);
             
-            console.log(`🔄 Restored to snapshot: ${snapshot.name}`);
             return true;
           } catch (parseError) {
-            console.error('❌ Failed to parse snapshot data:', parseError);
+            console.error('Failed to parse snapshot data:', parseError);
             return false;
           }
         }
@@ -191,7 +179,7 @@ export class VersionControlPlugin implements KiteFramePlugin {
       
       return false;
     } catch (error) {
-      console.error('❌ Snapshot restore failed:', error);
+      console.error('Snapshot restore failed:', error);
       return false;
     }
   }
@@ -307,7 +295,6 @@ export class VersionControlPlugin implements KiteFramePlugin {
     if (this.autoSaveInterval) {
       clearInterval(this.autoSaveInterval);
     }
-    console.log('📚 Version Control Pro Plugin: Cleaned up');
   }
 }
 

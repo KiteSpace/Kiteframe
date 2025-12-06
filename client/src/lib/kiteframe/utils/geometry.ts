@@ -53,14 +53,6 @@ export function getInnerTextRect(
   // Account for stroke and padding
   const effectiveStroke = strokeWidth / 2;
   const totalPadding = padding + effectiveStroke;
-  
-  console.log('📐 GEOMETRY: Padding calculation', {
-    shapeType,
-    strokeWidth,
-    effectiveStroke,
-    padding,
-    totalPadding
-  });
 
   switch (shapeType) {
     case 'rectangle': {
@@ -75,16 +67,6 @@ export function getInnerTextRect(
         height: innerHeight
       };
       
-      console.log('📦 GEOMETRY: Rectangle calculation', {
-        input: { width, height },
-        totalPadding,
-        result,
-        reductionPercent: {
-          width: Math.round(((width - innerWidth) / width) * 100),
-          height: Math.round(((height - innerHeight) / height) * 100)
-        }
-      });
-      
       return result;
     }
 
@@ -95,18 +77,7 @@ export function getInnerTextRect(
       // Use 80% of inscribed square for good text space without bleeding
       const innerSquareSide = Math.max(0, radius * Math.sqrt(2) * 0.8 - padding);
       
-      console.log('⭕ GEOMETRY: Circle calculation steps', {
-        input: { width, height },
-        diameter,
-        radius,
-        innerSquareSideBeforeCheck: innerSquareSide,
-        totalPadding,
-        approach: '80% of inscribed square for balance',
-        version: 'FIXED_v2.0'
-      });
-      
       if (innerSquareSide <= 20) { // Minimum usable text area
-        console.log('🚫 GEOMETRY: Circle inner square too small', { innerSquareSide });
         return null;
       }
       
@@ -122,16 +93,6 @@ export function getInnerTextRect(
         // Proper clip-path that matches text area
         clipPath: `circle(${radius}px at ${centerX}px ${centerY}px)`
       };
-      
-      console.log('⭕ GEOMETRY: Circle result', {
-        result,
-        center: { centerX, centerY },
-        reductionPercent: {
-          width: Math.round(((width - innerSquareSide) / width) * 100),
-          height: Math.round(((height - innerSquareSide) / height) * 100)
-        },
-        improvement: 'Balanced approach with proper clip-path'
-      });
       
       return result;
     }

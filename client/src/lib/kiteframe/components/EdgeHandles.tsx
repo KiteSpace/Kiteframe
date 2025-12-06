@@ -143,12 +143,6 @@ export function EdgeHandles({
       originalSource: edge.source,
       originalTarget: edge.target
     });
-
-    console.log('🔗 [EdgeHandles] Started dragging', {
-      edgeId: edge.id,
-      handle: isSource ? 'source' : 'target',
-      startPosition: { x, y }
-    });
   };
 
   // Handle mouse move during drag
@@ -215,17 +209,8 @@ export function EdgeHandles({
       ) || false;
       
       if (!edgeExists) {
-        console.log('🔗 [EdgeHandles] Reconnecting edge:', {
-          edgeId: edge.id,
-          from: { source: edge.source, target: edge.target },
-          to: { source: newSource, target: newTarget }
-        });
         onEdgeReconnect?.(edge.id, newSource, newTarget);
-      } else {
-        console.log('🔗 [EdgeHandles] Reconnection cancelled - duplicate edge would be created');
       }
-    } else {
-      console.log('🔗 [EdgeHandles] Reconnection cancelled - invalid target');
     }
 
     // Clean up drag state

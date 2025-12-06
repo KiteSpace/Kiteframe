@@ -790,7 +790,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  console.log('Stroke style clicked:', style.id);
                   onEdgeStyleChange?.({ strokeStyle: style.id as 'solid' | 'dashed' | 'dotted' });
                 }}
                 title={style.label}
@@ -971,7 +970,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    console.log('Start endpoint clicked:', opt.id);
                     onEdgeStyleChange?.({ markerStart: createMarker(opt.id) });
                   }}
                   title={opt.label}
@@ -999,7 +997,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    console.log('End endpoint clicked:', opt.id);
                     onEdgeStyleChange?.({ markerEnd: createMarker(opt.id) });
                   }}
                   title={opt.label}
@@ -1173,8 +1170,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     const handleAddLink = async () => {
       const finalText = linkText.trim();
       const finalUrl = linkUrl.trim();
-      
-      console.log('🔗 Link submenu handleAddLink:', { linkText: finalText, linkUrl: finalUrl, isEditing, editingLink, showPreview });
       
       if (finalText && finalUrl) {
         let url = finalUrl;
@@ -2092,13 +2087,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                 // Preserve the existing emoji when toggling visibility
                 // If enabling and no emoji exists, use a default star emoji
                 const emojiToUse = node?.data?.nodeIcon || (newVisible ? '⭐' : undefined);
-                console.log('🔘 Icon visibility toggle:', {
-                  oldVisible: iconVisible,
-                  newVisible,
-                  existingIcon: node?.data?.nodeIcon,
-                  emojiToUse,
-                  nodeId: node?.id
-                });
                 onIconSelect?.({ emoji: emojiToUse, visible: newVisible });
               }}
               data-testid="toolbar-icon-visibility"

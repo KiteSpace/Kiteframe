@@ -111,7 +111,6 @@ export class KiteFrameCore {
     // Initialize plugin
     try {
       plugin.initialize(this);
-      console.log(`Plugin "${plugin.name}" v${plugin.version} initialized successfully`);
     } catch (error) {
       console.error(`Failed to initialize plugin "${plugin.name}":`, error);
       this.plugins.delete(plugin.name);
@@ -132,7 +131,6 @@ export class KiteFrameCore {
         // Remove hooks registered by this plugin
         this.removePluginHooks(pluginName);
         this.plugins.delete(pluginName);
-        console.log(`Plugin "${pluginName}" uninstalled successfully`);
       } catch (error) {
         console.error(`Failed to cleanup plugin "${pluginName}":`, error);
       }

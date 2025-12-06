@@ -30,8 +30,6 @@ export class SmartConnectPlugin implements KiteFramePlugin {
   private previousNodePositions: Map<string, { x: number; y: number }> = new Map();
 
   initialize(core: any): void {
-    console.log('🔗 SmartConnect Pro Plugin v1.0: Initializing...');
-    
     // Register hooks for connection operations
     const hooks: PluginHooks = {
       onConnectionAttempt: (source: string, target: string) => {
@@ -51,11 +49,6 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     core.on('smartConnect:setConfig', this.updateConfig.bind(this));
     core.on('smartConnect:getPreview', () => this.previewConnection);
     core.on('smartConnect:forceCheck', this.checkAutoConnections.bind(this));
-
-    console.log('🔗 SmartConnect Pro Plugin v1.0: Ready!');
-    console.log('   ✨ Proximity-based auto-connection active');
-    console.log('   ✨ Ghost edge preview enabled');
-    console.log('   ✨ Connection validation integrated');
   }
 
   // Configure the plugin with smart connect settings
@@ -101,7 +94,6 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     if (this.config.autoConnect && !this.isDragging) {
       const hasPositionChanges = this.hasNodePositionChanges(nodes);
       if (hasPositionChanges) {
-        console.log('🔗 SmartConnect: Node positions changed, checking auto-connections');
         this.checkAutoConnections();
       }
     }
@@ -128,10 +120,7 @@ export class SmartConnectPlugin implements KiteFramePlugin {
         dx: worldPos.x - draggedNode.position.x,
         dy: worldPos.y - draggedNode.position.y
       };
-      console.log(`🔗 SmartConnect: Drag offset calculated: dx=${this.dragOffset.dx.toFixed(1)}, dy=${this.dragOffset.dy.toFixed(1)}`);
     }
-    
-    console.log('🔗 SmartConnect: Drag started for node', nodeId);
   }
 
   private handleDrag(nodeId: string, worldPos: { x: number; y: number }): void {
@@ -167,8 +156,6 @@ export class SmartConnectPlugin implements KiteFramePlugin {
         Math.pow(worldPos.y - this.dragStartPos.y, 2)
       );
       wasActualDrag = dragDistance >= this.DRAG_THRESHOLD;
-      
-      console.log(`🔗 SmartConnect: Drag distance: ${dragDistance.toFixed(1)}px, threshold: ${this.DRAG_THRESHOLD}px, wasActualDrag: ${wasActualDrag}`);
     }
     
     // Clear preview first
@@ -185,13 +172,8 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     
     // Only perform auto-connection check if this was an actual drag, not just a click
     if (this.config.autoConnect && wasActualDrag) {
-      console.log('🔗 SmartConnect: Checking auto-connections after actual drag');
       this.checkAutoConnections();
-    } else if (this.config.autoConnect) {
-      console.log('🔗 SmartConnect: Skipping auto-connections - was just a click, not a drag');
     }
-    
-    console.log('🔗 SmartConnect: Drag ended for node', nodeId);
   }
   
   private hasNodePositionChanges(nodes: Node[]): boolean {
@@ -234,31 +216,31 @@ export class SmartConnectPlugin implements KiteFramePlugin {
     }
     
     const threshold = this.config.threshold || 25;
-    let closestConnection: { target: string; distance: number } | null = null;
+    let closestTarget: string | null = null;
+    let closestDistance = Infinity;
     
     // Create a temporary node with updated position for accurate calculation
     const updatedDraggedNode = { ...draggedNode, position: correctedPosition };
     
     // Check proximity to other nodes (optimized to skip already connected nodes)
-    this.currentNodes.forEach(targetNode => {
-      if (targetNode.id === nodeId) return; // Skip self
+    for (const targetNode of this.currentNodes) {
+      if (targetNode.id === nodeId) continue; // Skip self
       
       // Performance optimization: Skip nodes already connected to dragged node
-      if (this.connectionExists(nodeId, targetNode.id)) return;
+      if (this.connectionExists(nodeId, targetNode.id)) continue;
       
       // Calculate distance from nearest edges instead of centers
       const distance = this.calculateNearestEdgeDistance(correctedPosition, updatedDraggedNode, targetNode);
       
-      if (distance <= threshold) {
-        if (!closestConnection || distance < closestConnection.distance) {
-          closestConnection = { target: targetNode.id, distance };
-        }
+      if (distance <= threshold && distance < closestDistance) {
+        closestTarget = targetNode.id;
+        closestDistance = distance;
       }
-    });
+    }
     
     // Update preview
-    if (closestConnection) {
-      const newPreview = { source: nodeId, target: closestConnection.target };
+    if (closestTarget !== null) {
+      const newPreview = { source: nodeId, target: closestTarget };
       if (!this.previewConnection || 
           this.previewConnection.source !== newPreview.source || 
           this.previewConnection.target !== newPreview.target) {
@@ -301,7 +283,6 @@ export class SmartConnectPlugin implements KiteFramePlugin {
   private executeAutoConnection(connection: { source: string; target: string }): void {
     if (this.onConnect && this.validateConnection(connection.source, connection.target)) {
       this.onConnect(connection);
-      console.log('🔗 SmartConnect: Auto-connected', connection.source, '→', connection.target);
     }
   }
 
@@ -366,21 +347,14 @@ export class SmartConnectPlugin implements KiteFramePlugin {
   }
 
   private updatePreview(preview: { source: string; target: string }): void {
-    console.log(`🔗 SmartConnect: updatePreview called with:`, preview);
-    console.log(`🔗 SmartConnect: showPreview=${this.config.showPreview}, hasCallback=${!!this.connectionPreviewCallback}`);
     if (this.config.showPreview && this.connectionPreviewCallback) {
-      console.log(`🔗 SmartConnect: Calling preview callback with preview:`, preview);
       this.connectionPreviewCallback(preview);
-    } else {
-      console.log(`🔗 SmartConnect: Preview callback NOT called - showPreview:${this.config.showPreview}, callback:${!!this.connectionPreviewCallback}`);
     }
   }
 
   private clearPreview(): void {
-    console.log(`🔗 SmartConnect: clearPreview called`);
     this.previewConnection = null;
     if (this.connectionPreviewCallback) {
-      console.log(`🔗 SmartConnect: Calling preview callback with null`);
       this.connectionPreviewCallback(null);
     }
   }

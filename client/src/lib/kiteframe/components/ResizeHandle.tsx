@@ -79,8 +79,6 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
     
     if (!nodeRef.current) return;
     
-    console.log('🔧 RESIZE HANDLE MOUSE DOWN:', { position });
-    
     // Get current dimensions from computed style for more accurate measurements
     const computedStyle = window.getComputedStyle(nodeRef.current);
     const currentWidth = parseFloat(computedStyle.width) || nodeRef.current.offsetWidth;
@@ -88,10 +86,6 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
     
     startDimensionsRef.current = { width: currentWidth, height: currentHeight };
     
-    console.log('🔧 RESIZE START:', {
-      dimensions: startDimensionsRef.current,
-      mousePos: { x: e.clientX, y: e.clientY }
-    });
     startPositionRef.current = { x: e.clientX, y: e.clientY };
     setIsResizing(true);
     isResizingRef.current = true;
@@ -107,16 +101,6 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
       const zoom = viewport?.zoom || 1;
       const deltaX = rawDeltaX / zoom;
       const deltaY = rawDeltaY / zoom;
-      
-      console.log('🔧 RESIZE COORDINATE DEBUG:', {
-        position,
-        screenMouse: { x: e.clientX, y: e.clientY },
-        startMouse: startPositionRef.current,
-        rawDeltas: { x: rawDeltaX, y: rawDeltaY },
-        zoom,
-        correctedDeltas: { x: deltaX, y: deltaY },
-        startDimensions: startDimensionsRef.current
-      });
 
       let newWidth = startDimensionsRef.current.width;
       let newHeight = startDimensionsRef.current.height;
@@ -146,7 +130,6 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
     };
 
     const handleMouseUp = () => {
-      console.log('🔧 RESIZE HANDLE MOUSE UP');
       setIsResizing(false);
       isResizingRef.current = false;
       // Clean up using stored cleanup function

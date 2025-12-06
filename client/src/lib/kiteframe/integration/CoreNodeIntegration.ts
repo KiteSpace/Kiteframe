@@ -12,13 +12,6 @@ export const coreNodeIntegrationPlugin: KiteFramePlugin = {
   dependencies: [],
 
   initialize: (core) => {
-    console.log('🚀 Core Node Integration: Starting initialization...');
-    
-    // Log the components being registered
-    console.log('📦 Core Node Integration: Preparing to register node renderers:');
-    console.log('  - BasicNode:', typeof BasicNode === 'function' ? '✓ Component found' : '✗ Component missing');
-    console.log('  - ImageNode: Handled by main canvas for advanced features');
-    
     // Register BasicNode as custom node renderer for 'basic' type only
     // Other node types use the canvas fallback renderer which properly manages handles/toolbar
     // Note: ImageNode moved to main canvas rendering for advanced features
@@ -27,7 +20,6 @@ export const coreNodeIntegrationPlugin: KiteFramePlugin = {
       // 'image': ImageNode - Moved to main canvas rendering for selection, handles, and advanced imageSize modes
     };
     
-    console.log('📝 Core Node Integration: Registering hooks with core system...');
     core.registerPluginHooks('core-node-integration', {
       nodeRenderers
     });
@@ -36,20 +28,11 @@ export const coreNodeIntegrationPlugin: KiteFramePlugin = {
     const hooks = core.getHooks();
     const registeredRenderers = hooks.nodeRenderers || {};
     
-    console.log('🔍 Core Node Integration: Verifying registration...');
-    console.log('  Total registered node renderers:', Object.keys(registeredRenderers).length);
-    console.log('  Registered types:', Object.keys(registeredRenderers).join(', ') || 'none');
-    
     // Verify our specific renderers
     const basicRegistered = registeredRenderers['basic'] === BasicNode;
     
-    if (basicRegistered) {
-      console.log('✅ Core Node Integration: SUCCESS - Node renderers registered correctly');
-      console.log('  ✓ basic -> BasicNode');
-      console.log('  ✓ image -> Main Canvas (advanced features)');
-    } else {
-      console.error('❌ Core Node Integration: FAILED - BasicNode renderer not registered properly');
-      console.error('  basic registered:', basicRegistered ? '✓' : '✗');
+    if (!basicRegistered) {
+      console.error('Core Node Integration: FAILED - BasicNode renderer not registered properly');
       throw new Error('Core Node Integration failed to register BasicNode renderer');
     }
     
@@ -63,9 +46,5 @@ export const coreNodeIntegrationPlugin: KiteFramePlugin = {
 
   cleanup: () => {
     // Cleanup is handled by the core system when unregistering hooks
-    console.log('🧹 Core Node Integration: Starting cleanup...');
-    console.log('  - Removing BasicNode renderer');
-    console.log('  - Removing ImageNode renderer');
-    console.log('✅ Core Node Integration: Cleanup completed');
   }
 };

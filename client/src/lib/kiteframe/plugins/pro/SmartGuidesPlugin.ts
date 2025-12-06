@@ -22,8 +22,6 @@ export class SmartGuidesPlugin implements KiteFramePlugin {
   private readonly UPDATE_THROTTLE = 16; // ~60fps
 
   initialize(core: any): void {
-    console.log('🎯 SmartGuides Pro Plugin v1.0: Initializing...');
-    
     // Register hooks for node operations
     const hooks: PluginHooks = {
       afterNodesChange: (nodes: Node[]) => {
@@ -41,11 +39,6 @@ export class SmartGuidesPlugin implements KiteFramePlugin {
     core.on('smartGuides:setConfig', this.updateConfig.bind(this));
     core.on('smartGuides:getGuides', () => this.currentGuides);
     core.on('smartGuides:forceUpdate', this.forceUpdate.bind(this));
-
-    console.log('🎯 SmartGuides Pro Plugin v1.0: Ready!');
-    console.log('   ✨ Snap-to-node alignment active');
-    console.log('   ✨ Grid snapping support enabled');
-    console.log('   ✨ Visual guide rendering integrated');
   }
 
   // Configure the plugin with smart guides settings
@@ -62,14 +55,6 @@ export class SmartGuidesPlugin implements KiteFramePlugin {
     
     // Rebuild spatial index for performance
     this.rebuildSpatialIndex();
-    
-    console.log('🔧 SmartGuides configured:', {
-      enabled: this.config.enabled !== false,
-      snapToNodes: this.config.snapToNodes !== false,
-      snapToGrid: this.config.snapToGrid === true,
-      showGuides: this.config.showGuides !== false,
-      threshold: this.config.threshold || 10
-    });
   }
 
   // Update configuration when props change
@@ -103,7 +88,6 @@ export class SmartGuidesPlugin implements KiteFramePlugin {
     
     this.isDragging = true;
     this.draggedNodeId = nodeId;
-    console.log('🎯 SmartGuides: Drag started for node', nodeId);
   }
 
   private handleDrag(nodeId: string, worldPos: { x: number; y: number }): void {
@@ -143,8 +127,6 @@ export class SmartGuidesPlugin implements KiteFramePlugin {
       cancelAnimationFrame(this.frameRequest);
       this.frameRequest = null;
     }
-    
-    console.log('🎯 SmartGuides: Drag ended for node', nodeId);
   }
 
   private performSnapCalculation(nodeId: string, targetPosition: { x: number; y: number }): void {

@@ -270,13 +270,6 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
     
     const borderColor = getBorderColorFromHeader(headerBg);
     
-    console.log('🔵 BasicNode colors calculation:', {
-      nodeId: node.id,
-      headerBg,
-      borderColor,
-      nodeColors
-    });
-    
     return {
       headerBg,
       bodyBg: validateColor(nodeColors.bodyBackground || "")
@@ -359,15 +352,6 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
 
   // Check if border should be hidden
   const hasNoBorder = node.data.noStroke === true;
-
-  // Log node data for debugging
-  console.log('🎨 BasicNode render:', {
-    nodeId: node.id,
-    iconVisible: node.data.iconVisible,
-    nodeIcon: node.data.nodeIcon,
-    hasNoBorder,
-    borderColor: colors.borderColor
-  });
 
   // Use real CSS border like StickyNoteObject does (not box-shadow)
   // This ensures border is always visible regardless of child backgrounds
@@ -470,16 +454,7 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
       >
         <div className="flex gap-3">
           {/* Icon/Emoji container - only shown if iconVisible is true and nodeIcon exists */}
-          {(() => {
-            const shouldShowIcon = node.data.iconVisible !== false && node.data.nodeIcon;
-            console.log('🎭 Icon render check:', {
-              nodeId: node.id,
-              iconVisible: node.data.iconVisible,
-              nodeIcon: node.data.nodeIcon,
-              shouldShowIcon
-            });
-            return shouldShowIcon;
-          })() && (
+          {(node.data.iconVisible !== false && node.data.nodeIcon) && (
             <div 
               className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
               style={{ 
@@ -514,34 +489,6 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
               />
             ) : node.data.description ? (
               <>
-                {(() => {
-                  console.log('📝 BASICNODE TEXT RENDER:', {
-                    nodeId: node.id,
-                    description: node.data.description,
-                    textStyles: {
-                      fontSize: node.data.fontSize,
-                      bold: node.data.bold,
-                      italic: node.data.italic,
-                      strikethrough: node.data.strikethrough,
-                      underline: node.data.underline,
-                      textAlign: node.data.textAlign,
-                    },
-                    appliedClasses: cn(
-                      "leading-relaxed",
-                      !node.data.fontSize && "text-xs",
-                      node.data.bold && "font-bold",
-                      node.data.italic && "italic",
-                      node.data.strikethrough && "line-through",
-                      node.data.underline && "underline",
-                    ),
-                    appliedStyles: {
-                      fontSize: node.data.fontSize ? `${node.data.fontSize}px` : undefined,
-                      textAlign: node.data.textAlign || 'left',
-                      color: colors.bodyTextColor,
-                    }
-                  });
-                  return null;
-                })()}
                 <p 
                   className={cn(
                     "leading-relaxed",
@@ -571,16 +518,6 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
             )}
             
             {/* Hyperlink Button - displayed below body text */}
-            {(() => {
-              console.log('🔗 HYPERLINK RENDER CHECK:', {
-                nodeId: node.id,
-                hyperlink: node.data.hyperlink,
-                hasText: !!node.data.hyperlink?.text,
-                hasUrl: !!node.data.hyperlink?.url,
-                shouldRender: !!(node.data.hyperlink?.text && node.data.hyperlink?.url)
-              });
-              return null;
-            })()}
             {node.data.hyperlink?.text && node.data.hyperlink?.url && (
               <HyperlinkButton 
                 hyperlink={node.data.hyperlink}
@@ -633,8 +570,7 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
           scale={1} // Default scale, should be passed from canvas
           onHandleConnect={useCallback(
             (pos: "top" | "bottom" | "left" | "right", e: React.MouseEvent) => {
-              // Handle connection logic
-              console.log("Handle connect:", pos, e);
+              // Handle connection logic - available for extension
             },
             [],
           )}

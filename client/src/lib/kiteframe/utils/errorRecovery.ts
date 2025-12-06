@@ -146,7 +146,6 @@ export class ErrorRecoveryManager {
       }
       
       keysToRemove.forEach(key => localStorage.removeItem(key));
-      console.log(`Cleaned up ${keysToRemove.length} old auto-save entries`);
       
     } catch (error) {
       console.error('Failed to cleanup old auto-saves:', error);

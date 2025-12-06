@@ -244,7 +244,6 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
         iconColor: 'text-gray-500'
       },
       onQuickAdd: (sourceNode, position, newNode) => {
-        console.log('📊 Quick-add node created:', { source: sourceNode.id, position, new: newNode.id });
         toast({
           title: "Node Added",
           description: `Added ${newNode.data?.label} to the ${position} of ${sourceNode.data?.label}`,
@@ -255,14 +254,12 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       enabled: true,
       offsetDistance: 50,
       onCopy: (node) => {
-        console.log('📋 Node copied:', node.id);
         toast({
           title: "Node Copied",
           description: `${node.data?.label} copied to clipboard`,
         });
       },
       onPaste: (originalNode, newNode) => {
-        console.log('📋 Node pasted:', { original: originalNode.id, new: newNode.id });
         toast({
           title: "Node Pasted",
           description: `${newNode.data?.label} pasted from ${originalNode.data?.label}`,
@@ -285,7 +282,6 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
       maxSnapshots: 50,
       enableComparison: true,
       onSnapshot: (snapshot) => {
-        console.log('📸 Snapshot created:', snapshot);
       }
     },
     edgeReconnection: {
@@ -998,8 +994,6 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
     );
 
     if (hasInvalidTabs) {
-      console.log('🔧 MIGRATING TABS: Fixing invalid history states');
-      
       setTabs(prev => prev.map(tab => {
         // If tab has invalid history state, fix it
         if (tab.historyIndex === -1 || tab.history.length === 0 || tab.historyIndex >= tab.history.length) {
@@ -1009,14 +1003,6 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
             canvasObjects: tab.canvasObjects || [],
             viewport: tab.viewport
           };
-          
-          console.log('🔧 MIGRATING TAB:', {
-            tabId: tab.id,
-            oldHistoryIndex: tab.historyIndex,
-            oldHistoryLength: tab.history.length,
-            newHistoryIndex: 0,
-            newHistoryLength: 1
-          });
           
           return {
             ...tab,
@@ -1374,7 +1360,6 @@ Position nodes 250px apart horizontally.`;
   useEffect(() => {
     const handleEditHyperlink = (event: CustomEvent<{ nodeId: string }>) => {
       const { nodeId } = event.detail;
-      console.log('🔗 Edit hyperlink requested for node:', nodeId);
       
       // Find the node and open the toolbar with link submenu
       const node = nodes.find(n => n.id === nodeId);
@@ -1621,8 +1606,6 @@ Position nodes 250px apart horizontally.`;
       ...n,
       selected: n.id === nodeId
     })));
-    
-    console.log(`🎯 Focused on node: ${nodeId}`, { nodeCenterX, nodeCenterY, newX, newY });
   }, [nodes, viewport.zoom, setViewport, setNodes]);
 
   const setSelectedNodeId = useCallback((id: string) => {
@@ -1911,14 +1894,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     
     cleanedResponse = cleanedResponse.trim();
     
-    console.log('🧹 CLEANED RESPONSE:', cleanedResponse.substring(0, 200) + '...');
-    
     let workflowData;
     try {
       workflowData = JSON.parse(cleanedResponse);
     } catch (firstError) {
       const errorMsg = firstError instanceof Error ? firstError.message : String(firstError);
-      console.log('❌ FIRST PARSE FAILED, TRYING FIXES:', errorMsg);
       
       // Try additional cleaning if first parse fails
       let fixedResponse = cleanedResponse;
@@ -1931,8 +1911,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       
       // Convert single quotes to double quotes (but avoid breaking contractions in strings)
       fixedResponse = fixedResponse.replace(/:\s*'([^']*)'/g, ': "$1"');
-      
-      console.log('🔧 ATTEMPTING FIXED PARSE:', fixedResponse.substring(0, 200) + '...');
       
       try {
         workflowData = JSON.parse(fixedResponse);
@@ -1951,20 +1929,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
 
     if (workflowData.nodes && workflowData.edges) {
-      console.log('🤖 AI GENERATED WORKFLOW (DIRECT):', { 
-        nodeCount: workflowData.nodes.length, 
-        edgeCount: workflowData.edges.length,
-        nodes: workflowData.nodes,
-        edges: workflowData.edges
-      });
-      
       // Apply minimum spacing between nodes
       const spacedNodes = enforceMinimumNodeSpacing(workflowData.nodes, 16);
-      console.log('✨ APPLIED MINIMUM SPACING:', { 
-        originalNodes: workflowData.nodes.length,
-        spacedNodes: spacedNodes.length,
-        hasPositionChanges: JSON.stringify(workflowData.nodes) !== JSON.stringify(spacedNodes)
-      });
       
       return {
         ...workflowData,
@@ -2150,7 +2116,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       
       // If no collisions found, we're done
       if (!hasCollisions) {
-        console.log(`✨ Node spacing resolved in ${iteration + 1} iterations`);
         break;
       }
       
@@ -2330,14 +2295,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         : newHistory;
       const newHistoryIndex = trimmedHistory.length - 1;
       
-      // Minimal logging to prevent local storage overflow
-      console.log('💾 History saved:', {
-        nodes: currentNodes.length,
-        edges: currentEdges.length,
-        objects: currentCanvasObjects.length,
-        historySize: trimmedHistory.length
-      });
-      
       updateActiveTab({ 
         history: trimmedHistory,
         historyIndex: newHistoryIndex
@@ -2415,8 +2372,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // Handle edge reconnection from pro features
   const handleEdgeReconnect = useCallback((edgeId: string, newSource: string, newTarget: string) => {
-    console.log('🔗 Edge reconnection:', { edgeId, newSource, newTarget });
-    
     setEdges(prev => prev.map(edge => 
       edge.id === edgeId 
         ? { ...edge, source: newSource, target: newTarget, selected: false }
@@ -2510,13 +2465,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         x: anchorPosition.x - templateCenterX,
         y: anchorPosition.y - templateCenterY
       };
-      
-      console.log('✨ Template placement at position:', { 
-        templateType, 
-        anchorPosition,
-        templateCenter: { x: templateCenterX, y: templateCenterY },
-        offset 
-      });
     } else {
       // Use the existing offset calculation for appending workflows
       offset = calculateWorkflowOffset(templateData.nodes);
@@ -2558,13 +2506,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     
     // Save to history for undo/redo
     saveToHistory();
-    
-    console.log(`✨ Template "${templateType}" added to current tab:`, {
-      newNodes: offsetNodes.length,
-      newEdges: offsetEdges.length,
-      offset,
-      anchorPosition
-    });
     
     // Toast notification for template creation
     toast({
@@ -2771,47 +2712,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   const handleUndo = useCallback(() => {
     const canUndo = historyIndex > 0 && history.length > 1;
-    
-    console.log('🔄 UNDO BUTTON CLICKED (FIXED):', {
-      canUndo,
-      currentHistoryIndex: historyIndex,
-      totalHistoryStates: history.length,
-      tabId: activeTab?.id,
-      currentState: {
-        nodeCount: nodes.length,
-        edgeCount: edges.length,
-        nodeIds: nodes.map(n => n.id),
-        edgeIds: edges.map(e => e.id)
-      }
-    });
 
     if (canUndo && history[historyIndex - 1]) {
       const newIndex = historyIndex - 1;
       const targetState = history[newIndex];
-      
-      console.log('⏪ UNDO ACTION PERFORMED (FIXED):', {
-        from: {
-          index: historyIndex,
-          nodeCount: nodes.length,
-          edgeCount: edges.length,
-          nodeIds: nodes.map(n => n.id),
-          edgeIds: edges.map(e => e.id)
-        },
-        to: {
-          index: newIndex,
-          nodeCount: targetState.nodes.length,
-          edgeCount: targetState.edges.length,
-          nodeIds: targetState.nodes.map(n => n.id),
-          edgeIds: targetState.edges.map(e => e.id)
-        },
-        direction: 'BACKWARD (going to earlier state)',
-        historyStack: history.map((state, index) => ({
-          index,
-          nodeCount: state.nodes.length,
-          edgeCount: state.edges.length,
-          isActive: index === newIndex
-        }))
-      });
 
       updateActiveTab({
         nodes: [...targetState.nodes],
@@ -2820,54 +2724,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         viewport: { ...targetState.viewport },
         historyIndex: newIndex
       });
-    } else {
-      console.log('⏪ UNDO NOT POSSIBLE: Already at oldest state or invalid history');
     }
   }, [historyIndex, history, updateActiveTab, nodes, edges, activeTab]);
 
   const handleRedo = useCallback(() => {
     const canRedo = historyIndex < history.length - 1 && history.length > 1;
-    
-    console.log('🔄 REDO BUTTON CLICKED (FIXED):', {
-      canRedo,
-      currentHistoryIndex: historyIndex,
-      totalHistoryStates: history.length,
-      tabId: activeTab?.id,
-      currentState: {
-        nodeCount: nodes.length,
-        edgeCount: edges.length,
-        nodeIds: nodes.map(n => n.id),
-        edgeIds: edges.map(e => e.id)
-      }
-    });
 
     if (canRedo && history[historyIndex + 1]) {
       const newIndex = historyIndex + 1;
       const targetState = history[newIndex];
-      
-      console.log('⏩ REDO ACTION PERFORMED (FIXED):', {
-        from: {
-          index: historyIndex,
-          nodeCount: nodes.length,
-          edgeCount: edges.length,
-          nodeIds: nodes.map(n => n.id),
-          edgeIds: edges.map(e => e.id)
-        },
-        to: {
-          index: newIndex,
-          nodeCount: targetState.nodes.length,
-          edgeCount: targetState.edges.length,
-          nodeIds: targetState.nodes.map(n => n.id),
-          edgeIds: targetState.edges.map(e => e.id)
-        },
-        direction: 'FORWARD (going to later state)',
-        historyStack: history.map((state, index) => ({
-          index,
-          nodeCount: state.nodes.length,
-          edgeCount: state.edges.length,
-          isActive: index === newIndex
-        }))
-      });
 
       updateActiveTab({
         nodes: [...targetState.nodes],
@@ -2876,8 +2741,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         viewport: { ...targetState.viewport },
         historyIndex: newIndex
       });
-    } else {
-      console.log('⏩ REDO NOT POSSIBLE: Already at newest state or invalid history');
     }
   }, [historyIndex, history, updateActiveTab, nodes, edges, activeTab]);
 
@@ -2888,7 +2751,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     if (versionPlugin) {
       versionPlugin.handleSnapshot();
     } else {
-      console.log('📸 Snapshot feature not available - requires Pro plugin');
       toast({
         title: "Snapshot Created",
         description: "Workflow state saved successfully.",
@@ -2903,7 +2765,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     if (versionPlugin) {
       versionPlugin.handleVersionHistory();
     } else {
-      console.log('📚 Version History feature not available - requires Pro plugin');
       toast({
         title: "Version History",
         description: "Access version history and snapshots.",
@@ -3263,7 +3124,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Listen for edge drag events to cancel click timers
   useEffect(() => {
     const handleEdgeDragStart = () => {
-      console.log('📝 EDGE DRAG START - canceling any pending click timers');
       isDraggingRef.current = true;
       if (clickDelayTimeoutRef.current) {
         clearTimeout(clickDelayTimeoutRef.current);
@@ -3272,7 +3132,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     };
 
     const handleEdgeDragEnd = () => {
-      console.log('📝 EDGE DRAG END - ready for next click');
       // Reset drag state after a short delay
       if (dragResetTimeoutRef.current) {
         clearTimeout(dragResetTimeoutRef.current);
@@ -3283,7 +3142,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     };
 
     const handleCanvasObjectDragStart = () => {
-      console.log('📝 CANVAS OBJECT DRAG START - canceling any pending click timers');
       isDraggingRef.current = true;
       if (clickDelayTimeoutRef.current) {
         clearTimeout(clickDelayTimeoutRef.current);
@@ -3292,7 +3150,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     };
 
     const handleCanvasObjectDragEnd = () => {
-      console.log('📝 CANVAS OBJECT DRAG END - ready for next click');
       // Reset drag state after a short delay
       if (dragResetTimeoutRef.current) {
         clearTimeout(dragResetTimeoutRef.current);
@@ -3409,10 +3266,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       try {
         // Emit event to the LayoutPlugin with optional payload
         core.emit(eventName, payload);
-        const logMessage = payload 
-          ? `🔧 AUTO LAYOUT EVENT EMITTED: ${eventName} with spacing: ${payload.spacing}px`
-          : `🔧 AUTO LAYOUT EVENT EMITTED: ${eventName}`;
-        console.log(logMessage, { nodeCount: nodes.length });
       } catch (error) {
         console.error(`❌ Failed to emit layout event: ${eventName}`, error);
       }
@@ -3688,8 +3541,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             
             const updatedEdges = [...edges, newEdge];
             updateActiveTab({ edges: updatedEdges });
-            
-            console.log('🚀 SmartConnect: Auto-connection created!', connection);
           },
           // onEdgesChange callback
           (updatedEdges) => {
@@ -3698,17 +3549,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           // connectionPreviewCallback - handles ghost preview during drag
           (preview) => {
             setConnectionPreview(preview);
-            console.log('🔗 SmartConnect: Preview updated:', preview);
           }
         );
-        
-        console.log('✅ Demo + Pro plugins registered successfully');
-        console.log('🔌 Plugin System Ready! Check Settings → Test Plugins or watch console for activity');
-        console.log('🚀 Advanced Interactions Pro: Quick-add handles enabled on node hover!');
-        console.log('🔗 SmartConnect Pro: Auto-connect enabled! Drag nodes close together to auto-connect.');
       } catch (error) {
         console.error('❌ Plugin registration error:', error);
-        console.log('ℹ️ Some plugins may not have loaded correctly');
       }
     };
     registerPlugins();
@@ -3745,8 +3589,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             
             setEdges(prev => [...prev, newEdge]);
             saveToHistory();
-            
-            console.log('🚀 SmartConnect: Auto-connection created!', connection);
           },
           // onEdgesChange callback
           (updatedEdges) => {
@@ -3755,7 +3597,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           // connectionPreviewCallback - handles ghost preview during drag
           (preview) => {
             setConnectionPreview(preview);
-            console.log('🔗 SmartConnect: Preview updated:', preview);
           }
         );
       } catch (error) {
@@ -3787,7 +3628,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   useEffect(() => {
     const handleQuickAddNode = (event: CustomEvent) => {
       const { sourceNodeId, position, direction } = event.detail;
-      console.log('🚀 Handling quick-add node:', { sourceNodeId, position, direction });
 
       // Find the source node to calculate new position
       const sourceNode = nodes.find(n => n.id === sourceNodeId);
@@ -3859,7 +3699,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const saveToLocalStorage = useCallback((tabsToSave: WorkflowTab[]) => {
     try {
       localStorage.setItem('kiteframe_workflows', JSON.stringify(tabsToSave));
-      console.log('💾 Workflows saved to local storage');
     } catch (error) {
       console.error('❌ Failed to save workflows to local storage:', error);
     }
@@ -3870,7 +3709,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       const saved = localStorage.getItem('kiteframe_workflows');
       if (saved) {
         const parsed = JSON.parse(saved);
-        console.log('📂 Workflows loaded from local storage:', parsed.length);
         return parsed;
       }
     } catch (error) {
@@ -3902,7 +3740,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     if (savedTabs.length > 0) {
       setTabs(savedTabs);
       // Keep user on home screen by default, they can switch to a tab from there
-      console.log('🔄 Restored workflows from local storage');
     }
   }, [loadFromLocalStorage]);
 
@@ -4405,7 +4242,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       return;
                     }
                     // Implement fit view logic here or use existing implementation
-                    console.log('🔧 FIT VIEW TRIGGERED from collapsed sidebar');
                   }}
                   onClearCanvas={() => {
                     if (window.confirm('Are you sure you want to clear the canvas? This will remove all nodes and edges.')) {
@@ -4480,7 +4316,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }
                     
                     // Template generation at center (same logic as expanded sidebar)
-                    console.log('🎯 CREATING TEMPLATE FROM COLLAPSED SIDEBAR:', { templateType, position: 'center' });
                     handleAddTemplateToCurrentTab(templateType);
                   }}
                   onCreateTemplateAtPosition={(templateType: string, position: { x: number; y: number }) => {
@@ -4497,7 +4332,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }
                     
                     // Template generation at specific position from drag-and-drop
-                    console.log('🎯 CREATING TEMPLATE AT POSITION FROM COLLAPSED SIDEBAR:', { templateType, position });
                     handleAddTemplateToCurrentTab(templateType, position);
                   }}
                   onApplyTheme={(theme) => {
@@ -4894,7 +4728,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }}
                     onImageUrlSet={(nodeId: string, url: string) => {
                       // This handler is called when URL is set via modal
-                      console.log('Image URL set for node:', nodeId, url);
                     }}
                   />
                 )}
@@ -5728,13 +5561,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               connectionAnimationConfig={connectionAnimationConfig}
               connectionPreview={connectionPreview}
               onNodesChange={(changes) => {
-                console.log('📊 onNodesChange CALLED:', {
-                  changes,
-                  isArray: Array.isArray(changes),
-                  length: Array.isArray(changes) ? changes.length : 0,
-                  firstItem: Array.isArray(changes) && changes.length > 0 ? changes[0] : null
-                });
-                
                 // Handle both array of changes and direct node array updates
                 if (Array.isArray(changes) && changes.length > 0) {
                   // Check if it's a direct nodes array update (from drag operations or node updates)
@@ -5749,10 +5575,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   
                   if (isNodeArray) {
                     // Direct nodes array from KiteFrameCanvas drag operations
-                    console.log('📊 DIRECT NODE UPDATE (drag):', {
-                      nodeCount: changes.length,
-                      sample: changes[0]
-                    });
                     
                     // Mark as dragging to prevent properties panel from opening
                     isDraggingRef.current = true;
@@ -5761,7 +5583,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     if (clickDelayTimeoutRef.current) {
                       clearTimeout(clickDelayTimeoutRef.current);
                       clickDelayTimeoutRef.current = null;
-                      console.log('📝 CANCELLED PROPERTIES PANEL due to drag operation');
                     }
                     
                     // Reset drag state after a delay (when user stops dragging)
@@ -5770,16 +5591,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }
                     dragResetTimeoutRef.current = setTimeout(() => {
                       isDraggingRef.current = false;
-                      console.log('📝 DRAG STATE RESET - ready for next click');
                     }, 200); // Reset after 200ms of no drag activity
                     
                     setNodes(changes as Node[]);
                     // Don't save to history on every drag move, only on drag end
                   } else {
                     // Change-based updates
-                    console.log('📊 CHANGE-BASED UPDATE:', {
-                      changeTypes: changes.map((c: any) => c.type)
-                    });
 
                     // Separate node changes by type for better history tracking
                     const selectionChanges = changes.filter(c => c.type === 'select');
@@ -5816,18 +5633,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     // Process removal changes individually
                     if (removalChanges.length > 0) {
                       removalChanges.forEach((change, index) => {
-                        console.log(`🗑️ NODE REMOVAL ${index + 1}/${removalChanges.length}:`, {
-                          nodeId: change.id,
-                          willSaveToHistory: true
-                        });
-                        
                         setNodes(prev => {
                           const newNodes = prev.filter(n => n.id !== change.id);
-                          console.log(`🗑️ NODE REMOVED:`, {
-                            removedId: change.id,
-                            nodesBefore: prev.length,
-                            nodesAfter: newNodes.length
-                          });
                           return newNodes;
                         });
                         
@@ -5841,7 +5648,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       setNodes(prev => {
                         let newNodes = [...prev];
                         otherChanges.forEach(change => {
-                          console.log('📊 OTHER NODE CHANGE:', change);
                           // Handle any other change types here
                         });
                         return newNodes;
@@ -5852,13 +5658,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }
               }}
               onEdgesChange={(changes: any[]) => {
-                console.log('🔗 onEdgesChange CALLED:', {
-                  changes,
-                  changeTypes: changes.map(c => c.type),
-                  isArray: Array.isArray(changes),
-                  length: Array.isArray(changes) ? changes.length : 0
-                });
-
                 // Separate changes by type for individual history tracking
                 const selectionChanges = changes.filter(c => c.type === 'select');
                 const removalChanges = changes.filter(c => c.type === 'remove');
@@ -5881,18 +5680,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 // Process removal changes individually (save to history for each)
                 if (removalChanges.length > 0) {
                   removalChanges.forEach((change, index) => {
-                    console.log(`🗑️ EDGE REMOVAL ${index + 1}/${removalChanges.length}:`, {
-                      edgeId: change.id,
-                      willSaveToHistory: true
-                    });
-                    
                     setEdges(prev => {
                       const newEdges = prev.filter(e => e.id !== change.id);
-                      console.log(`🗑️ EDGE REMOVED:`, {
-                        removedId: change.id,
-                        edgesBefore: prev.length,
-                        edgesAfter: newEdges.length
-                      });
                       return newEdges;
                     });
                     
@@ -5907,7 +5696,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     let newEdges = [...prev];
                     otherChanges.forEach(change => {
                       // Handle any other change types here
-                      console.log('🔗 OTHER EDGE CHANGE:', change);
                     });
                     return newEdges;
                   });
@@ -5925,18 +5713,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   reconnectable: true, // Enable reconnection for new edges
                   interactable: true // Make edge clickable
                 };
-                console.log('🔗 NEW EDGE CREATED:', newEdge);
                 setEdges(prev => [...prev, newEdge]);
                 saveToHistory();
               }}
               onNodeClick={(e: React.MouseEvent, node: Node) => {
-                console.log(`📝 EDITOR NODE CLICK HANDLER:`, { 
-                  nodeId: node.id, 
-                  currentSelected: selectedNodeId,
-                  shiftKey: e.shiftKey,
-                  tabId: activeTab 
-                });
-                
                 // Clear any existing click delay timer
                 if (clickDelayTimeoutRef.current) {
                   clearTimeout(clickDelayTimeoutRef.current);
@@ -5952,10 +5732,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                       return n;
                     });
-                    console.log(`📝 MULTI-SELECT UPDATE:`, { 
-                      selected: updated.filter(n => n.selected).map(n => n.id),
-                      total: updated.length 
-                    });
                     return updated;
                   });
                   
@@ -5964,10 +5740,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   // Regular click - update selection immediately but delay properties panel
                   setNodes(prev => {
                     const updated = prev.map(n => ({ ...n, selected: n.id === node.id }));
-                    console.log(`📝 SINGLE SELECT UPDATE:`, { 
-                      selected: updated.filter(n => n.selected).map(n => n.id),
-                      total: updated.length 
-                    });
                     return updated;
                   });
                   
@@ -5977,7 +5749,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   // Delay opening properties panel and toolbar to detect if this becomes a drag
                   clickDelayTimeoutRef.current = setTimeout(() => {
                     if (!isDraggingRef.current) {
-                      console.log(`📝 CLICK CONFIRMED (no drag detected) - showing toolbar for:`, node.id);
                       setSelectedNodeId(node.id);
                       
                       // Calculate node rect for toolbar positioning
@@ -6006,8 +5777,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         },
                         node
                       });
-                    } else {
-                      console.log(`📝 DRAG DETECTED - not showing toolbar for:`, node.id);
                     }
                     clickDelayTimeoutRef.current = null;
                   }, 150); // 150ms delay to detect drag
@@ -6023,19 +5792,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   setInlineEditing(null);
                 }
                 
-                console.log(`📝 SELECTION STATE SET:`, { 
-                  selectedNodeId: e.shiftKey ? selectedNodeId : 'delayed for drag detection',
-                  selectedEdgeId: '',
-                  tabId: activeTab 
-                });
               }}
               onNodeDoubleClick={(e: React.MouseEvent, node: Node, part?: 'header' | 'body') => {
-                console.log(`📝 EDITOR NODE DOUBLE-CLICK HANDLER - Triggering inline edit:`, { 
-                  nodeId: node.id, 
-                  nodeType: node.type,
-                  part: part || 'header',
-                  tabId: activeTab 
-                });
                 // Double-click triggers inline text editing for specific part
                 setInlineEditing({ nodeId: node.id, part: part || 'header' });
                 // Also show the linear toolbar with text style options
@@ -6067,12 +5825,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setContextMenu(null);
               }}
               onEdgeClick={(edge: Edge) => {
-                console.log(`📝 EDITOR EDGE CLICK HANDLER:`, { 
-                  edgeId: edge.id, 
-                  currentSelected: selectedEdgeId,
-                  tabId: activeTab 
-                });
-                
                 // Clear any existing click delay timer
                 if (clickDelayTimeoutRef.current) {
                   clearTimeout(clickDelayTimeoutRef.current);
@@ -6082,10 +5834,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setNodes(prev => prev.map(n => ({ ...n, selected: false })));
                 setEdges(prev => {
                   const updated = prev.map(e => ({ ...e, selected: e.id === edge.id }));
-                  console.log(`📝 EDGES SELECTION UPDATE:`, { 
-                    selected: updated.filter(e => e.selected).map(e => e.id),
-                    total: updated.length 
-                  });
                   return updated;
                 });
                 setSelectedNodeId('');
@@ -6097,7 +5845,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 // Delay opening properties panel for edges too
                 clickDelayTimeoutRef.current = setTimeout(() => {
                   if (!isDraggingRef.current) {
-                    console.log(`📝 EDGE CLICK CONFIRMED (no drag detected) - showing toolbar for edge:`, edge.id);
                     setSelectedEdgeId(edge.id);
                     
                     // Calculate edge midpoint for toolbar positioning
@@ -6134,33 +5881,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         edge
                       });
                     }
-                  } else {
-                    console.log(`📝 EDGE DRAG DETECTED - not showing toolbar for edge:`, edge.id);
                   }
                   clickDelayTimeoutRef.current = null;
                 }, 150); // 150ms delay
-                
-                console.log(`🔗 EDGE SELECTED FOR RECONNECTION:`, { 
-                  edgeId: edge.id, 
-                  reconnectable: edge.reconnectable,
-                  enableAllEdges: proFeaturesConfig.edgeReconnection?.enableAllEdges,
-                  edgeReconnectionEnabled: proFeaturesConfig.edgeReconnection?.enabled
-                });
-                
-                console.log(`📝 SELECTION STATE SET:`, { 
-                  selectedNodeId: '',
-                  selectedEdgeId: 'delayed for drag detection',
-                  tabId: activeTab 
-                });
               }}
               onCanvasClick={(e?: React.MouseEvent) => {
                 // Don't deselect during drag operations to keep properties card open
                 if (e && (e.target as HTMLElement)?.closest?.('.dragging')) {
-                  console.log(`📝 CANVAS CLICK: Ignoring during drag operation`);
                   return;
                 }
-                
-                console.log(`📝 CANVAS CLICK:`, { tabId: activeTab, clearing: 'all selections' });
                 setNodes(prev => prev.map(n => ({ ...n, selected: false })));
                 setEdges(prev => prev.map(e => ({ ...e, selected: false })));
                 setSelectedNodeId('');
@@ -6177,12 +5906,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setContextMenu({ x: e.clientX, y: e.clientY, node });
               }}
               onCanvasObjectClick={(e: React.MouseEvent, canvasObject: CanvasObject) => {
-                console.log(`📝 EDITOR CANVAS OBJECT CLICK HANDLER:`, { 
-                  objectId: canvasObject.id, 
-                  objectType: canvasObject.type,
-                  shiftKey: e.shiftKey
-                });
-                
                 // Clear any existing click delay timer
                 if (clickDelayTimeoutRef.current) {
                   clearTimeout(clickDelayTimeoutRef.current);
@@ -6199,8 +5922,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   // Delay opening toolbar to detect if this becomes a drag
                   clickDelayTimeoutRef.current = setTimeout(() => {
                     if (!isDraggingRef.current) {
-                      console.log(`📝 CANVAS OBJECT CLICK CONFIRMED - showing toolbar for:`, canvasObject.id);
-                      
                       // Calculate object rect for toolbar positioning
                       // Include canvas container offset for proper fixed positioning
                       const containerRect = canvasContainerRef.current?.getBoundingClientRect();
@@ -6227,8 +5948,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         },
                         canvasObject
                       });
-                    } else {
-                      console.log(`📝 CANVAS OBJECT DRAG DETECTED - not showing toolbar for:`, canvasObject.id);
                     }
                     clickDelayTimeoutRef.current = null;
                   }, 150); // 150ms delay to detect drag
@@ -6298,8 +6017,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               canRedo={canRedo}
               onAutoLayout={handleAutoLayout}
               onSelectionChange={(nodeIds: string[], edgeIds: string[]) => {
-                console.log('🎯 Selection changed from FocusBus:', { nodeIds, edgeIds });
-                
                 // Update nodes selection
                 if (nodeIds.length > 0) {
                   setNodes(prev => prev.map(node => ({
@@ -6332,7 +6049,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }}
               inlineEditing={inlineEditing}
               onInlineEditingSave={(nodeId: string, part: 'header' | 'body', value: string) => {
-                console.log('📝 Inline editing save:', { nodeId, part, value });
                 setNodes(prev => prev.map(node => {
                   if (node.id === nodeId) {
                     // Clear measuredHeight when inline editing ends to restore autoHeight behavior
@@ -6352,7 +6068,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 saveToHistory();
               }}
               onInlineEditingCancel={() => {
-                console.log('📝 Inline editing cancelled');
                 setInlineEditing(null);
                 setSelectedText('');
               }}
@@ -6360,7 +6075,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setSelectedText(text);
               }}
               onHyperlinkEdit={(nodeId, hyperlinkId) => {
-                console.log('🔗 Hyperlink edit requested:', { nodeId, hyperlinkId });
                 const node = nodes.find(n => n.id === nodeId);
                 if (node) {
                   // Find the node's screen position for the toolbar
@@ -6378,7 +6092,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }
               }}
               onHyperlinkDelete={(nodeId, hyperlinkId) => {
-                console.log('🔗 Hyperlink delete requested:', { nodeId, hyperlinkId });
                 saveToHistory();
                 setNodes(prev => prev.map(n => {
                   if (n.id !== nodeId) return n;
@@ -6424,7 +6137,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }));
               }}
               onTextObjectHyperlinkEdit={(canvasObjectId) => {
-                console.log('🔗 Text object hyperlink edit requested:', { canvasObjectId });
                 const textObject = canvasObjects.find(obj => obj.id === canvasObjectId);
                 if (textObject) {
                   const rect = document.querySelector(`[data-testid="text-object-${textObject.id}"]`)?.getBoundingClientRect();
@@ -6441,19 +6153,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }}
               tableData={tableData}
               onOpenTable={(tableId) => {
-                console.log('📊 Opening table panel for:', tableId);
                 setOpenTablePanel(tableId);
               }}
               onTableDataChange={(tableId, table) => {
-                console.log('📊 Table data changed:', tableId);
                 setTableData(prev => ({
                   ...prev,
                   [tableId]: table
                 }));
               }}
               onCreateNodeFromRow={(tableId, row, rowIndex) => {
-                console.log('📊 Creating node from table row:', { tableId, rowIndex, row });
-                
                 // Find the table node to get its position for offset
                 const tableNode = nodes.find(n => n.type === 'table' && n.data?.tableId === tableId);
                 const basePosition = tableNode ? {
@@ -6513,13 +6221,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   currentEdges={edges}
                   currentCanvasObjects={canvasObjects}
                   onApplyWorkflow={(workflow) => {
-                    console.log('📝 KITEAI APPLYING WORKFLOW:', { 
-                      nodeCount: workflow.nodes.length, 
-                      edgeCount: workflow.edges.length,
-                      originalNodeIds: workflow.nodes.map(n => n.id),
-                      edgeReferences: workflow.edges.map(e => ({ source: e.source, target: e.target }))
-                    });
-                    
                     // Calculate offset to avoid overlap with existing nodes
                     const offset = calculateWorkflowOffset(workflow.nodes);
                     
@@ -6534,8 +6235,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       const oldId = node.id || `node-${index}`;
                       const newId = `node-${batchId}-${index}`;
                       nodeIdMapping[oldId] = newId;
-                      
-                      console.log(`Mapping node: ${oldId} -> ${newId}`);
                       
                       return {
                         ...node,
@@ -6586,10 +6285,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         target: newTarget || edge.target,
                         selected: false
                       };
-                    });
-
-                    console.log('📝 REMAPPED EDGES:', {
-                      edges: offsetEdges.map(e => ({ id: e.id, source: e.source, target: e.target }))
                     });
 
                     // Append to existing canvas
@@ -6644,7 +6339,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               if (settings.apiKey) {
                 localStorage.setItem('openai_api_key', settings.apiKey);
               }
-              console.log('AI settings saved:', settings);
               setShowAiModal(false);
               // Update the AI client with new settings
               onAiSettingsChange?.();
@@ -6659,14 +6353,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             initialPrompt={generatorPrompt}
             onGenerate={(generatedWorkflow: any) => {
-              console.log('📝 WORKFLOW EDITOR RECEIVED AI DATA:', { 
-                hasNodes: !!generatedWorkflow.nodes,
-                nodeCount: generatedWorkflow.nodes?.length || 0,
-                hasEdges: !!generatedWorkflow.edges,
-                edgeCount: generatedWorkflow.edges?.length || 0,
-                generatedWorkflow
-              });
-              
               // Append generated workflow to existing canvas instead of replacing it
               if (generatedWorkflow.nodes && generatedWorkflow.edges) {
                 // Calculate offset for new nodes
@@ -6709,11 +6395,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setNodes(prev => [...prev, ...offsetNodes]);
                 setEdges(prev => [...prev, ...offsetEdges]);
                 
-                console.log('📝 AI WORKFLOW APPENDED TO CANVAS:', { 
-                  addedNodes: offsetNodes.length, 
-                  addedEdges: offsetEdges.length 
-                });
-                
                 // Save to history after state updates
                 setTimeout(() => saveToHistory(), 0);
                 
@@ -6733,8 +6414,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onClose={() => setShowImportModal(false)}
             onImport={(importedData: any) => {
               try {
-                console.log('Importing from modal format:', importedData);
-                
                 // Handle comprehensive workflow format (direct JSON import)
                 if (importedData.version && importedData.canvas && importedData.workflow) {
                   // New comprehensive format
@@ -6824,7 +6503,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }
                 } else {
                   // Legacy format fallback
-                  console.log('Using legacy import fallback');
                   if (importedData.nodes) {
                     setNodes(importedData.nodes);
                   }
@@ -6872,7 +6550,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onCreateFromTemplate={handleCreateFromTemplate}
             onCreateFromImage={(imageFile: File) => {
               // Image analysis is now handled directly in the modal
-              console.log('Image file received:', imageFile);
             }}
           />
         )}
@@ -7008,7 +6685,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }
                 };
                 setCopiedProperties(propertiesToCopy);
-                console.log('📋 Node properties copied:', propertiesToCopy);
                 setContextMenu(null);
               } else if (contextMenu.canvasObject) {
                 // Copy canvas object properties (styling and data)
@@ -7017,7 +6693,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   style: { ...contextMenu.canvasObject.style }
                 };
                 setCopiedCanvasObjectProperties(propertiesToCopy);
-                console.log('📋 Canvas object properties copied:', propertiesToCopy);
                 setContextMenu(null);
               }
             }}
@@ -7038,7 +6713,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       : n
                   )
                 });
-                console.log('🎨 Properties pasted to node:', contextMenu.node.id);
                 setContextMenu(null);
               } else if (contextMenu.canvasObject && copiedCanvasObjectProperties) {
                 saveToHistory();
@@ -7058,7 +6732,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     : obj
                 );
                 updateActiveTab({ canvasObjects: updatedObjects });
-                console.log('🎨 Properties pasted to canvas object:', contextMenu.canvasObject.id);
                 setContextMenu(null);
               }
             } : undefined}
@@ -7185,7 +6858,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 const updatedObjects = canvasObjects.filter(obj => obj.id !== contextMenu.canvasObject!.id);
                 updateActiveTab({ canvasObjects: updatedObjects });
                 setLinearToolbar(null);
-                console.log('🗑️ Canvas object deleted:', contextMenu.canvasObject.id);
                 setContextMenu(null);
               }
             }}
@@ -7215,7 +6887,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 const updatedObjects = [...canvasObjects, newObject];
                 updateActiveTab({ canvasObjects: updatedObjects });
                 saveToHistory();
-                console.log('📋 Canvas object duplicated:', newObject.id);
                 setContextMenu(null);
               }
             }}
@@ -7304,13 +6975,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             }}
             onTextStyleChange={(style, part) => {
-              console.log('📝 TEXT STYLE CHANGE:', { style, part, nodeId: linearToolbar.node?.id });
               if (linearToolbar.node) {
                 saveToHistory();
                 setNodes(prev => prev.map(n => {
                   if (n.id !== linearToolbar.node!.id) return n;
                   
-                  console.log('📝 APPLYING STYLE:', { part, isHeader: part === 'header' });
                   // Apply styles to header or body based on 'part' parameter
                   if (part === 'header') {
                     return { 
@@ -7365,7 +7034,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             editingHyperlinkId={linearToolbar.editingHyperlinkId || null}
             onAddHyperlink={(hyperlink) => {
               const { id, text: linkText, url, showPreview, metadata } = hyperlink;
-              console.log('🔗 Adding/updating hyperlink:', { id, linkText, url, showPreview, metadata, nodeId: linearToolbar.node?.id });
               if (linearToolbar.node) {
                 saveToHistory();
                 setNodes(prev => prev.map(n => {
@@ -7443,7 +7111,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             }}
             onDeleteHyperlink={(hyperlinkId) => {
-              console.log('🔗 Deleting hyperlink:', { hyperlinkId, nodeId: linearToolbar.node?.id });
               if (linearToolbar.node) {
                 saveToHistory();
                 setNodes(prev => prev.map(n => {

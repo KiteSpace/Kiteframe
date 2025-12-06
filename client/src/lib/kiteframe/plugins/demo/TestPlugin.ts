@@ -17,28 +17,22 @@ export class TestPlugin implements KiteFramePlugin {
     // Register hooks to demonstrate plugin system
     const hooks: PluginHooks = {
       beforeNodesChange: (nodes) => {
-        console.log('🔧 TestPlugin: beforeNodesChange called with', nodes.length, 'nodes');
         return nodes; // Pass through unchanged
       },
       
       afterNodesChange: (nodes) => {
-        console.log('🔧 TestPlugin: afterNodesChange called with', nodes.length, 'nodes');
+        // Nodes changed
       },
       
       onNodesSelected: (nodeIds) => {
-        console.log('🔧 TestPlugin: onNodesSelected called with', nodeIds);
+        // Nodes selected
       },
       
       onCanvasClick: (event, worldPos) => {
         this.canvasClickCount++;
-        console.log('🔧 TestPlugin: Canvas clicked!', {
-          count: this.canvasClickCount,
-          position: worldPos
-        });
       },
       
       onConnectionAttempt: (source, target) => {
-        console.log('🔧 TestPlugin: Connection attempt', source, '->', target);
         return true; // Allow all connections
       }
     };
@@ -47,11 +41,11 @@ export class TestPlugin implements KiteFramePlugin {
 
     // Listen to custom events
     core.on('test:nodeCount', (count: number) => {
-      console.log('🔧 TestPlugin: Received node count event:', count);
+      // Node count event received
     });
 
     core.on('test:layoutApplied', (layoutType: string) => {
-      console.log('🔧 TestPlugin: Layout applied:', layoutType);
+      // Layout applied
     });
 
     // Add test methods to core for external access
@@ -60,12 +54,10 @@ export class TestPlugin implements KiteFramePlugin {
       triggerTestEvent: this.triggerTestEvent.bind(this),
       simulateNodeClick: this.simulateNodeClick.bind(this)
     };
-
-    console.log('🔧 TestPlugin initialized successfully');
   }
 
   cleanup(): void {
-    console.log('🔧 TestPlugin cleaned up');
+    // Cleanup complete
   }
 
   // Test methods
@@ -79,13 +71,11 @@ export class TestPlugin implements KiteFramePlugin {
   }
 
   triggerTestEvent(core: any, eventName: string, data?: any) {
-    console.log('🔧 TestPlugin: Triggering test event:', eventName, data);
     core.emit(eventName, data);
   }
 
   simulateNodeClick() {
     this.nodeClickCount++;
-    console.log('🔧 TestPlugin: Simulated node click, count:', this.nodeClickCount);
   }
 }
 

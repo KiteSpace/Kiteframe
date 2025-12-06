@@ -56,8 +56,6 @@ export class MultiSelectPlugin implements KiteFramePlugin {
       this.selectedNodes.clear();
       this.broadcastSelection();
     });
-
-    console.log('Multi-Select Plugin initialized');
   }
 
   cleanup(): void {

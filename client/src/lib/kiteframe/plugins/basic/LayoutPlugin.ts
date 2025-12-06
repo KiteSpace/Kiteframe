@@ -189,8 +189,6 @@ export class LayoutPlugin implements KiteFramePlugin {
       const distributed = this.distributeNodes(nodes, 'vertical', spacing);
       context.updateNodes(distributed);
     });
-
-    console.log('Layout Plugin initialized');
   }
 
   /**
