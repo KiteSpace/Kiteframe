@@ -410,7 +410,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       }
       
       // Normal node toolbar (not inline editing)
-      return [
+      const baseButtons: ToolbarButton[] = [
         {
           id: 'color',
           icon: <Palette size={18} />,
@@ -426,32 +426,41 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           color: 'bg-emerald-500',
           hoverColor: 'hover:bg-emerald-600',
           hasSubmenu: true
-        },
-        {
-          id: 'icon',
-          icon: <Smile size={18} />,
-          label: 'Icon/Emoji',
-          color: 'bg-amber-500',
-          hoverColor: 'hover:bg-amber-600',
-          hasSubmenu: true
-        },
-        {
-          id: 'link',
-          icon: <Link2 size={18} />,
-          label: 'Add Link',
-          color: 'bg-cyan-500',
-          hoverColor: 'hover:bg-cyan-600',
-          hasSubmenu: true
-        },
-        {
-          id: 'delete',
-          icon: <Trash2 size={18} />,
-          label: 'Delete',
-          color: 'bg-red-500',
-          hoverColor: 'hover:bg-red-600',
-          onClick: () => { onDelete?.(); onClose(); }
         }
       ];
+      
+      // Compound nodes have their own component menu, skip emoji and link
+      if (node?.type !== 'compound') {
+        baseButtons.push(
+          {
+            id: 'icon',
+            icon: <Smile size={18} />,
+            label: 'Icon/Emoji',
+            color: 'bg-amber-500',
+            hoverColor: 'hover:bg-amber-600',
+            hasSubmenu: true
+          },
+          {
+            id: 'link',
+            icon: <Link2 size={18} />,
+            label: 'Add Link',
+            color: 'bg-cyan-500',
+            hoverColor: 'hover:bg-cyan-600',
+            hasSubmenu: true
+          }
+        );
+      }
+      
+      baseButtons.push({
+        id: 'delete',
+        icon: <Trash2 size={18} />,
+        label: 'Delete',
+        color: 'bg-red-500',
+        hoverColor: 'hover:bg-red-600',
+        onClick: () => { onDelete?.(); onClose(); }
+      });
+      
+      return baseButtons;
     } else if (isEdgeTarget) {
       return [
         {

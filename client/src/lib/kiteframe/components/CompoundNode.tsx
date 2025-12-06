@@ -433,16 +433,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   const headerTextColor = node.data.colors?.headerTextColor || '#ffffff';
 
   useEffect(() => {
-    if (node.selected && !menuOpen) {
-      const rect = nodeRef.current?.getBoundingClientRect();
-      if (rect) {
-        setMenuPosition({
-          x: rect.right + 16,
-          y: rect.top
-        });
-        setMenuOpen(true);
-      }
-    } else if (!node.selected && menuOpen) {
+    if (!node.selected && menuOpen) {
       setMenuOpen(false);
     }
   }, [node.selected]);
@@ -764,8 +755,8 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
                         x: rect.right + 16,
                         y: rect.top
                       });
+                      setMenuOpen(true);
                     }
-                    setMenuOpen(prev => !prev);
                   }}
                   className="p-1 rounded hover:bg-white/20 transition-colors"
                   data-testid={`compound-add-btn-header-${node.id}`}
@@ -801,8 +792,8 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
                           x: rect.right + 16,
                           y: rect.top
                         });
+                        setMenuOpen(true);
                       }
-                      setMenuOpen(true);
                     }}
                     className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                     data-testid={`compound-add-btn-empty-${node.id}`}
@@ -839,8 +830,8 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
                           x: rect.right + 16,
                           y: rect.top
                         });
+                        setMenuOpen(true);
                       }
-                      setMenuOpen(true);
                     }}
                     className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors mx-auto mt-2"
                     data-testid={`compound-add-btn-body-${node.id}`}
