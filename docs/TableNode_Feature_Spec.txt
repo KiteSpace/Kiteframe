@@ -1,0 +1,715 @@
+================================================================================
+                     TABLE NODE FEATURE SPECIFICATION
+                         Kiteframe Workflow Editor
+================================================================================
+
+Version: 1.0
+Last Updated: December 2024
+Component: client/src/lib/kiteframe/components/TableNode.tsx
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+The Table Node is a specialized node type in the Kiteframe workflow editor that 
+displays tabular data directly on the canvas. It supports data import from CSV 
+and JSON files, inline searching and sorting, creating nodes from individual 
+rows, and a collapsible view for space efficiency.
+
+Key Features:
+- Display tabular data with columns and rows
+- Import data from CSV/JSON files
+- Search and filter rows
+- Sort by clicking column headers
+- Create workflow nodes from table rows
+- Collapsed/expanded view toggle
+- Customizable colors and styling
+- Resizable dimensions
+- Connection handles for edge connections
+- Source table badges on created nodes (click to focus)
+
+================================================================================
+2. TYPE DEFINITIONS
+================================================================================
+
+2.1 Core Data Types (from types.ts)
+-----------------------------------
+
+// Column type options
+type DataTableColumnType = 'string' | 'number' | 'boolean' | 'date';
+
+// Table column definition
+interface DataTableColumn {
+  id: string;              // Unique column identifier
+  name: string;            // Display name
+  type?: DataTableColumnType;  // Data type (optional)
+  width?: number;          // Column width in pixels
+}
+
+// Table row definition
+interface DataTableRow {
+  id: string;              // Unique row identifier
+  values: Record<string, string | number | boolean | null>;  // Column values
+}
+
+// Table metadata
+interface DataTableMeta {
+  primaryColumnId?: string;   // Primary/key column
+  sourceFileName?: string;    // Original import filename
+  totalRowCount?: number;     // Total row count (before pagination)
+  importedAt?: string;        // Import timestamp
+}
+
+// Complete table data structure
+interface DataTable {
+  id: string;                 // Unique table identifier
+  name: string;               // Table display name
+  columns: DataTableColumn[]; // Column definitions
+  rows: DataTableRow[];       // Row data
+  meta?: DataTableMeta;       // Optional metadata
+}
+
+// Table node data (extends BasicNodeData)
+interface TableNodeData extends BasicNodeData {
+  tableId: string;            // Unique table ID
+  table?: DataTable;          // Embedded table data
+  previewRowCount?: number;   // Max rows to display (default: 50)
+  previewColumnCount?: number; // Max columns to display (default: 10)
+  showRowNumbers?: boolean;   // Show row number column (default: true)
+  isPanelOpen?: boolean;      // External panel open state
+  isCollapsed?: boolean;      // Collapsed view toggle
+}
+
+2.2 BasicNodeData Interface (Complete)
+--------------------------------------
+
+// Complete BasicNodeData interface with source table tracking
+interface BasicNodeData {
+  label?: string;                // Node display label
+  description?: string;          // Multi-line description text
+  colors?: {
+    headerBackground?: string;   // Header background color
+    bodyBackground?: string;     // Body background color
+    borderColor?: string;        // Border color
+    headerTextColor?: string;    // Header text color
+    bodyTextColor?: string;      // Body text color
+  };
+  borderStyle?: 'solid' | 'dashed' | 'dotted' | 'none';
+  borderWidth?: number;
+  hyperlinks?: NodeHyperlink[];  // Multiple hyperlinks below body
+  hyperlink?: LegacyNodeHyperlink; // Legacy single hyperlink
+  
+  // Source table tracking - when node is created from a table row
+  sourceTable?: string;          // Table ID (legacy field)
+  sourceTableNodeId?: string;    // Table node ID for focus navigation
+  sourceTableName?: string;      // Display name of source table  
+  sourceRowIndex?: number;       // Row index (0-based) in source table
+  rowData?: Record<string, unknown>; // Original row data values
+}
+
+2.3 Data Binding Types
+----------------------
+
+// Links a node field to a specific table row
+interface TableRowBinding {
+  type: 'tableRow';
+  tableId: string;
+  rowId: string;
+}
+
+type NodeFieldBindingMode = 'lookupRow';
+
+// Binds a node field to a table cell value
+interface NodeFieldBinding {
+  id: string;
+  nodeId: string;
+  fieldKey: string;
+  mode: NodeFieldBindingMode;
+  tableId: string;
+  rowId: string;
+}
+
+2.4 DataBackedNodeData Interface
+--------------------------------
+
+// Interface for future data synchronization feature (not fully implemented)
+// Currently defined in types.ts but autoSync behavior is not active
+interface DataBackedNodeData extends BasicNodeData {
+  sourceTableId: string;          // Source table ID
+  sourceRowId: string;            // Source row ID  
+  boundFields?: Record<string, string>; // Field-to-column bindings (reserved)
+  autoSync?: boolean;             // Auto-sync flag (reserved for future use)
+}
+
+NOTE: The current row-to-node creation uses BasicNodeData fields directly
+(sourceTable, sourceTableNodeId, sourceTableName, sourceRowIndex, rowData)
+rather than the DataBackedNodeData structure. DataBackedNodeData is reserved
+for future data binding/synchronization features.
+
+================================================================================
+3. COMPONENT PROPS
+================================================================================
+
+interface TableNodeComponentProps {
+  // Core node data
+  node: Node & { data: TableNodeData };
+  
+  // Callbacks
+  onUpdate?: (nodeId: string, updates: Partial<Node>) => void;
+  onConnect?: (connection: { source: string; target: string }) => void;
+  onDoubleClick?: (e: React.MouseEvent) => void;
+  onUpdateTable?: (tableId: string, table: DataTable) => void;
+  onCreateNodeFromRow?: (tableId: string, row: Record<string, unknown>, rowIndex: number) => void;
+  onStartDrag?: (e: React.MouseEvent) => void;
+  onClick?: (e: React.MouseEvent) => void;
+  onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
+  
+  // Styling
+  className?: string;
+  style?: React.CSSProperties;
+  
+  // Feature toggles
+  showHandles?: boolean;       // Show connection handles (default: true)
+  showResizeHandle?: boolean;  // Show resize handle (default: true)
+  
+  // Canvas context
+  viewport?: { x: number; y: number; zoom: number };
+}
+
+================================================================================
+4. CONSTANTS
+================================================================================
+
+const MAX_VISIBLE_ROWS = 50;       // Maximum rows displayed in table
+const MAX_ROW_TO_NODE = 25;        // Maximum rows that can become nodes
+const MIN_TABLE_WIDTH = 280;       // Minimum resize width (px)
+const MIN_TABLE_HEIGHT = 200;      // Minimum resize height (px)
+const DEFAULT_TABLE_WIDTH = 560;   // Default width (px)
+const DEFAULT_TABLE_HEIGHT = 400;  // Default height (px)
+const COLLAPSED_TABLE_HEIGHT = 56; // Height when collapsed (px)
+
+================================================================================
+5. FEATURES
+================================================================================
+
+5.1 Collapsed View
+------------------
+Purpose: Minimize table to save canvas space while maintaining visibility
+
+Trigger: Click the Minimize2/Maximize2 icon in the header
+
+Behavior:
+- Height reduces to 56px (COLLAPSED_TABLE_HEIGHT)
+- Only header remains visible with table name and row/column count
+- Toolbar, content, and footer are hidden
+- Resize handle is disabled when collapsed
+
+Implementation:
+  const handleToggleCollapse = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onUpdate) {
+      onUpdate(node.id, {
+        data: { ...node.data, isCollapsed: !isCollapsed },
+      });
+    }
+  }, [node.id, node.data, isCollapsed, onUpdate]);
+
+5.2 Create Node from Row
+------------------------
+Purpose: Convert table row data into a workflow node for visual processing
+
+Architecture:
+The TableNode component dispatches the onCreateNodeFromRow callback with row data.
+The actual node creation is handled by the parent workflow-editor.tsx handlers,
+which have full access to canvas state and node positioning logic.
+
+Component Chain:
+  TableNode.tsx → onCreateNodeFromRow(tableId, row, rowIndex)
+       ↓
+  workflow-editor.tsx → Handler creates new node with source metadata
+       ↓  
+  setNodes() → Node added to canvas state
+
+Trigger: Click the "+" button on any row (first 25 rows only)
+
+TableNode Internal Handler:
+  const handleCreateNode = useCallback(
+    (row: DataTableRow, rowIndex: number, e: React.MouseEvent) => {
+      e.stopPropagation();
+      onCreateNodeFromRow?.(node.data.tableId, row.values, rowIndex);
+    }, 
+    [node.data.tableId, onCreateNodeFromRow]
+  );
+
+Workflow Editor Handler (Primary Path - Table Node Context Menu):
+  onCreateNodeFromRow={(tableId, row, rowIndex) => {
+    // Find source table for positioning reference
+    const tableNode = nodes.find(n => 
+      n.type === 'table' && n.data?.tableId === tableId
+    );
+    
+    // Position to the right of table, stacked by row index
+    const basePosition = tableNode ? {
+      x: tableNode.position.x + (tableNode.width || 560) + 50,
+      y: tableNode.position.y + (rowIndex * 120)
+    } : getViewportCenteredPosition();
+    
+    // Generate label from first 2 column values
+    const rowLabel = Object.values(row).slice(0, 2)
+      .filter(Boolean).join(' - ') || `Row ${rowIndex + 1}`;
+    
+    // Generate description from first 5 key-value pairs
+    const rowDescription = Object.entries(row)
+      .map(([key, value]) => `${key}: ${value}`)
+      .slice(0, 5)
+      .join('\n');
+    
+    const newNode: Node = {
+      id: `node-${Date.now()}`,
+      type: 'process',
+      position: basePosition,
+      data: {
+        label: String(rowLabel).slice(0, 50),
+        description: rowDescription,
+        icon: 'Cog',
+        iconColor: 'text-green-500',
+        rowData: row,
+        sourceTable: tableId,
+        sourceTableNodeId: tableNode?.id,
+        sourceTableName: tableNode?.data?.label || 'Table',
+        sourceRowIndex: rowIndex,
+      },
+      width: 200,
+      height: 100
+    };
+    
+    setNodes(prev => [...prev, newNode]);
+  }}
+
+Alternative Path (Table Panel):
+  onCreateNodeFromRow={(row, rowIndex) => {
+    const tableNode = nodes.find(n => n.data?.tableId === openTablePanel);
+    
+    const newNode: Node = {
+      // ... similar structure with different defaults:
+      data: {
+        label: Object.values(row)[0]?.toString() || `Row ${rowIndex + 1}`,
+        description: `Data from ${openTablePanel}`,
+        icon: 'Database',
+        iconColor: 'text-indigo-500',
+        sourceTableId: openTablePanel,  // Note: uses sourceTableId here
+        sourceTableNodeId: tableNode?.id,
+        sourceTableName: tableNode?.data?.label || 'Table',
+        sourceRowIndex: rowIndex,
+        rowData: row
+      }
+    };
+  }}
+
+IMPORTANT - Field Naming Note:
+The two creation paths use slightly different field names for the table ID:
+- Primary path (table node context menu): Uses `sourceTable` field
+- Table Panel path: Uses `sourceTableId` field
+
+Both paths consistently use sourceTableNodeId, sourceTableName, sourceRowIndex, 
+and rowData for the source table badge feature. The badge display relies on
+sourceTableNodeId and sourceTableName, which are set consistently in both paths.
+
+Limitations:
+- Limited to first MAX_ROW_TO_NODE (25) rows
+- Rows beyond limit show "—" instead of "+" button
+- Footer warning displayed when limit is exceeded
+
+5.3 Source Table Badge
+----------------------
+Purpose: Show which table a node was created from, with click-to-focus navigation
+
+Display: Badge shown in node footer when sourceTableNodeId and sourceTableName present
+Format: "From: [Table Name] (Row N)"
+Styling: Indigo color scheme, appears below description/hyperlinks
+
+Click Behavior:
+- Calls onFocusNode(sourceTableNodeId)
+- Immediately updates viewport position to center source table (no animation)
+- Updates selection state to highlight the source table
+
+Callback Propagation Chain:
+  workflow-editor.tsx
+    ↓ defines focusOnNode(nodeId) helper
+    ↓ passes to WorkflowCanvas as onFocusNode prop
+  WorkflowCanvas.tsx  
+    ↓ receives onFocusNode, passes to KiteFrameCanvas
+  KiteFrameCanvas.tsx
+    ↓ receives onFocusNode, passes to PluginRenderer
+  BasicNode.tsx
+    ↓ receives onFocusNode via props, calls on badge click
+
+Focus Implementation (workflow-editor.tsx):
+  const focusOnNode = useCallback((nodeId: string) => {
+    const targetNode = nodes.find(n => n.id === nodeId);
+    if (!targetNode) return;
+    
+    // Calculate viewport center position
+    const canvasWidth = 800;
+    const canvasHeight = 600;
+    const nodeWidth = targetNode.width || 200;
+    const nodeHeight = targetNode.height || 100;
+    
+    const newViewport = {
+      x: -(targetNode.position.x - canvasWidth / 2 + nodeWidth / 2),
+      y: -(targetNode.position.y - canvasHeight / 2 + nodeHeight / 2),
+      zoom: viewport.zoom
+    };
+    
+    setViewport(newViewport);
+    setSelectedNodeId(nodeId);
+  }, [nodes, viewport.zoom]);
+
+Badge Rendering (BasicNode.tsx):
+  {node.data.sourceTableNodeId && node.data.sourceTableName && (
+    <button
+      onClick={(e) => {
+        e.stopPropagation(); // Prevent node selection interference
+        if (onFocusNode && node.data.sourceTableNodeId) {
+          onFocusNode(node.data.sourceTableNodeId);
+        }
+      }}
+      className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 text-xs 
+        bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 
+        dark:text-indigo-300 rounded-md border border-indigo-200 
+        dark:border-indigo-700 hover:bg-indigo-100 
+        dark:hover:bg-indigo-900/50 transition-colors cursor-pointer"
+      title="Click to focus on source table"
+      data-testid={`source-table-badge-${node.id}`}
+    >
+      <Database size={12} />
+      <span>From: {sanitizeText(node.data.sourceTableName)}</span>
+      {node.data.sourceRowIndex !== undefined && (
+        <span className="text-indigo-500 dark:text-indigo-400">
+          (Row {node.data.sourceRowIndex + 1})
+        </span>
+      )}
+    </button>
+  )}
+
+5.4 Data Import
+---------------
+Purpose: Load external data into the table from CSV or JSON files
+
+Supported Formats:
+- CSV (comma-separated values)
+- JSON (array of objects or structured table format)
+
+Trigger: 
+- "Import CSV/JSON" button in empty state
+- "Import" button in toolbar (when no data)
+
+Implementation:
+  const handleFileChange = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      const { importFromFile } = await import('../utils/dataImport');
+      const parsedTable = await importFromFile(file);
+      
+      const tableWithId: DataTable = {
+        ...parsedTable,
+        id: node.data.tableId,
+      };
+      
+      onUpdateTable?.(node.data.tableId, tableWithId);
+      onUpdate?.(node.id, {
+        data: { 
+          ...node.data, 
+          table: tableWithId,
+          label: tableWithId.name || node.data.label,
+        },
+      });
+    } catch (error) {
+      console.error('Error parsing file:', error);
+    }
+  }, [node.id, node.data, onUpdate, onUpdateTable]);
+
+5.5 Search and Filter
+---------------------
+Purpose: Find specific rows by searching across all column values
+
+Location: Toolbar search input
+
+Behavior:
+- Real-time filtering as user types
+- Case-insensitive search
+- Searches across all column values
+- Shows "X of Y" count indicator
+
+Implementation:
+  const filteredAndSortedRows = useMemo(() => {
+    if (!table) return [];
+    let rows = [...table.rows];
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      rows = rows.filter(row => 
+        Object.values(row.values).some(value => 
+          String(value ?? '').toLowerCase().includes(query)
+        )
+      );
+    }
+    // ... sorting logic ...
+    return rows.slice(0, MAX_VISIBLE_ROWS);
+  }, [table, searchQuery, sortColumn, sortDirection]);
+
+5.6 Column Sorting
+------------------
+Purpose: Order rows by column values
+
+Trigger: Click on column header
+
+Behavior:
+- First click: Sort ascending (A-Z, 0-9)
+- Second click: Sort descending (Z-A, 9-0)
+- Visual indicator shows current sort column and direction
+- Supports numeric-aware string comparison
+
+Implementation:
+  const handleColumnSort = useCallback((columnId: string) => {
+    if (sortColumn === columnId) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(columnId);
+      setSortDirection('asc');
+    }
+  }, [sortColumn]);
+
+5.7 Inline Label Editing
+------------------------
+Purpose: Rename the table directly on the canvas
+
+Trigger: Double-click on table header
+
+Behavior:
+- Inline text input appears
+- Enter key saves changes
+- Escape key cancels edit
+- Blur (clicking away) saves changes
+
+5.8 Resizing
+------------
+Purpose: Adjust table dimensions to fit content
+
+Trigger: Drag bottom-right resize handle (when selected)
+
+Constraints:
+- Minimum width: 280px
+- Minimum height: 200px
+- Disabled when collapsed
+
+================================================================================
+6. VISUAL STRUCTURE
+================================================================================
+
++----------------------------------------------------------+
+|  [GripHorizontal] [Table2] Table Name    [X rows × Y cols]  [↕] |  <- Header
++----------------------------------------------------------+
+|  [🔍 Search...]                           [Import]  X of Y |  <- Toolbar
++----------------------------------------------------------+
+|  #  | Column 1 ▲ | Column 2   | Column 3   | Actions      |  <- Table Header
+|-----+------------+------------+------------+--------------|
+|  1  | Value      | Value      | Value      |    [+]       |  <- Row
+|  2  | Value      | Value      | Value      |    [+]       |
+|  3  | Value      | Value      | Value      |    [+]       |
+| ... | ...        | ...        | ...        |    ...       |
++----------------------------------------------------------+
+|  ⚠️ Row-to-node limited to first 25 rows                  |  <- Footer (if >25)
++----------------------------------------------------------+
+|  filename.csv • 12/01/2024                                |  <- Source info
++----------------------------------------------------------+
+
+When Collapsed:
++----------------------------------------------------------+
+|  [GripHorizontal] [Table2] Table Name    [X rows × Y cols]  [↕] |
++----------------------------------------------------------+
+
+================================================================================
+7. FACTORY FUNCTION
+================================================================================
+
+export const createTableNode = (
+  id: string,
+  position: { x: number; y: number },
+  data: Partial<TableNodeData> = {},
+): Node & { data: TableNodeData } => ({
+  id,
+  type: "table",
+  position,
+  data: {
+    label: data.label || "Table",
+    tableId: data.tableId || `table-${id}`,
+    table: data.table,
+    previewRowCount: data.previewRowCount || 50,
+    previewColumnCount: data.previewColumnCount || 10,
+    showRowNumbers: data.showRowNumbers ?? true,
+    colors: data.colors || {
+      headerBackground: "#4f46e5",
+      bodyBackground: "#ffffff",
+      headerTextColor: "#ffffff",
+      bodyTextColor: "#374151",
+    },
+  },
+  width: 560,
+  height: 400,
+  style: {
+    width: 560,
+    height: 400,
+  },
+  draggable: true,
+  selectable: true,
+  doubleClickable: true,
+  resizable: true,
+  showHandles: true,
+});
+
+================================================================================
+8. USAGE EXAMPLES
+================================================================================
+
+8.1 Creating a Table Node
+-------------------------
+
+import { createTableNode } from '@/lib/kiteframe/components/TableNode';
+
+const tableNode = createTableNode(
+  'table-1',
+  { x: 100, y: 100 },
+  {
+    label: 'Customer Data',
+    colors: {
+      headerBackground: '#059669',
+      bodyBackground: '#ffffff',
+      headerTextColor: '#ffffff',
+    }
+  }
+);
+
+8.2 Rendering with Callbacks
+----------------------------
+
+<TableNode
+  node={tableNode}
+  onUpdate={(nodeId, updates) => {
+    setNodes(prev => prev.map(n => 
+      n.id === nodeId ? { ...n, ...updates } : n
+    ));
+  }}
+  onUpdateTable={(tableId, table) => {
+    setTableData(prev => ({ ...prev, [tableId]: table }));
+  }}
+  onCreateNodeFromRow={(tableId, row, rowIndex) => {
+    const newNode = createProcessNode(row, rowIndex);
+    setNodes(prev => [...prev, newNode]);
+  }}
+  viewport={viewport}
+/>
+
+8.3 Importing Data Programmatically
+-----------------------------------
+
+const importData = {
+  id: 'table-1',
+  name: 'Sales Data',
+  columns: [
+    { id: 'col-1', name: 'Product', type: 'string' },
+    { id: 'col-2', name: 'Price', type: 'number' },
+    { id: 'col-3', name: 'Quantity', type: 'number' },
+  ],
+  rows: [
+    { id: 'row-1', values: { 'col-1': 'Widget A', 'col-2': 29.99, 'col-3': 100 } },
+    { id: 'row-2', values: { 'col-1': 'Widget B', 'col-2': 49.99, 'col-3': 50 } },
+  ],
+  meta: {
+    sourceFileName: 'sales.csv',
+    importedAt: new Date().toISOString(),
+    totalRowCount: 2,
+  }
+};
+
+onUpdate(tableNode.id, {
+  data: { ...tableNode.data, table: importData }
+});
+
+================================================================================
+9. ACCESSIBILITY
+================================================================================
+
+- role="article" on main container
+- aria-label with table name, row count, and column count
+- aria-selected reflects selection state
+- tabIndex for keyboard navigation
+- data-testid attributes for testing:
+  - table-node-{id}
+  - table-search-{id}
+  - table-import-{id}
+  - table-toggle-collapse-{id}
+  - table-row-create-node-{rowId}
+  - table-file-input-{id}
+
+================================================================================
+10. STYLING
+================================================================================
+
+Default Colors:
+- Header Background: #4f46e5 (Indigo)
+- Body Background: #ffffff (White)
+- Header Text: #ffffff (White)
+- Body Text: #374151 (Gray-700)
+- Border: Derived from header color
+
+Dark Mode Support:
+- Automatic dark mode classes
+- Dark backgrounds: gray-800, gray-900
+- Dark text: gray-300, gray-400
+
+CSS Classes:
+- kiteframe-node
+- kiteframe-table-node
+- transition-all duration-200
+- Ring highlight when selected
+
+================================================================================
+11. PERFORMANCE CONSIDERATIONS
+================================================================================
+
+- Component wrapped with React.memo() for render optimization
+- useMemo() for filtered/sorted rows
+- useCallback() for all event handlers
+- Row limit of 50 for display, 25 for node creation
+- Virtualization not currently implemented (consider for large datasets)
+
+================================================================================
+12. DEPENDENCIES
+================================================================================
+
+External:
+- lucide-react (icons)
+- @/lib/utils (cn utility)
+
+Internal:
+- NodeHandles (connection points)
+- ResizeHandle (resize functionality)
+- ../utils/validation (sanitizeText, validateColor)
+- ../utils/dataImport (CSV/JSON parsing)
+- @/lib/themes (getBorderColorFromHeader)
+
+================================================================================
+13. FILE LOCATIONS
+================================================================================
+
+Component: client/src/lib/kiteframe/components/TableNode.tsx
+Types: client/src/lib/kiteframe/types.ts
+Import Utils: client/src/lib/kiteframe/utils/dataImport.ts
+Theme Utils: client/src/lib/themes.ts
+
+================================================================================
+END OF SPECIFICATION
+================================================================================
