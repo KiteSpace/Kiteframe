@@ -256,16 +256,7 @@ export function Sidebar({
     return allSame ? firstValue : "";
   };
   const nodeTypes = [
-    { type: "input", icon: ArrowRight, color: "text-blue-500", label: "Input" },
-    { type: "process", icon: Cog, color: "text-green-500", label: "Process" },
-    {
-      type: "condition",
-      icon: HelpCircle,
-      color: "text-yellow-500",
-      label: "Condition",
-    },
-    { type: "output", icon: ArrowLeft, color: "text-red-500", label: "Output" },
-    { type: "ai", icon: Bot, color: "text-purple-500", label: "AI Task" },
+    { type: "input", icon: ArrowRight, color: "text-blue-500", label: "Step" },
     { type: "image", icon: Image, color: "text-indigo-500", label: "Image" },
     { type: "text", icon: Type, color: "text-gray-500", label: "Text" },
     {

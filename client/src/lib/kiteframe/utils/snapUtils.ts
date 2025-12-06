@@ -25,7 +25,7 @@ export interface SnapSettings {
 }
 
 export const defaultSnapSettings: SnapSettings = {
-  enabled: true,
+  enabled: false,
   threshold: 10,
   showGuides: true,
   snapToNodes: true,

@@ -339,11 +339,14 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   const isCanvasObjectTarget = target?.type === 'canvasObject';
 
   // Determine if toolbar should appear above or below
+  // Only show above if there's actually enough space, otherwise show below
   const toolbarHeight = 60;
   const submenuHeight = 150;
+  const minSpaceNeeded = toolbarHeight + submenuHeight;
   const spaceAbove = nodeRect ? nodeRect.top : position.y;
   const spaceBelow = nodeRect ? viewportHeight - nodeRect.bottom : viewportHeight - position.y;
-  const showAbove = spaceAbove > (toolbarHeight + submenuHeight) || spaceAbove > spaceBelow;
+  // Prefer showing above only if there's enough space above AND it's not blocking the node
+  const showAbove = spaceAbove >= minSpaceNeeded;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

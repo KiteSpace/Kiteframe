@@ -9,7 +9,7 @@ import {
   Moon,
   Bug,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import kiteframeIcon from "@assets/kiteframe@2x_1758226635607.png";
 import { AuthButton } from "./AuthButton";
 import { CreditsWidget } from "./CreditsWidget";
@@ -39,21 +39,32 @@ export function Toolbar({
   onOpenBugReport
 }: ToolbarProps) {
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
+  const settingsDropdownRef = useRef<HTMLDivElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!showSettingsDropdown) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        settingsDropdownRef.current && 
+        !settingsDropdownRef.current.contains(target) &&
+        settingsButtonRef.current &&
+        !settingsButtonRef.current.contains(target)
+      ) {
+        setShowSettingsDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSettingsDropdown]);
+
   return (
     <header
       className="h-14 px-4 py-2 flex items-center justify-between bg-card border-b border-border shadow-sm"
       data-testid="toolbar"
-      onClick={(e: React.MouseEvent) => {
-        // Close dropdown when clicking outside
-        const target = e.target as HTMLElement;
-        if (
-          target && typeof target.closest === 'function' &&
-          !target.closest('[data-testid="button-settings"]') &&
-          !target.closest(".absolute")
-        ) {
-          setShowSettingsDropdown(false);
-        }
-      }}
     >
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
@@ -80,6 +91,7 @@ export function Toolbar({
         
         <div className="relative">
           <button
+            ref={settingsButtonRef}
             className="p-2 rounded-md hover:bg-accent transition-colors"
             data-testid="button-settings"
             onClick={() => setShowSettingsDropdown(!showSettingsDropdown)}
@@ -87,7 +99,7 @@ export function Toolbar({
             <Settings size={16} />
           </button>
           {showSettingsDropdown && (
-            <div className="absolute right-0 top-full mt-1 w-64 bg-card border border-border rounded-lg shadow-lg z-[100] p-3">
+            <div ref={settingsDropdownRef} className="absolute right-0 top-full mt-1 w-64 bg-card border border-border rounded-lg shadow-lg z-[100] p-3">
               {/* Theme Toggle */}
               {onToggleDarkMode && (
                 <button

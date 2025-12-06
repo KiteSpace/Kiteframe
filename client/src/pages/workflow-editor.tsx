@@ -4088,9 +4088,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         return {};
                       };
 
+                      const isImageNode = type === 'image';
                       const getNodeDimensions = () => {
                         if (isTableNode) return { width: 560, height: 400 };
                         if (isFormNode) return { width: 320, height: 200 };
+                        if (isImageNode) return { width: 240, height: 240 };
                         return { width: 200, height: 100 };
                       };
 
@@ -4208,9 +4210,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         return {};
                       };
 
+                      const isImageNode = type === 'image';
                       const getNodeDimensions = () => {
                         if (isTableNode) return { width: 560, height: 400 };
                         if (isFormNode) return { width: 320, height: 200 };
+                        if (isImageNode) return { width: 240, height: 240 };
                         return { width: 200, height: 100 };
                       };
 
@@ -4384,6 +4388,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     const isTableNode = type === 'table';
                     const isFormNode = type === 'form';
                     const isCompoundNode = type === 'compound';
+                    const isImageNode = type === 'image';
                     const tableId = isTableNode ? `table-${nodeId}` : undefined;
 
                     const getNodeData = () => {
@@ -4444,6 +4449,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       if (isTableNode) return { width: 560, height: 400 };
                       if (isFormNode) return { width: 320, height: 200 };
                       if (isCompoundNode) return { width: 320, height: 280 };
+                      if (isImageNode) return { width: 240, height: 240 };
                       return { width: 200, height: 100 };
                     };
 
@@ -4455,8 +4461,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       data: getNodeData(),
                       width: dimensions.width,
                       height: dimensions.height,
-                      style: (isTableNode || isFormNode || isCompoundNode) ? dimensions : undefined,
-                      resizable: (isTableNode || isFormNode || isCompoundNode) ? true : undefined
+                      style: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? dimensions : undefined,
+                      resizable: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? true : undefined
                     };
 
                     setNodes(prev => [...prev, newNode]);
@@ -4548,10 +4554,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       };
                     };
 
+                    const isImageNode = type === 'image';
                     const getNodeDimensions = () => {
                       if (isTableNode) return { width: 560, height: 400 };
                       if (isFormNode) return { width: 320, height: 200 };
                       if (isCompoundNode) return { width: 320, height: 280 };
+                      if (isImageNode) return { width: 240, height: 240 };
                       return { width: 200, height: 100 };
                     };
 
@@ -4563,8 +4571,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       data: getNodeData(),
                       width: dimensions.width,
                       height: dimensions.height,
-                      style: (isTableNode || isFormNode || isCompoundNode) ? dimensions : undefined,
-                      resizable: (isTableNode || isFormNode || isCompoundNode) ? true : undefined
+                      style: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? dimensions : undefined,
+                      resizable: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? true : undefined
                     };
 
                     setNodes(prev => [...prev, newNode]);
@@ -4818,10 +4826,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       };
                     };
 
+                    const isImageNode = type === 'image';
                     const getNodeDimensions = () => {
                       if (isTableNode) return { width: 560, height: 400 };
                       if (isFormNode) return { width: 320, height: 200 };
                       if (isCompoundNode) return { width: 320, height: 280 };
+                      if (isImageNode) return { width: 240, height: 240 };
                       return { width: 200, height: 100 };
                     };
 
@@ -4833,8 +4843,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       data: getNodeData(),
                       width: dimensions.width,
                       height: dimensions.height,
-                      style: (isTableNode || isFormNode || isCompoundNode) ? dimensions : undefined,
-                      resizable: (isTableNode || isFormNode || isCompoundNode) ? true : undefined
+                      style: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? dimensions : undefined,
+                      resizable: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? true : undefined
                     };
 
                     setNodes([newNode]);
@@ -4974,10 +4984,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   };
                 };
 
+                const isImageNode = type === 'image';
                 const getNodeDimensions = () => {
                   if (isTableNode) return { width: 560, height: 400 };
                   if (isFormNode) return { width: 320, height: 200 };
                   if (isCompoundNode) return { width: 320, height: 280 };
+                  if (isImageNode) return { width: 240, height: 240 };
                   return { width: 200, height: 100 };
                 };
 
@@ -4989,8 +5001,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   data: getNodeData(),
                   width: dimensions.width,
                   height: dimensions.height,
-                  style: (isTableNode || isFormNode || isCompoundNode) ? dimensions : undefined,
-                  resizable: (isTableNode || isFormNode || isCompoundNode) ? true : undefined
+                  style: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? dimensions : undefined,
+                  resizable: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? true : undefined
                 };
 
                 setNodes(prev => [...prev, newNode]);
@@ -5579,6 +5591,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     // Mark as dragging to prevent properties panel from opening
                     isDraggingRef.current = true;
                     
+                    // Hide linear toolbar during drag for performance
+                    setLinearToolbar(null);
+                    
                     // Cancel any pending click delay timer since we're now dragging
                     if (clickDelayTimeoutRef.current) {
                       clearTimeout(clickDelayTimeoutRef.current);
@@ -5734,6 +5749,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     });
                     return updated;
                   });
+                  
+                  // Hide toolbar during multi-select
+                  setLinearToolbar(null);
                   
                   // Don't change selectedNodeId during multi-select to preserve the selection
                 } else {
