@@ -47,6 +47,7 @@ const MIN_TABLE_HEIGHT = 200;
 const DEFAULT_TABLE_WIDTH = 560;
 const DEFAULT_TABLE_HEIGHT = 400;
 const COLLAPSED_TABLE_HEIGHT = 56;
+const MIN_COLLAPSED_WIDTH = 240;
 
 const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   node,
@@ -84,6 +85,8 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const collapsedTitleRef = useRef<HTMLSpanElement>(null);
+  const [collapsedWidth, setCollapsedWidth] = useState(MIN_COLLAPSED_WIDTH);
 
   const table = node.data.table;
   const apiConfig = node.data.apiConfig;
@@ -468,6 +471,16 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   const colCount = table?.columns?.length || 0;
   const isCollapsed = node.data.isCollapsed || false;
 
+  // Measure collapsed title width dynamically
+  useEffect(() => {
+    if (isCollapsed && collapsedTitleRef.current) {
+      const textWidth = collapsedTitleRef.current.scrollWidth;
+      // Calculate total width: padding (32px) + icon (20px) + gap (12px) + text + gap (12px) + divider padding (12px) + buttons (80px) + padding (16px)
+      const totalWidth = 32 + 20 + 12 + textWidth + 12 + 12 + 80 + 16;
+      setCollapsedWidth(Math.max(MIN_COLLAPSED_WIDTH, totalWidth));
+    }
+  }, [isCollapsed, tableName]);
+
   const handleToggleCollapse = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (onUpdate) {
@@ -481,9 +494,11 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
 
   const actualHeight = isCollapsed ? COLLAPSED_TABLE_HEIGHT : nodeHeight;
   
+  const actualWidth = isCollapsed ? collapsedWidth : nodeWidth;
+  
   const outerWrapperStyle: React.CSSProperties = {
     ...style,
-    width: nodeWidth,
+    width: actualWidth,
     height: actualHeight,
     position: 'relative',
     overflow: 'visible',
@@ -822,6 +837,16 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
         data-testid={`table-file-input-${node.id}`}
       />
 
+      {/* Hidden span for measuring collapsed title width */}
+      <span
+        ref={collapsedTitleRef}
+        className="absolute opacity-0 pointer-events-none text-base font-medium whitespace-nowrap"
+        style={{ visibility: 'hidden' }}
+        aria-hidden="true"
+      >
+        {sanitizeText(tableName)}
+      </span>
+
       {/* Collapsed View - Clean compact bar */}
       {isCollapsed ? (
         <div
@@ -838,7 +863,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <Table2 size={20} className="flex-shrink-0 opacity-80" />
             <span
-              className="text-base font-medium truncate"
+              className="text-base font-medium whitespace-nowrap"
               title={tableName}
             >
               {sanitizeText(tableName)}
@@ -1051,7 +1076,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       {/* Connection Handles - positioned outside visual container */}
       {showHandles && (
         <NodeHandles
-          node={{ ...node, width: nodeWidth, height: actualHeight }}
+          node={{ ...node, width: actualWidth, height: actualHeight }}
           scale={viewport?.zoom || 1}
           onHandleConnect={onHandleConnect}
         />
