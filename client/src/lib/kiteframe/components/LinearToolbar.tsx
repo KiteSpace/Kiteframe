@@ -321,7 +321,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         setTextPreviewMetadata(null);
       }
     }
-  }, [activeSubmenu, canvasObject]);
+  }, [activeSubmenu, canvasObject, initialSubmenu]);
 
   // Sync icon visibility and reset submenu when node changes (but preserve initialSubmenu)
   const prevNodeIdRef = useRef<string | undefined>(undefined);
