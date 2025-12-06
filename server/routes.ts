@@ -2284,6 +2284,34 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
     }
   });
 
+  // ============= SAMPLE API FOR TABLE TESTING =============
+  // Returns sample product data for testing table API integration
+  app.get("/api/sample/products", (req, res) => {
+    const products = [
+      { id: 1, name: "Laptop Pro", category: "Electronics", price: 1299.99, stock: 45, rating: 4.5 },
+      { id: 2, name: "Wireless Mouse", category: "Electronics", price: 29.99, stock: 150, rating: 4.2 },
+      { id: 3, name: "USB-C Hub", category: "Accessories", price: 49.99, stock: 80, rating: 4.7 },
+      { id: 4, name: "Mechanical Keyboard", category: "Electronics", price: 149.99, stock: 60, rating: 4.8 },
+      { id: 5, name: "Monitor 27\"", category: "Electronics", price: 399.99, stock: 25, rating: 4.4 },
+      { id: 6, name: "Webcam HD", category: "Electronics", price: 79.99, stock: 90, rating: 4.1 },
+      { id: 7, name: "Desk Lamp", category: "Office", price: 34.99, stock: 120, rating: 4.3 },
+      { id: 8, name: "Notebook Set", category: "Office", price: 12.99, stock: 200, rating: 4.0 },
+    ];
+    res.json({ products, total: products.length, lastUpdated: new Date().toISOString() });
+  });
+
+  // Returns sample user data for testing
+  app.get("/api/sample/users", (req, res) => {
+    const users = [
+      { id: 1, name: "Alice Johnson", email: "alice@example.com", role: "Admin", status: "Active", joined: "2024-01-15" },
+      { id: 2, name: "Bob Smith", email: "bob@example.com", role: "Editor", status: "Active", joined: "2024-02-20" },
+      { id: 3, name: "Carol White", email: "carol@example.com", role: "Viewer", status: "Active", joined: "2024-03-10" },
+      { id: 4, name: "David Brown", email: "david@example.com", role: "Editor", status: "Inactive", joined: "2024-01-25" },
+      { id: 5, name: "Emma Davis", email: "emma@example.com", role: "Admin", status: "Active", joined: "2024-04-05" },
+    ];
+    res.json({ users, total: users.length });
+  });
+
   // ============= TABLE API PROXY =============
   // Proxy endpoint for table API data fetching (avoids CORS issues)
   app.post("/api/table/fetch", async (req, res) => {
