@@ -442,8 +442,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           color: 'bg-green-500',
           hoverColor: 'hover:bg-green-600',
           onClick: () => { 
-            onOpenComponentMenu?.(); 
-            onClose(); 
+            onOpenComponentMenu?.();
+            // Don't close the toolbar - the component menu will handle its own state
           }
         });
       } else {
