@@ -2167,6 +2167,50 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     );
   }
 
+  // When editing a text object hyperlink (initialSubmenu === 'textLink'), show ONLY the textLink submenu
+  // without the main toolbar buttons - this is for dedicated hyperlink editing from the edit button
+  if (isCanvasObjectTarget && initialSubmenu === 'textLink' && activeSubmenu === 'textLink') {
+    return (
+      <div
+        ref={menuRef}
+        className="fixed z-[100] pointer-events-auto"
+        style={{
+          left: toolbarX,
+          top: toolbarY,
+          transform: toolbarTransform
+        }}
+        data-testid="linear-toolbar"
+        data-toolbar="linear-textlink-only"
+      >
+        <div className="relative">
+          {renderTextLinkSubmenu()}
+        </div>
+      </div>
+    );
+  }
+
+  // When editing a basic node hyperlink (initialSubmenu === 'link'), show ONLY the link submenu
+  // without the main toolbar buttons - this is for dedicated hyperlink editing from the edit button
+  if (isNodeTarget && initialSubmenu === 'link' && activeSubmenu === 'link') {
+    return (
+      <div
+        ref={menuRef}
+        className="fixed z-[100] pointer-events-auto"
+        style={{
+          left: toolbarX,
+          top: toolbarY,
+          transform: toolbarTransform
+        }}
+        data-testid="linear-toolbar"
+        data-toolbar="linear-link-only"
+      >
+        <div className="relative">
+          {renderLinkSubmenu()}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={menuRef}
