@@ -147,6 +147,7 @@ interface SubcomponentRendererProps {
   onImageUpload?: (subcomponentId: string, file: File) => Promise<string>;
   showingUrlInputFor: string | null;
   setShowingUrlInputFor: (id: string | null) => void;
+  onHeightChange?: (id: string, height: number) => void;
 }
 
 const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
@@ -159,11 +160,32 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
   isSelected,
   onImageUpload,
   showingUrlInputFor,
-  setShowingUrlInputFor
+  setShowingUrlInputFor,
+  onHeightChange
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const showUrlInput = showingUrlInputFor === subcomponent.id;
+  
+  // Measure actual DOM height and report to parent
+  useEffect(() => {
+    if (!containerRef.current || !onHeightChange) return;
+    
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        onHeightChange(subcomponent.id, entry.contentRect.height);
+      }
+    });
+    
+    observer.observe(containerRef.current);
+    
+    // Report initial height
+    onHeightChange(subcomponent.id, containerRef.current.offsetHeight);
+    
+    return () => observer.disconnect();
+  }, [subcomponent.id, onHeightChange]);
+  
   const renderContent = () => {
     switch (subcomponent.type) {
       case 'text':
@@ -193,33 +215,53 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
           );
         }
         return (
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1 pb-1 border-b border-gray-200 dark:border-gray-600">
-              <div className="flex items-center gap-0.5 mr-2">
+          <div className="flex flex-col border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
+            <textarea
+              value={textData.data.content}
+              onChange={(e) => onUpdate(subcomponent.id, { content: e.target.value })}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              placeholder="Enter text..."
+              className="w-full bg-transparent resize-none text-sm text-gray-700 dark:text-gray-300 focus:outline-none p-2"
+              style={{
+                fontSize: currentFontSize,
+                fontWeight: textData.data.fontWeight || 'normal',
+                fontStyle: textData.data.fontStyle || 'normal',
+                textDecoration: textData.data.textDecoration || 'none',
+                textAlign: currentAlign,
+                color: textData.data.textColor,
+              }}
+              rows={2}
+              data-testid={`subcomponent-text-${subcomponent.id}`}
+            />
+            <div className="flex items-center gap-1 px-2 py-1.5 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50">
+              <div className="flex items-center gap-0.5 mr-1">
                 <button
                   onClick={(e) => { 
                     e.stopPropagation(); 
                     onUpdate(subcomponent.id, { fontSize: Math.max(10, currentFontSize - 2) });
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
-                  className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                  className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
                   title="Decrease font size"
                 >
                   <MinusIcon size={12} />
                 </button>
-                <span className="text-xs text-gray-500 w-6 text-center">{currentFontSize}</span>
+                <span className="text-xs text-gray-500 w-5 text-center">{currentFontSize}</span>
                 <button
                   onClick={(e) => { 
                     e.stopPropagation(); 
                     onUpdate(subcomponent.id, { fontSize: Math.min(48, currentFontSize + 2) });
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
-                  className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                  className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
                   title="Increase font size"
                 >
                   <PlusIcon size={12} />
                 </button>
               </div>
+              
+              <div className="w-px h-4 bg-gray-300 dark:bg-gray-500" />
               
               <button
                 onClick={(e) => { 
@@ -231,7 +273,7 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
                   "w-6 h-6 flex items-center justify-center rounded transition-colors",
                   isBold 
                     ? "bg-blue-500 text-white" 
-                    : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600"
                 )}
                 title="Bold"
               >
@@ -248,7 +290,7 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
                   "w-6 h-6 flex items-center justify-center rounded transition-colors",
                   isItalic 
                     ? "bg-blue-500 text-white" 
-                    : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600"
                 )}
                 title="Italic"
               >
@@ -265,14 +307,14 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
                   "w-6 h-6 flex items-center justify-center rounded transition-colors",
                   isStrikethrough 
                     ? "bg-blue-500 text-white" 
-                    : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600"
                 )}
                 title="Strikethrough"
               >
                 <Strikethrough size={12} />
               </button>
               
-              <div className="w-px h-4 bg-gray-200 dark:bg-gray-600 mx-1" />
+              <div className="w-px h-4 bg-gray-300 dark:bg-gray-500" />
               
               <button
                 onClick={(e) => { e.stopPropagation(); onUpdate(subcomponent.id, { textAlign: 'left' }); }}
@@ -281,7 +323,7 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
                   "w-6 h-6 flex items-center justify-center rounded transition-colors",
                   currentAlign === 'left' 
                     ? "bg-blue-500 text-white" 
-                    : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600"
                 )}
                 title="Align left"
               >
@@ -294,7 +336,7 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
                   "w-6 h-6 flex items-center justify-center rounded transition-colors",
                   currentAlign === 'center' 
                     ? "bg-blue-500 text-white" 
-                    : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600"
                 )}
                 title="Align center"
               >
@@ -307,14 +349,14 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
                   "w-6 h-6 flex items-center justify-center rounded transition-colors",
                   currentAlign === 'right' 
                     ? "bg-blue-500 text-white" 
-                    : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600"
                 )}
                 title="Align right"
               >
                 <AlignRight size={12} />
               </button>
               
-              <div className="w-px h-4 bg-gray-200 dark:bg-gray-600 mx-1" />
+              <div className="w-px h-4 bg-gray-300 dark:bg-gray-500" />
               
               <input
                 type="color"
@@ -325,28 +367,10 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-6 h-6 rounded cursor-pointer border border-gray-200 dark:border-gray-600"
+                className="w-6 h-6 rounded cursor-pointer border border-gray-300 dark:border-gray-500"
                 title="Text color"
               />
             </div>
-            <textarea
-              value={textData.data.content}
-              onChange={(e) => onUpdate(subcomponent.id, { content: e.target.value })}
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              placeholder="Enter text..."
-              className="w-full bg-transparent resize-none text-sm text-gray-700 dark:text-gray-300 focus:outline-none"
-              style={{
-                fontSize: currentFontSize,
-                fontWeight: textData.data.fontWeight || 'normal',
-                fontStyle: textData.data.fontStyle || 'normal',
-                textDecoration: textData.data.textDecoration || 'none',
-                textAlign: currentAlign,
-                color: textData.data.textColor,
-              }}
-              rows={2}
-              data-testid={`subcomponent-text-${subcomponent.id}`}
-            />
           </div>
         );
       
@@ -491,36 +515,53 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
         const linkData = (subcomponent as CompoundLinkSubcomponent).data;
         const hasLinkContent = linkData.url || linkData.text;
         
+        const getHostname = (url: string) => {
+          try {
+            const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+            return new URL(fullUrl).hostname;
+          } catch {
+            return url;
+          }
+        };
+        
         if (!isSelected) {
-          if (linkData.showPreview && linkData.metadata) {
+          if (linkData.showPreview && linkData.url) {
+            const hostname = getHostname(linkData.url);
             return (
-              <div 
-                className="w-full p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600"
+              <a 
+                href={linkData.url.startsWith('http') ? linkData.url : `https://${linkData.url}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full p-2.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors cursor-pointer"
+                onClick={(e) => e.stopPropagation()}
                 data-testid={`subcomponent-link-preview-${subcomponent.id}`}
               >
                 <div className="flex flex-col gap-1">
-                  <span className="text-xs font-medium text-gray-800 dark:text-gray-200 line-clamp-1">
-                    {linkData.metadata.title || linkData.text || 'Link'}
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200 line-clamp-1">
+                    {linkData.metadata?.title || linkData.text || hostname}
                   </span>
-                  {linkData.metadata.description && (
-                    <span className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2">
+                  {linkData.metadata?.description && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
                       {linkData.metadata.description}
                     </span>
                   )}
-                  <div className="flex items-center gap-1 mt-1">
-                    {linkData.metadata.favicon && (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {linkData.metadata?.favicon ? (
                       <img 
                         src={linkData.metadata.favicon} 
                         alt="" 
-                        className="w-3 h-3 rounded-sm"
+                        className="w-4 h-4 rounded-sm"
                       />
+                    ) : (
+                      <Globe size={14} className="text-gray-400" />
                     )}
-                    <span className="text-[10px] text-gray-400 truncate">
-                      {linkData.url ? new URL(linkData.url.startsWith('http') ? linkData.url : `https://${linkData.url}`).hostname : ''}
+                    <span className="text-xs text-gray-400 truncate">
+                      {hostname}
                     </span>
+                    <ExternalLink size={12} className="text-gray-400 ml-auto flex-shrink-0" />
                   </div>
                 </div>
-              </div>
+              </a>
             );
           }
           return (
@@ -671,6 +712,7 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
   if (!isSelected) {
     return (
       <div
+        ref={containerRef}
         className="relative"
         data-testid={`subcomponent-${subcomponent.id}`}
       >
@@ -683,6 +725,7 @@ const SubcomponentRenderer: React.FC<SubcomponentRendererProps> = ({
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         "group relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 transition-all",
         isDragging && "opacity-50 scale-95",
@@ -754,10 +797,19 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   const [isMenuDragging, setIsMenuDragging] = useState(false);
   const [menuDragOffset, setMenuDragOffset] = useState({ x: 0, y: 0 });
   const [showingUrlInputFor, setShowingUrlInputFor] = useState<string | null>(null);
+  const [measuredHeights, setMeasuredHeights] = useState<Record<string, number>>({});
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Callback for subcomponents to report their measured heights
+  const handleHeightChange = useCallback((id: string, height: number) => {
+    setMeasuredHeights(prev => {
+      if (prev[id] === height) return prev; // Avoid unnecessary re-renders
+      return { ...prev, [id]: height };
+    });
+  }, []);
   
   const subcomponents = useMemo(() => 
     [...(node.data.subcomponents || [])].sort((a, b) => a.order - b.order),
@@ -766,54 +818,45 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   
   const nodeWidth = node.style?.width || node.width || DEFAULT_COMPOUND_WIDTH;
   
-  // Calculate dynamic height based on content
-  const calculateContentHeight = useMemo(() => {
-    const headerHeight = 40;
+  // Calculate height from measured DOM heights when available
+  const measuredContentHeight = useMemo(() => {
+    const headerHeight = 48;
     const padding = 24; // 12px top + 12px bottom
     const gap = node.data.gap || 8;
     
     if (subcomponents.length === 0) {
-      // Empty state
-      return headerHeight + 80; // Minimal height for empty message
+      return headerHeight + 100; // Empty state with add button
     }
     
-    // Estimate height per subcomponent type
-    let contentHeight = 0;
+    // Sum measured heights for all subcomponents
+    let totalMeasured = 0;
+    let allMeasured = true;
+    
     subcomponents.forEach((sub) => {
-      switch (sub.type) {
-        case 'text':
-          // Text: when selected show editing controls, when not just text
-          contentHeight += node.selected ? 70 : 30;
-          break;
-        case 'image':
-          const imgData = sub as CompoundImageSubcomponent;
-          if (imgData.data.src) {
-            contentHeight += (imgData.data.height || 80) + 8;
-          } else {
-            // Empty image placeholder
-            contentHeight += node.selected ? 60 : 40;
-          }
-          break;
-        case 'link':
-          contentHeight += node.selected ? 50 : 28;
-          break;
-        case 'input':
-          contentHeight += node.selected ? 70 : 45;
-          break;
-        default:
-          contentHeight += 40;
+      const measured = measuredHeights[sub.id];
+      if (measured !== undefined && measured > 0) {
+        totalMeasured += measured + gap;
+      } else {
+        allMeasured = false;
+        // Fallback estimate if not yet measured
+        totalMeasured += 60 + gap;
       }
-      contentHeight += gap;
     });
     
-    // Add extra space when selected for editing controls
-    const editingBuffer = node.selected ? 20 : 0;
+    // Add extra space when selected for add button at bottom
+    const editingBuffer = node.selected ? 50 : 10;
     
-    return headerHeight + padding + contentHeight + editingBuffer;
-  }, [subcomponents, node.selected, node.data.gap]);
+    return headerHeight + padding + totalMeasured + editingBuffer;
+  }, [subcomponents, measuredHeights, node.selected, node.data.gap]);
   
-  // Use explicit height if set, otherwise use calculated height
-  const nodeHeight = node.style?.height || node.height || Math.max(calculateContentHeight, MIN_COMPOUND_HEIGHT);
+  // Use the larger of: measured height, explicit height, or minimum height
+  // This ensures content is never clipped AND manual resizing is honored
+  const explicitHeight = node.style?.height || node.height || 0;
+  const nodeHeight = Math.max(
+    measuredContentHeight,
+    explicitHeight,
+    MIN_COMPOUND_HEIGHT
+  );
   
   const headerColor = node.data.colors?.headerBackground || '#059669';
   const bodyColor = node.data.colors?.bodyBackground || '#ffffff';
@@ -1236,6 +1279,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
                     onImageUpload={onImageUpload ? (subId, file) => onImageUpload(node.id, file) : undefined}
                     showingUrlInputFor={showingUrlInputFor}
                     setShowingUrlInputFor={setShowingUrlInputFor}
+                    onHeightChange={handleHeightChange}
                   />
                 ))}
                 {node.selected && (
