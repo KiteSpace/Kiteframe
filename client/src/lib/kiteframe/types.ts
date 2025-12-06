@@ -95,8 +95,64 @@ export type Edge = {
   data?: any; // Keep for backward compatibility
 };
 
-export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form';
+export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound';
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
+
+// ============= COMPOUND NODE TYPES =============
+// Used for Compound Nodes that contain multiple subcomponents (Elementor-style builder)
+
+export type CompoundSubcomponentType = 'text' | 'image' | 'link' | 'input';
+
+export interface CompoundSubcomponentBase {
+  id: string;
+  type: CompoundSubcomponentType;
+  order: number; // Position in the vertical stack
+}
+
+export interface CompoundTextSubcomponent extends CompoundSubcomponentBase {
+  type: 'text';
+  data: {
+    content: string;
+    fontSize?: number;
+    fontWeight?: 'normal' | 'bold';
+    textAlign?: 'left' | 'center' | 'right';
+    textColor?: string;
+  };
+}
+
+export interface CompoundImageSubcomponent extends CompoundSubcomponentBase {
+  type: 'image';
+  data: {
+    src?: string;
+    alt?: string;
+    height?: number; // Fixed height for the image in the stack
+  };
+}
+
+export interface CompoundLinkSubcomponent extends CompoundSubcomponentBase {
+  type: 'link';
+  data: {
+    text: string;
+    url: string;
+    textColor?: string;
+  };
+}
+
+export interface CompoundInputSubcomponent extends CompoundSubcomponentBase {
+  type: 'input';
+  data: {
+    label?: string;
+    value: string;
+    placeholder?: string;
+    inputType?: 'text' | 'number' | 'email' | 'url';
+  };
+}
+
+export type CompoundSubcomponent = 
+  | CompoundTextSubcomponent 
+  | CompoundImageSubcomponent 
+  | CompoundLinkSubcomponent 
+  | CompoundInputSubcomponent;
 
 // ============= DATA TABLE TYPES =============
 // Used for Table Nodes to store and display imported CSV/JSON data
@@ -271,6 +327,13 @@ export interface FormNodeData extends BasicNodeData {
   layout?: 'vertical' | 'horizontal'; // Field layout direction
 }
 
+// Compound Node Data - container for multiple subcomponents (Elementor-style builder)
+export interface CompoundNodeData extends BasicNodeData {
+  subcomponents: CompoundSubcomponent[];
+  containerPadding?: number;
+  gap?: number; // Gap between subcomponents
+}
+
 // Typed Node Variants for Type Safety
 export type BasicNode = Node & { 
   type: 'basic';
@@ -297,8 +360,13 @@ export type FormNode = Node & {
   data: FormNodeData;
 };
 
+export type CompoundNode = Node & {
+  type: 'compound';
+  data: CompoundNodeData;
+};
+
 // Union type for core library nodes
-export type KiteFrameNode = BasicNode | ImageNode | TableNode | DataBackedNode | FormNode;
+export type KiteFrameNode = BasicNode | ImageNode | TableNode | DataBackedNode | FormNode | CompoundNode;
 
 // Node Creation/Factory Types
 export interface NodeTemplate<T = any> {
@@ -325,6 +393,10 @@ export interface TableNodeTemplate extends NodeTemplate<TableNodeData> {
 
 export interface FormNodeTemplate extends NodeTemplate<FormNodeData> {
   type: 'form';
+}
+
+export interface CompoundNodeTemplate extends NodeTemplate<CompoundNodeData> {
+  type: 'compound';
 }
 
 // Properties System Types
