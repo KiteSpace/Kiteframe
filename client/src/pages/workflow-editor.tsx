@@ -4155,10 +4155,86 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       updateActiveTab({ 
                         canvasObjects: [...canvasObjects, newCanvasObject] 
                       });
+                      return;
+                    }
+                    
+                    // Handle actual node creation for table/form types
+                    if (['table', 'form'].includes(type)) {
+                      if (tabs.length === 0) {
+                        const newTab = createBlankTab();
+                        setTabs([newTab]);
+                        setActiveTabId(newTab.id);
+                      }
+
+                      const nodeId = `node-${Date.now()}`;
+                      const isTableNode = type === 'table';
+                      const isFormNode = type === 'form';
+                      const tableId = isTableNode ? `table-${nodeId}` : undefined;
+
+                      const getNodeData = () => {
+                        if (isTableNode) {
+                          return {
+                            label: 'Table',
+                            tableId,
+                            previewRowCount: 3,
+                            previewColumnCount: 4,
+                            showRowNumbers: true,
+                            colors: {
+                              headerBackground: '#4f46e5',
+                              bodyBackground: '#ffffff',
+                              headerTextColor: '#ffffff',
+                              bodyTextColor: '#374151',
+                            }
+                          };
+                        }
+                        if (isFormNode) {
+                          return {
+                            label: 'Form',
+                            formTitle: 'Form',
+                            fields: [],
+                            showLabels: true,
+                            layout: 'vertical',
+                            colors: {
+                              headerBackground: '#6366f1',
+                              bodyBackground: '#ffffff',
+                              borderColor: '#818cf8',
+                              headerTextColor: '#ffffff',
+                            }
+                          };
+                        }
+                        return {};
+                      };
+
+                      const getNodeDimensions = () => {
+                        if (isTableNode) return { width: 560, height: 400 };
+                        if (isFormNode) return { width: 320, height: 200 };
+                        return { width: 200, height: 100 };
+                      };
+
+                      const dimensions = getNodeDimensions();
+                      const newNode: Node = {
+                        id: nodeId,
+                        type,
+                        position: getViewportCenteredPosition(),
+                        data: getNodeData(),
+                        width: dimensions.width,
+                        height: dimensions.height,
+                        style: dimensions,
+                        resizable: true
+                      };
+
+                      setNodes(prev => [...prev, newNode]);
+                      saveToHistory();
+                      
+                      toast({
+                        title: "Node Added",
+                        description: `${newNode.data.label} added to canvas`,
+                        variant: "default"
+                      });
                     }
                   }}
                   onCreateNodeAtPosition={(type: string, position: { x: number; y: number }) => {
-                    // Handle position-based creation from drag-and-drop
+                    // Handle position-based creation from drag-and-drop for canvas objects
                     if (['text', 'sticky', 'shape'].includes(type)) {
                       saveToHistory();
                       
@@ -4198,6 +4274,82 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       
                       updateActiveTab({ 
                         canvasObjects: [...canvasObjects, newCanvasObject] 
+                      });
+                      return;
+                    }
+                    
+                    // Handle actual node creation for table/form types at position
+                    if (['table', 'form'].includes(type)) {
+                      if (tabs.length === 0) {
+                        const newTab = createBlankTab();
+                        setTabs([newTab]);
+                        setActiveTabId(newTab.id);
+                      }
+
+                      const nodeId = `node-${Date.now()}`;
+                      const isTableNode = type === 'table';
+                      const isFormNode = type === 'form';
+                      const tableId = isTableNode ? `table-${nodeId}` : undefined;
+
+                      const getNodeData = () => {
+                        if (isTableNode) {
+                          return {
+                            label: 'Table',
+                            tableId,
+                            previewRowCount: 3,
+                            previewColumnCount: 4,
+                            showRowNumbers: true,
+                            colors: {
+                              headerBackground: '#4f46e5',
+                              bodyBackground: '#ffffff',
+                              headerTextColor: '#ffffff',
+                              bodyTextColor: '#374151',
+                            }
+                          };
+                        }
+                        if (isFormNode) {
+                          return {
+                            label: 'Form',
+                            formTitle: 'Form',
+                            fields: [],
+                            showLabels: true,
+                            layout: 'vertical',
+                            colors: {
+                              headerBackground: '#6366f1',
+                              bodyBackground: '#ffffff',
+                              borderColor: '#818cf8',
+                              headerTextColor: '#ffffff',
+                            }
+                          };
+                        }
+                        return {};
+                      };
+
+                      const getNodeDimensions = () => {
+                        if (isTableNode) return { width: 560, height: 400 };
+                        if (isFormNode) return { width: 320, height: 200 };
+                        return { width: 200, height: 100 };
+                      };
+
+                      const dimensions = getNodeDimensions();
+                      const newNode: Node = {
+                        id: nodeId,
+                        type,
+                        position,
+                        data: getNodeData(),
+                        width: dimensions.width,
+                        height: dimensions.height,
+                        style: dimensions,
+                        resizable: true
+                      };
+
+                      setNodes(prev => [...prev, newNode]);
+                      saveToHistory();
+                      
+                      toast({
+                        title: "Node Added",
+                        description: `${newNode.data.label} added to canvas`,
+                        variant: "default"
                       });
                     }
                   }}
