@@ -17,7 +17,11 @@ import {
   Search,
   X,
   Maximize2,
-  Minimize2
+  Minimize2,
+  RefreshCw,
+  Globe,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import { NodeHandles } from "./NodeHandles";
 import { ResizeHandle } from "./ResizeHandle";
@@ -27,7 +31,8 @@ import type {
   DataTable, 
   DataTableColumn, 
   DataTableRow,
-  TableNodeComponentProps 
+  TableNodeComponentProps,
+  TableApiConfig
 } from "../types";
 import { sanitizeText, validateColor } from "../utils/validation";
 import { getBorderColorFromHeader } from "@/lib/themes";
@@ -64,12 +69,24 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(node.data.isLoading || false);
+  const [refreshError, setRefreshError] = useState<string | null>(node.data.lastError || null);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const table = node.data.table;
+  const apiConfig = node.data.apiConfig;
+
+  useEffect(() => {
+    if (node.data.isLoading !== undefined && node.data.isLoading !== isRefreshing) {
+      setIsRefreshing(node.data.isLoading);
+    }
+    if (node.data.lastError !== undefined && node.data.lastError !== refreshError) {
+      setRefreshError(node.data.lastError || null);
+    }
+  }, [node.data.isLoading, node.data.lastError]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -205,6 +222,111 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       fileInputRef.current.value = '';
     }
   }, [node.id, node.data, onUpdate, onUpdateTable]);
+
+  const handleApiRefresh = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!apiConfig?.enabled || !apiConfig.url || isRefreshing) {
+      return;
+    }
+    
+    setIsRefreshing(true);
+    setRefreshError(null);
+    
+    if (onUpdate) {
+      onUpdate(node.id, {
+        data: {
+          ...node.data,
+          isLoading: true,
+          lastError: undefined,
+        },
+      });
+    }
+    
+    try {
+      const response = await fetch('/api/table/fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: apiConfig.url,
+          method: apiConfig.method || 'GET',
+          headers: apiConfig.headers || [],
+          responseDataPath: apiConfig.responseDataPath,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch data');
+      }
+      
+      if (result.success && result.data) {
+        const updatedTable: DataTable = {
+          id: node.data.tableId,
+          name: table?.name || node.data.label || 'API Data',
+          columns: result.data.columns,
+          rows: result.data.rows,
+          meta: {
+            ...table?.meta,
+            ...result.data.meta,
+            lastRefreshedAt: new Date().toISOString(),
+          },
+        };
+        
+        onUpdateTable?.(node.data.tableId, updatedTable);
+        
+        if (onUpdate) {
+          onUpdate(node.id, {
+            data: {
+              ...node.data,
+              table: updatedTable,
+              isLoading: false,
+              lastError: undefined,
+            },
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error('API refresh error:', error);
+      const errorMessage = error.message || 'Failed to refresh';
+      setRefreshError(errorMessage);
+      
+      if (onUpdate) {
+        onUpdate(node.id, {
+          data: {
+            ...node.data,
+            isLoading: false,
+            lastError: errorMessage,
+          },
+        });
+      }
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [apiConfig, isRefreshing, node.id, node.data, table, onUpdate, onUpdateTable]);
+
+  const formatLastRefreshed = useCallback((isoString: string | undefined) => {
+    if (!isoString) return null;
+    try {
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+      
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays < 7) return `${diffDays}d ago`;
+      return date.toLocaleDateString();
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const lastRefreshedText = formatLastRefreshed(table?.meta?.lastRefreshedAt);
 
   const colors = useMemo(() => {
     const nodeColors = node.data.colors || {};
@@ -469,6 +591,35 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
         </div>
         
         <div className="flex items-center gap-1">
+          {apiConfig?.enabled && (
+            <button
+              onClick={handleApiRefresh}
+              disabled={isRefreshing}
+              className={cn(
+                "p-1 rounded transition-colors relative group",
+                isRefreshing ? "opacity-50 cursor-wait" : "hover:bg-white/20"
+              )}
+              title={
+                isRefreshing 
+                  ? "Refreshing..." 
+                  : lastRefreshedText 
+                    ? `Last refreshed: ${lastRefreshedText}\nClick to refresh` 
+                    : "Refresh from API"
+              }
+              data-testid={`table-refresh-${node.id}`}
+            >
+              {isRefreshing ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : refreshError ? (
+                <AlertCircle size={14} className="text-red-300" />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+              {apiConfig.enabled && !isRefreshing && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full" />
+              )}
+            </button>
+          )}
           <button
             onClick={handleToggleCollapse}
             className="p-1 hover:bg-white/20 rounded transition-colors"
@@ -531,6 +682,26 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
         <div className="px-3 py-1 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs truncate">
           {table.meta.sourceFileName}
           {table.meta.importedAt && ` • ${new Date(table.meta.importedAt).toLocaleDateString()}`}
+        </div>
+      )}
+      
+      {!isCollapsed && table?.meta?.wasTruncated && (
+        <div className="px-3 py-1 border-t border-gray-200 dark:border-gray-700 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 text-xs">
+          {table.meta.truncationMessage || 'Data was truncated due to size limits'}
+        </div>
+      )}
+      
+      {!isCollapsed && apiConfig?.enabled && table?.meta?.lastRefreshedAt && (
+        <div className="px-3 py-1 border-t border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs flex items-center gap-1.5">
+          <Globe size={10} />
+          <span>API: {lastRefreshedText}</span>
+        </div>
+      )}
+      
+      {!isCollapsed && (refreshError || node.data.lastError) && (
+        <div className="px-3 py-1 border-t border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-xs flex items-center gap-1.5">
+          <AlertCircle size={10} />
+          <span className="truncate">{refreshError || node.data.lastError}</span>
         </div>
       )}
       </div>

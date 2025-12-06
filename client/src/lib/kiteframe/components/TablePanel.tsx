@@ -18,9 +18,12 @@ import {
   Maximize2,
   Minimize2,
   Search,
-  Filter
+  Filter,
+  Globe,
+  Trash2,
+  Settings2
 } from "lucide-react";
-import type { DataTable, DataTableColumn, DataTableRow } from "../types";
+import type { DataTable, DataTableColumn, DataTableRow, TableApiConfig, TableApiHeader } from "../types";
 import { sanitizeText } from "../utils/validation";
 
 const MAX_VISIBLE_ROWS = 50;
@@ -34,6 +37,10 @@ interface TablePanelProps {
   onUpdateTable?: (updatedTable: DataTable) => void;
   onCreateNodeFromRow?: (row: Record<string, unknown>, rowIndex: number) => void;
   onImportData?: (tableId: string) => void;
+  apiConfig?: TableApiConfig;
+  onUpdateApiConfig?: (config: TableApiConfig | undefined) => void;
+  onRefreshApi?: () => void;
+  isLoading?: boolean;
   className?: string;
 }
 
@@ -45,6 +52,10 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
   onUpdateTable,
   onCreateNodeFromRow,
   onImportData,
+  apiConfig,
+  onUpdateApiConfig,
+  onRefreshApi,
+  isLoading,
   className,
 }) => {
   const [position, setPosition] = useState(initialPosition || { x: 100, y: 100 });
@@ -55,9 +66,23 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  const [showApiConfig, setShowApiConfig] = useState(false);
+  const [apiUrl, setApiUrl] = useState(apiConfig?.url || '');
+  const [apiMethod, setApiMethod] = useState<'GET' | 'POST'>(apiConfig?.method || 'GET');
+  const [apiHeaders, setApiHeaders] = useState<TableApiHeader[]>(apiConfig?.headers || []);
+  const [apiDataPath, setApiDataPath] = useState(apiConfig?.responseDataPath || '');
   
   const panelRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (apiConfig) {
+      setApiUrl(apiConfig.url || '');
+      setApiMethod(apiConfig.method || 'GET');
+      setApiHeaders(apiConfig.headers || []);
+      setApiDataPath(apiConfig.responseDataPath || '');
+    }
+  }, [apiConfig]);
 
   useEffect(() => {
     if (!isDragging) return;
@@ -171,6 +196,45 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
     }
   }, [tableId, onUpdateTable]);
 
+  const handleSaveApiConfig = useCallback(() => {
+    if (!apiUrl.trim()) {
+      onUpdateApiConfig?.(undefined);
+      return;
+    }
+    
+    const config: TableApiConfig = {
+      enabled: true,
+      url: apiUrl.trim(),
+      method: apiMethod,
+      headers: apiHeaders.filter(h => h.key.trim() && h.value.trim()),
+      responseDataPath: apiDataPath.trim() || undefined,
+    };
+    
+    onUpdateApiConfig?.(config);
+    setShowApiConfig(false);
+  }, [apiUrl, apiMethod, apiHeaders, apiDataPath, onUpdateApiConfig]);
+
+  const handleRemoveApiConfig = useCallback(() => {
+    onUpdateApiConfig?.(undefined);
+    setApiUrl('');
+    setApiMethod('GET');
+    setApiHeaders([]);
+    setApiDataPath('');
+    setShowApiConfig(false);
+  }, [onUpdateApiConfig]);
+
+  const handleAddHeader = useCallback(() => {
+    setApiHeaders(prev => [...prev, { key: '', value: '' }]);
+  }, []);
+
+  const handleUpdateHeader = useCallback((index: number, field: 'key' | 'value', value: string) => {
+    setApiHeaders(prev => prev.map((h, i) => i === index ? { ...h, [field]: value } : h));
+  }, []);
+
+  const handleRemoveHeader = useCallback((index: number) => {
+    setApiHeaders(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
   const panelStyle: React.CSSProperties = isMaximized 
     ? {
         position: 'fixed',
@@ -277,10 +341,144 @@ const TablePanelComponent: React.FC<TablePanelProps> = ({
           Import
         </button>
         
+        <button
+          onClick={() => setShowApiConfig(!showApiConfig)}
+          className={cn(
+            "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border transition-colors",
+            apiConfig?.enabled
+              ? "border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40"
+              : "border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+          )}
+          data-testid="table-panel-api-config"
+        >
+          <Globe size={16} />
+          API
+          {apiConfig?.enabled && <span className="w-1.5 h-1.5 rounded-full bg-green-500" />}
+        </button>
+        
         <div className="ml-auto text-sm text-gray-500 dark:text-gray-400">
           Showing {filteredAndSortedRows.length} of {table?.meta?.totalRowCount ?? rowCount} rows
         </div>
       </div>
+
+      {/* API Configuration Panel */}
+      {showApiConfig && (
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+              <Settings2 size={16} />
+              API Data Source
+            </h4>
+            {apiConfig?.enabled && (
+              <button
+                onClick={handleRemoveApiConfig}
+                className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-1"
+                data-testid="table-panel-remove-api"
+              >
+                <Trash2 size={12} />
+                Remove API
+              </button>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <input
+              type="url"
+              value={apiUrl}
+              onChange={(e) => setApiUrl(e.target.value)}
+              placeholder="https://api.example.com/data"
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              data-testid="table-panel-api-url"
+            />
+            <select
+              value={apiMethod}
+              onChange={(e) => setApiMethod(e.target.value as 'GET' | 'POST')}
+              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              data-testid="table-panel-api-method"
+            >
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+            </select>
+          </div>
+          
+          <div>
+            <input
+              type="text"
+              value={apiDataPath}
+              onChange={(e) => setApiDataPath(e.target.value)}
+              placeholder="Response data path (e.g. data.items or results)"
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              data-testid="table-panel-api-path"
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Leave empty if the response is the array directly
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Headers (optional)</span>
+              <button
+                onClick={handleAddHeader}
+                className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                data-testid="table-panel-add-header"
+              >
+                + Add Header
+              </button>
+            </div>
+            {apiHeaders.map((header, index) => (
+              <div key={index} className="flex gap-2">
+                <input
+                  type="text"
+                  value={header.key}
+                  onChange={(e) => handleUpdateHeader(index, 'key', e.target.value)}
+                  placeholder="Header name"
+                  className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900"
+                  data-testid={`table-panel-header-key-${index}`}
+                />
+                <input
+                  type="text"
+                  value={header.value}
+                  onChange={(e) => handleUpdateHeader(index, 'value', e.target.value)}
+                  placeholder="Value"
+                  className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900"
+                  data-testid={`table-panel-header-value-${index}`}
+                />
+                <button
+                  onClick={() => handleRemoveHeader(index)}
+                  className="p-1 text-gray-400 hover:text-red-500"
+                  data-testid={`table-panel-remove-header-${index}`}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+          
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Max: 500 rows × 40 columns
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowApiConfig(false)}
+                className="px-3 py-1.5 text-xs font-medium rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                data-testid="table-panel-api-cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveApiConfig}
+                disabled={!apiUrl.trim()}
+                className="px-3 py-1.5 text-xs font-medium rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                data-testid="table-panel-api-save"
+              >
+                Save & Fetch
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table Content */}
       {table && table.columns && table.columns.length > 0 ? (

@@ -203,7 +203,34 @@ export interface DataTableMeta {
   sourceFileName?: string;
   totalRowCount?: number;
   importedAt?: string;
+  lastRefreshedAt?: string;
+  wasTruncated?: boolean;
+  truncationMessage?: string;
 }
+
+export type TableApiMethod = 'GET' | 'POST';
+
+export interface TableApiHeader {
+  key: string;
+  value: string;
+}
+
+export interface TableApiConfig {
+  enabled: boolean;
+  url: string;
+  method: TableApiMethod;
+  headers?: TableApiHeader[];
+  responseDataPath?: string;
+  autoRefresh?: boolean;
+  autoRefreshIntervalMs?: number;
+}
+
+export const TABLE_LIMITS = {
+  MAX_ROWS: 500,
+  MAX_COLUMNS: 40,
+  MAX_CELLS: 10000,
+  API_TIMEOUT_MS: 30000,
+} as const;
 
 export interface DataTable {
   id: string;
@@ -320,7 +347,10 @@ export interface TableNodeData extends BasicNodeData {
   previewColumnCount?: number;
   showRowNumbers?: boolean;
   isPanelOpen?: boolean;
-  isCollapsed?: boolean; // Collapsed view shows only name and expand button
+  isCollapsed?: boolean;
+  apiConfig?: TableApiConfig;
+  isLoading?: boolean;
+  lastError?: string;
 }
 
 // Data-backed Node Data - nodes created from table rows with data synchronization

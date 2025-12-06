@@ -2284,6 +2284,217 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
     }
   });
 
+  // ============= TABLE API PROXY =============
+  // Proxy endpoint for table API data fetching (avoids CORS issues)
+  app.post("/api/table/fetch", async (req, res) => {
+    try {
+      const { url, method = 'GET', headers = [], responseDataPath, timeout = 30000 } = req.body;
+      
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ error: 'URL is required' });
+      }
+      
+      // Security: validate URL
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url);
+      } catch {
+        return res.status(400).json({ error: 'Invalid URL format' });
+      }
+      
+      // Block private network addresses (SSRF protection)
+      const hostname = parsedUrl.hostname.toLowerCase();
+      const blockedPatterns = [
+        /^localhost$/i,
+        /^127\./,
+        /^10\./,
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+        /^192\.168\./,
+        /^0\.0\.0\.0$/,
+        /^::1$/,
+        /^fe80:/i,
+        /\.local$/i,
+        /\.internal$/i,
+      ];
+      
+      if (blockedPatterns.some(pattern => pattern.test(hostname))) {
+        return res.status(400).json({ error: 'Private network addresses are not allowed' });
+      }
+      
+      // Validate method
+      const allowedMethods = ['GET', 'POST'];
+      const normalizedMethod = (method || 'GET').toUpperCase();
+      if (!allowedMethods.includes(normalizedMethod)) {
+        return res.status(400).json({ error: 'Only GET and POST methods are allowed' });
+      }
+      
+      // Build request headers
+      const requestHeaders: Record<string, string> = {
+        'Accept': 'application/json',
+        'User-Agent': 'Kiteframe-Table-API/1.0',
+      };
+      
+      if (Array.isArray(headers)) {
+        for (const header of headers) {
+          if (header.key && header.value && typeof header.key === 'string' && typeof header.value === 'string') {
+            // Skip sensitive headers
+            const lowerKey = header.key.toLowerCase();
+            if (!['host', 'cookie', 'authorization'].includes(lowerKey) || lowerKey === 'authorization') {
+              requestHeaders[header.key] = header.value;
+            }
+          }
+        }
+      }
+      
+      // Perform the fetch with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), Math.min(timeout, 30000));
+      
+      let response;
+      try {
+        response = await fetch(url, {
+          method: normalizedMethod,
+          headers: requestHeaders,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      
+      if (!response.ok) {
+        return res.status(response.status).json({ 
+          error: `API returned status ${response.status}: ${response.statusText}` 
+        });
+      }
+      
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        return res.status(400).json({ error: 'API must return JSON content' });
+      }
+      
+      let jsonData = await response.json();
+      
+      // Navigate to the specified data path if provided
+      if (responseDataPath && typeof responseDataPath === 'string') {
+        const pathParts = responseDataPath.split('.').filter(Boolean);
+        for (const part of pathParts) {
+          if (jsonData && typeof jsonData === 'object' && part in jsonData) {
+            jsonData = jsonData[part];
+          } else {
+            return res.status(400).json({ 
+              error: `Data path "${responseDataPath}" not found in response` 
+            });
+          }
+        }
+      }
+      
+      // Table limits
+      const MAX_ROWS = 500;
+      const MAX_COLUMNS = 40;
+      const MAX_CELLS = 10000;
+      
+      // Convert JSON to table format
+      let rows: any[] = [];
+      let columns: { id: string; name: string }[] = [];
+      let wasTruncated = false;
+      let truncationMessage = '';
+      
+      if (Array.isArray(jsonData)) {
+        // Array of objects - most common API response format
+        rows = jsonData;
+        
+        // Extract columns from first row
+        if (rows.length > 0 && typeof rows[0] === 'object' && rows[0] !== null) {
+          const allKeys = new Set<string>();
+          // Sample first 100 rows for column discovery
+          rows.slice(0, 100).forEach(row => {
+            if (typeof row === 'object' && row !== null) {
+              Object.keys(row).forEach(key => allKeys.add(key));
+            }
+          });
+          columns = Array.from(allKeys).map(key => ({ id: key, name: key }));
+        }
+      } else if (typeof jsonData === 'object' && jsonData !== null) {
+        // Single object - convert to single row
+        rows = [jsonData];
+        columns = Object.keys(jsonData).map(key => ({ id: key, name: key }));
+      } else {
+        return res.status(400).json({ 
+          error: 'API response must be an array or object' 
+        });
+      }
+      
+      // Apply column limit
+      if (columns.length > MAX_COLUMNS) {
+        columns = columns.slice(0, MAX_COLUMNS);
+        wasTruncated = true;
+        truncationMessage = `Columns truncated from ${columns.length} to ${MAX_COLUMNS}. `;
+      }
+      
+      // Apply row limit
+      const originalRowCount = rows.length;
+      if (rows.length > MAX_ROWS) {
+        rows = rows.slice(0, MAX_ROWS);
+        wasTruncated = true;
+        truncationMessage += `Rows truncated from ${originalRowCount} to ${MAX_ROWS}. `;
+      }
+      
+      // Check total cells
+      const totalCells = rows.length * columns.length;
+      if (totalCells > MAX_CELLS) {
+        const maxRows = Math.floor(MAX_CELLS / columns.length);
+        rows = rows.slice(0, maxRows);
+        wasTruncated = true;
+        truncationMessage += `Total cells exceeded ${MAX_CELLS}, rows limited to ${maxRows}.`;
+      }
+      
+      // Format rows with proper structure
+      const formattedRows = rows.map((row, index) => {
+        const values: Record<string, string | number | boolean | null> = {};
+        for (const col of columns) {
+          const value = row[col.id];
+          if (value === null || value === undefined) {
+            values[col.id] = null;
+          } else if (typeof value === 'object') {
+            values[col.id] = JSON.stringify(value);
+          } else {
+            values[col.id] = value;
+          }
+        }
+        return {
+          id: `row-${index}`,
+          values,
+        };
+      });
+      
+      res.json({
+        success: true,
+        data: {
+          columns,
+          rows: formattedRows,
+          meta: {
+            totalRowCount: originalRowCount,
+            wasTruncated,
+            truncationMessage: truncationMessage.trim() || undefined,
+            lastRefreshedAt: new Date().toISOString(),
+          }
+        }
+      });
+      
+    } catch (error: any) {
+      console.error('Table API fetch error:', error);
+      
+      if (error.name === 'AbortError') {
+        return res.status(408).json({ error: 'Request timeout - API took too long to respond' });
+      }
+      
+      res.status(500).json({ 
+        error: 'Failed to fetch API data',
+        details: error.message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   
   // WebSocket server for real-time collaboration
