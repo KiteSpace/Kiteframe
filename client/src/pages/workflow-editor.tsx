@@ -5691,13 +5691,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 
                 // Handle both array of changes and direct node array updates
                 if (Array.isArray(changes) && changes.length > 0) {
-                  // Check if it's a direct nodes array update (from drag operations)
+                  // Check if it's a direct nodes array update (from drag operations or node updates)
                   // Nodes have a 'type' property that is the node type ('input', 'ai', etc.)
                   // Changes have a 'type' property that is the change type ('position', 'select', etc.)
                   const isNodeArray = changes[0].id && changes[0].position && 
                     (changes[0].type === 'input' || changes[0].type === 'ai' || 
                      changes[0].type === 'condition' || changes[0].type === 'output' || 
-                     changes[0].type === 'process' || changes[0].type === 'image');
+                     changes[0].type === 'process' || changes[0].type === 'image' ||
+                     changes[0].type === 'form' || changes[0].type === 'compound' || 
+                     changes[0].type === 'table' || changes[0].type === 'shape');
                   
                   if (isNodeArray) {
                     // Direct nodes array from KiteFrameCanvas drag operations
