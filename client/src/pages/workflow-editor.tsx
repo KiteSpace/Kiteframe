@@ -6603,7 +6603,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 // Get column info for display config
                 const columns = table?.columns || [];
                 const primaryColumnId = table?.meta?.primaryColumnId || columns[0]?.id;
-                const visibleColumnIds = columns.slice(0, 6).map((c: { id: string }) => c.id);
                 
                 // Create row ID based on table row or generate one
                 const tableRow = table?.rows?.[rowIndex];
@@ -6614,43 +6613,58 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   ? String(row[primaryColumnId])
                   : Object.values(row).slice(0, 1).filter(Boolean).join('') || `Row ${rowIndex + 1}`;
                 
-                // Create a new basic node with enhanced row binding
+                // Create FormNode with fields bound to each table column
                 const nodeId = `node-${Date.now()}`;
+                const timestamp = Date.now();
+                
+                // Generate form fields from table columns with data links
+                const formFields: import('../lib/kiteframe/types').FormNodeField[] = columns.map(
+                  (col: { id: string; name: string }, idx: number) => {
+                    const cellValue = row[col.id];
+                    return {
+                      id: `field-${timestamp}-${idx}`,
+                      label: col.name,
+                      value: cellValue !== null && cellValue !== undefined ? String(cellValue) : '',
+                      type: 'text' as import('../lib/kiteframe/types').FormFieldType,
+                      placeholder: `Enter ${col.name}...`,
+                      dataLink: {
+                        tableId: tableId,
+                        columnId: col.id,
+                        rowId: rowId,
+                        displayValue: cellValue !== null && cellValue !== undefined ? String(cellValue) : '',
+                      },
+                    };
+                  }
+                );
+                
                 const newNode: Node = {
                   id: nodeId,
-                  type: 'basic',
+                  type: 'form',
                   position: basePosition,
                   data: {
-                    label: String(primaryValue).slice(0, 50),
-                    rowBinding: {
-                      tableId: tableId,
-                      tableNodeId: tableNode?.id || '',
-                      tableName: tableNode?.data?.label || table?.name || 'Table',
-                      rowId: rowId,
-                      rowIndex: rowIndex,
+                    formTitle: String(primaryValue).slice(0, 50) || `Row ${rowIndex + 1}`,
+                    fields: formFields,
+                    showLabels: true,
+                    layout: 'vertical',
+                    linkedTableId: tableId,
+                    linkedTableNodeId: tableNode?.id,
+                    linkedTableName: tableNode?.data?.label || table?.name || 'Table',
+                    colors: {
+                      headerBackground: '#6366f1',
+                      bodyBackground: '#ffffff',
+                      headerTextColor: '#ffffff',
                     },
-                    rowDisplay: {
-                      primaryColumnId: primaryColumnId,
-                      visibleColumnIds: visibleColumnIds,
-                      showRowIndex: true,
-                    },
-                    rowValues: row as Record<string, string | number | boolean | null>,
-                    sourceTable: tableId,
-                    sourceTableNodeId: tableNode?.id,
-                    sourceTableName: tableNode?.data?.label || 'Table',
-                    sourceRowIndex: rowIndex,
-                    rowData: row,
                   },
-                  width: 220,
-                  height: 160
+                  width: 320,
+                  height: Math.max(200, 80 + columns.length * 60),
                 };
                 
                 setNodes(prev => [...prev, newNode]);
                 saveToHistory();
                 
                 toast({
-                  title: "Node Created",
-                  description: `Created data card from row ${rowIndex + 1}`,
+                  title: "Form Created",
+                  description: `Created form with ${columns.length} linked fields from row ${rowIndex + 1}`,
                   variant: "default"
                 });
               }}
