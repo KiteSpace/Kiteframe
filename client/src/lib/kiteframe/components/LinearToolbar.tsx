@@ -545,25 +545,15 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         }
       ];
       
-      if (isDataLink) {
-        edgeButtons.push({
-          id: 'breakLink',
-          icon: <Link2Off size={18} />,
-          label: 'Break Link',
-          color: 'bg-orange-500',
-          hoverColor: 'hover:bg-orange-600',
-          onClick: () => { onBreakDataLink?.(); onClose(); }
-        });
-      } else {
-        edgeButtons.push({
-          id: 'delete',
-          icon: <Trash2 size={18} />,
-          label: 'Delete',
-          color: 'bg-red-500',
-          hoverColor: 'hover:bg-red-600',
-          onClick: () => { onDelete?.(); onClose(); }
-        });
-      }
+      // All edges get delete button - for data link edges, just removes the edge (keeps form values)
+      edgeButtons.push({
+        id: 'delete',
+        icon: <Trash2 size={18} />,
+        label: 'Delete',
+        color: 'bg-red-500',
+        hoverColor: 'hover:bg-red-600',
+        onClick: () => { onDelete?.(); onClose(); }
+      });
       
       return edgeButtons;
     } else if (isCanvasObjectTarget) {

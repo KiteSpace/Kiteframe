@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
 import DragPlaceholder from './DragPlaceholder';
+import { useScrollIsolation } from '../hooks/useScrollIsolation';
 import { 
   Plus, 
   Trash2, 
@@ -189,6 +190,10 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  
+  // Prevent canvas zoom from intercepting scroll events on the form content
+  useScrollIsolation(contentRef);
   
   const fields = node.data.fields || [];
   const formTitle = node.data.formTitle || 'Form';
@@ -746,10 +751,10 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
                 }}
                 className="p-0.5 hover:bg-white/20 rounded transition-colors"
                 style={{ color: headerTextColor }}
-                title="Unlink table"
+                title="Unlink from table"
                 data-testid={`form-unlink-table-${node.id}`}
               >
-                <X size={12} />
+                <Link2Off size={12} />
               </button>
             </div>
           ) : (
@@ -777,7 +782,7 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
         </div>
 
         {/* Fields Container */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        <div ref={contentRef} className="flex-1 overflow-y-auto p-3 space-y-3">
           {fields.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-4">
               <FileText size={24} className="text-gray-300 dark:text-gray-600 mb-2" />

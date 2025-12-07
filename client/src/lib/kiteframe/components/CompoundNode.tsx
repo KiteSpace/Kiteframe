@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
 import DragPlaceholder from './DragPlaceholder';
+import { useScrollIsolation } from '../hooks/useScrollIsolation';
 import { 
   Layers,
   Type,
@@ -1265,6 +1266,9 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
+  // Prevent canvas zoom from intercepting scroll events on the compound content
+  useScrollIsolation(containerRef);
+  
   // Callback for subcomponents to report their measured heights
   const handleHeightChange = useCallback((id: string, height: number) => {
     setMeasuredHeights(prev => {
@@ -1762,7 +1766,6 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
             ref={containerRef}
             className="flex-1 overflow-y-auto p-3"
             style={{ gap: node.data.gap || 8 }}
-            onWheel={(e) => e.stopPropagation()}
           >
             {subcomponents.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-4">

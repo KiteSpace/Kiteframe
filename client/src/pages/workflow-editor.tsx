@@ -6116,6 +6116,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }
                 
                 // Create the edge
+                const isTableToFormLink = sourceNode?.type === 'table' && targetNode?.type === 'form';
                 const newEdge: Edge = {
                   id: `edge-${Date.now()}`,
                   source: connection.source,
@@ -6125,7 +6126,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   markers: { type: 'arrow' as const, position: 'end' as const },
                   reconnectable: true, // Enable reconnection for new edges
                   interactable: true, // Make edge clickable
-                  data: sourceNode?.type === 'table' && targetNode?.type === 'form' 
+                  label: isTableToFormLink ? '🔗' : undefined,
+                  data: isTableToFormLink 
                     ? { isDataLink: true } 
                     : undefined
                 };
@@ -6752,6 +6754,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setTableLinkPicker({ formNodeId: nodeId });
               }}
               onFormUnlinkTable={(nodeId) => {
+                // Get the linked table node ID before clearing
+                const formNode = nodes.find(n => n.id === nodeId);
+                const linkedTableNodeId = (formNode?.data as any)?.linkedTableNodeId;
+                
+                // Delete the edge between form and table
+                if (linkedTableNodeId) {
+                  setEdges(prev => prev.filter(e => 
+                    !((e.source === nodeId && e.target === linkedTableNodeId) || 
+                      (e.source === linkedTableNodeId && e.target === nodeId))
+                  ));
+                }
+                
+                // Clear the form data links
                 setNodes(prev => prev.map(n => {
                   if (n.id === nodeId) {
                     const formData = n.data as import('../lib/kiteframe/types').FormNodeData;
@@ -6766,7 +6781,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         fields: clearedFields,
                         linkedTableId: undefined,
                         linkedTableNodeId: undefined,
-                        linkedTableName: undefined
+                        linkedTableName: undefined,
+                        linkedRowIndex: undefined
                       }
                     };
                   }
