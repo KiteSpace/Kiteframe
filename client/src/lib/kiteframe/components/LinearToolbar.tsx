@@ -35,6 +35,7 @@ import {
   Lock
 } from 'lucide-react';
 import type { Node, Edge, NodeColors, CanvasObject, EdgeMarker, NodeHyperlink, OgMetadata } from '../types';
+import { getOptimalTextColor } from '../utils/colorUtils';
 
 interface LinearToolbarProps {
   isOpen: boolean;
@@ -136,7 +137,7 @@ interface ToolbarButton {
 const COLOR_PALETTE = [
   '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
   '#eab308', '#22c55e', '#10b981', '#06b6d4', '#6366f1',
-  '#64748b', '#1e293b', '#ffffff', '#f1f5f9', '#fef3c7'
+  '#64748b', '#1e293b', '#ffffff'
 ];
 
 // Utility to create a tinted body color from header color (10% intensity)
@@ -658,13 +659,17 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                 onColorChange({ 
                   headerBackground: '#f8fafc',
                   bodyBackground: '#ffffff',
-                  borderColor: '#e2e8f0'
+                  borderColor: '#e2e8f0',
+                  headerTextColor: '#0f172a',
+                  bodyTextColor: '#334155'
                 });
               } else {
+                const headerTextColor = getOptimalTextColor(color);
                 onColorChange({ 
                   headerBackground: color,
                   bodyBackground: getTintedBodyColor(color, 0.1),
-                  borderColor: color
+                  borderColor: color,
+                  headerTextColor
                 });
               }
             } else if (isEdgeTarget && onEdgeColorChange) {
