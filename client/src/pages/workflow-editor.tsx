@@ -3666,33 +3666,34 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         };
         
         // Resolve column bindings based on subcomponent type
-        if (sub.type === 'text' && sub.data?.columnBinding) {
-          const colIndex = columnMap.get(sub.data.columnBinding);
-          if (colIndex !== undefined && row.cells && row.cells[colIndex]) {
-            clonedSub.data.content = String(row.cells[colIndex].value || '');
+        // columnBinding is { columnId, columnName }, row.values is Record<string, value>
+        if (sub.type === 'text' && sub.data?.columnBinding?.columnId) {
+          const colId = sub.data.columnBinding.columnId;
+          if (row.values && row.values[colId] !== undefined) {
+            clonedSub.data.content = String(row.values[colId] ?? '');
           }
-        } else if (sub.type === 'image' && sub.data?.columnBinding) {
-          const colIndex = columnMap.get(sub.data.columnBinding);
-          if (colIndex !== undefined && row.cells && row.cells[colIndex]) {
-            clonedSub.data.src = String(row.cells[colIndex].value || '');
+        } else if (sub.type === 'image' && sub.data?.columnBinding?.columnId) {
+          const colId = sub.data.columnBinding.columnId;
+          if (row.values && row.values[colId] !== undefined) {
+            clonedSub.data.src = String(row.values[colId] ?? '');
           }
         } else if (sub.type === 'link') {
-          if (sub.data?.textColumnBinding) {
-            const colIndex = columnMap.get(sub.data.textColumnBinding);
-            if (colIndex !== undefined && row.cells && row.cells[colIndex]) {
-              clonedSub.data.text = String(row.cells[colIndex].value || '');
+          if (sub.data?.textColumnBinding?.columnId) {
+            const colId = sub.data.textColumnBinding.columnId;
+            if (row.values && row.values[colId] !== undefined) {
+              clonedSub.data.text = String(row.values[colId] ?? '');
             }
           }
-          if (sub.data?.urlColumnBinding) {
-            const colIndex = columnMap.get(sub.data.urlColumnBinding);
-            if (colIndex !== undefined && row.cells && row.cells[colIndex]) {
-              clonedSub.data.url = String(row.cells[colIndex].value || '');
+          if (sub.data?.urlColumnBinding?.columnId) {
+            const colId = sub.data.urlColumnBinding.columnId;
+            if (row.values && row.values[colId] !== undefined) {
+              clonedSub.data.url = String(row.values[colId] ?? '');
             }
           }
-        } else if (sub.type === 'input' && sub.data?.columnBinding) {
-          const colIndex = columnMap.get(sub.data.columnBinding);
-          if (colIndex !== undefined && row.cells && row.cells[colIndex]) {
-            clonedSub.data.value = String(row.cells[colIndex].value || '');
+        } else if (sub.type === 'input' && sub.data?.columnBinding?.columnId) {
+          const colId = sub.data.columnBinding.columnId;
+          if (row.values && row.values[colId] !== undefined) {
+            clonedSub.data.value = String(row.values[colId] ?? '');
           }
         }
         
