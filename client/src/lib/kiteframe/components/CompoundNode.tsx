@@ -1,4 +1,4 @@
-import { memo, useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { memo, useState, useRef, useCallback, useMemo, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
@@ -1118,6 +1118,25 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
       if (isEditing) setIsEditing(false);
     }
   }, [node.selected]);
+  
+  // Sync calculated dimensions to node store for edge positioning
+  // This ensures edges have correct dimensions on first render before ResizeObserver fires
+  useLayoutEffect(() => {
+    // Only sync if dimensions differ significantly from stored values
+    const storedWidth = node.measuredWidth ?? node.width ?? DEFAULT_COMPOUND_WIDTH;
+    const storedHeight = node.measuredHeight ?? node.height ?? DEFAULT_COMPOUND_HEIGHT;
+    
+    const widthDiff = Math.abs(storedWidth - nodeWidth);
+    const heightDiff = Math.abs(storedHeight - nodeHeight);
+    
+    // Update if dimensions differ by more than 1px (avoid floating point noise)
+    if ((widthDiff > 1 || heightDiff > 1) && onUpdate) {
+      onUpdate(node.id, {
+        measuredWidth: nodeWidth,
+        measuredHeight: nodeHeight,
+      });
+    }
+  }, [node.id, nodeWidth, nodeHeight, node.measuredWidth, node.measuredHeight, node.width, node.height, onUpdate]);
 
   const calculateMenuPosition = useCallback((rect: DOMRect) => {
     const menuWidth = 200;
