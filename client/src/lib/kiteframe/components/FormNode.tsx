@@ -1,4 +1,5 @@
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
@@ -12,12 +13,24 @@ import {
   FileText,
   Table2,
   ExternalLink,
-  X
+  X,
+  Move,
+  Type,
+  Hash,
+  Mail,
+  Globe,
+  Calendar,
+  AlignLeft,
+  CheckSquare,
+  ToggleLeft,
+  ChevronDown,
+  Circle
 } from 'lucide-react';
 import type { 
   Node, 
   FormNodeData, 
   FormNodeField, 
+  FormFieldType,
   DataTable,
   FormNodeComponentProps 
 } from '../types';
@@ -28,6 +41,122 @@ const MIN_FORM_WIDTH = 280;
 const MIN_FORM_HEIGHT = 150;
 const DEFAULT_FORM_WIDTH = 320;
 const DEFAULT_FORM_HEIGHT = 200;
+
+interface FieldPickerMenuProps {
+  isOpen: boolean;
+  position: { x: number; y: number };
+  onAddField: (type: FormFieldType) => void;
+  onClose: () => void;
+  onDragStart: (e: React.MouseEvent) => void;
+}
+
+const FieldPickerMenu: React.FC<FieldPickerMenuProps> = ({
+  isOpen,
+  position,
+  onAddField,
+  onClose,
+  onDragStart
+}) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const menuItems = [
+    { type: 'text' as FormFieldType, icon: Type, label: 'Text', color: 'bg-blue-500' },
+    { type: 'number' as FormFieldType, icon: Hash, label: 'Number', color: 'bg-emerald-500' },
+    { type: 'email' as FormFieldType, icon: Mail, label: 'Email', color: 'bg-purple-500' },
+    { type: 'url' as FormFieldType, icon: Globe, label: 'URL', color: 'bg-cyan-500' },
+    { type: 'date' as FormFieldType, icon: Calendar, label: 'Date', color: 'bg-orange-500' },
+    { type: 'textarea' as FormFieldType, icon: AlignLeft, label: 'Textarea', color: 'bg-indigo-500' },
+    { type: 'checkbox' as FormFieldType, icon: CheckSquare, label: 'Checkbox', color: 'bg-green-500' },
+    { type: 'toggle' as FormFieldType, icon: ToggleLeft, label: 'Toggle', color: 'bg-pink-500' },
+    { type: 'dropdown' as FormFieldType, icon: ChevronDown, label: 'Dropdown', color: 'bg-amber-500' },
+    { type: 'radio' as FormFieldType, icon: Circle, label: 'Radio', color: 'bg-rose-500' },
+  ];
+
+  const menuContent = (
+    <div
+      ref={menuRef}
+      className="fixed z-[9999] bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden"
+      style={{
+        left: position.x,
+        top: position.y,
+        minWidth: 240,
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      data-testid="form-field-picker-menu"
+    >
+      <div 
+        className="flex items-center justify-between px-3 py-2 bg-indigo-100 dark:bg-indigo-900/50 cursor-move"
+        onMouseDown={onDragStart}
+      >
+        <div className="flex items-center gap-2">
+          <Move size={14} className="text-indigo-600 dark:text-indigo-400" />
+          <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300">Add Field</span>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1 hover:bg-indigo-200 dark:hover:bg-indigo-800 rounded"
+          data-testid="close-field-picker-menu"
+        >
+          <X size={14} className="text-indigo-600 dark:text-indigo-400" />
+        </button>
+      </div>
+      <div className="p-2 grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto">
+        {menuItems.map((item) => (
+          <button
+            key={item.type}
+            onClick={() => {
+              onAddField(item.type);
+              onClose();
+            }}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onAddField(item.type);
+              onClose();
+            }}
+            className="flex flex-col items-center gap-1 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            data-testid={`add-field-${item.type}`}
+          >
+            <div className={cn("p-2 rounded-lg", item.color)}>
+              <item.icon size={16} className="text-white" />
+            </div>
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{item.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  return createPortal(menuContent, document.body);
+};
 
 const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
   node,
@@ -53,6 +182,10 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState(node.data.formTitle || 'Form');
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [showFieldPicker, setShowFieldPicker] = useState(false);
+  const [fieldPickerPosition, setFieldPickerPosition] = useState({ x: 0, y: 0 });
+  const [isDraggingMenu, setIsDraggingMenu] = useState(false);
+  const [menuDragOffset, setMenuDragOffset] = useState({ x: 0, y: 0 });
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -125,18 +258,88 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
     }
   }, [node.id, node.style, onUpdate]);
 
-  const handleAddField = useCallback((e: React.MouseEvent) => {
+  const handleOpenFieldPicker = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setFieldPickerPosition({
+      x: rect.left,
+      y: rect.bottom + 4,
+    });
+    setShowFieldPicker(true);
+  }, []);
+
+  const handleAddFieldWithType = useCallback((type: FormFieldType) => {
+    const fieldLabels: Record<FormFieldType, string> = {
+      text: 'Text',
+      number: 'Number',
+      email: 'Email',
+      url: 'URL',
+      date: 'Date',
+      textarea: 'Text Area',
+      checkbox: 'Checkbox',
+      toggle: 'Toggle',
+      dropdown: 'Dropdown',
+      radio: 'Radio',
+    };
+    
+    const timestamp = Date.now();
+    const optionIds = [`opt-${timestamp}-1`, `opt-${timestamp}-2`, `opt-${timestamp}-3`];
+    
     const newField: FormNodeField = {
-      id: `field-${Date.now()}`,
-      label: `Field ${fields.length + 1}`,
+      id: `field-${timestamp}`,
+      label: `${fieldLabels[type]} ${fields.length + 1}`,
       value: '',
-      placeholder: 'Enter value...',
+      type,
+      placeholder: type === 'email' ? 'Enter email...' 
+        : type === 'url' ? 'Enter URL...'
+        : type === 'number' ? 'Enter number...'
+        : 'Enter value...',
+      checked: type === 'checkbox' || type === 'toggle' ? false : undefined,
+      options: type === 'dropdown' || type === 'radio' ? [
+        { id: optionIds[0], label: 'Option 1', value: 'option1' },
+        { id: optionIds[1], label: 'Option 2', value: 'option2' },
+        { id: optionIds[2], label: 'Option 3', value: 'option3' },
+      ] : undefined,
+      selectedOptionId: type === 'dropdown' || type === 'radio' ? optionIds[0] : undefined,
     };
     onUpdate?.(node.id, {
       data: { ...node.data, fields: [...fields, newField] },
     });
+    setShowFieldPicker(false);
   }, [node.id, node.data, fields, onUpdate]);
+
+  const handleMenuDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingMenu(true);
+    setMenuDragOffset({
+      x: e.clientX - fieldPickerPosition.x,
+      y: e.clientY - fieldPickerPosition.y,
+    });
+  }, [fieldPickerPosition]);
+
+  useEffect(() => {
+    if (!isDraggingMenu) return;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      setFieldPickerPosition({
+        x: e.clientX - menuDragOffset.x,
+        y: e.clientY - menuDragOffset.y,
+      });
+    };
+    
+    const handleMouseUp = () => {
+      setIsDraggingMenu(false);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingMenu, menuDragOffset]);
 
   const handleRemoveField = useCallback((fieldId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -190,6 +393,24 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
     });
   }, [node.id, node.data, fields, onUpdate]);
 
+  const handleFieldCheckedChange = useCallback((fieldId: string, checked: boolean) => {
+    const updatedFields = fields.map((f: FormNodeField) => 
+      f.id === fieldId ? { ...f, checked } : f
+    );
+    onUpdate?.(node.id, {
+      data: { ...node.data, fields: updatedFields },
+    });
+  }, [node.id, node.data, fields, onUpdate]);
+
+  const handleFieldOptionChange = useCallback((fieldId: string, selectedOptionId: string) => {
+    const updatedFields = fields.map((f: FormNodeField) => 
+      f.id === fieldId ? { ...f, selectedOptionId } : f
+    );
+    onUpdate?.(node.id, {
+      data: { ...node.data, fields: updatedFields },
+    });
+  }, [node.id, node.data, fields, onUpdate]);
+
   const getLinkedValue = useCallback((field: FormNodeField): string => {
     if (!field.dataLink) return field.value;
     
@@ -203,10 +424,152 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
     return value !== null && value !== undefined ? String(value) : '';
   }, [tables]);
 
+  const renderFieldInput = useCallback((field: FormNodeField, isLinked: boolean, displayValue: string) => {
+    const fieldType = field.type || 'text';
+    const baseInputClass = cn(
+      "flex-1 px-2 py-1.5 text-sm border rounded transition-colors",
+      "focus:outline-none focus:ring-1 focus:ring-indigo-500",
+      isLinked 
+        ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-300 dark:border-indigo-600 text-indigo-700 dark:text-indigo-300" 
+        : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+    );
+
+    switch (fieldType) {
+      case 'textarea':
+        return (
+          <textarea
+            value={isLinked ? displayValue : field.value}
+            onChange={(e) => handleFieldValueChange(field.id, e.target.value, isLinked)}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            placeholder={field.placeholder || 'Enter text...'}
+            rows={3}
+            className={cn(baseInputClass, "resize-none")}
+            data-testid={`form-field-textarea-${field.id}`}
+          />
+        );
+
+      case 'checkbox':
+        return (
+          <label 
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <input
+              type="checkbox"
+              checked={field.checked || false}
+              onChange={(e) => handleFieldCheckedChange(field.id, e.target.checked)}
+              className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+              data-testid={`form-field-checkbox-${field.id}`}
+            />
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              {field.checked ? 'Checked' : 'Unchecked'}
+            </span>
+          </label>
+        );
+
+      case 'toggle':
+        return (
+          <label 
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              role="switch"
+              aria-checked={field.checked || false}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleFieldCheckedChange(field.id, !field.checked);
+              }}
+              className={cn(
+                "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
+                field.checked ? "bg-indigo-600" : "bg-gray-200 dark:bg-gray-600"
+              )}
+              data-testid={`form-field-toggle-${field.id}`}
+            >
+              <span
+                className={cn(
+                  "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                  field.checked ? "translate-x-5" : "translate-x-0"
+                )}
+              />
+            </button>
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              {field.checked ? 'On' : 'Off'}
+            </span>
+          </label>
+        );
+
+      case 'dropdown':
+        return (
+          <select
+            value={field.selectedOptionId || ''}
+            onChange={(e) => handleFieldOptionChange(field.id, e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            className={cn(baseInputClass, "cursor-pointer")}
+            data-testid={`form-field-dropdown-${field.id}`}
+          >
+            {field.options?.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        );
+
+      case 'radio':
+        return (
+          <div 
+            className="flex flex-col gap-1.5"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {field.options?.map((option) => (
+              <label 
+                key={option.id}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <input
+                  type="radio"
+                  name={`radio-${field.id}`}
+                  value={option.id}
+                  checked={field.selectedOptionId === option.id}
+                  onChange={() => handleFieldOptionChange(field.id, option.id)}
+                  className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                  data-testid={`form-field-radio-${field.id}-${option.id}`}
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">{option.label}</span>
+              </label>
+            ))}
+          </div>
+        );
+
+      default:
+        return (
+          <input
+            type={fieldType}
+            value={isLinked ? displayValue : field.value}
+            onChange={(e) => handleFieldValueChange(field.id, e.target.value, isLinked)}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            placeholder={field.placeholder || 'Enter value...'}
+            className={baseInputClass}
+            data-testid={`form-field-input-${field.id}`}
+          />
+        );
+    }
+  }, [handleFieldValueChange, handleFieldCheckedChange, handleFieldOptionChange]);
+
   const renderField = useCallback((field: FormNodeField, index: number) => {
     const isLinked = !!field.dataLink;
     const displayValue = getLinkedValue(field);
-    const isEditing = editingFieldId === field.id;
+    const fieldType = field.type || 'text';
+    const isCheckboxOrToggle = fieldType === 'checkbox' || fieldType === 'toggle';
+    const isRadio = fieldType === 'radio';
 
     return (
       <div 
@@ -227,52 +590,46 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
               data-testid={`form-field-label-${field.id}`}
             />
           )}
-          <div className="flex items-center gap-1">
-            <input
-              type={field.type || 'text'}
-              value={isLinked ? displayValue : field.value}
-              onChange={(e) => handleFieldValueChange(field.id, e.target.value, isLinked)}
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              placeholder={field.placeholder || 'Enter value...'}
-              className={cn(
-                "flex-1 px-2 py-1.5 text-sm border rounded transition-colors",
-                "focus:outline-none focus:ring-1 focus:ring-indigo-500",
-                isLinked 
-                  ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-300 dark:border-indigo-600 text-indigo-700 dark:text-indigo-300" 
-                  : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+          <div className={cn(
+            "flex gap-1",
+            isRadio ? "flex-col" : "items-center"
+          )}>
+            <div className={cn("flex-1", isRadio && "mb-1")}>
+              {renderFieldInput(field, isLinked, displayValue)}
+            </div>
+            
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              {!isCheckboxOrToggle && !isRadio && (
+                isLinked ? (
+                  <button
+                    onClick={(e) => handleRemoveDataLink(field.id, e)}
+                    className="p-1.5 text-indigo-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+                    title="Remove data link"
+                    data-testid={`form-field-unlink-${field.id}`}
+                  >
+                    <Link2Off size={14} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => handleDataLinkClick(field.id, e)}
+                    className="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded transition-colors opacity-0 group-hover:opacity-100"
+                    title="Link to table data"
+                    data-testid={`form-field-link-${field.id}`}
+                  >
+                    <Link2 size={14} />
+                  </button>
+                )
               )}
-              data-testid={`form-field-input-${field.id}`}
-            />
-            
-            {isLinked ? (
+              
               <button
-                onClick={(e) => handleRemoveDataLink(field.id, e)}
-                className="p-1.5 text-indigo-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
-                title="Remove data link"
-                data-testid={`form-field-unlink-${field.id}`}
+                onClick={(e) => handleRemoveField(field.id, e)}
+                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors opacity-0 group-hover:opacity-100"
+                title="Remove field"
+                data-testid={`form-field-remove-${field.id}`}
               >
-                <Link2Off size={14} />
+                <Trash2 size={14} />
               </button>
-            ) : (
-              <button
-                onClick={(e) => handleDataLinkClick(field.id, e)}
-                className="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded transition-colors opacity-0 group-hover:opacity-100"
-                title="Link to table data"
-                data-testid={`form-field-link-${field.id}`}
-              >
-                <Link2 size={14} />
-              </button>
-            )}
-            
-            <button
-              onClick={(e) => handleRemoveField(field.id, e)}
-              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors opacity-0 group-hover:opacity-100"
-              title="Remove field"
-              data-testid={`form-field-remove-${field.id}`}
-            >
-              <Trash2 size={14} />
-            </button>
+            </div>
           </div>
           
           {isLinked && field.dataLink && (
@@ -288,10 +645,9 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
     );
   }, [
     node.data.showLabels,
-    editingFieldId,
     getLinkedValue,
+    renderFieldInput,
     handleFieldLabelChange,
-    handleFieldValueChange,
     handleDataLinkClick,
     handleRemoveDataLink,
     handleRemoveField
@@ -437,12 +793,12 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
               <FileText size={24} className="text-gray-300 dark:text-gray-600 mb-2" />
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">No fields yet</p>
               <button
-                onClick={handleAddField}
+                onClick={handleOpenFieldPicker}
                 onTouchStart={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  handleAddField(e as any);
+                  handleOpenFieldPicker(e as any);
                 }}
                 className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-indigo-500 hover:bg-indigo-600 rounded-lg transition-colors"
                 data-testid={`form-add-first-field-${node.id}`}
@@ -462,12 +818,12 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
         {fields.length > 0 && (
           <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
             <button
-              onClick={handleAddField}
+              onClick={handleOpenFieldPicker}
               onTouchStart={(e) => e.stopPropagation()}
               onTouchEnd={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                handleAddField(e as any);
+                handleOpenFieldPicker(e as any);
               }}
               className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded transition-colors"
               data-testid={`form-add-field-${node.id}`}
@@ -478,6 +834,15 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
           </div>
         )}
       </div>
+
+      {/* Field Picker Menu */}
+      <FieldPickerMenu
+        isOpen={showFieldPicker}
+        position={fieldPickerPosition}
+        onAddField={handleAddFieldWithType}
+        onClose={() => setShowFieldPicker(false)}
+        onDragStart={handleMenuDragStart}
+      />
         </>
       )}
 
