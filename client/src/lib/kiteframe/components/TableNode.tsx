@@ -1146,8 +1146,8 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
         </>
       )}
 
-      {/* Connection Handles - positioned outside visual container, always rendered */}
-      {showHandles && (
+      {/* Connection Handles - positioned outside visual container, hidden during drag placeholder */}
+      {showHandles && !showDragPlaceholder && (
         <NodeHandles
           node={{ ...node, width: actualWidth, height: actualHeight }}
           scale={viewport?.zoom || 1}

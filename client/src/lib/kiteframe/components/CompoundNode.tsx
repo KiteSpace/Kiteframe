@@ -1443,22 +1443,13 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
       >
         {/* Drag placeholder - renders lightweight version during drag for performance */}
         {showDragPlaceholder ? (
-          <>
-            <DragPlaceholder
-              nodeType="compound"
-              width={nodeWidth}
-              height={nodeHeight}
-              label={node.data.label || 'Compound'}
-              selected={node.selected}
-            />
-            {showHandles && (
-              <NodeHandles
-                node={{ ...node, width: nodeWidth, height: nodeHeight }}
-                scale={viewport?.zoom || 1}
-                onHandleConnect={onHandleConnect}
-              />
-            )}
-          </>
+          <DragPlaceholder
+            nodeType="compound"
+            width={nodeWidth}
+            height={nodeHeight}
+            label={node.data.label || 'Compound'}
+            selected={node.selected}
+          />
         ) : (
           <>
             <div
@@ -1614,8 +1605,8 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
           </>
         )}
 
-        {/* Connection Handles - always rendered outside conditional */}
-        {showHandles && (
+        {/* Connection Handles - hidden during drag placeholder */}
+        {showHandles && !showDragPlaceholder && (
           <NodeHandles
             node={{ ...node, width: nodeWidth, height: nodeHeight }}
             scale={viewport?.zoom || 1}

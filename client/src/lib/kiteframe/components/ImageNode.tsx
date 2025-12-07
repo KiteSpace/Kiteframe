@@ -333,22 +333,13 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     >
       {/* Drag placeholder - renders lightweight version during drag for performance */}
       {showDragPlaceholder ? (
-        <>
-          <DragPlaceholder
-            nodeType="image"
-            width={nodeWidth}
-            height={nodeHeight}
-            label={node.data.label || 'Image'}
-            selected={node.selected}
-          />
-          {showHandles && (
-            <NodeHandles
-              node={{ ...node, width: nodeWidth, height: nodeHeight }}
-              scale={viewport?.zoom || 1}
-              onHandleConnect={onHandleConnect}
-            />
-          )}
-        </>
+        <DragPlaceholder
+          nodeType="image"
+          width={nodeWidth}
+          height={nodeHeight}
+          label={node.data.label || 'Image'}
+          selected={node.selected}
+        />
       ) : (
         <>
           <div
@@ -553,8 +544,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         </>
       )}
 
-      {/* Connection Handles - always rendered outside conditional */}
-      {showHandles && (
+      {/* Connection Handles - hidden during drag placeholder */}
+      {showHandles && !showDragPlaceholder && (
         <NodeHandles
           node={{ ...node, width: nodeWidth, height: nodeHeight }}
           scale={viewport?.zoom || 1}

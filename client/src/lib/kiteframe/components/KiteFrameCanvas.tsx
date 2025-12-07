@@ -2409,6 +2409,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   // Performance: RAF throttling for drag updates
   const dragRafId = useRef<number | null>(null);
   const pendingDragUpdate = useRef<{ dx: number; dy: number } | null>(null);
+  
+  // Debug: Drag performance logging (enabled via console: window.KITEFRAME_DEBUG_DRAG = true)
+  const lastDragLogTime = useRef<number>(0);
+  const lastCursorPos = useRef<{ x: number; y: number } | null>(null);
+  const dragStartTime = useRef<number>(0);
+  const frameCount = useRef<number>(0);
 
   // Canvas object dragging with threshold-based click vs drag distinction
   const canvasObjectDragInfo = useRef<{
@@ -2527,7 +2533,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
     const handleNodeDragMove = (e: MouseEvent) => {
       if (!dragInfo.current) return;
-
+      
+      const now = performance.now();
       const rect = containerRef.current!.getBoundingClientRect();
       const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
       const dx = wp.x - dragInfo.current.start.x;
@@ -2540,6 +2547,40 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       if (dragDistance > dragOptimizationThreshold && !suppressEdgesDuringDrag) {
         setSuppressEdgesDuringDrag(true);
         setDraggingNodeId(dragInfo.current.id);
+        dragStartTime.current = now;
+        frameCount.current = 0;
+      }
+      
+      // DEBUG LOGGING: Capture drag performance metrics
+      const debugEnabled = typeof window !== 'undefined' && (window as any).KITEFRAME_DEBUG_DRAG;
+      if (debugEnabled) {
+        frameCount.current++;
+        const cursorSpeed = lastCursorPos.current 
+          ? Math.sqrt(
+              Math.pow(e.clientX - lastCursorPos.current.x, 2) + 
+              Math.pow(e.clientY - lastCursorPos.current.y, 2)
+            ) / Math.max(1, now - lastDragLogTime.current) * 1000
+          : 0;
+        
+        const nodePos = props.nodes.find(n => n.id === dragInfo.current?.id)?.position;
+        const timeSinceLastLog = now - lastDragLogTime.current;
+        const totalDragTime = now - dragStartTime.current;
+        
+        console.log(
+          `🎯 DRAG[${frameCount.current}] ` +
+          `cursor:(${e.clientX.toFixed(0)},${e.clientY.toFixed(0)}) ` +
+          `speed:${cursorSpeed.toFixed(1)}px/s ` +
+          `node:(${nodePos?.x.toFixed(0) ?? '?'},${nodePos?.y.toFixed(0) ?? '?'}) ` +
+          `delta:(${dx.toFixed(1)},${dy.toFixed(1)}) ` +
+          `dist:${dragDistance.toFixed(1)}px ` +
+          `frameDelay:${timeSinceLastLog.toFixed(1)}ms ` +
+          `totalTime:${totalDragTime.toFixed(0)}ms ` +
+          `nodeId:${dragInfo.current.id} ` +
+          `placeholderActive:${draggingNodeId === dragInfo.current.id}`
+        );
+        
+        lastCursorPos.current = { x: e.clientX, y: e.clientY };
+        lastDragLogTime.current = now;
       }
       
       // PERFORMANCE: Use RAF throttling to batch mouse events - only one position update per frame
@@ -2564,6 +2605,19 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     // Separated drag update logic for RAF batching
     const executeDragUpdate = (dx: number, dy: number) => {
       if (!dragInfo.current) return;
+      
+      // DEBUG LOGGING: Log RAF execution timing
+      const debugEnabled = typeof window !== 'undefined' && (window as any).KITEFRAME_DEBUG_DRAG;
+      if (debugEnabled) {
+        const rafTime = performance.now();
+        const rafDelay = rafTime - lastDragLogTime.current;
+        console.log(
+          `⚡ RAF_EXEC ` +
+          `rafDelay:${rafDelay.toFixed(1)}ms ` +
+          `dx:${dx.toFixed(1)} dy:${dy.toFixed(1)} ` +
+          `nodeId:${dragInfo.current.id}`
+        );
+      }
 
       if (dragInfo.current.isGroupDrag && dragInfo.current.origins) {
         // Group drag: move all selected nodes
