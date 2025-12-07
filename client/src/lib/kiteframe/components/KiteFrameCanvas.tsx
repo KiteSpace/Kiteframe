@@ -2524,6 +2524,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     const handleNodeDragMove = (e: MouseEvent) => {
       if (!dragInfo.current) return;
 
+      const dragStartTime = performance.now();
+
       const rect = containerRef.current!.getBoundingClientRect();
       const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
       const dx = wp.x - dragInfo.current.start.x;
@@ -2532,10 +2534,15 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       // Calculate drag distance in screen pixels for optimization threshold
       const dragDistance = Math.sqrt(dx * dx + dy * dy) * viewport.zoom;
       
+      // Performance logging
+      const draggedNode = props.nodes.find(n => n.id === dragInfo.current?.id);
+      console.log(`🎯 DRAG PERF | cursor: (${e.clientX}, ${e.clientY}) | world: (${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}) | node: ${draggedNode?.type} | dist: ${dragDistance.toFixed(0)}px | nodes: ${props.nodes.length} | edges: ${props.edges.length}`);
+      
       // Activate drag optimization (edge suppression + placeholder) after threshold
       if (dragDistance > dragOptimizationThreshold && !suppressEdgesDuringDrag) {
         setSuppressEdgesDuringDrag(true);
         setDraggingNodeId(dragInfo.current.id);
+        console.log(`⚡ DRAG OPTIMIZATION ACTIVATED after ${dragDistance.toFixed(0)}px`);
       }
 
       if (dragInfo.current.isGroupDrag && dragInfo.current.origins) {
@@ -2644,6 +2651,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             (smartConnectPlugin as any).handleDrag?.(id, finalPosition);
           }
         }
+        
+        // Performance timing
+        const dragEndTime = performance.now();
+        console.log(`⏱️ DRAG FRAME took ${(dragEndTime - dragStartTime).toFixed(2)}ms | newPos: (${finalPosition.x.toFixed(1)}, ${finalPosition.y.toFixed(1)})`);
       }
     };
 
@@ -3154,7 +3165,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         }}
       >
         <div className="kiteframe-world" style={worldStyle}>
-          {/* Existing edges - hidden during drag for performance */}
+          {/* Existing edges - edges connected to dragged node hidden during drag for performance */}
           <svg
             className="kiteframe-edge-layer"
             style={{
@@ -3164,11 +3175,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               height: "100%",
               pointerEvents: "none",
               overflow: "visible",
-              visibility: suppressEdgesDuringDrag ? "hidden" : "visible",
             }}
           >
             <defs></defs>
-            {!suppressEdgesDuringDrag && (() => {
+            {(() => {
               // Recalculate edge z-indexes based on current node states
               const edgesWithZIndex = recalculateAllEdgeZIndexes(
                 visibleEdges,
@@ -3178,6 +3188,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               const sortedEdges = sortEdgesByZIndex(edgesWithZIndex);
 
               return sortedEdges.map((e) => {
+                // Skip edges connected to the dragged node during drag optimization
+                if (suppressEdgesDuringDrag && draggingNodeId && 
+                    (e.source === draggingNodeId || e.target === draggingNodeId)) {
+                  return null;
+                }
+                
                 const s = props.nodes.find((n) => n.id === e.source);
                 const t = props.nodes.find((n) => n.id === e.target);
                 if (!s || !t) return null;
@@ -3194,7 +3210,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             })()}
 
             {/* Edge reconnection handles for selected edges */}
-            {!suppressEdgesDuringDrag && (() => {
+            {(() => {
               // Use the same sorted edges for consistency
               const edgesWithZIndex = recalculateAllEdgeZIndexes(
                 visibleEdges,
@@ -3203,6 +3219,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               const sortedEdges = sortEdgesByZIndex(edgesWithZIndex);
 
               return sortedEdges.map((e) => {
+                // Skip edge handles for edges connected to dragged node
+                if (suppressEdgesDuringDrag && draggingNodeId && 
+                    (e.source === draggingNodeId || e.target === draggingNodeId)) {
+                  return null;
+                }
+                
                 // Check if edge reconnection is enabled
                 const edgeReconnectionConfig =
                   props.proFeatures?.edgeReconnection;
