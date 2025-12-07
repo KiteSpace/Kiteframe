@@ -2404,6 +2404,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     origins?: { id: string; origin: { x: number; y: number } }[];
     canvasObjectOrigins?: { id: string; origin: { x: number; y: number } }[];
     isGroupDrag?: boolean;
+    pendingPosition?: { x: number; y: number }; // CSS transform mode: store position to commit on drag end
   } | null>(null);
 
   // Canvas object dragging with threshold-based click vs drag distinction
@@ -2524,8 +2525,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     const handleNodeDragMove = (e: MouseEvent) => {
       if (!dragInfo.current) return;
 
-      const dragStartTime = performance.now();
-
       const rect = containerRef.current!.getBoundingClientRect();
       const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
       const dx = wp.x - dragInfo.current.start.x;
@@ -2534,15 +2533,26 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       // Calculate drag distance in screen pixels for optimization threshold
       const dragDistance = Math.sqrt(dx * dx + dy * dy) * viewport.zoom;
       
-      // Performance logging
-      const draggedNode = props.nodes.find(n => n.id === dragInfo.current?.id);
-      console.log(`🎯 DRAG PERF | cursor: (${e.clientX}, ${e.clientY}) | world: (${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}) | node: ${draggedNode?.type} | dist: ${dragDistance.toFixed(0)}px | nodes: ${props.nodes.length} | edges: ${props.edges.length}`);
-      
       // Activate drag optimization (edge suppression + placeholder) after threshold
       if (dragDistance > dragOptimizationThreshold && !suppressEdgesDuringDrag) {
         setSuppressEdgesDuringDrag(true);
         setDraggingNodeId(dragInfo.current.id);
-        console.log(`⚡ DRAG OPTIMIZATION ACTIVATED after ${dragDistance.toFixed(0)}px`);
+      }
+
+      // PERFORMANCE OPTIMIZATION: For individual drags, use CSS transform for immediate visual feedback
+      // This bypasses React's render cycle entirely during drag - only commit position on drag end
+      if (!dragInfo.current.isGroupDrag) {
+        const nodeElement = containerRef.current?.querySelector(`[data-node-id="${dragInfo.current.id}"]`) as HTMLElement;
+        if (nodeElement) {
+          const newX = dragInfo.current.origin.x + dx;
+          const newY = dragInfo.current.origin.y + dy;
+          nodeElement.style.transform = `translate(${newX}px, ${newY}px)`;
+          nodeElement.style.left = '0';
+          nodeElement.style.top = '0';
+          // Store pending position to commit on drag end
+          dragInfo.current.pendingPosition = { x: newX, y: newY };
+        }
+        return; // Skip React state update - will be committed on drag end
       }
 
       if (dragInfo.current.isGroupDrag && dragInfo.current.origins) {
@@ -2845,21 +2855,39 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
       // Handle node drag end only if no canvas object drag is active
       if (dragInfo.current) {
+        const nodeId = dragInfo.current.id;
+        const pendingPos = dragInfo.current.pendingPosition;
+        
+        // PERFORMANCE: Commit CSS transform position to React state on drag end
+        if (pendingPos && !dragInfo.current.isGroupDrag) {
+          // Reset CSS transform and commit to React state
+          const nodeElement = containerRef.current?.querySelector(`[data-node-id="${nodeId}"]`) as HTMLElement;
+          if (nodeElement) {
+            nodeElement.style.transform = '';
+            nodeElement.style.left = `${pendingPos.x}px`;
+            nodeElement.style.top = `${pendingPos.y}px`;
+          }
+          
+          // Commit final position to React state
+          const updated = props.nodes.map((n) =>
+            n.id === nodeId ? { ...n, position: pendingPos } : n,
+          );
+          props.onNodesChange(updated);
+        }
+        
         // Handle smart connect auto-connection on drag end
         if (
           !dragInfo.current.isGroupDrag &&
           props.proFeatures?.smartConnect?.enabled !== false
         ) {
-          const draggedNode = props.nodes.find(
-            (n) => n.id === dragInfo.current?.id,
-          );
-          if (draggedNode && enablePlugins) {
+          const finalPosition = pendingPos || props.nodes.find((n) => n.id === nodeId)?.position;
+          if (finalPosition && enablePlugins) {
             const smartConnectPlugin = core.getPlugin("smart-connect-pro");
             if (smartConnectPlugin) {
               // Call the plugin's handleDragEnd method to execute auto-connection
               (smartConnectPlugin as any).handleDragEnd?.(
-                dragInfo.current.id,
-                draggedNode.position,
+                nodeId,
+                finalPosition,
               );
             }
           }
@@ -2867,9 +2895,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
         // Only set flag to prevent clicks if there was actual substantial movement (like canvas objects)
         // Calculate movement distance to determine if this was a real drag
-        const startPos = dragInfo.current.start;
-        const finalPos = props.nodes.find(
-          (n) => n.id === dragInfo.current?.id,
+        const finalPos = pendingPos || props.nodes.find(
+          (n) => n.id === nodeId,
         )?.position;
 
         if (finalPos) {
