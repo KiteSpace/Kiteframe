@@ -461,8 +461,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             // Don't close the toolbar - the component menu will handle its own state
           }
         });
-      } else if (node?.type === 'image' || node?.type === 'form') {
-        // Image and Form nodes don't get icon/emoji or link buttons
+      } else if (node?.type === 'image' || node?.type === 'form' || node?.type === 'webview') {
+        // Image, Form, and Webview nodes don't get icon/emoji or link buttons
         // They only get color, style, and delete
       } else {
         // Basic nodes (input, process, condition, output, ai) get icon and link

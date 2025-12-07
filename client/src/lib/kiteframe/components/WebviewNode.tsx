@@ -18,7 +18,44 @@ import type { Node, WebviewNodeData, WebviewNodeComponentProps } from '../types'
 import { sanitizeText } from '../utils/validation';
 import { getBorderColorFromHeader } from '@/lib/themes';
 
-const EMBED_BLOCK_TIMEOUT_MS = 8000;
+const EMBED_BLOCK_TIMEOUT_MS = 5000;
+
+const KNOWN_BLOCKING_DOMAINS = [
+  'google.com',
+  'google.',
+  'facebook.com',
+  'fb.com',
+  'twitter.com',
+  'x.com',
+  'linkedin.com',
+  'instagram.com',
+  'amazon.com',
+  'netflix.com',
+  'apple.com',
+  'microsoft.com',
+  'outlook.com',
+  'live.com',
+  'dropbox.com',
+  'slack.com',
+  'discord.com',
+  'twitch.tv',
+  'reddit.com',
+  'pinterest.com',
+  'tiktok.com',
+  'whatsapp.com',
+  'telegram.org',
+];
+
+function isKnownBlockingDomain(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+    return KNOWN_BLOCKING_DOMAINS.some(domain => 
+      hostname === domain || hostname.endsWith('.' + domain)
+    );
+  } catch {
+    return false;
+  }
+}
 
 const MIN_WEBVIEW_WIDTH = 280;
 const MIN_WEBVIEW_HEIGHT = 200;
@@ -352,10 +389,53 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
       clearTimeout(loadTimeoutRef.current);
       loadTimeoutRef.current = null;
     }
+    
+    // Check if this is a known blocking domain
+    if (url && isKnownBlockingDomain(url)) {
+      setIsLoading(false);
+      setIsEmbedBlocked(true);
+      setLoadError('This site doesn\'t allow embedding');
+      return;
+    }
+    
+    // For unknown domains, try to verify the iframe loaded real content
+    // by checking if we can access contentWindow (will throw SecurityError for cross-origin)
+    if (iframeRef.current && url) {
+      try {
+        // Trying to access location will throw SecurityError if cross-origin but loaded
+        // If the frame is completely empty/blocked, it might behave differently
+        const win = iframeRef.current.contentWindow;
+        if (win) {
+          // Try to access something - this will throw for cross-origin
+          try {
+            const loc = win.location.href;
+            // If we get here without error, it's same-origin (unlikely for external sites)
+            // or about:blank which could mean blocking
+            if (loc === 'about:blank') {
+              // Give a bit more time - some sites redirect
+              setTimeout(() => {
+                if (iframeRef.current?.contentWindow?.location?.href === 'about:blank') {
+                  setIsLoading(false);
+                  setIsEmbedBlocked(true);
+                  setLoadError('This site doesn\'t allow embedding');
+                }
+              }, 1000);
+              return;
+            }
+          } catch (e) {
+            // SecurityError means the iframe loaded cross-origin content - this is good!
+            // The iframe actually loaded the site
+          }
+        }
+      } catch (e) {
+        // Error accessing contentWindow - might be blocked
+      }
+    }
+    
     setIsLoading(false);
     setLoadError(null);
     setIsEmbedBlocked(false);
-  }, []);
+  }, [url]);
 
   const handleIframeError = useCallback(() => {
     hasLoadedRef.current = true;
