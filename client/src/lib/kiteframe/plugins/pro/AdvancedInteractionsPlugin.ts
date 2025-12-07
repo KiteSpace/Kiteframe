@@ -101,6 +101,17 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
 
     // Only handle shortcuts when focused on the canvas
     const target = event.target as HTMLElement;
+    
+    // Skip if user is in an input field, textarea, or contenteditable element
+    // This allows normal text editing (including paste) in form fields
+    if (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.isContentEditable
+    ) {
+      return;
+    }
+    
     if (target.closest('.kiteframe-canvas')) {
       const selectedNodes = this.getSelectedNodes();
       const selectedCanvasObjects = this.getSelectedCanvasObjects();
