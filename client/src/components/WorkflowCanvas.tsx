@@ -56,6 +56,9 @@ interface WorkflowCanvasProps {
   onTableDataChange?: (tableId: string, table: DataTable) => void;
   onCreateNodeFromRow?: (tableId: string, row: Record<string, unknown>, rowIndex: number) => void;
   onFocusNode?: (nodeId: string) => void;
+  onFormLinkTable?: (nodeId: string) => void;
+  onFormUnlinkTable?: (nodeId: string) => void;
+  onUpdateTableCell?: (tableId: string, rowId: string, columnId: string, value: string) => void;
 }
 
 export function WorkflowCanvas({
@@ -105,7 +108,10 @@ export function WorkflowCanvas({
   onOpenTable,
   onTableDataChange,
   onCreateNodeFromRow,
-  onFocusNode
+  onFocusNode,
+  onFormLinkTable,
+  onFormUnlinkTable,
+  onUpdateTableCell
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -408,6 +414,9 @@ export function WorkflowCanvas({
         onTableDataChange={onTableDataChange}
         onCreateNodeFromRow={onCreateNodeFromRow}
         onFocusNode={onFocusNode}
+        onFormLinkTable={onFormLinkTable}
+        onFormUnlinkTable={onFormUnlinkTable}
+        onUpdateTableCell={onUpdateTableCell}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

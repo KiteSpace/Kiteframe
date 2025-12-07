@@ -3454,6 +3454,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [selectedImageNodeId, setSelectedImageNodeId] = useState<string | null>(null);
   const [showImageUploadModal, setShowImageUploadModal] = useState(false);
 
+  // Table link picker state for FormNode
+  const [tableLinkPicker, setTableLinkPicker] = useState<{ formNodeId: string } | null>(null);
+
   // Save sidebar collapse state to localStorage
   useEffect(() => {
     localStorage.setItem('sidebar-collapsed', JSON.stringify(isSidebarCollapsed));
@@ -6308,6 +6311,104 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 });
               }}
               onFocusNode={focusOnNode}
+              onFormLinkTable={(nodeId) => {
+                const tableNodes = nodes.filter(n => n.type === 'table');
+                if (tableNodes.length === 0) {
+                  toast({
+                    title: "No Tables Available",
+                    description: "Create a table node first to link it to this form.",
+                    variant: "default"
+                  });
+                  return;
+                }
+                setTableLinkPicker({ formNodeId: nodeId });
+              }}
+              onFormUnlinkTable={(nodeId) => {
+                setNodes(prev => prev.map(n => {
+                  if (n.id === nodeId) {
+                    const formData = n.data as import('../lib/kiteframe/types').FormNodeData;
+                    const clearedFields = formData.fields?.map(field => ({
+                      ...field,
+                      dataLink: undefined
+                    })) || [];
+                    return {
+                      ...n,
+                      data: {
+                        ...n.data,
+                        fields: clearedFields,
+                        linkedTableId: undefined,
+                        linkedTableNodeId: undefined,
+                        linkedTableName: undefined
+                      }
+                    };
+                  }
+                  return n;
+                }));
+                saveToHistory();
+                toast({
+                  title: "Table Unlinked",
+                  description: "Form is no longer linked to a table.",
+                  variant: "default"
+                });
+              }}
+              onUpdateTableCell={(tableId, rowId, columnId, value) => {
+                setTableData(prev => {
+                  const table = prev[tableId];
+                  if (!table) return prev;
+                  
+                  const updatedRows = table.rows.map(row => {
+                    if (row.id === rowId) {
+                      return {
+                        ...row,
+                        values: {
+                          ...row.values,
+                          [columnId]: value
+                        }
+                      };
+                    }
+                    return row;
+                  });
+                  
+                  return {
+                    ...prev,
+                    [tableId]: {
+                      ...table,
+                      rows: updatedRows
+                    }
+                  };
+                });
+                
+                setNodes(prev => prev.map(n => {
+                  if (n.type === 'table' && n.data?.tableId === tableId) {
+                    const tableNodeData = n.data as TableNodeData;
+                    if (tableNodeData.table) {
+                      const updatedRows = tableNodeData.table.rows.map(row => {
+                        if (row.id === rowId) {
+                          return {
+                            ...row,
+                            values: {
+                              ...row.values,
+                              [columnId]: value
+                            }
+                          };
+                        }
+                        return row;
+                      });
+                      return {
+                        ...n,
+                        data: {
+                          ...n.data,
+                          table: {
+                            ...tableNodeData.table,
+                            rows: updatedRows
+                          }
+                        }
+                      };
+                    }
+                  }
+                  return n;
+                }));
+              }}
             />
                 
                 <FloatingLayersWidget
@@ -6661,6 +6762,75 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           <BugReportModal
             onClose={() => setShowBugReportModal(false)}
           />
+        )}
+
+        {/* Table Link Picker for FormNode */}
+        {tableLinkPicker && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 w-80 max-h-96 overflow-y-auto">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Link to Table</h3>
+                <button
+                  onClick={() => setTableLinkPicker(null)}
+                  className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  data-testid="close-table-picker"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Select a table to link to this form:</p>
+              <div className="space-y-2">
+                {nodes.filter(n => n.type === 'table').map(tableNode => {
+                  const tableNodeData = tableNode.data as TableNodeData;
+                  const tableName = tableNodeData.table?.name || tableNodeData.label || 'Untitled Table';
+                  const rowCount = tableNodeData.table?.rows?.length || 0;
+                  return (
+                    <button
+                      key={tableNode.id}
+                      onClick={() => {
+                        setNodes(prev => prev.map(n => {
+                          if (n.id === tableLinkPicker.formNodeId) {
+                            return {
+                              ...n,
+                              data: {
+                                ...n.data,
+                                linkedTableId: tableNodeData.tableId,
+                                linkedTableNodeId: tableNode.id,
+                                linkedTableName: tableName
+                              }
+                            };
+                          }
+                          return n;
+                        }));
+                        saveToHistory();
+                        setTableLinkPicker(null);
+                        toast({
+                          title: "Table Linked",
+                          description: `Form is now linked to "${tableName}"`,
+                          variant: "default"
+                        });
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors"
+                      data-testid={`select-table-${tableNode.id}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Table2 size={16} className="text-indigo-500" />
+                        <span className="font-medium text-gray-900 dark:text-white">{tableName}</span>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {rowCount} row{rowCount !== 1 ? 's' : ''}
+                      </div>
+                    </button>
+                  );
+                })}
+                {nodes.filter(n => n.type === 'table').length === 0 && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                    No tables available. Create a table node first.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Image Upload Modal */}
