@@ -1,0 +1,826 @@
+KITEFRAME / KITELINE – TABLE-DRIVEN FEATURES
+Replit Implementation Instructions (KiteFrame-native, v2)
+
+This spec describes how to implement 5 key data-driven features on top of the existing KiteFrame node system:
+
+1. Compound node templates generated from table rows
+2. Bound Form nodes (table cells <-> inputs), using DataLinkPicker and optional edges
+3. Gallery / grid view for mass-generated nodes
+4. Chart nodes backed by TableNode data
+5. Enhanced data row nodes (improve row-to-node rendering)
+
+It is aligned with the current architecture:
+
+- Node system: custom KiteFrame library (NOT React Flow)
+- Rendering: KiteFrameCanvas renders each node type explicitly (BasicNode, TableNode, FormNode, CompoundNode, etc.)
+- Node creation: NodeFactory + nodeRegistry
+- TableNode: DataTable model with `DataTable`, `DataTableRow`, `TableNodeData`, API + CSV/JSON import
+- CompoundNode: Elementor-style multi-subcomponent container with `CompoundNodeData` & `CompoundSubcomponent` types
+- FormNode: form fields with `FormNodeData` & `FormFieldDataLink`
+- DataLinkPicker: central data-linking UI for tables → fields
+- Edges: custom `Edge` type + ConnectionEdge + NodeHandles for connections
+- Data links: FormFieldDataLink & CompoundInputDataLink already reference tableId/tableNodeId/rowId/columnId
+
+REFERENCE: See NODE_SYSTEM.md in the repo for detailed types & file paths (TableNode.tsx, CompoundNode.tsx, FormNode.tsx, DataLinkPicker.tsx, KiteFrameCanvas.tsx, NodeFactory.ts, etc.)
+
+------------------------------------------------------------------------
+0. GLOBAL CONTEXT & WHERE TO WORK
+------------------------------------------------------------------------
+
+Key files to touch:
+
+- Types & core:
+  - client/src/lib/kiteframe/types.ts
+- Node rendering & wiring:
+  - client/src/lib/kiteframe/components/KiteFrameCanvas.tsx
+  - client/src/lib/kiteframe/factory/NodeFactory.ts
+- Node components:
+  - client/src/lib/kiteframe/components/TableNode.tsx
+  - client/src/lib/kiteframe/components/FormNode.tsx
+  - client/src/lib/kiteframe/components/CompoundNode.tsx
+  - client/src/lib/kiteframe/components/BasicNode.tsx
+  - (New) client/src/lib/kiteframe/components/ChartNode.tsx
+- Data linking:
+  - client/src/lib/kiteframe/components/DataLinkPicker.tsx
+- Any project-level state manager (where nodes, tables are stored / updated)
+
+The system already has:
+
+- TableNodeData with `tableId`, `table?: DataTable`, `meta`, `apiConfig`, etc.
+- FormNodeData + FormFieldDataLink
+- CompoundNodeData + CompoundInputDataLink
+- TableNodeInfo used to feed tables into other nodes
+- onCreateNodeFromRow callback in TableNode to build nodes from rows
+
+We’ll extend/lean on those.
+
+------------------------------------------------------------------------
+1. COMPOUND NODE TEMPLATES GENERATED FROM TABLE ROWS
+------------------------------------------------------------------------
+
+Goal:
+- Let users design a CompoundNode (text, image, input, etc.)
+- Bind its subcomponents to table columns (using a template-level binding)
+- Save that as a reusable template
+- Generate one node per table row using those bindings
+
+We will:
+- Create a `CompoundNodeTemplate` type
+- Store templates in a project-level store
+- Add "Save as Template" to CompoundNode
+- Add "Generate nodes from template..." to TableNode
+- Use `CompoundSubcomponent.id` + columnId to drive binding
+
+--------------------------------------------------
+1.1 Add template types
+--------------------------------------------------
+
+In a shared types file (e.g. client/src/lib/kiteframe/types.ts or a new file `templates.ts`):
+
+```ts
+export interface CompoundNodeTemplate {
+  id: string;
+  name: string;
+  description?: string;
+
+  // Snapshot of CompoundNodeData (subcomponents, padding, colors, etc.)
+  nodeData: CompoundNodeData;
+
+  // Maps subcomponent IDs -> DataTableColumn.id (NOT row)
+  // e.g. { 'sub-1': 'name', 'sub-2': 'role', 'sub-3': 'image_url' }
+  columnBindings: Record<string, string>;
+
+  // Optional default table association (for convenience)
+  defaultTableId?: string;
+}
+Add a project-level store or extend existing store with:
+
+ts
+Copy code
+type ProjectTemplates = {
+  compoundNodes: CompoundNodeTemplate[];
+};
+
+interface ProjectState {
+  templates: ProjectTemplates;
+  addCompoundNodeTemplate: (template: CompoundNodeTemplate) => void;
+  updateCompoundNodeTemplate: (template: CompoundNodeTemplate) => void;
+  removeCompoundNodeTemplate: (id: string) => void;
+}
+Implement those actions in your state module (e.g. Zustand store).
+
+1.2 Bind subcomponents to columns (template-level)
+You already have per-input data link structures with CompoundInputDataLink that bind to a specific table cell (tableId + rowId + columnId + rowIndex). For templates, we want column-level binding (no row yet).
+
+Approach:
+
+When editing a CompoundNode in "template mode", or when using "Save as Template", allow the user to assign a column to each subcomponent:
+
+For text subcomponents: "Fill from column X"
+
+For image subcomponents: "Use URL from column Y"
+
+For input subcomponents: "Bind initial value to column Z" (and maybe allow it to be writable later)
+
+Implementation notes:
+
+Add a small "bind column" icon to each subcomponent row in CompoundNode (similar to how you already show link info when data.dataLink is set).
+
+On click:
+
+Open a popover:
+
+Choose Table (via list of TableNodeInfo)
+
+Choose column from table.columns (use DataTableColumn.id and .name)
+
+Instead of writing a full CompoundInputDataLink (which requires row info), capture:
+
+ts
+Copy code
+// temp bindings attached to the node while editing
+node.data.templateColumnBindings = {
+  [subcomponent.id]: selectedColumn.id
+};
+When the user hits "Save as Template":
+
+Construct a CompoundNodeTemplate from:
+
+nodeData = node.data (minus runtime flags like userResized)
+
+columnBindings = node.data.templateColumnBindings
+
+defaultTableId = the table the user picked last (optional)
+
+Call addCompoundNodeTemplate.
+
+1.3 "Save as Template" action on CompoundNode
+In CompoundNode.tsx header/toolbar:
+
+Add a button or kebab menu item: "Save as Template"
+
+On click:
+
+Show a small modal:
+
+Name (required)
+
+Description (optional)
+
+Default Source Table: dropdown of existing tables (optional)
+
+On submit:
+
+Build CompoundNodeTemplate and push into projectState.templates.compoundNodes.
+
+1.4 Generate nodes from template for each row
+In TableNode.tsx (or in a higher-level context menu for a selected TableNode):
+
+Add context menu: "Generate nodes from template…"
+
+Flow:
+
+Collect all CompoundNodeTemplate entries.
+
+Show a modal:
+
+Template dropdown
+
+Max rows to generate (default: min(table.rows.length, 25))
+
+Option "Add directly to canvas" vs "Open Gallery" (for Feature 3)
+
+On confirm:
+
+For rows up to maxRows:
+
+Clone template.nodeData to create fresh CompoundNodeData.
+
+For each subcomponent in nodeData.subcomponents:
+
+If template.columnBindings[sub.id] exists:
+
+Get columnId.
+
+Lookup row.values[columnId].
+
+Apply value into subcomponent’s data:
+
+text: set data.content
+
+image: set data.src
+
+link: set data.url and maybe text
+
+input: set data.value and also build a full CompoundInputDataLink that includes row data (tableId, tableNodeId, rowId, rowIndex, columnId, etc.) so the input can stay synced.
+
+Create a new Node for each row via NodeFactory / your existing node creation code:
+
+ts
+Copy code
+const newNode: Node = {
+  id: newId,
+  type: 'compound',
+  position: autoPositionForRow(index),
+  data: {
+    ...newCompoundData,
+    // optionally, store row reference for later syncing:
+    _rowBinding: {
+      tableId: table.data.tableId,
+      tableNodeId: node.id,
+      rowId: row.id,
+      rowIndex: index,
+    }
+  }
+};
+Add nodes to the canvas with your usual addNode or onNodesChange.
+
+autoPositionForRow can place them in a grid or vertical list.
+
+1.5 Optional: Auto-sync template-based nodes when table rows change
+When table data is updated (e.g. after API refresh or editing):
+
+For each CompoundNode whose data contains _rowBinding:
+
+Re-run the same binding logic with updated row.
+
+Only update fields that are driven by columnBindings.
+
+This can live in a central "onTableUpdated" handler in your store.
+
+BOUND FORM NODES (TABLE CELLS <-> INPUTS) USING DATALINKPICKER + EDGES
+
+You already have:
+
+FormNodeData with fields: FormNodeField[]
+
+FormFieldDataLink with tableId, tableNodeId, columnId, rowId, rowIndex, etc.
+
+DataLinkPicker that lets user pick table → column → row and writes a FormFieldDataLink
+
+Logic to resolve a dataLink into a display value
+
+We’ll refine:
+
+Use edges as an optional visual source link (TableNode → FormNode)
+
+Tighten behavior: Form editing writes back to table; table updates push into FormNode
+
+Make “Link a table” and dragging edges feel consistent
+
+2.1 Use edges as a visual + contextual linking hint
+Edges are not strictly required for data linking because FormFieldDataLink already records tableNodeId. But we can:
+
+When a user creates an edge from a TableNode handle to a FormNode handle:
+
+Set the FormNode’s "active source" for DataLinkPicker.
+
+Optionally, in the FormNode UI, show a badge: “Connected to table: {tableName}”.
+
+When the last TableNode→FormNode edge is removed:
+
+Clear any “default table” context in the FormNode (but keep per-field dataLinks, since they still hold tableNodeId/tableId).
+
+Optionally show a subtle warning icon: “Linked table edge removed; links may be stale.”
+
+Implementation:
+
+In your edge creation handler (where you currently spawn Edge objects):
+
+ts
+Copy code
+if (sourceNode.type === 'table' && targetNode.type === 'form') {
+  // set context on the form node
+  updateNode(targetNode.id, {
+    data: {
+      ...targetNode.data,
+      _defaultTableContext: {
+        tableId: sourceNode.data.tableId,
+        tableNodeId: sourceNode.id,
+        tableName: sourceNode.data.table?.name ?? 'Unnamed table',
+      }
+    }
+  });
+}
+In FormNode UI, read _defaultTableContext to:
+
+Prefill DataLinkPicker with that table.
+
+Show a small footer pill like: “📊 Linked: {tableName}”.
+
+2.2 “Link a table” button in FormNode
+In FormNode.tsx, for the header / toolbar:
+
+Add a “Link table” control (icon or button).
+
+On click:
+
+Open DataLinkPicker in a "table-only" mode:
+
+Show list of TableNodeInfo objects.
+
+Once the user selects a table, set _defaultTableContext as above.
+
+Optionally auto-create an Edge from that TableNode to this FormNode if none exists.
+
+This ensures keyboard-users or folks who don’t like dragging edges can still link.
+
+2.3 Field-level behavior (most is already there)
+For each FormNodeField:
+
+If field.dataLink is set:
+
+On render:
+
+Resolve displayValue from table using your existing helper.
+
+On user edit:
+
+Update both:
+
+field.value
+
+The underlying table cell: table.rows[rowIndex].values[columnId].
+
+Optionally update dataLink.displayValue.
+
+Most of this is likely in place; just ensure the write-back to table path is implemented.
+
+You’ll need a table update callback exposed to FormNode via props, or access to table state via context/store.
+
+2.4 Table → Form sync
+When table data changes:
+
+For each FormNode:
+
+For each field with dataLink:
+
+Recompute displayValue from table.
+
+Set field.value in state and trigger a re-render.
+
+Best done in:
+
+A central hook subscribing to table changes; OR
+
+A derived value inside FormNode that always maps dataLink → resolved value on render (no extra state).
+
+GALLERY / GRID VIEW FOR MASS-GENERATED NODES
+
+Goal:
+
+Provide a "Gallery" panel that shows template+table-driven node previews in a grid.
+
+Avoid immediately spamming the canvas with 100 nodes.
+
+Let users selectively add nodes to the canvas.
+
+3.1 Create NodeGalleryPanel component
+New component:
+
+Path: client/src/lib/kiteframe/components/NodeGalleryPanel.tsx
+
+Props:
+
+ts
+Copy code
+interface NodeGalleryPanelProps {
+  isOpen: boolean;
+  table: DataTable;
+  template: CompoundNodeTemplate;
+  onClose: () => void;
+  onAddCardToCanvas: (rowIndex: number) => void;
+  onAddAllToCanvas: (rowIndexes: number[]) => void;
+}
+UI:
+
+Header: “Gallery – [template.name]”
+
+Search input (filters by row values; simple string match)
+
+Grid layout (CSS grid) of cards:
+
+Each card uses the same subcomponent rendering logic as CompoundNode, but with fixed size, no editing, and row data injected using template.columnBindings.
+
+Pagination:
+
+pageIndex, pageSize (e.g. 12)
+
+Prev / Next buttons
+
+The panel should be a floating panel consistent with existing modals (like DataLinkPicker), using your floating panel styles.
+
+3.2 Data flow for cards
+The gallery does not need to create actual Node instances yet.
+
+For each row (within a limit, e.g. 50):
+
+Build a lightweight virtualNodeData:
+
+ts
+Copy code
+const virtualNodeData = applyTemplateToRow(template.nodeData, template.columnBindings, row);
+Then render a "card" component that reuses the CompoundNode subcomponent stack, but in read-only mode.
+
+3.3 Actions
+Per card:
+
+Button: “Add to canvas”
+
+Calls onAddCardToCanvas(rowIndex) → which reuses the same logic as 1.4 to create a real Node at a chosen position.
+
+Header actions:
+
+“Add all visible to canvas”
+
+onAddAllToCanvas(visibleRowIndexes)
+
+You can implement onAddCardToCanvas and onAddAllToCanvas in the parent (probably wherever you manage node arrays).
+
+3.4 Entry point from TableNode
+Modify the "Generate nodes from template…" flow for TableNode:
+
+Add radio buttons:
+
+( ) Add directly to canvas
+
+(•) Open gallery (default if table has lots of rows)
+
+If user chooses “Open gallery”:
+
+Open <NodeGalleryPanel> with the selected template + this table.
+
+CHART NODES BACKED BY TABLENODE DATA
+
+Goal:
+
+Introduce a new chart node type.
+
+Allow selecting a table, chart type, x/y columns, and filters.
+
+Render a chart that updates when the underlying table changes.
+
+4.1 Add chart to NodeType & NodeFactory
+In types.ts:
+
+ts
+Copy code
+export type NodeType =
+  | 'basic'
+  | 'input'
+  | 'output'
+  | 'process'
+  | 'condition'
+  | 'ai'
+  | 'image'
+  | 'table'
+  | 'form'
+  | 'compound'
+  | 'chart'; // NEW
+Define ChartNodeData:
+
+ts
+Copy code
+export type ChartType = 'bar' | 'line' | 'pie' | 'scatter';
+
+export interface ChartFilter {
+  columnId: string;
+  operator: '=' | '!=' | '>' | '>=' | '<' | '<=' | 'contains';
+  value: string | number | boolean;
+}
+
+export interface ChartNodeData extends BaseNodeData {
+  title?: string;
+  tableId?: string;
+  tableNodeId?: string;
+  chartType: ChartType;
+  xColumnId?: string;
+  yColumnId?: string;
+  groupByColumnId?: string;
+  filters?: ChartFilter[];
+  autoRefresh?: boolean;
+}
+In NodeFactory.ts, register a chart node type with sensible defaults.
+
+4.2 Implement ChartNode component
+Create client/src/lib/kiteframe/components/ChartNode.tsx:
+
+Props: GenericNodeComponentProps<ChartNodeData> & { tables?: TableNodeInfo[] }
+
+UI:
+
+Header:
+
+Title (editable)
+
+Chart type icon
+
+Settings button
+
+Body:
+
+Chart area (for MVP, simple 2D charts; you can stub with a placeholder until you integrate a chart lib)
+
+If table or columns not set: show simple instruction text.
+
+Settings panel:
+
+On click “settings”:
+
+Open a floating panel (similar to DataLinkPicker) with:
+
+Table selector (from tables prop)
+
+Chart type selector
+
+X Axis column (dropdown)
+
+Y Axis column (dropdown)
+
+Group by column (optional)
+
+Filter builder:
+
+Add filter: column, operator, value
+
+Auto-refresh toggle
+
+On save:
+
+Call onUpdate(node.id, { data: { ...node.data, ...updatedSettings } }).
+
+4.3 Integrate ChartNode into KiteFrameCanvas
+In KiteFrameCanvas.tsx, in the node rendering switch:
+
+tsx
+Copy code
+if (n.type === 'chart') {
+  return (
+    <ChartNode
+      key={n.id}
+      node={n as Node & { data: ChartNodeData }}
+      tables={tables} // whatever you use to pass TableNodeInfo list to nodes
+      onUpdate={...}
+      ...
+    />
+  );
+}
+Make sure tables is already gathered (you likely have something that builds TableNodeInfo[] for FormNode and CompoundNode).
+
+4.4 Data resolution & auto-refresh
+Inside ChartNode:
+
+Use tableId / tableNodeId to resolve a DataTable.
+
+Filter rows using filters.
+
+Map rows to data needed for chart:
+
+X values from row.values[xColumnId]
+
+Y values from row.values[yColumnId]
+
+Grouping if set.
+
+For auto-refresh:
+
+When table data changes (similar to Form/Compound logic), re-render the ChartNode by virtue of state updates.
+
+If you want time-based refresh (like TableNode’s API auto-refresh):
+
+You can reuse TableNode’s apiConfig.autoRefresh or add autoRefresh in ChartNodeData.
+
+For now, it’s enough that ChartNode re-renders whenever the underlying table changes.
+
+ENHANCED DATA ROW NODES (BETTER ROW-TO-NODE RENDERING)
+
+Goal:
+
+Improve nodes created via TableNode’s onCreateNodeFromRow so that they show a well-formatted, meaningful summary of the row—not just a raw text dump.
+
+Currently:
+
+TableNode exposes onCreateNodeFromRow(tableId, row, rowIndex).
+
+That callback creates a new process node with label from first column and rowData in data (per NODE_SYSTEM.md).
+
+We’ll:
+
+Standardize how rowInfo is stored in node.data.
+
+Update BasicNode.tsx to render a special “data row” view when row metadata is present.
+
+5.1 Standardize row metadata on created nodes
+When handling onCreateNodeFromRow in the parent (where you create the new node):
+
+Instead of arbitrary fields, use:
+
+ts
+Copy code
+interface RowBindingMeta {
+  tableId: string;
+  tableNodeId: string;
+  tableName: string;
+  rowId: string;
+  rowIndex: number;
+}
+
+interface RowDisplayConfig {
+  primaryColumnId?: string;
+  visibleColumnIds?: string[]; // up to ~6
+}
+
+data.rowBinding?: RowBindingMeta;
+data.rowDisplay?: RowDisplayConfig;
+data.rowValues?: Record<string, string | number | boolean | null>;
+So in the callback, do something like:
+
+ts
+Copy code
+const tableInfo = tables.find(t => t.tableId === tableId);
+const primaryColumnId = tableInfo?.table?.meta?.primaryColumnId ?? tableInfo?.table?.columns[0]?.id;
+
+const visibleColumnIds = tableInfo?.table?.columns
+  .slice(0, 6)
+  .map(c => c.id) ?? [];
+
+const newNode: Node = {
+  id: newId,
+  type: 'process', // still a process node
+  position: someOffsetFromTableNode,
+  data: {
+    ...defaultProcessNodeData,
+    title: String(row.values[primaryColumnId] ?? 'Row'),
+    rowBinding: {
+      tableId,
+      tableNodeId: tableNode.id,
+      tableName: tableInfo?.table?.name ?? 'Table',
+      rowId: row.id,
+      rowIndex,
+    },
+    rowDisplay: {
+      primaryColumnId,
+      visibleColumnIds,
+    },
+    rowValues: row.values,
+  }
+};
+5.2 Update BasicNode to detect and render row data
+In BasicNode.tsx:
+
+Check if node.data.rowBinding and node.data.rowValues exist.
+
+If so, render a “data card” layout instead of the generic process node body.
+
+Suggested layout:
+
+Header:
+
+rowValues[primaryColumnId] as main title.
+
+Badge showing rowBinding.tableName.
+
+Body:
+
+A list or 2-column grid of visibleColumnIds:
+
+label: column name
+
+formatted value:
+
+Format URLs as links
+
+Dates as Jan 10, 2025
+
+Booleans as ✓ / ×
+
+Long text truncated with ellipsis + tooltip
+
+Footer (optional):
+
+Row index
+
+Last updated from table meta (if available)
+
+You can create a small helper:
+
+ts
+Copy code
+function renderRowValue(column: DataTableColumn, value: any): ReactNode {
+  // use column.type for typeHint
+}
+Use the table structure via tableId/rowId if you need column names or types beyond what was saved.
+
+5.3 Keep it compatible with existing process nodes
+If rowBinding is not present:
+
+Fall back to the existing BasicNode / ProcessNode UI.
+
+This means you don’t need a new NodeType for data nodes—just smarter rendering.
+
+5.4 Sync with table changes
+When the table changes:
+
+For each node with data.rowBinding:
+
+Look up the updated row.
+
+Update data.rowValues and data.title if primary column changed.
+
+Re-render.
+
+You can do this in a central "onTableUpdated" routine or within whatever store orchestrates tables and nodes.
+
+SUMMARY OF EDGE-BASED LINKING VS. DATALINKPICKER
+
+DataLinkPicker is the primary way to define exact cell links (tableId + columnId + rowId).
+
+Edges are primarily visual + contextual:
+
+They show “this node is connected to that table”.
+
+They provide default context for DataLinkPicker (which table to show first).
+
+They’re automatically created when the user chooses “Link a table” from the node UI.
+
+For both FormNode and CompoundNode:
+
+Use FormFieldDataLink / CompoundInputDataLink to store final links.
+
+Use _defaultTableContext and edges to guide UX and keep the canvas readable.
+
+DEV TESTING CHECKLIST FOR REPLIT
+
+Compound templates:
+
+Create a CompoundNode.
+
+Bind subcomponents to columns via the new binding UI.
+
+Save as template.
+
+From a TableNode with multiple rows, choose “Generate nodes from template…”:
+
+Add directly to canvas.
+
+Open Gallery and add cards from there.
+
+Verify each generated node reflects the correct row data.
+
+Update a row and ensure nodes can be refreshed (if auto-sync is implemented).
+
+Form nodes:
+
+Link FormNode to a TableNode via edge and via “Link table” button.
+
+Use DataLinkPicker to bind multiple fields to different columns/rows.
+
+Change form field values; confirm table cells update.
+
+Change table cells (via TableNode, API refresh, or import); confirm form fields update.
+
+Gallery:
+
+Open gallery for a table with many rows.
+
+Search, paginate, and preview cards.
+
+Add a single card to canvas.
+
+Add all visible to canvas.
+
+Confirm row-to-node limits are respected.
+
+Chart nodes:
+
+Create a ChartNode.
+
+Link it to a table and configure chart settings.
+
+Confirm chart renders correctly (even if it’s a placeholder).
+
+Update the table; verify chart updates.
+
+Enhanced row nodes:
+
+Use the “create node from row” action in TableNode.
+
+Confirm the new process node renders as a rich data card.
+
+Confirm it includes table name, key fields, and formatted values.
+
+Modify the underlying row; confirm the node updates.
+
+Performance:
+
+Import a large CSV (e.g., 500 rows).
+
+Confirm that:
+
+Table truncation/limits are respected.
+
+Row-to-node creation is limited to safe numbers.
+
+Canvas interactions remain smooth.
+
+END OF SPEC
