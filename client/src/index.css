@@ -115,3 +115,60 @@
   font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands";
   font-weight: 900;
 }
+
+/* Custom scrollbar styles for table nodes */
+[data-table-scrollable="true"] {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+}
+
+[data-table-scrollable="true"]:hover {
+  scrollbar-color: rgba(156, 163, 175, 0.7) transparent;
+}
+
+/* WebKit scrollbar styles (Chrome, Safari, Edge) */
+[data-table-scrollable="true"]::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-table-scrollable="true"]::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+[data-table-scrollable="true"]::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.3);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+[data-table-scrollable="true"]:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.7);
+}
+
+[data-table-scrollable="true"]::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.9);
+}
+
+/* Dark mode scrollbar styles */
+.dark [data-table-scrollable="true"] {
+  scrollbar-color: rgba(107, 114, 128, 0.3) transparent;
+}
+
+.dark [data-table-scrollable="true"]:hover {
+  scrollbar-color: rgba(107, 114, 128, 0.7) transparent;
+}
+
+.dark [data-table-scrollable="true"]::-webkit-scrollbar-thumb {
+  background-color: rgba(107, 114, 128, 0.3);
+}
+
+.dark [data-table-scrollable="true"]:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(107, 114, 128, 0.7);
+}
+
+.dark [data-table-scrollable="true"]::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(107, 114, 128, 0.9);
+}

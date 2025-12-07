@@ -2051,6 +2051,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   // Wheel/pinch zoom (cursor-anchored) - using native event for passive: false
   const handleWheel = useCallback((e: WheelEvent) => {
+    // Check if the wheel event originated inside a scrollable table content area
+    const target = e.target as HTMLElement;
+    const scrollableTable = target.closest('[data-table-scrollable="true"]');
+    if (scrollableTable) {
+      // Don't intercept - let the table handle its own scrolling
+      return;
+    }
+    
     e.preventDefault();
     
     // Skip zoom if disabled, but still prevent default scroll behavior
