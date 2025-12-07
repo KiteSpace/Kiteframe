@@ -27,7 +27,7 @@ import {
   Circle
 } from 'lucide-react';
 import type { 
-  Node, 
+  Node as KiteNode, 
   FormNodeData, 
   FormNodeField, 
   FormFieldType,
@@ -131,16 +131,15 @@ const FieldPickerMenu: React.FC<FieldPickerMenuProps> = ({
         {menuItems.map((item) => (
           <button
             key={item.type}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               onAddField(item.type);
-              onClose();
             }}
             onTouchStart={(e) => e.stopPropagation()}
             onTouchEnd={(e) => {
               e.preventDefault();
               e.stopPropagation();
               onAddField(item.type);
-              onClose();
             }}
             className="flex flex-col items-center gap-1 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             data-testid={`add-field-${item.type}`}
@@ -875,7 +874,7 @@ export const createFormNode = (
   id: string,
   position: { x: number; y: number },
   data: Partial<FormNodeData> = {},
-): Node & { data: FormNodeData } => ({
+): KiteNode & { data: FormNodeData } => ({
   id,
   type: 'form',
   position,
