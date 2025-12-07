@@ -1264,6 +1264,11 @@ type Props = {
   
   // Node focus callback - pan canvas to focus on a specific node
   onFocusNode?: (nodeId: string) => void;
+  
+  // Compound template callbacks
+  onSaveAsTemplate?: (nodeId: string, templateName: string, description?: string) => void;
+  savedTemplates?: import('../types').SavedCompoundTemplate[];
+  onGenerateFromTemplate?: (tableId: string, template: import('../types').SavedCompoundTemplate, selectedRowIds?: string[]) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -3888,6 +3893,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     viewport={viewport}
                     showDragPlaceholder={draggingNodeId === n.id}
                     isAnyDragActive={!!draggingNodeId}
+                    savedTemplates={props.savedTemplates}
+                    onGenerateFromTemplate={props.onGenerateFromTemplate}
                     style={{
                       position: "absolute",
                       left: n.position.x,
@@ -4116,6 +4123,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         table,
                       };
                     }) : []}
+                    onSaveAsTemplate={props.onSaveAsTemplate}
                     style={{
                       position: "absolute",
                       left: n.position.x,

@@ -3527,6 +3527,215 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     ));
   }, []);
 
+  const handleSaveAsTemplate = useCallback((nodeId: string, templateName: string, description?: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || node.type !== 'compound') return;
+    
+    const compoundData = node.data as any;
+    const templateSubcomponents = (compoundData.subcomponents || []).map((sub: any) => {
+      const baseSub = {
+        id: sub.id,
+        type: sub.type,
+        order: sub.order,
+      };
+      
+      if (sub.type === 'text') {
+        return {
+          ...baseSub,
+          data: {
+            content: sub.data?.content || '',
+            fontSize: sub.data?.fontSize,
+            fontWeight: sub.data?.fontWeight,
+            fontStyle: sub.data?.fontStyle,
+            textDecoration: sub.data?.textDecoration,
+            textAlign: sub.data?.textAlign,
+            textColor: sub.data?.textColor,
+            columnBinding: sub.data?.columnBinding,
+          }
+        };
+      } else if (sub.type === 'image') {
+        return {
+          ...baseSub,
+          data: {
+            src: sub.data?.src,
+            alt: sub.data?.alt,
+            height: sub.data?.height,
+            columnBinding: sub.data?.columnBinding,
+          }
+        };
+      } else if (sub.type === 'link') {
+        return {
+          ...baseSub,
+          data: {
+            text: sub.data?.text || '',
+            url: sub.data?.url || '',
+            textColor: sub.data?.textColor,
+            showPreview: sub.data?.showPreview,
+            textColumnBinding: sub.data?.textColumnBinding,
+            urlColumnBinding: sub.data?.urlColumnBinding,
+          }
+        };
+      } else if (sub.type === 'input') {
+        return {
+          ...baseSub,
+          data: {
+            label: sub.data?.label,
+            value: sub.data?.value || '',
+            placeholder: sub.data?.placeholder,
+            inputType: sub.data?.inputType,
+            columnBinding: sub.data?.columnBinding,
+          }
+        };
+      }
+      return sub;
+    });
+    
+    const newTemplate: SavedCompoundTemplate = {
+      id: `template-${Date.now()}`,
+      name: templateName,
+      description,
+      subcomponents: templateSubcomponents,
+      containerPadding: compoundData.containerPadding,
+      gap: compoundData.gap,
+      defaultWidth: typeof node.style?.width === 'number' ? node.style.width : 320,
+      defaultHeight: typeof node.style?.height === 'number' ? node.style.height : 280,
+      colors: compoundData.colors,
+      metadata: {
+        createdAt: new Date().toISOString(),
+        usageCount: 0,
+      }
+    };
+    
+    addTemplate(newTemplate);
+    toast({ title: "Template Saved", description: `"${templateName}" saved to templates` });
+  }, [nodes, addTemplate, toast]);
+
+  // Handler for generating CompoundNodes from a template using table rows
+  const handleGenerateFromTemplate = useCallback((tableId: string, template: SavedCompoundTemplate, selectedRowIds?: string[]) => {
+    // Find the table node and get table data
+    const tableNode = nodes.find(n => n.type === 'table' && (n.data as any)?.tableId === tableId);
+    if (!tableNode) {
+      toast({ title: "Error", description: "Table not found", variant: "destructive" });
+      return;
+    }
+    
+    const tableNodeData = tableNode.data as TableNodeData;
+    const table = tableNodeData.table;
+    if (!table || !table.rows || table.rows.length === 0) {
+      toast({ title: "No Data", description: "Table has no rows to generate from", variant: "destructive" });
+      return;
+    }
+    
+    // Get the rows to process (selected or all, up to limit)
+    const MAX_ROW_TO_NODE = 50;
+    let rowsToProcess = table.rows;
+    if (selectedRowIds && selectedRowIds.length > 0) {
+      rowsToProcess = table.rows.filter((row: any) => selectedRowIds.includes(row.id));
+    }
+    rowsToProcess = rowsToProcess.slice(0, MAX_ROW_TO_NODE);
+    
+    if (rowsToProcess.length === 0) {
+      toast({ title: "No Rows", description: "No rows selected for generation", variant: "destructive" });
+      return;
+    }
+    
+    // Grid layout configuration
+    const GRID_COLUMNS = 3;
+    const SPACING_X = 350;
+    const SPACING_Y = 320;
+    const START_X = (tableNode.position?.x || 0) + (tableNode.width || 400) + 100;
+    const START_Y = tableNode.position?.y || 0;
+    
+    // Create column map for quick lookup
+    const columnMap = new Map<string, number>();
+    (table.columns || []).forEach((col: any, index: number) => {
+      columnMap.set(col.id, index);
+    });
+    
+    // Generate new nodes from rows
+    const newNodes: Node[] = rowsToProcess.map((row: any, index: number) => {
+      const gridX = index % GRID_COLUMNS;
+      const gridY = Math.floor(index / GRID_COLUMNS);
+      
+      // Clone template subcomponents with column bindings resolved
+      const resolvedSubcomponents = (template.subcomponents || []).map((sub: any) => {
+        const clonedSub = {
+          ...sub,
+          id: `${sub.id}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          data: { ...sub.data }
+        };
+        
+        // Resolve column bindings based on subcomponent type
+        if (sub.type === 'text' && sub.data?.columnBinding) {
+          const colIndex = columnMap.get(sub.data.columnBinding);
+          if (colIndex !== undefined && row.cells && row.cells[colIndex]) {
+            clonedSub.data.content = String(row.cells[colIndex].value || '');
+          }
+        } else if (sub.type === 'image' && sub.data?.columnBinding) {
+          const colIndex = columnMap.get(sub.data.columnBinding);
+          if (colIndex !== undefined && row.cells && row.cells[colIndex]) {
+            clonedSub.data.src = String(row.cells[colIndex].value || '');
+          }
+        } else if (sub.type === 'link') {
+          if (sub.data?.textColumnBinding) {
+            const colIndex = columnMap.get(sub.data.textColumnBinding);
+            if (colIndex !== undefined && row.cells && row.cells[colIndex]) {
+              clonedSub.data.text = String(row.cells[colIndex].value || '');
+            }
+          }
+          if (sub.data?.urlColumnBinding) {
+            const colIndex = columnMap.get(sub.data.urlColumnBinding);
+            if (colIndex !== undefined && row.cells && row.cells[colIndex]) {
+              clonedSub.data.url = String(row.cells[colIndex].value || '');
+            }
+          }
+        } else if (sub.type === 'input' && sub.data?.columnBinding) {
+          const colIndex = columnMap.get(sub.data.columnBinding);
+          if (colIndex !== undefined && row.cells && row.cells[colIndex]) {
+            clonedSub.data.value = String(row.cells[colIndex].value || '');
+          }
+        }
+        
+        return clonedSub;
+      });
+      
+      return {
+        id: `compound-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 5)}`,
+        type: 'compound' as const,
+        position: {
+          x: START_X + gridX * SPACING_X,
+          y: START_Y + gridY * SPACING_Y
+        },
+        data: {
+          label: template.name,
+          subcomponents: resolvedSubcomponents,
+          containerPadding: template.containerPadding || 16,
+          gap: template.gap || 12,
+          colors: template.colors,
+          sourceRowId: row.id,
+          sourceTableId: tableId,
+          sourceTemplateId: template.id,
+        },
+        width: template.defaultWidth || 320,
+        height: template.defaultHeight || 280,
+        style: {
+          width: template.defaultWidth || 320,
+          height: template.defaultHeight || 280
+        }
+      } as Node;
+    });
+    
+    // Add nodes to canvas
+    setNodes(prev => [...prev, ...newNodes]);
+    incrementTemplateUsage(template.id);
+    saveToHistory();
+    
+    toast({ 
+      title: "Nodes Generated", 
+      description: `Created ${newNodes.length} node${newNodes.length > 1 ? 's' : ''} from "${template.name}"` 
+    });
+  }, [nodes, toast, setNodes, incrementTemplateUsage, saveToHistory]);
+
   // Save sidebar collapse state to localStorage
   useEffect(() => {
     localStorage.setItem('sidebar-collapsed', JSON.stringify(isSidebarCollapsed));
@@ -6479,6 +6688,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   return n;
                 }));
               }}
+              onSaveAsTemplate={handleSaveAsTemplate}
+              savedTemplates={savedTemplates}
+              onGenerateFromTemplate={handleGenerateFromTemplate}
             />
                 
                 <FloatingLayersWidget

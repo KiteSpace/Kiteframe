@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
 import { FloatingToolbar } from './FloatingToolbar';
-import type { Node, Edge, CanvasObject, ProFeaturesConfig, TextNodeData, ShapeNodeData, StickyNoteData, DataTable } from '../lib/kiteframe/types';
+import type { Node, Edge, CanvasObject, ProFeaturesConfig, TextNodeData, ShapeNodeData, StickyNoteData, DataTable, SavedCompoundTemplate } from '../lib/kiteframe/types';
 import { VLStore } from '@/components/layers/visibilityLockStore';
 import { AncestorsStore } from '@/components/layers/ancestorsStore';
 import { isEffectivelyOn } from '@/components/layers/triStateUtils';
@@ -59,6 +59,9 @@ interface WorkflowCanvasProps {
   onFormLinkTable?: (nodeId: string) => void;
   onFormUnlinkTable?: (nodeId: string) => void;
   onUpdateTableCell?: (tableId: string, rowId: string, columnId: string, value: string) => void;
+  onSaveAsTemplate?: (nodeId: string, templateName: string, description?: string) => void;
+  savedTemplates?: SavedCompoundTemplate[];
+  onGenerateFromTemplate?: (tableId: string, template: SavedCompoundTemplate, selectedRowIds?: string[]) => void;
 }
 
 export function WorkflowCanvas({
@@ -111,7 +114,10 @@ export function WorkflowCanvas({
   onFocusNode,
   onFormLinkTable,
   onFormUnlinkTable,
-  onUpdateTableCell
+  onUpdateTableCell,
+  onSaveAsTemplate,
+  savedTemplates,
+  onGenerateFromTemplate
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -417,6 +423,9 @@ export function WorkflowCanvas({
         onFormLinkTable={onFormLinkTable}
         onFormUnlinkTable={onFormUnlinkTable}
         onUpdateTableCell={onUpdateTableCell}
+        onSaveAsTemplate={onSaveAsTemplate}
+        savedTemplates={savedTemplates}
+        onGenerateFromTemplate={onGenerateFromTemplate}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

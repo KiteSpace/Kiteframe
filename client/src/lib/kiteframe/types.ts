@@ -125,6 +125,7 @@ export interface CompoundTextSubcomponent extends CompoundSubcomponentBase {
     textDecoration?: 'none' | 'line-through';
     textAlign?: 'left' | 'center' | 'right';
     textColor?: string;
+    columnBinding?: { columnId: string; columnName: string }; // Template column binding
   };
 }
 
@@ -134,6 +135,7 @@ export interface CompoundImageSubcomponent extends CompoundSubcomponentBase {
     src?: string;
     alt?: string;
     height?: number; // Fixed height for the image in the stack
+    columnBinding?: { columnId: string; columnName: string }; // Template column binding
   };
 }
 
@@ -150,6 +152,8 @@ export interface CompoundLinkSubcomponent extends CompoundSubcomponentBase {
       image?: string;
       favicon?: string;
     };
+    textColumnBinding?: { columnId: string; columnName: string }; // Template column binding for text
+    urlColumnBinding?: { columnId: string; columnName: string };  // Template column binding for URL
   };
 }
 
@@ -173,6 +177,7 @@ export interface CompoundInputSubcomponent extends CompoundSubcomponentBase {
     placeholder?: string;
     inputType?: 'text' | 'number' | 'email' | 'url';
     dataLink?: CompoundInputDataLink; // Optional link to table cell
+    columnBinding?: { columnId: string; columnName: string }; // Template column binding
   };
 }
 
@@ -687,6 +692,8 @@ export interface TableNodeComponentProps extends GenericNodeComponentProps<Table
   node: Node & { data: TableNodeData };
   onUpdateTable?: (tableId: string, table: DataTable) => void;
   onCreateNodeFromRow?: (tableId: string, row: Record<string, unknown>, rowIndex: number) => void;
+  savedTemplates?: SavedCompoundTemplate[];
+  onGenerateFromTemplate?: (tableId: string, template: SavedCompoundTemplate, selectedRowIds?: string[]) => void;
 }
 
 export interface FormNodeComponentProps extends GenericNodeComponentProps<FormNodeData> {
@@ -702,6 +709,7 @@ export interface CompoundNodeComponentProps extends GenericNodeComponentProps<Co
   node: Node & { data: CompoundNodeData };
   onImageUpload?: (nodeId: string, file: File) => Promise<string>;
   tables?: TableNodeInfo[];
+  onSaveAsTemplate?: (nodeId: string, templateName: string, description?: string) => void;
 }
 
 // Pro Features Configuration Interfaces

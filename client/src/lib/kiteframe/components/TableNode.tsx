@@ -23,7 +23,10 @@ import {
   Loader2,
   AlertCircle,
   Key,
-  Lock
+  Lock,
+  LayoutTemplate,
+  Sparkles,
+  Check
 } from "lucide-react";
 import { NodeHandles } from "./NodeHandles";
 import { ResizeHandle } from "./ResizeHandle";
@@ -36,7 +39,8 @@ import type {
   DataTableRow,
   TableNodeComponentProps,
   TableApiConfig,
-  TableApiAuthType
+  TableApiAuthType,
+  SavedCompoundTemplate
 } from "../types";
 import { sanitizeText, validateColor } from "../utils/validation";
 import { getBorderColorFromHeader } from "@/lib/themes";
@@ -68,6 +72,8 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   viewport,
   showDragPlaceholder = false,
   isAnyDragActive = false,
+  savedTemplates = [],
+  onGenerateFromTemplate,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(node.data.label || "");
@@ -84,6 +90,9 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   const [inlineApiAuthType, setInlineApiAuthType] = useState<TableApiAuthType>('none');
   const [inlineApiKey, setInlineApiKey] = useState("");
   const [inlineApiKeyHeaderName, setInlineApiKeyHeaderName] = useState("X-API-Key");
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   
   const inputRef = useRef<HTMLInputElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -424,6 +433,46 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       setIsRefreshing(false);
     }
   }, [inlineApiUrl, inlineApiDataPath, inlineApiAuthType, inlineApiKey, inlineApiKeyHeaderName, node.id, node.data, onUpdate, onUpdateTable]);
+
+  const handleToggleRowSelection = useCallback((rowId: string) => {
+    setSelectedRowIds(prev => {
+      const next = new Set(prev);
+      if (next.has(rowId)) {
+        next.delete(rowId);
+      } else {
+        next.add(rowId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAllRows = useCallback(() => {
+    if (!table?.rows) return;
+    const allRowIds = table.rows.slice(0, MAX_ROW_TO_NODE).map((r: DataTableRow) => r.id);
+    setSelectedRowIds(new Set(allRowIds));
+  }, [table?.rows]);
+
+  const handleClearRowSelection = useCallback(() => {
+    setSelectedRowIds(new Set());
+  }, []);
+
+  const handleGenerateFromTemplate = useCallback(() => {
+    if (!selectedTemplateId || !onGenerateFromTemplate) return;
+    const template = savedTemplates.find(t => t.id === selectedTemplateId);
+    if (!template) return;
+    
+    const rowIdsArray = selectedRowIds.size > 0 
+      ? Array.from(selectedRowIds) 
+      : undefined;
+    
+    onGenerateFromTemplate(node.data.tableId, template, rowIdsArray);
+    setShowTemplateDialog(false);
+    setSelectedTemplateId(null);
+    setSelectedRowIds(new Set());
+  }, [selectedTemplateId, savedTemplates, selectedRowIds, node.data.tableId, onGenerateFromTemplate]);
+
+  const hasTemplates = savedTemplates.length > 0;
+  const hasTableData = table && table.rows && table.rows.length > 0;
 
   const colors = useMemo(() => {
     const nodeColors = node.data.colors || {};
@@ -1098,6 +1147,20 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
           </button>
         )}
         
+        {/* Generate from template button - only show when table has data and templates exist */}
+        {hasTableData && hasTemplates && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowTemplateDialog(true); }}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-purple-500 text-white hover:bg-purple-600 transition-colors shadow-sm"
+            title="Generate nodes from template"
+            data-testid={`table-generate-template-${node.id}`}
+          >
+            <Sparkles size={12} />
+            Generate
+          </button>
+        )}
+        
         <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
           {filteredAndSortedRows.length} of {table?.meta?.totalRowCount ?? rowCount}
         </div>
@@ -1165,6 +1228,115 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
           minWidth={MIN_TABLE_WIDTH}
           minHeight={MIN_TABLE_HEIGHT}
         />
+      )}
+
+      {/* Generate from Template Dialog */}
+      {showTemplateDialog && (
+        <div
+          className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 rounded-xl"
+          onClick={(e) => { e.stopPropagation(); setShowTemplateDialog(false); }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-[320px] max-h-[400px] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <LayoutTemplate size={16} className="text-purple-500" />
+                <span className="font-medium text-sm">Generate from Template</span>
+              </div>
+              <button
+                onClick={() => setShowTemplateDialog(false)}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            
+            <div className="p-3 space-y-3 max-h-[280px] overflow-y-auto">
+              <div>
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5 block">
+                  Select Template
+                </label>
+                <div className="space-y-1.5">
+                  {savedTemplates.map(template => (
+                    <button
+                      key={template.id}
+                      onClick={() => setSelectedTemplateId(template.id)}
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded border text-sm transition-colors",
+                        selectedTemplateId === template.id
+                          ? "border-purple-500 bg-purple-50 dark:bg-purple-900/30"
+                          : "border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      )}
+                      data-testid={`template-option-${template.id}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium truncate">{template.name}</span>
+                        {selectedTemplateId === template.id && (
+                          <Check size={14} className="text-purple-500 flex-shrink-0" />
+                        )}
+                      </div>
+                      {template.description && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                          {template.description}
+                        </p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Rows to Generate ({selectedRowIds.size > 0 ? selectedRowIds.size : 'All'})
+                  </label>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={handleSelectAllRows}
+                      className="text-xs text-purple-500 hover:text-purple-600"
+                    >
+                      All
+                    </button>
+                    <span className="text-xs text-gray-400">|</span>
+                    <button
+                      onClick={handleClearRowSelection}
+                      className="text-xs text-gray-500 hover:text-gray-600"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {selectedRowIds.size > 0 
+                    ? `${selectedRowIds.size} rows selected`
+                    : `All ${Math.min(rowCount, MAX_ROW_TO_NODE)} rows will be used`
+                  }
+                </p>
+              </div>
+            </div>
+            
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+              <button
+                onClick={() => setShowTemplateDialog(false)}
+                className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGenerateFromTemplate}
+                disabled={!selectedTemplateId}
+                className="px-3 py-1.5 text-sm font-medium bg-purple-500 text-white rounded hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                data-testid={`table-generate-confirm-${node.id}`}
+              >
+                <Sparkles size={14} />
+                Generate Nodes
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

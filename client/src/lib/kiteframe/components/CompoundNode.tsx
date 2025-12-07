@@ -31,7 +31,9 @@ import {
   Database,
   Table2,
   LinkIcon,
-  Unlink
+  Unlink,
+  Bookmark,
+  Columns
 } from 'lucide-react';
 import type { 
   Node, 
@@ -264,6 +266,223 @@ const DataLinkPicker: React.FC<DataLinkPickerProps> = ({ tables, onSelect, onClo
       </div>
     </div>
   );
+};
+
+interface ColumnBindingPickerProps {
+  tables: TableNodeInfo[];
+  onSelect: (columnId: string, columnName: string) => void;
+  onClose: () => void;
+  currentBinding?: { columnId: string; columnName: string };
+}
+
+const ColumnBindingPicker: React.FC<ColumnBindingPickerProps> = ({ tables, onSelect, onClose, currentBinding }) => {
+  const [selectedTable, setSelectedTable] = useState<TableNodeInfo | null>(null);
+  
+  const columns = selectedTable?.table?.columns || [];
+  
+  return (
+    <div 
+      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden min-w-[200px]"
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      data-testid="column-binding-picker"
+    >
+      <div className="flex items-center justify-between px-3 py-2 bg-purple-50 dark:bg-purple-900/30 border-b border-gray-200 dark:border-gray-600">
+        <div className="flex items-center gap-2">
+          <Columns size={14} className="text-purple-500" />
+          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Bind to Column</span>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+        >
+          <X size={14} className="text-gray-500" />
+        </button>
+      </div>
+      
+      {currentBinding && (
+        <div className="px-3 py-2 bg-purple-50 dark:bg-purple-900/20 border-b border-gray-200 dark:border-gray-600">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-purple-600 dark:text-purple-400">
+              Currently bound to: <strong>{currentBinding.columnName}</strong>
+            </span>
+            <button
+              onClick={() => onSelect('', '')}
+              className="text-xs text-red-500 hover:text-red-700"
+            >
+              Unbind
+            </button>
+          </div>
+        </div>
+      )}
+      
+      <div className="max-h-48 overflow-y-auto">
+        {!selectedTable ? (
+          <div className="p-2">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 px-1">Select a table:</div>
+            {tables.length === 0 ? (
+              <div className="text-xs text-gray-400 text-center py-4">No tables available</div>
+            ) : (
+              tables.map((t) => (
+                <button
+                  key={t.tableId}
+                  onClick={() => setSelectedTable(t)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-md transition-colors"
+                  data-testid={`column-bind-table-${t.tableId}`}
+                >
+                  <Table2 size={14} className="text-purple-500 flex-shrink-0" />
+                  <span className="truncate">{t.tableName}</span>
+                  <span className="text-xs text-gray-400 ml-auto">
+                    {t.table?.columns?.length || 0} cols
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        ) : (
+          <div className="p-2">
+            <button
+              onClick={() => setSelectedTable(null)}
+              className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 hover:underline mb-2"
+            >
+              ← Back to tables
+            </button>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 px-1">
+              Select a column from <span className="font-medium">{selectedTable.tableName}</span>:
+            </div>
+            {columns.map((col) => (
+              <button
+                key={col.id}
+                onClick={() => onSelect(col.id, col.name)}
+                className={cn(
+                  "w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded-md transition-colors",
+                  currentBinding?.columnId === col.id 
+                    ? "bg-purple-100 dark:bg-purple-900/50" 
+                    : "hover:bg-purple-50 dark:hover:bg-purple-900/30"
+                )}
+                data-testid={`column-bind-col-${col.id}`}
+              >
+                <Columns size={14} className="text-purple-500 flex-shrink-0" />
+                <span className="truncate">{col.name}</span>
+                {col.type && (
+                  <span className="text-xs text-gray-400 ml-auto">{col.type}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+interface SaveAsTemplateDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (name: string, description?: string) => void;
+  defaultName?: string;
+}
+
+const SaveAsTemplateDialog: React.FC<SaveAsTemplateDialogProps> = ({ isOpen, onClose, onSave, defaultName }) => {
+  const [name, setName] = useState(defaultName || '');
+  const [description, setDescription] = useState('');
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  
+  useEffect(() => {
+    if (isOpen && nameInputRef.current) {
+      setName(defaultName || '');
+      setDescription('');
+      setTimeout(() => nameInputRef.current?.focus(), 100);
+    }
+  }, [isOpen, defaultName]);
+  
+  if (!isOpen) return null;
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (name.trim()) {
+      onSave(name.trim(), description.trim() || undefined);
+      onClose();
+    }
+  };
+  
+  const dialogContent = (
+    <div 
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-[320px] max-w-[90vw]"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        data-testid="save-template-dialog"
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <Bookmark size={16} className="text-purple-500" />
+            <span className="font-medium text-gray-900 dark:text-white">Save as Template</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+          >
+            <X size={16} className="text-gray-500" />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Template Name *
+            </label>
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Product Card, User Profile..."
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              data-testid="template-name-input"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Description (optional)
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe what this template is for..."
+              rows={2}
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+              data-testid="template-description-input"
+            />
+          </div>
+          
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!name.trim()}
+              className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              data-testid="save-template-submit"
+            >
+              Save Template
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+  
+  return createPortal(dialogContent, document.body);
 };
 
 interface SubcomponentRendererProps {
@@ -1026,6 +1245,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   onFocusNode,
   showDragPlaceholder = false,
   isAnyDragActive = false,
+  onSaveAsTemplate,
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState(node.data.label || 'Compound');
@@ -1039,6 +1259,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   const [measuredHeights, setMeasuredHeights] = useState<Record<string, number>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [showDataLinkPickerFor, setShowDataLinkPickerFor] = useState<string | null>(null);
+  const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false);
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -1521,6 +1742,19 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
               >
                 {subcomponents.length} items
               </span>
+              {onSaveAsTemplate && subcomponents.length > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowSaveTemplateDialog(true);
+                  }}
+                  className="p-1.5 bg-white/20 rounded hover:bg-white/30 transition-colors"
+                  title="Save as Template"
+                  data-testid={`compound-save-template-btn-${node.id}`}
+                >
+                  <Bookmark size={14} style={{ color: headerTextColor }} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -1652,6 +1886,15 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
         onAddComponent={handleAddComponent}
         onClose={() => setMenuOpen(false)}
         onDragStart={handleMenuDragStart}
+      />
+      
+      <SaveAsTemplateDialog
+        isOpen={showSaveTemplateDialog}
+        onClose={() => setShowSaveTemplateDialog(false)}
+        onSave={(name, description) => {
+          onSaveAsTemplate?.(node.id, name, description);
+        }}
+        defaultName={node.data.label || 'Compound'}
       />
     </>
   );
