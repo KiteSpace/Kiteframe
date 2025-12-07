@@ -1584,35 +1584,42 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     }
   }, [showMetrics, renderBatchManager]);
 
-  // ResizeObserver to track ALL node height changes for accurate edge positioning
-  // This ensures edges update their positions when node body text expands or shrinks
+  // ResizeObserver to track ALL node dimension changes for accurate edge positioning
+  // This ensures edges update their positions when node content expands or shrinks
   const resizeDebounceRef = useRef<NodeJS.Timeout | null>(null);
-  const nodeHeightCacheRef = useRef<Map<string, number>>(new Map());
+  const nodeDimensionCacheRef = useRef<Map<string, { width: number; height: number }>>(new Map());
   
   useEffect(() => {
     if (!containerRef.current) return;
     
     const resizeObserver = new ResizeObserver((entries) => {
-      const nodesToUpdate: Array<{id: string, height: number}> = [];
+      const nodesToUpdate: Array<{id: string, width: number, height: number}> = [];
       
       for (const entry of entries) {
         const nodeElement = entry.target as HTMLElement;
         const nodeId = nodeElement.getAttribute('data-node-id');
         if (!nodeId) continue;
         
+        const newWidth = entry.contentRect.width;
         const newHeight = entry.contentRect.height;
-        const cachedHeight = nodeHeightCacheRef.current.get(nodeId) || 0;
+        const cached = nodeDimensionCacheRef.current.get(nodeId) || { width: 0, height: 0 };
         
-        // Only update if height has actually changed significantly (to avoid loops)
-        if (Math.abs(newHeight - cachedHeight) > 2) {
-          nodeHeightCacheRef.current.set(nodeId, newHeight);
+        // Only update if dimensions have actually changed significantly (to avoid loops)
+        const widthChanged = Math.abs(newWidth - cached.width) > 2;
+        const heightChanged = Math.abs(newHeight - cached.height) > 2;
+        
+        if (widthChanged || heightChanged) {
+          nodeDimensionCacheRef.current.set(nodeId, { width: newWidth, height: newHeight });
           
           const borderWidth = 4; // Account for 2px borders on each side
+          const totalWidth = newWidth + borderWidth;
           const totalHeight = newHeight + borderWidth;
+          const minWidth = 120; // Minimum node width
           const minHeight = 80; // Minimum node height
+          const finalWidth = Math.max(totalWidth, minWidth);
           const finalHeight = Math.max(totalHeight, minHeight);
           
-          nodesToUpdate.push({ id: nodeId, height: finalHeight });
+          nodesToUpdate.push({ id: nodeId, width: finalWidth, height: finalHeight });
         }
       }
       
@@ -1626,9 +1633,17 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           const updatedNodes = props.nodes.map(n => {
             const update = nodesToUpdate.find(u => u.id === n.id);
             if (update) {
+              const modelWidth = n.measuredWidth || n.width || 200;
               const modelHeight = n.measuredHeight || n.height || 100;
-              if (Math.abs(update.height - modelHeight) > 2) {
-                return { ...n, measuredHeight: update.height };
+              const widthDiff = Math.abs(update.width - modelWidth) > 2;
+              const heightDiff = Math.abs(update.height - modelHeight) > 2;
+              
+              if (widthDiff || heightDiff) {
+                return { 
+                  ...n, 
+                  measuredWidth: update.width,
+                  measuredHeight: update.height 
+                };
               }
             }
             return n;

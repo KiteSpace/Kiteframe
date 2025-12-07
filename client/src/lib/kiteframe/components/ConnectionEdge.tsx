@@ -11,12 +11,12 @@ interface AnchorResult {
 }
 
 function anchor(node: Node, toward: Node): AnchorResult {
-  const w = node.style?.width ?? node.width ?? 200;
-  // Use measuredHeight (transient DOM measurement) if available, for accurate edge tracking during edits
+  // Use measuredWidth/measuredHeight (transient DOM measurements) if available, for accurate edge tracking
+  const w = node.measuredWidth ?? node.style?.width ?? node.width ?? 200;
   const h = node.measuredHeight ?? node.style?.height ?? node.height ?? 100;
   const x = node.position.x, y = node.position.y;
   const cx = x + w/2, cy = y + h/2;
-  const tw = toward.style?.width ?? toward.width ?? 200;
+  const tw = toward.measuredWidth ?? toward.style?.width ?? toward.width ?? 200;
   const th = toward.measuredHeight ?? toward.style?.height ?? toward.height ?? 100;
   const tcx = toward.position.x + tw/2, tcy = toward.position.y + th/2;
   const dx = tcx - cx, dy = tcy - cy;

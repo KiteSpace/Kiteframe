@@ -34,6 +34,7 @@ export type Node = {
   width?: number;
   height?: number;
   zIndex?: number;
+  measuredWidth?: number; // Transient: DOM-measured width for edge anchoring (not persisted)
   measuredHeight?: number; // Transient: DOM-measured height for edge anchoring (not persisted)
 };
 
