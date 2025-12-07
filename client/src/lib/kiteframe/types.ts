@@ -101,7 +101,7 @@ export type Edge = {
   data?: any; // Keep for backward compatibility
 };
 
-export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound';
+export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview';
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 
 // ============= COMPOUND NODE TYPES =============
@@ -386,6 +386,21 @@ export interface TableNodeData extends BasicNodeData {
   apiConfig?: TableApiConfig;
   isLoading?: boolean;
   lastError?: string;
+}
+
+// ============= WEBVIEW NODE TYPES =============
+// Used for embedding external web content (Figma, Replit, Framer, etc.)
+
+export interface WebviewNodeData extends BasicNodeData {
+  url?: string;              // The URL to embed
+  title?: string;            // Display title for the node
+  favicon?: string;          // Favicon URL (auto-detected or custom)
+  serviceName?: string;      // Detected service name (Figma, Replit, etc.)
+  serviceIcon?: string;      // Known service icon identifier
+  isLoading?: boolean;       // Whether the iframe is loading
+  loadError?: string;        // Error message if iframe fails to load
+  showControls?: boolean;    // Show toolbar with refresh, fullscreen, etc.
+  sandbox?: string;          // Iframe sandbox attributes
 }
 
 // Data-backed Node Data - nodes created from table rows with data synchronization
@@ -736,6 +751,11 @@ export interface CompoundNodeComponentProps extends GenericNodeComponentProps<Co
   onImageUpload?: (nodeId: string, file: File) => Promise<string>;
   tables?: TableNodeInfo[];
   onSaveAsTemplate?: (nodeId: string, templateName: string, description?: string) => void;
+}
+
+export interface WebviewNodeComponentProps extends GenericNodeComponentProps<WebviewNodeData> {
+  node: Node & { data: WebviewNodeData };
+  onOpenFullscreen?: (nodeId: string) => void;
 }
 
 // Pro Features Configuration Interfaces

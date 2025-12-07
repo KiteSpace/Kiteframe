@@ -1,12 +1,13 @@
 import { memo } from "react";
-import { Table, Image, FileText, Layers, LucideIcon } from "lucide-react";
+import { Table, Image, FileText, Layers, Globe, LucideIcon } from "lucide-react";
 
 interface DragPlaceholderProps {
-  nodeType: "table" | "image" | "form" | "compound";
+  nodeType: "table" | "image" | "form" | "compound" | "webview";
   width: number;
   height: number;
   label?: string;
   selected?: boolean;
+  favicon?: string;
 }
 
 const nodeTypeConfig: Record<string, { Icon: LucideIcon; color: string; bgColor: string }> = {
@@ -30,6 +31,11 @@ const nodeTypeConfig: Record<string, { Icon: LucideIcon; color: string; bgColor:
     color: "#f59e0b",
     bgColor: "rgba(245, 158, 11, 0.08)"
   },
+  webview: { 
+    Icon: Globe, 
+    color: "#06b6d4",
+    bgColor: "rgba(6, 182, 212, 0.08)"
+  },
 };
 
 const DragPlaceholder = memo(function DragPlaceholder({
@@ -38,9 +44,11 @@ const DragPlaceholder = memo(function DragPlaceholder({
   height,
   label,
   selected,
+  favicon,
 }: DragPlaceholderProps) {
   const config = nodeTypeConfig[nodeType] || nodeTypeConfig.table;
   const { Icon } = config;
+  const iconSize = Math.min(32, height * 0.3);
   
   return (
     <div
@@ -66,11 +74,24 @@ const DragPlaceholder = memo(function DragPlaceholder({
       }}
       data-testid={`drag-placeholder-${nodeType}`}
     >
-      <Icon 
-        size={Math.min(32, height * 0.3)} 
-        color={config.color}
-        style={{ opacity: 0.7 }}
-      />
+      {nodeType === 'webview' && favicon ? (
+        <img 
+          src={favicon} 
+          alt="" 
+          style={{ 
+            width: iconSize, 
+            height: iconSize, 
+            objectFit: 'contain',
+            opacity: 0.7 
+          }} 
+        />
+      ) : (
+        <Icon 
+          size={iconSize} 
+          color={config.color}
+          style={{ opacity: 0.7 }}
+        />
+      )}
       {label && height > 80 && (
         <span
           style={{
