@@ -434,6 +434,105 @@ export interface CompoundNodeData extends BasicNodeData {
   userResized?: boolean; // Flag to track if user has manually resized the node
 }
 
+// ============= SAVED COMPOUND TEMPLATES =============
+// Templates for saving and reusing CompoundNode layouts with column bindings
+
+// Column binding reference - links a subcomponent field to a table column
+// At generation time, the column value from each row is substituted into the subcomponent
+export interface TemplateColumnBinding {
+  columnId: string;     // Column ID to bind to
+  columnName: string;   // Column name for display
+}
+
+// Template subcomponent types - similar to CompoundSubcomponent but with optional column bindings
+export interface TemplateSubcomponentBase {
+  id: string;
+  type: CompoundSubcomponentType;
+  order: number;
+}
+
+export interface TemplateTextSubcomponent extends TemplateSubcomponentBase {
+  type: 'text';
+  data: {
+    content: string;  // Static content or placeholder
+    columnBinding?: TemplateColumnBinding; // If bound, content is replaced with column value
+    fontSize?: number;
+    fontWeight?: 'normal' | 'bold';
+    fontStyle?: 'normal' | 'italic';
+    textDecoration?: 'none' | 'line-through';
+    textAlign?: 'left' | 'center' | 'right';
+    textColor?: string;
+  };
+}
+
+export interface TemplateImageSubcomponent extends TemplateSubcomponentBase {
+  type: 'image';
+  data: {
+    src?: string;       // Static image URL
+    columnBinding?: TemplateColumnBinding; // If bound, src is replaced with column value (URL)
+    alt?: string;
+    height?: number;
+  };
+}
+
+export interface TemplateLinkSubcomponent extends TemplateSubcomponentBase {
+  type: 'link';
+  data: {
+    text: string;       // Static text or placeholder
+    url: string;        // Static URL or placeholder
+    textColumnBinding?: TemplateColumnBinding;  // If bound, text is replaced with column value
+    urlColumnBinding?: TemplateColumnBinding;   // If bound, url is replaced with column value
+    textColor?: string;
+    showPreview?: boolean;
+  };
+}
+
+export interface TemplateInputSubcomponent extends TemplateSubcomponentBase {
+  type: 'input';
+  data: {
+    label?: string;
+    value: string;
+    columnBinding?: TemplateColumnBinding; // If bound, value is pre-filled with column value
+    placeholder?: string;
+    inputType?: 'text' | 'number' | 'email' | 'url';
+  };
+}
+
+export type TemplateSubcomponent =
+  | TemplateTextSubcomponent
+  | TemplateImageSubcomponent
+  | TemplateLinkSubcomponent
+  | TemplateInputSubcomponent;
+
+// Template metadata for saved templates
+export interface SavedTemplateMetadata {
+  createdAt: string;    // ISO date string
+  updatedAt?: string;   // ISO date string
+  thumbnail?: string;   // Base64 or URL of thumbnail preview
+  tags?: string[];      // User-defined tags for organization
+  usageCount?: number;  // Track how many times the template has been used
+}
+
+// The main saved compound template type
+export interface SavedCompoundTemplate {
+  id: string;           // Unique template ID
+  name: string;         // User-defined template name
+  description?: string; // Optional description
+  subcomponents: TemplateSubcomponent[]; // Subcomponents with optional column bindings
+  containerPadding?: number;
+  gap?: number;
+  defaultWidth?: number;  // Default node width when generated
+  defaultHeight?: number; // Default node height when generated
+  colors?: NodeColors;    // Default colors for generated nodes
+  metadata: SavedTemplateMetadata;
+}
+
+// Template store for project-level template management
+export interface TemplateStore {
+  templates: SavedCompoundTemplate[];
+  version: number; // For migration purposes
+}
+
 // Typed Node Variants for Type Safety
 export type BasicNode = Node & { 
   type: 'basic';

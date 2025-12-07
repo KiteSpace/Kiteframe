@@ -34,7 +34,7 @@ import { ObjectUploader } from '@/components/ObjectUploader';
 import { useFirebaseWorkflows } from '../hooks/useFirebaseWorkflows';
 import { useAuth } from '../hooks/useAuth';
 import { useCreditsGate } from '../hooks/useCreditsGate';
-import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeData, ShapeNodeData, StickyNoteData, DataTable, TableNodeData } from '../lib/kiteframe/types';
+import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeData, ShapeNodeData, StickyNoteData, DataTable, TableNodeData, SavedCompoundTemplate, TemplateStore } from '../lib/kiteframe/types';
 import { DEFAULT_SHAPE_NODE_DATA } from '../lib/kiteframe/constants/defaults';
 import { recalculateAllEdgeZIndexes } from '../lib/kiteframe/utils/edgeZIndex';
 import { applyThemeToNode, applyThemeToEdge, workflowThemes, getThemeById, type WorkflowTheme } from '../lib/themes';
@@ -3456,6 +3456,76 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // Table link picker state for FormNode
   const [tableLinkPicker, setTableLinkPicker] = useState<{ formNodeId: string } | null>(null);
+
+  // ============= COMPOUND TEMPLATE STORE =============
+  // Project-level template storage for saved compound node templates
+  const TEMPLATE_STORE_KEY = 'kiteframe-compound-templates';
+  const TEMPLATE_STORE_VERSION = 1;
+
+  const [savedTemplates, setSavedTemplates] = useState<SavedCompoundTemplate[]>(() => {
+    try {
+      const saved = localStorage.getItem(TEMPLATE_STORE_KEY);
+      if (saved) {
+        const store: TemplateStore = JSON.parse(saved);
+        if (store.version === TEMPLATE_STORE_VERSION) {
+          return store.templates;
+        }
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Persist templates to localStorage whenever they change
+  useEffect(() => {
+    try {
+      const store: TemplateStore = {
+        templates: savedTemplates,
+        version: TEMPLATE_STORE_VERSION
+      };
+      localStorage.setItem(TEMPLATE_STORE_KEY, JSON.stringify(store));
+    } catch (error) {
+      console.error('Failed to save templates to localStorage:', error);
+    }
+  }, [savedTemplates]);
+
+  // CRUD operations for templates
+  const addTemplate = useCallback((template: SavedCompoundTemplate) => {
+    setSavedTemplates(prev => [...prev, template]);
+  }, []);
+
+  const updateTemplate = useCallback((templateId: string, updates: Partial<SavedCompoundTemplate>) => {
+    setSavedTemplates(prev => prev.map(t => 
+      t.id === templateId 
+        ? { 
+            ...t, 
+            ...updates, 
+            metadata: { 
+              ...t.metadata, 
+              ...updates.metadata, 
+              updatedAt: new Date().toISOString() 
+            } 
+          }
+        : t
+    ));
+  }, []);
+
+  const deleteTemplate = useCallback((templateId: string) => {
+    setSavedTemplates(prev => prev.filter(t => t.id !== templateId));
+  }, []);
+
+  const getTemplateById = useCallback((templateId: string): SavedCompoundTemplate | undefined => {
+    return savedTemplates.find(t => t.id === templateId);
+  }, [savedTemplates]);
+
+  const incrementTemplateUsage = useCallback((templateId: string) => {
+    setSavedTemplates(prev => prev.map(t => 
+      t.id === templateId 
+        ? { ...t, metadata: { ...t.metadata, usageCount: (t.metadata.usageCount || 0) + 1 } }
+        : t
+    ));
+  }, []);
 
   // Save sidebar collapse state to localStorage
   useEffect(() => {
