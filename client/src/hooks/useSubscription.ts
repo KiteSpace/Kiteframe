@@ -45,18 +45,24 @@ export function useSubscription() {
     tier?: string;
     status?: string;
     billingPeriodEnd?: string;
+    isAdmin?: boolean;
+    isUnlimited?: boolean;
   }>({
     queryKey: ['/api/subscription'],
   });
 
-  const tier = (data?.tier as 'free' | 'advanced' | 'pro') || 'free';
-  const status = (data?.status as SubscriptionData['status']) || null;
+  const isAdmin = data?.isAdmin ?? false;
+  const isUnlimited = data?.isUnlimited ?? false;
+  
+  // Admins always get Pro tier
+  const tier = isAdmin ? 'pro' : ((data?.tier as 'free' | 'advanced' | 'pro') || 'free');
+  const status = isAdmin ? 'active' : ((data?.status as SubscriptionData['status']) || null);
 
   const subscriptionData: SubscriptionData = {
     tier,
     status,
     billingPeriodEnd: data?.billingPeriodEnd || null,
-    monthlyCredits: TIER_CREDITS[tier],
+    monthlyCredits: isUnlimited ? Infinity : TIER_CREDITS[tier],
     features: TIER_FEATURES[tier],
   };
 
@@ -65,9 +71,11 @@ export function useSubscription() {
     isLoading,
     error,
     refetch,
+    isAdmin,
+    isUnlimited,
     isPro: tier === 'pro' && status === 'active',
     isAdvanced: (tier === 'advanced' || tier === 'pro') && status === 'active',
-    isPaid: (tier === 'advanced' || tier === 'pro') && status === 'active',
-    hasActiveSubscription: status === 'active',
+    isPaid: isAdmin || ((tier === 'advanced' || tier === 'pro') && status === 'active'),
+    hasActiveSubscription: isAdmin || status === 'active',
   };
 }

@@ -29,6 +29,13 @@ import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter } from "./middleware/rateLimiter";
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
 
+// Admin email check helper - checks if user email is in ADMIN_EMAILS list
+function isAdminUser(email: string | undefined | null): boolean {
+  if (!email) return false;
+  const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
+  return adminEmails.includes(email.toLowerCase());
+}
+
 // Workflow validation utility
 function validateWorkflowStructure(data: any): { isValid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
@@ -233,7 +240,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      res.json(user);
+      
+      // Check if user is admin and add isAdmin flag
+      const isAdmin = isAdminUser(user?.email);
+      
+      // For admins, override tier to 'pro' and show unlimited credits
+      const responseUser = user ? {
+        ...user,
+        isAdmin,
+        subscriptionTier: isAdmin ? 'pro' : user.subscriptionTier,
+        isUnlimited: isAdmin ? true : undefined,
+      } : null;
+      
+      res.json(responseUser);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -258,8 +277,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       
       if (!user) {
-        return res.json({ subscription: null, tier: 'free' });
+        return res.json({ subscription: null, tier: 'free', isAdmin: false });
       }
+
+      // Check if user is admin
+      const isAdmin = isAdminUser(user.email);
 
       let subscription = null;
       if (user.stripeSubscriptionId) {
@@ -268,9 +290,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         subscription,
-        tier: user.subscriptionTier || 'free',
-        status: user.subscriptionStatus || 'active',
+        tier: isAdmin ? 'pro' : (user.subscriptionTier || 'free'),
+        status: isAdmin ? 'active' : (user.subscriptionStatus || 'active'),
         billingPeriodEnd: user.billingPeriodEnd,
+        isAdmin,
+        isUnlimited: isAdmin,
       });
     } catch (error) {
       console.error('Error fetching subscription:', error);
@@ -2008,6 +2032,22 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   app.get('/api/credits', async (req, res) => {
     try {
       const userIdentifier = creditService.getUserIdentifier(req);
+      const user = req.user as any;
+      
+      // Check if user is admin - admins get unlimited credits
+      const userEmail = user?.email || user?.claims?.email;
+      const isAdmin = isAdminUser(userEmail);
+      
+      if (isAdmin) {
+        return res.json({
+          success: true,
+          credits: 999999,
+          userIdentifier,
+          isUnlimited: true,
+          isAdmin: true,
+        });
+      }
+      
       const credits = await creditService.getRemainingCredits(userIdentifier);
       
       res.json({

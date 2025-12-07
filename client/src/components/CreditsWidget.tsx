@@ -8,12 +8,14 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
-import { Coins, AlertCircle, Crown, Sparkles } from 'lucide-react';
+import { Coins, AlertCircle, Crown, Sparkles, Shield } from 'lucide-react';
 
 interface CreditsResponse {
   success: boolean;
   credits: number;
   userIdentifier: string;
+  isUnlimited?: boolean;
+  isAdmin?: boolean;
 }
 
 interface RedeemResponse {
@@ -86,11 +88,17 @@ export function CreditsWidget() {
 
   const credits = (creditsData as CreditsResponse | undefined)?.credits ?? 0;
   const isUnlimited = credits >= 999999;
+  const isAdmin = (creditsData as CreditsResponse | undefined)?.isAdmin ?? false;
   const isLowCredits = credits <= 2 && !isUnlimited;
   const displayCredits = isUnlimited ? '∞' : credits;
   const showSignupPrompt = credits === 0 && !isAuthenticated;
 
-  const tierBadge = tier === 'pro' ? (
+  const tierBadge = isAdmin ? (
+    <Badge variant="default" className="bg-gradient-to-r from-purple-600 to-violet-600 text-white border-0">
+      <Shield className="h-3 w-3 mr-1" />
+      Admin
+    </Badge>
+  ) : tier === 'pro' ? (
     <Badge variant="default" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
       <Crown className="h-3 w-3 mr-1" />
       Pro
