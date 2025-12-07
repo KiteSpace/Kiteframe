@@ -420,6 +420,10 @@ export interface FormNodeData extends BasicNodeData {
   formTitle?: string;   // Optional form title/header
   showLabels?: boolean; // Whether to show field labels (default true)
   layout?: 'vertical' | 'horizontal'; // Field layout direction
+  // Linked table context - set when a TableNode→FormNode edge is created
+  linkedTableId?: string;       // ID of the linked table (tableId from TableNodeData)
+  linkedTableNodeId?: string;   // Node ID of the linked TableNode (for navigation/focusing)
+  linkedTableName?: string;     // Display name of the linked table
 }
 
 // Compound Node Data - container for multiple subcomponents (Elementor-style builder)

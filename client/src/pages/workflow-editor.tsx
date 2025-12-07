@@ -5745,6 +5745,40 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   interactable: true // Make edge clickable
                 };
                 setEdges(prev => [...prev, newEdge]);
+                
+                // Check if this is a TableNode→FormNode edge and set linked table context
+                const sourceNode = nodes.find(n => n.id === connection.source);
+                const targetNode = nodes.find(n => n.id === connection.target);
+                
+                if (sourceNode?.type === 'table' && targetNode?.type === 'form') {
+                  const tableData = sourceNode.data as TableNodeData;
+                  // Resolve the table name from multiple sources with sensible fallbacks:
+                  // 1. DataTable.name (populated table)
+                  // 2. Source file name from metadata
+                  // 3. Node label (BasicNodeData)
+                  // 4. Generic fallback
+                  const tableName = tableData.table?.name 
+                    || tableData.table?.meta?.sourceFileName 
+                    || tableData.label 
+                    || 'Table';
+                  
+                  // Update the FormNode with linked table context
+                  setNodes(prev => prev.map(n => {
+                    if (n.id === targetNode.id) {
+                      return {
+                        ...n,
+                        data: {
+                          ...n.data,
+                          linkedTableId: tableData.tableId,
+                          linkedTableNodeId: sourceNode.id,
+                          linkedTableName: tableName
+                        }
+                      };
+                    }
+                    return n;
+                  }));
+                }
+                
                 saveToHistory();
               }}
               onNodeClick={(e: React.MouseEvent, node: Node) => {
