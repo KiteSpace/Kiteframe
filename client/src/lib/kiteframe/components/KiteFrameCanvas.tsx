@@ -2581,13 +2581,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         // Only apply snapping if explicitly enabled (not just "not false")
         const smartGuidesEnabled = props.proFeatures?.smartGuides?.enabled === true;
         
-        console.log('🎯 DRAG MOVE - snapping check', {
-          nodeId: id,
-          smartGuidesEnabled,
-          proFeaturesSmartGuides: props.proFeatures?.smartGuides,
-          targetPosition
-        });
-        
         if (smartGuidesEnabled) {
           const draggedNode = props.nodes.find((n) => n.id === id);
           if (draggedNode) {
