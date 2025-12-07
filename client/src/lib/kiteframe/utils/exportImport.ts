@@ -28,6 +28,15 @@ const NodeDataSchema = z.object({
   filename: z.string().optional(),
   sourceType: z.enum(['upload', 'url', 'ai']).optional(),
   isImageBroken: z.boolean().optional(),
+  // Webview node fields
+  url: z.string().optional(),
+  title: z.string().optional(),
+  favicon: z.string().optional(),
+  serviceName: z.string().optional(),
+  serviceIcon: z.string().optional(),
+  isLoading: z.boolean().optional(),
+  loadError: z.string().optional(),
+  showControls: z.boolean().optional(),
   colors: z.object({
     headerBackground: z.string().optional(),
     bodyBackground: z.string().optional(),
