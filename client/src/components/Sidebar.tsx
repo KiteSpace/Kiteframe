@@ -6,6 +6,8 @@ import type {
   TextNodeData,
   ShapeNodeData,
   StickyNoteData,
+  SavedCompoundTemplate,
+  DataTable,
 } from "../lib/kiteframe/types";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { LocalImageUploader } from "@/components/LocalImageUploader";
@@ -61,6 +63,10 @@ import {
   Table2,
   FormInput,
   LayoutGrid,
+  FileStack,
+  MoreVertical,
+  Pencil,
+  Link2,
 } from "lucide-react";
 
 interface WorkflowTab {
@@ -125,6 +131,12 @@ interface SidebarProps {
   onConnectionAnimationConfigChange?: (config: any) => void;
   onToggleSidebar?: () => void;
   viewport: { x: number; y: number; zoom: number };
+  savedTemplates?: SavedCompoundTemplate[];
+  tables?: DataTable[];
+  onCreateFromSavedTemplate?: (templateId: string, position: { x: number; y: number }) => void;
+  onDeleteSavedTemplate?: (templateId: string) => void;
+  onRenameSavedTemplate?: (templateId: string, newName: string) => void;
+  onLinkTemplateToTable?: (templateId: string, tableId: string) => void;
 }
 
 export function Sidebar({
@@ -164,6 +176,12 @@ export function Sidebar({
   onConnectionAnimationConfigChange,
   onToggleSidebar,
   viewport,
+  savedTemplates = [],
+  tables = [],
+  onCreateFromSavedTemplate,
+  onDeleteSavedTemplate,
+  onRenameSavedTemplate,
+  onLinkTemplateToTable,
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState("");
@@ -174,18 +192,25 @@ export function Sidebar({
     isDragging: boolean;
     nodeType: string | null;
     templateType?: string | null;
+    savedTemplateId?: string | null;
     startPos: { x: number; y: number } | null;
     currentPos: { x: number; y: number } | null;
   }>({
     isDragging: false,
     nodeType: null,
     templateType: null,
+    savedTemplateId: null,
     startPos: null,
     currentPos: null,
   });
   const [isThemesExpanded, setIsThemesExpanded] = useState(false);
   const [isTemplatesExpanded, setIsTemplatesExpanded] = useState(false);
   const [isAnimationExpanded, setIsAnimationExpanded] = useState(false);
+  const [isMyTemplatesExpanded, setIsMyTemplatesExpanded] = useState(true);
+  const [templateMenuOpen, setTemplateMenuOpen] = useState<string | null>(null);
+  const [renamingTemplateId, setRenamingTemplateId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [linkingTemplateId, setLinkingTemplateId] = useState<string | null>(null);
   // showImageModal is now passed as a prop
 
   const handleUrlSubmit = (nodeId: string) => {
@@ -539,6 +564,101 @@ export function Sidebar({
     // Add event listeners
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  // Saved template drag and drop handler
+  const handleSavedTemplateMouseDown = (
+    e: React.MouseEvent,
+    templateId: string,
+    template: SavedCompoundTemplate,
+  ) => {
+    if (e.button !== 0) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const startPos = { x: e.clientX, y: e.clientY };
+    let hasMoved = false;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const distance = Math.sqrt(
+        Math.pow(e.clientX - startPos.x, 2) +
+          Math.pow(e.clientY - startPos.y, 2),
+      );
+
+      if (distance > 5) {
+        hasMoved = true;
+        setDragState({
+          isDragging: true,
+          nodeType: null,
+          templateType: null,
+          savedTemplateId: templateId,
+          startPos,
+          currentPos: { x: e.clientX, y: e.clientY },
+        });
+      }
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (hasMoved) {
+        const canvasElement = document.querySelector(
+          '[data-testid="workflow-canvas"]',
+        );
+
+        if (canvasElement && onCreateFromSavedTemplate) {
+          const canvasRect = canvasElement.getBoundingClientRect();
+          const x = e.clientX - canvasRect.left;
+          const y = e.clientY - canvasRect.top;
+
+          if (
+            x >= 0 &&
+            x <= canvasRect.width &&
+            y >= 0 &&
+            y <= canvasRect.height
+          ) {
+            const worldPos = clientToWorld(
+              e.clientX,
+              e.clientY,
+              viewport,
+              canvasRect,
+            );
+            onCreateFromSavedTemplate(templateId, worldPos);
+          }
+        }
+      }
+
+      setDragState({
+        isDragging: false,
+        nodeType: null,
+        templateType: null,
+        savedTemplateId: null,
+        startPos: null,
+        currentPos: null,
+      });
+
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  // Handle rename submit
+  const handleRenameSubmit = (templateId: string) => {
+    if (renameValue.trim() && onRenameSavedTemplate) {
+      onRenameSavedTemplate(templateId, renameValue.trim());
+    }
+    setRenamingTemplateId(null);
+    setRenameValue("");
+  };
+
+  // Handle link to table
+  const handleLinkToTable = (templateId: string, tableId: string) => {
+    if (onLinkTemplateToTable) {
+      onLinkTemplateToTable(templateId, tableId);
+    }
+    setLinkingTemplateId(null);
   };
 
   return (
@@ -2182,6 +2302,142 @@ export function Sidebar({
                 )}
               </div>
 
+              {/* My Templates Section - Saved Compound Templates */}
+              <div>
+                <div
+                  className="flex items-center justify-between cursor-pointer mb-3 hover:bg-accent rounded p-1 -m-1"
+                  onClick={() => setIsMyTemplatesExpanded(!isMyTemplatesExpanded)}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileStack size={14} className="text-emerald-500" />
+                    <h3 className="text-sm font-semibold">My Templates</h3>
+                    {savedTemplates.length > 0 && (
+                      <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-full">
+                        {savedTemplates.length}
+                      </span>
+                    )}
+                  </div>
+                  {isMyTemplatesExpanded ? (
+                    <ChevronDown size={16} className="text-muted-foreground" />
+                  ) : (
+                    <ChevronRight size={16} className="text-muted-foreground" />
+                  )}
+                </div>
+                {isMyTemplatesExpanded && (
+                  <div className="space-y-2">
+                    {savedTemplates.length === 0 ? (
+                      <div className="text-center py-4 text-muted-foreground">
+                        <LayoutGrid size={24} className="mx-auto mb-2 opacity-40" />
+                        <p className="text-xs">No saved templates yet</p>
+                        <p className="text-[10px] mt-1 opacity-70">
+                          Save a compound node as template to see it here
+                        </p>
+                      </div>
+                    ) : (
+                      savedTemplates.map((template) => (
+                        <div
+                          key={template.id}
+                          className="group relative p-2 border border-border rounded-md cursor-grab hover:bg-accent hover:border-emerald-400 transition-all duration-200 select-none"
+                          onMouseDown={(e) => handleSavedTemplateMouseDown(e, template.id, template)}
+                          data-testid={`saved-template-${template.id}`}
+                        >
+                          {renamingTemplateId === template.id ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleRenameSubmit(template.id);
+                                  if (e.key === 'Escape') {
+                                    setRenamingTemplateId(null);
+                                    setRenameValue("");
+                                  }
+                                }}
+                                onBlur={() => handleRenameSubmit(template.id)}
+                                autoFocus
+                                className="flex-1 text-xs px-1.5 py-1 border border-border rounded bg-background focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                                <LayoutGrid size={12} className="text-emerald-600 dark:text-emerald-400" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-medium truncate">{template.name}</div>
+                                <div className="text-[10px] text-muted-foreground">
+                                  {template.subcomponents?.length || 0} components
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRenamingTemplateId(template.id);
+                                    setRenameValue(template.name);
+                                  }}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  className="p-1 hover:bg-background rounded"
+                                  title="Rename"
+                                >
+                                  <Pencil size={12} className="text-muted-foreground" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setLinkingTemplateId(linkingTemplateId === template.id ? null : template.id);
+                                  }}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  className="p-1 hover:bg-background rounded"
+                                  title="Link to Table"
+                                >
+                                  <Link2 size={12} className="text-muted-foreground" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDeleteSavedTemplate?.(template.id);
+                                  }}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                                  title="Delete"
+                                >
+                                  <Trash2 size={12} className="text-red-500" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {linkingTemplateId === template.id && tables.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-border">
+                              <p className="text-[10px] text-muted-foreground mb-1">Link to table:</p>
+                              <div className="space-y-1 max-h-24 overflow-y-auto">
+                                {tables.map((table) => (
+                                  <button
+                                    key={table.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleLinkToTable(template.id, table.id);
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    className="w-full text-left text-xs px-2 py-1 rounded hover:bg-accent flex items-center gap-1.5"
+                                  >
+                                    <Table2 size={10} className="text-teal-500" />
+                                    <span className="truncate">{table.name}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Theme Selector Section - Collapsible */}
               <div>
                 <div
@@ -2326,7 +2582,7 @@ export function Sidebar({
       {/* Ghost Preview during drag */}
       {dragState.isDragging &&
         dragState.currentPos &&
-        (dragState.nodeType || dragState.templateType) && (
+        (dragState.nodeType || dragState.templateType || dragState.savedTemplateId) && (
           <div
             className="fixed pointer-events-none z-50 bg-white/90 dark:bg-gray-800/90 border border-border rounded-md p-2 shadow-lg backdrop-blur-sm"
             style={{
@@ -2337,7 +2593,19 @@ export function Sidebar({
           >
             <div className="flex items-center gap-2 text-sm">
               {(() => {
-                if (dragState.templateType) {
+                if (dragState.savedTemplateId) {
+                  const savedTemplate = savedTemplates.find(
+                    (t) => t.id === dragState.savedTemplateId,
+                  );
+                  if (savedTemplate) {
+                    return (
+                      <>
+                        <LayoutGrid className="w-4 h-4 text-emerald-500" />
+                        <span className="font-medium">{savedTemplate.name}</span>
+                      </>
+                    );
+                  }
+                } else if (dragState.templateType) {
                   const template = templateTypes.find(
                     (t) => t.type === dragState.templateType,
                   );

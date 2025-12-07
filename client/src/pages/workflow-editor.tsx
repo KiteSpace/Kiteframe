@@ -5853,6 +5853,56 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               viewport={viewport}
               connectionAnimationConfig={connectionAnimationConfig}
               onConnectionAnimationConfigChange={setConnectionAnimationConfig}
+              savedTemplates={savedTemplates}
+              tables={nodes
+                .filter(n => n.type === 'table' && n.data?.tableId)
+                .map(n => n.data?.table || { id: n.data?.tableId || '', name: n.data?.label || 'Table', columns: [], rows: [] })
+                .filter((t): t is DataTable => !!t)}
+              onCreateFromSavedTemplate={(templateId: string, position: { x: number; y: number }) => {
+                const template = savedTemplates.find(t => t.id === templateId);
+                if (!template) return;
+                
+                const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                const nodeId = `node-${uniqueId}`;
+                const newNode: Node = {
+                  id: nodeId,
+                  type: 'compound',
+                  position,
+                  data: {
+                    label: template.name,
+                    description: template.description || '',
+                    subcomponents: template.subcomponents?.map((s, i) => ({
+                      ...s,
+                      id: `${nodeId}-sub-${i}-${Math.random().toString(36).slice(2, 6)}`
+                    })) || [],
+                    containerPadding: template.containerPadding || 12,
+                    gap: template.gap || 8,
+                    colors: template.colors || {
+                      headerBackground: '#059669',
+                      bodyBackground: '#ffffff',
+                      borderColor: '#10b981',
+                      headerTextColor: '#ffffff',
+                    },
+                    sourceTemplateId: template.id,
+                  },
+                  width: template.defaultWidth || 320,
+                  height: template.defaultHeight || 280,
+                  style: { width: template.defaultWidth || 320, height: template.defaultHeight || 280 },
+                  resizable: true
+                };
+                
+                setNodes(prev => [...prev, newNode]);
+                saveToHistory();
+              }}
+              onDeleteSavedTemplate={removeTemplate}
+              onRenameSavedTemplate={(templateId: string, newName: string) => {
+                updateTemplate(templateId, { name: newName });
+              }}
+              onLinkTemplateToTable={(templateId: string, tableId: string) => {
+                const template = savedTemplates.find(t => t.id === templateId);
+                if (!template) return;
+                handleGenerateFromTemplate(tableId, template);
+              }}
               />
             )}
           </div>
