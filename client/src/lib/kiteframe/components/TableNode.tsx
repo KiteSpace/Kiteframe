@@ -82,6 +82,10 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  
+  // Cell editing state (Google Sheets-like behavior)
+  const [editingCell, setEditingCell] = useState<{ rowId: string; colId: string } | null>(null);
+  const [cellEditValue, setCellEditValue] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(node.data.isLoading || false);
   const [refreshError, setRefreshError] = useState<string | null>(node.data.lastError || null);
   const [showInlineApiForm, setShowInlineApiForm] = useState(false);
@@ -98,6 +102,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   const nodeRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const collapsedTitleRef = useRef<HTMLSpanElement>(null);
+  const cellInputRef = useRef<HTMLInputElement>(null);
   const [collapsedWidth, setCollapsedWidth] = useState(MIN_COLLAPSED_WIDTH);
 
   const table = node.data.table;
@@ -119,14 +124,8 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
     }
   }, [isEditing]);
 
-  const handleDoubleClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setIsEditing(true);
-      onDoubleClick?.(e);
-    },
-    [onDoubleClick],
-  );
+  // Note: handleTitleDoubleClick is defined later and used only on the title element
+  // This prevents double-clicking anywhere on the table from triggering title edit
 
   const handleLabelSubmit = useCallback(() => {
     if (onUpdate) {
@@ -151,6 +150,67 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
     },
     [handleLabelSubmit, node.data.label],
   );
+
+  // Cell editing handlers (Google Sheets-like behavior)
+  const handleCellDoubleClick = useCallback((e: React.MouseEvent, rowId: string, colId: string, currentValue: unknown) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setEditingCell({ rowId, colId });
+    setCellEditValue(String(currentValue ?? ""));
+  }, []);
+
+  useEffect(() => {
+    if (editingCell && cellInputRef.current) {
+      cellInputRef.current.focus();
+      cellInputRef.current.select();
+    }
+  }, [editingCell]);
+
+  const handleCellSubmit = useCallback(() => {
+    if (!editingCell || !table || !onUpdateTable) {
+      setEditingCell(null);
+      return;
+    }
+
+    const updatedRows = table.rows.map((row: DataTableRow) => {
+      if (row.id === editingCell.rowId) {
+        return {
+          ...row,
+          values: {
+            ...row.values,
+            [editingCell.colId]: cellEditValue,
+          },
+        };
+      }
+      return row;
+    });
+
+    const updatedTable: DataTable = {
+      ...table,
+      rows: updatedRows,
+    };
+
+    onUpdateTable(node.data.tableId, updatedTable);
+
+    if (onUpdate) {
+      onUpdate(node.id, {
+        data: {
+          ...node.data,
+          table: updatedTable,
+        },
+      });
+    }
+
+    setEditingCell(null);
+    setCellEditValue("");
+  }, [editingCell, cellEditValue, table, node.id, node.data, onUpdate, onUpdateTable]);
+
+  const handleTitleDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsEditing(true);
+    onDoubleClick?.(e);
+  }, [onDoubleClick]);
 
   const handleResize = useCallback(
     (width: number, height: number) => {
@@ -201,6 +261,89 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
     
     return rows.slice(0, MAX_VISIBLE_ROWS);
   }, [table, searchQuery, sortColumn, sortDirection]);
+
+  // getNextCell and handleCellKeyDown must be defined after filteredAndSortedRows
+  const getNextCell = useCallback((rowId: string, colId: string, direction: 'next' | 'prev' | 'down' | 'up'): { rowId: string; colId: string; value: unknown } | null => {
+    if (!table) return null;
+    
+    const colIndex = table.columns.findIndex((c: DataTableColumn) => c.id === colId);
+    const rowIndex = filteredAndSortedRows.findIndex((r: DataTableRow) => r.id === rowId);
+    
+    if (colIndex === -1 || rowIndex === -1) return null;
+    
+    let nextColIndex = colIndex;
+    let nextRowIndex = rowIndex;
+    
+    if (direction === 'next') {
+      nextColIndex = colIndex + 1;
+      if (nextColIndex >= table.columns.length) {
+        nextColIndex = 0;
+        nextRowIndex = rowIndex + 1;
+      }
+    } else if (direction === 'prev') {
+      nextColIndex = colIndex - 1;
+      if (nextColIndex < 0) {
+        nextColIndex = table.columns.length - 1;
+        nextRowIndex = rowIndex - 1;
+      }
+    } else if (direction === 'down') {
+      nextRowIndex = rowIndex + 1;
+    } else if (direction === 'up') {
+      nextRowIndex = rowIndex - 1;
+    }
+    
+    if (nextRowIndex < 0 || nextRowIndex >= filteredAndSortedRows.length) return null;
+    
+    const nextRow = filteredAndSortedRows[nextRowIndex];
+    const nextCol = table.columns[nextColIndex];
+    
+    return {
+      rowId: nextRow.id,
+      colId: nextCol.id,
+      value: nextRow.values[nextCol.id],
+    };
+  }, [table, filteredAndSortedRows]);
+
+  const handleCellKeyDown = useCallback((e: React.KeyboardEvent) => {
+    e.stopPropagation();
+    
+    if (!editingCell) return;
+    
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleCellSubmit();
+      
+      // Move to next row (like Google Sheets)
+      if (!e.shiftKey) {
+        const nextCell = getNextCell(editingCell.rowId, editingCell.colId, 'down');
+        if (nextCell) {
+          setEditingCell({ rowId: nextCell.rowId, colId: nextCell.colId });
+          setCellEditValue(String(nextCell.value ?? ""));
+        }
+      } else {
+        const nextCell = getNextCell(editingCell.rowId, editingCell.colId, 'up');
+        if (nextCell) {
+          setEditingCell({ rowId: nextCell.rowId, colId: nextCell.colId });
+          setCellEditValue(String(nextCell.value ?? ""));
+        }
+      }
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      handleCellSubmit();
+      
+      // Move to next/prev cell (like Google Sheets)
+      const direction = e.shiftKey ? 'prev' : 'next';
+      const nextCell = getNextCell(editingCell.rowId, editingCell.colId, direction);
+      if (nextCell) {
+        setEditingCell({ rowId: nextCell.rowId, colId: nextCell.colId });
+        setCellEditValue(String(nextCell.value ?? ""));
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setEditingCell(null);
+      setCellEditValue("");
+    }
+  }, [editingCell, handleCellSubmit, getNextCell]);
 
   const canCreateFromRow = useCallback((index: number) => index < MAX_ROW_TO_NODE, []);
 
@@ -876,17 +1019,44 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
               <td className="px-2 py-1.5 text-gray-400">
                 {rowIndex + 1}
               </td>
-              {table!.columns.map((col: DataTableColumn) => (
-                <td 
-                  key={col.id}
-                  className="px-2 py-1.5 text-gray-600 dark:text-gray-400"
-                  title={String(row.values[col.id] ?? "")}
-                >
-                  <div className="truncate max-w-[150px]">
-                    {String(row.values[col.id] ?? "")}
-                  </div>
-                </td>
-              ))}
+              {table!.columns.map((col: DataTableColumn) => {
+                const isEditingThisCell = editingCell?.rowId === row.id && editingCell?.colId === col.id;
+                const cellValue = row.values[col.id];
+                
+                return (
+                  <td 
+                    key={col.id}
+                    className={cn(
+                      "px-2 py-1.5 text-gray-600 dark:text-gray-400 cursor-text",
+                      isEditingThisCell && "p-0"
+                    )}
+                    title={!isEditingThisCell ? String(cellValue ?? "") : undefined}
+                    onDoubleClick={(e) => handleCellDoubleClick(e, row.id, col.id, cellValue)}
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    {isEditingThisCell ? (
+                      <input
+                        ref={cellInputRef}
+                        type="text"
+                        value={cellEditValue}
+                        onChange={(e) => setCellEditValue(e.target.value)}
+                        onBlur={handleCellSubmit}
+                        onKeyDown={handleCellKeyDown}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="w-full h-full px-2 py-1.5 text-xs bg-white dark:bg-gray-900 border-2 border-indigo-500 outline-none"
+                        style={{ minWidth: col.width || 80 }}
+                        data-testid={`table-cell-input-${row.id}-${col.id}`}
+                      />
+                    ) : (
+                      <div className="truncate max-w-[150px]">
+                        {String(cellValue ?? "")}
+                      </div>
+                    )}
+                  </td>
+                );
+              })}
               <td className="px-2 py-1.5 text-center">
                 {canCreateFromRow(rowIndex) ? (
                   <button
@@ -931,7 +1101,6 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       tabIndex={node.selected ? 0 : -1}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
       data-testid={`table-node-${node.id}`}
@@ -984,8 +1153,10 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <Table2 size={20} className="flex-shrink-0 opacity-80" />
             <span
-              className="text-base font-medium whitespace-nowrap"
-              title={tableName}
+              className="text-base font-medium whitespace-nowrap cursor-pointer hover:underline"
+              title={`${tableName} (double-click to edit)`}
+              onDoubleClick={handleTitleDoubleClick}
+              onClick={(e) => e.stopPropagation()}
             >
               {sanitizeText(tableName)}
             </span>
@@ -1066,8 +1237,10 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
               />
             ) : (
               <span
-                className="text-sm font-medium truncate"
-                title={tableName}
+                className="text-sm font-medium truncate cursor-pointer hover:underline"
+                title={`${tableName} (double-click to edit)`}
+                onDoubleClick={handleTitleDoubleClick}
+                onClick={(e) => e.stopPropagation()}
               >
                 {sanitizeText(tableName)}
               </span>
