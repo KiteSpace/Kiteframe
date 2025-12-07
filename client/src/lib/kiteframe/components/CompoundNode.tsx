@@ -1426,7 +1426,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
       <div
         ref={nodeRef}
         className={cn(
-          "kiteframe-node absolute cursor-move select-none",
+          "kiteframe-node group absolute cursor-move select-none",
           node.selected && "z-10",
           className
         )}

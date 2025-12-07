@@ -1,0 +1,23 @@
+
+KiteFrameCanvas.tsx:2584 🎯 DRAG[33] cursor:(774,332) speed:521.1px/s node:(25,-600) delta:(-193.7,-594.5) dist:187.2px frameDelay:26.1ms totalTime:830ms nodeId:node-1765046922490 placeholderActive:true
+KiteFrameCanvas.tsx:2629 ⚡ RAF_EXEC rafDelay:0.2ms dx:-193.7 dy:-594.5 nodeId:node-1765046922490
+KiteFrameCanvas.tsx:2584 🎯 DRAG[34] cursor:(766,326) speed:757.6px/s node:(-12,-627) delta:(-220.4,-614.6) dist:195.5px frameDelay:13.2ms totalTime:843ms nodeId:node-1765046922490 placeholderActive:true
+KiteFrameCanvas.tsx:2584 🎯 DRAG[35] cursor:(759,321) speed:656.7px/s node:(-39,-647) delta:(-243.8,-631.3) dist:202.6px frameDelay:13.1ms totalTime:856ms nodeId:node-1765046922490 placeholderActive:true
+KiteFrameCanvas.tsx:2629 ⚡ RAF_EXEC rafDelay:0.3ms dx:-243.8 dy:-631.3 nodeId:node-1765046922490
+KiteFrameCanvas.tsx:2584 🎯 DRAG[36] cursor:(754,318) speed:388.7px/s node:(-62,-663) delta:(-260.5,-641.3) dist:207.2px frameDelay:15.0ms totalTime:871ms nodeId:node-1765046922490 placeholderActive:true
+KiteFrameCanvas.tsx:2629 ⚡ RAF_EXEC rafDelay:13.3ms dx:-260.5 dy:-641.3 nodeId:node-1765046922490
+KiteFrameCanvas.tsx:2584 🎯 DRAG[37] cursor:(751,316) speed:129.7px/s node:(-79,-673) delta:(-270.5,-648.0) dist:210.2px frameDelay:27.8ms totalTime:899ms nodeId:node-1765046922490 placeholderActive:true
+KiteFrameCanvas.tsx:2629 ⚡ RAF_EXEC rafDelay:0.2ms dx:-270.5 dy:-648.0 nodeId:node-1765046922490
+KiteFrameCanvas.tsx:2584 🎯 DRAG[38] cursor:(749,315) speed:166.9px/s node:(-89,-680) delta:(-277.2,-651.3) dist:211.9px frameDelay:13.4ms totalTime:912ms nodeId:node-1765046922490 placeholderActive:true
+KiteFrameCanvas.tsx:2629 ⚡ RAF_EXEC rafDelay:0.4ms dx:-277.2 dy:-651.3 nodeId:node-1765046922490
+KiteFrameCanvas.tsx:2584 🎯 DRAG[39] cursor:(748,314) speed:97.5px/s node:(-96,-683) delta:(-280.6,-654.7) dist:213.2px frameDelay:14.5ms totalTime:927ms nodeId:node-1765046922490 placeholderActive:true
+KiteFrameCanvas.tsx:2629 ⚡ RAF_EXEC rafDelay:1.1ms dx:-280.6 dy:-654.7 nodeId:node-1765046922490
+KiteFrameCanvas.tsx:2584 🎯 DRAG[40] cursor:(747,313) speed:91.8px/s node:(-99,-687) delta:(-283.9,-658.0) dist:214.6px frameDelay:15.4ms totalTime:942ms nodeId:node-1765046922490 placeholderActive:true
+KiteFrameCanvas.tsx:2584 🎯 DRAG[41] cursor:(747,313) speed:0.0px/s node:(-102,-690) delta:(-283.9,-658.0) dist:214.6px frameDelay:13.9ms totalTime:956ms nodeId:node-1765046922490 placeholderActive:true
+KiteFrameCanvas.tsx:2629 ⚡ RAF_EXEC rafDelay:0.3ms dx:-283.9 dy:-658.0 nodeId:node-1765046922490
+KiteFrameCanvas.tsx:2584 🎯 DRAG[42] cursor:(746,313) speed:69.9px/s node:(-102,-690) delta:(-287.2,-658.0) dist:215.0px frameDelay:14.3ms totalTime:970ms nodeId:node-1765046922490 placeholderActive:true
+KiteFrameCanvas.tsx:2629 ⚡ RAF_EXEC rafDelay:12.8ms dx:-287.2 dy:-658.0 nodeId:node-1765046922490
+﻿
+
+A form field element should have an id or name attribute
+Response was blocked by CORB (Cross-Origin Read Blocking)
