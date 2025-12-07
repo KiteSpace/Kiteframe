@@ -115,7 +115,7 @@ export function CreditsWidget() {
         >
           <Coins className="h-4 w-4" />
           <span data-testid="text-credits-count">
-            {isLoading ? '...' : showSignupPrompt ? '0 credits! Create an account' : displayCredits}
+            {isLoading ? '...' : showSignupPrompt ? '0 credits' : displayCredits}
           </span>
           {(isLowCredits || showSignupPrompt) && <AlertCircle className="h-3 w-3" />}
         </Button>
