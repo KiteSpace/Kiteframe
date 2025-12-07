@@ -354,10 +354,9 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
       >
         {showHandles && !isAnyDragActive && (
           <NodeHandles
-            nodeId={node.id}
-            onConnect={onHandleConnect}
-            visible={true}
-            viewport={viewport}
+            node={{ ...node, width: nodeWidth, height: nodeHeight }}
+            scale={viewport?.zoom || 1}
+            onHandleConnect={onHandleConnect}
           />
         )}
 
@@ -494,13 +493,14 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
           )}
         </div>
 
-        {showResizeHandle && (
+        {showResizeHandle && node.resizable !== false && node.selected && !showDragPlaceholder && (
           <ResizeHandle
+            position="bottom-right"
+            nodeRef={nodeRef}
             onResize={handleResize}
             minWidth={MIN_WEBVIEW_WIDTH}
             minHeight={MIN_WEBVIEW_HEIGHT}
-            currentWidth={nodeWidth}
-            currentHeight={nodeHeight}
+            viewport={viewport}
           />
         )}
       </div>
