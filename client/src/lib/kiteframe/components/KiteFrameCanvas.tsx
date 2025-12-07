@@ -2405,6 +2405,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     canvasObjectOrigins?: { id: string; origin: { x: number; y: number } }[];
     isGroupDrag?: boolean;
   } | null>(null);
+  
+  // Performance: RAF throttling for drag updates
+  const dragRafId = useRef<number | null>(null);
+  const pendingDragUpdate = useRef<{ dx: number; dy: number } | null>(null);
 
   // Canvas object dragging with threshold-based click vs drag distinction
   const canvasObjectDragInfo = useRef<{
@@ -2537,6 +2541,29 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         setSuppressEdgesDuringDrag(true);
         setDraggingNodeId(dragInfo.current.id);
       }
+      
+      // PERFORMANCE: Use RAF throttling to batch mouse events - only one position update per frame
+      pendingDragUpdate.current = { dx, dy };
+      
+      if (dragRafId.current === null) {
+        dragRafId.current = requestAnimationFrame(() => {
+          if (!dragInfo.current || !pendingDragUpdate.current) {
+            dragRafId.current = null;
+            return;
+          }
+          
+          const { dx: rafDx, dy: rafDy } = pendingDragUpdate.current;
+          pendingDragUpdate.current = null;
+          dragRafId.current = null;
+          
+          executeDragUpdate(rafDx, rafDy);
+        });
+      }
+    };
+    
+    // Separated drag update logic for RAF batching
+    const executeDragUpdate = (dx: number, dy: number) => {
+      if (!dragInfo.current) return;
 
       if (dragInfo.current.isGroupDrag && dragInfo.current.origins) {
         // Group drag: move all selected nodes
@@ -2836,6 +2863,29 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       if (dragInfo.current) {
         const nodeId = dragInfo.current.id;
         
+        // Cancel any pending RAF drag update
+        if (dragRafId.current !== null) {
+          cancelAnimationFrame(dragRafId.current);
+          dragRafId.current = null;
+        }
+        
+        // Apply any pending drag update immediately on release
+        if (pendingDragUpdate.current) {
+          const { dx, dy } = pendingDragUpdate.current;
+          pendingDragUpdate.current = null;
+          
+          // Calculate final position
+          const finalPosition = {
+            x: dragInfo.current.origin.x + dx,
+            y: dragInfo.current.origin.y + dy,
+          };
+          
+          const updated = props.nodes.map((n) =>
+            n.id === nodeId ? { ...n, position: finalPosition } : n,
+          );
+          props.onNodesChange(updated);
+        }
+        
         // Handle smart connect auto-connection on drag end
         if (
           !dragInfo.current.isGroupDrag &&
@@ -2876,9 +2926,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         }
 
         dragInfo.current = null;
-        // Clear drag optimization - restore edges and placeholders
-        setDraggingNodeId(null);
+        // Clear drag optimization - restore edges immediately, but delay placeholder restoration
         setSuppressEdgesDuringDrag(false);
+        
+        // PERFORMANCE: Delay placeholder-to-real-node swap to avoid immediate re-render thrash
+        cleanupManagerRef.current?.setTimeout(() => {
+          setDraggingNodeId(null);
+        }, 75);
       }
 
       // Clear guides when drag ends (only for node drags, canvas object guides cleared above)
