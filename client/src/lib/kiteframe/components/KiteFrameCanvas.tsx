@@ -3765,6 +3765,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     }}
                     viewport={viewport}
                     showDragPlaceholder={draggingNodeId === n.id}
+                    isAnyDragActive={!!draggingNodeId}
                     style={{
                       position: "absolute",
                       left: n.position.x,
@@ -3881,6 +3882,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showResizeHandle={n.resizable !== false}
                     viewport={viewport}
                     showDragPlaceholder={draggingNodeId === n.id}
+                    isAnyDragActive={!!draggingNodeId}
                     style={{
                       position: "absolute",
                       left: n.position.x,
@@ -3977,6 +3979,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showResizeHandle={n.resizable !== false}
                     viewport={viewport}
                     showDragPlaceholder={draggingNodeId === n.id}
+                    isAnyDragActive={!!draggingNodeId}
                     tables={Object.values(props.tableData || {})}
                     onOpenDataLinkPicker={(fieldId, currentLink) => {
                       setDataLinkPicker({
@@ -4082,6 +4085,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showResizeHandle={n.resizable !== false}
                     viewport={viewport}
                     showDragPlaceholder={draggingNodeId === n.id}
+                    isAnyDragActive={!!draggingNodeId}
                     onImageUpload={async (nodeId: string, file: File) => {
                       return new Promise((resolve) => {
                         const reader = new FileReader();
@@ -4599,7 +4603,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     );
                   })()}
                   
-                  {n.showHandles !== false && (
+                  {n.showHandles !== false && !draggingNodeId && (
                     <NodeHandles
                       node={n}
                       scale={viewport.zoom}

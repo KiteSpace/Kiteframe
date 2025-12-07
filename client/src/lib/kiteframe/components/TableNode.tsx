@@ -67,6 +67,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   showResizeHandle = true,
   viewport,
   showDragPlaceholder = false,
+  isAnyDragActive = false,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(node.data.label || "");
@@ -1146,8 +1147,8 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
         </>
       )}
 
-      {/* Connection Handles - positioned outside visual container, hidden during drag placeholder */}
-      {showHandles && !showDragPlaceholder && (
+      {/* Connection Handles - positioned outside visual container, hidden during any drag operation */}
+      {showHandles && !isAnyDragActive && (
         <NodeHandles
           node={{ ...node, width: actualWidth, height: actualHeight }}
           scale={viewport?.zoom || 1}

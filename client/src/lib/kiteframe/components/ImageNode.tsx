@@ -28,6 +28,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   onHandleConnect,
   viewport,
   showDragPlaceholder = false,
+  isAnyDragActive = false,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -544,8 +545,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         </>
       )}
 
-      {/* Connection Handles - hidden during drag placeholder */}
-      {showHandles && !showDragPlaceholder && (
+      {/* Connection Handles - hidden during any drag operation */}
+      {showHandles && !isAnyDragActive && (
         <NodeHandles
           node={{ ...node, width: nodeWidth, height: nodeHeight }}
           scale={viewport?.zoom || 1}

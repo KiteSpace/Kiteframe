@@ -42,6 +42,7 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
   tables = [],
   onOpenDataLinkPicker,
   showDragPlaceholder = false,
+  isAnyDragActive = false,
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState(node.data.formTitle || 'Form');
@@ -413,8 +414,8 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
         </>
       )}
 
-      {/* Connection Handles - hidden during drag placeholder */}
-      {showHandles && !showDragPlaceholder && (
+      {/* Connection Handles - hidden during any drag operation */}
+      {showHandles && !isAnyDragActive && (
         <NodeHandles
           node={{ ...node, width: nodeWidth, height: nodeHeight }}
           scale={viewport?.zoom || 1}

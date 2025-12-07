@@ -532,6 +532,7 @@ export interface ImageNodeComponentProps extends BaseNodeComponentProps<ImageNod
   onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
   viewport?: { x: number; y: number; zoom: number };
   showDragPlaceholder?: boolean;
+  isAnyDragActive?: boolean; // Hide handles on ALL nodes when any drag is active
 }
 
 // ============= UNIVERSAL NODE COMPONENT PROPS =============
@@ -544,6 +545,7 @@ export interface GenericNodeComponentProps<TData = any> extends BaseNodeComponen
   onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
   viewport?: { x: number; y: number; zoom: number };
   showDragPlaceholder?: boolean;
+  isAnyDragActive?: boolean; // Hide handles on ALL nodes when any drag is active
 }
 
 // Table info for data linking in form/compound nodes
