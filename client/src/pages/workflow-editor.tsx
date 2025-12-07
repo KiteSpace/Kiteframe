@@ -6211,38 +6211,57 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }));
               }}
               onCreateNodeFromRow={(tableId, row, rowIndex) => {
-                // Find the table node to get its position for offset
+                // Find the table node to get its position and metadata
                 const tableNode = nodes.find(n => n.type === 'table' && n.data?.tableId === tableId);
+                const table = tableNode?.data?.table || tableData[tableId];
                 const basePosition = tableNode ? {
                   x: tableNode.position.x + (tableNode.width || 560) + 50,
-                  y: tableNode.position.y + (rowIndex * 120)
+                  y: tableNode.position.y + (rowIndex * 140)
                 } : getViewportCenteredPosition();
                 
-                // Create a new process node with the row data
-                const nodeId = `node-${Date.now()}`;
-                const rowLabel = Object.values(row).slice(0, 2).filter(Boolean).join(' - ') || `Row ${rowIndex + 1}`;
-                const rowDescription = Object.entries(row)
-                  .map(([key, value]) => `${key}: ${value}`)
-                  .slice(0, 5)
-                  .join('\n');
+                // Get column info for display config
+                const columns = table?.columns || [];
+                const primaryColumnId = table?.meta?.primaryColumnId || columns[0]?.id;
+                const visibleColumnIds = columns.slice(0, 6).map((c: { id: string }) => c.id);
                 
+                // Create row ID based on table row or generate one
+                const tableRow = table?.rows?.[rowIndex];
+                const rowId = tableRow?.id || `row-${rowIndex}`;
+                
+                // Get primary value for label
+                const primaryValue = primaryColumnId && row[primaryColumnId] !== undefined
+                  ? String(row[primaryColumnId])
+                  : Object.values(row).slice(0, 1).filter(Boolean).join('') || `Row ${rowIndex + 1}`;
+                
+                // Create a new basic node with enhanced row binding
+                const nodeId = `node-${Date.now()}`;
                 const newNode: Node = {
                   id: nodeId,
-                  type: 'process',
+                  type: 'basic',
                   position: basePosition,
                   data: {
-                    label: String(rowLabel).slice(0, 50),
-                    description: rowDescription,
-                    icon: 'Cog',
-                    iconColor: 'text-green-500',
-                    rowData: row,
+                    label: String(primaryValue).slice(0, 50),
+                    rowBinding: {
+                      tableId: tableId,
+                      tableNodeId: tableNode?.id || '',
+                      tableName: tableNode?.data?.label || table?.name || 'Table',
+                      rowId: rowId,
+                      rowIndex: rowIndex,
+                    },
+                    rowDisplay: {
+                      primaryColumnId: primaryColumnId,
+                      visibleColumnIds: visibleColumnIds,
+                      showRowIndex: true,
+                    },
+                    rowValues: row as Record<string, string | number | boolean | null>,
                     sourceTable: tableId,
                     sourceTableNodeId: tableNode?.id,
                     sourceTableName: tableNode?.data?.label || 'Table',
                     sourceRowIndex: rowIndex,
+                    rowData: row,
                   },
-                  width: 200,
-                  height: 100
+                  width: 220,
+                  height: 160
                 };
                 
                 setNodes(prev => [...prev, newNode]);
@@ -6250,7 +6269,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 
                 toast({
                   title: "Node Created",
-                  description: `Created node from table row ${rowIndex + 1}`,
+                  description: `Created data card from row ${rowIndex + 1}`,
                   variant: "default"
                 });
               }}

@@ -246,6 +246,26 @@ export interface DataTable {
   meta?: DataTableMeta;
 }
 
+// ============= ROW NODE TYPES =============
+// Enhanced row-to-node binding for nodes created from table rows
+
+// Row binding metadata for nodes created from table rows
+export interface RowBindingMeta {
+  tableId: string;       // ID of the source table
+  tableNodeId: string;   // Node ID of the table (for focusing/navigation)
+  tableName: string;     // Display name of the table
+  rowId: string;         // Unique row ID in the table
+  rowIndex: number;      // Row index for display (0-based)
+}
+
+// Display configuration for row data cards
+export interface RowDisplayConfig {
+  primaryColumnId?: string;   // Column to use as card title
+  visibleColumnIds?: string[]; // Columns to display (up to ~6)
+  showRowIndex?: boolean;     // Whether to show row number
+  compactMode?: boolean;      // Use compact single-line display
+}
+
 // Data binding types for linking nodes to table rows
 export interface TableRowBinding {
   type: 'tableRow';
@@ -313,12 +333,16 @@ export interface BasicNodeData {
   hyperlinks?: NodeHyperlink[];
   // Legacy single hyperlink (for backward compatibility)
   hyperlink?: LegacyNodeHyperlink;
-  // Source table tracking - when node is created from a table row
+  // Source table tracking - when node is created from a table row (legacy fields)
   sourceTable?: string; // Original table ID (legacy)
   sourceTableNodeId?: string; // Table node ID for focusing
   sourceTableName?: string; // Display name of source table
   sourceRowIndex?: number; // Row index in source table
   rowData?: Record<string, unknown>; // Original row data
+  // Enhanced row binding - structured metadata for table row nodes
+  rowBinding?: RowBindingMeta;
+  rowDisplay?: RowDisplayConfig;
+  rowValues?: Record<string, string | number | boolean | null>; // Typed row values
 }
 
 // Image fit type definition

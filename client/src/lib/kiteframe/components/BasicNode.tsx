@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { ExternalLink, Pencil, Table2, Database } from "lucide-react";
 import { NodeHandles } from "./NodeHandles";
 import { ResizeHandle } from "./ResizeHandle";
-import type { Node, BasicNodeData, BasicNodeComponentProps, NodeHyperlink } from "../types";
+import type { Node, BasicNodeData, BasicNodeComponentProps, NodeHyperlink, RowBindingMeta, RowDisplayConfig } from "../types";
 import { sanitizeText, validateColor } from "../utils/validation";
 import { getDynamicClassName, getNodeStyleClasses } from "../utils/styles";
 import { getBorderColorFromHeader } from "@/lib/themes";
@@ -93,6 +93,98 @@ const HyperlinkButton: React.FC<HyperlinkButtonProps> = ({ hyperlink, onEdit, bo
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// Data Card component for nodes created from table rows
+interface RowDataCardProps {
+  rowBinding: RowBindingMeta;
+  rowDisplay?: RowDisplayConfig;
+  rowValues: Record<string, string | number | boolean | null>;
+  headerBg: string;
+  bodyTextColor: string;
+  onFocusTable?: () => void;
+}
+
+const RowDataCard: React.FC<RowDataCardProps> = ({ 
+  rowBinding, 
+  rowDisplay, 
+  rowValues, 
+  headerBg,
+  bodyTextColor,
+  onFocusTable 
+}) => {
+  const entries = Object.entries(rowValues);
+  
+  // Get primary value for title
+  const primaryColumnId = rowDisplay?.primaryColumnId;
+  const primaryValue = primaryColumnId && rowValues[primaryColumnId] !== undefined
+    ? String(rowValues[primaryColumnId] ?? '')
+    : entries.length > 0 ? String(entries[0][1] ?? 'Row Data') : 'Row Data';
+  
+  // Get visible columns (up to 6)
+  const visibleColumnIds = rowDisplay?.visibleColumnIds;
+  const displayEntries = visibleColumnIds 
+    ? entries.filter(([key]) => visibleColumnIds.includes(key)).slice(0, 6)
+    : entries.slice(0, 6);
+  
+  // Format cell value for display
+  const formatValue = (value: string | number | boolean | null): string => {
+    if (value === null || value === undefined) return '—';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (typeof value === 'number') return value.toLocaleString();
+    const str = String(value);
+    return str.length > 50 ? str.slice(0, 47) + '...' : str;
+  };
+  
+  return (
+    <div className="flex flex-col h-full">
+      {/* Data grid - 2 columns */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+        {displayEntries.map(([key, value]) => (
+          <div key={key} className="min-w-0">
+            <div 
+              className="text-[10px] font-medium uppercase tracking-wide opacity-60 truncate"
+              style={{ color: bodyTextColor }}
+              title={key}
+            >
+              {key}
+            </div>
+            <div 
+              className="text-xs truncate"
+              style={{ color: bodyTextColor }}
+              title={String(value ?? '')}
+            >
+              {formatValue(value)}
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {/* Table source badge */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          onFocusTable?.();
+        }}
+        onDoubleClick={(e) => e.stopPropagation()}
+        className={cn(
+          "mt-auto pt-2 inline-flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium rounded transition-all self-start",
+          "bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700",
+          "text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-800/40",
+          "cursor-pointer"
+        )}
+        title={`From: ${rowBinding.tableName}. Click to focus table.`}
+        data-testid="row-data-card-table-badge"
+      >
+        <Database size={10} className="text-indigo-500 dark:text-indigo-400" />
+        <span>{sanitizeText(rowBinding.tableName)}</span>
+        {(rowDisplay?.showRowIndex !== false) && (
+          <span className="text-indigo-500 dark:text-indigo-400">Row {rowBinding.rowIndex + 1}</span>
+        )}
+      </button>
     </div>
   );
 };
@@ -452,115 +544,131 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
         aria-label="Node content"
         onDoubleClick={handleDescriptionDoubleClick}
       >
-        <div className="flex gap-3">
-          {/* Icon/Emoji container - only shown if iconVisible is true and nodeIcon exists */}
-          {(node.data.iconVisible !== false && node.data.nodeIcon) && (
-            <div 
-              className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
-              style={{ 
-                backgroundColor: colors.headerBg + '80',
-              }}
-              data-testid={`node-icon-${node.id}`}
-            >
-              {node.data.nodeIcon}
-            </div>
-          )}
-          
-          {/* Text content */}
-          <div className="flex-1 min-w-0 flex flex-col">
-            {isEditingDescription ? (
-              <textarea
-                ref={descriptionRef}
-                value={editDescriptionValue}
-                onChange={(e) => setEditDescriptionValue(e.target.value)}
-                onBlur={handleDescriptionSubmit}
-                onKeyDown={handleDescriptionKeyDown}
-                className={cn(
-                  "w-full h-full resize-none bg-transparent border-none outline-none text-xs leading-relaxed",
-                  "focus:ring-1 focus:ring-blue-500 focus:ring-opacity-50 rounded p-1 -m-1",
-                  getDynamicClassName(
-                    { color: colors.bodyTextColor },
-                    `description-textarea-${node.id}`,
-                  ),
-                )}
-                placeholder="Enter description..."
-                aria-label="Node description"
-                data-testid="basic-node-description-textarea"
-              />
-            ) : node.data.description ? (
-              <>
-                <p 
-                  className={cn(
-                    "leading-relaxed",
-                    !node.data.fontSize && "text-xs",
-                    node.data.bold && "font-bold",
-                    node.data.italic && "italic",
-                    node.data.strikethrough && "line-through",
-                    node.data.underline && "underline",
-                  )}
-                  style={{
-                    fontSize: node.data.fontSize ? `${node.data.fontSize}px` : undefined,
-                    textAlign: node.data.textAlign || 'left',
-                    color: colors.bodyTextColor,
-                  }}
-                  aria-label="Node description"
-                >
-                  {renderTextWithLinks(node.data.description)}
-                </p>
-              </>
-            ) : (
-              <div
-                className="text-xs opacity-60 italic"
-                aria-label="Empty node. Double-click to edit"
+        {/* Enhanced Row Data Card - shown when rowBinding and rowValues exist */}
+        {node.data.rowBinding && node.data.rowValues ? (
+          <RowDataCard
+            rowBinding={node.data.rowBinding}
+            rowDisplay={node.data.rowDisplay}
+            rowValues={node.data.rowValues}
+            headerBg={colors.headerBg}
+            bodyTextColor={colors.bodyTextColor}
+            onFocusTable={() => {
+              if (onFocusNode && node.data.rowBinding?.tableNodeId) {
+                onFocusNode(node.data.rowBinding.tableNodeId);
+              }
+            }}
+          />
+        ) : (
+          <div className="flex gap-3">
+            {/* Icon/Emoji container - only shown if iconVisible is true and nodeIcon exists */}
+            {(node.data.iconVisible !== false && node.data.nodeIcon) && (
+              <div 
+                className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
+                style={{ 
+                  backgroundColor: colors.headerBg + '80',
+                }}
+                data-testid={`node-icon-${node.id}`}
               >
-                Double-click to edit
+                {node.data.nodeIcon}
               </div>
             )}
             
-            {/* Hyperlink Button - displayed below body text */}
-            {node.data.hyperlink?.text && node.data.hyperlink?.url && (
-              <HyperlinkButton 
-                hyperlink={node.data.hyperlink}
-                borderColor={colors.borderColor}
-                onEdit={() => {
-                  // Emit custom event to trigger edit in toolbar
-                  const event = new CustomEvent('editNodeHyperlink', {
-                    detail: { nodeId: node.id }
-                  });
-                  window.dispatchEvent(event);
-                }}
-              />
-            )}
-            
-            {/* Source Table Badge - shown when node was created from table row */}
-            {node.data.sourceTableNodeId && node.data.sourceTableName && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  if (onFocusNode && node.data.sourceTableNodeId) {
-                    onFocusNode(node.data.sourceTableNodeId);
-                  }
-                }}
-                onDoubleClick={(e) => e.stopPropagation()}
-                className={cn(
-                  "mt-2 inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md transition-all",
-                  "bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700",
-                  "text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-800/40",
-                  "cursor-pointer"
-                )}
-                title={`Created from table: ${node.data.sourceTableName}. Click to focus on source table.`}
-                data-testid={`source-table-badge-${node.id}`}
-              >
-                <Database size={12} className="text-indigo-500 dark:text-indigo-400" />
-                <span>From: {sanitizeText(node.data.sourceTableName)}</span>
-                {node.data.sourceRowIndex !== undefined && (
-                  <span className="text-indigo-500 dark:text-indigo-400">(Row {node.data.sourceRowIndex + 1})</span>
-                )}
-              </button>
-            )}
+            {/* Text content */}
+            <div className="flex-1 min-w-0 flex flex-col">
+              {isEditingDescription ? (
+                <textarea
+                  ref={descriptionRef}
+                  value={editDescriptionValue}
+                  onChange={(e) => setEditDescriptionValue(e.target.value)}
+                  onBlur={handleDescriptionSubmit}
+                  onKeyDown={handleDescriptionKeyDown}
+                  className={cn(
+                    "w-full h-full resize-none bg-transparent border-none outline-none text-xs leading-relaxed",
+                    "focus:ring-1 focus:ring-blue-500 focus:ring-opacity-50 rounded p-1 -m-1",
+                    getDynamicClassName(
+                      { color: colors.bodyTextColor },
+                      `description-textarea-${node.id}`,
+                    ),
+                  )}
+                  placeholder="Enter description..."
+                  aria-label="Node description"
+                  data-testid="basic-node-description-textarea"
+                />
+              ) : node.data.description ? (
+                <>
+                  <p 
+                    className={cn(
+                      "leading-relaxed",
+                      !node.data.fontSize && "text-xs",
+                      node.data.bold && "font-bold",
+                      node.data.italic && "italic",
+                      node.data.strikethrough && "line-through",
+                      node.data.underline && "underline",
+                    )}
+                    style={{
+                      fontSize: node.data.fontSize ? `${node.data.fontSize}px` : undefined,
+                      textAlign: node.data.textAlign || 'left',
+                      color: colors.bodyTextColor,
+                    }}
+                    aria-label="Node description"
+                  >
+                    {renderTextWithLinks(node.data.description)}
+                  </p>
+                </>
+              ) : (
+                <div
+                  className="text-xs opacity-60 italic"
+                  aria-label="Empty node. Double-click to edit"
+                >
+                  Double-click to edit
+                </div>
+              )}
+              
+              {/* Hyperlink Button - displayed below body text */}
+              {node.data.hyperlink?.text && node.data.hyperlink?.url && (
+                <HyperlinkButton 
+                  hyperlink={node.data.hyperlink}
+                  borderColor={colors.borderColor}
+                  onEdit={() => {
+                    // Emit custom event to trigger edit in toolbar
+                    const event = new CustomEvent('editNodeHyperlink', {
+                      detail: { nodeId: node.id }
+                    });
+                    window.dispatchEvent(event);
+                  }}
+                />
+              )}
+              
+              {/* Source Table Badge - shown when node was created from table row (legacy) */}
+              {!node.data.rowBinding && node.data.sourceTableNodeId && node.data.sourceTableName && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (onFocusNode && node.data.sourceTableNodeId) {
+                      onFocusNode(node.data.sourceTableNodeId);
+                    }
+                  }}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  className={cn(
+                    "mt-2 inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md transition-all",
+                    "bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700",
+                    "text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-800/40",
+                    "cursor-pointer"
+                  )}
+                  title={`Created from table: ${node.data.sourceTableName}. Click to focus on source table.`}
+                  data-testid={`source-table-badge-${node.id}`}
+                >
+                  <Database size={12} className="text-indigo-500 dark:text-indigo-400" />
+                  <span>From: {sanitizeText(node.data.sourceTableName)}</span>
+                  {node.data.sourceRowIndex !== undefined && (
+                    <span className="text-indigo-500 dark:text-indigo-400">(Row {node.data.sourceRowIndex + 1})</span>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Connection Handles */}
