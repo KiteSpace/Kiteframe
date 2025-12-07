@@ -1479,8 +1479,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   // Smart Guides state
   const [currentGuides, setCurrentGuides] = useState<SnapGuide[]>([]);
   
-  // Drag placeholder optimization - track which node is being dragged for performance
+  // Drag optimization - suppress edges and show placeholder after 100px threshold
+  const [suppressEdgesDuringDrag, setSuppressEdgesDuringDrag] = useState(false);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const dragOptimizationThreshold = 100; // pixels before activating optimization
 
   // Pro Features Configuration
   const quickAddConfig = props.proFeatures?.quickAdd;
@@ -2527,6 +2529,15 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const dx = wp.x - dragInfo.current.start.x;
       const dy = wp.y - dragInfo.current.start.y;
 
+      // Calculate drag distance in screen pixels for optimization threshold
+      const dragDistance = Math.sqrt(dx * dx + dy * dy) * viewport.zoom;
+      
+      // Activate drag optimization (edge suppression + placeholder) after threshold
+      if (dragDistance > dragOptimizationThreshold && !suppressEdgesDuringDrag) {
+        setSuppressEdgesDuringDrag(true);
+        setDraggingNodeId(dragInfo.current.id);
+      }
+
       if (dragInfo.current.isGroupDrag && dragInfo.current.origins) {
         // Group drag: move all selected nodes
         const updatedNodes = props.nodes.map((n) => {
@@ -2866,7 +2877,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         }
 
         dragInfo.current = null;
-        setDraggingNodeId(null); // Clear drag placeholder optimization
+        // Clear drag optimization - restore edges and placeholders
+        setDraggingNodeId(null);
+        setSuppressEdgesDuringDrag(false);
       }
 
       // Clear guides when drag ends (only for node drags, canvas object guides cleared above)
@@ -3141,7 +3154,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         }}
       >
         <div className="kiteframe-world" style={worldStyle}>
-          {/* Existing edges */}
+          {/* Existing edges - hidden during drag for performance */}
           <svg
             className="kiteframe-edge-layer"
             style={{
@@ -3151,10 +3164,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               height: "100%",
               pointerEvents: "none",
               overflow: "visible",
+              visibility: suppressEdgesDuringDrag ? "hidden" : "visible",
             }}
           >
             <defs></defs>
-            {(() => {
+            {!suppressEdgesDuringDrag && (() => {
               // Recalculate edge z-indexes based on current node states
               const edgesWithZIndex = recalculateAllEdgeZIndexes(
                 visibleEdges,
@@ -3180,7 +3194,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             })()}
 
             {/* Edge reconnection handles for selected edges */}
-            {(() => {
+            {!suppressEdgesDuringDrag && (() => {
               // Use the same sorted edges for consistency
               const edgesWithZIndex = recalculateAllEdgeZIndexes(
                 visibleEdges,
@@ -3594,8 +3608,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         canvasObjectOrigins: canvasObjectOrigins,
                         isGroupDrag: isGroupDrag,
                       };
-                      // Set drag placeholder optimization for complex nodes
-                      setDraggingNodeId(n.id);
+                      // Note: drag optimization activates after 100px threshold in handleNodeDragMove
                     }}
                     onClick={(e: React.MouseEvent) => {
                       props.onNodeClick?.(e, n);
@@ -3709,8 +3722,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         canvasObjectOrigins: canvasObjectOrigins,
                         isGroupDrag: isGroupDrag,
                       };
-                      // Set drag placeholder optimization for complex nodes
-                      setDraggingNodeId(draggedNode.id);
+                      // Note: drag optimization activates after 100px threshold in handleNodeDragMove
                     }}
                     onClick={(e: React.MouseEvent, clickedNode: Node) => {
                       props.onNodeClick?.(e, clickedNode);
@@ -3806,8 +3818,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         canvasObjectOrigins: canvasObjectOrigins,
                         isGroupDrag: isGroupDrag,
                       };
-                      // Set drag placeholder optimization for complex nodes
-                      setDraggingNodeId(n.id);
+                      // Note: drag optimization activates after 100px threshold in handleNodeDragMove
                     }}
                     onClick={(e: React.MouseEvent) => {
                       props.onNodeClick?.(e, n);
@@ -3912,8 +3923,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         canvasObjectOrigins: canvasObjectOrigins,
                         isGroupDrag: isGroupDrag,
                       };
-                      // Set drag placeholder optimization for complex nodes
-                      setDraggingNodeId(n.id);
+                      // Note: drag optimization activates after 100px threshold in handleNodeDragMove
                     }}
                     onClick={(e: React.MouseEvent) => {
                       props.onNodeClick?.(e, n);
