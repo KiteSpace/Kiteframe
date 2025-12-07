@@ -594,6 +594,9 @@ export interface FormNodeComponentProps extends GenericNodeComponentProps<FormNo
   node: Node & { data: FormNodeData };
   tables?: DataTable[];
   onOpenDataLinkPicker?: (fieldId: string, currentLink?: FormFieldDataLink) => void;
+  onLinkTable?: (nodeId: string) => void;
+  onUnlinkTable?: (nodeId: string) => void;
+  onUpdateTableCell?: (tableId: string, rowId: string, columnId: string, value: string) => void;
 }
 
 export interface CompoundNodeComponentProps extends GenericNodeComponentProps<CompoundNodeData> {

@@ -9,7 +9,10 @@ import {
   Link2, 
   Link2Off, 
   GripVertical,
-  FileText
+  FileText,
+  Table2,
+  ExternalLink,
+  X
 } from 'lucide-react';
 import type { 
   Node, 
@@ -41,6 +44,9 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
   viewport,
   tables = [],
   onOpenDataLinkPicker,
+  onLinkTable,
+  onUnlinkTable,
+  onUpdateTableCell,
   showDragPlaceholder = false,
   isAnyDragActive = false,
 }) => {
@@ -148,14 +154,25 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
     });
   }, [node.id, node.data, fields, onUpdate]);
 
-  const handleFieldValueChange = useCallback((fieldId: string, newValue: string) => {
-    const updatedFields = fields.map((f: FormNodeField) => 
-      f.id === fieldId ? { ...f, value: newValue, dataLink: undefined } : f
-    );
-    onUpdate?.(node.id, {
-      data: { ...node.data, fields: updatedFields },
-    });
-  }, [node.id, node.data, fields, onUpdate]);
+  const handleFieldValueChange = useCallback((fieldId: string, newValue: string, isLinked: boolean = false) => {
+    const field = fields.find((f: FormNodeField) => f.id === fieldId);
+    
+    if (isLinked && field?.dataLink && onUpdateTableCell) {
+      onUpdateTableCell(
+        field.dataLink.tableId,
+        field.dataLink.rowId,
+        field.dataLink.columnId,
+        newValue
+      );
+    } else {
+      const updatedFields = fields.map((f: FormNodeField) => 
+        f.id === fieldId ? { ...f, value: newValue, dataLink: undefined } : f
+      );
+      onUpdate?.(node.id, {
+        data: { ...node.data, fields: updatedFields },
+      });
+    }
+  }, [node.id, node.data, fields, onUpdate, onUpdateTableCell]);
 
   const handleDataLinkClick = useCallback((fieldId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -214,16 +231,15 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
             <input
               type={field.type || 'text'}
               value={isLinked ? displayValue : field.value}
-              onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
+              onChange={(e) => handleFieldValueChange(field.id, e.target.value, isLinked)}
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
               placeholder={field.placeholder || 'Enter value...'}
-              disabled={isLinked}
               className={cn(
                 "flex-1 px-2 py-1.5 text-sm border rounded transition-colors",
                 "focus:outline-none focus:ring-1 focus:ring-indigo-500",
                 isLinked 
-                  ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-300 dark:border-indigo-600 text-indigo-700 dark:text-indigo-300 cursor-not-allowed" 
+                  ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-300 dark:border-indigo-600 text-indigo-700 dark:text-indigo-300" 
                   : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
               )}
               data-testid={`form-field-input-${field.id}`}
@@ -355,6 +371,57 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
               </span>
             )}
           </div>
+          
+          {/* Link Table Button/Indicator */}
+          {node.data.linkedTableId ? (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (node.data.linkedTableNodeId && onFocusNode) {
+                    onFocusNode(node.data.linkedTableNodeId);
+                  }
+                }}
+                className="flex items-center gap-1 px-1.5 py-0.5 bg-white/20 hover:bg-white/30 rounded text-xs transition-colors"
+                style={{ color: headerTextColor }}
+                title={`Linked to: ${node.data.linkedTableName || node.data.linkedTableId}`}
+                data-testid={`form-linked-table-${node.id}`}
+              >
+                <Table2 size={12} />
+                <span className="truncate max-w-[80px]">
+                  {node.data.linkedTableName || 'Table'}
+                </span>
+                <ExternalLink size={10} className="opacity-60" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUnlinkTable?.(node.id);
+                }}
+                className="p-0.5 hover:bg-white/20 rounded transition-colors"
+                style={{ color: headerTextColor }}
+                title="Unlink table"
+                data-testid={`form-unlink-table-${node.id}`}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onLinkTable?.(node.id);
+              }}
+              className="flex items-center gap-1 px-1.5 py-0.5 bg-white/20 hover:bg-white/30 rounded text-xs transition-colors flex-shrink-0"
+              style={{ color: headerTextColor }}
+              title="Link to a table"
+              data-testid={`form-link-table-${node.id}`}
+            >
+              <Table2 size={12} />
+              <span>Link table</span>
+            </button>
+          )}
+          
           <span 
             className="px-1.5 py-0.5 bg-white/20 rounded text-xs flex-shrink-0"
             style={{ color: headerTextColor }}

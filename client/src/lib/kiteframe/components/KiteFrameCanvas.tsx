@@ -1257,6 +1257,11 @@ type Props = {
   onTableDataChange?: (tableId: string, table: import('../types').DataTable) => void;
   onCreateNodeFromRow?: (tableId: string, row: Record<string, unknown>, rowIndex: number) => void;
   
+  // Form node table linking callbacks
+  onFormLinkTable?: (nodeId: string) => void;
+  onFormUnlinkTable?: (nodeId: string) => void;
+  onUpdateTableCell?: (tableId: string, rowId: string, columnId: string, value: string) => void;
+  
   // Node focus callback - pan canvas to focus on a specific node
   onFocusNode?: (nodeId: string) => void;
 };
@@ -3989,6 +3994,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         currentLink,
                       });
                     }}
+                    onLinkTable={props.onFormLinkTable}
+                    onUnlinkTable={props.onFormUnlinkTable}
+                    onUpdateTableCell={props.onUpdateTableCell}
                     style={{
                       position: "absolute",
                       left: n.position.x,
