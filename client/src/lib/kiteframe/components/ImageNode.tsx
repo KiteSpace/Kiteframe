@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
+import DragPlaceholder from './DragPlaceholder';
 import { Upload, Image as ImageIcon, AlertCircle, Globe } from 'lucide-react';
 import type { Node, ImageNodeData, ImageNodeComponentProps, ImageFit } from '../types';
 import { getDynamicClassName, getNodeStyleClasses } from '../utils/styles';
@@ -25,7 +26,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   onStartDrag,
   onClick,
   onHandleConnect,
-  viewport
+  viewport,
+  showDragPlaceholder = false,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -329,8 +331,28 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       }}
       data-testid={`image-node-${node.id}`}
     >
-      <div
-        className={cn('h-8 px-3 flex items-center justify-between rounded-t-md flex-shrink-0', styleClasses.headerClass)}
+      {/* Drag placeholder - renders lightweight version during drag for performance */}
+      {showDragPlaceholder ? (
+        <>
+          <DragPlaceholder
+            nodeType="image"
+            width={nodeWidth}
+            height={nodeHeight}
+            label={node.data.label || 'Image'}
+            selected={node.selected}
+          />
+          {showHandles && (
+            <NodeHandles
+              node={{ ...node, width: nodeWidth, height: nodeHeight }}
+              scale={viewport?.zoom || 1}
+              onHandleConnect={onHandleConnect}
+            />
+          )}
+        </>
+      ) : (
+        <>
+          <div
+            className={cn('h-8 px-3 flex items-center justify-between rounded-t-md flex-shrink-0', styleClasses.headerClass)}
         role="heading"
         aria-level={3}
         onDoubleClick={handleLabelDoubleClick}
@@ -528,7 +550,10 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
           </div>
         )}
       </div>
+        </>
+      )}
 
+      {/* Connection Handles - always rendered outside conditional */}
       {showHandles && (
         <NodeHandles
           node={{ ...node, width: nodeWidth, height: nodeHeight }}
@@ -537,7 +562,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         />
       )}
 
-      {showResizeHandle && node.resizable !== false && node.selected && (
+      {/* Resize Handle - always rendered outside conditional */}
+      {showResizeHandle && node.resizable !== false && node.selected && !showDragPlaceholder && (
         <ResizeHandle
           position="bottom-right"
           nodeRef={nodeRef}
@@ -548,6 +574,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         />
       )}
 
+      {/* Modal - always rendered to preserve state */}
       <ImageUploadModal
         isOpen={showUploadModal}
         onClose={() => setShowUploadModal(false)}

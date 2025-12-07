@@ -530,6 +530,7 @@ export interface ImageNodeComponentProps extends BaseNodeComponentProps<ImageNod
   onClick?: (e: React.MouseEvent, node: Node) => void;
   onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
   viewport?: { x: number; y: number; zoom: number };
+  showDragPlaceholder?: boolean;
 }
 
 // ============= UNIVERSAL NODE COMPONENT PROPS =============
@@ -541,6 +542,7 @@ export interface GenericNodeComponentProps<TData = any> extends BaseNodeComponen
   onClick?: (e: React.MouseEvent, node: Node) => void;
   onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
   viewport?: { x: number; y: number; zoom: number };
+  showDragPlaceholder?: boolean;
 }
 
 // Table info for data linking in form/compound nodes

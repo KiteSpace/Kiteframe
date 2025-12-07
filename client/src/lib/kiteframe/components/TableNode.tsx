@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { NodeHandles } from "./NodeHandles";
 import { ResizeHandle } from "./ResizeHandle";
+import DragPlaceholder from "./DragPlaceholder";
 import type { 
   Node, 
   TableNodeData, 
@@ -65,6 +66,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   showHandles = true,
   showResizeHandle = true,
   viewport,
+  showDragPlaceholder = false,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(node.data.label || "");
@@ -885,7 +887,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       data-testid={`table-node-${node.id}`}
       data-node-id={node.id}
     >
-      {/* Hidden file input */}
+      {/* Hidden file input - always rendered to preserve state during drag */}
       <input
         ref={fileInputRef}
         type="file"
@@ -895,7 +897,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
         data-testid={`table-file-input-${node.id}`}
       />
 
-      {/* Hidden span for measuring collapsed title width */}
+      {/* Hidden span for measuring collapsed title width - always rendered */}
       <span
         ref={collapsedTitleRef}
         className="absolute opacity-0 pointer-events-none text-base font-medium whitespace-nowrap"
@@ -905,8 +907,19 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
         {sanitizeText(tableName)}
       </span>
 
-      {/* Collapsed View - Clean compact bar */}
-      {isCollapsed ? (
+      {/* Drag placeholder - renders lightweight version during drag for performance */}
+      {showDragPlaceholder ? (
+        <DragPlaceholder
+          nodeType="table"
+          width={actualWidth}
+          height={actualHeight}
+          label={tableName}
+          selected={node.selected}
+        />
+      ) : (
+        <>
+          {/* Collapsed View - Clean compact bar */}
+          {isCollapsed ? (
         <div
           className={cn(
             "flex items-center justify-between px-4 py-3 cursor-grab h-full",
@@ -1130,8 +1143,10 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       )}
         </div>
       )}
+        </>
+      )}
 
-      {/* Connection Handles - positioned outside visual container */}
+      {/* Connection Handles - positioned outside visual container, always rendered */}
       {showHandles && (
         <NodeHandles
           node={{ ...node, width: actualWidth, height: actualHeight }}
@@ -1140,8 +1155,8 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
         />
       )}
 
-      {/* Resize Handle - only visible when selected and not collapsed */}
-      {showResizeHandle && node.resizable !== false && node.selected && !isCollapsed && (
+      {/* Resize Handle - only visible when selected and not collapsed, always rendered */}
+      {showResizeHandle && node.resizable !== false && node.selected && !isCollapsed && !showDragPlaceholder && (
         <ResizeHandle
           position="bottom-right"
           nodeRef={nodeRef}

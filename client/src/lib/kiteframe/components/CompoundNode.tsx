@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
+import DragPlaceholder from './DragPlaceholder';
 import { 
   Layers,
   Type,
@@ -1023,6 +1024,7 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   onImageUpload,
   tables,
   onFocusNode,
+  showDragPlaceholder = false,
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState(node.data.label || 'Compound');
@@ -1439,23 +1441,43 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
         onDoubleClick={handleDoubleClick}
         data-testid={`compound-node-${node.id}`}
       >
-        <div
-          className={cn(
-            "w-full h-full flex flex-col rounded-xl overflow-hidden shadow-lg",
-            node.selected && "outline outline-2 outline-blue-500"
-          )}
-          style={{
-            backgroundColor: bodyColor,
-            borderWidth: node.data.colors?.borderColor ? 2 : 2,
-            borderStyle: node.data.borderStyle || 'solid',
-            borderColor: borderColor,
-          }}
-        >
-          <div
-            className="flex items-center justify-between px-3 py-2 gap-2 group rounded-t-lg"
-            style={{ backgroundColor: headerColor }}
-            onDoubleClick={handleTitleDoubleClick}
-          >
+        {/* Drag placeholder - renders lightweight version during drag for performance */}
+        {showDragPlaceholder ? (
+          <>
+            <DragPlaceholder
+              nodeType="compound"
+              width={nodeWidth}
+              height={nodeHeight}
+              label={node.data.label || 'Compound'}
+              selected={node.selected}
+            />
+            {showHandles && (
+              <NodeHandles
+                node={{ ...node, width: nodeWidth, height: nodeHeight }}
+                scale={viewport?.zoom || 1}
+                onHandleConnect={onHandleConnect}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <div
+              className={cn(
+                "w-full h-full flex flex-col rounded-xl overflow-hidden shadow-lg",
+                node.selected && "outline outline-2 outline-blue-500"
+              )}
+              style={{
+                backgroundColor: bodyColor,
+                borderWidth: node.data.colors?.borderColor ? 2 : 2,
+                borderStyle: node.data.borderStyle || 'solid',
+                borderColor: borderColor,
+              }}
+            >
+              <div
+                className="flex items-center justify-between px-3 py-2 gap-2 group rounded-t-lg"
+                style={{ backgroundColor: headerColor }}
+                onDoubleClick={handleTitleDoubleClick}
+              >
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Layers size={16} style={{ color: headerTextColor }} />
               {isEditingTitle ? (
@@ -1589,6 +1611,10 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
           </div>
         </div>
 
+          </>
+        )}
+
+        {/* Connection Handles - always rendered outside conditional */}
         {showHandles && (
           <NodeHandles
             node={{ ...node, width: nodeWidth, height: nodeHeight }}
@@ -1597,8 +1623,8 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
           />
         )}
 
-        {/* Resize Handle - only visible when selected */}
-        {showResizeHandle && node.resizable !== false && node.selected && (
+        {/* Resize Handle - only visible when selected, always outside conditional */}
+        {showResizeHandle && node.resizable !== false && node.selected && !showDragPlaceholder && (
           <ResizeHandle
             position="bottom-right"
             nodeRef={nodeRef}

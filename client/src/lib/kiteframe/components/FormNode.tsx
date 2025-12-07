@@ -2,6 +2,7 @@ import { memo, useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
+import DragPlaceholder from './DragPlaceholder';
 import { 
   Plus, 
   Trash2, 
@@ -40,6 +41,7 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
   viewport,
   tables = [],
   onOpenDataLinkPicker,
+  showDragPlaceholder = false,
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState(node.data.formTitle || 'Form');
@@ -298,20 +300,40 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
       onDoubleClick={handleDoubleClick}
       data-testid={`form-node-${node.id}`}
     >
-      <div
-        className={cn(
-          "w-full h-full flex flex-col rounded-xl overflow-hidden shadow-lg",
-          node.selected && "outline outline-2 outline-blue-500"
-        )}
-        style={{
-          backgroundColor: bodyColor,
-          borderWidth: 2,
-          borderStyle: 'solid',
-          borderColor: borderColor,
-        }}
-      >
-        {/* Header */}
-        <div
+      {/* Drag placeholder - renders lightweight version during drag for performance */}
+      {showDragPlaceholder ? (
+        <>
+          <DragPlaceholder
+            nodeType="form"
+            width={nodeWidth}
+            height={nodeHeight}
+            label={formTitle}
+            selected={node.selected}
+          />
+          {showHandles && (
+            <NodeHandles
+              node={{ ...node, width: nodeWidth, height: nodeHeight }}
+              scale={viewport?.zoom || 1}
+              onHandleConnect={onHandleConnect}
+            />
+          )}
+        </>
+      ) : (
+        <>
+          <div
+            className={cn(
+              "w-full h-full flex flex-col rounded-xl overflow-hidden shadow-lg",
+              node.selected && "outline outline-2 outline-blue-500"
+            )}
+            style={{
+              backgroundColor: bodyColor,
+              borderWidth: 2,
+              borderStyle: 'solid',
+              borderColor: borderColor,
+            }}
+          >
+            {/* Header */}
+            <div
           className="flex items-center justify-between px-3 py-2 gap-2 group rounded-t-lg"
           style={{ backgroundColor: headerColor }}
           onDoubleClick={handleTitleDoubleClick}
@@ -397,8 +419,10 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
           </div>
         )}
       </div>
+        </>
+      )}
 
-      {/* Connection Handles */}
+      {/* Connection Handles - always rendered outside conditional */}
       {showHandles && (
         <NodeHandles
           node={{ ...node, width: nodeWidth, height: nodeHeight }}
@@ -407,8 +431,8 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
         />
       )}
 
-      {/* Resize Handle - only visible when selected */}
-      {showResizeHandle && node.resizable !== false && node.selected && (
+      {/* Resize Handle - only visible when selected, always outside conditional */}
+      {showResizeHandle && node.resizable !== false && node.selected && !showDragPlaceholder && (
         <ResizeHandle
           position="bottom-right"
           nodeRef={nodeRef}
