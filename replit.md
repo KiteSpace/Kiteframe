@@ -174,3 +174,8 @@ All core functionality is included in the open-source package:
 - **Ollama**: Integrated for local and remote AI model serving.
 - **OpenAI**: Integrated for cloud-based AI services.
 - **Anthropic**: Supported as an AI provider option.
+
+## Documentation
+
+### Technical Documentation
+- **Node System Architecture**: `docs/NODE_SYSTEM.md` - Comprehensive documentation covering all node types, registration, TypeScript interfaces, data binding, TableNode/CompoundNode implementation details, edge system, and NodeHandles.
