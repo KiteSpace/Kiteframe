@@ -26,7 +26,14 @@ import {
   Lock,
   LayoutTemplate,
   Sparkles,
-  Check
+  Check,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  Rows,
+  Columns
 } from "lucide-react";
 import { NodeHandles } from "./NodeHandles";
 import { ResizeHandle } from "./ResizeHandle";
@@ -97,6 +104,16 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    rowId: string;
+    colId: string;
+    rowIndex: number;
+    colIndex: number;
+  } | null>(null);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -344,6 +361,208 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
       setCellEditValue("");
     }
   }, [editingCell, handleCellSubmit, getNextCell]);
+
+  // Context menu handlers
+  const handleCellContextMenu = useCallback((
+    e: React.MouseEvent, 
+    rowId: string, 
+    colId: string, 
+    rowIndex: number, 
+    colIndex: number
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Get position relative to the node
+    const nodeRect = nodeRef.current?.getBoundingClientRect();
+    if (!nodeRect) return;
+    
+    setContextMenu({
+      x: e.clientX - nodeRect.left,
+      y: e.clientY - nodeRect.top,
+      rowId,
+      colId,
+      rowIndex,
+      colIndex,
+    });
+  }, []);
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  // Close context menu when clicking outside (only on left-click, not right-click)
+  // Right-click is handled by handleCellContextMenu which will open a new menu
+  useEffect(() => {
+    if (contextMenu) {
+      const handleClickOutside = () => setContextMenu(null);
+      document.addEventListener('click', handleClickOutside);
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+      };
+    }
+  }, [contextMenu]);
+
+  // Row operations
+  const handleDeleteRow = useCallback(() => {
+    if (!contextMenu || !table || !onUpdateTable) return;
+    
+    const updatedRows = table.rows.filter((row: DataTableRow) => row.id !== contextMenu.rowId);
+    const updatedTable: DataTable = { ...table, rows: updatedRows };
+    
+    onUpdateTable(node.data.tableId, updatedTable);
+    if (onUpdate) {
+      onUpdate(node.id, { data: { ...node.data, table: updatedTable } });
+    }
+    closeContextMenu();
+  }, [contextMenu, table, node.id, node.data, onUpdate, onUpdateTable, closeContextMenu]);
+
+  const handleAddRowAbove = useCallback(() => {
+    if (!contextMenu || !table || !onUpdateTable) return;
+    
+    // Find actual row index in table.rows (not filtered/sorted index)
+    const actualRowIndex = table.rows.findIndex((r: DataTableRow) => r.id === contextMenu.rowId);
+    if (actualRowIndex === -1) return;
+    
+    const newRow: DataTableRow = {
+      id: `row-${Date.now()}`,
+      values: table.columns.reduce((acc: Record<string, unknown>, col: DataTableColumn) => {
+        acc[col.id] = '';
+        return acc;
+      }, {}),
+    };
+    
+    const newRows = [...table.rows];
+    newRows.splice(actualRowIndex, 0, newRow);
+    const updatedTable: DataTable = { ...table, rows: newRows };
+    
+    onUpdateTable(node.data.tableId, updatedTable);
+    if (onUpdate) {
+      onUpdate(node.id, { data: { ...node.data, table: updatedTable } });
+    }
+    closeContextMenu();
+  }, [contextMenu, table, node.id, node.data, onUpdate, onUpdateTable, closeContextMenu]);
+
+  const handleAddRowBelow = useCallback(() => {
+    if (!contextMenu || !table || !onUpdateTable) return;
+    
+    // Find actual row index in table.rows (not filtered/sorted index)
+    const actualRowIndex = table.rows.findIndex((r: DataTableRow) => r.id === contextMenu.rowId);
+    if (actualRowIndex === -1) return;
+    
+    const newRow: DataTableRow = {
+      id: `row-${Date.now()}`,
+      values: table.columns.reduce((acc: Record<string, unknown>, col: DataTableColumn) => {
+        acc[col.id] = '';
+        return acc;
+      }, {}),
+    };
+    
+    const newRows = [...table.rows];
+    newRows.splice(actualRowIndex + 1, 0, newRow);
+    const updatedTable: DataTable = { ...table, rows: newRows };
+    
+    onUpdateTable(node.data.tableId, updatedTable);
+    if (onUpdate) {
+      onUpdate(node.id, { data: { ...node.data, table: updatedTable } });
+    }
+    closeContextMenu();
+  }, [contextMenu, table, node.id, node.data, onUpdate, onUpdateTable, closeContextMenu]);
+
+  const handleSelectRow = useCallback(() => {
+    if (!contextMenu) return;
+    setSelectedRowIds(prev => {
+      const next = new Set(prev);
+      next.add(contextMenu.rowId);
+      return next;
+    });
+    closeContextMenu();
+  }, [contextMenu, closeContextMenu]);
+
+  // Column operations
+  const handleDeleteColumn = useCallback(() => {
+    if (!contextMenu || !table || !onUpdateTable) return;
+    
+    // Don't allow deleting the last column
+    if (table.columns.length <= 1) return;
+    
+    const updatedColumns = table.columns.filter((col: DataTableColumn) => col.id !== contextMenu.colId);
+    const updatedRows = table.rows.map((row: DataTableRow) => {
+      const newValues = { ...row.values };
+      delete newValues[contextMenu.colId];
+      return { ...row, values: newValues };
+    });
+    
+    const updatedTable: DataTable = { ...table, columns: updatedColumns, rows: updatedRows };
+    
+    onUpdateTable(node.data.tableId, updatedTable);
+    if (onUpdate) {
+      onUpdate(node.id, { data: { ...node.data, table: updatedTable } });
+    }
+    closeContextMenu();
+  }, [contextMenu, table, node.id, node.data, onUpdate, onUpdateTable, closeContextMenu]);
+
+  const handleAddColumnBefore = useCallback(() => {
+    if (!contextMenu || !table || !onUpdateTable) return;
+    
+    // Find actual column index in table.columns
+    const actualColIndex = table.columns.findIndex((c: DataTableColumn) => c.id === contextMenu.colId);
+    if (actualColIndex === -1) return;
+    
+    const newColId = `col-${Date.now()}`;
+    const newColumn: DataTableColumn = {
+      id: newColId,
+      name: 'New Column',
+      type: 'string',
+    };
+    
+    const newColumns = [...table.columns];
+    newColumns.splice(actualColIndex, 0, newColumn);
+    
+    const updatedRows = table.rows.map((row: DataTableRow) => ({
+      ...row,
+      values: { ...row.values, [newColId]: '' },
+    }));
+    
+    const updatedTable: DataTable = { ...table, columns: newColumns, rows: updatedRows };
+    
+    onUpdateTable(node.data.tableId, updatedTable);
+    if (onUpdate) {
+      onUpdate(node.id, { data: { ...node.data, table: updatedTable } });
+    }
+    closeContextMenu();
+  }, [contextMenu, table, node.id, node.data, onUpdate, onUpdateTable, closeContextMenu]);
+
+  const handleAddColumnAfter = useCallback(() => {
+    if (!contextMenu || !table || !onUpdateTable) return;
+    
+    // Find actual column index in table.columns
+    const actualColIndex = table.columns.findIndex((c: DataTableColumn) => c.id === contextMenu.colId);
+    if (actualColIndex === -1) return;
+    
+    const newColId = `col-${Date.now()}`;
+    const newColumn: DataTableColumn = {
+      id: newColId,
+      name: 'New Column',
+      type: 'string',
+    };
+    
+    const newColumns = [...table.columns];
+    newColumns.splice(actualColIndex + 1, 0, newColumn);
+    
+    const updatedRows = table.rows.map((row: DataTableRow) => ({
+      ...row,
+      values: { ...row.values, [newColId]: '' },
+    }));
+    
+    const updatedTable: DataTable = { ...table, columns: newColumns, rows: updatedRows };
+    
+    onUpdateTable(node.data.tableId, updatedTable);
+    if (onUpdate) {
+      onUpdate(node.id, { data: { ...node.data, table: updatedTable } });
+    }
+    closeContextMenu();
+  }, [contextMenu, table, node.id, node.data, onUpdate, onUpdateTable, closeContextMenu]);
 
   const canCreateFromRow = useCallback((index: number) => index < MAX_ROW_TO_NODE, []);
 
@@ -1018,7 +1237,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
               <td className="px-2 py-1.5 text-gray-400">
                 {rowIndex + 1}
               </td>
-              {table!.columns.map((col: DataTableColumn) => {
+              {table!.columns.map((col: DataTableColumn, colIndex: number) => {
                 const isEditingThisCell = editingCell?.rowId === row.id && editingCell?.colId === col.id;
                 const cellValue = row.values[col.id];
                 
@@ -1033,6 +1252,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
                     onDoubleClick={(e) => handleCellDoubleClick(e, row.id, col.id, cellValue)}
                     onClick={(e) => e.stopPropagation()}
                     onMouseDown={(e) => e.stopPropagation()}
+                    onContextMenu={(e) => handleCellContextMenu(e, row.id, col.id, rowIndex, colIndex)}
                   >
                     {isEditingThisCell ? (
                       <input
@@ -1508,6 +1728,93 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Cell Context Menu */}
+      {contextMenu && (
+        <div
+          className="absolute z-[100] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 min-w-[180px]"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          data-testid="table-context-menu"
+        >
+          <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
+            Row
+          </div>
+          <button
+            onClick={handleSelectRow}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            data-testid="context-menu-select-row"
+          >
+            <Rows size={14} className="text-gray-500" />
+            Select Row
+          </button>
+          <button
+            onClick={handleAddRowAbove}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            data-testid="context-menu-add-row-above"
+          >
+            <ArrowUp size={14} className="text-gray-500" />
+            Add Row Above
+          </button>
+          <button
+            onClick={handleAddRowBelow}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            data-testid="context-menu-add-row-below"
+          >
+            <ArrowDown size={14} className="text-gray-500" />
+            Add Row Below
+          </button>
+          <button
+            onClick={handleDeleteRow}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            data-testid="context-menu-delete-row"
+          >
+            <Trash2 size={14} />
+            Delete Row
+          </button>
+          
+          <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
+          
+          <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
+            Column
+          </div>
+          <button
+            onClick={handleAddColumnBefore}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            data-testid="context-menu-add-column-before"
+          >
+            <ArrowLeft size={14} className="text-gray-500" />
+            Add Column Before
+          </button>
+          <button
+            onClick={handleAddColumnAfter}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            data-testid="context-menu-add-column-after"
+          >
+            <ArrowRight size={14} className="text-gray-500" />
+            Add Column After
+          </button>
+          <button
+            onClick={handleDeleteColumn}
+            disabled={table && table.columns.length <= 1}
+            className={cn(
+              "w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors",
+              table && table.columns.length <= 1
+                ? "text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                : "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+            )}
+            title={table && table.columns.length <= 1 ? "Cannot delete the last column" : undefined}
+            data-testid="context-menu-delete-column"
+          >
+            <Trash2 size={14} />
+            Delete Column
+          </button>
         </div>
       )}
     </div>
