@@ -561,7 +561,6 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
     ...style,
     width: actualWidth,
     height: actualHeight,
-    position: 'relative',
     overflow: 'visible',
   };
 
@@ -575,6 +574,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
     background: colors.bodyBg,
     overflow: 'hidden',
     borderRadius: '12px',
+    position: 'relative', // Anchor for internal absolutely-positioned overlays
   };
 
   const renderEmptyState = () => (
@@ -870,7 +870,7 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
     <div
       ref={nodeRef}
       className={cn(
-        "kiteframe-node kiteframe-table-node group",
+        "kiteframe-node kiteframe-table-node group absolute",
         "transition-all duration-200",
         node.hidden ? "opacity-0 pointer-events-none" : "",
         className,
