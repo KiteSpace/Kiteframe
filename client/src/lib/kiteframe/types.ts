@@ -757,6 +757,7 @@ export interface CompoundNodeComponentProps extends GenericNodeComponentProps<Co
 export interface WebviewNodeComponentProps extends GenericNodeComponentProps<WebviewNodeData> {
   node: Node & { data: WebviewNodeData };
   onOpenFullscreen?: (nodeId: string) => void;
+  onConvertToLink?: (nodeId: string, url: string, title: string) => void;
 }
 
 // Pro Features Configuration Interfaces

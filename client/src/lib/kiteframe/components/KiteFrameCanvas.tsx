@@ -3880,6 +3880,48 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     viewport={viewport}
                     showDragPlaceholder={draggingNodeId === n.id}
                     isAnyDragActive={!!draggingNodeId}
+                    onConvertToLink={(nodeId: string, url: string, title: string) => {
+                      const webviewNode = props.nodes.find((node) => node.id === nodeId);
+                      if (!webviewNode) return;
+                      
+                      const originalWidth = webviewNode.style?.width || webviewNode.width || 280;
+                      const originalHeight = webviewNode.style?.height || webviewNode.height || 140;
+                      const originalColors = webviewNode.data?.colors || {};
+                      
+                      const newNode: Node = {
+                        id: nodeId,
+                        type: 'basic',
+                        position: { ...webviewNode.position },
+                        data: {
+                          label: title || webviewNode.data?.title || 'Link',
+                          description: webviewNode.data?.description || '',
+                          hyperlinks: [{
+                            id: `link-${Date.now()}`,
+                            text: url,
+                            url: url,
+                            showPreview: true,
+                          }],
+                          colors: {
+                            headerBackground: originalColors.headerBackground || '#06b6d4',
+                            bodyBackground: originalColors.bodyBackground || '#ffffff',
+                            headerTextColor: originalColors.headerTextColor || '#ffffff',
+                            bodyTextColor: originalColors.bodyTextColor,
+                            borderColor: originalColors.borderColor,
+                          },
+                          reactions: webviewNode.data?.reactions,
+                        },
+                        style: { width: originalWidth, height: Math.min(originalHeight, 200) },
+                        selected: true,
+                        zIndex: webviewNode.zIndex || 0,
+                        draggable: webviewNode.draggable,
+                        selectable: webviewNode.selectable,
+                      };
+                      
+                      const updated = props.nodes.map((node) =>
+                        node.id === nodeId ? newNode : node
+                      );
+                      props.onNodesChange?.(updated);
+                    }}
                     style={{
                       position: "absolute",
                       left: n.position.x,

@@ -11,11 +11,14 @@ import {
   Maximize2,
   X,
   AlertCircle,
-  Loader2
+  Loader2,
+  Link2
 } from 'lucide-react';
 import type { Node, WebviewNodeData, WebviewNodeComponentProps } from '../types';
 import { sanitizeText } from '../utils/validation';
 import { getBorderColorFromHeader } from '@/lib/themes';
+
+const EMBED_BLOCK_TIMEOUT_MS = 8000;
 
 const MIN_WEBVIEW_WIDTH = 280;
 const MIN_WEBVIEW_HEIGHT = 200;
@@ -150,6 +153,7 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
   showDragPlaceholder = false,
   isAnyDragActive = false,
   onOpenFullscreen,
+  onConvertToLink,
 }) => {
   const [isEditingUrl, setIsEditingUrl] = useState(false);
   const [editUrlValue, setEditUrlValue] = useState(node.data.url || '');
@@ -158,6 +162,10 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showFullscreen, setShowFullscreen] = useState(false);
+  const [isEmbedBlocked, setIsEmbedBlocked] = useState(false);
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasLoadedRef = useRef(false);
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
@@ -195,6 +203,39 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
       titleInputRef.current.select();
     }
   }, [isEditingTitle]);
+
+  useEffect(() => {
+    if (url && isLoading) {
+      hasLoadedRef.current = false;
+      
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+      
+      loadTimeoutRef.current = setTimeout(() => {
+        if (!hasLoadedRef.current) {
+          setIsLoading(false);
+          setIsEmbedBlocked(true);
+          setLoadError('This site doesn\'t allow embedding');
+        }
+      }, EMBED_BLOCK_TIMEOUT_MS);
+    }
+    
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+    };
+  }, [url, isLoading]);
+
+  useEffect(() => {
+    if (url) {
+      setIsLoading(true);
+      setIsEmbedBlocked(false);
+      setLoadError(null);
+      hasLoadedRef.current = false;
+    }
+  }, [url]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -289,6 +330,8 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
     if (iframeRef.current && url) {
       setIsLoading(true);
       setLoadError(null);
+      setIsEmbedBlocked(false);
+      hasLoadedRef.current = false;
       iframeRef.current.src = url;
     }
   }, [url]);
@@ -304,14 +347,33 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
   }, []);
 
   const handleIframeLoad = useCallback(() => {
+    hasLoadedRef.current = true;
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+      loadTimeoutRef.current = null;
+    }
     setIsLoading(false);
     setLoadError(null);
+    setIsEmbedBlocked(false);
   }, []);
 
   const handleIframeError = useCallback(() => {
+    hasLoadedRef.current = true;
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+      loadTimeoutRef.current = null;
+    }
     setIsLoading(false);
+    setIsEmbedBlocked(false);
     setLoadError('Failed to load content');
   }, []);
+
+  const handleConvertToLink = useCallback(() => {
+    if (onConvertToLink && url) {
+      onConvertToLink(node.id, url, title);
+    }
+    setShowConvertDialog(false);
+  }, [onConvertToLink, node.id, url, title]);
 
   if (showDragPlaceholder) {
     return (
@@ -466,15 +528,48 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
                 </div>
               )}
               {loadError && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 gap-3 z-10">
-                  <AlertCircle size={32} className="text-red-500" />
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{loadError}</p>
-                  <button
-                    onClick={() => setIsEditingUrl(true)}
-                    className="text-sm text-cyan-600 hover:underline"
-                  >
-                    Edit URL
-                  </button>
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 gap-3 z-10 p-4">
+                  <AlertCircle size={32} className={isEmbedBlocked ? "text-amber-500" : "text-red-500"} />
+                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center">{loadError}</p>
+                  
+                  {isEmbedBlocked ? (
+                    <div className="flex flex-col items-center gap-2 mt-2">
+                      <p className="text-xs text-gray-500 dark:text-gray-500 text-center max-w-xs">
+                        This website blocks embedding. You can convert this to a clickable link instead.
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <button
+                          onClick={() => setShowConvertDialog(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-600 hover:bg-cyan-700 text-white rounded-md transition-colors"
+                          data-testid="webview-convert-to-link"
+                        >
+                          <Link2 size={14} />
+                          Convert to Link
+                        </button>
+                        <button
+                          onClick={handleOpenExternal}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md transition-colors"
+                          data-testid="webview-open-external-error"
+                        >
+                          <ExternalLink size={14} />
+                          Open in Tab
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => setIsEditingUrl(true)}
+                        className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mt-1"
+                      >
+                        Edit URL
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setIsEditingUrl(true)}
+                      className="text-sm text-cyan-600 hover:underline"
+                    >
+                      Edit URL
+                    </button>
+                  )}
                 </div>
               )}
               <iframe
@@ -512,6 +607,54 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
           favicon={favicon}
           onClose={() => setShowFullscreen(false)}
         />
+      )}
+
+      {showConvertDialog && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center"
+          onClick={() => setShowConvertDialog(false)}
+        >
+          <div 
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-cyan-100 dark:bg-cyan-900 rounded-full">
+                <Link2 size={20} className="text-cyan-600 dark:text-cyan-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Convert to Link
+              </h3>
+            </div>
+            
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              This website doesn't allow embedding. Would you like to convert this webview node to a link node instead?
+            </p>
+            
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-md p-3 mb-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">URL</p>
+              <p className="text-sm text-gray-800 dark:text-gray-200 break-all">{url}</p>
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowConvertDialog(false)}
+                className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                data-testid="convert-dialog-cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConvertToLink}
+                className="px-4 py-2 text-sm bg-cyan-600 hover:bg-cyan-700 text-white rounded-md transition-colors"
+                data-testid="convert-dialog-confirm"
+              >
+                Convert to Link
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </>
   );
