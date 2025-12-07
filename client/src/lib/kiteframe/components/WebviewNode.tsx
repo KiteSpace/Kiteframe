@@ -12,7 +12,8 @@ import {
   X,
   AlertCircle,
   Loader2,
-  Link2
+  Link2,
+  Pencil
 } from 'lucide-react';
 import type { Node, WebviewNodeData, WebviewNodeComponentProps } from '../types';
 import { sanitizeText } from '../utils/validation';
@@ -192,8 +193,8 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
   onOpenFullscreen,
   onConvertToLink,
 }) => {
-  const [isEditingUrl, setIsEditingUrl] = useState(false);
-  const [editUrlValue, setEditUrlValue] = useState(node.data.url || '');
+  const [showInlineUrlInput, setShowInlineUrlInput] = useState(false);
+  const [inlineUrlValue, setInlineUrlValue] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState(node.data.title || '');
   const [isLoading, setIsLoading] = useState(false);
@@ -228,11 +229,10 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
   }, [url, node.data.favicon]);
 
   useEffect(() => {
-    if (isEditingUrl && urlInputRef.current) {
+    if (showInlineUrlInput && urlInputRef.current) {
       urlInputRef.current.focus();
-      urlInputRef.current.select();
     }
-  }, [isEditingUrl]);
+  }, [showInlineUrlInput]);
 
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -289,11 +289,8 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!url) {
-      setIsEditingUrl(true);
-    }
     onDoubleClick?.(e);
-  }, [url, onDoubleClick]);
+  }, [onDoubleClick]);
 
   const handleTitleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -319,8 +316,8 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
     }
   }, [handleTitleSubmit, node.data.title]);
 
-  const handleUrlSubmit = useCallback(() => {
-    let finalUrl = editUrlValue.trim();
+  const handleUrlSubmit = useCallback((urlValue: string) => {
+    let finalUrl = urlValue.trim();
     if (finalUrl && !finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
       finalUrl = 'https://' + finalUrl;
     }
@@ -338,21 +335,11 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
         title: node.data.title || service?.name || 'Web View',
       },
     });
-    setIsEditingUrl(false);
+    setShowInlineUrlInput(false);
+    setInlineUrlValue('');
     setLoadError(null);
     if (finalUrl) setIsLoading(true);
-  }, [editUrlValue, node.id, node.data, onUpdate]);
-
-  const handleUrlKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleUrlSubmit();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      setEditUrlValue(node.data.url || '');
-      setIsEditingUrl(false);
-    }
-  }, [handleUrlSubmit, node.data.url]);
+  }, [node.id, node.data, onUpdate]);
 
   const handleResize = useCallback((width: number, height: number) => {
     if (onUpdate) {
@@ -390,7 +377,6 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
       loadTimeoutRef.current = null;
     }
     
-    // Check if this is a known blocking domain
     if (url && isKnownBlockingDomain(url)) {
       setIsLoading(false);
       setIsEmbedBlocked(true);
@@ -398,37 +384,36 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
       return;
     }
     
-    // For unknown domains, try to verify the iframe loaded real content
-    // by checking if we can access contentWindow (will throw SecurityError for cross-origin)
     if (iframeRef.current && url) {
       try {
-        // Trying to access location will throw SecurityError if cross-origin but loaded
-        // If the frame is completely empty/blocked, it might behave differently
         const win = iframeRef.current.contentWindow;
         if (win) {
-          // Try to access something - this will throw for cross-origin
           try {
             const loc = win.location.href;
-            // If we get here without error, it's same-origin (unlikely for external sites)
-            // or about:blank which could mean blocking
             if (loc === 'about:blank') {
-              // Give a bit more time - some sites redirect
               setTimeout(() => {
-                if (iframeRef.current?.contentWindow?.location?.href === 'about:blank') {
+                try {
+                  if (iframeRef.current?.contentWindow?.location?.href === 'about:blank') {
+                    setIsLoading(false);
+                    setIsEmbedBlocked(true);
+                    setLoadError('This site doesn\'t allow embedding');
+                  } else {
+                    setIsLoading(false);
+                    setLoadError(null);
+                    setIsEmbedBlocked(false);
+                  }
+                } catch {
                   setIsLoading(false);
-                  setIsEmbedBlocked(true);
-                  setLoadError('This site doesn\'t allow embedding');
+                  setLoadError(null);
+                  setIsEmbedBlocked(false);
                 }
               }, 1000);
               return;
             }
           } catch (e) {
-            // SecurityError means the iframe loaded cross-origin content - this is good!
-            // The iframe actually loaded the site
           }
         }
       } catch (e) {
-        // Error accessing contentWindow - might be blocked
       }
     }
     
@@ -455,6 +440,12 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
     setShowConvertDialog(false);
   }, [onConvertToLink, node.id, url, title]);
 
+  const handleShowUrlInput = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setInlineUrlValue(url);
+    setShowInlineUrlInput(true);
+  }, [url]);
+
   if (showDragPlaceholder) {
     return (
       <DragPlaceholder
@@ -467,6 +458,8 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
       />
     );
   }
+
+  const hasUrl = !!url && !loadError;
 
   return (
     <>
@@ -544,30 +537,46 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
           </div>
 
           <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={handleRefresh}
-              className="p-1.5 hover:bg-white/20 rounded transition-colors"
-              title="Refresh"
-              data-testid="webview-refresh"
-            >
-              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-            </button>
-            <button
-              onClick={handleOpenFullscreen}
-              className="p-1.5 hover:bg-white/20 rounded transition-colors"
-              title="Fullscreen"
-              data-testid="webview-fullscreen"
-            >
-              <Maximize2 size={14} />
-            </button>
-            <button
-              onClick={handleOpenExternal}
-              className="p-1.5 hover:bg-white/20 rounded transition-colors"
-              title="Open in new tab"
-              data-testid="webview-external"
-            >
-              <ExternalLink size={14} />
-            </button>
+            {url && (
+              <>
+                <button
+                  onClick={handleShowUrlInput}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="p-1.5 hover:bg-white/20 rounded transition-colors"
+                  title="Edit URL"
+                  data-testid="webview-edit-url"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  onClick={handleRefresh}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="p-1.5 hover:bg-white/20 rounded transition-colors"
+                  title="Refresh"
+                  data-testid="webview-refresh"
+                >
+                  <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+                </button>
+                <button
+                  onClick={handleOpenFullscreen}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="p-1.5 hover:bg-white/20 rounded transition-colors"
+                  title="Fullscreen"
+                  data-testid="webview-fullscreen"
+                >
+                  <Maximize2 size={14} />
+                </button>
+                <button
+                  onClick={handleOpenExternal}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="p-1.5 hover:bg-white/20 rounded transition-colors"
+                  title="Open in new tab"
+                  data-testid="webview-external"
+                >
+                  <ExternalLink size={14} />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -578,27 +587,75 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
             backgroundColor: bodyColor,
           }}
         >
-          {!url || isEditingUrl ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 gap-4">
-              <Globe size={48} className="text-gray-300 dark:text-gray-600" />
+          {showInlineUrlInput ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
+              <Globe size={32} className="text-gray-300 dark:text-gray-600 mb-4" />
               <div className="w-full max-w-sm">
                 <input
                   ref={urlInputRef}
-                  type="url"
-                  value={editUrlValue}
-                  onChange={(e) => setEditUrlValue(e.target.value)}
-                  onBlur={handleUrlSubmit}
-                  onKeyDown={handleUrlKeyDown}
+                  type="text"
+                  value={inlineUrlValue}
+                  onChange={(e) => setInlineUrlValue(e.target.value)}
+                  placeholder="Enter URL (e.g., https://figma.com/embed/...)"
+                  className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  autoFocus
                   onClick={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
-                  placeholder="Enter URL (e.g., https://figma.com/embed/...)"
-                  className="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleUrlSubmit(inlineUrlValue);
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setShowInlineUrlInput(false);
+                    }
+                  }}
                   data-testid="webview-url-input"
                 />
-                <p className="mt-2 text-xs text-center text-gray-500 dark:text-gray-400">
-                  Paste a URL to embed Figma, Replit, or any website
-                </p>
+                <div className="flex justify-center gap-2 mt-3">
+                  <button
+                    className="px-4 py-1.5 text-sm bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUrlSubmit(inlineUrlValue);
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    data-testid="webview-url-save"
+                  >
+                    Save
+                  </button>
+                  <button
+                    className="px-4 py-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setShowInlineUrlInput(false);
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    data-testid="webview-url-cancel"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
+            </div>
+          ) : !url ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 gap-4">
+              <Globe size={48} className="text-gray-300 dark:text-gray-600" />
+              <span className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                No URL set
+              </span>
+              <button
+                onClick={handleShowUrlInput}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setShowInlineUrlInput(true); }}
+                className="w-12 h-12 flex items-center justify-center bg-cyan-500 hover:bg-cyan-600 text-white rounded-full transition-colors shadow-md"
+                title="Add URL"
+                data-testid={`webview-node-url-btn-${node.id}`}
+              >
+                <Globe size={20} />
+              </button>
             </div>
           ) : (
             <>
@@ -620,6 +677,7 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
                       <div className="flex items-center gap-2 mt-1">
                         <button
                           onClick={() => setShowConvertDialog(true)}
+                          onMouseDown={(e) => e.stopPropagation()}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-cyan-600 hover:bg-cyan-700 text-white rounded-md transition-colors"
                           data-testid="webview-convert-to-link"
                         >
@@ -628,6 +686,7 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
                         </button>
                         <button
                           onClick={handleOpenExternal}
+                          onMouseDown={(e) => e.stopPropagation()}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md transition-colors"
                           data-testid="webview-open-external-error"
                         >
@@ -636,16 +695,20 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
                         </button>
                       </div>
                       <button
-                        onClick={() => setIsEditingUrl(true)}
+                        onClick={handleShowUrlInput}
+                        onMouseDown={(e) => e.stopPropagation()}
                         className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mt-1"
+                        data-testid="webview-edit-url"
                       >
                         Edit URL
                       </button>
                     </div>
                   ) : (
                     <button
-                      onClick={() => setIsEditingUrl(true)}
+                      onClick={handleShowUrlInput}
+                      onMouseDown={(e) => e.stopPropagation()}
                       className="text-sm text-cyan-600 hover:underline"
+                      data-testid="webview-edit-url"
                     >
                       Edit URL
                     </button>

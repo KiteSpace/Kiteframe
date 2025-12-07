@@ -103,9 +103,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!node.data.src) handleAddImageClick();
     onDoubleClick?.(e);
-  }, [node.data.src, handleAddImageClick, onDoubleClick]);
+  }, [onDoubleClick]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
