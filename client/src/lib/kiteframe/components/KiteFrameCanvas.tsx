@@ -1478,6 +1478,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   // Smart Guides state
   const [currentGuides, setCurrentGuides] = useState<SnapGuide[]>([]);
+  
+  // Drag placeholder optimization - track which node is being dragged for performance
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
 
   // Pro Features Configuration
   const quickAddConfig = props.proFeatures?.quickAdd;
@@ -2863,6 +2866,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         }
 
         dragInfo.current = null;
+        setDraggingNodeId(null); // Clear drag placeholder optimization
       }
 
       // Clear guides when drag ends (only for node drags, canvas object guides cleared above)
@@ -3590,6 +3594,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         canvasObjectOrigins: canvasObjectOrigins,
                         isGroupDrag: isGroupDrag,
                       };
+                      // Set drag placeholder optimization for complex nodes
+                      setDraggingNodeId(n.id);
                     }}
                     onClick={(e: React.MouseEvent) => {
                       props.onNodeClick?.(e, n);
@@ -3612,6 +3618,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       });
                     }}
                     viewport={viewport}
+                    showDragPlaceholder={draggingNodeId === n.id}
                     style={{
                       position: "absolute",
                       left: n.position.x,
@@ -3702,6 +3709,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         canvasObjectOrigins: canvasObjectOrigins,
                         isGroupDrag: isGroupDrag,
                       };
+                      // Set drag placeholder optimization for complex nodes
+                      setDraggingNodeId(draggedNode.id);
                     }}
                     onClick={(e: React.MouseEvent, clickedNode: Node) => {
                       props.onNodeClick?.(e, clickedNode);
@@ -3726,6 +3735,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showHandles={n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
                     viewport={viewport}
+                    showDragPlaceholder={draggingNodeId === n.id}
                     style={{
                       position: "absolute",
                       left: n.position.x,
@@ -3796,6 +3806,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         canvasObjectOrigins: canvasObjectOrigins,
                         isGroupDrag: isGroupDrag,
                       };
+                      // Set drag placeholder optimization for complex nodes
+                      setDraggingNodeId(n.id);
                     }}
                     onClick={(e: React.MouseEvent) => {
                       props.onNodeClick?.(e, n);
@@ -3820,6 +3832,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showHandles={n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
                     viewport={viewport}
+                    showDragPlaceholder={draggingNodeId === n.id}
                     tables={Object.values(props.tableData || {})}
                     onOpenDataLinkPicker={(fieldId, currentLink) => {
                       setDataLinkPicker({
@@ -3899,6 +3912,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         canvasObjectOrigins: canvasObjectOrigins,
                         isGroupDrag: isGroupDrag,
                       };
+                      // Set drag placeholder optimization for complex nodes
+                      setDraggingNodeId(n.id);
                     }}
                     onClick={(e: React.MouseEvent) => {
                       props.onNodeClick?.(e, n);
@@ -3923,6 +3938,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showHandles={n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
                     viewport={viewport}
+                    showDragPlaceholder={draggingNodeId === n.id}
                     onImageUpload={async (nodeId: string, file: File) => {
                       return new Promise((resolve) => {
                         const reader = new FileReader();
