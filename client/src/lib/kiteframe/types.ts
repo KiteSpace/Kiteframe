@@ -437,6 +437,9 @@ export interface CompoundNodeData extends BasicNodeData {
   containerPadding?: number;
   gap?: number; // Gap between subcomponents
   userResized?: boolean; // Flag to track if user has manually resized the node
+  sourceRowId?: string;       // Row ID when generated from template
+  sourceTableId?: string;     // Table ID when generated from template
+  sourceTemplateId?: string;  // Template ID when generated from template
 }
 
 // ============= SAVED COMPOUND TEMPLATES =============

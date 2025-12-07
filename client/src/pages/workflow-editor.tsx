@@ -25,6 +25,7 @@ import { ImageUploadModal } from '@/lib/kiteframe/components/modals/ImageUploadM
 import { LinearToolbar } from '@/lib/kiteframe/components/LinearToolbar';
 import { QuickCreateRadialMenu, ShapeType } from '@/lib/kiteframe/components/QuickCreateRadialMenu';
 import { TablePanel } from '@/lib/kiteframe/components/TablePanel';
+import { NodeGalleryPanel } from '@/lib/kiteframe/components/NodeGalleryPanel';
 import { SavedProjectsDrawer } from '@/components/SavedProjectsDrawer';
 import { HomeScreen } from '@/components/HomeScreen';
 import { AiProvider, useAi } from '../ai/AiProvider';
@@ -64,7 +65,8 @@ import {
   Menu, 
   ChevronLeft,
   ChevronRight,
-  Home
+  Home,
+  LayoutGrid
 } from 'lucide-react';
 
 // Workflow metadata types
@@ -3457,6 +3459,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Table link picker state for FormNode
   const [tableLinkPicker, setTableLinkPicker] = useState<{ formNodeId: string } | null>(null);
 
+  // Node Gallery Panel state
+  const [showGalleryPanel, setShowGalleryPanel] = useState(false);
+
   // ============= COMPOUND TEMPLATE STORE =============
   // Project-level template storage for saved compound node templates
   const TEMPLATE_STORE_KEY = 'kiteframe-compound-templates';
@@ -3733,7 +3738,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     
     toast({ 
       title: "Nodes Generated", 
-      description: `Created ${newNodes.length} node${newNodes.length > 1 ? 's' : ''} from "${template.name}"` 
+      description: `Created ${newNodes.length} node${newNodes.length > 1 ? 's' : ''} from "${template.name}". Open Gallery to view all.`,
+      action: (
+        <button
+          onClick={() => setShowGalleryPanel(true)}
+          className="ml-2 px-3 py-1 text-xs font-medium bg-indigo-500 hover:bg-indigo-600 text-white rounded-md transition-colors"
+          data-testid="open-gallery-from-toast"
+        >
+          Open Gallery
+        </button>
+      )
     });
   }, [nodes, toast, setNodes, incrementTemplateUsage, saveToHistory]);
 
@@ -7212,6 +7226,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               });
             }}
           />
+        )}
+
+        {/* Node Gallery Panel */}
+        {showGalleryPanel && (
+          <div className="fixed bottom-4 right-4 z-50 w-[600px] max-w-[calc(100vw-2rem)]">
+            <NodeGalleryPanel
+              nodes={nodes}
+              templates={savedTemplates}
+              onFocusNode={focusOnNode}
+              onClose={() => setShowGalleryPanel(false)}
+            />
+          </div>
         )}
 
         {/* Plugin Test Panel */}

@@ -12,6 +12,7 @@ export { TableNode, createTableNode } from './components/TableNode';
 export { TablePanel } from './components/TablePanel';
 export { FormNode, createFormNode } from './components/FormNode';
 export { DataLinkPicker } from './components/DataLinkPicker';
+export { NodeGalleryPanel } from './components/NodeGalleryPanel';
 
 // Edge components and utilities
 export { EdgeProperties } from './components/EdgeProperties';
