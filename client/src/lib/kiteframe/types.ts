@@ -408,6 +408,26 @@ export interface FormFieldDataLink {
   displayValue?: string; // Cached display value from the linked cell
 }
 
+// Form field type - all available input types
+export type FormFieldType = 
+  | 'text' 
+  | 'number' 
+  | 'email' 
+  | 'url' 
+  | 'date'
+  | 'textarea'
+  | 'checkbox'
+  | 'toggle'
+  | 'dropdown'
+  | 'radio';
+
+// Dropdown/Radio option definition
+export interface FormFieldOption {
+  id: string;
+  label: string;
+  value: string;
+}
+
 // Individual form field definition
 export interface FormNodeField {
   id: string;           // Unique field identifier
@@ -416,7 +436,10 @@ export interface FormNodeField {
   dataLink?: FormFieldDataLink; // Optional link to table cell
   placeholder?: string; // Placeholder text when empty
   required?: boolean;   // Whether field is required
-  type?: 'text' | 'number' | 'email' | 'url' | 'date'; // Input type hint
+  type?: FormFieldType; // Input type
+  checked?: boolean;    // For checkbox/toggle fields
+  options?: FormFieldOption[]; // For dropdown/radio fields
+  selectedOptionId?: string;   // For dropdown/radio - which option is selected
 }
 
 // Form Node Data - extends BasicNodeData with form-specific properties

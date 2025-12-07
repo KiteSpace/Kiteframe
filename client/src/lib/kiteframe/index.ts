@@ -64,7 +64,9 @@ export type {
   DataBindingsState,
   FormNodeData,
   FormNodeField,
-  FormFieldDataLink
+  FormFieldDataLink,
+  FormFieldType,
+  FormFieldOption
 } from './types';
 
 // Utilities
