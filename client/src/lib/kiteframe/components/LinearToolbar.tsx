@@ -17,6 +17,7 @@ import {
   AlignCenter,
   AlignRight,
   Link2,
+  Link2Off,
   Link as LinkIcon,
   ArrowLeftRight,
   Minus,
@@ -81,6 +82,7 @@ interface LinearToolbarProps {
   editingHyperlinkId?: string | null; // ID of hyperlink being edited
   selectedText?: string;
   onDelete?: () => void;
+  onBreakDataLink?: () => void;
   onEdgeStyleChange?: (style: {
     strokeStyle?: 'solid' | 'dashed' | 'dotted';
     strokeWidth?: number;
@@ -213,6 +215,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   editingHyperlinkId = null,
   selectedText = '',
   onDelete,
+  onBreakDataLink,
   onEdgeStyleChange,
   onEdgeDirectionSwap,
   onWireframe,
@@ -494,7 +497,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       
       return baseButtons;
     } else if (isEdgeTarget) {
-      return [
+      const isDataLink = edge?.data?.isDataLink === true;
+      const edgeButtons: ToolbarButton[] = [
         {
           id: 'color',
           icon: <Palette size={18} />,
@@ -538,16 +542,30 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           color: 'bg-amber-500',
           hoverColor: 'hover:bg-amber-600',
           hasSubmenu: true
-        },
-        {
+        }
+      ];
+      
+      if (isDataLink) {
+        edgeButtons.push({
+          id: 'breakLink',
+          icon: <Link2Off size={18} />,
+          label: 'Break Link',
+          color: 'bg-orange-500',
+          hoverColor: 'hover:bg-orange-600',
+          onClick: () => { onBreakDataLink?.(); onClose(); }
+        });
+      } else {
+        edgeButtons.push({
           id: 'delete',
           icon: <Trash2 size={18} />,
           label: 'Delete',
           color: 'bg-red-500',
           hoverColor: 'hover:bg-red-600',
           onClick: () => { onDelete?.(); onClose(); }
-        }
-      ];
+        });
+      }
+      
+      return edgeButtons;
     } else if (isCanvasObjectTarget) {
       // Sticky notes, text objects, shapes
       const objType = canvasObject?.type;

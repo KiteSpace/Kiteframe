@@ -467,6 +467,7 @@ export interface FormNodeData extends BasicNodeData {
   linkedTableId?: string;       // ID of the linked table (tableId from TableNodeData)
   linkedTableNodeId?: string;   // Node ID of the linked TableNode (for navigation/focusing)
   linkedTableName?: string;     // Display name of the linked table
+  linkedRowIndex?: number;      // 1-based row index when form is created from table row
 }
 
 // Compound Node Data - container for multiple subcomponents (Elementor-style builder)

@@ -6081,6 +6081,41 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }
               }}
               onConnect={(connection) => {
+                // Check if this is a TableNode→FormNode edge
+                const sourceNode = nodes.find(n => n.id === connection.source);
+                const targetNode = nodes.find(n => n.id === connection.target);
+                
+                // Handle table→form data linking
+                if (sourceNode?.type === 'table' && targetNode?.type === 'form') {
+                  const formData = targetNode.data as any;
+                  const hasExistingInputs = formData?.fields?.some((field: any) => 
+                    (field.value && field.value.trim() !== '') || field.dataLink
+                  );
+                  
+                  // Prevent linking to forms with existing input values or existing links
+                  if (hasExistingInputs) {
+                    toast({
+                      title: 'Cannot link to this form',
+                      description: 'This form already has input values. Clear the inputs first or use an empty form.',
+                      variant: 'destructive',
+                      duration: 4000,
+                    });
+                    return; // Don't create the edge
+                  }
+                  
+                  // Check if form is already linked to another table
+                  if (formData?.linkedTableId && formData.linkedTableId !== (sourceNode.data as TableNodeData).tableId) {
+                    toast({
+                      title: 'Form already linked',
+                      description: 'This form is already linked to another table. Break the existing link first.',
+                      variant: 'destructive',
+                      duration: 4000,
+                    });
+                    return; // Don't create the edge
+                  }
+                }
+                
+                // Create the edge
                 const newEdge: Edge = {
                   id: `edge-${Date.now()}`,
                   source: connection.source,
@@ -6089,14 +6124,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   style: { strokeColor: '#3b82f6', strokeWidth: 2 },
                   markers: { type: 'arrow' as const, position: 'end' as const },
                   reconnectable: true, // Enable reconnection for new edges
-                  interactable: true // Make edge clickable
+                  interactable: true, // Make edge clickable
+                  data: sourceNode?.type === 'table' && targetNode?.type === 'form' 
+                    ? { isDataLink: true } 
+                    : undefined
                 };
                 setEdges(prev => [...prev, newEdge]);
                 
-                // Check if this is a TableNode→FormNode edge and set linked table context
-                const sourceNode = nodes.find(n => n.id === connection.source);
-                const targetNode = nodes.find(n => n.id === connection.target);
-                
+                // Set linked table context for table→form connections
                 if (sourceNode?.type === 'table' && targetNode?.type === 'form') {
                   const tableData = sourceNode.data as TableNodeData;
                   // Resolve the table name from multiple sources with sensible fallbacks:
@@ -6124,6 +6159,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }
                     return n;
                   }));
+                  
+                  toast({
+                    title: 'Form linked to table',
+                    description: 'You can now link form inputs to table columns using the link icon.',
+                    duration: 3000,
+                  });
                 }
                 
                 saveToHistory();
@@ -6642,13 +6683,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   type: 'form',
                   position: basePosition,
                   data: {
-                    formTitle: String(primaryValue).slice(0, 50) || `Row ${rowIndex + 1}`,
+                    formTitle: `Row ${rowIndex + 1}`,
                     fields: formFields,
                     showLabels: true,
                     layout: 'vertical',
                     linkedTableId: tableId,
                     linkedTableNodeId: tableNode?.id,
                     linkedTableName: tableNode?.data?.label || table?.name || 'Table',
+                    linkedRowIndex: rowIndex + 1,
                     colors: {
                       headerBackground: '#6366f1',
                       bodyBackground: '#ffffff',
@@ -6656,10 +6698,38 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     },
                   },
                   width: 320,
-                  height: Math.max(200, 80 + columns.length * 60),
+                  height: Math.min(Math.max(200, 80 + columns.length * 60), 600),
                 };
                 
                 setNodes(prev => [...prev, newNode]);
+                
+                // Create edge between table and form with link emoji
+                if (tableNode) {
+                  const newEdge: import('../lib/kiteframe/types').Edge = {
+                    id: `edge-${Date.now()}`,
+                    source: tableNode.id,
+                    target: nodeId,
+                    type: 'bezier',
+                    label: '🔗',
+                    labelStyle: {
+                      fontSize: 14,
+                      backgroundColor: '#ffffff',
+                      padding: 4,
+                      borderRadius: 8,
+                    },
+                    style: {
+                      strokeWidth: 2,
+                      stroke: '#6366f1',
+                    },
+                    data: {
+                      isDataLink: true,
+                      linkedTableId: tableId,
+                      linkedRowIndex: rowIndex + 1,
+                    },
+                  };
+                  setEdges(prev => [...prev, newEdge]);
+                }
+                
                 saveToHistory();
                 
                 toast({
@@ -7945,6 +8015,51 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 });
               }
               setLinearToolbar(null);
+            }}
+            onBreakDataLink={() => {
+              if (linearToolbar.edge) {
+                const edgeId = linearToolbar.edge.id;
+                const sourceNodeId = linearToolbar.edge.source;
+                const targetNodeId = linearToolbar.edge.target;
+                
+                saveToHistory();
+                
+                // Delete the edge
+                setEdges(prev => prev.filter(e => e.id !== edgeId));
+                
+                // Clear the linked data from both form nodes (source or target)
+                setNodes(prev => prev.map(n => {
+                  if (n.type === 'form' && (n.id === sourceNodeId || n.id === targetNodeId)) {
+                    const formData = n.data as any;
+                    if (formData?.linkedTableId || formData?.linkedRowIndex !== undefined) {
+                      return {
+                        ...n,
+                        data: {
+                          ...formData,
+                          linkedTableId: undefined,
+                          linkedTableNodeId: undefined,
+                          linkedTableName: undefined,
+                          linkedRowIndex: undefined,
+                          fields: formData.fields?.map((field: any) => ({
+                            ...field,
+                            dataLink: undefined,
+                            value: '' // Clear values when unlinked
+                          }))
+                        }
+                      };
+                    }
+                  }
+                  return n;
+                }));
+                
+                toast({
+                  title: 'Data link broken',
+                  description: 'The form is no longer linked to the table row',
+                  duration: 3000,
+                });
+                
+                setLinearToolbar(null);
+              }
             }}
             onWireframe={() => {
               if (linearToolbar.node) {

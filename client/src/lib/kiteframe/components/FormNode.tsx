@@ -41,6 +41,7 @@ const MIN_FORM_WIDTH = 280;
 const MIN_FORM_HEIGHT = 150;
 const DEFAULT_FORM_WIDTH = 320;
 const DEFAULT_FORM_HEIGHT = 200;
+const MAX_FORM_HEIGHT = 600;
 
 interface FieldPickerMenuProps {
   isOpen: boolean;
@@ -193,7 +194,8 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
   const formTitle = node.data.formTitle || 'Form';
   
   const nodeWidth = node.style?.width || node.width || DEFAULT_FORM_WIDTH;
-  const nodeHeight = node.style?.height || node.height || DEFAULT_FORM_HEIGHT;
+  const rawHeight = node.style?.height || node.height || DEFAULT_FORM_HEIGHT;
+  const nodeHeight = Math.min(rawHeight, MAX_FORM_HEIGHT);
   
   const headerColor = node.data.colors?.headerBackground || '#6366f1';
   const bodyColor = node.data.colors?.bodyBackground || '#ffffff';
@@ -426,11 +428,9 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
   const renderFieldInput = useCallback((field: FormNodeField, isLinked: boolean, displayValue: string) => {
     const fieldType = field.type || 'text';
     const baseInputClass = cn(
-      "flex-1 px-2 py-1.5 text-sm border rounded transition-colors",
+      "w-full px-2 py-1.5 text-sm border rounded transition-colors",
       "focus:outline-none focus:ring-1 focus:ring-indigo-500",
-      isLinked 
-        ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-300 dark:border-indigo-600 text-indigo-700 dark:text-indigo-300" 
-        : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+      "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
     );
 
     switch (fieldType) {
@@ -590,14 +590,14 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
             />
           )}
           <div className={cn(
-            "flex gap-1",
+            "flex",
             isRadio ? "flex-col" : "items-center"
           )}>
-            <div className={cn("flex-1", isRadio && "mb-1")}>
+            <div className={cn("flex-1 min-w-0", isRadio && "mb-1")}>
               {renderFieldInput(field, isLinked, displayValue)}
             </div>
             
-            <div className="flex items-center gap-0.5 flex-shrink-0">
+            <div className="flex items-center flex-shrink-0">
               {!isCheckboxOrToggle && !isRadio && (
                 isLinked ? (
                   <button
@@ -630,15 +630,6 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
               </button>
             </div>
           </div>
-          
-          {isLinked && field.dataLink && (
-            <div className="text-xs text-indigo-500 dark:text-indigo-400 flex items-center gap-1">
-              <Link2 size={10} />
-              <span className="truncate">
-                Linked: {field.dataLink.tableId} → {field.dataLink.columnId}
-              </span>
-            </div>
-          )}
         </div>
       </div>
     );
