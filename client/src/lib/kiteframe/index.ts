@@ -8,6 +8,7 @@ export { NodeHandles } from './components/NodeHandles';
 // Library node components
 export { BasicNode } from './components/BasicNode';
 export { ImageNode } from './components/ImageNode';
+export { WebviewNode } from './components/WebviewNode';
 export { TableNode, createTableNode } from './components/TableNode';
 export { TablePanel } from './components/TablePanel';
 export { FormNode, createFormNode } from './components/FormNode';
@@ -66,7 +67,9 @@ export type {
   FormNodeField,
   FormFieldDataLink,
   FormFieldType,
-  FormFieldOption
+  FormFieldOption,
+  WebviewNodeData,
+  WebviewNodeComponentProps
 } from './types';
 
 // Utilities

@@ -5,7 +5,8 @@ export {
   createNodeWithId,
   generateNodeId,
   createBasicNode,
-  createImageNode
+  createImageNode,
+  createWebviewNode
 } from './NodeFactory.ts';
 
 // Export factory types

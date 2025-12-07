@@ -67,6 +67,7 @@ import {
   MoreVertical,
   Pencil,
   Link2,
+  Globe,
 } from "lucide-react";
 
 interface WorkflowTab {
@@ -294,6 +295,7 @@ export function Sidebar({
     { type: "table", icon: Table2, color: "text-teal-500", label: "Table" },
     { type: "form", icon: FormInput, color: "text-pink-500", label: "Form" },
     { type: "compound", icon: LayoutGrid, color: "text-emerald-500", label: "Compound" },
+    { type: "webview", icon: Globe, color: "text-cyan-500", label: "Web View" },
   ];
 
   const templateTypes = [

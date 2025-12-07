@@ -4,6 +4,7 @@ import type {
   NodeTemplate, 
   BasicNodeData, 
   ImageNodeData,
+  WebviewNodeData,
   BasicNode,
   ImageNode,
   KiteFrameNode
@@ -131,6 +132,42 @@ export const createImageNode = (
   showHandles: true
 });
 
+export type WebviewNode = Node & { data: WebviewNodeData };
+
+export const createWebviewNode = (
+  id: string,
+  position: Position,
+  data: Partial<WebviewNodeData> = {}
+): WebviewNode => ({
+  id,
+  type: 'webview',
+  position,
+  data: {
+    label: data.label || 'Web View',
+    description: data.description || '',
+    url: data.url || '',
+    title: data.title || 'Web View',
+    favicon: data.favicon || '',
+    serviceName: data.serviceName || '',
+    serviceIcon: data.serviceIcon || '',
+    isLoading: false,
+    loadError: undefined,
+    showControls: true,
+    colors: data.colors || {
+      headerBackground: '#06b6d4',
+      bodyBackground: '#ffffff',
+      headerTextColor: '#ffffff',
+    }
+  },
+  width: 480,
+  height: 360,
+  draggable: true,
+  selectable: true,
+  doubleClickable: true,
+  resizable: true,
+  showHandles: true
+});
+
 // Universal node factory function
 export const createNode = <TData = any>(
   type: string,
@@ -199,6 +236,35 @@ nodeRegistry.register({
   },
   displayName: 'Image Node',
   description: 'A node that displays images with upload support',
+  category: 'core'
+});
+
+nodeRegistry.register({
+  type: 'webview',
+  factory: createWebviewNode,
+  template: {
+    type: 'webview',
+    defaultData: {
+      label: 'Web View',
+      description: '',
+      url: '',
+      title: 'Web View',
+      favicon: '',
+      serviceName: '',
+      serviceIcon: '',
+      isLoading: false,
+      showControls: true,
+      colors: {
+        headerBackground: '#06b6d4',
+        bodyBackground: '#ffffff',
+        headerTextColor: '#ffffff',
+      }
+    },
+    defaultStyle: { width: 480, height: 360 },
+    defaultPosition: { x: 0, y: 0 }
+  },
+  displayName: 'Web View',
+  description: 'Embed external web content like Figma, Replit, or any website',
   category: 'core'
 });
 

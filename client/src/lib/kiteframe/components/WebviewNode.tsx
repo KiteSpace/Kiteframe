@@ -123,7 +123,7 @@ const FullscreenModal: React.FC<FullscreenModalProps> = ({ url, title, favicon, 
         <iframe
           src={url}
           className="w-full h-full border-0"
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+          sandbox="allow-scripts allow-popups allow-forms"
           allow="fullscreen"
           loading="lazy"
           title={title}
@@ -482,7 +482,7 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
                 ref={iframeRef}
                 src={url}
                 className="w-full h-full border-0"
-                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                sandbox="allow-scripts allow-popups allow-forms"
                 allow="fullscreen"
                 loading="lazy"
                 title={title}
