@@ -56,25 +56,77 @@ function updateUserSession(
 }
 
 async function upsertUser(claims: any) {
-  const dbUser = await storage.upsertUser({
-    id: claims["sub"],
-    email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
-    authProvider: 'replit',
-    authProviderId: claims["sub"],
-  });
+  const replitProviderId = claims["sub"];
+  const email = claims["email"];
   
-  await linkOAuthProvider(claims["sub"], {
-    provider: 'replit',
-    providerId: claims["sub"],
-    email: claims["email"],
-    displayName: `${claims["first_name"] || ''} ${claims["last_name"] || ''}`.trim() || claims["email"],
-    profileImageUrl: claims["profile_image_url"],
+  // First, check if this Replit provider ID is already linked to a user
+  const existingProvider = await db.query.oauthProviders.findFirst({
+    where: and(
+      eq(oauthProviders.provider, 'replit'),
+      eq(oauthProviders.providerId, replitProviderId)
+    ),
   });
+
+  let dbUser;
+
+  if (existingProvider) {
+    // Update last used and return the existing user
+    await db.update(oauthProviders)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(oauthProviders.id, existingProvider.id));
+
+    dbUser = await db.query.users.findFirst({
+      where: eq(users.id, existingProvider.userId),
+    });
+  } else {
+    // Check if a user with this email already exists (e.g., CSV-imported)
+    if (email) {
+      dbUser = await db.query.users.findFirst({
+        where: eq(users.email, email),
+      });
+    }
+
+    if (!dbUser) {
+      // No existing user found, create a new one
+      const [newUser] = await db.insert(users).values({
+        id: replitProviderId,
+        email: email,
+        firstName: claims["first_name"],
+        lastName: claims["last_name"],
+        profileImageUrl: claims["profile_image_url"],
+        authProvider: 'replit',
+        authProviderId: replitProviderId,
+        subscriptionTier: 'free',
+        subscriptionStatus: 'active',
+      }).returning();
+      dbUser = newUser;
+    } else {
+      // Existing user found by email, update their profile info
+      const [updatedUser] = await db.update(users)
+        .set({
+          firstName: claims["first_name"] || dbUser.firstName,
+          lastName: claims["last_name"] || dbUser.lastName,
+          profileImageUrl: claims["profile_image_url"] || dbUser.profileImageUrl,
+          authProvider: 'replit',
+          authProviderId: replitProviderId,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, dbUser.id))
+        .returning();
+      dbUser = updatedUser;
+    }
+
+    // Link the Replit OAuth provider to the user
+    await linkOAuthProvider(dbUser!.id, {
+      provider: 'replit',
+      providerId: replitProviderId,
+      email: email,
+      displayName: `${claims["first_name"] || ''} ${claims["last_name"] || ''}`.trim() || email,
+      profileImageUrl: claims["profile_image_url"],
+    });
+  }
   
-  return dbUser;
+  return dbUser!;
 }
 
 type OAuthProfile = {
