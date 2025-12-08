@@ -809,6 +809,8 @@ export interface WebviewNodeComponentProps extends GenericNodeComponentProps<Web
 export interface CodeNodeDataSource {
   nodeId: string;
   nodeType: 'form' | 'table';
+  nodeName?: string;  // Display name of the connected node
+  variableName?: string;  // User-defined variable name for accessing data (tables only)
   data: Record<string, unknown>;  // Key-value pairs from form fields or table rows
 }
 

@@ -6172,6 +6172,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 
                 // Create the edge
                 const isTableToFormLink = sourceNode?.type === 'table' && targetNode?.type === 'form';
+                const isDataToCodeLink = (sourceNode?.type === 'table' || sourceNode?.type === 'form') && targetNode?.type === 'code';
+                
+                // Build edge data based on connection type
+                let edgeData: Record<string, any> | undefined = undefined;
+                if (isTableToFormLink) {
+                  edgeData = { isDataLink: true };
+                } else if (isDataToCodeLink && connection.data?.variableName) {
+                  edgeData = { 
+                    isDataLink: true, 
+                    variableName: connection.data.variableName 
+                  };
+                }
+                
                 const newEdge: Edge = {
                   id: `edge-${Date.now()}`,
                   source: connection.source,
@@ -6181,10 +6194,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   markers: { type: 'arrow' as const, position: 'end' as const },
                   reconnectable: true, // Enable reconnection for new edges
                   interactable: true, // Make edge clickable
-                  label: isTableToFormLink ? '🔗' : undefined,
-                  data: isTableToFormLink 
-                    ? { isDataLink: true } 
-                    : undefined
+                  label: isTableToFormLink ? '🔗' : (isDataToCodeLink ? '🔗' : undefined),
+                  data: edgeData
                 };
                 setEdges(prev => [...prev, newEdge]);
                 

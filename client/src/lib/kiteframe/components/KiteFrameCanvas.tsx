@@ -1174,7 +1174,7 @@ type Props = {
   onNodesChange: (n: Node[]) => void;
   onEdgesChange: (e: Edge[]) => void;
   onCanvasObjectsChange?: (canvasObjects: CanvasObject[]) => void;
-  onConnect?: (c: { source: string; target: string }) => void;
+  onConnect?: (c: { source: string; target: string; data?: { variableName?: string } }) => void;
   minZoom?: number;
   maxZoom?: number;
   fitView?: boolean;
@@ -1491,6 +1491,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       displayValue?: string;
     };
   } | null>(null);
+
+  // Variable Name Dialog state for Table→Code connections
+  const [pendingTableToCodeConnection, setPendingTableToCodeConnection] = useState<{
+    sourceId: string;
+    targetId: string;
+    sourceNodeName: string;
+  } | null>(null);
+  const [variableNameInput, setVariableNameInput] = useState('');
 
   // Smart Guides state
   const [currentGuides, setCurrentGuides] = useState<SnapGuide[]>([]);
@@ -2400,9 +2408,39 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     if (connecting) {
       const { sourceId, hoverTargetId, eligible } = connecting;
 
+      // Helper to check if connection is table/form→code and needs variable name dialog
+      const checkAndHandleTableToCodeConnection = (source: string, target: string): boolean => {
+        const sourceNode = props.nodes.find(n => n.id === source);
+        const targetNode = props.nodes.find(n => n.id === target);
+        
+        if ((sourceNode?.type === 'table' || sourceNode?.type === 'form') && targetNode?.type === 'code') {
+          // Get source node name for the dialog
+          const sourceNodeName = (sourceNode.data as any)?.label || 
+                                 (sourceNode.data as any)?.title || 
+                                 (sourceNode.type === 'table' ? 'Table' : 'Form');
+          
+          // Show variable name dialog
+          setPendingTableToCodeConnection({
+            sourceId: source,
+            targetId: target,
+            sourceNodeName,
+          });
+          // Suggest a camelCase variable name based on source node name
+          const suggestedName = sourceNodeName
+            .toLowerCase()
+            .replace(/[^a-z0-9]+(.)/g, (_, char) => char.toUpperCase())
+            .replace(/[^a-zA-Z0-9]/g, '') || 'data';
+          setVariableNameInput(suggestedName);
+          return true; // Connection intercepted
+        }
+        return false; // Normal connection
+      };
+
       // If hovering a valid node, connect directly (no need to land on handle)
       if (hoverTargetId && eligible) {
-        props.onConnect?.({ source: sourceId, target: hoverTargetId });
+        if (!checkAndHandleTableToCodeConnection(sourceId, hoverTargetId)) {
+          props.onConnect?.({ source: sourceId, target: hoverTargetId });
+        }
         setConnecting(null);
         return;
       }
@@ -2429,7 +2467,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         }
       }
       if (best && !edgeExists(sourceId, best.id)) {
-        props.onConnect?.({ source: sourceId, target: best.id });
+        if (!checkAndHandleTableToCodeConnection(sourceId, best.id)) {
+          props.onConnect?.({ source: sourceId, target: best.id });
+        }
       }
       setConnecting(null);
     }
@@ -4298,18 +4338,28 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       sourceNode.data?.fields?.forEach((field: any) => {
                         formData[field.label || field.id] = field.value;
                       });
-                      return { nodeId: sourceNode.id, nodeType: 'form' as const, data: formData };
+                      const formName = sourceNode.data?.label || 'Form';
+                      const variableName = edge.data?.variableName;
+                      return { nodeId: sourceNode.id, nodeType: 'form' as const, nodeName: formName, variableName: variableName, data: formData };
                     }
                     if (sourceNode.type === 'table') {
                       const tableId = sourceNode.data?.tableId;
                       const table = tableId ? props.tableData?.[tableId] : null;
                       if (table) {
-                        return { nodeId: sourceNode.id, nodeType: 'table' as const, data: { rows: table.rows, columns: table.columns } };
+                        const tableName = sourceNode.data?.label || 'Table';
+                        const variableName = edge.data?.variableName;
+                        return { 
+                          nodeId: sourceNode.id, 
+                          nodeType: 'table' as const, 
+                          nodeName: tableName,
+                          variableName: variableName,
+                          data: { rows: table.rows, columns: table.columns } 
+                        };
                       }
                     }
                     return null;
                   })
-                  .filter(Boolean) as Array<{ nodeId: string; nodeType: 'form' | 'table'; data: Record<string, unknown> }>;
+                  .filter(Boolean) as Array<{ nodeId: string; nodeType: 'form' | 'table'; nodeName?: string; variableName?: string; data: Record<string, unknown> }>;
 
                 return (
                   <CodeNodeComponent
@@ -4338,10 +4388,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       }
                       const renderNodeId = generateNodeId();
                       const codeNodeWidth = codeNode.style?.width || codeNode.width || 400;
+                      const initialHtmlContent = codeNode.data?.lastResult?.htmlOutput || codeNode.data?.lastResult?.output || '';
                       const renderNode = createRenderNode(
                         renderNodeId,
                         { x: codeNode.position.x + codeNodeWidth + 50, y: codeNode.position.y },
-                        { label: 'HTML Output', sourceNodeId: codeNodeId }
+                        { label: 'HTML Output', sourceNodeId: codeNodeId, htmlContent: initialHtmlContent }
                       );
                       props.onNodesChange?.([...props.nodes, renderNode]);
                       props.onConnect?.({ source: codeNodeId, target: renderNodeId });
@@ -5862,6 +5913,120 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               setDataLinkPicker(null);
             }}
           />
+        )}
+
+        {/* Variable Name Dialog for Table→Code connections */}
+        {pendingTableToCodeConnection && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div 
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => {
+                setPendingTableToCodeConnection(null);
+                setVariableNameInput('');
+              }}
+            />
+            <div 
+              className="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-[380px] overflow-hidden"
+              data-testid="variable-name-dialog"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                <div className="flex items-center gap-2">
+                  <Table2 size={18} className="text-indigo-500" />
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Link Data to Code
+                  </h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setPendingTableToCodeConnection(null);
+                    setVariableNameInput('');
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  data-testid="variable-name-dialog-close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-4 space-y-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Choose a variable name to access <span className="font-medium text-indigo-600 dark:text-indigo-400">{pendingTableToCodeConnection.sourceNodeName}</span> data in your code.
+                </p>
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Variable Name
+                  </label>
+                  <input
+                    type="text"
+                    value={variableNameInput}
+                    onChange={(e) => setVariableNameInput(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && variableNameInput.trim()) {
+                        props.onConnect?.({
+                          source: pendingTableToCodeConnection.sourceId,
+                          target: pendingTableToCodeConnection.targetId,
+                          data: { variableName: variableNameInput.trim() }
+                        });
+                        setPendingTableToCodeConnection(null);
+                        setVariableNameInput('');
+                      } else if (e.key === 'Escape') {
+                        setPendingTableToCodeConnection(null);
+                        setVariableNameInput('');
+                      }
+                    }}
+                    placeholder="e.g., products, users, orderData"
+                    className="w-full px-3 py-2 text-sm font-mono border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    autoFocus
+                    data-testid="variable-name-input"
+                  />
+                  <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    Use this variable in your code: <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">{variableNameInput || 'variableName'}</code>
+                  </p>
+                </div>
+
+                <div className="bg-indigo-50 dark:bg-indigo-900/30 rounded-lg p-3 text-xs">
+                  <p className="text-indigo-700 dark:text-indigo-300">
+                    <span className="font-medium">Example:</span> Access data with <code className="px-1 py-0.5 bg-indigo-100 dark:bg-indigo-800 rounded">{variableNameInput || 'data'}.filter(r =&gt; r.status === 'active')</code>
+                  </p>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30">
+                <button
+                  onClick={() => {
+                    setPendingTableToCodeConnection(null);
+                    setVariableNameInput('');
+                  }}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  data-testid="variable-name-cancel"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (variableNameInput.trim()) {
+                      props.onConnect?.({
+                        source: pendingTableToCodeConnection.sourceId,
+                        target: pendingTableToCodeConnection.targetId,
+                        data: { variableName: variableNameInput.trim() }
+                      });
+                      setPendingTableToCodeConnection(null);
+                      setVariableNameInput('');
+                    }
+                  }}
+                  disabled={!variableNameInput.trim()}
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed rounded-lg transition-colors"
+                  data-testid="variable-name-confirm"
+                >
+                  Link Data
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </>
