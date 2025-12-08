@@ -594,7 +594,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           hoverColor: 'hover:bg-amber-600',
           hasSubmenu: true
         }
-      ];
+      );
       
       // All edges get delete button - for data link edges, just removes the edge (keeps form values)
       edgeButtons.push({
