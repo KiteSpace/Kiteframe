@@ -13,6 +13,8 @@ export { TableNode, createTableNode } from './components/TableNode';
 export { TablePanel } from './components/TablePanel';
 export { FormNode, createFormNode } from './components/FormNode';
 export { default as CodeNode, createCodeNode } from './components/CodeNode';
+export { default as RenderNode, createRenderNode } from './components/RenderNode';
+export type { RenderNodeData, RenderNode as RenderNodeType, RenderNodeComponentProps } from './components/RenderNode';
 export { DataLinkPicker } from './components/DataLinkPicker';
 export { NodeGalleryPanel } from './components/NodeGalleryPanel';
 

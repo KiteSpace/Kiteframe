@@ -42,6 +42,7 @@ import { FormNode } from "./FormNode";
 import { CompoundNode } from "./CompoundNode";
 import { WebviewNode } from "./WebviewNode";
 import CodeNodeComponent from "./CodeNode";
+import RenderNodeComponent from "./RenderNode";
 import { DataLinkPicker } from "./DataLinkPicker";
 import { TextObject } from "./TextObject";
 import { StickyNoteObject } from "./StickyNoteObject";
@@ -4399,6 +4400,77 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       zIndex: n.zIndex || 0,
                     }}
                     className={n.selected ? "selected" : ""}
+                  />
+                );
+              }
+
+              if (n.type === "render") {
+                const sourceEdge = props.edges?.find((edge) => edge.target === n.id);
+                const sourceNode = sourceEdge ? props.nodes.find((node) => node.id === sourceEdge.source) : null;
+                const htmlContent = sourceNode?.type === 'code' && sourceNode.data?.lastResult?.htmlOutput
+                  ? sourceNode.data.lastResult.htmlOutput
+                  : n.data?.htmlContent || '';
+
+                return (
+                  <RenderNodeComponent
+                    key={n.id}
+                    node={{ ...n, data: { ...n.data, htmlContent, sourceNodeId: sourceNode?.id } } as any}
+                    onUpdate={(nodeId: string, updates: any) => {
+                      const updated = props.nodes.map((node) =>
+                        node.id === nodeId ? { ...node, ...updates } : node,
+                      );
+                      props.onNodesChange?.(updated);
+                    }}
+                    onFocusNode={props.onFocusNode}
+                    onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
+                    showHandles={n.showHandles !== false}
+                    showResizeHandle={n.resizable !== false}
+                    onStartDrag={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      if (!containerRef.current) return;
+                      const rect = containerRef.current.getBoundingClientRect();
+                      const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+
+                      const selectedNodes = props.nodes.filter((node) => node.selected === true);
+                      const selectedCanvasObjects = (props.canvasObjects || []).filter((obj) => obj.selected === true);
+                      const totalSelected = selectedNodes.length + selectedCanvasObjects.length;
+                      const isGroupDrag = totalSelected > 1 && n.selected === true;
+
+                      const origins = isGroupDrag
+                        ? selectedNodes.map((node) => ({ id: node.id, origin: { ...node.position } }))
+                        : [{ id: n.id, origin: { ...n.position } }];
+
+                      const canvasObjectOrigins = isGroupDrag
+                        ? selectedCanvasObjects.map((obj) => ({ id: obj.id, origin: { ...obj.position } }))
+                        : [];
+
+                      dragInfo.current = {
+                        id: n.id,
+                        start: wp,
+                        origin: { ...n.position },
+                        origins: origins,
+                        canvasObjectOrigins: canvasObjectOrigins,
+                        isGroupDrag: isGroupDrag,
+                      };
+                    }}
+                    onClick={(e: React.MouseEvent) => {
+                      props.onNodeClick?.(e, n);
+                    }}
+                    onHandleConnect={(position, e) => {
+                      if (!containerRef.current) return;
+                      const rect = containerRef.current.getBoundingClientRect();
+                      const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+                      setConnecting({
+                        sourceId: n.id,
+                        wx: wp.x,
+                        wy: wp.y,
+                        hoverTargetId: null,
+                        eligible: false,
+                      });
+                    }}
+                    viewport={viewport}
+                    showDragPlaceholder={draggingNodeId === n.id}
+                    isAnyDragActive={!!draggingNodeId}
                   />
                 );
               }

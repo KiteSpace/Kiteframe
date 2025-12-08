@@ -101,7 +101,7 @@ export type Edge = {
   data?: any; // Keep for backward compatibility
 };
 
-export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview' | 'code';
+export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview' | 'code' | 'render';
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 
 // ============= COMPOUND NODE TYPES =============
