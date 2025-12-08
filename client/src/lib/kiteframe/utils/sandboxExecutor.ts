@@ -185,6 +185,13 @@ if (typeof window !== 'undefined') {
   initMessageListener();
 }
 
+function isFullHtmlDocument(code: string): boolean {
+  const trimmed = code.trim().toLowerCase();
+  return trimmed.startsWith('<!doctype') || 
+         trimmed.startsWith('<html') ||
+         (trimmed.startsWith('<head') && trimmed.includes('<body'));
+}
+
 export function executeInSandbox(
   code: string,
   language: CodeLanguage,
@@ -205,6 +212,16 @@ export function executeInSandbox(
       resolve({
         success: true,
         output: undefined,
+        executedAt: new Date().toISOString(),
+      });
+      return;
+    }
+
+    if (isFullHtmlDocument(code)) {
+      resolve({
+        success: true,
+        output: code,
+        htmlOutput: code,
         executedAt: new Date().toISOString(),
       });
       return;
