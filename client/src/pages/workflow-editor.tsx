@@ -6312,6 +6312,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 
               }}
               onNodeDoubleClick={(e: React.MouseEvent, node: Node, part?: 'header' | 'body') => {
+                // Skip inline text editing for code nodes (they have their own CodeMirror editor)
+                if (node.type === 'code') {
+                  return;
+                }
                 // Double-click triggers inline text editing for specific part
                 setInlineEditing({ nodeId: node.id, part: part || 'header' });
                 // Also show the linear toolbar with text style options

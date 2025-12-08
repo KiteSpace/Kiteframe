@@ -80,8 +80,9 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   const ghostSpacing = proFeatures?.quickAdd?.defaultSpacing ?? 250;
   
   // Quick-add is only enabled for basic node types (step, input, process, condition, output, ai)
-  const disabledNodeTypes = ['image', 'table', 'form', 'compound', 'code'];
-  const isQuickAddEnabled = proFeatures?.quickAdd?.enabled !== false && !disabledNodeTypes.includes(node.type || '');
+  // Note: Code nodes have handles for connections but NOT quick-add
+  const quickAddDisabledNodeTypes = ['image', 'table', 'form', 'compound', 'code'];
+  const isQuickAddEnabled = proFeatures?.quickAdd?.enabled !== false && !quickAddDisabledNodeTypes.includes(node.type || '');
   
   const handlePositions = {
     top:    { cx: screenW / 2, cy: 0 },

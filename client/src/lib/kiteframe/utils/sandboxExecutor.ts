@@ -1,6 +1,6 @@
 import type { CodeExecutionResult, CodeLanguage } from '../types';
 
-const EXECUTION_TIMEOUT = 5000;
+const EXECUTION_TIMEOUT = 15000;
 const SANDBOX_ORIGIN = 'null';
 
 interface SandboxMessage {

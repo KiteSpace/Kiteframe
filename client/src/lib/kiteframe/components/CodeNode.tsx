@@ -35,6 +35,12 @@ const MIN_CODE_HEIGHT = 200;
 const MAX_CODE_HEIGHT = 800;
 const DEFAULT_OUTPUT_HEIGHT = 120;
 
+const containsHtml = (text: string): boolean => {
+  if (!text || typeof text !== 'string') return false;
+  const htmlTagPattern = /<\/?[a-z][\s\S]*?>/i;
+  return htmlTagPattern.test(text);
+};
+
 const LANGUAGE_CONFIG: Record<CodeLanguage, { label: string; placeholder: string }> = {
   javascript: {
     label: 'JavaScript',
@@ -202,24 +208,31 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
       } else if (onExecuteCode) {
         // Use external executor if provided
         result = await onExecuteCode(node.id, code, language, inputData);
-        // If HTML output mode is enabled, treat the output as HTML
-        if (outputType === 'html' && result.success && result.output) {
-          result = { ...result, htmlOutput: result.output };
-        }
       } else {
         // Execute in sandbox
         result = await executeInSandbox(code, language, inputData);
-        // If HTML output mode is enabled, treat the output as HTML
-        if (outputType === 'html' && result.success && result.output) {
+      }
+      
+      // Auto-detect HTML in output and enable HTML rendering
+      let detectedHtmlMode = outputType === 'html';
+      if (result.success && result.output && !detectedHtmlMode) {
+        if (containsHtml(result.output)) {
+          detectedHtmlMode = true;
           result = { ...result, htmlOutput: result.output };
         }
+      }
+      
+      // If HTML mode is enabled (manual or auto-detected), set htmlOutput
+      if (detectedHtmlMode && result.success && result.output && !result.htmlOutput) {
+        result = { ...result, htmlOutput: result.output };
       }
       
       onUpdate?.(node.id, {
         data: { 
           ...node.data, 
           lastResult: result,
-          showOutput: true 
+          showOutput: true,
+          outputType: detectedHtmlMode ? 'html' : outputType
         },
       });
     } catch (error) {
