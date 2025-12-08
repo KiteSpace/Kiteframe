@@ -5,10 +5,13 @@ import type {
   BasicNodeData, 
   ImageNodeData,
   WebviewNodeData,
+  CodeNodeData,
   BasicNode,
   ImageNode,
+  CodeNode,
   KiteFrameNode
 } from '../types';
+import { createCodeNode } from '../components/CodeNode';
 
 // Factory function type for creating nodes
 export type NodeFactoryFunction<TData = any> = (
@@ -265,6 +268,31 @@ nodeRegistry.register({
   },
   displayName: 'Web View',
   description: 'Embed external web content like Figma, Replit, or any website',
+  category: 'core'
+});
+
+nodeRegistry.register({
+  type: 'code',
+  factory: createCodeNode,
+  template: {
+    type: 'code',
+    defaultData: {
+      label: 'Code',
+      code: '',
+      language: 'javascript' as const,
+      showOutput: true,
+      outputHeight: 120,
+      colors: {
+        headerBackground: '#1e1e1e',
+        bodyBackground: '#252526',
+        headerTextColor: '#d4d4d4',
+      }
+    },
+    defaultStyle: { width: 400, height: 350 },
+    defaultPosition: { x: 0, y: 0 }
+  },
+  displayName: 'Code Node',
+  description: 'Execute JavaScript or Python code with inputs from connected Form/Table nodes',
   category: 'core'
 });
 

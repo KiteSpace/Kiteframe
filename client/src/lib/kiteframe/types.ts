@@ -101,7 +101,7 @@ export type Edge = {
   data?: any; // Keep for backward compatibility
 };
 
-export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview';
+export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview' | 'code';
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 
 // ============= COMPOUND NODE TYPES =============
@@ -481,6 +481,38 @@ export interface CompoundNodeData extends BasicNodeData {
   sourceTemplateId?: string;  // Template ID when generated from template
 }
 
+// ============= CODE NODE TYPES =============
+// Used for Code Nodes with integrated editor and output display
+
+export type CodeLanguage = 'javascript' | 'python';
+
+// Output result from code execution
+export interface CodeExecutionResult {
+  success: boolean;
+  output?: string;        // Console output (stdout)
+  error?: string;         // Error message if execution failed
+  returnValue?: unknown;  // The final expression result
+  executedAt?: string;    // ISO timestamp of last execution
+}
+
+// Input variable binding - links to connected Form/Table node data
+export interface CodeInputBinding {
+  sourceNodeId: string;   // ID of the connected Form or Table node
+  sourceType: 'form' | 'table';
+  variableName: string;   // Variable name to inject into code context
+}
+
+// Code Node Data - extends BasicNodeData with code editor properties
+export interface CodeNodeData extends BasicNodeData {
+  code: string;                           // The source code
+  language: CodeLanguage;                 // Programming language
+  lastResult?: CodeExecutionResult;       // Last execution result
+  inputBindings?: CodeInputBinding[];     // Bound input variables from connected nodes
+  autoRun?: boolean;                      // Auto-run when inputs change
+  showOutput?: boolean;                   // Whether output panel is visible
+  outputHeight?: number;                  // Height of output panel in pixels
+}
+
 // ============= SAVED COMPOUND TEMPLATES =============
 // Templates for saving and reusing CompoundNode layouts with column bindings
 
@@ -611,9 +643,14 @@ export type CompoundNode = Node & {
   data: CompoundNodeData;
 };
 
+export type CodeNode = Node & {
+  type: 'code';
+  data: CodeNodeData;
+};
+
 // Union type for core library nodes - use this for type-safe node handling
 // This is the preferred type when you need full type safety on node.data
-export type KiteFrameNode = BasicNode | ImageNode | TableNode | DataBackedNode | FormNode | CompoundNode;
+export type KiteFrameNode = BasicNode | ImageNode | TableNode | DataBackedNode | FormNode | CompoundNode | CodeNode;
 
 // Alias for type-safe node operations (same as KiteFrameNode)
 export type TypedNode = KiteFrameNode;
@@ -625,7 +662,8 @@ export type NodeDataUnion =
   | TableNodeData 
   | DataBackedNodeData 
   | FormNodeData 
-  | CompoundNodeData;
+  | CompoundNodeData
+  | CodeNodeData;
 
 // Node Creation/Factory Types
 export interface NodeTemplate<T = any> {
@@ -656,6 +694,10 @@ export interface FormNodeTemplate extends NodeTemplate<FormNodeData> {
 
 export interface CompoundNodeTemplate extends NodeTemplate<CompoundNodeData> {
   type: 'compound';
+}
+
+export interface CodeNodeTemplate extends NodeTemplate<CodeNodeData> {
+  type: 'code';
 }
 
 // Properties System Types
@@ -758,6 +800,19 @@ export interface WebviewNodeComponentProps extends GenericNodeComponentProps<Web
   node: Node & { data: WebviewNodeData };
   onOpenFullscreen?: (nodeId: string) => void;
   onConvertToLink?: (nodeId: string, url: string, title: string) => void;
+}
+
+// Data source info for code node input collection
+export interface CodeNodeDataSource {
+  nodeId: string;
+  nodeType: 'form' | 'table';
+  data: Record<string, unknown>;  // Key-value pairs from form fields or table rows
+}
+
+export interface CodeNodeComponentProps extends GenericNodeComponentProps<CodeNodeData> {
+  node: Node & { data: CodeNodeData };
+  connectedDataSources?: CodeNodeDataSource[];  // Data from connected Form/Table nodes
+  onExecuteCode?: (nodeId: string, code: string, language: CodeLanguage, inputs: Record<string, unknown>) => Promise<CodeExecutionResult>;
 }
 
 // Pro Features Configuration Interfaces

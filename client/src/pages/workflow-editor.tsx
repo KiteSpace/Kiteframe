@@ -4708,6 +4708,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     const isFormNode = type === 'form';
                     const isCompoundNode = type === 'compound';
                     const isImageNode = type === 'image';
+                    const isCodeNode = type === 'code';
                     const tableId = isTableNode ? `table-${nodeId}` : undefined;
 
                     const getNodeData = () => {
@@ -4756,6 +4757,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           }
                         };
                       }
+                      if (isCodeNode) {
+                        return {
+                          label: 'Code',
+                          code: '',
+                          language: 'javascript',
+                          showOutput: true,
+                          outputHeight: 120,
+                          colors: {
+                            headerBackground: '#1e1e1e',
+                            bodyBackground: '#252526',
+                            headerTextColor: '#d4d4d4',
+                          }
+                        };
+                      }
                       return {
                         label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                         description: `Configure ${type} settings`,
@@ -4769,6 +4784,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       if (isFormNode) return { width: 320, height: 200 };
                       if (isCompoundNode) return { width: 320, height: 280 };
                       if (isImageNode) return { width: 240, height: 240 };
+                      if (isCodeNode) return { width: 400, height: 350 };
                       return { width: 200, height: 100 };
                     };
 
@@ -4780,8 +4796,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       data: getNodeData(),
                       width: dimensions.width,
                       height: dimensions.height,
-                      style: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? dimensions : undefined,
-                      resizable: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? true : undefined
+                      style: (isTableNode || isFormNode || isCompoundNode || isImageNode || isCodeNode) ? dimensions : undefined,
+                      resizable: (isTableNode || isFormNode || isCompoundNode || isImageNode || isCodeNode) ? true : undefined
                     };
 
                     setNodes(prev => [...prev, newNode]);
@@ -4817,6 +4833,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     const isTableNode = type === 'table';
                     const isFormNode = type === 'form';
                     const isCompoundNode = type === 'compound';
+                    const isImageNode = type === 'image';
+                    const isCodeNode = type === 'code';
                     const tableId = isTableNode ? `table-${nodeId}` : undefined;
 
                     const getNodeData = () => {
@@ -4865,6 +4883,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           }
                         };
                       }
+                      if (isCodeNode) {
+                        return {
+                          label: 'Code',
+                          code: '',
+                          language: 'javascript',
+                          showOutput: true,
+                          outputHeight: 120,
+                          colors: {
+                            headerBackground: '#1e1e1e',
+                            bodyBackground: '#252526',
+                            headerTextColor: '#d4d4d4',
+                          }
+                        };
+                      }
                       return {
                         label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                         description: `Configure ${type} settings`,
@@ -4873,12 +4905,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       };
                     };
 
-                    const isImageNode = type === 'image';
                     const getNodeDimensions = () => {
                       if (isTableNode) return { width: 560, height: 400 };
                       if (isFormNode) return { width: 320, height: 200 };
                       if (isCompoundNode) return { width: 320, height: 280 };
                       if (isImageNode) return { width: 240, height: 240 };
+                      if (isCodeNode) return { width: 400, height: 350 };
                       return { width: 200, height: 100 };
                     };
 
@@ -4890,8 +4922,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       data: getNodeData(),
                       width: dimensions.width,
                       height: dimensions.height,
-                      style: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? dimensions : undefined,
-                      resizable: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? true : undefined
+                      style: (isTableNode || isFormNode || isCompoundNode || isImageNode || isCodeNode) ? dimensions : undefined,
+                      resizable: (isTableNode || isFormNode || isCompoundNode || isImageNode || isCodeNode) ? true : undefined
                     };
 
                     setNodes(prev => [...prev, newNode]);
@@ -5425,6 +5457,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 const isTableNode = type === 'table';
                 const isFormNode = type === 'form';
                 const isCompoundNode = type === 'compound';
+                const isImageNode = type === 'image';
+                const isCodeNode = type === 'code';
                 const tableId = isTableNode ? `table-${nodeId}` : undefined;
 
                 const getNodeData = () => {
@@ -5473,6 +5507,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     };
                   }
+                  if (isCodeNode) {
+                    return {
+                      label: 'Code',
+                      code: '',
+                      language: 'javascript',
+                      showOutput: true,
+                      outputHeight: 120,
+                      colors: {
+                        headerBackground: '#1e1e1e',
+                        bodyBackground: '#252526',
+                        headerTextColor: '#d4d4d4',
+                      }
+                    };
+                  }
                   return {
                     label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
                     description: `Configure ${type} settings`,
@@ -5482,18 +5530,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 };
 
                 // Calculate position offset based on node type for centering
-                const halfWidth = isTableNode ? 280 : isFormNode ? 160 : isCompoundNode ? 160 : 100;
-                const halfHeight = isTableNode ? 200 : isFormNode ? 100 : isCompoundNode ? 140 : 50;
+                const halfWidth = isTableNode ? 280 : isFormNode ? 160 : isCompoundNode ? 160 : isCodeNode ? 200 : isImageNode ? 120 : 100;
+                const halfHeight = isTableNode ? 200 : isFormNode ? 100 : isCompoundNode ? 140 : isCodeNode ? 175 : isImageNode ? 120 : 50;
 
                 const newNode: Node = {
                   id: nodeId,
                   type,
                   position: { x: worldPosition.x - halfWidth, y: worldPosition.y - halfHeight },
                   data: getNodeData(),
-                  width: isTableNode ? 560 : isFormNode ? 320 : isCompoundNode ? 320 : 200,
-                  height: isTableNode ? 400 : isFormNode ? 200 : isCompoundNode ? 280 : 100,
-                  style: isTableNode ? { width: 560, height: 400 } : isFormNode ? { width: 320, height: 200 } : isCompoundNode ? { width: 320, height: 280 } : undefined,
-                  resizable: isTableNode || isFormNode || isCompoundNode ? true : undefined
+                  width: isTableNode ? 560 : isFormNode ? 320 : isCompoundNode ? 320 : isCodeNode ? 400 : isImageNode ? 240 : 200,
+                  height: isTableNode ? 400 : isFormNode ? 200 : isCompoundNode ? 280 : isCodeNode ? 350 : isImageNode ? 240 : 100,
+                  style: isTableNode ? { width: 560, height: 400 } : isFormNode ? { width: 320, height: 200 } : isCompoundNode ? { width: 320, height: 280 } : isCodeNode ? { width: 400, height: 350 } : isImageNode ? { width: 240, height: 240 } : undefined,
+                  resizable: isTableNode || isFormNode || isCompoundNode || isCodeNode || isImageNode ? true : undefined
                 };
 
                 setNodes(prev => [...prev, newNode]);

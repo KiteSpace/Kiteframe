@@ -12,6 +12,7 @@ export { WebviewNode } from './components/WebviewNode';
 export { TableNode, createTableNode } from './components/TableNode';
 export { TablePanel } from './components/TablePanel';
 export { FormNode, createFormNode } from './components/FormNode';
+export { default as CodeNode, createCodeNode } from './components/CodeNode';
 export { DataLinkPicker } from './components/DataLinkPicker';
 export { NodeGalleryPanel } from './components/NodeGalleryPanel';
 
@@ -69,7 +70,12 @@ export type {
   FormFieldType,
   FormFieldOption,
   WebviewNodeData,
-  WebviewNodeComponentProps
+  WebviewNodeComponentProps,
+  CodeNodeData,
+  CodeExecutionResult,
+  CodeLanguage,
+  CodeNode as CodeNodeType,
+  CodeNodeComponentProps
 } from './types';
 
 // Utilities
@@ -193,3 +199,16 @@ export {
   type RateLimitConfig,
   type SecurityEvent
 } from './utils/securityHardening';
+
+// Edge Validation Constants
+export {
+  DEFAULT_EDGE_VALIDATION_RULES,
+  mergeEdgeValidationRules
+} from './constants/edgeValidation';
+
+// Code Execution
+export {
+  executeInSandbox,
+  executeCodeInSandbox,
+  cleanupSandbox
+} from './utils/sandboxExecutor';

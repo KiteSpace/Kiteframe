@@ -41,6 +41,7 @@ import { TableNode } from "./TableNode";
 import { FormNode } from "./FormNode";
 import { CompoundNode } from "./CompoundNode";
 import { WebviewNode } from "./WebviewNode";
+import CodeNodeComponent from "./CodeNode";
 import { DataLinkPicker } from "./DataLinkPicker";
 import { TextObject } from "./TextObject";
 import { StickyNoteObject } from "./StickyNoteObject";
@@ -4272,6 +4273,125 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       };
                     }) : []}
                     onSaveAsTemplate={props.onSaveAsTemplate}
+                    style={{
+                      position: "absolute",
+                      left: n.position.x,
+                      top: n.position.y,
+                      zIndex: n.zIndex || 0,
+                    }}
+                    className={n.selected ? "selected" : ""}
+                  />
+                );
+              }
+
+              // Handle code nodes
+              if (n.type === "code") {
+                const connectedDataSources = props.edges
+                  ?.filter((edge) => edge.target === n.id)
+                  .map((edge) => {
+                    const sourceNode = props.nodes.find((node) => node.id === edge.source);
+                    if (!sourceNode) return null;
+                    if (sourceNode.type === 'form') {
+                      const formData: Record<string, unknown> = {};
+                      sourceNode.data?.fields?.forEach((field: any) => {
+                        formData[field.label || field.id] = field.value;
+                      });
+                      return { nodeId: sourceNode.id, nodeType: 'form' as const, data: formData };
+                    }
+                    if (sourceNode.type === 'table') {
+                      const tableId = sourceNode.data?.tableId;
+                      const table = tableId ? props.tableData?.[tableId] : null;
+                      if (table) {
+                        return { nodeId: sourceNode.id, nodeType: 'table' as const, data: { rows: table.rows, columns: table.columns } };
+                      }
+                    }
+                    return null;
+                  })
+                  .filter(Boolean) as Array<{ nodeId: string; nodeType: 'form' | 'table'; data: Record<string, unknown> }>;
+
+                return (
+                  <CodeNodeComponent
+                    key={n.id}
+                    node={n as any}
+                    connectedDataSources={connectedDataSources}
+                    onUpdate={(nodeId: string, updates: any) => {
+                      const updated = props.nodes.map((node) =>
+                        node.id === nodeId ? { ...node, ...updates } : node,
+                      );
+                      props.onNodesChange?.(updated);
+                    }}
+                    onFocusNode={props.onFocusNode}
+                    onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
+                    showHandles={n.showHandles !== false}
+                    showResizeHandle={n.resizable !== false}
+                    onStartDrag={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      if (!containerRef.current) return;
+                      const rect = containerRef.current.getBoundingClientRect();
+                      const wp = clientToWorld(
+                        e.clientX,
+                        e.clientY,
+                        viewport,
+                        rect,
+                      );
+
+                      const selectedNodes = props.nodes.filter(
+                        (node) => node.selected === true,
+                      );
+                      const selectedCanvasObjects = (
+                        props.canvasObjects || []
+                      ).filter((obj) => obj.selected === true);
+                      const totalSelected =
+                        selectedNodes.length + selectedCanvasObjects.length;
+                      const isGroupDrag =
+                        totalSelected > 1 && n.selected === true;
+
+                      const origins = isGroupDrag
+                        ? selectedNodes.map((node) => ({
+                            id: node.id,
+                            origin: { ...node.position },
+                          }))
+                        : [{ id: n.id, origin: { ...n.position } }];
+
+                      const canvasObjectOrigins = isGroupDrag
+                        ? selectedCanvasObjects.map((obj) => ({
+                            id: obj.id,
+                            origin: { ...obj.position },
+                          }))
+                        : [];
+
+                      dragInfo.current = {
+                        id: n.id,
+                        start: wp,
+                        origin: { ...n.position },
+                        origins: origins,
+                        canvasObjectOrigins: canvasObjectOrigins,
+                        isGroupDrag: isGroupDrag,
+                      };
+                    }}
+                    onClick={(e: React.MouseEvent) => {
+                      props.onNodeClick?.(e, n);
+                    }}
+                    onHandleConnect={(position, e) => {
+                      if (!containerRef.current) return;
+                      const rect = containerRef.current.getBoundingClientRect();
+                      const wp = clientToWorld(
+                        e.clientX,
+                        e.clientY,
+                        viewport,
+                        rect,
+                      );
+                      setConnecting({
+                        sourceId: n.id,
+                        wx: wp.x,
+                        wy: wp.y,
+                        hoverTargetId: null,
+                        eligible: false,
+                      });
+                    }}
+                    viewport={viewport}
+                    showDragPlaceholder={draggingNodeId === n.id}
+                    isAnyDragActive={!!draggingNodeId}
                     style={{
                       position: "absolute",
                       left: n.position.x,
