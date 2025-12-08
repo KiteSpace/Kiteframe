@@ -13,6 +13,10 @@ import {
   workflowComments,
   savedProjects,
   projectFolders,
+  userGroups,
+  userGroupMemberships,
+  users,
+  groupAccessControlsSchema,
 } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
@@ -2588,6 +2592,768 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       
       res.status(500).json({ 
         error: 'Failed to fetch API data',
+        details: error.message 
+      });
+    }
+  });
+
+  // ===== ADMIN: USER GROUPS MANAGEMENT =====
+
+  // Admin: Create a new user group
+  app.post('/internal/groups', requireAdminAuth, async (req, res) => {
+    try {
+      const { name, description, accessControls } = req.body;
+      
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ error: 'Group name is required' });
+      }
+      
+      // Validate access controls if provided
+      if (accessControls) {
+        const validation = groupAccessControlsSchema.safeParse(accessControls);
+        if (!validation.success) {
+          return res.status(400).json({ 
+            error: 'Invalid access controls format',
+            details: validation.error.errors 
+          });
+        }
+      }
+      
+      const [newGroup] = await db.insert(userGroups).values({
+        name: name.trim(),
+        description: description?.trim() || null,
+        accessControls: accessControls || {},
+      }).returning();
+      
+      res.json({
+        success: true,
+        group: newGroup,
+      });
+    } catch (error: any) {
+      if (error.code === '23505') { // Unique constraint violation
+        return res.status(400).json({ error: 'A group with this name already exists' });
+      }
+      console.error('Create group error:', error);
+      res.status(500).json({ 
+        error: 'Failed to create group',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: List all user groups
+  app.get('/internal/groups', requireAdminAuth, async (req, res) => {
+    try {
+      const groups = await db.query.userGroups.findMany({
+        orderBy: desc(userGroups.createdAt),
+      });
+      
+      // Get member counts for each group
+      const groupsWithCounts = await Promise.all(groups.map(async (group) => {
+        const members = await db.select()
+          .from(userGroupMemberships)
+          .where(eq(userGroupMemberships.groupId, group.id));
+        return {
+          ...group,
+          memberCount: members.length,
+        };
+      }));
+      
+      res.json({
+        success: true,
+        groups: groupsWithCounts,
+      });
+    } catch (error: any) {
+      console.error('List groups error:', error);
+      res.status(500).json({ 
+        error: 'Failed to list groups',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Get a specific group with its members
+  app.get('/internal/groups/:groupId', requireAdminAuth, async (req, res) => {
+    try {
+      const { groupId } = req.params;
+      
+      const group = await db.query.userGroups.findFirst({
+        where: eq(userGroups.id, groupId),
+      });
+      
+      if (!group) {
+        return res.status(404).json({ error: 'Group not found' });
+      }
+      
+      // Get members of this group with user details
+      const memberships = await db.select({
+        membershipId: userGroupMemberships.id,
+        userId: userGroupMemberships.userId,
+        addedAt: userGroupMemberships.addedAt,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        subscriptionTier: users.subscriptionTier,
+      })
+        .from(userGroupMemberships)
+        .leftJoin(users, eq(userGroupMemberships.userId, users.id))
+        .where(eq(userGroupMemberships.groupId, groupId));
+      
+      res.json({
+        success: true,
+        group,
+        members: memberships,
+      });
+    } catch (error: any) {
+      console.error('Get group error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get group',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Update a user group
+  app.put('/internal/groups/:groupId', requireAdminAuth, async (req, res) => {
+    try {
+      const { groupId } = req.params;
+      const { name, description, accessControls } = req.body;
+      
+      // Validate access controls if provided
+      if (accessControls) {
+        const validation = groupAccessControlsSchema.safeParse(accessControls);
+        if (!validation.success) {
+          return res.status(400).json({ 
+            error: 'Invalid access controls format',
+            details: validation.error.errors 
+          });
+        }
+      }
+      
+      const updateData: any = { updatedAt: new Date() };
+      if (name !== undefined) updateData.name = name.trim();
+      if (description !== undefined) updateData.description = description?.trim() || null;
+      if (accessControls !== undefined) updateData.accessControls = accessControls;
+      
+      const [updatedGroup] = await db.update(userGroups)
+        .set(updateData)
+        .where(eq(userGroups.id, groupId))
+        .returning();
+      
+      if (!updatedGroup) {
+        return res.status(404).json({ error: 'Group not found' });
+      }
+      
+      res.json({
+        success: true,
+        group: updatedGroup,
+      });
+    } catch (error: any) {
+      if (error.code === '23505') {
+        return res.status(400).json({ error: 'A group with this name already exists' });
+      }
+      console.error('Update group error:', error);
+      res.status(500).json({ 
+        error: 'Failed to update group',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Delete a user group
+  app.delete('/internal/groups/:groupId', requireAdminAuth, async (req, res) => {
+    try {
+      const { groupId } = req.params;
+      
+      const [deletedGroup] = await db.delete(userGroups)
+        .where(eq(userGroups.id, groupId))
+        .returning();
+      
+      if (!deletedGroup) {
+        return res.status(404).json({ error: 'Group not found' });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Group deleted successfully',
+        group: deletedGroup,
+      });
+    } catch (error: any) {
+      console.error('Delete group error:', error);
+      res.status(500).json({ 
+        error: 'Failed to delete group',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Add user to group
+  app.post('/internal/groups/:groupId/members', requireAdminAuth, async (req, res) => {
+    try {
+      const { groupId } = req.params;
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+      
+      // Verify group exists
+      const group = await db.query.userGroups.findFirst({
+        where: eq(userGroups.id, groupId),
+      });
+      if (!group) {
+        return res.status(404).json({ error: 'Group not found' });
+      }
+      
+      // Verify user exists
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+      });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Check if already a member
+      const existingMembership = await db.query.userGroupMemberships.findFirst({
+        where: eq(userGroupMemberships.userId, userId),
+      });
+      if (existingMembership && existingMembership.groupId === groupId) {
+        return res.status(400).json({ error: 'User is already a member of this group' });
+      }
+      
+      const [membership] = await db.insert(userGroupMemberships).values({
+        userId,
+        groupId,
+      }).returning();
+      
+      res.json({
+        success: true,
+        membership,
+      });
+    } catch (error: any) {
+      console.error('Add member error:', error);
+      res.status(500).json({ 
+        error: 'Failed to add member to group',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Remove user from group
+  app.delete('/internal/groups/:groupId/members/:userId', requireAdminAuth, async (req, res) => {
+    try {
+      const { groupId, userId } = req.params;
+      
+      const [deletedMembership] = await db.delete(userGroupMemberships)
+        .where(eq(userGroupMemberships.userId, userId))
+        .returning();
+      
+      if (!deletedMembership || deletedMembership.groupId !== groupId) {
+        return res.status(404).json({ error: 'Membership not found' });
+      }
+      
+      res.json({
+        success: true,
+        message: 'User removed from group successfully',
+      });
+    } catch (error: any) {
+      console.error('Remove member error:', error);
+      res.status(500).json({ 
+        error: 'Failed to remove member from group',
+        details: error.message 
+      });
+    }
+  });
+
+  // ===== ADMIN: USER MANAGEMENT =====
+
+  // Admin: List all users with pagination and search
+  app.get('/internal/users', requireAdminAuth, async (req, res) => {
+    try {
+      const { search, page = '1', limit = '50' } = req.query;
+      const pageNum = parseInt(page as string) || 1;
+      const limitNum = Math.min(parseInt(limit as string) || 50, 100);
+      const offset = (pageNum - 1) * limitNum;
+      
+      const { sql: sqlFn } = await import('drizzle-orm');
+      
+      // Get users with optional search
+      let usersQuery = db.select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        subscriptionTier: users.subscriptionTier,
+        subscriptionStatus: users.subscriptionStatus,
+        createdAt: users.createdAt,
+        profileImageUrl: users.profileImageUrl,
+      }).from(users);
+      
+      if (search && typeof search === 'string' && search.trim()) {
+        const searchTerm = `%${search.trim().toLowerCase()}%`;
+        usersQuery = usersQuery.where(
+          sqlFn`LOWER(${users.email}) LIKE ${searchTerm} OR LOWER(${users.firstName}) LIKE ${searchTerm} OR LOWER(${users.lastName}) LIKE ${searchTerm}`
+        ) as any;
+      }
+      
+      const allUsers = await usersQuery
+        .orderBy(desc(users.createdAt))
+        .limit(limitNum)
+        .offset(offset);
+      
+      // Get group memberships and credits for each user
+      const usersWithGroupsAndCredits = await Promise.all(allUsers.map(async (user) => {
+        const memberships = await db.select({
+          id: userGroupMemberships.groupId,
+          name: userGroups.name,
+        })
+          .from(userGroupMemberships)
+          .leftJoin(userGroups, eq(userGroupMemberships.groupId, userGroups.id))
+          .where(eq(userGroupMemberships.userId, user.id));
+        
+        // Get user credits
+        const credits = await db.query.userCredits.findFirst({
+          where: eq(userCredits.userIdentifier, user.id),
+        });
+        
+        return {
+          ...user,
+          groups: memberships,
+          credits: credits ? { credits: credits.credits, isUnlimited: credits.isUnlimited } : null,
+        };
+      }));
+      
+      // Get total count
+      const [{ count }] = await db.select({ count: sqlFn<number>`COUNT(*)::int` }).from(users);
+      
+      res.json({
+        success: true,
+        users: usersWithGroupsAndCredits,
+        total: count,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: count,
+          totalPages: Math.ceil(count / limitNum),
+        },
+      });
+    } catch (error: any) {
+      console.error('List users error:', error);
+      res.status(500).json({ 
+        error: 'Failed to list users',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Get a specific user with their groups
+  app.get('/internal/users/:userId', requireAdminAuth, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+      });
+      
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Get user's group memberships
+      const memberships = await db.select({
+        groupId: userGroupMemberships.groupId,
+        groupName: userGroups.name,
+        description: userGroups.description,
+        accessControls: userGroups.accessControls,
+        addedAt: userGroupMemberships.addedAt,
+      })
+        .from(userGroupMemberships)
+        .leftJoin(userGroups, eq(userGroupMemberships.groupId, userGroups.id))
+        .where(eq(userGroupMemberships.userId, userId));
+      
+      // Get user credits
+      const { userCredits } = await import('@shared/schema');
+      const credits = await db.query.userCredits.findFirst({
+        where: eq(userCredits.userIdentifier, userId),
+      });
+      
+      res.json({
+        success: true,
+        user: {
+          ...user,
+          groups: memberships,
+          credits: credits || null,
+        },
+      });
+    } catch (error: any) {
+      console.error('Get user error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get user',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Update user subscription tier directly
+  app.put('/internal/users/:userId', requireAdminAuth, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { subscriptionTier, subscriptionStatus } = req.body;
+      
+      const updateData: any = { updatedAt: new Date() };
+      
+      if (subscriptionTier !== undefined) {
+        if (!['free', 'advanced', 'pro'].includes(subscriptionTier)) {
+          return res.status(400).json({ error: 'Invalid subscription tier' });
+        }
+        updateData.subscriptionTier = subscriptionTier;
+      }
+      
+      if (subscriptionStatus !== undefined) {
+        if (!['active', 'canceled', 'past_due', 'paused', 'trialing'].includes(subscriptionStatus)) {
+          return res.status(400).json({ error: 'Invalid subscription status' });
+        }
+        updateData.subscriptionStatus = subscriptionStatus;
+      }
+      
+      const [updatedUser] = await db.update(users)
+        .set(updateData)
+        .where(eq(users.id, userId))
+        .returning();
+      
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      res.json({
+        success: true,
+        user: updatedUser,
+      });
+    } catch (error: any) {
+      console.error('Update user error:', error);
+      res.status(500).json({ 
+        error: 'Failed to update user',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Update user credits
+  app.put('/internal/users/:userId/credits', requireAdminAuth, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { credits, isUnlimited } = req.body;
+      
+      const { userCredits } = await import('@shared/schema');
+      
+      // Check if user exists
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+      });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Upsert credits
+      const existingCredits = await db.query.userCredits.findFirst({
+        where: eq(userCredits.userIdentifier, userId),
+      });
+      
+      let result;
+      if (existingCredits) {
+        const updateData: any = { updatedAt: new Date() };
+        if (credits !== undefined) updateData.credits = credits;
+        if (isUnlimited !== undefined) updateData.isUnlimited = isUnlimited;
+        
+        [result] = await db.update(userCredits)
+          .set(updateData)
+          .where(eq(userCredits.userIdentifier, userId))
+          .returning();
+      } else {
+        [result] = await db.insert(userCredits).values({
+          userIdentifier: userId,
+          credits: credits ?? 10,
+          isUnlimited: isUnlimited ?? false,
+        }).returning();
+      }
+      
+      res.json({
+        success: true,
+        credits: result,
+      });
+    } catch (error: any) {
+      console.error('Update credits error:', error);
+      res.status(500).json({ 
+        error: 'Failed to update credits',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Set user group memberships (replace all)
+  app.put('/internal/users/:userId/groups', requireAdminAuth, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { groupIds } = req.body;
+      
+      if (!Array.isArray(groupIds)) {
+        return res.status(400).json({ error: 'groupIds must be an array' });
+      }
+      
+      // Check if user exists
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+      });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Verify all groups exist
+      for (const groupId of groupIds) {
+        const group = await db.query.userGroups.findFirst({
+          where: eq(userGroups.id, groupId),
+        });
+        if (!group) {
+          return res.status(400).json({ error: `Group ${groupId} not found` });
+        }
+      }
+      
+      // Remove all existing memberships for this user
+      await db.delete(userGroupMemberships)
+        .where(eq(userGroupMemberships.userId, userId));
+      
+      // Add new memberships
+      if (groupIds.length > 0) {
+        await db.insert(userGroupMemberships).values(
+          groupIds.map((groupId: string) => ({
+            userId,
+            groupId,
+          }))
+        );
+      }
+      
+      // Get updated memberships
+      const memberships = await db.select({
+        groupId: userGroupMemberships.groupId,
+        groupName: userGroups.name,
+        accessControls: userGroups.accessControls,
+      })
+        .from(userGroupMemberships)
+        .leftJoin(userGroups, eq(userGroupMemberships.groupId, userGroups.id))
+        .where(eq(userGroupMemberships.userId, userId));
+      
+      res.json({
+        success: true,
+        groups: memberships,
+      });
+    } catch (error: any) {
+      console.error('Set user groups error:', error);
+      res.status(500).json({ 
+        error: 'Failed to update user groups',
+        details: error.message 
+      });
+    }
+  });
+
+  // ===== ADMIN: CSV IMPORT =====
+
+  // Admin: Import users from CSV
+  // CSV format: email,firstName,lastName,subscriptionTier,groups
+  // Example: john@example.com,John,Doe,pro,"GroupA,GroupB"
+  app.post('/internal/users/import-csv', requireAdminAuth, async (req, res) => {
+    try {
+      const { csvData, createMissingGroups = false, updateExisting = false } = req.body;
+      
+      if (!csvData || typeof csvData !== 'string') {
+        return res.status(400).json({ error: 'CSV data is required' });
+      }
+      
+      const lines = csvData.trim().split('\n');
+      if (lines.length < 2) {
+        return res.status(400).json({ error: 'CSV must have at least a header row and one data row' });
+      }
+      
+      // Parse header
+      const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const emailIndex = header.indexOf('email');
+      const firstNameIndex = header.indexOf('firstname');
+      const lastNameIndex = header.indexOf('lastname');
+      const tierIndex = header.indexOf('subscriptiontier');
+      const groupsIndex = header.indexOf('groups');
+      
+      if (emailIndex === -1) {
+        return res.status(400).json({ error: 'CSV must have an email column' });
+      }
+      
+      const results = {
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        errors: [] as { line: number; email: string; error: string }[],
+        groupsCreated: 0,
+      };
+      
+      // Process each data row
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        // Parse CSV line (handle quoted values for groups)
+        const values: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        values.push(current.trim());
+        
+        const email = values[emailIndex]?.trim().toLowerCase();
+        if (!email || !email.includes('@')) {
+          results.errors.push({ line: i + 1, email: email || 'N/A', error: 'Invalid email' });
+          results.skipped++;
+          continue;
+        }
+        
+        const firstName = firstNameIndex !== -1 ? values[firstNameIndex]?.trim() || null : null;
+        const lastName = lastNameIndex !== -1 ? values[lastNameIndex]?.trim() || null : null;
+        const subscriptionTier = tierIndex !== -1 ? values[tierIndex]?.trim().toLowerCase() || 'free' : 'free';
+        const groupNames = groupsIndex !== -1 ? values[groupsIndex]?.split(',').map(g => g.trim()).filter(g => g) || [] : [];
+        
+        // Validate subscription tier
+        if (!['free', 'advanced', 'pro'].includes(subscriptionTier)) {
+          results.errors.push({ line: i + 1, email, error: `Invalid subscription tier: ${subscriptionTier}` });
+          results.skipped++;
+          continue;
+        }
+        
+        try {
+          // Check if user exists
+          const existingUser = await db.query.users.findFirst({
+            where: eq(users.email, email),
+          });
+          
+          let userId: string;
+          
+          if (existingUser) {
+            if (updateExisting) {
+              // Update existing user
+              const [updatedUser] = await db.update(users)
+                .set({
+                  firstName: firstName || existingUser.firstName,
+                  lastName: lastName || existingUser.lastName,
+                  subscriptionTier,
+                  updatedAt: new Date(),
+                })
+                .where(eq(users.id, existingUser.id))
+                .returning();
+              userId = updatedUser.id;
+              results.updated++;
+            } else {
+              userId = existingUser.id;
+              results.skipped++;
+            }
+          } else {
+            // Create new user
+            const [newUser] = await db.insert(users).values({
+              email,
+              firstName,
+              lastName,
+              subscriptionTier,
+            }).returning();
+            userId = newUser.id;
+            results.created++;
+          }
+          
+          // Handle group assignments
+          if (groupNames.length > 0) {
+            const groupIds: string[] = [];
+            
+            for (const groupName of groupNames) {
+              let group = await db.query.userGroups.findFirst({
+                where: eq(userGroups.name, groupName),
+              });
+              
+              if (!group) {
+                if (createMissingGroups) {
+                  // Create the missing group
+                  const [newGroup] = await db.insert(userGroups).values({
+                    name: groupName,
+                    description: `Created via CSV import`,
+                    accessControls: {},
+                  }).returning();
+                  group = newGroup;
+                  results.groupsCreated++;
+                } else {
+                  results.errors.push({ line: i + 1, email, error: `Group not found: ${groupName}` });
+                  continue;
+                }
+              }
+              
+              groupIds.push(group.id);
+            }
+            
+            // Remove existing group memberships for this user
+            await db.delete(userGroupMemberships)
+              .where(eq(userGroupMemberships.userId, userId));
+            
+            // Add new memberships
+            if (groupIds.length > 0) {
+              await db.insert(userGroupMemberships).values(
+                groupIds.map((groupId: string) => ({
+                  userId,
+                  groupId,
+                }))
+              );
+            }
+          }
+        } catch (error: any) {
+          results.errors.push({ line: i + 1, email, error: error.message });
+        }
+      }
+      
+      res.json({
+        success: true,
+        results,
+        summary: `Created ${results.created}, updated ${results.updated}, skipped ${results.skipped} users. ${results.groupsCreated} groups created. ${results.errors.length} errors.`,
+      });
+    } catch (error: any) {
+      console.error('CSV import error:', error);
+      res.status(500).json({ 
+        error: 'Failed to import CSV',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Download CSV template
+  app.get('/internal/users/csv-template', requireAdminAuth, async (req, res) => {
+    try {
+      // Get available groups for reference
+      const groups = await db.query.userGroups.findMany();
+      const groupNames = groups.map(g => g.name).join(', ');
+      
+      const template = `email,firstName,lastName,subscriptionTier,groups
+john@example.com,John,Doe,free,"GroupA,GroupB"
+jane@example.com,Jane,Smith,pro,GroupC
+# Available tiers: free, advanced, pro
+# Available groups: ${groupNames || 'No groups created yet'}
+# Note: Group names in the groups column should be comma-separated within quotes`;
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="user_import_template.csv"');
+      res.send(template);
+    } catch (error: any) {
+      console.error('CSV template error:', error);
+      res.status(500).json({ 
+        error: 'Failed to generate CSV template',
         details: error.message 
       });
     }

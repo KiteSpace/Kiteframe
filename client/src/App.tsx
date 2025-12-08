@@ -20,7 +20,7 @@ function Router() {
       <Route path="/pricing" component={Pricing} />
       <Route path="/account" component={Account} />
       <Route path="/checkout/success" component={Account} />
-      <Route path="/internal/ops-codes" component={AdminCodes} />
+      <Route path="/internal/x9k7m2p4" component={AdminCodes} />
       <Route component={NotFound} />
     </Switch>
   );

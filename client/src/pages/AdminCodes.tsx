@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Key, Shield, Ban, RotateCcw, BarChart3 } from 'lucide-react';
+import { Copy, Key, Shield, Ban, RotateCcw, BarChart3, Users, FolderTree, Upload, Search, Plus, Trash2, Edit, UserPlus, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import AdminAnalytics from './AdminAnalytics';
 
 interface UnlockCode {
@@ -27,6 +32,35 @@ interface UnlockCode {
   createdAt: string;
 }
 
+interface User {
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  subscriptionTier: string;
+  subscriptionStatus: string | null;
+  createdAt: string;
+  groups: { id: string; name: string }[];
+  credits?: { credits: number; isUnlimited: boolean } | null;
+}
+
+interface UserGroup {
+  id: string;
+  name: string;
+  description: string | null;
+  accessControls: GroupAccessControls;
+  createdAt: string;
+  memberCount?: number;
+}
+
+interface GroupAccessControls {
+  unlimitedCredits?: boolean;
+  subscriptionTierOverride?: 'free' | 'advanced' | 'pro';
+  bypassCreditCheck?: boolean;
+  monthlyCreditsOverride?: number;
+  features?: string[];
+}
+
 const AVAILABLE_COUNTRIES = [
   { code: 'US', name: 'United States' },
   { code: 'CA', name: 'Canada' },
@@ -41,6 +75,859 @@ const AVAILABLE_COUNTRIES = [
   { code: 'KR', name: 'South Korea' },
   { code: 'SG', name: 'Singapore' },
 ];
+
+const SUBSCRIPTION_TIERS = ['free', 'advanced', 'pro'] as const;
+
+function UsersTab({ authHeader }: { authHeader: string }) {
+  const { toast } = useToast();
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editTier, setEditTier] = useState<string>('free');
+  const [editCredits, setEditCredits] = useState<number>(0);
+  const [editUnlimited, setEditUnlimited] = useState(false);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const limit = 20;
+
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ['/internal/users', page, search],
+    queryFn: async () => {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (search) params.set('search', search);
+      const response = await fetch(`/internal/users?${params}`, {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch users');
+      return response.json();
+    },
+  });
+
+  const { data: groupsData } = useQuery({
+    queryKey: ['/internal/groups'],
+    queryFn: async () => {
+      const response = await fetch('/internal/groups', {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch groups');
+      return response.json();
+    },
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: async (data: { userId: string; subscriptionTier: string }) => {
+      const response = await fetch(`/internal/users/${data.userId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionTier: data.subscriptionTier }),
+      });
+      if (!response.ok) throw new Error('Failed to update user');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/internal/users'] });
+      toast({ title: 'User Updated', description: 'Subscription tier updated successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const updateCreditsMutation = useMutation({
+    mutationFn: async (data: { userId: string; credits: number; isUnlimited: boolean }) => {
+      const response = await fetch(`/internal/users/${data.userId}/credits`, {
+        method: 'PUT',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credits: data.credits, isUnlimited: data.isUnlimited }),
+      });
+      if (!response.ok) throw new Error('Failed to update credits');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/internal/users'] });
+      toast({ title: 'Credits Updated', description: 'User credits updated successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const updateGroupsMutation = useMutation({
+    mutationFn: async (data: { userId: string; groupIds: string[] }) => {
+      const response = await fetch(`/internal/users/${data.userId}/groups`, {
+        method: 'PUT',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupIds: data.groupIds }),
+      });
+      if (!response.ok) throw new Error('Failed to update groups');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/internal/users'] });
+      toast({ title: 'Groups Updated', description: 'User group memberships updated successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const openEditDialog = (user: User) => {
+    setSelectedUser(user);
+    setEditTier(user.subscriptionTier || 'free');
+    setEditCredits(user.credits?.credits || 0);
+    setEditUnlimited(user.credits?.isUnlimited || false);
+    setSelectedGroups(user.groups?.map(g => g.id) || []);
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveUser = async () => {
+    if (!selectedUser) return;
+    
+    await updateUserMutation.mutateAsync({ userId: selectedUser.id, subscriptionTier: editTier });
+    await updateCreditsMutation.mutateAsync({ userId: selectedUser.id, credits: editCredits, isUnlimited: editUnlimited });
+    await updateGroupsMutation.mutateAsync({ userId: selectedUser.id, groupIds: selectedGroups });
+    
+    setEditDialogOpen(false);
+    setSelectedUser(null);
+  };
+
+  const toggleGroup = (groupId: string) => {
+    setSelectedGroups(prev => 
+      prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            User Management
+          </CardTitle>
+          <CardDescription>
+            Search and manage user accounts, subscriptions, and group memberships
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by email or name..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                className="pl-10"
+                data-testid="input-user-search"
+              />
+            </div>
+          </div>
+
+          {usersLoading ? (
+            <p className="text-muted-foreground">Loading users...</p>
+          ) : (
+            <>
+              <div className="space-y-2">
+                {usersData?.users?.map((user: User) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                    data-testid={`user-row-${user.id}`}
+                  >
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{user.email || 'No email'}</span>
+                        <Badge variant={user.subscriptionTier === 'pro' ? 'default' : user.subscriptionTier === 'advanced' ? 'secondary' : 'outline'}>
+                          {user.subscriptionTier || 'free'}
+                        </Badge>
+                        {user.credits?.isUnlimited && (
+                          <Badge variant="default" className="bg-purple-600">Unlimited</Badge>
+                        )}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {user.firstName} {user.lastName} • Credits: {user.credits?.isUnlimited ? '∞' : (user.credits?.credits ?? 'N/A')}
+                      </div>
+                      {user.groups && user.groups.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {user.groups.map(group => (
+                            <Badge key={group.id} variant="outline" className="text-xs">
+                              {group.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openEditDialog(user)}
+                      data-testid={`button-edit-user-${user.id}`}
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      Edit
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Page {page} of {Math.ceil((usersData?.total || 0) / limit)} ({usersData?.total || 0} users)
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page <= 1}
+                    onClick={() => setPage(p => p - 1)}
+                    data-testid="button-prev-page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page >= Math.ceil((usersData?.total || 0) / limit)}
+                    onClick={() => setPage(p => p + 1)}
+                    data-testid="button-next-page"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update {selectedUser?.email}'s subscription, credits, and group memberships
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Subscription Tier</Label>
+              <Select value={editTier} onValueChange={setEditTier}>
+                <SelectTrigger data-testid="select-subscription-tier">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUBSCRIPTION_TIERS.map(tier => (
+                    <SelectItem key={tier} value={tier}>{tier.charAt(0).toUpperCase() + tier.slice(1)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Unlimited Credits</Label>
+                <Switch
+                  checked={editUnlimited}
+                  onCheckedChange={setEditUnlimited}
+                  data-testid="switch-unlimited-credits"
+                />
+              </div>
+              {!editUnlimited && (
+                <div className="space-y-2">
+                  <Label>Credits</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={editCredits}
+                    onChange={(e) => setEditCredits(parseInt(e.target.value) || 0)}
+                    data-testid="input-credits"
+                  />
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label>Group Memberships</Label>
+              <ScrollArea className="h-40 border rounded-md p-2">
+                {groupsData?.groups?.map((group: UserGroup) => (
+                  <div key={group.id} className="flex items-center space-x-2 py-1">
+                    <Checkbox
+                      id={`group-${group.id}`}
+                      checked={selectedGroups.includes(group.id)}
+                      onCheckedChange={() => toggleGroup(group.id)}
+                      data-testid={`checkbox-group-${group.id}`}
+                    />
+                    <Label htmlFor={`group-${group.id}`} className="cursor-pointer text-sm font-normal flex-1">
+                      {group.name}
+                      {group.description && <span className="text-muted-foreground ml-2">({group.description})</span>}
+                    </Label>
+                  </div>
+                ))}
+                {(!groupsData?.groups || groupsData.groups.length === 0) && (
+                  <p className="text-sm text-muted-foreground">No groups available</p>
+                )}
+              </ScrollArea>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleSaveUser}
+              disabled={updateUserMutation.isPending || updateCreditsMutation.isPending || updateGroupsMutation.isPending}
+              data-testid="button-save-user"
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function GroupsTab({ authHeader }: { authHeader: string }) {
+  const { toast } = useToast();
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<UserGroup | null>(null);
+  const [groupName, setGroupName] = useState('');
+  const [groupDescription, setGroupDescription] = useState('');
+  const [accessControls, setAccessControls] = useState<GroupAccessControls>({});
+
+  const { data: groupsData, isLoading } = useQuery({
+    queryKey: ['/internal/groups'],
+    queryFn: async () => {
+      const response = await fetch('/internal/groups', {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch groups');
+      return response.json();
+    },
+  });
+
+  const createGroupMutation = useMutation({
+    mutationFn: async (data: { name: string; description: string; accessControls: GroupAccessControls }) => {
+      const response = await fetch('/internal/groups', {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Failed to create group' }));
+        throw new Error(err.error);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/internal/groups'] });
+      toast({ title: 'Group Created', description: 'New group created successfully' });
+      resetForm();
+      setCreateDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const updateGroupMutation = useMutation({
+    mutationFn: async (data: { groupId: string; name: string; description: string; accessControls: GroupAccessControls }) => {
+      const response = await fetch(`/internal/groups/${data.groupId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: data.name, description: data.description, accessControls: data.accessControls }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Failed to update group' }));
+        throw new Error(err.error);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/internal/groups'] });
+      toast({ title: 'Group Updated', description: 'Group updated successfully' });
+      setEditDialogOpen(false);
+      setSelectedGroup(null);
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (groupId: string) => {
+      const response = await fetch(`/internal/groups/${groupId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to delete group');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/internal/groups'] });
+      toast({ title: 'Group Deleted', description: 'Group deleted successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const resetForm = () => {
+    setGroupName('');
+    setGroupDescription('');
+    setAccessControls({});
+  };
+
+  const openEditDialog = (group: UserGroup) => {
+    setSelectedGroup(group);
+    setGroupName(group.name);
+    setGroupDescription(group.description || '');
+    setAccessControls(group.accessControls || {});
+    setEditDialogOpen(true);
+  };
+
+  const AccessControlsEditor = ({ value, onChange }: { value: GroupAccessControls; onChange: (v: GroupAccessControls) => void }) => (
+    <div className="space-y-4 p-4 border rounded-lg bg-accent/20">
+      <h4 className="font-medium">Access Controls</h4>
+      
+      <div className="flex items-center justify-between">
+        <div>
+          <Label>Unlimited Credits</Label>
+          <p className="text-xs text-muted-foreground">Members have unlimited AI credits</p>
+        </div>
+        <Switch
+          checked={value.unlimitedCredits || false}
+          onCheckedChange={(checked) => onChange({ ...value, unlimitedCredits: checked })}
+          data-testid="switch-group-unlimited"
+        />
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div>
+          <Label>Bypass Credit Check</Label>
+          <p className="text-xs text-muted-foreground">Skip credit verification entirely</p>
+        </div>
+        <Switch
+          checked={value.bypassCreditCheck || false}
+          onCheckedChange={(checked) => onChange({ ...value, bypassCreditCheck: checked })}
+          data-testid="switch-group-bypass"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Subscription Tier Override</Label>
+        <Select
+          value={value.subscriptionTierOverride || 'none'}
+          onValueChange={(v) => onChange({ ...value, subscriptionTierOverride: v === 'none' ? undefined : v as any })}
+        >
+          <SelectTrigger data-testid="select-group-tier-override">
+            <SelectValue placeholder="No override" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No override</SelectItem>
+            <SelectItem value="free">Free</SelectItem>
+            <SelectItem value="advanced">Advanced</SelectItem>
+            <SelectItem value="pro">Pro</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Monthly Credits Override</Label>
+        <Input
+          type="number"
+          min="0"
+          placeholder="Leave empty for default"
+          value={value.monthlyCreditsOverride || ''}
+          onChange={(e) => {
+            const val = e.target.value ? parseInt(e.target.value) : undefined;
+            onChange({ ...value, monthlyCreditsOverride: val });
+          }}
+          data-testid="input-group-credits-override"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Feature Flags (comma-separated)</Label>
+        <Input
+          placeholder="e.g., beta_features, early_access"
+          value={value.features?.join(', ') || ''}
+          onChange={(e) => {
+            const features = e.target.value ? e.target.value.split(',').map(f => f.trim()).filter(Boolean) : undefined;
+            onChange({ ...value, features });
+          }}
+          data-testid="input-group-features"
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <FolderTree className="w-5 h-5" />
+                Group Management
+              </CardTitle>
+              <CardDescription>
+                Create and manage user groups with access controls
+              </CardDescription>
+            </div>
+            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-create-group">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Group
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create New Group</DialogTitle>
+                  <DialogDescription>
+                    Define a new user group with access controls
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Group Name</Label>
+                    <Input
+                      value={groupName}
+                      onChange={(e) => setGroupName(e.target.value)}
+                      placeholder="e.g., Beta Testers"
+                      data-testid="input-group-name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Textarea
+                      value={groupDescription}
+                      onChange={(e) => setGroupDescription(e.target.value)}
+                      placeholder="Group purpose and notes..."
+                      data-testid="input-group-description"
+                    />
+                  </div>
+                  <AccessControlsEditor value={accessControls} onChange={setAccessControls} />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => { resetForm(); setCreateDialogOpen(false); }}>Cancel</Button>
+                  <Button
+                    onClick={() => createGroupMutation.mutate({ name: groupName, description: groupDescription, accessControls })}
+                    disabled={!groupName.trim() || createGroupMutation.isPending}
+                    data-testid="button-submit-create-group"
+                  >
+                    Create Group
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <p className="text-muted-foreground">Loading groups...</p>
+          ) : (
+            <div className="space-y-2">
+              {groupsData?.groups?.map((group: UserGroup) => (
+                <div
+                  key={group.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                  data-testid={`group-row-${group.id}`}
+                >
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{group.name}</span>
+                      <Badge variant="outline">{group.memberCount || 0} members</Badge>
+                      {group.accessControls?.unlimitedCredits && (
+                        <Badge variant="default" className="bg-purple-600">Unlimited</Badge>
+                      )}
+                      {group.accessControls?.bypassCreditCheck && (
+                        <Badge variant="secondary">Bypass Credits</Badge>
+                      )}
+                      {group.accessControls?.subscriptionTierOverride && (
+                        <Badge variant="outline">{group.accessControls.subscriptionTierOverride} tier</Badge>
+                      )}
+                    </div>
+                    {group.description && (
+                      <p className="text-sm text-muted-foreground">{group.description}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openEditDialog(group)}
+                      data-testid={`button-edit-group-${group.id}`}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        if (confirm(`Delete group "${group.name}"? This will remove all members from the group.`)) {
+                          deleteGroupMutation.mutate(group.id);
+                        }
+                      }}
+                      disabled={deleteGroupMutation.isPending}
+                      data-testid={`button-delete-group-${group.id}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {(!groupsData?.groups || groupsData.groups.length === 0) && (
+                <p className="text-muted-foreground text-center py-8">No groups created yet</p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Group</DialogTitle>
+            <DialogDescription>
+              Update group settings and access controls
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Group Name</Label>
+              <Input
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                data-testid="input-edit-group-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={groupDescription}
+                onChange={(e) => setGroupDescription(e.target.value)}
+                data-testid="input-edit-group-description"
+              />
+            </div>
+            <AccessControlsEditor value={accessControls} onChange={setAccessControls} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => selectedGroup && updateGroupMutation.mutate({
+                groupId: selectedGroup.id,
+                name: groupName,
+                description: groupDescription,
+                accessControls
+              })}
+              disabled={!groupName.trim() || updateGroupMutation.isPending}
+              data-testid="button-submit-edit-group"
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function CSVImportTab({ authHeader }: { authHeader: string }) {
+  const { toast } = useToast();
+  const [csvContent, setCsvContent] = useState('');
+  const [defaultGroupId, setDefaultGroupId] = useState<string>('');
+  const [defaultTier, setDefaultTier] = useState<string>('free');
+  const [isDragging, setIsDragging] = useState(false);
+
+  const { data: groupsData } = useQuery({
+    queryKey: ['/internal/groups'],
+    queryFn: async () => {
+      const response = await fetch('/internal/groups', {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch groups');
+      return response.json();
+    },
+  });
+
+  const importMutation = useMutation({
+    mutationFn: async (data: { csvContent: string; defaultGroupId?: string; defaultTier: string }) => {
+      const response = await fetch('/internal/users/import-csv', {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Failed to import CSV' }));
+        throw new Error(err.error);
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/internal/users'] });
+      toast({
+        title: 'Import Complete',
+        description: `Created: ${data.created}, Updated: ${data.updated}, Errors: ${data.errors?.length || 0}`,
+      });
+      if (data.errors?.length > 0) {
+        console.log('Import errors:', data.errors);
+      }
+      setCsvContent('');
+    },
+    onError: (error: any) => {
+      toast({ title: 'Import Failed', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files[0];
+    if (file && file.type === 'text/csv') {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCsvContent(event.target?.result as string);
+      };
+      reader.readAsText(file);
+    } else {
+      toast({ title: 'Invalid File', description: 'Please upload a CSV file', variant: 'destructive' });
+    }
+  }, [toast]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCsvContent(event.target?.result as string);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const downloadTemplate = () => {
+    window.open('/internal/users/csv-template', '_blank');
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="w-5 h-5" />
+                CSV Import
+              </CardTitle>
+              <CardDescription>
+                Bulk import users from a CSV file
+              </CardDescription>
+            </div>
+            <Button variant="outline" onClick={downloadTemplate} data-testid="button-download-template">
+              <Download className="w-4 h-4 mr-2" />
+              Download Template
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'
+            }`}
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+          >
+            <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-lg font-medium mb-2">Drag & drop a CSV file here</p>
+            <p className="text-sm text-muted-foreground mb-4">or click to browse</p>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="csv-file-input"
+            />
+            <Button variant="outline" onClick={() => document.getElementById('csv-file-input')?.click()} data-testid="button-browse-csv">
+              Browse Files
+            </Button>
+          </div>
+
+          {csvContent && (
+            <>
+              <div className="space-y-2">
+                <Label>CSV Content Preview</Label>
+                <Textarea
+                  value={csvContent}
+                  onChange={(e) => setCsvContent(e.target.value)}
+                  rows={10}
+                  className="font-mono text-sm"
+                  data-testid="textarea-csv-content"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Default Group</Label>
+                  <Select value={defaultGroupId} onValueChange={setDefaultGroupId}>
+                    <SelectTrigger data-testid="select-default-group">
+                      <SelectValue placeholder="No default group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No default group</SelectItem>
+                      {groupsData?.groups?.map((group: UserGroup) => (
+                        <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Default Subscription Tier</Label>
+                  <Select value={defaultTier} onValueChange={setDefaultTier}>
+                    <SelectTrigger data-testid="select-default-tier">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUBSCRIPTION_TIERS.map(tier => (
+                        <SelectItem key={tier} value={tier}>{tier.charAt(0).toUpperCase() + tier.slice(1)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => importMutation.mutate({
+                  csvContent,
+                  defaultGroupId: defaultGroupId && defaultGroupId !== 'none' ? defaultGroupId : undefined,
+                  defaultTier,
+                })}
+                disabled={importMutation.isPending}
+                className="w-full"
+                data-testid="button-import-csv"
+              >
+                {importMutation.isPending ? 'Importing...' : 'Import Users'}
+              </Button>
+            </>
+          )}
+
+          <div className="p-4 bg-accent/20 rounded-lg">
+            <h4 className="font-medium mb-2">CSV Format</h4>
+            <p className="text-sm text-muted-foreground mb-2">Required columns: <code>email</code></p>
+            <p className="text-sm text-muted-foreground">Optional columns: <code>firstName</code>, <code>lastName</code>, <code>subscriptionTier</code>, <code>groupIds</code> (comma-separated)</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 export default function AdminCodes() {
   const [username, setUsername] = useState('');
@@ -268,10 +1155,22 @@ export default function AdminCodes() {
         </div>
 
         <Tabs defaultValue="codes" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="codes" data-testid="tab-codes-management">
               <Key className="w-4 h-4 mr-2" />
-              Code Management
+              Codes
+            </TabsTrigger>
+            <TabsTrigger value="users" data-testid="tab-users-management">
+              <Users className="w-4 h-4 mr-2" />
+              Users
+            </TabsTrigger>
+            <TabsTrigger value="groups" data-testid="tab-groups-management">
+              <FolderTree className="w-4 h-4 mr-2" />
+              Groups
+            </TabsTrigger>
+            <TabsTrigger value="import" data-testid="tab-csv-import">
+              <Upload className="w-4 h-4 mr-2" />
+              Import
             </TabsTrigger>
             <TabsTrigger value="analytics" data-testid="tab-analytics-dashboard">
               <BarChart3 className="w-4 h-4 mr-2" />
@@ -472,6 +1371,18 @@ export default function AdminCodes() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="users" className="mt-6">
+            <UsersTab authHeader={authHeader} />
+          </TabsContent>
+
+          <TabsContent value="groups" className="mt-6">
+            <GroupsTab authHeader={authHeader} />
+          </TabsContent>
+
+          <TabsContent value="import" className="mt-6">
+            <CSVImportTab authHeader={authHeader} />
           </TabsContent>
 
           <TabsContent value="analytics">

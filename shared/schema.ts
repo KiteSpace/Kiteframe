@@ -206,6 +206,40 @@ export const projectFolders = pgTable("project_folders", {
   index("IDX_project_folders_user").on(table.userId),
 ]);
 
+// User groups for access control
+export const userGroups = pgTable("user_groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull().unique(),
+  description: text("description"),
+  accessControls: jsonb("access_controls").default(sql`'{}'::jsonb`), // GroupAccessControls
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_user_groups_name").on(table.name),
+]);
+
+// User group memberships
+export const userGroupMemberships = pgTable("user_group_memberships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  groupId: varchar("group_id").references(() => userGroups.id, { onDelete: 'cascade' }).notNull(),
+  addedAt: timestamp("added_at").defaultNow(),
+}, (table) => [
+  index("IDX_user_group_memberships_user").on(table.userId),
+  index("IDX_user_group_memberships_group").on(table.groupId),
+]);
+
+// Access controls interface (for TypeScript)
+export const groupAccessControlsSchema = z.object({
+  unlimitedCredits: z.boolean().optional(),
+  subscriptionTierOverride: z.enum(['free', 'advanced', 'pro']).optional(),
+  bypassCreditCheck: z.boolean().optional(),
+  monthlyCreditsOverride: z.number().optional(),
+  features: z.array(z.string()).optional(),
+});
+
+export type GroupAccessControls = z.infer<typeof groupAccessControlsSchema>;
+
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   firstName: true,
@@ -240,6 +274,17 @@ export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).om
   createdAt: true,
 });
 
+export const insertUserGroupSchema = createInsertSchema(userGroups).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserGroupMembershipSchema = createInsertSchema(userGroupMemberships).omit({
+  id: true,
+  addedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -263,3 +308,7 @@ export type ProjectFolder = typeof projectFolders.$inferSelect;
 export type InsertProjectFolder = z.infer<typeof insertProjectFolderSchema>;
 export type OAuthProvider = typeof oauthProviders.$inferSelect;
 export type InsertOAuthProvider = typeof oauthProviders.$inferInsert;
+export type UserGroup = typeof userGroups.$inferSelect;
+export type InsertUserGroup = z.infer<typeof insertUserGroupSchema>;
+export type UserGroupMembership = typeof userGroupMemberships.$inferSelect;
+export type InsertUserGroupMembership = z.infer<typeof insertUserGroupMembershipSchema>;
