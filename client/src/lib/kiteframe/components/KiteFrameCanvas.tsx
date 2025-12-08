@@ -63,6 +63,7 @@ import {
   Type,
   Pencil,
   Trash2,
+  Table2,
 } from "lucide-react";
 import type { NodeHyperlink, LegacyNodeHyperlink, OgMetadata } from "../types";
 
