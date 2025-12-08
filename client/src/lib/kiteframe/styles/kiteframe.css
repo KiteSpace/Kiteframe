@@ -41,7 +41,7 @@
   max-height: 300px;
   overflow-y: auto;
 }
-.kiteframe-edge-layer { position:absolute; inset:0; pointer-events:none; z-index: 1; }
+.kiteframe-edge-layer { position:absolute; inset:0; pointer-events:none; z-index: 0; }
 .kiteframe-select-rect { position:absolute; border:1px dashed hsl(221.2, 83.2%, 53.3%); background: hsla(221.2, 83.2%, 53.3%, 0.08); pointer-events:none; }
 .kiteframe-hand { cursor: grab; }
 .kiteframe-hand:active { cursor: grabbing; }
