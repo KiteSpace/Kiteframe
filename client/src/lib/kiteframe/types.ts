@@ -484,7 +484,8 @@ export interface CompoundNodeData extends BasicNodeData {
 // ============= CODE NODE TYPES =============
 // Used for Code Nodes with integrated editor and output display
 
-export type CodeLanguage = 'javascript' | 'python';
+export type CodeLanguage = 'javascript' | 'python' | 'html';
+export type CodeOutputType = 'console' | 'html';
 
 // Output result from code execution
 export interface CodeExecutionResult {
@@ -493,6 +494,7 @@ export interface CodeExecutionResult {
   error?: string;         // Error message if execution failed
   returnValue?: unknown;  // The final expression result
   executedAt?: string;    // ISO timestamp of last execution
+  htmlOutput?: string;    // HTML content for rendering in HTML output mode
 }
 
 // Input variable binding - links to connected Form/Table node data
@@ -506,6 +508,7 @@ export interface CodeInputBinding {
 export interface CodeNodeData extends BasicNodeData {
   code: string;                           // The source code
   language: CodeLanguage;                 // Programming language
+  outputType?: CodeOutputType;            // Output mode: console (default) or html
   lastResult?: CodeExecutionResult;       // Last execution result
   inputBindings?: CodeInputBinding[];     // Bound input variables from connected nodes
   autoRun?: boolean;                      // Auto-run when inputs change

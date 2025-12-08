@@ -427,6 +427,50 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         ];
       }
       
+      // Code nodes only get delete button (they have their own built-in UI)
+      if (node?.type === 'code') {
+        return [
+          {
+            id: 'delete',
+            icon: <Trash2 size={18} />,
+            label: 'Delete',
+            color: 'bg-red-500',
+            hoverColor: 'hover:bg-red-600',
+            onClick: () => { onDelete?.(); onClose(); }
+          }
+        ];
+      }
+      
+      // Output nodes get color palette, stroke style, and delete only
+      if (node?.type === 'output') {
+        return [
+          {
+            id: 'color',
+            icon: <Palette size={18} />,
+            label: 'Color',
+            color: 'bg-blue-500',
+            hoverColor: 'hover:bg-blue-600',
+            hasSubmenu: true
+          },
+          {
+            id: 'style',
+            icon: <Brush size={18} />,
+            label: 'Border Style',
+            color: 'bg-emerald-500',
+            hoverColor: 'hover:bg-emerald-600',
+            hasSubmenu: true
+          },
+          {
+            id: 'delete',
+            icon: <Trash2 size={18} />,
+            label: 'Delete',
+            color: 'bg-red-500',
+            hoverColor: 'hover:bg-red-600',
+            onClick: () => { onDelete?.(); onClose(); }
+          }
+        ];
+      }
+      
       // Normal node toolbar (not inline editing)
       const baseButtons: ToolbarButton[] = [
         {
