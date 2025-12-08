@@ -816,6 +816,7 @@ export interface CodeNodeComponentProps extends GenericNodeComponentProps<CodeNo
   node: Node & { data: CodeNodeData };
   connectedDataSources?: CodeNodeDataSource[];  // Data from connected Form/Table nodes
   onExecuteCode?: (nodeId: string, code: string, language: CodeLanguage, inputs: Record<string, unknown>) => Promise<CodeExecutionResult>;
+  onCreateRenderNode?: (codeNodeId: string) => void;  // Create a connected RenderNode for HTML output
 }
 
 // Pro Features Configuration Interfaces

@@ -15,7 +15,7 @@ import type {
 import { sanitizeText, validateColor } from '../utils/validation';
 import { executeInSandbox } from '../utils/sandboxExecutor';
 import { getBorderColorFromHeader } from '@/lib/themes';
-import { Play, Square, Settings, ChevronDown, ChevronUp, Loader2, Code2, Terminal, AlertCircle, CheckCircle } from 'lucide-react';
+import { Play, Square, Settings, ChevronDown, ChevronUp, Loader2, Code2, Terminal, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { html } from '@codemirror/lang-html';
@@ -71,6 +71,7 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
   viewport,
   connectedDataSources = [],
   onExecuteCode,
+  onCreateRenderNode,
   showDragPlaceholder = false,
   isAnyDragActive = false,
 }) => {
@@ -538,17 +539,34 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
                 )
               )}
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleToggleOutput();
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="p-0.5 hover:bg-gray-700 rounded transition-colors"
-              data-testid="code-node-toggle-output"
-            >
-              <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
-            </button>
+            <div className="flex items-center gap-1">
+              {isHtmlOutput && lastResult?.htmlOutput && onCreateRenderNode && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCreateRenderNode(node.id);
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-purple-600 hover:bg-purple-500 text-white rounded transition-colors"
+                  title="Open in Render Node"
+                  data-testid="code-node-open-render"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  <span>Render</span>
+                </button>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleOutput();
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="p-0.5 hover:bg-gray-700 rounded transition-colors"
+                data-testid="code-node-toggle-output"
+              >
+                <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+              </button>
+            </div>
           </div>
           
           {/* Output content */}

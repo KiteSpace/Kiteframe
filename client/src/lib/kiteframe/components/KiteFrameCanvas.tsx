@@ -42,7 +42,8 @@ import { FormNode } from "./FormNode";
 import { CompoundNode } from "./CompoundNode";
 import { WebviewNode } from "./WebviewNode";
 import CodeNodeComponent from "./CodeNode";
-import RenderNodeComponent from "./RenderNode";
+import RenderNodeComponent, { createRenderNode } from "./RenderNode";
+import { generateNodeId } from "../factory/NodeFactory";
 import { DataLinkPicker } from "./DataLinkPicker";
 import { TextObject } from "./TextObject";
 import { StickyNoteObject } from "./StickyNoteObject";
@@ -4320,6 +4321,30 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         node.id === nodeId ? { ...node, ...updates } : node,
                       );
                       props.onNodesChange?.(updated);
+                    }}
+                    onCreateRenderNode={(codeNodeId: string) => {
+                      const codeNode = props.nodes.find((node) => node.id === codeNodeId);
+                      if (!codeNode) return;
+                      const existingRenderEdge = props.edges?.find(
+                        (edge) => edge.source === codeNodeId && 
+                        props.nodes.find((node) => node.id === edge.target)?.type === 'render'
+                      );
+                      if (existingRenderEdge) {
+                        const renderNode = props.nodes.find((node) => node.id === existingRenderEdge.target);
+                        if (renderNode) {
+                          props.onFocusNode?.(renderNode.id);
+                        }
+                        return;
+                      }
+                      const renderNodeId = generateNodeId();
+                      const codeNodeWidth = codeNode.style?.width || codeNode.width || 400;
+                      const renderNode = createRenderNode(
+                        renderNodeId,
+                        { x: codeNode.position.x + codeNodeWidth + 50, y: codeNode.position.y },
+                        { label: 'HTML Output', sourceNodeId: codeNodeId }
+                      );
+                      props.onNodesChange?.([...props.nodes, renderNode]);
+                      props.onConnect?.({ source: codeNodeId, target: renderNodeId });
                     }}
                     onFocusNode={props.onFocusNode}
                     onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
