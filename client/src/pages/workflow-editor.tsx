@@ -4165,7 +4165,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 relative overflow-hidden">
           {/* Home Screen */}
           {isOnHomeTab ? (
             <HomeScreen
@@ -4306,10 +4306,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             />
           ) : (
           <>
-          {/* Sidebar */}
-          <div className={`${isSidebarCollapsed ? 'w-12' : 'w-64'} border-r border-border flex flex-col transition-all duration-200 ${isSidebarCollapsed ? 'overflow-visible' : 'overflow-hidden'}`}>
-            {isSidebarCollapsed ? (
-              <>
+          {/* Floating Sidebar - positioned absolutely over canvas */}
+          <div className={`absolute left-4 top-1/2 -translate-y-1/2 z-30 ${isSidebarCollapsed ? '' : 'hidden'}`}>
+            {isSidebarCollapsed && (
                 <CollapsedSidebar
                   toggleSidebar={toggleSidebar}
                   onCreateNode={(type: string) => {
