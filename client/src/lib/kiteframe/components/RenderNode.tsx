@@ -1,18 +1,9 @@
-import { memo, useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { memo, useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
 import { getBorderColorFromHeader } from '@/lib/themes';
-import { 
-  Code2, 
-  RefreshCw, 
-  Maximize2, 
-  X,
-  ExternalLink,
-  AlertCircle,
-  Loader2
-} from 'lucide-react';
-import { createPortal } from 'react-dom';
+import { Code2, Palette, Trash2 } from 'lucide-react';
 import type { Node, Position } from '../types';
 import { sanitizeText } from '../utils/validation';
 
@@ -46,6 +37,8 @@ export interface RenderNodeComponentProps {
   onUpdate?: (id: string, updates: Partial<Node>) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
   onFocusNode?: (nodeId: string) => void;
+  onDelete?: (nodeId: string) => void;
+  onOpenColorPicker?: (nodeId: string) => void;
   className?: string;
   style?: React.CSSProperties;
   showHandles?: boolean;
@@ -58,63 +51,13 @@ export interface RenderNodeComponentProps {
   isAnyDragActive?: boolean;
 }
 
-interface FullscreenModalProps {
-  htmlContent: string;
-  title: string;
-  onClose: () => void;
-}
-
-const FullscreenModal: React.FC<FullscreenModalProps> = ({ htmlContent, title, onClose }) => {
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
-
-  return createPortal(
-    <div 
-      className="fixed inset-0 z-[9999] bg-black/80 flex flex-col"
-      onClick={onClose}
-    >
-      <div 
-        className="flex items-center justify-between px-4 py-3 bg-gray-900"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-3">
-          <Code2 className="w-5 h-5 text-purple-400" />
-          <span className="text-white font-medium truncate max-w-md">{title}</span>
-        </div>
-        <button
-          onClick={onClose}
-          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
-          title="Close"
-        >
-          <X size={18} />
-        </button>
-      </div>
-      <div 
-        className="flex-1 bg-white overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <iframe
-          srcDoc={htmlContent}
-          className="w-full h-full border-0"
-          sandbox="allow-scripts"
-          title={title}
-        />
-      </div>
-    </div>,
-    document.body
-  );
-};
-
 const RenderNodeComponent: React.FC<RenderNodeComponentProps> = ({
   node,
   onUpdate,
   onDoubleClick,
   onFocusNode,
+  onDelete,
+  onOpenColorPicker,
   className,
   style,
   showHandles = true,
@@ -128,7 +71,6 @@ const RenderNodeComponent: React.FC<RenderNodeComponentProps> = ({
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState(node.data.label || 'HTML');
-  const [showFullscreen, setShowFullscreen] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
   
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -206,27 +148,6 @@ const RenderNodeComponent: React.FC<RenderNodeComponentProps> = ({
     }
   }, [node.id, node.style, onUpdate]);
 
-  const handleRefresh = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIframeKey(prev => prev + 1);
-  }, []);
-
-  const handleOpenFullscreen = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowFullscreen(true);
-  }, []);
-
-  const handleOpenInNewTab = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (htmlContent) {
-      const newWindow = window.open('', '_blank');
-      if (newWindow) {
-        newWindow.document.write(htmlContent);
-        newWindow.document.close();
-      }
-    }
-  }, [htmlContent]);
-
   const hasContent = !!htmlContent;
 
   return (
@@ -295,37 +216,24 @@ const RenderNodeComponent: React.FC<RenderNodeComponentProps> = ({
           </div>
 
           <div className="flex items-center gap-0.5 flex-shrink-0">
-            {hasContent && (
-              <>
-                <button
-                  onClick={handleRefresh}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  className="p-1 hover:bg-white/20 rounded transition-colors"
-                  title="Refresh"
-                  data-testid="render-refresh"
-                >
-                  <RefreshCw size={12} />
-                </button>
-                <button
-                  onClick={handleOpenFullscreen}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  className="p-1 hover:bg-white/20 rounded transition-colors"
-                  title="Fullscreen"
-                  data-testid="render-fullscreen"
-                >
-                  <Maximize2 size={12} />
-                </button>
-                <button
-                  onClick={handleOpenInNewTab}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  className="p-1 hover:bg-white/20 rounded transition-colors"
-                  title="Open in new tab"
-                  data-testid="render-external"
-                >
-                  <ExternalLink size={12} />
-                </button>
-              </>
-            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onOpenColorPicker?.(node.id); }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="p-1 hover:bg-white/20 rounded transition-colors"
+              title="Color Palette"
+              data-testid="render-color-picker"
+            >
+              <Palette size={12} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete?.(node.id); }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="p-1 hover:bg-white/20 rounded transition-colors text-red-200 hover:text-red-100"
+              title="Delete"
+              data-testid="render-delete"
+            >
+              <Trash2 size={12} />
+            </button>
           </div>
         </div>
 
@@ -341,7 +249,7 @@ const RenderNodeComponent: React.FC<RenderNodeComponentProps> = ({
               key={iframeKey}
               srcDoc={htmlContent}
               className="w-full h-full border-0"
-              sandbox="allow-scripts"
+              sandbox="allow-scripts allow-same-origin"
               title={title}
               style={{ backgroundColor: 'white' }}
             />
@@ -368,14 +276,6 @@ const RenderNodeComponent: React.FC<RenderNodeComponentProps> = ({
           />
         )}
       </div>
-
-      {showFullscreen && (
-        <FullscreenModal
-          htmlContent={htmlContent}
-          title={title}
-          onClose={() => setShowFullscreen(false)}
-        />
-      )}
     </>
   );
 };
