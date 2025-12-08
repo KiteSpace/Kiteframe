@@ -6224,6 +6224,39 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   });
                 }
                 
+                // Toast notification for code and render node connections
+                const sourceType = sourceNode?.type;
+                const targetType = targetNode?.type;
+                
+                // Table/Form → Code connection
+                if ((sourceType === 'table' || sourceType === 'form') && targetType === 'code') {
+                  const sourceLabel = sourceType === 'table' ? 'Table' : 'Form';
+                  toast({
+                    title: `Now linked to ${sourceLabel}`,
+                    description: 'You can now access its data via the inputs object in your code.',
+                    duration: 3000,
+                  });
+                }
+                
+                // Code → Render connection
+                if (sourceType === 'code' && targetType === 'render') {
+                  toast({
+                    title: 'Now linked to Code',
+                    description: 'The render node will display HTML output from the code node.',
+                    duration: 3000,
+                  });
+                }
+                
+                // Any node → Code connection (for other data sources)
+                if (sourceType && targetType === 'code' && sourceType !== 'table' && sourceType !== 'form' && sourceType !== 'code') {
+                  const sourceLabel = sourceNode?.data?.label || sourceType.charAt(0).toUpperCase() + sourceType.slice(1);
+                  toast({
+                    title: `Now linked to ${sourceLabel}`,
+                    description: 'You can now access its data via the inputs object.',
+                    duration: 3000,
+                  });
+                }
+                
                 saveToHistory();
               }}
               onNodeClick={(e: React.MouseEvent, node: Node) => {

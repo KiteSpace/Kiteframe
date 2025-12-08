@@ -550,15 +550,22 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           color: 'bg-blue-500',
           hoverColor: 'hover:bg-blue-600',
           hasSubmenu: true
-        },
-        {
+        }
+      ];
+      
+      // Only show swap direction for non-data-link edges (data links have enforced direction)
+      if (!isDataLink) {
+        edgeButtons.push({
           id: 'direction',
           icon: <ArrowLeftRight size={18} />,
           label: 'Swap Direction',
           color: 'bg-purple-500',
           hoverColor: 'hover:bg-purple-600',
           onClick: () => { onEdgeDirectionSwap?.(); }
-        },
+        });
+      }
+      
+      edgeButtons.push(
         {
           id: 'strokeStyle',
           icon: <Minus size={18} />,
