@@ -4348,13 +4348,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       const table = tableId ? props.tableData?.[tableId] : null;
                       if (table) {
                         const tableName = sourceNode.data?.label || 'Table';
-                        const variableName = edge.data?.variableName;
+                        const variableName = edge.data?.variableName || tableName.toLowerCase().replace(/\s+/g, '_');
                         return { 
                           nodeId: sourceNode.id, 
                           nodeType: 'table' as const, 
                           nodeName: tableName,
                           variableName: variableName,
-                          data: { rows: table.rows, columns: table.columns } 
+                          data: { [variableName]: table.rows, _columns: table.columns } 
                         };
                       }
                     }

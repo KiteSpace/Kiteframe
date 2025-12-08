@@ -307,9 +307,12 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
       const varName = source.variableName || source.nodeName || 'data';
       const data = source.data[varName];
       const rows = Array.isArray(data) ? data : [];
-      const columns = rows.length > 0 && typeof rows[0] === 'object' && rows[0] !== null
-        ? Object.keys(rows[0])
-        : [];
+      const providedColumns = source.data._columns as string[] | undefined;
+      const columns = providedColumns && Array.isArray(providedColumns) 
+        ? providedColumns 
+        : (rows.length > 0 && typeof rows[0] === 'object' && rows[0] !== null
+            ? Object.keys(rows[0])
+            : []);
       return {
         ...source,
         varName,
