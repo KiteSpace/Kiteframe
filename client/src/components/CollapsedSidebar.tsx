@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, Menu } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { clientToWorld } from '@/lib/kiteframe/utils/geometry';
 import { workflowThemes, type WorkflowTheme } from '@/lib/themes';
@@ -20,6 +20,8 @@ interface CollapsedSidebarProps {
   setActivePopout: (popout: 'node-types' | 'shapes' | 'templates' | 'themes' | null) => void;
   sidebarIcons: Record<string, LucideIcon>;
   viewport: { x: number; y: number; zoom: number };
+  isExpanded?: boolean;
+  onToggleExpanded?: () => void;
 }
 
 export function CollapsedSidebar({
@@ -37,7 +39,9 @@ export function CollapsedSidebar({
   onApplyTheme,
   activePopout,
   setActivePopout,
-  sidebarIcons
+  sidebarIcons,
+  isExpanded = false,
+  onToggleExpanded
 }: CollapsedSidebarProps) {
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
@@ -320,114 +324,140 @@ export function CollapsedSidebar({
 
   // Split icons into main, template/theme, and action groups
   // Note: 'brain' removed - AI assistant is now the floating KiteAI button
-  const mainIcons = ['workflow', 'type', 'shapes', 'sticky-note', 'table', 'form'];
+  // Note: 'table' and 'form' removed - they exist inside node-types menu
+  const mainIcons = ['workflow', 'type', 'shapes', 'sticky-note'];
   const templateThemeIcons = ['route', 'palette'];
   const actionIcons = ['clear', 'export', 'import'];
 
   return (
     <TooltipProvider>
-      <div className="h-full flex flex-col bg-card border-r border-border p-2" data-testid="collapsed-sidebar">
+      <div 
+        className={`absolute left-4 top-1/2 -translate-y-1/2 flex flex-col bg-card border border-border shadow-lg p-2 z-40 transition-all duration-200 ${isExpanded ? 'w-44' : 'w-12'}`}
+        style={{ borderRadius: '12px' }}
+        data-testid="collapsed-sidebar"
+      >
+        {/* Hamburger Menu Toggle */}
+        <button
+          onClick={onToggleExpanded}
+          className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-accent transition-colors mb-2"
+          data-testid="toggle-toolbar-expand"
+          title={isExpanded ? "Collapse toolbar" : "Expand toolbar"}
+        >
+          <Menu className="w-4 h-4" />
+        </button>
+
+        {/* Divider */}
+        <div className="border-b border-border mb-2"></div>
 
         {/* Main Icons */}
-        <div className="space-y-2 mb-4">
+        <div className="space-y-1 mb-2">
           {mainIcons.map((iconKey) => {
             const IconComponent = sidebarIcons[iconKey];
             if (!IconComponent) return null;
 
             return (
-              <Tooltip key={iconKey}>
+              <Tooltip key={iconKey} delayDuration={isExpanded ? 1000 : 0}>
                 <TooltipTrigger asChild>
                   <button
                     onClick={(e) => {
-                      // Only handle click if no drag occurred
                       if (!dragState.isDragging) {
                         handleIconClick(iconKey);
                       }
                     }}
                     onMouseDown={(e) => handleIconMouseDown(e, iconKey)}
                     className={`
-                      w-8 h-8 rounded-md flex items-center justify-center transition-colors
+                      ${isExpanded ? 'w-full px-2' : 'w-8'} h-8 rounded-md flex items-center gap-2 transition-colors
                       ${isActive(iconKey) 
                         ? 'bg-primary text-primary-foreground' 
                         : 'hover:bg-accent'
                       }
                     `}
                     data-testid={`icon-${iconKey}`}
-                    title={getTooltipText(iconKey)}
+                    title={isExpanded ? undefined : getTooltipText(iconKey)}
                   >
-                    <IconComponent className="w-4 h-4" />
+                    <IconComponent className="w-4 h-4 flex-shrink-0 ml-1.5" />
+                    {isExpanded && <span className="text-sm font-medium truncate">{getTooltipText(iconKey)}</span>}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p>{getTooltipText(iconKey)}</p>
-                </TooltipContent>
+                {!isExpanded && (
+                  <TooltipContent side="right">
+                    <p>{getTooltipText(iconKey)}</p>
+                  </TooltipContent>
+                )}
               </Tooltip>
             );
           })}
         </div>
 
         {/* Divider */}
-        <div className="border-b border-border mb-4"></div>
+        <div className="border-b border-border mb-2"></div>
 
         {/* Template and Theme Icons */}
-        <div className="space-y-2 mb-4">
+        <div className="space-y-1 mb-2">
           {templateThemeIcons.map((iconKey) => {
             const IconComponent = sidebarIcons[iconKey];
             if (!IconComponent) return null;
 
             return (
-              <Tooltip key={iconKey}>
+              <Tooltip key={iconKey} delayDuration={isExpanded ? 1000 : 0}>
                 <TooltipTrigger asChild>
                   <button
                     onClick={(e) => {
-                      console.log('🎯 TEMPLATE/THEME ICON CLICKED:', { iconKey, activePopout });
                       handleIconClick(iconKey);
                     }}
                     className={`
-                      w-8 h-8 rounded-md flex items-center justify-center transition-colors
+                      ${isExpanded ? 'w-full px-2' : 'w-8'} h-8 rounded-md flex items-center gap-2 transition-colors
                       ${isActive(iconKey) 
                         ? 'bg-primary text-primary-foreground' 
                         : 'hover:bg-accent'
                       }
                     `}
                     data-testid={`icon-${iconKey}`}
-                    title={getTooltipText(iconKey)}
+                    title={isExpanded ? undefined : getTooltipText(iconKey)}
                   >
-                    <IconComponent className="w-4 h-4" />
+                    <IconComponent className="w-4 h-4 flex-shrink-0 ml-1.5" />
+                    {isExpanded && <span className="text-sm font-medium truncate">{getTooltipText(iconKey)}</span>}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p>{getTooltipText(iconKey)}</p>
-                </TooltipContent>
+                {!isExpanded && (
+                  <TooltipContent side="right">
+                    <p>{getTooltipText(iconKey)}</p>
+                  </TooltipContent>
+                )}
               </Tooltip>
             );
           })}
         </div>
 
         {/* Divider */}
-        <div className="border-b border-border mb-4"></div>
+        <div className="border-b border-border mb-2"></div>
 
         {/* Action Icons */}
-        <div className="space-y-2 flex-1">
+        <div className="space-y-1">
           {actionIcons.map((iconKey) => {
             const IconComponent = sidebarIcons[iconKey];
             if (!IconComponent) return null;
 
             return (
-              <Tooltip key={iconKey}>
+              <Tooltip key={iconKey} delayDuration={isExpanded ? 1000 : 0}>
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => handleIconClick(iconKey)}
-                    className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-accent transition-colors"
+                    className={`
+                      ${isExpanded ? 'w-full px-2' : 'w-8'} h-8 rounded-md flex items-center gap-2 hover:bg-accent transition-colors
+                    `}
                     data-testid={`action-${iconKey}`}
-                    title={getTooltipText(iconKey)}
+                    title={isExpanded ? undefined : getTooltipText(iconKey)}
                   >
-                    <IconComponent className="w-4 h-4" />
+                    <IconComponent className="w-4 h-4 flex-shrink-0 ml-1.5" />
+                    {isExpanded && <span className="text-sm font-medium truncate">{getTooltipText(iconKey)}</span>}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p>{getTooltipText(iconKey)}</p>
-                </TooltipContent>
+                {!isExpanded && (
+                  <TooltipContent side="right">
+                    <p>{getTooltipText(iconKey)}</p>
+                  </TooltipContent>
+                )}
               </Tooltip>
             );
           })}
