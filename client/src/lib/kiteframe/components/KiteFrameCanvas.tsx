@@ -686,7 +686,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
     if (!hasContent) {
       // Simple name display with chevron
       return (
-        <div className="absolute top-4 left-4 z-40 flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-lg font-medium text-gray-700 dark:text-gray-300 shadow-sm">
+        <div className="absolute top-4 left-4 z-40 flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 px-2 py-1 text-lg font-medium text-gray-700 dark:text-gray-300 shadow-sm" style={{ borderRadius: '12px' }}>
           <span
             onClick={handleStartNameEdit}
             className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
@@ -707,7 +707,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
 
     // Rich card display with content
     return (
-      <div className="absolute top-4 left-4 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 max-w-80">
+      <div className="absolute top-4 left-4 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg p-3 max-w-80" style={{ borderRadius: '12px' }}>
         <div className="flex items-center justify-between mb-2">
           <h3
             onClick={handleStartNameEdit}
@@ -798,10 +798,11 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={handleNameKeyDown}
         onBlur={handleFinishNameEdit}
-        className="absolute top-4 left-4 z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm font-medium text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        className="absolute top-4 left-4 z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 px-2 py-1 text-sm font-medium text-gray-900 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         style={{
           minWidth: "200px",
           maxWidth: "400px",
+          borderRadius: "12px",
         }}
         placeholder="Workflow name..."
       />
@@ -812,7 +813,8 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   return (
     <div
       ref={formRef}
-      className="absolute top-4 left-4 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 w-96"
+      className="absolute top-4 left-4 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg p-4 w-96"
+      style={{ borderRadius: '12px' }}
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-medium text-gray-900 dark:text-gray-100">
