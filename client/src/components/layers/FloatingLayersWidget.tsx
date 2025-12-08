@@ -14,7 +14,8 @@ export function FloatingLayersWidget({ nodes, edges, frames, canvasObjects }: Pr
       {!open && (
         <button
           onClick={()=>setOpen(o=>!o)}
-          className="flex items-center gap-2 bg-card border border-border rounded-full shadow-lg px-2 py-2 hover:shadow-xl transition-shadow select-none"
+          className="flex items-center gap-2 bg-card border border-border rounded-full shadow-lg px-4 py-2 hover:shadow-xl transition-shadow select-none"
+          style={{ minHeight: '50px' }}
           title="Layers"
           data-testid="button-layers"
         >

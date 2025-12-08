@@ -3442,6 +3442,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Popout state for collapsed sidebar
   const [activePopout, setActivePopout] = useState<'node-types' | 'shapes' | 'templates' | 'themes' | null>(null);
 
+  // Toolbar expanded state (icons only vs icons + labels)
+  const [isToolbarExpanded, setIsToolbarExpanded] = useState(false);
+
   // Current workflow theme state
   const [currentTheme, setCurrentTheme] = useState<WorkflowTheme>(() => {
     try {
@@ -4671,6 +4674,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   setActivePopout={setActivePopout}
                   sidebarIcons={sidebarIcons}
                   viewport={viewport}
+                  isExpanded={isToolbarExpanded}
+                  onToggleExpanded={() => setIsToolbarExpanded(prev => !prev)}
                 />
                 
                 {/* Node Types Popout */}
