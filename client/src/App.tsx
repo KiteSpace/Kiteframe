@@ -9,6 +9,7 @@ import KitelineDocs from "@/pages/kiteline-docs";
 import AdminCodes from "@/pages/AdminCodes";
 import Pricing from "@/pages/Pricing";
 import Account from "@/pages/Account";
+import MockupCodeDataReference from "@/pages/mockup-code-data-reference";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/account" component={Account} />
       <Route path="/checkout/success" component={Account} />
       <Route path="/internal/x9k7m2p4" component={AdminCodes} />
+      <Route path="/mockup/code-data" component={MockupCodeDataReference} />
       <Route component={NotFound} />
     </Switch>
   );

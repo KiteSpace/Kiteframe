@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "name": "API Gateway",
+    "layer": "Presentation",
+    "cost": 0.012,
+    "region": "us-west",
+    "owner": "Core Infra"
+  },
+  {
+    "id": 2,
+    "name": "Load Balancer",
+    "layer": "Presentation",
+    "cost": 0.019,
+    "region": "us-west",
+    "owner": "Platform Team"
+  },
+  {
+    "id": 3,
+    "name": "Application Server",
+    "layer": "API",
+    "cost": 0.100,
+    "region": "us-east",
+    "owner": "Runtime"
+  },
+  {
+    "id": 4,
+    "name": "File Storage",
+    "layer": "Business Logic",
+    "cost": 0.020,
+    "region": "us-east",
+    "owner": "Storage Team"
+  },
+  {
+    "id": 5,
+    "name": "Monitoring",
+    "layer": "Business Logic",
+    "cost": 0.008,
+    "region": "us-west",
+    "owner": "Observability"
+  }
+]
