@@ -4165,7 +4165,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 relative overflow-hidden">
+        <div className="flex-1 flex overflow-hidden">
           {/* Home Screen */}
           {isOnHomeTab ? (
             <HomeScreen
@@ -4306,9 +4306,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             />
           ) : (
           <>
-          {/* Floating Sidebar - positioned absolutely over canvas */}
-          <div className={`absolute left-4 top-1/2 -translate-y-1/2 z-30 ${isSidebarCollapsed ? '' : 'hidden'}`}>
-            {isSidebarCollapsed && (
+          {/* Sidebar - takes no space when collapsed, toolbar floats over canvas */}
+          <div className={`${isSidebarCollapsed ? 'w-0' : 'w-64'} border-r border-border flex flex-col transition-all duration-200 ${isSidebarCollapsed ? 'overflow-visible' : 'overflow-hidden'}`}>
+            {isSidebarCollapsed ? (
+              <>
                 <CollapsedSidebar
                   toggleSidebar={toggleSidebar}
                   onCreateNode={(type: string) => {
@@ -4682,6 +4683,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   isOpen={activePopout === 'node-types'}
                   onClose={() => setActivePopout(null)}
                   viewport={viewport}
+                  isToolbarExpanded={isToolbarExpanded}
                   onCreateNode={(type: string) => {
                     // Handle regular node creation from popout
                     if (tabs.length === 0) {
@@ -4909,6 +4911,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   isOpen={activePopout === 'shapes'}
                   onClose={() => setActivePopout(null)}
                   viewport={viewport}
+                  isToolbarExpanded={isToolbarExpanded}
                   onCreateShape={(shapeType: string) => {
                     saveToHistory();
                     

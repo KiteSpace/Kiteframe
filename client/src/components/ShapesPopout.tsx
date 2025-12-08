@@ -8,9 +8,10 @@ interface ShapesPopoutProps {
   onCreateShape: (shapeType: string) => void;
   onCreateShapeAtPosition?: (shapeType: string, position: { x: number; y: number }) => void;
   viewport: { x: number; y: number; zoom: number };
+  isToolbarExpanded?: boolean;
 }
 
-export function ShapesPopout({ isOpen, onClose, onCreateShape, onCreateShapeAtPosition, viewport }: ShapesPopoutProps) {
+export function ShapesPopout({ isOpen, onClose, onCreateShape, onCreateShapeAtPosition, viewport, isToolbarExpanded = false }: ShapesPopoutProps) {
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
     shapeType: string | null;
@@ -125,10 +126,10 @@ export function ShapesPopout({ isOpen, onClose, onCreateShape, onCreateShapeAtPo
         data-testid="shapes-popout-backdrop"
       />
       
-      {/* Popout Panel */}
+      {/* Popout Panel - positioned to the right of the floating toolbar */}
       <div 
-        className="absolute left-16 top-32 w-40 bg-card border border-border rounded-md shadow-lg p-3"
-        style={{ zIndex: 60 }}
+        className="fixed w-40 bg-card border border-border rounded-md shadow-lg p-3"
+        style={{ zIndex: 60, left: isToolbarExpanded ? '200px' : '80px', top: '50%', transform: 'translateY(-50%)' }}
         data-testid="shapes-popout"
       >
         <h3 className="text-sm font-semibold mb-3">Shapes</h3>

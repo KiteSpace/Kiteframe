@@ -18,6 +18,7 @@ interface NodeTypesPopoutProps {
     position: { x: number; y: number },
   ) => void;
   viewport: { x: number; y: number; zoom: number };
+  isToolbarExpanded?: boolean;
 }
 
 export function NodeTypesPopout({
@@ -26,6 +27,7 @@ export function NodeTypesPopout({
   onCreateNode,
   onCreateNodeAtPosition,
   viewport,
+  isToolbarExpanded = false,
 }: NodeTypesPopoutProps) {
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
@@ -158,10 +160,10 @@ export function NodeTypesPopout({
         data-testid="popout-backdrop"
       />
 
-      {/* Popout Panel */}
+      {/* Popout Panel - positioned to the right of the floating toolbar */}
       <div
-        className="absolute left-16 top-32 w-40 bg-card border border-border rounded-md shadow-lg p-3"
-        style={{ zIndex: 60 }}
+        className="fixed w-40 bg-card border border-border rounded-md shadow-lg p-3"
+        style={{ zIndex: 60, left: isToolbarExpanded ? '200px' : '80px', top: '50%', transform: 'translateY(-50%)' }}
         data-testid="node-types-popout"
       >
         <h3 className="text-sm font-semibold mb-3">Node Types</h3>
