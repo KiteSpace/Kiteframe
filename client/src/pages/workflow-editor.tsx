@@ -36,6 +36,7 @@ import { useFirebaseWorkflows } from '../hooks/useFirebaseWorkflows';
 import { useAuth } from '../hooks/useAuth';
 import { useCreditsGate } from '../hooks/useCreditsGate';
 import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeData, ShapeNodeData, StickyNoteData, DataTable, TableNodeData, SavedCompoundTemplate, TemplateStore } from '../lib/kiteframe/types';
+import type { FlowSettings, FlowSettingsMap } from '../lib/kiteframe/utils/FlowDetection';
 import { DEFAULT_SHAPE_NODE_DATA } from '../lib/kiteframe/constants/defaults';
 import { recalculateAllEdgeZIndexes } from '../lib/kiteframe/utils/edgeZIndex';
 import { applyThemeToNode, applyThemeToEdge, workflowThemes, getThemeById, type WorkflowTheme } from '../lib/themes';
@@ -100,6 +101,7 @@ interface WorkflowTab {
   metadata: WorkflowMetadata;
   thumbnail?: string;
   lastModified?: number;
+  flowSettings?: FlowSettingsMap;
 }
 
 // Helper to get node position and dimensions (handles different node structures)
@@ -915,7 +917,8 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
         links: [],
         linksFormat: 'text',
         categories: []
-      }
+      },
+      flowSettings: {}
     };
   }, [generateTabId, generateCuteName, generateRandomWorkflow]);
 
@@ -944,7 +947,8 @@ function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: ()
         links: [],
         linksFormat: 'text',
         categories: []
-      }
+      },
+      flowSettings: {}
     };
   }, [generateTabId, generateCuteName]);
 
@@ -6959,6 +6963,26 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onSaveAsTemplate={handleSaveAsTemplate}
               savedTemplates={savedTemplates}
               onGenerateFromTemplate={handleGenerateFromTemplate}
+              flowSettings={activeTab?.flowSettings}
+              onFlowSettingsChange={(flowId, settings) => {
+                updateActiveTab({
+                  flowSettings: {
+                    ...activeTab?.flowSettings,
+                    [flowId]: settings
+                  }
+                });
+              }}
+              onResetFlowStatuses={(flowId) => {
+                // Reset all node statuses in the flow
+                const flowNodes = nodes.filter(n => {
+                  // Find nodes that belong to this flow by checking connectivity
+                  return true; // For now, just reset all - flow detection handles this
+                });
+                setNodes(nodes.map(n => ({
+                  ...n,
+                  data: { ...n.data, status: undefined }
+                })));
+              }}
             />
                 
                 <FloatingLayersWidget
