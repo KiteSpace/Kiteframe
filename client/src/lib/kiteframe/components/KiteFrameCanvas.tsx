@@ -3818,7 +3818,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       props.onImageUrlSet?.(nodeId, url);
                     }}
                     onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
-                    showHandles={n.showHandles !== false}
+                    showHandles={!props.readOnly && n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
                     onStartDrag={(e: React.MouseEvent) => {
                       e.stopPropagation();
@@ -3917,7 +3917,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     }}
                     onFocusNode={props.onFocusNode}
                     onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
-                    showHandles={n.showHandles !== false}
+                    showHandles={!props.readOnly && n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
                     onStartDrag={(e: React.MouseEvent) => {
                       e.stopPropagation();
@@ -4141,7 +4141,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         eligible: false,
                       });
                     }}
-                    showHandles={n.showHandles !== false}
+                    showHandles={!props.readOnly && n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
                     viewport={viewport}
                     showDragPlaceholder={draggingNodeId === n.id}
@@ -4241,7 +4241,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         eligible: false,
                       });
                     }}
-                    showHandles={n.showHandles !== false}
+                    showHandles={!props.readOnly && n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
                     viewport={viewport}
                     showDragPlaceholder={draggingNodeId === n.id}
@@ -4351,7 +4351,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         eligible: false,
                       });
                     }}
-                    showHandles={n.showHandles !== false}
+                    showHandles={!props.readOnly && n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
                     viewport={viewport}
                     showDragPlaceholder={draggingNodeId === n.id}
@@ -4479,7 +4479,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     }}
                     onFocusNode={props.onFocusNode}
                     onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
-                    showHandles={n.showHandles !== false}
+                    showHandles={!props.readOnly && n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
                     onStartDrag={(e: React.MouseEvent) => {
                       e.stopPropagation();
@@ -4580,7 +4580,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     }}
                     onFocusNode={props.onFocusNode}
                     onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
-                    showHandles={n.showHandles !== false}
+                    showHandles={!props.readOnly && n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
                     onStartDrag={(e: React.MouseEvent) => {
                       e.stopPropagation();
@@ -5131,7 +5131,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     );
                   })()}
                   
-                  {n.showHandles !== false && !draggingNodeId && (
+                  {!props.readOnly && n.showHandles !== false && !draggingNodeId && (
                     <NodeHandles
                       node={n}
                       scale={viewport.zoom}
