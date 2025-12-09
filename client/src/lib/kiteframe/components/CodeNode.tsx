@@ -35,6 +35,7 @@ const MIN_CODE_WIDTH = 300;
 const MIN_CODE_HEIGHT = 200;
 const MAX_CODE_HEIGHT = 800;
 const DEFAULT_OUTPUT_HEIGHT = 120;
+const DATA_REFERENCE_PANEL_WIDTH = 224; // w-56 = 14rem = 224px
 
 const containsHtml = (text: string): boolean => {
   if (!text || typeof text !== 'string') return false;
@@ -98,7 +99,8 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
   const showOutput = node.data.showOutput !== false;
   const outputHeight = node.data.outputHeight || DEFAULT_OUTPUT_HEIGHT;
   
-  const nodeWidth = node.style?.width || node.width || DEFAULT_CODE_WIDTH;
+  const baseNodeWidth = node.style?.width || node.width || DEFAULT_CODE_WIDTH;
+  const nodeWidth = showDataReference ? baseNodeWidth + DATA_REFERENCE_PANEL_WIDTH : baseNodeWidth;
   const nodeHeight = node.style?.height || node.height || DEFAULT_CODE_HEIGHT;
   
   const headerColor = node.data.colors?.headerBackground || '#1e1e1e';
@@ -422,7 +424,7 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
     <div
       ref={nodeRef}
       className={cn(
-        "absolute rounded-lg overflow-hidden transition-shadow duration-200 flex flex-col",
+        "absolute rounded-lg overflow-hidden transition-all duration-200 flex flex-col",
         node.selected && "ring-2 ring-blue-500 ring-offset-1",
         className
       )}
@@ -680,7 +682,7 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3">
+            <div className="flex-1 overflow-y-auto p-3 min-h-0">
               {getDataSourceInfo.length > 0 ? (
                 <>
                   {getDataSourceInfo.map((source, sourceIdx) => (
