@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useParams, useLocation } from 'wouter';
 import { usePluginSystem } from '@/lib/kiteframe/core/PluginProvider';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import FloatingLayersWidget from '@/components/layers/FloatingLayersWidget';
@@ -239,6 +240,12 @@ function WorkflowEditorContent({
   const isReadOnly = mode === 'view';
   const ai = useAi();
   const { toast } = useToast();
+  
+  // URL routing for project UUID
+  const { projectUuid } = useParams<{ projectUuid?: string }>();
+  const [, setLocation] = useLocation();
+  const [currentProjectId, setCurrentProjectId] = useState<number | null>(null);
+  const projectLoadedRef = useRef(false);
   const { isOutOfCredits, ctaMessage, ctaAction, ctaButtonText, openSignup, openPricing, openCreditsDialog } = useCreditsGate();
 
   // Editor Settings State with persistence
@@ -3457,6 +3464,62 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     };
   }, [activeShareId, nodes, edges, canvasObjects, viewport, activeTab?.metadata]);
 
+  // Load project from URL parameter (projectUuid)
+  useEffect(() => {
+    if (!projectUuid || projectLoadedRef.current) return;
+    
+    projectLoadedRef.current = true;
+    
+    fetch(`/api/project/${projectUuid}`, { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.redirect) {
+          // Non-owner trying to access edit URL - redirect to view URL
+          setLocation(data.redirect);
+        } else if (data.project) {
+          // Load project data into editor
+          const workflowData = data.project.workflowData;
+          if (workflowData && activeTabId && tabs.length > 0) {
+            // Update the active tab with project data
+            setTabs(prev => prev.map(tab => 
+              tab.id === activeTabId ? {
+                ...tab,
+                name: data.project.name || tab.name,
+                nodes: workflowData.nodes || [],
+                edges: workflowData.edges || [],
+                canvasObjects: workflowData.canvasObjects || [],
+                viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
+                metadata: {
+                  ...tab.metadata,
+                  name: data.project.name || '',
+                  description: data.project.description || ''
+                }
+              } : tab
+            ));
+          }
+          setCurrentProjectId(data.project.id);
+          
+          // Set activeShareId if project has sharing enabled
+          if (data.isShareEnabled && data.shareUuid) {
+            setActiveShareId(data.shareUuid);
+          }
+          
+          toast({
+            title: 'Project Loaded',
+            description: `Loaded "${data.project.name || 'Untitled Project'}"`,
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load project:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load project',
+          variant: 'destructive'
+        });
+      });
+  }, [projectUuid, setLocation, activeTabId, tabs.length, toast]);
+
   // Track toolbar position when node/canvas object is being dragged
   useEffect(() => {
     if (!linearToolbar) return;
@@ -6147,7 +6210,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   updateActiveTab({ canvasObjects: newCanvasObjects });
                   saveToHistory();
                 }}
-              readOnly={isReadOnly}
               proFeatures={proFeaturesConfig}
               onQuickAdd={handleQuickAdd}
               workflowName={activeTab?.name}
@@ -6708,7 +6770,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }}
               onImageButtonClick={setShowImageModal}
               onUndo={isReadOnly ? handleViewReset : handleUndo}
-              onRedo={isReadOnly ? undefined : handleRedo}
+              onRedo={isReadOnly ? () => {} : handleRedo}
               onFitView={() => {
                 if (nodes.length === 0) {
                   setViewport({ x: 0, y: 0, zoom: 1 });
@@ -7524,6 +7586,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             viewport={viewport}
             projectMetadata={activeTab?.metadata}
             onShareCreated={(shareId) => setActiveShareId(shareId)}
+            projectId={currentProjectId}
+            existingShareUuid={activeShareId}
+            isAuthenticated={isAuthenticated}
           />
         )}
 

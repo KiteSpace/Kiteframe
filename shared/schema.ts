@@ -179,6 +179,9 @@ export const analyticsEvents = pgTable("analytics_events", {
 export const savedProjects = pgTable("saved_projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id).notNull(),
+  projectUuid: varchar("project_uuid").notNull().unique().default(sql`gen_random_uuid()`), // Stable UUID for edit URLs
+  shareUuid: varchar("share_uuid").unique(), // UUID for view-only share links (null until shared)
+  isShareEnabled: boolean("is_share_enabled").default(false), // Whether sharing is active
   name: varchar("name").notNull(),
   description: text("description"),
   workflowData: jsonb("workflow_data").notNull(), // Full workflow JSON (nodes, edges, canvas objects, viewport)
@@ -188,9 +191,12 @@ export const savedProjects = pgTable("saved_projects", {
   tags: text("tags").array().default(sql`ARRAY[]::text[]`),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  lastSharedAt: timestamp("last_shared_at"), // When sharing was last enabled
 }, (table) => [
   index("IDX_saved_projects_user").on(table.userId),
   index("IDX_saved_projects_folder").on(table.folderId),
+  index("IDX_saved_projects_project_uuid").on(table.projectUuid),
+  index("IDX_saved_projects_share_uuid").on(table.shareUuid),
 ]);
 
 // Project folders for organization

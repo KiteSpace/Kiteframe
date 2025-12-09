@@ -723,6 +723,208 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================================
+  // PROJECT UUID-BASED ACCESS CONTROL ENDPOINTS
+  // ============================================================================
+
+  // Get project by projectUuid (for editing - requires ownership)
+  app.get('/api/project/:projectUuid', isAuthenticated, async (req: any, res) => {
+    try {
+      const { projectUuid } = req.params;
+      const project = await storage.getProjectByProjectUuid(projectUuid);
+      
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      // Check if user is the owner
+      const userId = req.user.claims.sub;
+      if (project.userId !== userId) {
+        // Not the owner - do not leak shareUuid, just reject
+        return res.status(403).json({ error: 'Not authorized to access this project' });
+      }
+
+      // Owner - return full project data
+      res.json({ 
+        project,
+        isOwner: true,
+        shareUuid: project.shareUuid,
+        isShareEnabled: project.isShareEnabled
+      });
+    } catch (error) {
+      console.error('Error fetching project by UUID:', error);
+      res.status(500).json({ error: 'Failed to fetch project' });
+    }
+  });
+
+  // Update project by projectUuid (requires ownership)
+  app.put('/api/project/:projectUuid', projectRateLimiter, isAuthenticated, async (req: any, res) => {
+    try {
+      const { projectUuid } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const project = await storage.getProjectByProjectUuid(projectUuid);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      
+      if (project.userId !== userId) {
+        return res.status(403).json({ error: 'Not authorized to edit this project' });
+      }
+
+      const { name, description, workflowData, thumbnail, folderId, tags, isPublic } = req.body;
+      
+      // Sanitize all input data
+      const sanitizedName = name ? sanitizeNodeLabel(name) : undefined;
+      const sanitizedDescription = description ? sanitizeText(description) : undefined;
+      const sanitizedWorkflowData = workflowData ? sanitizeWorkflowContent(workflowData) : undefined;
+      const sanitizedTags = tags ? (tags as string[]).map((t: string) => sanitizeText(t)).filter(Boolean) : undefined;
+
+      const updated = await storage.updateSavedProject(project.id, userId, {
+        name: sanitizedName,
+        description: sanitizedDescription,
+        workflowData: sanitizedWorkflowData,
+        thumbnail,
+        folderId,
+        tags: sanitizedTags,
+        isPublic,
+      });
+
+      if (!updated) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      // If sharing is enabled, broadcast update to viewers
+      if (updated.isShareEnabled && updated.shareUuid) {
+        const broadcastFn = (req.app as any).broadcastShareUpdate;
+        if (broadcastFn && sanitizedWorkflowData) {
+          const { nodes, edges, canvasObjects, viewport, flowSettings } = sanitizedWorkflowData as any;
+          broadcastFn(updated.shareUuid, { nodes, edges, canvasObjects, viewport, flowSettings });
+        }
+      }
+
+      res.json({ project: updated });
+    } catch (error) {
+      console.error('Error updating project by UUID:', error);
+      res.status(500).json({ error: 'Failed to update project' });
+    }
+  });
+
+  // Enable sharing for a project (generates shareUuid if not exists)
+  app.post('/api/projects/:id/share', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+
+      const project = await storage.getSavedProject(id, userId);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      // If already has a shareUuid and is enabled, just return it
+      if (project.isShareEnabled && project.shareUuid) {
+        return res.json({ 
+          shareUuid: project.shareUuid,
+          shareUrl: `/view/${project.shareUuid}`,
+          project 
+        });
+      }
+
+      // Enable sharing (generates new shareUuid if needed)
+      const updated = await storage.enableProjectSharing(id, userId);
+      if (!updated) {
+        return res.status(500).json({ error: 'Failed to enable sharing' });
+      }
+
+      res.json({ 
+        shareUuid: updated.shareUuid,
+        shareUrl: `/view/${updated.shareUuid}`,
+        project: updated 
+      });
+    } catch (error) {
+      console.error('Error enabling project sharing:', error);
+      res.status(500).json({ error: 'Failed to enable sharing' });
+    }
+  });
+
+  // Disable sharing for a project
+  app.delete('/api/projects/:id/share', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+
+      const updated = await storage.disableProjectSharing(id, userId);
+      if (!updated) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      res.json({ success: true, project: updated });
+    } catch (error) {
+      console.error('Error disabling project sharing:', error);
+      res.status(500).json({ error: 'Failed to disable sharing' });
+    }
+  });
+
+  // View-only access via shareUuid or legacy shareId (no auth required)
+  // Handles both new saved project shares AND legacy snapshot shares
+  app.get('/api/view/:shareUuid', async (req: any, res) => {
+    try {
+      const { shareUuid } = req.params;
+      
+      // First, try to find a saved project by shareUuid
+      const project = await storage.getProjectByShareUuid(shareUuid);
+      
+      if (project) {
+        // Check if viewer is actually the owner
+        const userId = req.user?.claims?.sub;
+        if (userId && project.userId === userId) {
+          // Owner viewing their own share link - redirect to edit
+          return res.json({
+            redirect: `/project/${project.projectUuid}`,
+            projectUuid: project.projectUuid,
+            isOwner: true
+          });
+        }
+
+        // Return view-only data from saved project
+        const workflowData = project.workflowData as any;
+        return res.json({
+          shareUuid: project.shareUuid,
+          projectName: project.name,
+          projectDescription: project.description,
+          nodes: workflowData?.nodes || [],
+          edges: workflowData?.edges || [],
+          canvasObjects: workflowData?.canvasObjects,
+          viewport: workflowData?.viewport,
+          flowSettings: workflowData?.flowSettings,
+          isOwner: false
+        });
+      }
+      
+      // Fallback: try legacy share links
+      const shareLink = await storage.getShareLink(shareUuid);
+      if (shareLink) {
+        const metadata = shareLink.projectMetadata as { name?: string; description?: string } | null;
+        return res.json({
+          shareUuid: shareLink.shareId,
+          projectName: metadata?.name || 'Shared Workflow',
+          projectDescription: metadata?.description,
+          nodes: shareLink.nodes || [],
+          edges: shareLink.edges || [],
+          canvasObjects: shareLink.canvasObjects,
+          viewport: shareLink.viewport,
+          flowSettings: shareLink.flowSettings,
+          isOwner: false
+        });
+      }
+      
+      return res.status(404).json({ error: 'Shared project not found or sharing is disabled' });
+    } catch (error) {
+      console.error('Error fetching view-only project:', error);
+      res.status(500).json({ error: 'Failed to fetch project' });
+    }
+  });
+
   // AI Chat endpoint - proxy for AI models with dynamic provider routing
   app.post('/api/ai/chat', aiRateLimiter, requireUSOnly, requireCredits, async (req, res) => {
     try {

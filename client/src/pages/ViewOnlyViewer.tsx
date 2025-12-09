@@ -12,14 +12,17 @@ import type { FlowSettingsMap } from '../lib/kiteframe/utils/FlowDetection';
 import '../lib/kiteframe/styles/kiteframe.css';
 
 interface SharedProjectData {
-  id: string;
-  shareId: string;
+  shareUuid: string;
+  projectName?: string;
+  projectDescription?: string;
   nodes: Node[];
   edges: Edge[];
   canvasObjects?: CanvasObject[];
   viewport?: { x: number; y: number; zoom: number };
-  projectMetadata?: { name?: string; description?: string };
   flowSettings?: FlowSettingsMap;
+  isOwner?: boolean;
+  redirect?: string;
+  projectUuid?: string;
 }
 
 export default function ViewOnlyViewer() {
@@ -45,9 +48,15 @@ export default function ViewOnlyViewer() {
   const wsRef = useRef<WebSocket | null>(null);
 
   const { data, isLoading, error, refetch } = useQuery<SharedProjectData>({
-    queryKey: ['/api/shared-project', shareId],
+    queryKey: ['/api/view', shareId],
     enabled: !!shareId,
   });
+
+  useEffect(() => {
+    if (data?.isOwner && data?.redirect) {
+      setLocation(data.redirect);
+    }
+  }, [data, setLocation]);
 
   useEffect(() => {
     if (data) {
@@ -239,8 +248,8 @@ export default function ViewOnlyViewer() {
     );
   }
 
-  const projectName = data.projectMetadata?.name || 'Shared Workflow';
-  const projectDescription = data.projectMetadata?.description;
+  const projectName = data.projectName || 'Shared Workflow';
+  const projectDescription = data.projectDescription;
 
   return (
     <div className="h-screen w-screen flex flex-col bg-background overflow-hidden" data-testid="view-only-viewer">

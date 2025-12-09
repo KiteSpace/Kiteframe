@@ -17,6 +17,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={WorkflowEditor} />
+      <Route path="/project/:projectUuid" component={WorkflowEditor} />
       <Route path="/demo" component={KitelineDemo} />
       <Route path="/docs" component={KitelineDocs} />
       <Route path="/pricing" component={Pricing} />

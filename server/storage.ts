@@ -24,6 +24,10 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getSavedProjects(userId: string): Promise<SavedProject[]>;
   getSavedProject(id: string, userId: string): Promise<SavedProject | undefined>;
+  getProjectByProjectUuid(projectUuid: string): Promise<SavedProject | undefined>;
+  getProjectByShareUuid(shareUuid: string): Promise<SavedProject | undefined>;
+  enableProjectSharing(id: string, userId: string): Promise<SavedProject | undefined>;
+  disableProjectSharing(id: string, userId: string): Promise<SavedProject | undefined>;
   createSavedProject(project: InsertSavedProject): Promise<SavedProject>;
   updateSavedProject(id: string, userId: string, data: Partial<InsertSavedProject>): Promise<SavedProject | undefined>;
   deleteSavedProject(id: string, userId: string): Promise<void>;
@@ -113,6 +117,48 @@ export class DatabaseStorage implements IStorage {
       .from(savedProjects)
       .where(and(eq(savedProjects.id, id), eq(savedProjects.userId, userId)));
     return project;
+  }
+
+  async getProjectByProjectUuid(projectUuid: string): Promise<SavedProject | undefined> {
+    const [project] = await db
+      .select()
+      .from(savedProjects)
+      .where(eq(savedProjects.projectUuid, projectUuid));
+    return project;
+  }
+
+  async getProjectByShareUuid(shareUuid: string): Promise<SavedProject | undefined> {
+    const [project] = await db
+      .select()
+      .from(savedProjects)
+      .where(and(eq(savedProjects.shareUuid, shareUuid), eq(savedProjects.isShareEnabled, true)));
+    return project;
+  }
+
+  async enableProjectSharing(id: string, userId: string): Promise<SavedProject | undefined> {
+    const [updated] = await db
+      .update(savedProjects)
+      .set({
+        isShareEnabled: true,
+        shareUuid: crypto.randomUUID(),
+        lastSharedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(savedProjects.id, id), eq(savedProjects.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async disableProjectSharing(id: string, userId: string): Promise<SavedProject | undefined> {
+    const [updated] = await db
+      .update(savedProjects)
+      .set({
+        isShareEnabled: false,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(savedProjects.id, id), eq(savedProjects.userId, userId)))
+      .returning();
+    return updated;
   }
 
   async createSavedProject(project: InsertSavedProject): Promise<SavedProject> {
