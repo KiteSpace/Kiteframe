@@ -38,6 +38,8 @@ import { ObjectUploader } from '@/components/ObjectUploader';
 import { useFirebaseWorkflows } from '../hooks/useFirebaseWorkflows';
 import { useAuth } from '../hooks/useAuth';
 import { useCreditsGate } from '../hooks/useCreditsGate';
+import { useCloudProjects } from '../hooks/useCloudProjects';
+import { useSubscription } from '../hooks/useSubscription';
 import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeData, ShapeNodeData, StickyNoteData, DataTable, TableNodeData, SavedCompoundTemplate, TemplateStore } from '../lib/kiteframe/types';
 import type { FlowSettings, FlowSettingsMap } from '../lib/kiteframe/utils/FlowDetection';
 import { DEFAULT_SHAPE_NODE_DATA } from '../lib/kiteframe/constants/defaults';
@@ -247,6 +249,19 @@ function WorkflowEditorContent({
   const [currentProjectId, setCurrentProjectId] = useState<number | null>(null);
   const projectLoadedRef = useRef(false);
   const { isOutOfCredits, ctaMessage, ctaAction, ctaButtonText, openSignup, openPricing, openCreditsDialog } = useCreditsGate();
+  
+  const { isPro, isAdmin } = useSubscription();
+  const { 
+    projects: cloudProjects, 
+    isLoading: cloudProjectsLoading,
+    hasCloudAccess,
+    isCloudConnected,
+    lastSyncError,
+    createProject: createCloudProject,
+    updateProject: updateCloudProject,
+    deleteProject: deleteCloudProject,
+    isSaving: isCloudSaving,
+  } = useCloudProjects();
 
   // Editor Settings State with persistence
   const [editorSettings, setEditorSettings] = useState(() => {
@@ -4397,14 +4412,54 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           {/* Home Screen */}
           {isOnHomeTab ? (
             <HomeScreen
-              recentProjects={tabs.map(tab => ({
-                id: tab.id,
-                name: tab.name,
-                lastModified: new Date(tab.lastModified || Date.now()),
-                status: 'draft' as const,
-                thumbnail: tab.thumbnail || generateWorkflowThumbnail(tab.nodes, tab.edges)
-              }))}
-              onOpenProject={(projectId) => setActiveTabId(projectId)}
+              recentProjects={hasCloudAccess ? cloudProjects.map(project => ({
+                id: project.id,
+                name: project.name,
+                lastModified: new Date(project.updatedAt || project.createdAt || Date.now()),
+                status: project.isPublic ? 'published' as const : 'private' as const,
+                thumbnail: project.thumbnail || undefined
+              })) : []}
+              onOpenProject={(projectId) => {
+                if (hasCloudAccess) {
+                  const project = cloudProjects.find(p => p.id === projectId);
+                  if (project && project.workflowData) {
+                    const workflowData = project.workflowData as any;
+                    const name = project.name || generateCuteName();
+                    const newTab: WorkflowTab = {
+                      id: generateTabId(),
+                      name,
+                      nodes: workflowData.nodes || [],
+                      edges: workflowData.edges || [],
+                      canvasObjects: workflowData.canvasObjects || [],
+                      viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
+                      selectedNodeId: '',
+                      selectedEdgeId: '',
+                      history: [{ 
+                        nodes: workflowData.nodes || [], 
+                        edges: workflowData.edges || [], 
+                        canvasObjects: workflowData.canvasObjects || [], 
+                        viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 } 
+                      }],
+                      historyIndex: 0,
+                      showImageModal: null,
+                      metadata: {
+                        name,
+                        description: project.description || '',
+                        links: [],
+                        linksFormat: 'text',
+                        categories: []
+                      },
+                      flowSettings: workflowData.flowSettings || {},
+                      cloudProjectId: project.id,
+                      projectUuid: project.projectUuid,
+                    };
+                    setTabs(prev => [...prev, newTab]);
+                    setActiveTabId(newTab.id);
+                  }
+                } else {
+                  setActiveTabId(projectId);
+                }
+              }}
               onGenerateWorkflow={(prompt) => {
                 const newTab = createBlankTab();
                 setTabs(prev => [...prev, newTab]);

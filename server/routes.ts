@@ -42,6 +42,12 @@ function isAdminUser(email: string | undefined | null): boolean {
   return adminEmails.includes(email.toLowerCase());
 }
 
+// Check if user has cloud project access (Pro tier OR Admin)
+function hasCloudProjectAccess(user: { subscriptionTier?: string | null; email?: string | null } | undefined): boolean {
+  if (!user) return false;
+  return user.subscriptionTier === 'pro' || isAdminUser(user.email);
+}
+
 // Workflow validation utility
 function validateWorkflowStructure(data: any): { isValid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
@@ -434,13 +440,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Saved Projects API (Pro tier only)
+  // Saved Projects API (Pro tier or Admin)
   app.get('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
 
-      if (!user || user.subscriptionTier !== 'pro') {
+      if (!hasCloudProjectAccess(user)) {
         return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
       }
 
@@ -457,7 +463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
 
-      if (!user || user.subscriptionTier !== 'pro') {
+      if (!hasCloudProjectAccess(user)) {
         return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
       }
 
