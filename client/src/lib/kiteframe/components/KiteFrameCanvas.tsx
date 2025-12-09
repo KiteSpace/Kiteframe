@@ -4353,17 +4353,25 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     if (dataNode.type === 'table') {
                       const tableId = dataNode.data?.tableId;
                       const table = tableId ? props.tableData?.[tableId] : null;
+                      const tableName = dataNode.data?.label || 'Table';
+                      const variableName = edge.data?.variableName || tableName.toLowerCase().replace(/\s+/g, '_');
                       if (table) {
-                        const tableName = dataNode.data?.label || 'Table';
-                        const variableName = edge.data?.variableName || tableName.toLowerCase().replace(/\s+/g, '_');
+                        const columnNames = (table.columns?.map((col: any) => typeof col === 'string' ? col : col.name || col.id) || []).filter((name: any): name is string => typeof name === 'string' && name.length > 0);
                         return { 
                           nodeId: dataNode.id, 
                           nodeType: 'table' as const, 
                           nodeName: tableName,
                           variableName: variableName,
-                          data: { [variableName]: table.rows, _columns: table.columns } 
+                          data: { [variableName]: table.rows, _columns: columnNames } 
                         };
                       }
+                      return { 
+                        nodeId: dataNode.id, 
+                        nodeType: 'table' as const, 
+                        nodeName: tableName,
+                        variableName: variableName,
+                        data: { [variableName]: [], _columns: [], _pending: true } 
+                      };
                     }
                     return null;
                   })
