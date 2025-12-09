@@ -10,7 +10,7 @@ import AdminCodes from "@/pages/AdminCodes";
 import Pricing from "@/pages/Pricing";
 import Account from "@/pages/Account";
 import MockupCodeDataReference from "@/pages/mockup-code-data-reference";
-import ViewOnlyEditor from "@/pages/ViewOnlyEditor";
+import ViewOnlyViewer from "@/pages/ViewOnlyViewer";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,7 +24,7 @@ function Router() {
       <Route path="/checkout/success" component={Account} />
       <Route path="/internal/x9k7m2p4" component={AdminCodes} />
       <Route path="/mockup/code-data" component={MockupCodeDataReference} />
-      <Route path="/view/:shareId" component={ViewOnlyEditor} />
+      <Route path="/view/:shareId" component={ViewOnlyViewer} />
       <Route component={NotFound} />
     </Switch>
   );
