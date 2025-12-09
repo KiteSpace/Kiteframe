@@ -3560,9 +3560,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           </svg>
 
           {/* Workflow Headers for each detected flow */}
-          {flows.map((flow) => {
+          {flows.map((flow, index) => {
+            // Use workflow name from props, or generate a default name based on flow index
+            const defaultName = flows.length > 1 
+              ? `${props.workflowName || 'Workflow'} ${index + 1}` 
+              : (props.workflowName || 'Workflow');
             const flowSettings = props.flowSettings?.[flow.id] || {
-              name: 'Workflow',
+              name: defaultName,
               statusTrackingEnabled: false,
             };
             return (
