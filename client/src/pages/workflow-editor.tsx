@@ -69,7 +69,9 @@ import {
   ChevronRight,
   Home,
   LayoutGrid,
-  Share2
+  Share2,
+  Eye,
+  RotateCcw
 } from 'lucide-react';
 
 // Project metadata types
@@ -210,7 +212,30 @@ function generateWorkflowThumbnail(nodes: Node[], edges: Edge[]): string {
   return `data:image/svg+xml;base64,${utf8ToBase64(svg)}`;
 }
 
-function WorkflowEditorContent({ onAiSettingsChange }: { onAiSettingsChange?: () => void }) {
+interface WorkflowEditorContentProps {
+  onAiSettingsChange?: () => void;
+  mode?: 'edit' | 'view';
+  initialNodes?: Node[];
+  initialEdges?: Edge[];
+  initialCanvasObjects?: CanvasObject[];
+  initialViewport?: { x: number; y: number; zoom: number };
+  initialProjectName?: string;
+  initialProjectDescription?: string;
+  onReset?: () => void;
+}
+
+function WorkflowEditorContent({ 
+  onAiSettingsChange,
+  mode = 'edit',
+  initialNodes,
+  initialEdges,
+  initialCanvasObjects,
+  initialViewport,
+  initialProjectName,
+  initialProjectDescription,
+  onReset
+}: WorkflowEditorContentProps) {
+  const isReadOnly = mode === 'view';
   const ai = useAi();
   const { toast } = useToast();
   const { isOutOfCredits, ctaMessage, ctaAction, ctaButtonText, openSignup, openPricing, openCreditsDialog } = useCreditsGate();
@@ -4077,12 +4102,21 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           editorSettings={editorSettings}
           onEditorSettingsChange={setEditorSettings}
           onOpenBugReport={() => setShowBugReportModal(true)}
+          isReadOnly={isReadOnly}
         />
         
         {/* Tab Bar */}
         <div className="flex items-center bg-card border-b border-border px-4 py-2">
           <div className="flex items-center space-x-1 flex-1 overflow-x-auto min-w-0">
+            {/* Read Only Badge */}
+            {isReadOnly && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-md text-sm font-medium mr-2" data-testid="badge-read-only">
+                <Eye size={14} />
+                <span>Read Only</span>
+              </div>
+            )}
             {/* Home Tab Icon */}
+            {!isReadOnly && (
             <button
               className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${
                 isOnHomeTab
@@ -4095,6 +4129,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             >
               <Home size={16} />
             </button>
+            )}
             
             {/* Workflow Tabs */}
             {tabs.map((tab) => (

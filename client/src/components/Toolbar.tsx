@@ -28,6 +28,7 @@ interface ToolbarProps {
   editorSettings?: EditorSettings;
   onEditorSettingsChange?: (settings: EditorSettings) => void;
   onOpenBugReport?: () => void;
+  isReadOnly?: boolean;
 }
 
 export function Toolbar({ 
@@ -36,7 +37,8 @@ export function Toolbar({
   onToggleDarkMode, 
   editorSettings,
   onEditorSettingsChange,
-  onOpenBugReport
+  onOpenBugReport,
+  isReadOnly
 }: ToolbarProps) {
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const settingsDropdownRef = useRef<HTMLDivElement>(null);
