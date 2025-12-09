@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+
 /**
  * NodeToWorkflowStore - Maps node IDs to their workflow group IDs and names
  * This connects the flow detection system to the layers panel workflow groups
@@ -52,9 +54,9 @@ class NodeToWorkflowStoreImpl {
 export const nodeToWorkflowStore = new NodeToWorkflowStoreImpl();
 
 export function useNodeToWorkflow() {
-  const [, forceUpdate] = require('react').useState({});
+  const [, forceUpdate] = useState({});
   
-  require('react').useEffect(() => {
+  useEffect(() => {
     const unsubscribe = nodeToWorkflowStore.subscribe(() => {
       forceUpdate({});
     });
