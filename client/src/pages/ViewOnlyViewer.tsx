@@ -89,6 +89,7 @@ export default function ViewOnlyViewer() {
       wsRef.current = ws;
       
       ws.onopen = () => {
+        console.log(`📡 [VIEWER WS] Connected! Subscribing to shareId: ${shareId}`);
         setWsConnected(true);
         ws.send(JSON.stringify({
           type: 'subscribe_share',
@@ -99,12 +100,18 @@ export default function ViewOnlyViewer() {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
+          console.log(`📡 [VIEWER WS] Received message:`, message.type, message.shareId);
           if (message.type === 'share_update' && message.shareId === shareId) {
+            const nodeCount = message.nodes?.length || 0;
+            const edgeCount = message.edges?.length || 0;
+            console.log(`📡 [VIEWER WS] Applying update - ${nodeCount} nodes, ${edgeCount} edges`);
             if (message.nodes) setNodes(message.nodes);
             if (message.edges) setEdges(message.edges);
             if (message.canvasObjects) setCanvasObjects(message.canvasObjects);
             if (message.viewport) setViewport(message.viewport);
             if (message.flowSettings) setFlowSettings(message.flowSettings);
+          } else if (message.type === 'share_subscribed') {
+            console.log(`📡 [VIEWER WS] Successfully subscribed to shareId: ${message.shareId}`);
           }
         } catch (e) {
           console.error('WebSocket message parse error:', e);
@@ -112,10 +119,12 @@ export default function ViewOnlyViewer() {
       };
       
       ws.onclose = () => {
+        console.log(`📡 [VIEWER WS] Connection closed`);
         setWsConnected(false);
       };
       
-      ws.onerror = () => {
+      ws.onerror = (err) => {
+        console.error(`📡 [VIEWER WS] Error:`, err);
         setWsConnected(false);
       };
       
