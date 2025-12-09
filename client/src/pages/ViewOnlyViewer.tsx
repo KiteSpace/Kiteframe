@@ -45,7 +45,9 @@ export default function ViewOnlyViewer() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [liveUpdates, setLiveUpdates] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
+  const [hasPendingUpdates, setHasPendingUpdates] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
+  const liveUpdatesRef = useRef(liveUpdates);
 
   const { data, isLoading, error, refetch } = useQuery<SharedProjectData>({
     queryKey: ['/api/view', shareId],
@@ -81,65 +83,69 @@ export default function ViewOnlyViewer() {
   }, [data]);
 
   useEffect(() => {
-    if (liveUpdates && shareId) {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
-      
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-      
-      ws.onopen = () => {
-        console.log(`📡 [VIEWER WS] Connected! Subscribing to shareId: ${shareId}`);
-        setWsConnected(true);
-        ws.send(JSON.stringify({
-          type: 'subscribe_share',
-          shareId: shareId
-        }));
-      };
-      
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          console.log(`📡 [VIEWER WS] Received message:`, message.type, message.shareId);
-          if (message.type === 'share_update' && message.shareId === shareId) {
-            const nodeCount = message.nodes?.length || 0;
-            const edgeCount = message.edges?.length || 0;
+    liveUpdatesRef.current = liveUpdates;
+  }, [liveUpdates]);
+
+  useEffect(() => {
+    if (!shareId) return;
+    
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+    
+    ws.onopen = () => {
+      console.log(`📡 [VIEWER WS] Connected! Subscribing to shareId: ${shareId}`);
+      setWsConnected(true);
+      ws.send(JSON.stringify({
+        type: 'subscribe_share',
+        shareId: shareId
+      }));
+    };
+    
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log(`📡 [VIEWER WS] Received message:`, message.type, message.shareId);
+        if (message.type === 'share_update' && message.shareId === shareId) {
+          const nodeCount = message.nodes?.length || 0;
+          const edgeCount = message.edges?.length || 0;
+          
+          if (liveUpdatesRef.current) {
             console.log(`📡 [VIEWER WS] Applying update - ${nodeCount} nodes, ${edgeCount} edges`);
             if (message.nodes) setNodes(message.nodes);
             if (message.edges) setEdges(message.edges);
             if (message.canvasObjects) setCanvasObjects(message.canvasObjects);
             if (message.viewport) setViewport(message.viewport);
             if (message.flowSettings) setFlowSettings(message.flowSettings);
-          } else if (message.type === 'share_subscribed') {
-            console.log(`📡 [VIEWER WS] Successfully subscribed to shareId: ${message.shareId}`);
+          } else {
+            console.log(`📡 [VIEWER WS] Live updates OFF - marking pending updates`);
+            setHasPendingUpdates(true);
           }
-        } catch (e) {
-          console.error('WebSocket message parse error:', e);
+        } else if (message.type === 'share_subscribed') {
+          console.log(`📡 [VIEWER WS] Successfully subscribed to shareId: ${message.shareId}`);
         }
-      };
-      
-      ws.onclose = () => {
-        console.log(`📡 [VIEWER WS] Connection closed`);
-        setWsConnected(false);
-      };
-      
-      ws.onerror = (err) => {
-        console.error(`📡 [VIEWER WS] Error:`, err);
-        setWsConnected(false);
-      };
-      
-      return () => {
-        ws.close();
-        wsRef.current = null;
-      };
-    } else {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-        setWsConnected(false);
+      } catch (e) {
+        console.error('WebSocket message parse error:', e);
       }
-    }
-  }, [liveUpdates, shareId]);
+    };
+    
+    ws.onclose = () => {
+      console.log(`📡 [VIEWER WS] Connection closed`);
+      setWsConnected(false);
+    };
+    
+    ws.onerror = (err) => {
+      console.error(`📡 [VIEWER WS] Error:`, err);
+      setWsConnected(false);
+    };
+    
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
+  }, [shareId]);
 
   const noopEdgesChange = useCallback(() => {}, []);
   const noopCanvasObjectsChange = useCallback(() => {}, []);
@@ -208,6 +214,18 @@ export default function ViewOnlyViewer() {
   const handleGoHome = useCallback(() => {
     setLocation('/');
   }, [setLocation]);
+
+  const handleToggleLiveUpdates = useCallback(async () => {
+    const newValue = !liveUpdates;
+    liveUpdatesRef.current = newValue;
+    setLiveUpdates(newValue);
+    
+    if (newValue) {
+      console.log(`📡 [VIEWER] Enabling live updates - refetching latest data`);
+      setHasPendingUpdates(false);
+      await refetch();
+    }
+  }, [liveUpdates, refetch]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -319,7 +337,7 @@ export default function ViewOnlyViewer() {
                   ? 'bg-green-500 text-white' 
                   : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
               }`}
-              onClick={() => setLiveUpdates(!liveUpdates)}
+              onClick={handleToggleLiveUpdates}
               data-testid="live-updates-toggle"
             >
               <Radio 
@@ -330,6 +348,29 @@ export default function ViewOnlyViewer() {
                 <span className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-white' : 'bg-yellow-300'}`} />
               )}
             </div>
+            
+            {!liveUpdates && hasPendingUpdates && (
+              <div 
+                className="bg-amber-500 text-white text-xs font-medium px-2.5 py-1 rounded-full shadow-md inline-flex items-center gap-1.5 animate-pulse cursor-pointer"
+                onClick={handleToggleLiveUpdates}
+                data-testid="pending-updates-badge"
+              >
+                <svg 
+                  className="w-3 h-3" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                  />
+                </svg>
+                Pending updates
+              </div>
+            )}
           </div>
           
           <div 
