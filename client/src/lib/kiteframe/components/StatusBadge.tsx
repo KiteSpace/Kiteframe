@@ -16,12 +16,23 @@ export function StatusBadge({ status, onClick, disabled }: StatusBadgeProps) {
       : 'To Do';
 
   return (
-    <div
+    <button
       className={`kf-status-badge kf-${status ?? 'todo'} ${disabled ? 'kf-disabled' : ''}`}
-      onClick={disabled ? undefined : onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!disabled && onClick) onClick();
+      }}
+      disabled={disabled}
+      type="button"
       data-testid="status-badge"
+      style={{
+        border: 'none',
+        background: 'transparent',
+        padding: '2px 8px',
+        cursor: disabled ? 'default' : 'pointer',
+      }}
     >
       <span className="dot" /> {label}
-    </div>
+    </button>
   );
 }

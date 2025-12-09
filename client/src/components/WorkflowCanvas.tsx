@@ -66,6 +66,7 @@ interface WorkflowCanvasProps {
   flowSettings?: FlowSettingsMap;
   onFlowSettingsChange?: (flowId: string, settings: FlowSettings) => void;
   onResetFlowStatuses?: (flowId: string) => void;
+  onNodeStatusChange?: (nodeId: string) => void;
 }
 
 export function WorkflowCanvas({
@@ -124,7 +125,8 @@ export function WorkflowCanvas({
   onGenerateFromTemplate,
   flowSettings,
   onFlowSettingsChange,
-  onResetFlowStatuses
+  onResetFlowStatuses,
+  onNodeStatusChange
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -436,6 +438,7 @@ export function WorkflowCanvas({
         flowSettings={flowSettings}
         onFlowSettingsChange={onFlowSettingsChange}
         onResetFlowStatuses={onResetFlowStatuses}
+        onNodeStatusChange={onNodeStatusChange}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

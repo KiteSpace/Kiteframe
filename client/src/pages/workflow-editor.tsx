@@ -6983,6 +6983,28 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   data: { ...n.data, status: undefined }
                 })));
               }}
+              onNodeStatusChange={(nodeId) => {
+                // Cycle status: undefined/todo -> inprogress -> done -> undefined
+                setNodes(prev => prev.map(n => {
+                  if (n.id === nodeId) {
+                    const currentStatus = n.data?.status;
+                    let nextStatus: string | undefined;
+                    if (!currentStatus || currentStatus === 'todo') {
+                      nextStatus = 'inprogress';
+                    } else if (currentStatus === 'inprogress') {
+                      nextStatus = 'done';
+                    } else {
+                      nextStatus = undefined; // Cycle back to todo/undefined
+                    }
+                    return {
+                      ...n,
+                      data: { ...n.data, status: nextStatus }
+                    };
+                  }
+                  return n;
+                }));
+                saveToHistory();
+              }}
             />
                 
                 <FloatingLayersWidget
