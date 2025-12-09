@@ -4329,28 +4329,35 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
               // Handle code nodes
               if (n.type === "code") {
+                // Check both edge directions: edges where code node is target OR source
+                // Only include edges connected to table or form nodes (exclude render nodes, etc.)
                 const connectedDataSources = props.edges
-                  ?.filter((edge) => edge.target === n.id)
+                  ?.filter((edge) => edge.target === n.id || edge.source === n.id)
                   .map((edge) => {
-                    const sourceNode = props.nodes.find((node) => node.id === edge.source);
-                    if (!sourceNode) return null;
-                    if (sourceNode.type === 'form') {
+                    // Determine which end is the data source (form/table)
+                    const isCodeTarget = edge.target === n.id;
+                    const dataNodeId = isCodeTarget ? edge.source : edge.target;
+                    const dataNode = props.nodes.find((node) => node.id === dataNodeId);
+                    if (!dataNode) return null;
+                    // Only process form or table nodes - skip render, code, and other node types
+                    if (dataNode.type !== 'form' && dataNode.type !== 'table') return null;
+                    if (dataNode.type === 'form') {
                       const formData: Record<string, unknown> = {};
-                      sourceNode.data?.fields?.forEach((field: any) => {
+                      dataNode.data?.fields?.forEach((field: any) => {
                         formData[field.label || field.id] = field.value;
                       });
-                      const formName = sourceNode.data?.label || 'Form';
+                      const formName = dataNode.data?.label || 'Form';
                       const variableName = edge.data?.variableName;
-                      return { nodeId: sourceNode.id, nodeType: 'form' as const, nodeName: formName, variableName: variableName, data: formData };
+                      return { nodeId: dataNode.id, nodeType: 'form' as const, nodeName: formName, variableName: variableName, data: formData };
                     }
-                    if (sourceNode.type === 'table') {
-                      const tableId = sourceNode.data?.tableId;
+                    if (dataNode.type === 'table') {
+                      const tableId = dataNode.data?.tableId;
                       const table = tableId ? props.tableData?.[tableId] : null;
                       if (table) {
-                        const tableName = sourceNode.data?.label || 'Table';
+                        const tableName = dataNode.data?.label || 'Table';
                         const variableName = edge.data?.variableName || tableName.toLowerCase().replace(/\s+/g, '_');
                         return { 
-                          nodeId: sourceNode.id, 
+                          nodeId: dataNode.id, 
                           nodeType: 'table' as const, 
                           nodeName: tableName,
                           variableName: variableName,

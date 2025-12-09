@@ -419,7 +419,7 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
     <div
       ref={nodeRef}
       className={cn(
-        "absolute rounded-lg overflow-hidden transition-shadow duration-200",
+        "absolute rounded-lg overflow-hidden transition-shadow duration-200 flex flex-col",
         node.selected && "ring-2 ring-blue-500 ring-offset-1",
         className
       )}
@@ -443,7 +443,7 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
     >
       {/* Header */}
       <div
-        className="flex items-center justify-between px-3 py-2 cursor-move select-none"
+        className="flex items-center justify-between px-3 py-2 cursor-move select-none flex-shrink-0"
         style={{ backgroundColor: headerColor }}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -562,16 +562,16 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
         </div>
       </div>
       
-      {/* Linked data sources badges */}
-      {connectedDataSources.length > 0 && (
-        <div 
-          className="px-3 py-2 text-xs border-b flex flex-wrap items-center gap-2"
-          style={{ 
-            backgroundColor: 'rgba(99, 102, 241, 0.08)', 
-            borderColor: borderColor,
-          }}
-        >
-          {connectedDataSources.map((source, idx) => (
+      {/* Data toolbar - always shown for Data Reference toggle, badges only when connected */}
+      <div 
+        className="px-3 py-2 text-xs border-b flex flex-wrap items-center gap-2 flex-shrink-0"
+        style={{ 
+          backgroundColor: connectedDataSources.length > 0 ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.04)', 
+          borderColor: borderColor,
+        }}
+      >
+        {connectedDataSources.length > 0 ? (
+          connectedDataSources.map((source, idx) => (
             <div 
               key={source.nodeId}
               className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ring-1 ring-indigo-400/40"
@@ -596,36 +596,37 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
                 </>
               )}
             </div>
-          ))}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowDataReference(!showDataReference);
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            className={cn(
-              "ml-auto flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
-              showDataReference 
-                ? "bg-indigo-600 text-white" 
-                : "bg-indigo-900/30 text-indigo-300 hover:bg-indigo-900/50"
-            )}
-            title={showDataReference ? "Hide Data Reference" : "Show Data Reference"}
-            data-testid="code-node-toggle-data-reference"
-          >
-            {showDataReference ? (
-              <PanelRightClose className="w-3.5 h-3.5" />
-            ) : (
-              <PanelRightOpen className="w-3.5 h-3.5" />
-            )}
-            <span>Ref</span>
-          </button>
-        </div>
-      )}
+          ))
+        ) : (
+          <span className="text-gray-500 text-xs">No linked data sources</span>
+        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowDataReference(!showDataReference);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          className={cn(
+            "ml-auto flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
+            showDataReference 
+              ? "bg-indigo-600 text-white" 
+              : "bg-indigo-900/30 text-indigo-300 hover:bg-indigo-900/50"
+          )}
+          title={showDataReference ? "Hide Data Reference" : "Show Data Reference"}
+          data-testid="code-node-toggle-data-reference"
+        >
+          {showDataReference ? (
+            <PanelRightClose className="w-3.5 h-3.5" />
+          ) : (
+            <PanelRightOpen className="w-3.5 h-3.5" />
+          )}
+          <span>Ref</span>
+        </button>
+      </div>
 
       {/* Main content area - flex layout for editor + optional reference panel */}
       <div 
-        className="flex flex-row overflow-hidden"
-        style={{ height: `calc(100% - ${showOutput ? 44 + outputHeight : 44}px - ${connectedDataSources.length > 0 ? 40 : 0}px)` }}
+        className="flex flex-row overflow-hidden flex-1 min-h-0"
       >
         {/* Code Editor with CodeMirror */}
         <div 
@@ -646,8 +647,8 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
           />
         </div>
 
-        {/* Inline Data Reference Panel */}
-        {showDataReference && connectedDataSources.length > 0 && (
+        {/* Inline Data Reference Panel - always available when toggled */}
+        {showDataReference && (
           <div
             className="w-56 bg-gray-900 border-l border-gray-700 flex flex-col overflow-hidden flex-shrink-0"
             onClick={(e) => e.stopPropagation()}
@@ -672,96 +673,106 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto p-3">
-              {getDataSourceInfo.map((source, sourceIdx) => (
-                <div key={source.nodeId} className="mb-4">
-                  <button 
-                    onClick={() => toggleSection(`var-${source.varName}`)}
-                    className="flex items-center gap-2 w-full text-left hover:bg-gray-800 rounded px-2 py-1.5 -mx-2"
-                  >
-                    {expandedSections[`var-${source.varName}`] ? (
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
-                    )}
-                    <code className="text-yellow-300 text-sm font-mono">{source.varName}</code>
-                    <span className="text-gray-500 text-xs ml-auto">Array[{source.rows.length}]</span>
-                  </button>
-                  
-                  {expandedSections[`var-${source.varName}`] && (
-                    <div className="ml-4 mt-2 space-y-1">
+              {getDataSourceInfo.length > 0 ? (
+                <>
+                  {getDataSourceInfo.map((source, sourceIdx) => (
+                    <div key={source.nodeId} className="mb-4">
                       <button 
-                        onClick={() => toggleSection(`cols-${source.varName}`)}
-                        className="flex items-center gap-2 w-full text-left hover:bg-gray-800 rounded px-2 py-1 text-sm"
+                        onClick={() => toggleSection(`var-${source.varName}`)}
+                        className="flex items-center gap-2 w-full text-left hover:bg-gray-800 rounded px-2 py-1.5 -mx-2"
                       >
-                        {expandedSections[`cols-${source.varName}`] ? (
-                          <ChevronDown className="w-3 h-3 text-gray-400" />
+                        {expandedSections[`var-${source.varName}`] ? (
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
                         ) : (
-                          <ChevronRight className="w-3 h-3 text-gray-400" />
+                          <ChevronRight className="w-4 h-4 text-gray-400" />
                         )}
-                        <span className="text-gray-300">Columns</span>
-                        <span className="text-gray-500 text-xs ml-auto">{source.columns.length}</span>
+                        <code className="text-yellow-300 text-sm font-mono">{source.varName}</code>
+                        <span className="text-gray-500 text-xs ml-auto">Array[{source.rows.length}]</span>
                       </button>
                       
-                      {expandedSections[`cols-${source.varName}`] && (
-                        <div className="ml-4 space-y-0.5">
-                          {source.columns.map((col) => (
-                            <div 
-                              key={col}
-                              onClick={() => copyToClipboard(`${source.varName}[0].${col}`, `${source.varName}-${col}`)}
-                              className="flex items-center gap-2 px-2 py-1 hover:bg-gray-800 rounded cursor-pointer group"
-                            >
-                              <code className="text-green-300 text-xs font-mono">.{col}</code>
-                              <span className="text-gray-500 text-xs ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                                {copiedItem === `${source.varName}-${col}` ? (
-                                  <Check className="w-3 h-3 text-green-400" />
-                                ) : (
-                                  <Copy className="w-3 h-3" />
-                                )}
-                              </span>
+                      {expandedSections[`var-${source.varName}`] && (
+                        <div className="ml-4 mt-2 space-y-1">
+                          <button 
+                            onClick={() => toggleSection(`cols-${source.varName}`)}
+                            className="flex items-center gap-2 w-full text-left hover:bg-gray-800 rounded px-2 py-1 text-sm"
+                          >
+                            {expandedSections[`cols-${source.varName}`] ? (
+                              <ChevronDown className="w-3 h-3 text-gray-400" />
+                            ) : (
+                              <ChevronRight className="w-3 h-3 text-gray-400" />
+                            )}
+                            <span className="text-gray-300">Columns</span>
+                            <span className="text-gray-500 text-xs ml-auto">{source.columns.length}</span>
+                          </button>
+                          
+                          {expandedSections[`cols-${source.varName}`] && (
+                            <div className="ml-4 space-y-0.5">
+                              {source.columns.map((col) => (
+                                <div 
+                                  key={col}
+                                  onClick={() => copyToClipboard(`${source.varName}[0].${col}`, `${source.varName}-${col}`)}
+                                  className="flex items-center gap-2 px-2 py-1 hover:bg-gray-800 rounded cursor-pointer group"
+                                >
+                                  <code className="text-green-300 text-xs font-mono">.{col}</code>
+                                  <span className="text-gray-500 text-xs ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {copiedItem === `${source.varName}-${col}` ? (
+                                      <Check className="w-3 h-3 text-green-400" />
+                                    ) : (
+                                      <Copy className="w-3 h-3" />
+                                    )}
+                                  </span>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      )}
+                          )}
 
-                      {source.sampleRow && (
-                        <div className="mt-2 pt-2 border-t border-gray-700">
-                          <div className="text-xs text-gray-500 px-2 mb-1">Sample ({source.varName}[0]):</div>
-                          <div className="bg-gray-950 rounded p-2 text-xs font-mono overflow-x-auto max-h-24 overflow-y-auto">
-                            <pre className="text-gray-300 whitespace-pre-wrap">{JSON.stringify(source.sampleRow, null, 2)}</pre>
-                          </div>
+                          {source.sampleRow && (
+                            <div className="mt-2 pt-2 border-t border-gray-700">
+                              <div className="text-xs text-gray-500 px-2 mb-1">Sample ({source.varName}[0]):</div>
+                              <div className="bg-gray-950 rounded p-2 text-xs font-mono overflow-x-auto max-h-24 overflow-y-auto">
+                                <pre className="text-gray-300 whitespace-pre-wrap">{JSON.stringify(source.sampleRow, null, 2)}</pre>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-              ))}
+                  ))}
 
-              {getDataSourceInfo.length > 0 && (
-                <div className="border-t border-gray-700 pt-3 mt-3">
-                  <div className="text-xs text-gray-500 uppercase tracking-wide mb-2 px-1">Quick Snippets</div>
-                  <div className="space-y-1">
-                    {getDataSourceInfo.slice(0, 1).map((source) => 
-                      getSnippetsForVariable(source.varName, source.columns).map((snippet, idx) => (
-                        <div
-                          key={idx}
-                          onClick={() => copyToClipboard(snippet.code, `snippet-${source.varName}-${idx}`)}
-                          className="flex flex-col px-2 py-1.5 hover:bg-gray-800 rounded cursor-pointer group"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-300">{snippet.label}</span>
-                            <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                              {copiedItem === `snippet-${source.varName}-${idx}` ? (
-                                <Check className="w-3 h-3 text-green-400" />
-                              ) : (
-                                <Copy className="w-3 h-3 text-gray-500" />
-                              )}
-                            </span>
+                  <div className="border-t border-gray-700 pt-3 mt-3">
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-2 px-1">Quick Snippets</div>
+                    <div className="space-y-1">
+                      {getDataSourceInfo.slice(0, 1).map((source) => 
+                        getSnippetsForVariable(source.varName, source.columns).map((snippet, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => copyToClipboard(snippet.code, `snippet-${source.varName}-${idx}`)}
+                            className="flex flex-col px-2 py-1.5 hover:bg-gray-800 rounded cursor-pointer group"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-300">{snippet.label}</span>
+                              <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                {copiedItem === `snippet-${source.varName}-${idx}` ? (
+                                  <Check className="w-3 h-3 text-green-400" />
+                                ) : (
+                                  <Copy className="w-3 h-3 text-gray-500" />
+                                )}
+                              </span>
+                            </div>
+                            <code className="text-xs font-mono text-indigo-300 truncate">{snippet.code}</code>
                           </div>
-                          <code className="text-xs font-mono text-indigo-300 truncate">{snippet.code}</code>
-                        </div>
-                      ))
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
+                </>
+              ) : (
+                <div className="text-center py-6">
+                  <Database className="w-8 h-8 text-gray-600 mx-auto mb-3" />
+                  <p className="text-sm text-gray-400 mb-2">No data sources linked</p>
+                  <p className="text-xs text-gray-500 px-2">
+                    Connect a Table or Form node to this Code node to access its data through the <code className="text-indigo-400">inputs</code> object.
+                  </p>
                 </div>
               )}
             </div>
@@ -786,7 +797,7 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
       {/* Output Panel */}
       {showOutput && (
         <div 
-          className="border-t flex flex-col"
+          className="border-t flex flex-col flex-shrink-0"
           style={{ 
             borderColor: borderColor, 
             height: outputHeight,
