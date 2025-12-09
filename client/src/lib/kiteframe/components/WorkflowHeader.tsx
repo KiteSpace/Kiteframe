@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, MoreVertical } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { FlowSettings } from '../utils/FlowDetection';
+import { useWorkflowNames } from '../../../stores/workflowNameStore';
 
 interface WorkflowHeaderProps {
   flowId: string;
@@ -24,13 +25,15 @@ export function WorkflowHeader({
 }: WorkflowHeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
-  const [nameValue, setNameValue] = useState(settings.name);
+  const workflowNames = useWorkflowNames();
+  const workflowName = workflowNames.get(flowId) || 'Workflow';
+  const [nameValue, setNameValue] = useState(workflowName);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setNameValue(settings.name);
-  }, [settings.name]);
+    setNameValue(workflowName);
+  }, [workflowName]);
 
   useEffect(() => {
     if (isEditingName && inputRef.current) {
@@ -55,7 +58,7 @@ export function WorkflowHeader({
   const handleNameSubmit = () => {
     const trimmedName = nameValue.trim() || 'Workflow';
     setIsEditingName(false);
-    onSettingsChange(flowId, { ...settings, name: trimmedName });
+    workflowNames.set(flowId, trimmedName);
   };
 
   const handleNameKeyDown = (e: React.KeyboardEvent) => {
@@ -134,7 +137,7 @@ export function WorkflowHeader({
               className="cursor-text"
               data-testid={`workflow-name-${flowId}`}
             >
-              {settings.name || 'Workflow'}
+              {workflowName}
             </span>
           )}
         </button>
