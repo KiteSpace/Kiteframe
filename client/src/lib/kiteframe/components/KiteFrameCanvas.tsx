@@ -47,6 +47,7 @@ import { generateNodeId } from "../factory/NodeFactory";
 import { DataLinkPicker } from "./DataLinkPicker";
 import { FlowDetection, Flow, FlowSettings } from "../utils/FlowDetection";
 import { WorkflowHeader } from "./WorkflowHeader";
+import { StatusBadge } from "./StatusBadge";
 import { TextObject } from "./TextObject";
 import { StickyNoteObject } from "./StickyNoteObject";
 import { ShapeObject } from "./ShapeObject";
@@ -1878,6 +1879,21 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     };
   }, [polygonCreatingShape, viewport, props.canvasObjects, props.onCanvasObjectsChange]);
 
+  // ========== FLOW DETECTION FOR STATUS TRACKING ==========
+  // Pre-compute flows and nodeToFlowIdMap for efficient lookup during node rendering
+  const { flows, nodeToFlowIdMap } = useMemo(() => {
+    const detectedFlows = FlowDetection.detectFlows(props.nodes, props.edges);
+    const map = new Map<string, string>();
+    
+    detectedFlows.forEach(flow => {
+      flow.nodes.forEach(node => {
+        map.set(node.id, flow.id);
+      });
+    });
+    
+    return { flows: detectedFlows, nodeToFlowIdMap: map };
+  }, [props.nodes, props.edges]);
+
   // ========== PRODUCTION FEATURES EFFECTS ==========
   // 1. Memory Monitoring
   useEffect(() => {
@@ -3544,36 +3560,39 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           </svg>
 
           {/* Workflow Headers for each detected flow */}
-          {(() => {
-            const flows = FlowDetection.detectFlows(props.nodes, props.edges);
-            return flows.map((flow) => {
-              const flowSettings = props.flowSettings?.[flow.id] || {
-                name: 'Workflow',
-                statusTrackingEnabled: false,
-              };
-              return (
-                <WorkflowHeader
-                  key={`workflow-header-${flow.id}`}
-                  flowId={flow.id}
-                  settings={flowSettings}
-                  position={{ x: flow.boundingBox.x, y: flow.boundingBox.y }}
-                  scale={viewport.zoom}
-                  onSettingsChange={(flowId, settings) => {
-                    props.onFlowSettingsChange?.(flowId, settings);
-                  }}
-                  onResetStatuses={(flowId) => {
-                    props.onResetFlowStatuses?.(flowId);
-                  }}
-                  readOnly={false}
-                />
-              );
-            });
-          })()}
+          {flows.map((flow) => {
+            const flowSettings = props.flowSettings?.[flow.id] || {
+              name: 'Workflow',
+              statusTrackingEnabled: false,
+            };
+            return (
+              <WorkflowHeader
+                key={`workflow-header-${flow.id}`}
+                flowId={flow.id}
+                settings={flowSettings}
+                position={{ x: flow.boundingBox.x, y: flow.boundingBox.y }}
+                scale={viewport.zoom}
+                onSettingsChange={(flowId, settings) => {
+                  props.onFlowSettingsChange?.(flowId, settings);
+                }}
+                onResetStatuses={(flowId) => {
+                  props.onResetFlowStatuses?.(flowId);
+                }}
+                readOnly={false}
+              />
+            );
+          })}
 
           {/* Nodes */}
           {visibleNodes
             .filter((n) => !n.hidden)
             .map((n) => {
+              // Determine if status tracking is enabled for this node's flow
+              const nodeFlowId = nodeToFlowIdMap.get(n.id);
+              const isStatusEnabled = nodeFlowId 
+                ? props.flowSettings?.[nodeFlowId]?.statusTrackingEnabled ?? false 
+                : false;
+              
               const w = n.style?.width ?? n.width ?? 200;
               // Check if node should auto-resize height based on content
               // Auto-height is enabled by default, unless explicitly disabled or node has fixed height
@@ -4121,6 +4140,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     isAnyDragActive={!!draggingNodeId}
                     savedTemplates={props.savedTemplates}
                     onGenerateFromTemplate={props.onGenerateFromTemplate}
+                    isStatusEnabled={isStatusEnabled}
                     style={{
                       position: "absolute",
                       left: n.position.x,
@@ -4230,6 +4250,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     onLinkTable={props.onFormLinkTable}
                     onUnlinkTable={props.onFormUnlinkTable}
                     onUpdateTableCell={props.onUpdateTableCell}
+                    isStatusEnabled={isStatusEnabled}
                     style={{
                       position: "absolute",
                       left: n.position.x,
@@ -4350,6 +4371,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       };
                     }) : []}
                     onSaveAsTemplate={props.onSaveAsTemplate}
+                    isStatusEnabled={isStatusEnabled}
                     style={{
                       position: "absolute",
                       left: n.position.x,
@@ -4519,6 +4541,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     viewport={viewport}
                     showDragPlaceholder={draggingNodeId === n.id}
                     isAnyDragActive={!!draggingNodeId}
+                    isStatusEnabled={isStatusEnabled}
                     style={{
                       position: "absolute",
                       left: n.position.x,
@@ -4860,6 +4883,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         </span>
                       )}
                     </div>
+                  )}
+                  {isStatusEnabled && (
+                    <StatusBadge 
+                      status={n.data?.status || 'not-started'} 
+                      onClick={() => props.onNodeStatusChange?.(n.id)}
+                    />
                   )}
                   {!n.data?.hideDescription && (
                     <div
