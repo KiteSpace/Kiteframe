@@ -77,13 +77,19 @@ export function WorkflowHeader({
     onResetStatuses(flowId);
   };
 
+  // Position header directly above the top-left corner of the flow in canvas coordinates
+  // The header is inside kiteframe-world which has the transform applied,
+  // so we just position in canvas coords and it will transform with the nodes
+  const headerOffset = 48; // Gap between header and node in canvas units
+  
   const headerStyle: React.CSSProperties = {
     position: 'absolute',
     left: position.x,
-    top: position.y - 50 / scale,
+    top: position.y - headerOffset,
+    zIndex: 1000,
+    // Use inverse scale to keep UI readable at any zoom level
     transform: `scale(${1 / scale})`,
     transformOrigin: 'bottom left',
-    zIndex: 1000,
   };
 
   return (
