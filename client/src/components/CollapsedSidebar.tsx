@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LucideIcon, Menu } from 'lucide-react';
+import { LucideIcon, Menu, Share2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { clientToWorld } from '@/lib/kiteframe/utils/geometry';
 import { workflowThemes, type WorkflowTheme } from '@/lib/themes';
@@ -12,6 +12,7 @@ interface CollapsedSidebarProps {
   onClearCanvas: () => void;
   onExport: () => void;
   onImport: () => void;
+  onShare?: () => void;
   onOpenAiGenerator?: () => void;
   onCreateTemplate?: (templateType: string) => void;
   onCreateTemplateAtPosition?: (templateType: string, position: { x: number; y: number }) => void;
@@ -22,6 +23,7 @@ interface CollapsedSidebarProps {
   viewport: { x: number; y: number; zoom: number };
   isExpanded?: boolean;
   onToggleExpanded?: () => void;
+  readOnly?: boolean;
 }
 
 export function CollapsedSidebar({
@@ -33,6 +35,7 @@ export function CollapsedSidebar({
   onClearCanvas,
   onExport,
   onImport,
+  onShare,
   onOpenAiGenerator,
   onCreateTemplate,
   onCreateTemplateAtPosition,
@@ -41,7 +44,8 @@ export function CollapsedSidebar({
   setActivePopout,
   sidebarIcons,
   isExpanded = false,
-  onToggleExpanded
+  onToggleExpanded,
+  readOnly = false
 }: CollapsedSidebarProps) {
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
@@ -112,6 +116,9 @@ export function CollapsedSidebar({
         break;
       case 'import':
         onImport();
+        break;
+      case 'share':
+        onShare?.();
         break;
       default:
         console.log('🚫 UNKNOWN ICON KEY:', iconKey);
@@ -306,6 +313,7 @@ export function CollapsedSidebar({
       case 'clear': return 'Clear Canvas';
       case 'export': return 'Export';
       case 'import': return 'Import';
+      case 'share': return 'Share Link';
       default: return iconKey;
     }
   };
@@ -327,7 +335,7 @@ export function CollapsedSidebar({
   // Note: 'table' and 'form' removed - they exist inside node-types menu
   const mainIcons = ['workflow', 'type', 'shapes', 'sticky-note'];
   const templateThemeIcons = ['route', 'palette'];
-  const actionIcons = ['clear', 'export', 'import'];
+  const actionIcons = readOnly ? ['clear', 'export', 'import'] : ['clear', 'export', 'share', 'import'];
 
   return (
     <TooltipProvider>

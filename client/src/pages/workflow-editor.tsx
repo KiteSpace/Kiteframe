@@ -67,7 +67,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
-  LayoutGrid
+  LayoutGrid,
+  Share2
 } from 'lucide-react';
 
 // Project metadata types
@@ -3309,6 +3310,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showAiGenerator, setShowAiGenerator] = useState(false);
   const [generatorPrompt, setGeneratorPrompt] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [showBugReportModal, setShowBugReportModal] = useState(false);
   const [showNewTabModal, setShowNewTabModal] = useState(false);
   const [showCloudProjects, setShowCloudProjects] = useState(false);
@@ -3798,6 +3800,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     'clear': Trash2,
     'export': Download,
     'import': Upload,
+    'share': Share2,
     'chevron-right': ChevronRight
   }), []);
 
@@ -4625,6 +4628,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     });
                   }}
                   onImport={() => setShowImportModal(true)}
+                  onShare={() => setShowShareModal(true)}
                   onOpenAiGenerator={() => setShowAiGenerator(true)}
                   onCreateTemplate={(templateType: string) => {
                     // Create a new tab if none exist
