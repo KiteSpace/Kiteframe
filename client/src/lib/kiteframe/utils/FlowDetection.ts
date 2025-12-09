@@ -1,5 +1,10 @@
 import { Node, Edge } from '../types';
 
+export interface FlowSettings {
+  name: string;
+  statusTrackingEnabled: boolean;
+}
+
 export interface Flow {
   id: string;
   nodes: Node[];
@@ -11,6 +16,8 @@ export interface Flow {
     height: number;
   };
 }
+
+export type FlowSettingsMap = Record<string, FlowSettings>;
 
 /**
  * Detects connected components (separate workflows) within a set of nodes and edges

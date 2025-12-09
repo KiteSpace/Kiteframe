@@ -45,6 +45,8 @@ import CodeNodeComponent from "./CodeNode";
 import RenderNodeComponent, { createRenderNode } from "./RenderNode";
 import { generateNodeId } from "../factory/NodeFactory";
 import { DataLinkPicker } from "./DataLinkPicker";
+import { FlowDetection, Flow, FlowSettings } from "../utils/FlowDetection";
+import { WorkflowHeader } from "./WorkflowHeader";
 import { TextObject } from "./TextObject";
 import { StickyNoteObject } from "./StickyNoteObject";
 import { ShapeObject } from "./ShapeObject";
@@ -1276,6 +1278,11 @@ type Props = {
   onSaveAsTemplate?: (nodeId: string, templateName: string, description?: string) => void;
   savedTemplates?: import('../types').SavedCompoundTemplate[];
   onGenerateFromTemplate?: (tableId: string, template: import('../types').SavedCompoundTemplate, selectedRowIds?: string[]) => void;
+
+  // Flow/Workflow settings (per-flow status tracking)
+  flowSettings?: import('../utils/FlowDetection').FlowSettingsMap;
+  onFlowSettingsChange?: (flowId: string, settings: import('../utils/FlowDetection').FlowSettings) => void;
+  onResetFlowStatuses?: (flowId: string) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -3535,6 +3542,33 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 );
               })()}
           </svg>
+
+          {/* Workflow Headers for each detected flow */}
+          {(() => {
+            const flows = FlowDetection.detectFlows(props.nodes, props.edges);
+            return flows.map((flow) => {
+              const flowSettings = props.flowSettings?.[flow.id] || {
+                name: 'Workflow',
+                statusTrackingEnabled: false,
+              };
+              return (
+                <WorkflowHeader
+                  key={`workflow-header-${flow.id}`}
+                  flowId={flow.id}
+                  settings={flowSettings}
+                  position={{ x: flow.boundingBox.x, y: flow.boundingBox.y }}
+                  scale={viewport.zoom}
+                  onSettingsChange={(flowId, settings) => {
+                    props.onFlowSettingsChange?.(flowId, settings);
+                  }}
+                  onResetStatuses={(flowId) => {
+                    props.onResetFlowStatuses?.(flowId);
+                  }}
+                  readOnly={false}
+                />
+              );
+            });
+          })()}
 
           {/* Nodes */}
           {visibleNodes
