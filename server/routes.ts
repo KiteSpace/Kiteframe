@@ -685,6 +685,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update shared project - for live updates
+  app.put('/api/share-project/:shareId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { shareId } = req.params;
+      const parseResult = shareProjectSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: 'Invalid request data', details: parseResult.error.errors });
+      }
+      
+      const { nodes, edges, canvasObjects, viewport, projectMetadata, flowSettings } = parseResult.data;
+      
+      // Update the share link in the database
+      const updated = await storage.updateShareLink(shareId, {
+        nodes,
+        edges,
+        canvasObjects,
+        viewport,
+        projectMetadata,
+        flowSettings,
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ error: 'Share link not found' });
+      }
+      
+      // Broadcast update to all connected viewers via WebSocket
+      const broadcastFn = (req.app as any).broadcastShareUpdate;
+      if (broadcastFn) {
+        broadcastFn(shareId, { nodes, edges, canvasObjects, viewport, flowSettings });
+      }
+      
+      res.json({ success: true, shareId });
+    } catch (error) {
+      console.error('Error updating share link:', error);
+      res.status(500).json({ error: 'Failed to update share link' });
+    }
+  });
+
   // AI Chat endpoint - proxy for AI models with dynamic provider routing
   app.post('/api/ai/chat', aiRateLimiter, requireUSOnly, requireCredits, async (req, res) => {
     try {

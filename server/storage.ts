@@ -34,6 +34,7 @@ export interface IStorage {
   deleteProjectFolder(id: string, userId: string): Promise<void>;
   createShareLink(data: InsertShareLink): Promise<ShareLink>;
   getShareLink(shareId: string): Promise<ShareLink | undefined>;
+  updateShareLink(shareId: string, data: Partial<InsertShareLink>): Promise<ShareLink | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -195,6 +196,46 @@ export class DatabaseStorage implements IStorage {
       canvasObjects: Array.isArray(link.canvasObjects) ? link.canvasObjects : undefined,
       viewport: link.viewport ? link.viewport : undefined,
       projectMetadata: link.projectMetadata ? link.projectMetadata : undefined,
+    };
+  }
+
+  async updateShareLink(shareId: string, data: Partial<InsertShareLink>): Promise<ShareLink | undefined> {
+    // Serialize JSONB fields if present
+    const serialized: Record<string, any> = {};
+    if (data.nodes !== undefined) {
+      serialized.nodes = JSON.parse(JSON.stringify(data.nodes));
+    }
+    if (data.edges !== undefined) {
+      serialized.edges = JSON.parse(JSON.stringify(data.edges));
+    }
+    if (data.canvasObjects !== undefined) {
+      serialized.canvasObjects = JSON.parse(JSON.stringify(data.canvasObjects));
+    }
+    if (data.viewport !== undefined) {
+      serialized.viewport = JSON.parse(JSON.stringify(data.viewport));
+    }
+    if (data.projectMetadata !== undefined) {
+      serialized.projectMetadata = JSON.parse(JSON.stringify(data.projectMetadata));
+    }
+    if (data.flowSettings !== undefined) {
+      serialized.flowSettings = JSON.parse(JSON.stringify(data.flowSettings));
+    }
+
+    const [updated] = await db
+      .update(shareLinks)
+      .set(serialized)
+      .where(eq(shareLinks.shareId, shareId))
+      .returning();
+    
+    if (!updated) return undefined;
+    
+    return {
+      ...updated,
+      nodes: Array.isArray(updated.nodes) ? updated.nodes : [],
+      edges: Array.isArray(updated.edges) ? updated.edges : [],
+      canvasObjects: Array.isArray(updated.canvasObjects) ? updated.canvasObjects : undefined,
+      viewport: updated.viewport ? updated.viewport : undefined,
+      projectMetadata: updated.projectMetadata ? updated.projectMetadata : undefined,
     };
   }
 }
