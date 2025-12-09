@@ -1,0 +1,235 @@
+KITEFRAME – VIEW-ONLY SHARE LINKS SPEC + BOILERPLATE CODE
+============================================================
+
+Goal:
+Implement view-only share links so a user can click "Share", get a URL, and others can open the project in a read-only viewer.
+
+IMPORTANT RULES:
+- Do NOT change existing public APIs unless explicitly requested.
+- Do NOT remove existing features.
+- Keep changes additive and minimal.
+- Respect the custom node/canvas system (NO React Flow).
+- Read-only mode must disable ALL mutations but allow inspection.
+
+============================================================
+1. ADD READ-ONLY FLAG TO EDITOR/CANVAS
+============================================================
+
+In Editor.tsx (or equivalent):
+
+type EditorProps = {
+  initialProject: Project;
+  readOnly?: boolean;
+};
+
+export function Editor({ initialProject, readOnly = false }: EditorProps) {
+  const [project, setProject] = useState(initialProject);
+
+  return (
+    <div className="kf-editor">
+      {readOnly && (
+        <div className="kf-viewonly-banner">
+          View Only — changes are disabled for this shared link.
+        </div>
+      )}
+
+      <KiteframeCanvas
+        project={project}
+        onProjectChange={readOnly ? undefined : setProject}
+        readOnly={readOnly}
+      />
+    </div>
+  );
+}
+
+============================================================
+2. GUARD ALL MUTATING INTERACTIONS
+============================================================
+
+Example change handlers:
+
+function handleNodesChange(changes: NodeChange[]) {
+  if (readOnly) return;
+  // existing logic...
+}
+
+function handleStatusClick(nodeId: string) {
+  if (readOnly) return;
+  // existing logic...
+}
+
+Status badge render:
+
+<StatusBadge
+  status={node.data?.status}
+  onClick={readOnly ? undefined : () => onStatusClick(node.id)}
+  disabled={readOnly}
+/>
+
+============================================================
+3. ADD SHARE BUTTON (NO PLACEMENT SPECIFIED)
+============================================================
+
+Add a new icon/button to the existing UI. Placement is NOT specified.
+
+Requirements:
+- Clicking the Share button opens the ShareModal.
+- In readOnly mode, the Share button must NOT be visible.
+- Do not replace or remove any existing UI buttons unless explicitly instructed elsewhere.
+
+Example usage:
+
+<ToolbarButton
+  icon={<Share2 size={18} />}
+  label="Share"
+  onClick={openShareModal}
+  hidden={readOnly}
+/>
+
+============================================================
+4. SHARE MODAL
+============================================================
+
+ShareModal.tsx:
+
+export function ShareModal({ projectId, initialShareId, onClose }) {
+  const [shareId, setShareId] = useState(initialShareId);
+  const [loading, setLoading] = useState(false);
+
+  const url = shareId
+    ? `${window.location.origin}/view/${shareId}`
+    : '';
+
+  async function createLink() {
+    if (shareId) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/share-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      });
+      const data = await res.json();
+      setShareId(data.shareId);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="kf-modal">
+      <div className="kf-modal-body">
+        <h2>Share project</h2>
+
+        {shareId ? (
+          <>
+            <label>Share link</label>
+            <div className="kf-share-row">
+              <input readOnly value={url} />
+              <button onClick={() => navigator.clipboard.writeText(url)}>
+                Copy
+              </button>
+            </div>
+          </>
+        ) : (
+          <button onClick={createLink} disabled={loading}>
+            {loading ? 'Creating…' : 'Create share link'}
+          </button>
+        )}
+
+        <button className="kf-close" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
+============================================================
+5. BACKEND API (MVP)
+============================================================
+
+POST /api/share-project
+Request:
+{
+  "projectId": string
+}
+
+Response:
+{
+  "shareId": string
+}
+
+GET /api/shared-project/:shareId
+Response:
+{
+  "nodes": Node[],
+  "edges": Edge[],
+  "projectMetadata": ProjectMetadata
+}
+
+Storage method can be:
+- in-memory map
+- JSON file
+- existing project store
+
+============================================================
+6. VIEW-ONLY ROUTE
+============================================================
+
+Route:
+/view/:shareId
+
+Load project via:
+const res = await fetch(`/api/shared-project/${shareId}`);
+
+Render:
+
+<Editor
+  initialProject={loadedProject}
+  readOnly={true}
+/>
+
+Banner:
+<div class="kf-viewonly-banner">
+  View Only — changes are disabled for this shared link.
+</div>
+
+============================================================
+7. DISABLE ALL MUTATING UI IN VIEW-ONLY MODE
+============================================================
+
+Disable or hide:
+- Node dragging
+- Node editing
+- Adding nodes
+- Deleting nodes
+- AI/auto-gen actions
+- Status clicks
+- Workflow renaming
+- Figma import
+
+Still allowed:
+- Zoom
+- Pan
+- Selecting nodes
+- Opening side panels
+
+============================================================
+8. TEST CASES
+============================================================
+
+1) Regular mode:
+- Everything editable.
+
+2) View-only mode:
+- No edits allowed.
+- Status badges visible but disabled.
+- No node dragging.
+- No deletion.
+- Banner visible.
+
+3) Invalid shareId:
+- Show simple "Not found" screen.
+
+END OF SPEC
