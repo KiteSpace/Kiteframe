@@ -2,9 +2,13 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
-import { Loader2, AlertCircle, Home, Maximize2, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronDown, ChevronUp, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { ViewOnlyToolbar } from '@/components/ViewOnlyToolbar';
+import { ReadOnlyLayersWidget } from '@/components/layers/ReadOnlyLayersWidget';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
+import type { FlowSettingsMap } from '../lib/kiteframe/utils/FlowDetection';
 import '../lib/kiteframe/styles/kiteframe.css';
 
 interface SharedProjectData {
@@ -15,6 +19,7 @@ interface SharedProjectData {
   canvasObjects?: CanvasObject[];
   viewport?: { x: number; y: number; zoom: number };
   projectMetadata?: { name?: string; description?: string };
+  flowSettings?: FlowSettingsMap;
 }
 
 export default function ViewOnlyViewer() {
@@ -26,6 +31,7 @@ export default function ViewOnlyViewer() {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [canvasObjects, setCanvasObjects] = useState<CanvasObject[]>([]);
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
+  const [flowSettings, setFlowSettings] = useState<FlowSettingsMap>({});
   
   const [originalNodes, setOriginalNodes] = useState<Node[]>([]);
   const [originalEdges, setOriginalEdges] = useState<Edge[]>([]);
@@ -34,8 +40,11 @@ export default function ViewOnlyViewer() {
   
   const [projectDetailsExpanded, setProjectDetailsExpanded] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [liveUpdates, setLiveUpdates] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
 
-  const { data, isLoading, error } = useQuery<SharedProjectData>({
+  const { data, isLoading, error, refetch } = useQuery<SharedProjectData>({
     queryKey: ['/api/shared-project', shareId],
     enabled: !!shareId,
   });
@@ -46,11 +55,13 @@ export default function ViewOnlyViewer() {
       const loadedEdges = data.edges || [];
       const loadedCanvasObjects = data.canvasObjects || [];
       const loadedViewport = data.viewport || { x: 0, y: 0, zoom: 1 };
+      const loadedFlowSettings = data.flowSettings || {};
       
       setNodes(loadedNodes);
       setEdges(loadedEdges);
       setCanvasObjects(loadedCanvasObjects);
       setViewport(loadedViewport);
+      setFlowSettings(loadedFlowSettings);
       
       setOriginalNodes(JSON.parse(JSON.stringify(loadedNodes)));
       setOriginalEdges(JSON.parse(JSON.stringify(loadedEdges)));
@@ -60,9 +71,67 @@ export default function ViewOnlyViewer() {
     }
   }, [data]);
 
+  useEffect(() => {
+    if (liveUpdates && shareId) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+      
+      ws.onopen = () => {
+        setWsConnected(true);
+        ws.send(JSON.stringify({
+          type: 'subscribe_share',
+          shareId: shareId
+        }));
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === 'share_update' && message.shareId === shareId) {
+            if (message.nodes) setNodes(message.nodes);
+            if (message.edges) setEdges(message.edges);
+            if (message.canvasObjects) setCanvasObjects(message.canvasObjects);
+            if (message.viewport) setViewport(message.viewport);
+            if (message.flowSettings) setFlowSettings(message.flowSettings);
+          }
+        } catch (e) {
+          console.error('WebSocket message parse error:', e);
+        }
+      };
+      
+      ws.onclose = () => {
+        setWsConnected(false);
+      };
+      
+      ws.onerror = () => {
+        setWsConnected(false);
+      };
+      
+      return () => {
+        ws.close();
+        wsRef.current = null;
+      };
+    } else {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+        setWsConnected(false);
+      }
+    }
+  }, [liveUpdates, shareId]);
+
   const noopEdgesChange = useCallback(() => {}, []);
   const noopCanvasObjectsChange = useCallback(() => {}, []);
   const noopConnect = useCallback(() => {}, []);
+
+  const handleNodesChange = useCallback((newNodes: Node[]) => {
+    if (!liveUpdates) {
+      setNodes(newNodes);
+    }
+  }, [liveUpdates]);
 
   const handleReset = useCallback(() => {
     setNodes(JSON.parse(JSON.stringify(originalNodes)));
@@ -122,6 +191,26 @@ export default function ViewOnlyViewer() {
     setLocation('/');
   }, [setLocation]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const target = e.target as HTMLElement;
+        const isTextEditable = 
+          target.tagName === 'INPUT' || 
+          target.tagName === 'TEXTAREA' || 
+          target.contentEditable === 'true';
+        
+        if (!isTextEditable) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, []);
+
   if (isLoading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-background" data-testid="loading-screen">
@@ -163,7 +252,7 @@ export default function ViewOnlyViewer() {
           nodes={nodes}
           edges={edges}
           canvasObjects={canvasObjects}
-          onNodesChange={setNodes}
+          onNodesChange={handleNodesChange}
           onEdgesChange={noopEdgesChange}
           onCanvasObjectsChange={noopCanvasObjectsChange}
           onConnect={noopConnect}
@@ -173,35 +262,56 @@ export default function ViewOnlyViewer() {
           maxZoom={3}
           enablePlugins={false}
           readOnly={true}
+          flowSettings={flowSettings}
           className="w-full h-full"
           data-testid="view-only-canvas"
         />
         
         <div className="absolute top-4 left-4 z-50 flex flex-col gap-3 max-w-sm" data-testid="overlay-container">
-          <div 
-            className="bg-blue-500 text-white text-sm font-medium px-3 py-1.5 rounded-full shadow-md inline-flex items-center gap-1.5 w-fit"
-            data-testid="read-only-badge"
-          >
-            <svg 
-              className="w-3.5 h-3.5" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
+          <div className="flex items-center gap-2">
+            <div 
+              className="bg-blue-500 text-white text-sm font-medium px-3 py-1.5 rounded-full shadow-md inline-flex items-center gap-1.5"
+              data-testid="read-only-badge"
             >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" 
+              <svg 
+                className="w-3.5 h-3.5" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" 
+                />
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" 
+                />
+              </svg>
+              Read Only
+            </div>
+            
+            <div 
+              className={`text-sm font-medium px-3 py-1.5 rounded-full shadow-md inline-flex items-center gap-2 cursor-pointer transition-colors ${
+                liveUpdates 
+                  ? 'bg-green-500 text-white' 
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
+              }`}
+              onClick={() => setLiveUpdates(!liveUpdates)}
+              data-testid="live-updates-toggle"
+            >
+              <Radio 
+                className={`w-3.5 h-3.5 ${liveUpdates && wsConnected ? 'animate-pulse' : ''}`}
               />
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" 
-              />
-            </svg>
-            Read Only
+              Live Updates
+              {liveUpdates && (
+                <span className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-white' : 'bg-yellow-300'}`} />
+              )}
+            </div>
           </div>
           
           <div 
@@ -232,46 +342,18 @@ export default function ViewOnlyViewer() {
             )}
           </div>
         </div>
-      </div>
-      
-      <div 
-        className="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between"
-        data-testid="bottom-bar"
-      >
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleGoHome}
-          className="flex items-center gap-2"
-          data-testid="button-home"
-        >
-          <Home className="w-4 h-4" />
-          Home
-        </Button>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleFitView}
-            className="flex items-center gap-2"
-            data-testid="button-fit-view"
-          >
-            <Maximize2 className="w-4 h-4" />
-            Fit to View
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleReset}
-            className="flex items-center gap-2"
-            data-testid="button-reset"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Reset
-          </Button>
-        </div>
+
+        <ReadOnlyLayersWidget 
+          nodes={nodes} 
+          edges={edges} 
+          canvasObjects={canvasObjects}
+        />
+
+        <ViewOnlyToolbar
+          onFitView={handleFitView}
+          onReset={handleReset}
+          onGoHome={handleGoHome}
+        />
       </div>
     </div>
   );

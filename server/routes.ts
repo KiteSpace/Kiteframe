@@ -639,6 +639,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       name: z.string().optional(),
       description: z.string().optional(),
     }).optional(),
+    flowSettings: z.record(z.object({
+      enableStatusTracking: z.boolean().optional(),
+      workflowName: z.string().optional(),
+    })).optional(),
   });
 
   app.post('/api/share-project', isAuthenticated, async (req: any, res) => {
@@ -648,7 +652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid request data', details: parseResult.error.errors });
       }
       
-      const { nodes, edges, canvasObjects, viewport, projectMetadata } = parseResult.data;
+      const { nodes, edges, canvasObjects, viewport, projectMetadata, flowSettings } = parseResult.data;
       const shareId = crypto.randomUUID();
       const shareLink = await storage.createShareLink({
         shareId,
@@ -657,6 +661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         canvasObjects,
         viewport,
         projectMetadata,
+        flowSettings,
       });
       res.json({ shareId: shareLink.shareId });
     } catch (error) {
@@ -3430,8 +3435,43 @@ jane@example.com,Jane,Smith,pro,GroupC
   // WebSocket server for real-time collaboration
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
   
+  // Track share subscriptions: shareId -> Set of WebSocket clients
+  const shareSubscriptions = new Map<string, Set<WebSocket>>();
+  // Track which shares each client is subscribed to for cleanup
+  const clientSubscriptions = new Map<WebSocket, Set<string>>();
+  
+  // Function to broadcast share updates to all subscribed viewers
+  const broadcastShareUpdate = (shareId: string, data: {
+    nodes?: any[];
+    edges?: any[];
+    canvasObjects?: any[];
+    viewport?: { x: number; y: number; zoom: number };
+    flowSettings?: Record<string, any>;
+  }) => {
+    const subscribers = shareSubscriptions.get(shareId);
+    if (!subscribers || subscribers.size === 0) return;
+    
+    const message = JSON.stringify({
+      type: 'share_update',
+      shareId,
+      ...data
+    });
+    
+    subscribers.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  };
+  
+  // Expose broadcastShareUpdate on app for use in routes
+  (app as any).broadcastShareUpdate = broadcastShareUpdate;
+  
   wss.on('connection', (ws: WebSocket, request) => {
     console.log('🔗 New WebSocket connection established');
+    
+    // Initialize client subscription tracking
+    clientSubscriptions.set(ws, new Set());
     
     ws.on('message', (data: Buffer) => {
       try {
@@ -3469,6 +3509,49 @@ jane@example.com,Jane,Smith,pro,GroupC
               }
             });
             break;
+          case 'subscribe_share':
+            // Subscribe to a share for live updates
+            if (message.shareId && typeof message.shareId === 'string') {
+              const shareId = message.shareId;
+              
+              // Add to share subscriptions
+              if (!shareSubscriptions.has(shareId)) {
+                shareSubscriptions.set(shareId, new Set());
+              }
+              shareSubscriptions.get(shareId)!.add(ws);
+              
+              // Track for this client
+              clientSubscriptions.get(ws)?.add(shareId);
+              
+              console.log(`📡 Client subscribed to share: ${shareId}`);
+              
+              ws.send(JSON.stringify({
+                type: 'share_subscribed',
+                shareId
+              }));
+            }
+            break;
+          case 'unsubscribe_share':
+            // Unsubscribe from a share
+            if (message.shareId && typeof message.shareId === 'string') {
+              const shareId = message.shareId;
+              
+              shareSubscriptions.get(shareId)?.delete(ws);
+              clientSubscriptions.get(ws)?.delete(shareId);
+              
+              // Clean up empty subscription sets
+              if (shareSubscriptions.get(shareId)?.size === 0) {
+                shareSubscriptions.delete(shareId);
+              }
+              
+              console.log(`📡 Client unsubscribed from share: ${shareId}`);
+              
+              ws.send(JSON.stringify({
+                type: 'share_unsubscribed',
+                shareId
+              }));
+            }
+            break;
         }
       } catch (error) {
         console.error('❌ WebSocket message error:', error);
@@ -3477,6 +3560,18 @@ jane@example.com,Jane,Smith,pro,GroupC
     
     ws.on('close', () => {
       console.log('🔗 WebSocket connection closed');
+      
+      // Clean up all subscriptions for this client
+      const subscriptions = clientSubscriptions.get(ws);
+      if (subscriptions) {
+        subscriptions.forEach((shareId) => {
+          shareSubscriptions.get(shareId)?.delete(ws);
+          if (shareSubscriptions.get(shareId)?.size === 0) {
+            shareSubscriptions.delete(shareId);
+          }
+        });
+        clientSubscriptions.delete(ws);
+      }
     });
     
     ws.on('error', (error) => {

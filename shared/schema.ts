@@ -322,6 +322,7 @@ export const shareLinks = pgTable("share_links", {
   canvasObjects: jsonb("canvas_objects"),
   viewport: jsonb("viewport"),
   projectMetadata: jsonb("project_metadata"),
+  flowSettings: jsonb("flow_settings"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
