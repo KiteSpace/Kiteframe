@@ -15,6 +15,7 @@ import type {
 import { sanitizeText, validateColor } from '../utils/validation';
 import { executeInSandbox } from '../utils/sandboxExecutor';
 import { getBorderColorFromHeader } from '@/lib/themes';
+import { StatusBadge } from './StatusBadge';
 import { Play, Square, Settings, ChevronDown, ChevronUp, ChevronRight, Loader2, Code2, Terminal, AlertCircle, CheckCircle, Table2, FileText, ArrowRight, Database, Copy, Check, HelpCircle, PanelRightOpen, PanelRightClose, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CodeMirror from '@uiw/react-codemirror';
@@ -67,6 +68,9 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
   style,
   showHandles = true,
   showResizeHandle = true,
+  isStatusEnabled = false,
+  onStatusClick,
+  readOnly = false,
   onStartDrag,
   onClick,
   onHandleConnect,

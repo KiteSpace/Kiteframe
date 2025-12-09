@@ -1,0 +1,59 @@
+.kf-status-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+}
+
+.kf-status-badge:hover {
+  opacity: 1;
+}
+
+.kf-status-badge .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.kf-todo {
+  background: rgba(208, 211, 218, 0.15);
+  color: #9ca3af;
+}
+
+.kf-todo .dot {
+  background: #d0d3da;
+}
+
+.kf-inprogress {
+  background: rgba(114, 167, 255, 0.15);
+  color: #72a7ff;
+}
+
+.kf-inprogress .dot {
+  background: #72a7ff;
+}
+
+.kf-done {
+  background: rgba(107, 203, 122, 0.15);
+  color: #6bcb7a;
+}
+
+.kf-done .dot {
+  background: #6bcb7a;
+}
+
+.kf-disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.kf-disabled:hover {
+  opacity: 0.5;
+}

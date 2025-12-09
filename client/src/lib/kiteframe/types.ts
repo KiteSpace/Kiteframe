@@ -9,10 +9,14 @@ export type NodeColors = {
   bodyTextColor?: string;
 };
 
+// Node status type for task tracking
+export type NodeStatus = 'todo' | 'inprogress' | 'done';
+
 // Base node data with common properties shared by all node types
 export interface BaseNodeData {
   colors?: NodeColors;
   reactions?: NodeReactions;
+  status?: NodeStatus;
 }
 
 // Node type uses 'any' for backward compatibility
@@ -736,6 +740,9 @@ export interface BaseNodeComponentProps<TData = any> {
   style?: React.CSSProperties;
   showHandles?: boolean;
   showResizeHandle?: boolean;
+  isStatusEnabled?: boolean; // Enable status badge in footer
+  onStatusClick?: (nodeId: string) => void; // Callback when status badge is clicked
+  readOnly?: boolean; // Disable interactions in read-only mode
 }
 
 export interface BasicNodeComponentProps extends BaseNodeComponentProps<BasicNodeData> {

@@ -51,6 +51,7 @@ import type {
 } from "../types";
 import { sanitizeText, validateColor } from "../utils/validation";
 import { getBorderColorFromHeader } from "@/lib/themes";
+import { StatusBadge } from "./StatusBadge";
 
 const MAX_VISIBLE_ROWS = 50;
 const MAX_ROW_TO_NODE = 25;
@@ -76,6 +77,9 @@ const TableNodeComponent: React.FC<TableNodeComponentProps> = ({
   style,
   showHandles = true,
   showResizeHandle = true,
+  isStatusEnabled = false,
+  onStatusClick,
+  readOnly = false,
   viewport,
   showDragPlaceholder = false,
   isAnyDragActive = false,

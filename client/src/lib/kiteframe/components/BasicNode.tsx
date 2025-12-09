@@ -13,6 +13,7 @@ import type { Node, BasicNodeData, BasicNodeComponentProps, NodeHyperlink, RowBi
 import { sanitizeText, validateColor } from "../utils/validation";
 import { getDynamicClassName, getNodeStyleClasses } from "../utils/styles";
 import { getBorderColorFromHeader } from "@/lib/themes";
+import { StatusBadge } from "./StatusBadge";
 
 interface HyperlinkButtonProps {
   hyperlink: NodeHyperlink;
@@ -252,6 +253,9 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
   style,
   showHandles = true,
   showResizeHandle = true,
+  isStatusEnabled = false,
+  onStatusClick,
+  readOnly = false,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(node.data.label || "");
@@ -670,6 +674,22 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
           </div>
         )}
       </div>
+
+      {/* Status Badge Footer */}
+      {isStatusEnabled && (
+        <div 
+          className="px-3 py-1.5 border-t flex items-center"
+          style={{ borderColor: colors.borderColor }}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          <StatusBadge
+            status={node.data?.status}
+            onClick={() => onStatusClick?.(node.id)}
+            disabled={readOnly}
+          />
+        </div>
+      )}
 
       {/* Connection Handles */}
       {showHandles && (

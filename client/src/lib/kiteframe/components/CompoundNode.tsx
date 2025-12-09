@@ -52,6 +52,7 @@ import type {
 import { sanitizeText } from '../utils/validation';
 import { getBorderColorFromHeader } from '@/lib/themes';
 import { toPxNumber } from '@/utils/size';
+import { StatusBadge } from './StatusBadge';
 
 const MIN_COMPOUND_WIDTH = 280;
 const MIN_COMPOUND_HEIGHT = 180;
@@ -1237,6 +1238,9 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
   style,
   showHandles = true,
   showResizeHandle = true,
+  isStatusEnabled = false,
+  onStatusClick,
+  readOnly = false,
   onStartDrag,
   onClick,
   onHandleConnect,
@@ -1860,6 +1864,22 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
         </div>
 
           </>
+        )}
+
+        {/* Status Badge Footer */}
+        {isStatusEnabled && (
+          <div 
+            className="px-3 py-1.5 border-t flex items-center"
+            style={{ borderColor: borderColor }}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
+            <StatusBadge
+              status={node.data?.status}
+              onClick={() => onStatusClick?.(node.id)}
+              disabled={readOnly}
+            />
+          </div>
         )}
 
         {/* Connection Handles - hidden during any drag operation */}

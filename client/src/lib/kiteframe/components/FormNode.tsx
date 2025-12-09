@@ -37,6 +37,7 @@ import type {
 } from '../types';
 import { sanitizeText } from '../utils/validation';
 import { getBorderColorFromHeader } from '@/lib/themes';
+import { StatusBadge } from './StatusBadge';
 
 const MIN_FORM_WIDTH = 280;
 const MIN_FORM_HEIGHT = 150;
@@ -168,6 +169,9 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
   style,
   showHandles = true,
   showResizeHandle = true,
+  isStatusEnabled = false,
+  onStatusClick,
+  readOnly = false,
   onStartDrag,
   onClick,
   onHandleConnect,
@@ -839,6 +843,21 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
         onDragStart={handleMenuDragStart}
       />
         </>
+      )}
+
+      {/* Status Badge Footer */}
+      {isStatusEnabled && (
+        <div 
+          className="px-3 py-1.5 border-t border-gray-200 dark:border-gray-700 flex items-center"
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          <StatusBadge
+            status={node.data?.status}
+            onClick={() => onStatusClick?.(node.id)}
+            disabled={readOnly}
+          />
+        </div>
       )}
 
       {/* Connection Handles - hidden during any drag operation */}
