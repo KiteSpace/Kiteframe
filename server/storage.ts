@@ -170,13 +170,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createShareLink(data: InsertShareLink): Promise<ShareLink> {
-    const [created] = await db.insert(shareLinks).values(data).returning();
+    // Ensure JSONB fields are properly serialized
+    const serialized = {
+      ...data,
+      nodes: JSON.parse(JSON.stringify(data.nodes)), // Convert to plain JSON
+      edges: JSON.parse(JSON.stringify(data.edges)),
+      canvasObjects: data.canvasObjects ? JSON.parse(JSON.stringify(data.canvasObjects)) : null,
+      viewport: data.viewport ? JSON.parse(JSON.stringify(data.viewport)) : null,
+      projectMetadata: data.projectMetadata ? JSON.parse(JSON.stringify(data.projectMetadata)) : null,
+    };
+    const [created] = await db.insert(shareLinks).values(serialized).returning();
     return created;
   }
 
   async getShareLink(shareId: string): Promise<ShareLink | undefined> {
     const [link] = await db.select().from(shareLinks).where(eq(shareLinks.shareId, shareId));
-    return link;
+    if (!link) return undefined;
+    
+    // Ensure JSONB fields are properly deserialized
+    return {
+      ...link,
+      nodes: Array.isArray(link.nodes) ? link.nodes : [],
+      edges: Array.isArray(link.edges) ? link.edges : [],
+      canvasObjects: Array.isArray(link.canvasObjects) ? link.canvasObjects : undefined,
+      viewport: link.viewport ? link.viewport : undefined,
+      projectMetadata: link.projectMetadata ? link.projectMetadata : undefined,
+    };
   }
 }
 
