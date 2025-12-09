@@ -14,9 +14,10 @@ interface ShareModalProps {
   canvasObjects?: any[];
   viewport?: { x: number; y: number; zoom: number };
   projectMetadata?: { name?: string; description?: string };
+  onShareCreated?: (shareId: string) => void;
 }
 
-export function ShareModal({ isOpen, onClose, nodes, edges, canvasObjects, viewport, projectMetadata }: ShareModalProps) {
+export function ShareModal({ isOpen, onClose, nodes, edges, canvasObjects, viewport, projectMetadata, onShareCreated }: ShareModalProps) {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -35,6 +36,7 @@ export function ShareModal({ isOpen, onClose, nodes, edges, canvasObjects, viewp
       const data = await response.json();
       const url = `${window.location.origin}/view/${data.shareId}`;
       setShareUrl(url);
+      onShareCreated?.(data.shareId);
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to generate share link', variant: 'destructive' });
     } finally {

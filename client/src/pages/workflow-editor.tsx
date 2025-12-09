@@ -32,6 +32,7 @@ import { HomeScreen } from '@/components/HomeScreen';
 import { AiProvider, useAi } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 import { ObjectUploader } from '@/components/ObjectUploader';
 import { useFirebaseWorkflows } from '../hooks/useFirebaseWorkflows';
 import { useAuth } from '../hooks/useAuth';
@@ -3373,6 +3374,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [generatorPrompt, setGeneratorPrompt] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [activeShareId, setActiveShareId] = useState<string | null>(null);
   const [showBugReportModal, setShowBugReportModal] = useState(false);
   const [showNewTabModal, setShowNewTabModal] = useState(false);
   const [showCloudProjects, setShowCloudProjects] = useState(false);
@@ -3421,6 +3423,39 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   useEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
+
+  // Ref to track share update debounce timer
+  const shareUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Effect to update shared project when nodes/edges change
+  useEffect(() => {
+    if (!activeShareId) return;
+    
+    // Debounce updates to avoid spamming the server
+    if (shareUpdateTimeoutRef.current) {
+      clearTimeout(shareUpdateTimeoutRef.current);
+    }
+    
+    shareUpdateTimeoutRef.current = setTimeout(async () => {
+      try {
+        await apiRequest('PUT', `/api/share-project/${activeShareId}`, {
+          nodes,
+          edges,
+          canvasObjects: canvasObjects || [],
+          viewport: viewport || { x: 0, y: 0, zoom: 1 },
+          projectMetadata: activeTab?.metadata
+        });
+      } catch (error) {
+        console.error('Failed to update shared project:', error);
+      }
+    }, 1000); // 1 second debounce
+    
+    return () => {
+      if (shareUpdateTimeoutRef.current) {
+        clearTimeout(shareUpdateTimeoutRef.current);
+      }
+    };
+  }, [activeShareId, nodes, edges, canvasObjects, viewport, activeTab?.metadata]);
 
   // Track toolbar position when node/canvas object is being dragged
   useEffect(() => {
@@ -7488,6 +7523,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             canvasObjects={canvasObjects}
             viewport={viewport}
             projectMetadata={activeTab?.metadata}
+            onShareCreated={(shareId) => setActiveShareId(shareId)}
           />
         )}
 
