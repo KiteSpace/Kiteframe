@@ -17,6 +17,7 @@ import {
   userGroupMemberships,
   users,
   groupAccessControlsSchema,
+  userCredits,
 } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";

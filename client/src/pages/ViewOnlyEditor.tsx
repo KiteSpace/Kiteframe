@@ -36,13 +36,6 @@ export default function ViewOnlyEditor() {
 
   useEffect(() => {
     if (data) {
-      console.log('📥 Received shared project data:', {
-        nodesCount: (data.nodes || []).length,
-        edgesCount: (data.edges || []).length,
-        nodes: data.nodes,
-        edges: data.edges,
-        allData: data
-      });
       setNodes(data.nodes || []);
       setEdges(data.edges || []);
       setCanvasObjects(data.canvasObjects || []);

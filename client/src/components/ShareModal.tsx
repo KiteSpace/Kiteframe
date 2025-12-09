@@ -25,12 +25,6 @@ export function ShareModal({ isOpen, onClose, nodes, edges, canvasObjects, viewp
   const generateShareLink = async () => {
     setIsGenerating(true);
     try {
-      console.log('📤 Sharing workflow with data:', { 
-        nodesCount: nodes.length, 
-        edgesCount: edges.length,
-        nodes: nodes,
-        edges: edges
-      });
       const response = await apiRequest('POST', '/api/share-project', {
         nodes,
         edges,
@@ -39,11 +33,9 @@ export function ShareModal({ isOpen, onClose, nodes, edges, canvasObjects, viewp
         projectMetadata
       });
       const data = await response.json();
-      console.log('📥 Share link created:', data);
       const url = `${window.location.origin}/view/${data.shareId}`;
       setShareUrl(url);
     } catch (error) {
-      console.error('❌ Share error:', error);
       toast({ title: 'Error', description: 'Failed to generate share link', variant: 'destructive' });
     } finally {
       setIsGenerating(false);
