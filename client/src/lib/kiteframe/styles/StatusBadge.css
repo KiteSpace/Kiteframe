@@ -1,14 +1,14 @@
 .kf-status-badge {
   font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 6px;
+  padding: 2px 8px;
+  border-radius: 9999px; /* Pill shape */
   display: inline-flex;
   align-items: center;
   gap: 4px;
   cursor: pointer;
   user-select: none;
   font-weight: 500;
-  opacity: 0.85;
+  opacity: 0.9;
   transition: opacity 0.15s ease;
 }
 
@@ -17,36 +17,39 @@
 }
 
 .kf-status-badge .dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
 }
 
+/* Gray for To Do */
 .kf-todo {
-  background: rgba(208, 211, 218, 0.15);
-  color: #9ca3af;
+  background: rgba(156, 163, 175, 0.2);
+  color: #6b7280;
 }
 
 .kf-todo .dot {
-  background: #d0d3da;
+  background: #9ca3af;
 }
 
+/* Blue for In Progress */
 .kf-inprogress {
-  background: rgba(114, 167, 255, 0.15);
-  color: #72a7ff;
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
 }
 
 .kf-inprogress .dot {
-  background: #72a7ff;
+  background: #3b82f6;
 }
 
+/* Green for Done */
 .kf-done {
-  background: rgba(107, 203, 122, 0.15);
-  color: #6bcb7a;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
 }
 
 .kf-done .dot {
-  background: #6bcb7a;
+  background: #22c55e;
 }
 
 .kf-disabled {

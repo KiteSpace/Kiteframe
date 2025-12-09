@@ -78,9 +78,13 @@ export function WorkflowHeader({
   };
 
   // Position header directly above the top-left corner of the flow in canvas coordinates
-  // The header is inside kiteframe-world which has the transform applied,
-  // so we just position in canvas coords and it will transform with the nodes
-  const headerOffset = 48; // Gap between header and node in canvas units
+  // The header is inside kiteframe-world which has the transform applied.
+  // With inverse scaling (scale(1/zoom)), the header renders at constant screen size (~32px).
+  // Using fixed 48 canvas unit offset with bottom-left origin:
+  // - At zoom 1: gap = 48 - 32 = 16px ✓
+  // - At any zoom: header scales around bottom-left, so bottom edge stays 48 units above node
+  // - Visual gap = 48 - 32 = 16px constant
+  const headerOffset = 48;
   
   const headerStyle: React.CSSProperties = {
     position: 'absolute',
@@ -104,7 +108,8 @@ export function WorkflowHeader({
       <div className="relative">
         <button
           onClick={() => !readOnly && setIsOpen(!isOpen)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow-sm hover:shadow-md transition-shadow text-sm font-medium text-gray-700 dark:text-gray-200"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm hover:shadow-md transition-shadow text-sm font-medium"
+          style={{ backgroundColor: '#2b313d', color: '#ffffff' }}
           data-testid={`workflow-header-toggle-${flowId}`}
         >
           <ChevronDown

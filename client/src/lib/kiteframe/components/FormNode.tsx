@@ -845,10 +845,10 @@ const FormNodeComponent: React.FC<FormNodeComponentProps> = ({
         </>
       )}
 
-      {/* Status Badge Footer */}
+      {/* Status Badge Footer - positioned at bottom-right */}
       {isStatusEnabled && (
         <div 
-          className="px-3 py-1.5 border-t border-gray-200 dark:border-gray-700 flex items-center"
+          className="px-3 py-1.5 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end"
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
         >

@@ -452,16 +452,16 @@ const renderTextWithLinks = (text: string): React.ReactNode => {
 };
 
 // Floating workflow name input component
-interface WorkflowLink {
+interface ProjectLink {
   id: string;
   text: string;
   url: string;
 }
 
-interface WorkflowMetadata {
+interface ProjectMetadata {
   name: string;
   description: string;
-  links: WorkflowLink[];
+  links: ProjectLink[];
   linksFormat: "bulleted" | "text";
   categories: string[];
 }
@@ -469,8 +469,8 @@ interface WorkflowMetadata {
 interface WorkflowNameInputProps {
   name: string;
   onChange: (name: string) => void;
-  metadata?: WorkflowMetadata;
-  onMetadataChange?: (metadata: WorkflowMetadata) => void;
+  metadata?: ProjectMetadata;
+  onMetadataChange?: (metadata: ProjectMetadata) => void;
 }
 
 const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
@@ -483,7 +483,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
     "collapsed",
   );
   const [inputValue, setInputValue] = useState(name);
-  const [formData, setFormData] = useState<WorkflowMetadata>(
+  const [formData, setFormData] = useState<ProjectMetadata>(
     metadata || {
       name,
       description: "",
@@ -825,7 +825,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-medium text-gray-900 dark:text-gray-100">
-          Workflow Details
+          Project Details
         </h3>
         <button
           onClick={handleSaveForm}
@@ -847,7 +847,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
             setFormData((prev) => ({ ...prev, name: e.target.value }))
           }
           className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-          placeholder="Workflow name..."
+          placeholder="Project name..."
         />
       </div>
 
@@ -865,7 +865,7 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
             });
           }}
           className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none"
-          placeholder="Describe your workflow..."
+          placeholder="Describe your project..."
           rows={3}
         />
       </div>
@@ -1238,8 +1238,8 @@ type Props = {
   // Workflow name and metadata
   workflowName?: string;
   onWorkflowNameChange?: (name: string) => void;
-  workflowMetadata?: WorkflowMetadata;
-  onWorkflowMetadataChange?: (metadata: WorkflowMetadata) => void;
+  workflowMetadata?: ProjectMetadata;
+  onWorkflowMetadataChange?: (metadata: ProjectMetadata) => void;
 
   // User identification for reactions and interactions
   currentUserId?: string;
@@ -4888,12 +4888,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       )}
                     </div>
                   )}
-                  {isStatusEnabled && (
-                    <StatusBadge 
-                      status={n.data?.status || 'not-started'} 
-                      onClick={() => props.onNodeStatusChange?.(n.id)}
-                    />
-                  )}
                   {!n.data?.hideDescription && (
                     <div
                       className="body"
@@ -5085,6 +5079,21 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                           )}
                         </div>
                       )}
+                    </div>
+                  )}
+                  
+                  {/* Status Badge Footer */}
+                  {isStatusEnabled && (
+                    <div
+                      className="px-3 py-1.5 border-t flex items-center justify-end"
+                      style={{ borderColor: border }}
+                      onClick={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => e.stopPropagation()}
+                    >
+                      <StatusBadge 
+                        status={n.data?.status || 'not-started'} 
+                        onClick={() => props.onNodeStatusChange?.(n.id)}
+                      />
                     </div>
                   )}
                   

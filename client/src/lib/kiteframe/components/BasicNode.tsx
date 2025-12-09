@@ -675,10 +675,10 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
         )}
       </div>
 
-      {/* Status Badge Footer */}
+      {/* Status Badge Footer - positioned at bottom-right */}
       {isStatusEnabled && (
         <div 
-          className="px-3 py-1.5 border-t flex items-center"
+          className="px-3 py-1.5 border-t flex items-center justify-end"
           style={{ borderColor: colors.borderColor }}
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}

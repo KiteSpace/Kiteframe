@@ -70,17 +70,17 @@ import {
   LayoutGrid
 } from 'lucide-react';
 
-// Workflow metadata types
-interface WorkflowLink {
+// Project metadata types
+interface ProjectLink {
   id: string;
   text: string;
   url: string;
 }
 
-interface WorkflowMetadata {
+interface ProjectMetadata {
   name: string;
   description: string;
-  links: WorkflowLink[];
+  links: ProjectLink[];
   linksFormat: 'bulleted' | 'text';
   categories: string[];
 }
@@ -98,7 +98,7 @@ interface WorkflowTab {
   history: Array<{ nodes: Node[]; edges: Edge[]; canvasObjects: CanvasObject[]; viewport: { x: number; y: number; zoom: number } }>;
   historyIndex: number;
   showImageModal: string | null;
-  metadata: WorkflowMetadata;
+  metadata: ProjectMetadata;
   thumbnail?: string;
   lastModified?: number;
   flowSettings?: FlowSettingsMap;
@@ -1633,7 +1633,7 @@ Position nodes 250px apart horizontally.`;
     });
   }, [updateActiveTab, metadata]);
 
-  const setWorkflowMetadata = useCallback((newMetadata: WorkflowMetadata) => {
+  const setProjectMetadata = useCallback((newMetadata: ProjectMetadata) => {
     updateActiveTab({ 
       name: newMetadata.name,
       metadata: newMetadata 
@@ -5990,7 +5990,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               workflowName={activeTab?.name}
               onWorkflowNameChange={setWorkflowName}
               workflowMetadata={metadata}
-              onWorkflowMetadataChange={setWorkflowMetadata}
+              onWorkflowMetadataChange={setProjectMetadata}
               onEdgeReconnect={handleEdgeReconnect}
               connectionAnimationConfig={connectionAnimationConfig}
               connectionPreview={connectionPreview}

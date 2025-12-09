@@ -1866,10 +1866,10 @@ const CompoundNodeComponent: React.FC<CompoundNodeComponentProps> = ({
           </>
         )}
 
-        {/* Status Badge Footer */}
+        {/* Status Badge Footer - positioned at bottom-right */}
         {isStatusEnabled && (
           <div 
-            className="px-3 py-1.5 border-t flex items-center"
+            className="px-3 py-1.5 border-t flex items-center justify-end"
             style={{ borderColor: borderColor }}
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
