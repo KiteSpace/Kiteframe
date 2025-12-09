@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, MoreVertical } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
-import { FlowSettings } from '../utils/FlowDetection';
+import { FlowSettings, Flow } from '../utils/FlowDetection';
 import { useWorkflowNames } from '../../../stores/workflowNameStore';
+import { useNodeToWorkflow } from '../../../stores/nodeToWorkflowStore';
 
 interface WorkflowHeaderProps {
   flowId: string;
@@ -12,6 +13,7 @@ interface WorkflowHeaderProps {
   onSettingsChange: (flowId: string, settings: FlowSettings) => void;
   onResetStatuses: (flowId: string) => void;
   readOnly?: boolean;
+  flowNodes?: any[];
 }
 
 export function WorkflowHeader({
@@ -22,23 +24,21 @@ export function WorkflowHeader({
   onSettingsChange,
   onResetStatuses,
   readOnly = false,
+  flowNodes = [],
 }: WorkflowHeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const workflowNames = useWorkflowNames();
-  const workflowName = workflowNames.get(flowId) || 'Workflow';
+  const nodeToWorkflow = useNodeToWorkflow();
+  
+  // Try to get workflow name from the first node in the flow
+  const firstNodeId = flowNodes.length > 0 ? flowNodes[0].id : null;
+  const workflowNameFromNode = firstNodeId ? nodeToWorkflow.getWorkflowNameForNode(firstNodeId) : null;
+  const workflowName = workflowNameFromNode || workflowNames.get(flowId) || 'Workflow';
+  
   const [nameValue, setNameValue] = useState(workflowName);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    console.log('WorkflowHeader Debug:', {
-      flowId,
-      workflowName,
-      allNames: workflowNames.getAll(),
-      lookupResult: workflowNames.get(flowId),
-    });
-  }, [flowId, workflowName, workflowNames]);
 
   useEffect(() => {
     setNameValue(workflowName);

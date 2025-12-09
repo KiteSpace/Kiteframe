@@ -8,6 +8,7 @@ import { buildMultiViewTrees } from './multiViewBuilder';
 import { AncestorsStore } from './ancestorsStore';
 import { useWorkflowNames, generateDefaultWorkflowNames } from '@/stores/workflowNameStore';
 import { focusBus } from '@/stores/focusBus';
+import { nodeToWorkflowStore } from '@/stores/nodeToWorkflowStore';
 import { Search, Circle, Square, Triangle, Hexagon, Minus, ArrowRight, Pen, Type, StickyNote } from 'lucide-react';
 import type { CanvasObject, ShapeNodeData } from '@/lib/kiteframe/types';
 
@@ -201,6 +202,24 @@ export function LayersPanel({ nodes, edges, frames, canvasObjects }:{
       }
     });
     const generatedDefaults = generateDefaultWorkflowNames(workflowsById, nodes);
+    
+    // Populate nodeToWorkflowStore with node-to-workflow mappings
+    const mappings = [];
+    Object.entries(tree.groups).forEach(([groupId, group]) => {
+      if ((group as any).role === 'workflow' && groupId.startsWith('wf:')) {
+        const wfName = workflowNames.get(groupId) || generatedDefaults[groupId] || (group as any).name;
+        (group as any).childIds.forEach((childId: string) => {
+          if (!childId.startsWith('e:')) {
+            mappings.push({ 
+              nodeId: childId, 
+              workflowGroupId: groupId, 
+              workflowName: wfName 
+            });
+          }
+        });
+      }
+    });
+    nodeToWorkflowStore.setMultiple(mappings);
     
     const idx: Record<string,string[]> = {};
     const out:any[]=[];

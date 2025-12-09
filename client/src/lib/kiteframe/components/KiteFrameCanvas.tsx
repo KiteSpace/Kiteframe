@@ -3576,6 +3576,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               <WorkflowHeader
                 key={`workflow-header-${flow.id}`}
                 flowId={flow.id}
+                flowNodes={flow.nodes}
                 settings={flowSettings}
                 position={{ x: flow.boundingBox.x, y: flow.boundingBox.y }}
                 scale={viewport.zoom}
