@@ -47,8 +47,16 @@ export class FlowDetection {
         const flowEdges = this.getFlowEdges(flowNodes, edges);
         const boundingBox = this.calculateBoundingBox(flowNodes);
         
+        const flowId = `flow-${flows.length + 1}`;
+        console.log('FlowDetection: Created flow:', {
+          flowId,
+          nodeCount: flowNodes.length,
+          nodeIds: flowNodes.map(n => n.id),
+          edgeCount: flowEdges.length,
+        });
+        
         flows.push({
-          id: `flow-${flows.length + 1}`,
+          id: flowId,
           nodes: flowNodes,
           edges: flowEdges,
           boundingBox
@@ -56,6 +64,7 @@ export class FlowDetection {
       }
     }
     
+    console.log('FlowDetection: All flows detected:', flows.map(f => ({ id: f.id, nodeCount: f.nodes.length })));
     return flows;
   }
   

@@ -32,6 +32,15 @@ export function WorkflowHeader({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    console.log('WorkflowHeader Debug:', {
+      flowId,
+      workflowName,
+      allNames: workflowNames.getAll(),
+      lookupResult: workflowNames.get(flowId),
+    });
+  }, [flowId, workflowName, workflowNames]);
+
+  useEffect(() => {
     setNameValue(workflowName);
   }, [workflowName]);
 
