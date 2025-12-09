@@ -32,6 +32,7 @@ import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter } from "./middleware/rateLimiter";
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
+import { z } from "zod";
 
 // Admin email check helper - checks if user email is in ADMIN_EMAILS list
 function isAdminUser(email: string | undefined | null): boolean {
@@ -611,6 +612,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting folder:', error);
       res.status(500).json({ error: 'Failed to delete folder' });
+    }
+  });
+
+  // Share project endpoint - create a view-only share link (requires authentication)
+  const shareProjectSchema = z.object({
+    nodes: z.array(z.object({
+      id: z.string(),
+      type: z.string(),
+      position: z.object({ x: z.number(), y: z.number() }),
+      data: z.record(z.any()).optional(),
+    }).passthrough()),
+    edges: z.array(z.object({
+      id: z.string(),
+      source: z.string(),
+      target: z.string(),
+    }).passthrough()),
+    canvasObjects: z.array(z.any()).optional(),
+    viewport: z.object({
+      x: z.number(),
+      y: z.number(),
+      zoom: z.number(),
+    }).optional(),
+    projectMetadata: z.object({
+      name: z.string().optional(),
+      description: z.string().optional(),
+    }).optional(),
+  });
+
+  app.post('/api/share-project', isAuthenticated, async (req: any, res) => {
+    try {
+      const parseResult = shareProjectSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: 'Invalid request data', details: parseResult.error.errors });
+      }
+      
+      const { nodes, edges, canvasObjects, viewport, projectMetadata } = parseResult.data;
+      const shareId = crypto.randomUUID();
+      const shareLink = await storage.createShareLink({
+        shareId,
+        nodes,
+        edges,
+        canvasObjects,
+        viewport,
+        projectMetadata,
+      });
+      res.json({ shareId: shareLink.shareId });
+    } catch (error) {
+      console.error('Error creating share link:', error);
+      res.status(500).json({ error: 'Failed to create share link' });
+    }
+  });
+
+  // Get shared project by shareId
+  app.get('/api/shared-project/:shareId', async (req, res) => {
+    try {
+      const { shareId } = req.params;
+      const shareLink = await storage.getShareLink(shareId);
+      if (!shareLink) {
+        return res.status(404).json({ error: 'Share link not found' });
+      }
+      res.json(shareLink);
+    } catch (error) {
+      console.error('Error fetching shared project:', error);
+      res.status(500).json({ error: 'Failed to fetch shared project' });
     }
   });
 

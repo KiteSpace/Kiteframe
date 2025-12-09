@@ -5,9 +5,12 @@ import {
   type InsertSavedProject,
   type ProjectFolder,
   type InsertProjectFolder,
+  type ShareLink,
+  type InsertShareLink,
   users,
   savedProjects,
   projectFolders,
+  shareLinks,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -29,6 +32,8 @@ export interface IStorage {
   createProjectFolder(folder: InsertProjectFolder): Promise<ProjectFolder>;
   updateProjectFolder(id: string, userId: string, data: Partial<InsertProjectFolder>): Promise<ProjectFolder | undefined>;
   deleteProjectFolder(id: string, userId: string): Promise<void>;
+  createShareLink(data: InsertShareLink): Promise<ShareLink>;
+  getShareLink(shareId: string): Promise<ShareLink | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -162,6 +167,16 @@ export class DatabaseStorage implements IStorage {
   async deleteProjectFolder(id: string, userId: string): Promise<void> {
     await db.update(savedProjects).set({ folderId: null }).where(eq(savedProjects.folderId, id));
     await db.delete(projectFolders).where(and(eq(projectFolders.id, id), eq(projectFolders.userId, userId)));
+  }
+
+  async createShareLink(data: InsertShareLink): Promise<ShareLink> {
+    const [created] = await db.insert(shareLinks).values(data).returning();
+    return created;
+  }
+
+  async getShareLink(shareId: string): Promise<ShareLink | undefined> {
+    const [link] = await db.select().from(shareLinks).where(eq(shareLinks.shareId, shareId));
+    return link;
   }
 }
 

@@ -17,6 +17,7 @@ import { AiSettingsModal } from '@/components/AiSettingsModal';
 import { AiWorkflowGenerator } from '@/components/AiWorkflowGenerator';
 import { KiteAIChat } from '@/components/KiteAIChat';
 import { WorkflowImportModal } from '@/components/WorkflowImportModal';
+import { ShareModal } from '@/components/ShareModal';
 import { BugReportModal } from '@/components/BugReportModal';
 import { ContextMenu } from '@/components/ContextMenu';
 import { MissingImagesModal } from '@/components/MissingImagesModal';
@@ -7353,6 +7354,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onCreateFromImage={(imageFile: File) => {
               // Image analysis is now handled directly in the modal
             }}
+          />
+        )}
+        {showShareModal && (
+          <ShareModal
+            isOpen={showShareModal}
+            onClose={() => setShowShareModal(false)}
+            nodes={nodes}
+            edges={edges}
+            canvasObjects={canvasObjects}
+            viewport={viewport}
+            projectMetadata={activeTab?.metadata}
           />
         )}
 

@@ -312,3 +312,18 @@ export type UserGroup = typeof userGroups.$inferSelect;
 export type InsertUserGroup = z.infer<typeof insertUserGroupSchema>;
 export type UserGroupMembership = typeof userGroupMemberships.$inferSelect;
 export type InsertUserGroupMembership = z.infer<typeof insertUserGroupMembershipSchema>;
+
+// Share links for view-only workflow sharing
+export const shareLinks = pgTable("share_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  shareId: varchar("share_id").notNull().unique(),
+  nodes: jsonb("nodes").notNull(),
+  edges: jsonb("edges").notNull(),
+  canvasObjects: jsonb("canvas_objects"),
+  viewport: jsonb("viewport"),
+  projectMetadata: jsonb("project_metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type ShareLink = typeof shareLinks.$inferSelect;
+export type InsertShareLink = typeof shareLinks.$inferInsert;
