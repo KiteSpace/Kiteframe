@@ -979,12 +979,48 @@ function WorkflowEditorContent({
     };
   }, [generateTabId, generateCuteName]);
 
-  // Tab management state
-  const [tabs, setTabs] = useState<WorkflowTab[]>([]);
-  const [activeTabId, setActiveTabId] = useState<string>('home');
+  // Tab management state - initialize with view mode data if provided
+  const [tabs, setTabs] = useState<WorkflowTab[]>(() => {
+    if (isReadOnly && initialNodes) {
+      const viewTab: WorkflowTab = {
+        id: 'view-tab',
+        name: initialProjectName || 'Shared Workflow',
+        nodes: initialNodes,
+        edges: initialEdges || [],
+        canvasObjects: initialCanvasObjects || [],
+        viewport: initialViewport || { x: 0, y: 0, zoom: 1 },
+        selectedNodeId: '',
+        selectedEdgeId: '',
+        history: [{
+          nodes: initialNodes,
+          edges: initialEdges || [],
+          canvasObjects: initialCanvasObjects || [],
+          viewport: initialViewport || { x: 0, y: 0, zoom: 1 }
+        }],
+        historyIndex: 0,
+        showImageModal: null,
+        metadata: {
+          name: initialProjectName || 'Shared Workflow',
+          description: initialProjectDescription || '',
+          links: [],
+          linksFormat: 'text',
+          categories: []
+        },
+        flowSettings: {}
+      };
+      return [viewTab];
+    }
+    return [];
+  });
+  const [activeTabId, setActiveTabId] = useState<string>(() => {
+    if (isReadOnly && initialNodes) {
+      return 'view-tab';
+    }
+    return 'home';
+  });
   
   // Check if we're on the home screen
-  const isOnHomeTab = activeTabId === 'home';
+  const isOnHomeTab = activeTabId === 'home' && !isReadOnly;
   
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -4067,7 +4103,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, []);
 
   // Auto-save to local storage when tabs change (with thumbnail generation)
+  // Skip in view mode to avoid polluting localStorage
   useEffect(() => {
+    if (isReadOnly) return; // Don't save in view mode
     if (tabs.length > 0) {
       const timer = setTimeout(() => {
         // Generate thumbnails and update lastModified for each tab before saving
@@ -4081,16 +4119,56 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       
       return () => clearTimeout(timer);
     }
-  }, [tabs, saveToLocalStorage]);
+  }, [tabs, saveToLocalStorage, isReadOnly]);
 
-  // Load workflows from local storage on mount
+  // Load workflows from local storage on mount - skip in view mode
   useEffect(() => {
+    if (isReadOnly) return; // Don't load in view mode
     const savedTabs = loadFromLocalStorage();
     if (savedTabs.length > 0) {
       setTabs(savedTabs);
       // Keep user on home screen by default, they can switch to a tab from there
     }
-  }, [loadFromLocalStorage]);
+  }, [loadFromLocalStorage, isReadOnly]);
+
+  // Handle reset in view mode: restore original data
+  const handleViewReset = useCallback(() => {
+    if (!isReadOnly || !initialNodes) return;
+    
+    // Restore original data to the view tab
+    setTabs([{
+      id: 'view-tab',
+      name: initialProjectName || 'Shared Workflow',
+      nodes: initialNodes,
+      edges: initialEdges || [],
+      canvasObjects: initialCanvasObjects || [],
+      viewport: initialViewport || { x: 0, y: 0, zoom: 1 },
+      selectedNodeId: '',
+      selectedEdgeId: '',
+      history: [{
+        nodes: initialNodes,
+        edges: initialEdges || [],
+        canvasObjects: initialCanvasObjects || [],
+        viewport: initialViewport || { x: 0, y: 0, zoom: 1 }
+      }],
+      historyIndex: 0,
+      showImageModal: null,
+      metadata: {
+        name: initialProjectName || 'Shared Workflow',
+        description: initialProjectDescription || '',
+        links: [],
+        linksFormat: 'text',
+        categories: []
+      },
+      flowSettings: {}
+    }]);
+    setActiveTabId('view-tab');
+    
+    // Also call the external onReset if provided
+    if (onReset) {
+      onReset();
+    }
+  }, [isReadOnly, initialNodes, initialEdges, initialCanvasObjects, initialViewport, initialProjectName, initialProjectDescription, onReset]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -4131,8 +4209,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             </button>
             )}
             
-            {/* Workflow Tabs */}
-            {tabs.map((tab) => (
+            {/* Workflow Tabs - hidden in view mode */}
+            {!isReadOnly && tabs.map((tab) => (
               <div
                 key={tab.id}
                 className={`flex items-center space-x-2 px-3 py-1.5 rounded-md cursor-pointer min-w-0 ${
@@ -4196,14 +4274,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 </button>
               </div>
             ))}
-            <button
-              className="flex items-center justify-center w-8 h-8 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
-              onClick={createNewTab}
-              data-testid="button-new-tab"
-              title="New Workflow Tab"
-            >
-              <Plus size={16} />
-            </button>
+            {/* New Tab button - hidden in view mode */}
+            {!isReadOnly && (
+              <button
+                className="flex items-center justify-center w-8 h-8 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
+                onClick={createNewTab}
+                data-testid="button-new-tab"
+                title="New Workflow Tab"
+              >
+                <Plus size={16} />
+              </button>
+            )}
+            {/* View mode: show project name */}
+            {isReadOnly && initialProjectName && (
+              <span className="text-sm font-medium text-foreground px-2">
+                {initialProjectName}
+              </span>
+            )}
           </div>
         </div>
 
@@ -6025,6 +6112,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   updateActiveTab({ canvasObjects: newCanvasObjects });
                   saveToHistory();
                 }}
+              readOnly={isReadOnly}
               proFeatures={proFeaturesConfig}
               onQuickAdd={handleQuickAdd}
               workflowName={activeTab?.name}
@@ -6584,8 +6672,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setContextMenu({ x: e.clientX, y: e.clientY, canvasObject });
               }}
               onImageButtonClick={setShowImageModal}
-              onUndo={handleUndo}
-              onRedo={handleRedo}
+              onUndo={isReadOnly ? handleViewReset : handleUndo}
+              onRedo={isReadOnly ? undefined : handleRedo}
               onFitView={() => {
                 if (nodes.length === 0) {
                   setViewport({ x: 0, y: 0, zoom: 1 });
@@ -6632,8 +6720,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                 setViewport({ x, y, zoom });
               }}
-              canUndo={canUndo}
-              canRedo={canRedo}
+              canUndo={isReadOnly ? true : canUndo}
+              canRedo={isReadOnly ? false : canRedo}
               onAutoLayout={handleAutoLayout}
               onSelectionChange={(nodeIds: string[], edgeIds: string[]) => {
                 // Update nodes selection
@@ -8776,6 +8864,10 @@ function ShortcutRow({ keys, description }: { keys: string[]; description: strin
     </div>
   );
 }
+
+// Export WorkflowEditorContent for use by ViewOnlyEditor
+export { WorkflowEditorContent };
+export type { WorkflowEditorContentProps };
 
 // Main wrapper component that provides AiProvider context
 export default function WorkflowEditor() {

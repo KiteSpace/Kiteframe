@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { KiteFrameCanvas, PluginProvider, kiteFrameCore } from '@/lib/kiteframe';
-import { Loader2, Eye, AlertCircle, Maximize2, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { WorkflowEditorContent } from './workflow-editor';
+import { PluginProvider, kiteFrameCore } from '@/lib/kiteframe';
+import { AiProvider } from '../ai/AiProvider';
+import { OpenAICompatClient } from '../ai/OpenAICompatClient';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
 import '../lib/kiteframe/styles/kiteframe.css';
 
@@ -22,18 +24,11 @@ export default function ViewOnlyEditor() {
   const { shareId } = useParams<{ shareId: string }>();
   const [, setLocation] = useLocation();
   
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
-  const [canvasObjects, setCanvasObjects] = useState<CanvasObject[]>([]);
-  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
-  const [projectName, setProjectName] = useState('Shared Workflow');
-  const [projectDescription, setProjectDescription] = useState('');
   const [originalNodes, setOriginalNodes] = useState<Node[]>([]);
+  const [originalEdges, setOriginalEdges] = useState<Edge[]>([]);
+  const [originalCanvasObjects, setOriginalCanvasObjects] = useState<CanvasObject[]>([]);
   const [originalViewport, setOriginalViewport] = useState({ x: 0, y: 0, zoom: 1 });
-  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(false);
-  
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<any>(null);
+  const [resetKey, setResetKey] = useState(0);
 
   const { data, isLoading, error } = useQuery<SharedProjectData>({
     queryKey: ['/api/shared-project', shareId],
@@ -42,67 +37,26 @@ export default function ViewOnlyEditor() {
 
   useEffect(() => {
     if (data) {
-      const loadedNodes = data.nodes || [];
-      const loadedViewport = data.viewport || { x: 0, y: 0, zoom: 1 };
-      
-      setNodes(loadedNodes);
-      setOriginalNodes(loadedNodes);
-      setEdges(data.edges || []);
-      setCanvasObjects(data.canvasObjects || []);
-      setViewport(loadedViewport);
-      setOriginalViewport(loadedViewport);
-      
-      if (data.projectMetadata?.name) {
-        setProjectName(data.projectMetadata.name);
-      }
-      if (data.projectMetadata?.description) {
-        setProjectDescription(data.projectMetadata.description);
-      }
+      setOriginalNodes(data.nodes || []);
+      setOriginalEdges(data.edges || []);
+      setOriginalCanvasObjects(data.canvasObjects || []);
+      setOriginalViewport(data.viewport || { x: 0, y: 0, zoom: 1 });
     }
   }, [data]);
 
-  const handleNoChange = useCallback(() => {}, []);
+  const handleReset = useCallback(() => {
+    setResetKey(prev => prev + 1);
+  }, []);
 
-  const handleFitToView = useCallback(() => {
-    if (nodes.length === 0) return;
-    
-    // Calculate bounds of all nodes
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    
-    nodes.forEach(node => {
-      const x = node.position?.x ?? 0;
-      const y = node.position?.y ?? 0;
-      const width = node.width ?? 200;
-      const height = node.height ?? 100;
-      
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x + width);
-      maxY = Math.max(maxY, y + height);
+  const createAiClient = useCallback(() => {
+    return new OpenAICompatClient({
+      baseURL: 'https://api.openai.com/v1',
+      apiKey: '',
+      defaultModel: 'gpt-4o'
     });
-    
-    if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) return;
-    
-    const padding = 50;
-    const width = maxX - minX + padding * 2;
-    const height = maxY - minY + padding * 2;
-    
-    const scale = Math.min(
-      containerRef.current?.clientWidth ?? 800,
-      containerRef.current?.clientHeight ?? 600
-    );
-    
-    const zoom = Math.min(scale / Math.max(width, height), 2);
-    const x = -(minX - padding) * zoom + (containerRef.current?.clientWidth ?? 800) / 2 - (width / 2) * zoom;
-    const y = -(minY - padding) * zoom + (containerRef.current?.clientHeight ?? 600) / 2 - (height / 2) * zoom;
-    
-    setViewport({ x, y, zoom });
-  }, [nodes]);
+  }, []);
 
-  const handleResetLayout = useCallback(() => {
-    setNodes(originalNodes);
-    setViewport(originalViewport);
-  }, [originalNodes, originalViewport]);
+  const [aiClient] = useState<OpenAICompatClient>(createAiClient);
 
   if (isLoading) {
     return (
@@ -133,102 +87,20 @@ export default function ViewOnlyEditor() {
   }
 
   return (
-    <PluginProvider core={kiteFrameCore}>
-      <div className="h-screen w-screen flex flex-col overflow-hidden">
-        <div className="bg-blue-500/90 text-white px-4 py-2 flex items-center justify-between z-50">
-          <div className="flex items-center gap-2">
-            <Eye className="w-4 h-4" />
-            <span className="text-sm font-medium">
-              View Only: {projectName}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs opacity-80">
-              This is a read-only view
-            </span>
-            <Button 
-              size="sm" 
-              variant="secondary" 
-              onClick={() => setLocation('/')}
-              data-testid="button-create-own"
-            >
-              Create Your Own
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex flex-1 overflow-hidden gap-2 p-2 bg-background">
-          <div ref={containerRef} className="flex-1 relative border rounded-lg overflow-hidden">
-            <KiteFrameCanvas
-              nodes={nodes}
-              edges={edges}
-              canvasObjects={canvasObjects}
-              viewport={viewport}
-              onViewportChange={setViewport}
-              onNodesChange={handleNoChange}
-              onEdgesChange={handleNoChange}
-              onCanvasObjectsChange={handleNoChange}
-              enablePlugins={false}
-              disablePan={false}
-              showMiniMap={false}
-              readOnly={true}
-            />
-          </div>
-
-          <div className="w-64 flex flex-col gap-2">
-            <Card className="flex-shrink-0">
-              <div className="p-4">
-                <button
-                  onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
-                  className="w-full flex items-center justify-between text-sm font-semibold mb-2"
-                  data-testid="button-toggle-details"
-                >
-                  <span>Project Details</span>
-                  {isDetailsCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-                
-                {!isDetailsCollapsed && (
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground font-medium">Name</p>
-                      <p className="text-sm break-words">{projectName}</p>
-                    </div>
-                    {projectDescription && (
-                      <div>
-                        <p className="text-xs text-muted-foreground font-medium">Description</p>
-                        <p className="text-sm break-words">{projectDescription}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            <div className="flex flex-col gap-2">
-              <Button
-                onClick={handleFitToView}
-                size="sm"
-                variant="outline"
-                className="w-full justify-center"
-                data-testid="button-fit-to-view"
-              >
-                <Maximize2 className="w-4 h-4 mr-2" />
-                Fit to View
-              </Button>
-              <Button
-                onClick={handleResetLayout}
-                size="sm"
-                variant="outline"
-                className="w-full justify-center"
-                data-testid="button-reset-layout"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Reset Layout
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </PluginProvider>
+    <AiProvider client={aiClient}>
+      <PluginProvider core={kiteFrameCore}>
+        <WorkflowEditorContent
+          key={resetKey}
+          mode="view"
+          initialNodes={originalNodes}
+          initialEdges={originalEdges}
+          initialCanvasObjects={originalCanvasObjects}
+          initialViewport={originalViewport}
+          initialProjectName={data.projectMetadata?.name || 'Shared Workflow'}
+          initialProjectDescription={data.projectMetadata?.description}
+          onReset={handleReset}
+        />
+      </PluginProvider>
+    </AiProvider>
   );
 }
