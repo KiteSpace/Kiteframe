@@ -1287,6 +1287,9 @@ type Props = {
 
   // Node status change callback
   onNodeStatusChange?: (nodeId: string) => void;
+  
+  // Read-only mode: hides connection handles but allows node dragging for viewing
+  readOnly?: boolean;
 };
 
 type Viewport = { x: number; y: number; zoom: number };

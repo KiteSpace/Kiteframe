@@ -60,9 +60,9 @@ export default function ViewOnlyViewer() {
     }
   }, [data]);
 
-  const noopNodesChange = useCallback(() => {}, []);
   const noopEdgesChange = useCallback(() => {}, []);
   const noopCanvasObjectsChange = useCallback(() => {}, []);
+  const noopConnect = useCallback(() => {}, []);
 
   const handleReset = useCallback(() => {
     setNodes(JSON.parse(JSON.stringify(originalNodes)));
@@ -163,14 +163,16 @@ export default function ViewOnlyViewer() {
           nodes={nodes}
           edges={edges}
           canvasObjects={canvasObjects}
-          onNodesChange={noopNodesChange}
+          onNodesChange={setNodes}
           onEdgesChange={noopEdgesChange}
           onCanvasObjectsChange={noopCanvasObjectsChange}
+          onConnect={noopConnect}
           viewport={viewport}
           onViewportChange={setViewport}
           minZoom={0.1}
           maxZoom={3}
           enablePlugins={false}
+          readOnly={true}
           className="w-full h-full"
           data-testid="view-only-canvas"
         />
