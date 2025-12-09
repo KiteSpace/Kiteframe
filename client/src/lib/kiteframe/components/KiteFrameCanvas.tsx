@@ -1284,6 +1284,9 @@ type Props = {
   flowSettings?: import('../utils/FlowDetection').FlowSettingsMap;
   onFlowSettingsChange?: (flowId: string, settings: import('../utils/FlowDetection').FlowSettings) => void;
   onResetFlowStatuses?: (flowId: string) => void;
+
+  // Node status change callback
+  onNodeStatusChange?: (nodeId: string) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -2452,7 +2455,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           // Suggest a camelCase variable name based on source node name
           const suggestedName = sourceNodeName
             .toLowerCase()
-            .replace(/[^a-z0-9]+(.)/g, (_, char) => char.toUpperCase())
+            .replace(/[^a-z0-9]+(.)/g, (_: string, char: string) => char.toUpperCase())
             .replace(/[^a-zA-Z0-9]/g, '') || 'data';
           setVariableNameInput(suggestedName);
           return true; // Connection intercepted

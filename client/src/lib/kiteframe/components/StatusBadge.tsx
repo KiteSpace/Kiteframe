@@ -1,5 +1,6 @@
 import '../styles/StatusBadge.css';
 import type { NodeStatus } from '../types';
+import { CheckCircle2, Clock, ListTodo } from 'lucide-react';
 
 interface StatusBadgeProps {
   status?: NodeStatus;
@@ -15,6 +16,13 @@ export function StatusBadge({ status, onClick, disabled }: StatusBadgeProps) {
       ? 'Done'
       : 'To Do';
 
+  const icon =
+    status === 'inprogress'
+      ? <Clock size={16} />
+      : status === 'done'
+      ? <CheckCircle2 size={16} />
+      : <ListTodo size={16} />;
+
   return (
     <button
       className={`kf-status-badge kf-${status ?? 'todo'} ${disabled ? 'kf-disabled' : ''}`}
@@ -25,14 +33,9 @@ export function StatusBadge({ status, onClick, disabled }: StatusBadgeProps) {
       disabled={disabled}
       type="button"
       data-testid="status-badge"
-      style={{
-        border: 'none',
-        background: 'transparent',
-        padding: '2px 8px',
-        cursor: disabled ? 'default' : 'pointer',
-      }}
     >
-      <span className="dot" /> {label}
+      {icon}
+      <span>{label}</span>
     </button>
   );
 }

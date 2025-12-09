@@ -5953,7 +5953,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setNodes(prev => [...prev, newNode]);
                 saveToHistory();
               }}
-              onDeleteSavedTemplate={removeTemplate}
+              onDeleteSavedTemplate={deleteTemplate}
               onRenameSavedTemplate={(templateId: string, newName: string) => {
                 updateTemplate(templateId, { name: newName });
               }}
@@ -6182,10 +6182,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 let edgeData: Record<string, any> | undefined = undefined;
                 if (isTableToFormLink) {
                   edgeData = { isDataLink: true };
-                } else if (isDataToCodeLink && connection.data?.variableName) {
+                } else if (isDataToCodeLink) {
                   edgeData = { 
-                    isDataLink: true, 
-                    variableName: connection.data.variableName 
+                    isDataLink: true
                   };
                 }
                 
