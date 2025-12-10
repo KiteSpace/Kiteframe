@@ -1,0 +1,279 @@
+KITEFRAME – FIGMA OAUTH + PAT HYBRID AUTH
+========================================================
+This spec defines:
+1. Correct Figma OAuth scopes for Kiteframe
+2. Required OAuth app settings
+3. Backend OAuth implementation
+4. PAT (personal access token) fallback
+5. Frontend importer behavior
+6. Replit-specific debugging instructions
+
+========================================================
+1. REQUIRED FIGMA OAUTH SCOPES
+========================================================
+
+Kiteframe ONLY needs READ access.  
+These are the ONLY scopes we should request:
+
+    file_read
+    file_images
+
+Explanation:
+- file_read → required for /v1/files, /v1/files/:key, /v1/files/:key/nodes
+- file_images → required for /v1/images thumbnails
+
+DO NOT request:
+- file_write
+- webhook
+- offline (not supported)
+- any experimental scopes
+
+If the scope string is incorrect, Figma will return:
+ {"error":true,"status":400,"message":"Invalid scopes for app"}
+
+========================================================
+2. FIGMA OAUTH APP CONFIGURATION
+========================================================
+
+In https://www.figma.com/developers/api#oauth2:
+
+App Name: Kiteframe
+OAuth 2.0 Client ID: (provided by Figma)
+OAuth 2.0 Client Secret: (provided by Figma)
+Redirect URI: 
+    https://<your-domain>/api/figma/callback
+    https://<replit-preview-url>/api/figma/callback  (add this too)
+
+Example Replit URI:
+    https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/figma/callback
+
+Your app DOES NOT need to be public.  
+Private OAuth apps work as long as the request originates from an approved domain (your redirect URI).
+
+========================================================
+3. ENVIRONMENT VARIABLES (BACKEND ONLY)
+========================================================
+
+Add to .env:
+
+FIGMA_CLIENT_ID="mEOQSMCH572TwCnr9ilayu"
+FIGMA_CLIENT_SECRET="<secret>"
+FIGMA_REDIRECT_URI="<your callback url>"
+FIGMA_SCOPES="file_read file_images"
+
+DO NOT expose CLIENT_SECRET to frontend.
+
+========================================================
+4. BACKEND ROUTES TO IMPLEMENT
+========================================================
+(All routes live under /api/figma/*)
+
+--------------------------------------------------------
+4.1 GET /api/figma/auth
+--------------------------------------------------------
+Purpose:
+Return the authorization URL for OAuth.
+
+Behavior:
+Return JSON containing the Figma OAuth URL constructed as:
+
+https://www.figma.com/oauth?client_id=${FIGMA_CLIENT_ID}
+&redirect_uri=${FIGMA_REDIRECT_URI}
+&scope=file_read%20file_images
+&state=<random_state>
+&response_type=code
+
+Replit must URL-encode correctly.
+
+--------------------------------------------------------
+4.2 GET /api/figma/callback
+--------------------------------------------------------
+Purpose:
+Handle OAuth redirect from Figma.
+
+Steps:
+1. Extract ?code and ?state.
+2. Validate state.
+3. Exchange code → tokens:
+
+POST https://www.figma.com/api/oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id=FIGMA_CLIENT_ID
+client_secret=FIGMA_CLIENT_SECRET
+redirect_uri=FIGMA_REDIRECT_URI
+grant_type=authorization_code
+code=<code>
+
+4. Response JSON example:
+{
+  "access_token": "...",
+  "refresh_token": "...",
+  "expires_in": 2592000,
+  "user_id": "12345"
+}
+
+5. Store in user metadata:
+- figmaAccessToken
+- figmaRefreshToken
+- figmaTokenExpiresAt = now + expires_in*1000
+- figmaUserId
+
+6. Redirect user back to UI (DO NOT include tokens):
+/settings/integrations?figma=connected
+
+--------------------------------------------------------
+4.3 POST /api/figma/refresh
+--------------------------------------------------------
+Purpose:
+Refresh access token when expired.
+
+POST https://www.figma.com/api/oauth/token
+
+client_id=FIGMA_CLIENT_ID
+client_secret=FIGMA_CLIENT_SECRET
+grant_type=refresh_token
+refresh_token=<stored_refresh_token>
+
+Store updated values.
+
+--------------------------------------------------------
+4.4 GET /api/figma/status
+--------------------------------------------------------
+Return:
+{
+  connected: boolean,
+  expiresAt: number|null
+}
+
+If expired AND refresh token exists → auto-refresh internally.
+
+--------------------------------------------------------
+4.5 POST /api/figma/proxy
+--------------------------------------------------------
+Purpose:
+Proxy all Figma API calls through backend.
+
+Input:
+{
+   "path": "files/<fileKey>",
+   "usePat": boolean,
+   "patToken": string | null
+}
+
+Behavior:
+IF usePat === true:
+   Authorization: Bearer <patToken>
+ELSE IF user has OAuth:
+   Authorization: Bearer <figmaAccessToken>
+ELSE:
+   return error: "No authentication available"
+
+Backend MUST fetch:
+https://api.figma.com/v1/<path>
+
+Return JSON as-is.
+
+========================================================
+5. FRONTEND – TWO AUTH OPTIONS
+========================================================
+
+UI must show:
+
+(1) "Connect to Figma"
+(2) "Use Personal Access Token"
+
+--------------------------------------------------------
+5.1 CONNECT TO FIGMA (OAUTH)
+--------------------------------------------------------
+
+Flow:
+1. call GET /api/figma/status
+2. if NOT connected:
+     call GET /api/figma/auth
+     window.location = authUrl
+3. After redirect back to app:
+     UI checks status & shows “Connected”
+
+--------------------------------------------------------
+5.2 PERSONAL ACCESS TOKEN (PAT)
+--------------------------------------------------------
+
+- PAT stored ONLY in React state (NOT localStorage)
+- PAT sent ONLY in /api/figma/proxy calls
+- PAT never stored in DB
+
+Message:
+"Your personal access token is used only during this session and is never stored. Use Figma Connect for long-term access."
+
+========================================================
+6. FRONTEND FIGMA IMPORT WORKFLOW
+========================================================
+
+Function:
+
+async function callFigma(path, pat=null) {
+    return fetch("/api/figma/proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            path,
+            usePat: !!pat,
+            patToken: pat ?? null
+        })
+    }).then(r => r.json());
+}
+
+Importer example:
+
+const fileJson = await callFigma(`files/${fileKey}`, pat);
+const nodeJson = await callFigma(`files/${fileKey}/nodes?ids=${ids}`, pat);
+const images = await callFigma(`images/${fileKey}?ids=${ids}&format=png`, pat);
+
+========================================================
+7. FIX FOR COMMON ERRORS
+========================================================
+
+ERROR: "OAuth app doesn't exist"
+CAUSE: Client ID wasn't copied correctly OR contains hidden characters (check for newline or unicode).
+FIX: Copy client ID manually again. Remove smart quotes or unicode line breaks.
+
+ERROR: "Invalid scopes for app"
+CAUSE: Scopes not added to OAuth request or not registered in Figma app.
+FIX: Add EXACT scopes:
+    file_read
+    file_images
+
+ERROR: 400 OAuth redirect error
+CAUSE: Redirect URI mismatch.
+FIX: Add EXACT callback URI (case-sensitive) in Figma settings.
+
+ERROR: Extension errors ("FrameDoesNotExistError")
+IGNORE: These come from browser extensions (React Devtools, Password managers). Not relevant.
+
+========================================================
+8. TEST PLAN
+========================================================
+
+1. OAUTH FLOW
+- Click Connect → Redirect → Approve → Return
+- file_read must succeed
+- image fetch must succeed
+
+2. PAT FLOW
+- Paste PAT → Import works
+- Reload page → PAT gone
+- Import fails until PAT or OAuth added
+
+3. TOKEN REFRESH
+- Manually expire token
+- Call /api/figma/proxy → refresh logic runs
+
+4. SECURITY
+- PAT never stored
+- No tokens appear in query params
+- CLIENT_SECRET never appears in client bundle
+
+========================================================
+END OF SPEC
+========================================================

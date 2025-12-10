@@ -24,13 +24,17 @@ export interface FigmaApiError {
 
 export async function callFigmaApi<T = any>(
   path: string,
-  patToken?: string
+  patToken?: string | null
 ): Promise<T> {
   const response = await fetch('/api/figma/proxy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ path, patToken }),
+    body: JSON.stringify({ 
+      path, 
+      usePat: !!patToken,
+      patToken: patToken ?? null 
+    }),
   });
 
   if (!response.ok) {
