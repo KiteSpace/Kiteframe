@@ -19,7 +19,7 @@ declare module 'express-session' {
 
 const FIGMA_CLIENT_ID = process.env.FIGMA_CLIENT_ID?.trim();
 const FIGMA_CLIENT_SECRET = process.env.FIGMA_CLIENT_SECRET?.trim();
-const FIGMA_SCOPES = 'file_read file_images current_user:read';
+const FIGMA_SCOPES = 'file_content:read file_metadata:read file_versions:read current_user:read library_assets:read';
 
 function getRedirectUri(req: Request): string {
   const protocol = req.headers['x-forwarded-proto'] || 'https';
