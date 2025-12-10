@@ -1,0 +1,568 @@
+KITEFRAME – HYBRID FIGMA IMPORT (IMAGE + SEMANTIC METADATA)
+============================================================
+GOAL
+====
+Enhance the existing Figma import so that:
+- Figma frames are STILL imported as image nodes (current behavior is preserved).
+- Each imported Figma frame ALSO gets a "semantic metadata" object attached to its node.data.
+- This semantic metadata is NOT used to visually recreate the UI in Kiteframe (no Figma clone).
+- This semantic metadata IS used later for AI workflows, workflow generation, and future features.
+
+We are NOT rebuilding a full Figma editor.
+We are ONLY:
+- Parsing Figma frame node trees.
+- Extracting basic semantic info (texts, buttons, inputs, sections).
+- Storing that semantic info in node.data for later use.
+
+Existing Behavior (DO NOT BREAK)
+================================
+Currently:
+- Figma OAuth + PAT flows work.
+- Figma frames are discovered (FRAME, COMPONENT, INSTANCE).
+- Thumbnails are fetched.
+- Each selected frame is imported as an `image` node with metadata:
+
+  type: 'image'
+  data: {
+    label: frame.name,
+    src: thumbnailUrl,
+    sourceType: 'url',
+    figmaId,
+    figmaType,
+    figmaPageName,
+    originalWidth,
+    originalHeight
+  }
+
+We must NOT break this behavior.
+We will ONLY extend it by adding a `figmaSemantic` object to node.data.
+
+Overview of Changes
+===================
+1) Define a Figma semantic metadata data model (type interfaces).
+2) Extend figmaApi to fetch the FULL node tree for each selected frame.
+3) Create a semantic extraction module that:
+   - Walks the frame node tree.
+   - Identifies headings, body text, buttons, inputs, links, sections.
+   - Records bounding boxes and simple relationships.
+4) Attach this semantic metadata to the imported image node in convertFigmaToNodes.ts.
+5) (Optional but recommended) Add context-menu actions on Figma image nodes that will USE this semantic metadata later (stubs for future).
+
+We are NOT:
+- Creating new visible nodes based on these semantics in this phase.
+- Rebuilding auto-layout.
+- Trying to match Figma pixel-perfect layout.
+
+SECTION 1 – DATA MODEL ADDITIONS
+================================
+
+Create a new TypeScript file for semantic models:
+
+File: src/figma/figmaSemanticTypes.ts
+
+Contents:
+
+export type FigmaSemanticElementType =
+  | 'heading'
+  | 'text'
+  | 'button'
+  | 'link'
+  | 'input'
+  | 'label'
+  | 'checkbox'
+  | 'radio'
+  | 'image'
+  | 'icon'
+  | 'section';
+
+export interface FigmaSemanticBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface FigmaSemanticElement {
+  id: string;                 // Figma node id
+  type: FigmaSemanticElementType;
+  name: string;
+  text?: string;              // for text elements
+  figmaNodeType: string;      // e.g. "TEXT", "RECTANGLE", "COMPONENT"
+  bounds: FigmaSemanticBounds;
+  parentId?: string | null;
+  childrenIds?: string[];
+  // Optional hints for future use:
+  isPrimaryAction?: boolean;
+  isDisabled?: boolean;
+  isRequiredField?: boolean;
+}
+
+export interface FigmaSemanticFormCandidate {
+  id: string; // synthetic id or frame id
+  name: string;
+  fieldIds: string[];
+  submitButtonIds: string[];
+}
+
+export interface FigmaSemanticNavigationTarget {
+  elementId: string; // button or link
+  label: string;
+  inferredTargetName?: string; // e.g. "Forgot Password"
+}
+
+export interface FigmaSemanticMetadata {
+  frameId: string;
+  frameName: string;
+  pageName: string;
+  size: {
+    width: number;
+    height: number;
+  };
+  elements: FigmaSemanticElement[];
+  forms: FigmaSemanticFormCandidate[];
+  navigationTargets: FigmaSemanticNavigationTarget[];
+  extractedAt: string; // ISO timestamp
+}
+
+We will attach this as:
+
+node.data.figmaSemantic: FigmaSemanticMetadata
+
+Do NOT change existing node.data fields. Only add this namespace.
+
+SECTION 2 – BACKEND REUSE (NO NEW ROUTES)
+=========================================
+
+We already have:
+- POST /api/figma/proxy  → proxies to Figma v1 API using OAuth or PAT.
+
+We will reuse this.
+
+For each selected frame:
+- We already have fileKey and frame.id.
+- We must fetch the node tree for that frame via:
+
+  path: `files/${fileKey}/nodes?ids=${frameId}`
+
+This is already compatible with /api/figma/proxy.
+
+NO NEW BACKEND ROUTES ARE REQUIRED.
+
+SECTION 3 – FRONTEND: Figma API UTILITIES
+=========================================
+
+File: src/figma/figmaApi.ts
+
+Add or verify a function:
+
+export async function fetchFigmaFrameTree(fileKey: string, frameId: string, pat?: string) {
+  // Uses existing /api/figma/proxy endpoint
+  const res = await fetch("/api/figma/proxy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: `files/${fileKey}/nodes?ids=${frameId}`,
+      usePat: !!pat,
+      patToken: pat ?? null,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch Figma frame tree: ${res.status}`);
+  }
+
+  const json = await res.json();
+  return json;
+}
+
+NOTE:
+- Do not change the proxy signature.
+- Do not introduce direct calls to https://api.figma.com/ from the frontend.
+
+SECTION 4 – NEW SEMANTIC EXTRACTION MODULE
+==========================================
+
+File: src/figma/figmaSemanticExtractor.ts
+
+This module will:
+- Accept raw Figma node JSON from `files/:fileKey/nodes?ids=:frameId`.
+- Traverse node.children recursively.
+- Identify semantic elements with simple heuristics.
+- Return a FigmaSemanticMetadata object.
+
+Implementation outline:
+
+import {
+  FigmaSemanticMetadata,
+  FigmaSemanticElement,
+  FigmaSemanticElementType,
+  FigmaSemanticFormCandidate,
+  FigmaSemanticNavigationTarget,
+} from "./figmaSemanticTypes";
+
+type FigmaNode = any; // keep this loose; use 'any' to avoid over-fitting to one Figma version
+
+export function extractFigmaSemanticMetadata(
+  frameNode: FigmaNode,
+  pageName: string
+): FigmaSemanticMetadata {
+  const elements: FigmaSemanticElement[] = [];
+  const forms: FigmaSemanticFormCandidate[] = [];
+  const navigationTargets: FigmaSemanticNavigationTarget[] = [];
+
+  const frameId = frameNode.id;
+  const frameName = frameNode.name;
+  const box = frameNode.absoluteBoundingBox ?? { x: 0, y: 0, width: 0, height: 0 };
+
+  // Recursive traversal
+  function walk(node: FigmaNode, parentId?: string | null) {
+    const nodeType = node.type;
+    const nodeName: string = node.name ?? "";
+    const bounds = node.absoluteBoundingBox ?? null;
+
+    // Only create element if bounds exist
+    let element: FigmaSemanticElement | null = null;
+
+    if (nodeType === "TEXT") {
+      const characters: string = node.characters ?? "";
+      const normalized = characters.trim().toLowerCase();
+
+      let type: FigmaSemanticElementType = "text";
+
+      if (looksLikeHeading(node, characters)) {
+        type = "heading";
+      }
+
+      element = {
+        id: node.id,
+        type,
+        name: nodeName || characters.slice(0, 64),
+        text: characters,
+        figmaNodeType: nodeType,
+        bounds: bounds
+          ? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+          : { x: 0, y: 0, width: 0, height: 0 },
+        parentId: parentId ?? null,
+        childrenIds: [],
+      };
+    } else if (isButtonLike(node)) {
+      element = {
+        id: node.id,
+        type: "button",
+        name: nodeName || "Button",
+        figmaNodeType: nodeType,
+        bounds: bounds
+          ? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+          : { x: 0, y: 0, width: 0, height: 0 },
+        parentId: parentId ?? null,
+        childrenIds: [],
+        isPrimaryAction: looksPrimaryButton(node, nodeName),
+      };
+
+      navigationTargets.push({
+        elementId: node.id,
+        label: nodeName || "Button",
+        inferredTargetName: inferNavigationTarget(nodeName),
+      });
+    } else if (isInputLike(node)) {
+      element = {
+        id: node.id,
+        type: "input",
+        name: nodeName || "Input",
+        figmaNodeType: nodeType,
+        bounds: bounds
+          ? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+          : { x: 0, y: 0, width: 0, height: 0 },
+        parentId: parentId ?? null,
+        childrenIds: [],
+      };
+    } else if (nodeType === "RECTANGLE" || nodeType === "FRAME" || nodeType === "GROUP") {
+      // Potential "section" container
+      if (looksLikeSection(nodeName)) {
+        element = {
+          id: node.id,
+          type: "section",
+          name: nodeName,
+          figmaNodeType: nodeType,
+          bounds: bounds
+            ? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+            : { x: 0, y: 0, width: 0, height: 0 },
+          parentId: parentId ?? null,
+          childrenIds: [],
+        };
+      }
+    }
+
+    if (element) {
+      elements.push(element);
+    }
+
+    // Recurse
+    const children: FigmaNode[] = node.children ?? [];
+    for (const child of children) {
+      walk(child, node.id);
+    }
+  }
+
+  walk(frameNode, null);
+
+  // Simple form candidates: group inputs + buttons by vertical proximity
+  const formCandidate = buildSimpleFormCandidate(elements, frameId, frameName);
+  if (formCandidate) {
+    forms.push(formCandidate);
+  }
+
+  const metadata: FigmaSemanticMetadata = {
+    frameId,
+    frameName,
+    pageName,
+    size: {
+      width: box.width ?? 0,
+      height: box.height ?? 0,
+    },
+    elements,
+    forms,
+    navigationTargets,
+    extractedAt: new Date().toISOString(),
+  };
+
+  return metadata;
+}
+
+// Helper heuristics (keep simple, no ML)
+function looksLikeHeading(node: FigmaNode, text: string): boolean {
+  const style = node.style ?? {};
+  const fontSize = style.fontSize ?? 0;
+  const isUpper = text.trim() === text.trim().toUpperCase();
+  return fontSize >= 20 || isUpper;
+}
+
+function isButtonLike(node: FigmaNode): boolean {
+  const type = node.type;
+  const hasRectangleLike = type === "RECTANGLE" || type === "FRAME" || type === "COMPONENT" || type === "INSTANCE";
+  const name: string = (node.name ?? "").toLowerCase();
+  return hasRectangleLike && (name.includes("button") || name.includes("btn") || name.includes("primary"));
+}
+
+function looksPrimaryButton(node: FigmaNode, name: string): boolean {
+  const lname = name.toLowerCase();
+  return lname.includes("primary") || lname.includes("submit") || lname.includes("continue");
+}
+
+function isInputLike(node: FigmaNode): boolean {
+  const name: string = (node.name ?? "").toLowerCase();
+  return (
+    name.includes("input") ||
+    name.includes("field") ||
+    name.includes("textbox") ||
+    name.includes("email") ||
+    name.includes("password")
+  );
+}
+
+function looksLikeSection(name: string): boolean {
+  const n = name.toLowerCase();
+  return !!n && (n.includes("section") || n.includes("card") || n.includes("panel") || n.includes("container"));
+}
+
+function inferNavigationTarget(buttonName: string): string | undefined {
+  const n = buttonName.toLowerCase();
+  if (n.includes("forgot")) return "Forgot Password";
+  if (n.includes("sign up") || n.includes("signup")) return "Sign Up";
+  if (n.includes("login") || n.includes("log in")) return "Login";
+  return undefined;
+}
+
+function buildSimpleFormCandidate(
+  elements: FigmaSemanticElement[],
+  frameId: string,
+  frameName: string
+): FigmaSemanticFormCandidate | null {
+  const inputs = elements.filter(e => e.type === "input");
+  const buttons = elements.filter(e => e.type === "button");
+  if (inputs.length === 0 || buttons.length === 0) return null;
+
+  // Simple assumption: 1 form per frame for MVP
+  return {
+    id: frameId,
+    name: frameName,
+    fieldIds: inputs.map(i => i.id),
+    submitButtonIds: buttons.map(b => b.id),
+  };
+}
+
+NOTE:
+- Keep heuristics simple and deterministic.
+- Do NOT over-engineer classification; we can improve later.
+- Do NOT depend on Figma-specific TS typings; use 'any' for FigmaNode.
+
+SECTION 5 – WIRING INTO CONVERSION (convertFigmaToNodes.ts)
+===========================================================
+
+File: src/figma/convertFigmaToNodes.ts (or equivalent)
+
+Current behavior:
+- For each selected frame:
+  - A thumbnail URL is fetched.
+  - An image node is created with metadata.
+
+We will extend this so that BEFORE creating the node, we:
+1) Fetch the frame node tree via fetchFigmaFrameTree.
+2) Extract semantic metadata via extractFigmaSemanticMetadata.
+3) Attach it to node.data.figmaSemantic.
+
+Pseudocode:
+
+import { fetchFigmaFrameTree } from "./figmaApi";
+import { extractFigmaSemanticMetadata } from "./figmaSemanticExtractor";
+
+async function convertSelectedFramesToNodes(params) {
+  const {
+    fileKey,
+    frames,        // array of discovered frames: { id, name, pageName, width, height, thumbnailUrl }
+    pat,           // optional
+    startPosition, // base position on canvas
+  } = params;
+
+  const newNodes: Node[] = [];
+  let currentX = startPosition.x;
+
+  for (const frame of frames) {
+    // 1. Fetch Figma node tree
+    const frameTreeJson = await fetchFigmaFrameTree(fileKey, frame.id, pat);
+    const frameNode = extractFrameNodeFromResponse(frameTreeJson, frame.id);
+
+    // 2. Extract semantics
+    const semantic = extractFigmaSemanticMetadata(frameNode, frame.pageName);
+
+    // 3. Existing layout logic for image node
+    const displayWidth = frame.width;   // or scaled width
+    const displayHeight = frame.height; // or scaled height
+
+    const node: Node = {
+      id: generateId(),
+      type: "image",
+      position: { x: currentX, y: startPosition.y },
+      data: {
+        label: frame.name,
+        src: frame.thumbnailUrl || "",
+        sourceType: "url",
+        figmaId: frame.id,
+        figmaType: frame.type,
+        figmaPageName: frame.pageName,
+        originalWidth: frame.width,
+        originalHeight: frame.height,
+        // NEW: attach semantic metadata here
+        figmaSemantic: semantic,
+      },
+      style: { width: displayWidth, height: displayHeight },
+      draggable: true,
+      selectable: true,
+      showHandles: true,
+    };
+
+    newNodes.push(node);
+    currentX += displayWidth + 64; // some horizontal spacing
+  }
+
+  return newNodes;
+}
+
+Helper:
+
+function extractFrameNodeFromResponse(json: any, frameId: string): any {
+  // Figma /files/:fileKey/nodes?ids=... returns a structure like:
+  // { nodes: { [id: string]: { document: {...}, ... } } }
+  const nodes = json.nodes ?? {};
+  const entry = nodes[frameId];
+  if (!entry || !entry.document) {
+    throw new Error(`Frame node ${frameId} missing from Figma response`);
+  }
+  return entry.document;
+}
+
+IMPORTANT:
+- Do NOT remove or change existing image node creation logic.
+- Only add figmaSemantic to node.data and the frameTree fetch beforehand.
+
+SECTION 6 – OPTIONAL: NODE CONTEXT MENU HOOKS (NO HEAVY LIFT)
+=============================================================
+
+We can prepare for future usage of semantics without implementing the full logic now.
+
+Wherever node context menus are handled (e.g. NodeContextMenu.tsx or similar), add conditional entries for image nodes with figmaSemantic:
+
+- "Generate Workflow from UI (beta)"
+- "Generate Form Node from Fields (beta)"
+- "View Semantic Summary"
+
+These can:
+- either be stubbed to a toast: "Coming soon"
+- or open a debug panel showing figmaSemantic contents.
+
+Key requirement:
+- Do NOT attempt to generate new nodes/edges in this step unless specifically instructed later.
+- The goal is just to confirm semantics exist and can be inspected.
+
+SECTION 7 – UX / BEHAVIORAL CONSTRAINTS
+=======================================
+
+1) DO NOT change what the user sees on import.
+   - The user should still see Figma frames as image nodes laid out in a row (or whatever existing layout is).
+   - There should be no new nodes auto-created around them yet.
+
+2) DO NOT add any new required user-facing interactions.
+   - No new dialogs required during import.
+   - Semantic extraction happens silently in the background.
+
+3) DO NOT build a Figma-like layout editor.
+   - We are not recreating Figma UI.
+   - We are only extracting semantics under the hood.
+
+4) DO NOT break compatibility with existing projects.
+   - Node.data.figmaSemantic is purely additive.
+   - Existing nodes without this field should still be valid.
+
+SECTION 8 – TESTING CHECKLIST
+=============================
+
+1) Import a simple Figma frame:
+   - A frame with a title, two inputs, and a button:
+     "Login", "Email field", "Password field", "Login button"
+
+2) Verify:
+   - The image node appears as before.
+   - Node.data.figmaSemantic exists and contains:
+       elements[] with:
+         - 1 heading (Login)
+         - 2 inputs
+         - 1 button
+       forms[] with:
+         - 1 form candidate referencing the 2 inputs and button
+       navigationTargets[] possibly including "Login" button.
+
+3) Confirm that:
+   - If Figma API returns nodes but some fields are missing (no bounds, no name), the extractor does NOT crash. It should skip or fallback to defaults.
+
+4) Verify no extra nodes are created on the canvas.
+
+5) Verify import works BOTH with OAuth and PAT modes.
+
+6) Ensure no direct calls to https://api.figma.com exist in the frontend; all must go through /api/figma/proxy.
+
+SECTION 9 – NON-GOALS (DO NOT IMPLEMENT NOW)
+============================================
+
+- Do NOT auto-generate workflow nodes from semantic data yet.
+- Do NOT reposition non-image nodes based on semantics.
+- Do NOT attempt to synchronize changes back to Figma.
+- Do NOT alter the visual appearance of imported images.
+- Do NOT refactor the node system or Node/Edge interfaces.
+
+The sole purpose of this phase is:
+- Figma frames remain as images.
+- Each image node now carries a rich figmaSemantic object in node.data.
+
+============================================================
+END OF SPEC
+============================================================

@@ -1,0 +1,228 @@
+KITEFRAME — UPDATED HYBRID FIGMA IMPORT SPEC (WITH REPLIT FEEDBACK APPLIED)
+============================================================================
+
+OVERVIEW
+========
+Goal: Import Figma frames as image nodes (existing behavior), AND attach lightweight
+semantic metadata extracted from the frame’s node tree for future AI workflows.
+
+Semantic metadata is NOT used to render UI. It is ONLY used for:
+- AI workflow generation
+- form extraction
+- navigation inference
+- spec generation
+- future Jira/Figma integrative workflows
+
+This update incorporates:
+- API batching
+- depth & element limits
+- extended heuristics
+- correct file paths
+- type-safe ImageNodeData extension
+- graceful failure behavior
+
+DO NOT implement UI reconstruction. DO NOT generate new nodes from semantics yet.
+
+----------------------------------------------------------------------------
+
+1. FILE & FOLDER LOCATIONS (REQUIRED)
+=====================================
+Use these paths to match Kiteframe’s architecture:
+
+client/src/lib/integration/figmaSemanticTypes.ts
+client/src/lib/integration/figmaSemanticExtractor.ts
+client/src/lib/integration/figmaApi.ts         (modify)
+client/src/lib/integration/convertFigmaToNodes.ts (modify)
+
+DO NOT create new root folders or move existing figmaApi/convertFigmaToNodes files.
+
+----------------------------------------------------------------------------
+
+2. TYPE DEFINITIONS (REQUIRED)
+==============================
+Extend ImageNodeData in client/src/types.ts:
+
+interface ImageNodeData extends BaseNodeData {
+  src: string;
+  sourceType: string;
+  figmaId?: string;
+  figmaType?: string;
+  figmaPageName?: string;
+  originalWidth?: number;
+  originalHeight?: number;
+
+  // NEW FIELD — semantic metadata (optional)
+  figmaSemantic?: FigmaSemanticMetadata | null;
+}
+
+Create file: client/src/lib/integration/figmaSemanticTypes.ts
+
+(identical to original spec except for location)
+
+----------------------------------------------------------------------------
+
+3. BATCHED FIGMA NODE FETCHING (REQUIRED)
+=========================================
+Existing behavior:
+  One request per frame → ❌ inefficient, risks rate limiting
+
+New behavior:
+  Use: files/:fileKey/nodes?ids=id1,id2,id3,...
+
+Implementation:
+
+In figmaApi.ts, add:
+
+export async function fetchFigmaFrameTrees(fileKey: string, frameIds: string[], pat?: string) {
+  const idsParam = frameIds.join(",");
+  const res = await fetch("/api/figma/proxy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: `files/${fileKey}/nodes?ids=${idsParam}`,
+      usePat: !!pat,
+      patToken: pat ?? null,
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Failed to fetch Figma nodes`);
+  const json = await res.json();
+  return json.nodes;
+}
+
+Important:
+- Replit should NOT change the /api/figma/proxy backend.
+- Token routing (OAuth session tokens vs PAT) is already handled.
+
+----------------------------------------------------------------------------
+
+4. EXTRACTION LIMITS (REQUIRED FOR PERFORMANCE)
+===============================================
+In figmaSemanticExtractor.ts:
+
+Apply both limits:
+
+MAX_DEPTH = 10  
+MAX_ELEMENTS = 500  
+
+Stop traversal when either limit is hit:
+
+if (depth > MAX_DEPTH || elementCount >= MAX_ELEMENTS) return;
+
+Reason:
+Prevents runaway recursion on large files.
+
+----------------------------------------------------------------------------
+
+5. IMPROVED HEURISTICS (REQUIRED)
+=================================
+Replit should update heuristics to include:
+
+a) COMPONENT or INSTANCE with variant names:
+   - Check node.componentProperties
+   - Check node.mainComponent name patterns for buttons/inputs
+
+b) Text inside parent:
+   - If a FRAME/GROUP contains exactly one TEXT child → classify as button-like
+
+c) Default fallbacks:
+   - If nothing matches, classify as 'section' only if appropriate
+   - Otherwise skip element creation
+
+d) Internationalization-safe rules:
+   - Do NOT rely solely on English keyword heuristics
+   - Use structure-based rules (shape + text)
+
+----------------------------------------------------------------------------
+
+6. ERROR HANDLING (REQUIRED)
+============================
+If:
+- The node tree fetch fails, OR
+- The semantic extractor throws, OR
+- Traversal exceeds limits
+
+Then:
+- Import the image node anyway
+- Set figmaSemantic = null
+- Log a non-breaking warning to the console
+
+DO NOT block project creation.
+DO NOT display alert popups.
+DO NOT show errors to users.
+
+----------------------------------------------------------------------------
+
+7. APPLY SEMANTICS IN convertFigmaToNodes.ts (REQUIRED)
+=======================================================
+Replace per-frame fetching with a batched call:
+
+const nodesJson = await fetchFigmaFrameTrees(fileKey, selectedFrameIds, pat);
+
+Then for each frame in frames:
+
+const frameNode = nodesJson[frame.id]?.document;
+if (!frameNode) {
+  imageNode.data.figmaSemantic = null; // fallback
+} else {
+  try {
+    const semantic = extractFigmaSemanticMetadata(frameNode, frame.pageName);
+    imageNode.data.figmaSemantic = semantic;
+  } catch {
+    imageNode.data.figmaSemantic = null;
+  }
+}
+
+----------------------------------------------------------------------------
+
+8. NO UI CHANGES (FOR NOW)
+==========================
+DO NOT create new UI panels.
+DO NOT show semantics to the user yet.
+DO NOT create new nodes from semantics.
+
+OPTIONAL (stub only):
+Add a context menu entry ONLY IF trivial:
+“View Semantic Data (debug)” → console.log(node.data.figmaSemantic)
+
+----------------------------------------------------------------------------
+
+9. VERIFICATION TESTS (REQUIRED)
+===============================
+Test cases:
+
+TEST 1:
+Import simple login frame:
+- Expect heading, inputs, button detected.
+- Expect forms array length: 1.
+- Expect navigationTargets >= 1.
+- Node remains image node visually.
+
+TEST 2:
+Import large frame (hundreds of elements):
+- Extraction should NOT hang.
+- figmaSemantic should contain <= MAX_ELEMENTS.
+- No UI breakage.
+
+TEST 3:
+Import with OAuth only (no PAT):
+- Fallback should work.
+
+TEST 4:
+Import multiple frames:
+- Ensure only ONE /nodes request is made for all frames.
+
+----------------------------------------------------------------------------
+
+10. NON-GOALS (DO NOT IMPLEMENT)
+================================
+NO reconstruction of Figma layouts.
+NO new node types visually rendered from Figma.
+NO auto-generation of workflow nodes.
+NO syncing changes back to Figma.
+NO interaction inference that creates edges.
+NO component layout recreation.
+
+============================================================================
+END OF SPEC
+============================================================================
