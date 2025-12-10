@@ -34,7 +34,7 @@ async function refreshAccessToken(session: Express.Request['session']): Promise<
 
   try {
     console.log('[Figma OAuth] Attempting token refresh...');
-    const response = await fetch('https://www.figma.com/api/oauth/token', {
+    const response = await fetch('https://api.figma.com/v1/oauth/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -193,7 +193,7 @@ export function registerFigmaRoutes(app: Express) {
 
     try {
       console.log('[Figma OAuth] Exchanging code for tokens...');
-      const tokenResponse = await fetch('https://www.figma.com/api/oauth/token', {
+      const tokenResponse = await fetch('https://api.figma.com/v1/oauth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
