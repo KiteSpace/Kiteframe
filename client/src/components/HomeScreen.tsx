@@ -41,9 +41,11 @@ import {
   Trash2,
   AlertCircle
 } from 'lucide-react';
+import { SiFigma } from 'react-icons/si';
 import { useCreditsGate } from '@/hooks/useCreditsGate';
 import { useSubscription } from '@/hooks/useSubscription';
 import { FeatureUpsellDialog } from './FeatureUpsellDialog';
+import { FigmaImportModal } from './modals/FigmaImportModal';
 
 interface RecentProject {
   id: string;
@@ -71,6 +73,7 @@ interface HomeScreenProps {
   onCreateBlankWorkflow: () => void;
   onLoadTemplate: (templateType: string) => void;
   onUploadImage: () => void;
+  onImportFigma?: (figmaUrl: string) => Promise<void> | void;
   onShareProject?: (projectId: string) => void;
   onDownloadProject?: (projectId: string) => void;
   onDeleteProject?: (projectId: string) => void;
@@ -165,6 +168,7 @@ export function HomeScreen({
   onCreateBlankWorkflow,
   onLoadTemplate,
   onUploadImage,
+  onImportFigma,
   onShareProject,
   onDownloadProject,
   onDeleteProject,
@@ -175,7 +179,8 @@ export function HomeScreen({
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [showFeatureUpsell, setShowFeatureUpsell] = useState(false);
-  const [featureUpsellType, setFeatureUpsellType] = useState<'image' | 'wireframe'>('image');
+  const [featureUpsellType, setFeatureUpsellType] = useState<'image' | 'wireframe' | 'figma'>('image');
+  const [showFigmaModal, setShowFigmaModal] = useState(false);
   
   const { tier } = useSubscription();
   const projectToDelete = recentProjects.find(p => p.id === deleteProjectId);
@@ -473,6 +478,25 @@ export function HomeScreen({
                   <Upload size={16} className="mr-1" />
                   Upload Image
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    // Figma import is Pro tier only
+                    if (tier !== 'pro') {
+                      setFeatureUpsellType('figma');
+                      setShowFeatureUpsell(true);
+                    } else {
+                      setShowFigmaModal(true);
+                    }
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
+                  disabled={isOutOfCredits}
+                  data-testid="button-import-figma"
+                >
+                  <SiFigma size={14} className="mr-1" />
+                  Import Figma
+                </Button>
               </div>
               {isOutOfCredits ? (
                 <Button
@@ -607,11 +631,34 @@ export function HomeScreen({
         <FeatureUpsellDialog
           isOpen={showFeatureUpsell}
           onClose={() => setShowFeatureUpsell(false)}
-          featureName={featureUpsellType === 'image' ? 'Image-to-Workflow Generator' : 'Wireframe Generator'}
-          requiredTier={featureUpsellType === 'image' ? 'pro' : 'advanced'}
-          description={featureUpsellType === 'image' 
-            ? 'Convert your sketches and wireframes into interactive workflows using AI-powered image analysis!'
-            : 'Generate wireframe layouts from text descriptions using AI!'}
+          featureName={
+            featureUpsellType === 'image' 
+              ? 'Image-to-Workflow Generator' 
+              : featureUpsellType === 'figma'
+              ? 'Figma Import'
+              : 'Wireframe Generator'
+          }
+          requiredTier="pro"
+          description={
+            featureUpsellType === 'image' 
+              ? 'Convert your sketches and wireframes into interactive workflows using AI-powered image analysis!'
+              : featureUpsellType === 'figma'
+              ? 'Import your Figma designs directly into Kiteframe and turn them into interactive workflows!'
+              : 'Generate wireframe layouts from text descriptions using AI!'
+          }
+        />
+
+        {/* Figma Import Modal */}
+        <FigmaImportModal
+          isOpen={showFigmaModal}
+          onClose={() => setShowFigmaModal(false)}
+          onImport={async (url, _mode) => {
+            if (onImportFigma) {
+              await onImportFigma(url);
+            }
+            setShowFigmaModal(false);
+          }}
+          mode="new-project"
         />
 
         {/* Delete Confirmation Dialog (for home view) */}

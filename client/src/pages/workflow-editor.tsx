@@ -77,8 +77,13 @@ import {
   Eye,
   RotateCcw,
   Cloud,
-  CloudOff
+  CloudOff,
+  Rocket
 } from 'lucide-react';
+import { SiFigma } from 'react-icons/si';
+import { FigmaImportModal } from '@/components/modals/FigmaImportModal';
+import { parseFigmaUrl } from '@/lib/integration/figmaUrl';
+import { buildFigmaWebviewWorkflow } from '@/utils/createFigmaProject';
 
 // Project metadata types
 interface ProjectLink {
@@ -3398,6 +3403,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showNewTabModal, setShowNewTabModal] = useState(false);
   const [showCloudProjects, setShowCloudProjects] = useState(false);
   const [showPluginTest, setShowPluginTest] = useState(false);
+  const [showFigmaModal, setShowFigmaModal] = useState(false);
+  const [figmaImportMode, setFigmaImportMode] = useState<'new-project' | 'insert-into-project'>('new-project');
+  const [showPowerFeaturesMenu, setShowPowerFeaturesMenu] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node; canvasObject?: CanvasObject } | null>(null);
   const [linearToolbar, setLinearToolbar] = useState<{ 
     x: number; 
@@ -4569,6 +4577,54 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setTabs(prev => [...prev, newTab]);
                 setActiveTabId(newTab.id);
                 setShowAiGenerator(true);
+              }}
+              onImportFigma={(figmaUrl) => {
+                const parsed = parseFigmaUrl(figmaUrl);
+                if (!parsed) {
+                  toast({
+                    title: "Invalid URL",
+                    description: "Please enter a valid Figma file or frame URL.",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                
+                const workflowData = buildFigmaWebviewWorkflow(parsed);
+                const name = generateCuteName();
+                
+                const newTab: WorkflowTab = {
+                  id: generateTabId(),
+                  name,
+                  nodes: workflowData.nodes,
+                  edges: workflowData.edges,
+                  canvasObjects: workflowData.canvasObjects || [],
+                  viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
+                  selectedNodeId: '',
+                  selectedEdgeId: '',
+                  history: [{ 
+                    nodes: workflowData.nodes, 
+                    edges: workflowData.edges, 
+                    canvasObjects: workflowData.canvasObjects || [], 
+                    viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 } 
+                  }],
+                  historyIndex: 0,
+                  showImageModal: null,
+                  metadata: {
+                    name,
+                    description: 'Imported from Figma',
+                    links: [],
+                    linksFormat: 'text',
+                    categories: []
+                  }
+                };
+                
+                setTabs(prev => [...prev, newTab]);
+                setActiveTabId(newTab.id);
+                
+                toast({
+                  title: "Figma Imported",
+                  description: `Created "${name}" with your Figma design.`,
+                });
               }}
               onShareProject={(projectId) => {
                 const tab = tabs.find(t => t.id === projectId);
@@ -7329,6 +7385,70 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   frames={[]}
                   canvasObjects={canvasObjects}
                 />
+
+                {/* Power Features Button */}
+                {!isReadOnly && (
+                  <div className="absolute bottom-20 right-4 z-30">
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowPowerFeaturesMenu(!showPowerFeaturesMenu)}
+                        className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg hover:from-purple-700 hover:to-blue-700 transition-all"
+                        title="Power Features"
+                        data-testid="button-power-features"
+                      >
+                        <Rocket size={18} />
+                      </button>
+                      {showPowerFeaturesMenu && (
+                        <div className="absolute bottom-12 right-0 w-56 bg-card border border-border rounded-lg shadow-lg z-50 py-2">
+                          <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground border-b border-border mb-1">
+                            Power Features
+                          </div>
+                          <button
+                            onClick={() => {
+                              setShowPowerFeaturesMenu(false);
+                              setShowAiGenerator(true);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                            data-testid="power-feature-upload-image"
+                          >
+                            <Upload size={16} className="text-muted-foreground" />
+                            Upload Image
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowPowerFeaturesMenu(false);
+                              setFigmaImportMode('insert-into-project');
+                              setShowFigmaModal(true);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                            data-testid="power-feature-import-figma"
+                          >
+                            <SiFigma size={14} className="text-[#F24E1E]" />
+                            Import Figma
+                          </button>
+                          <div className="border-t border-border mt-1 pt-1">
+                            <button
+                              disabled
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground cursor-not-allowed opacity-50"
+                              data-testid="power-feature-jira"
+                            >
+                              <span className="w-4 h-4 flex items-center justify-center">📋</span>
+                              Jira <span className="text-xs ml-auto">(Coming soon)</span>
+                            </button>
+                            <button
+                              disabled
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground cursor-not-allowed opacity-50"
+                              data-testid="power-feature-google-doc"
+                            >
+                              <span className="w-4 h-4 flex items-center justify-center">📄</span>
+                              Google Doc <span className="text-xs ml-auto">(Coming soon)</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 
                 {/* KiteAI Floating Chat */}
                 <KiteAIChat
@@ -7796,6 +7916,77 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
           />
         )}
+
+        {/* Figma Import Modal */}
+        <FigmaImportModal
+          isOpen={showFigmaModal}
+          onClose={() => setShowFigmaModal(false)}
+          onImport={async (figmaUrl, mode) => {
+            const parsed = parseFigmaUrl(figmaUrl);
+            if (!parsed) {
+              toast({
+                title: "Invalid URL",
+                description: "Please enter a valid Figma file or frame URL.",
+                variant: "destructive"
+              });
+              return;
+            }
+            
+            const workflowData = buildFigmaWebviewWorkflow(parsed);
+            
+            if (mode === 'new-project') {
+              const name = generateCuteName();
+              const newTab: WorkflowTab = {
+                id: generateTabId(),
+                name,
+                nodes: workflowData.nodes,
+                edges: workflowData.edges,
+                canvasObjects: workflowData.canvasObjects || [],
+                viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
+                selectedNodeId: '',
+                selectedEdgeId: '',
+                history: [{ 
+                  nodes: workflowData.nodes, 
+                  edges: workflowData.edges, 
+                  canvasObjects: workflowData.canvasObjects || [], 
+                  viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 } 
+                }],
+                historyIndex: 0,
+                showImageModal: null,
+                metadata: {
+                  name,
+                  description: 'Imported from Figma',
+                  links: [],
+                  linksFormat: 'text',
+                  categories: []
+                }
+              };
+              setTabs(prev => [...prev, newTab]);
+              setActiveTabId(newTab.id);
+              toast({
+                title: "Figma Imported",
+                description: `Created "${name}" with your Figma design.`,
+              });
+            } else {
+              // Insert into existing project
+              saveToHistory();
+              const figmaNode = workflowData.nodes[0];
+              if (figmaNode) {
+                // Offset position based on existing nodes to avoid overlap
+                const maxX = nodes.reduce((max, n) => Math.max(max, n.position.x + (n.width || 200)), 0);
+                figmaNode.position = { x: maxX + 50, y: 100 };
+                setNodes(prev => [...prev, figmaNode]);
+                toast({
+                  title: "Figma Added",
+                  description: "Figma design added to your workflow.",
+                });
+              }
+            }
+            
+            setShowFigmaModal(false);
+          }}
+          mode={figmaImportMode}
+        />
 
         {/* Table Panel */}
         {openTablePanel && (

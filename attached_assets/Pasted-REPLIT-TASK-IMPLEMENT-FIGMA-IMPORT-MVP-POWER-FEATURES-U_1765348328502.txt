@@ -1,0 +1,270 @@
+REPLIT TASK: IMPLEMENT FIGMA IMPORT MVP + POWER FEATURES UI
+===========================================================
+
+GOAL:
+- Add "Import Figma" as a Power Feature on:
+  1) HomeScreen (prompt container row)
+  2) Project canvas (toolbar)
+- MVP behavior:
+  - User pastes a Figma URL
+  - We parse fileKey + nodeId
+  - We create (or insert) a WebviewNode configured to show that Figma frame/file
+- Do NOT implement full Figma JSON parsing yet.
+- Use the existing WebviewNode node type.
+
+===========================================================
+1) ADD "IMPORT FIGMA" BUTTON ON HOMESCREEN PROMPT
+===========================================================
+
+File: client/src/components/HomeScreen.tsx
+
+Context: In the prompt container (already has "Upload Image" button).
+
+Current JSX (simplified):
+
+  <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+    <div className="flex items-center gap-2">
+      <Button ... onClick={onUploadImage}>
+        <Upload ... /> Upload Image
+      </Button>
+    </div>
+    <Button onClick={handleGenerate}>Start designing</Button>
+  </div>
+
+TASK:
+- Add a new button next to "Upload Image" called "Import Figma".
+
+PSEUDO-JSX:
+
+  <div className="flex items-center gap-2">
+    <Button ... onClick={handleUploadImage}>Upload Image</Button>
+
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={onImportFigmaClick}
+      className="text-muted-foreground hover:text-foreground"
+      disabled={isOutOfCredits}
+      data-testid="button-import-figma"
+    >
+      <IconFigma size={16} className="mr-1" />
+      Import Figma
+    </Button>
+  </div>
+
+- Use lucide-react for an icon if available, or a simple placeholder icon.
+- Implement a handler:
+
+  const [showFigmaModal, setShowFigmaModal] = useState(false);
+
+  const onImportFigmaClick = () => {
+    if (tier !== 'pro') {
+      // reuse same upsell pattern as image
+      setFeatureUpsellType('figma');
+      setShowFeatureUpsell(true);
+    } else {
+      setShowFigmaModal(true);
+    }
+  };
+
+- Render a <FigmaImportModal /> when showFigmaModal is true.
+
+===========================================================
+2) CREATE FIGMA IMPORT MODAL COMPONENT
+===========================================================
+
+File: client/src/components/modals/FigmaImportModal.tsx (NEW)
+
+Requirements:
+- Props:
+  - isOpen: boolean
+  - onClose: () => void
+  - onImport: (figmaUrl: string) => Promise<void> | void
+  - mode: 'new-project' | 'insert-into-project'
+
+- Content:
+  - TextInput for Figma URL
+  - Helper text: “Paste a Figma file or frame URL”
+  - Primary button: "Import"
+  - Secondary: "Cancel"
+
+Behavior:
+- On "Import", call onImport(url)
+- Disable button while importing
+- Show basic error if URL invalid
+
+===========================================================
+3) PARSE FIGMA URL
+===========================================================
+
+File: client/src/lib/integration/figmaUrl.ts (NEW)
+
+Implement:
+
+export interface ParsedFigmaUrl {
+  fileKey: string;
+  nodeId?: string;
+  rawUrl: string;
+}
+
+export function parseFigmaUrl(url: string): ParsedFigmaUrl | null {
+  try {
+    const u = new URL(url.trim());
+    // Figma patterns: /file/<fileKey>/... or /design/<fileKey>/...
+    const segments = u.pathname.split('/').filter(Boolean);
+    const fileIndex = segments.findIndex(seg => seg === 'file' || seg === 'design');
+    if (fileIndex === -1 || !segments[fileIndex + 1]) return null;
+
+    const fileKey = segments[fileIndex + 1];
+    const nodeId = u.searchParams.get('node-id') ?? undefined;
+
+    return { fileKey, nodeId, rawUrl: url.trim() };
+  } catch {
+    return null;
+  }
+}
+
+===========================================================
+4) CREATE PROJECT FROM FIGMA URL (HOMESCREEN FLOW)
+===========================================================
+
+We will create a NEW project whose graph contains a single WebviewNode configured for Figma.
+
+Use existing project creation flow:
+
+- useCloudProjects.ts → createProject(params: CreateProjectParams)
+- workflow-editor.tsx → uses WorkflowData = { nodes, edges, canvasObjects, viewport }
+
+Create helper:
+
+File: client/src/utils/createFigmaProject.ts (NEW)
+
+import { Node, Edge } from '@/lib/kiteframe/types';
+import { ParsedFigmaUrl } from '@/lib/integration/figmaUrl';
+
+export interface WorkflowData {
+  nodes: Node[];
+  edges: Edge[];
+  canvasObjects?: any[];
+  viewport?: { x: number; y: number; zoom: number };
+}
+
+export function buildFigmaWebviewWorkflow(parsed: ParsedFigmaUrl): WorkflowData {
+  const id = `figma-${parsed.fileKey}-${parsed.nodeId ?? 'root'}`;
+
+  const node: Node = {
+    id,
+    type: 'webview',
+    position: { x: 0, y: 0 },
+    data: {
+      src: parsed.rawUrl,
+      title: 'Figma Import',
+      kind: 'figma-frame',
+      fileKey: parsed.fileKey,
+      nodeId: parsed.nodeId,
+    },
+    draggable: true,
+    selectable: true,
+    showHandles: false,
+  };
+
+  return {
+    nodes: [node],
+    edges: [],
+    canvasObjects: [],
+    viewport: { x: 0, y: 0, zoom: 1 },
+  };
+}
+
+In HomeScreen.tsx:
+
+- When FigmaImportModal calls onImport(figmaUrl):
+
+  1) parse the URL with parseFigmaUrl
+  2) if invalid → show error
+  3) build workflowData = buildFigmaWebviewWorkflow(parsed)
+  4) call createProject({ name, description, workflowData })
+     - name can be something like "Figma Import" or use generateCuteName()
+  5) route user to workflow-editor with that project
+
+We already have createProject in useCloudProjects.ts; reuse it.
+
+===========================================================
+5) INSERT WEBVIEWNODE INTO EXISTING PROJECT (PROJECT PAGE FLOW)
+===========================================================
+
+On the project/editor page, we need a "Power Features" menu that also supports "Import Figma" in 'insert' mode.
+
+File: client/src/components/WorkflowCanvas.tsx OR client/src/pages/workflow-editor.tsx
+(Wherever the main editor toolbar lives.)
+
+TASK:
+- Add a small "rocket" icon button, e.g.:
+
+  <Button
+    variant="ghost"
+    size="icon"
+    onClick={() => setShowPowerFeatures(true)}
+    data-testid="button-power-features"
+  >
+    <Rocket size={16} />
+  </Button>
+
+- Clicking opens a simple menu (popover or dropdown):
+
+  Power Features
+  -------------
+  📷 Upload Image
+  🎨 Import Figma
+  (Jira – coming soon, disabled)
+  (Google Doc – coming soon, disabled)
+
+For "Import Figma" from here:
+- Open the same <FigmaImportModal mode="insert-into-project" />
+- onImport(figmaUrl) should:
+  1) parse URL
+  2) build a single WebviewNode via buildFigmaWebviewWorkflow
+  3) merge resulting nodes into current tab’s node set
+     - e.g.:
+
+      setTabs(prev =>
+        prev.map(tab =>
+          tab.id === activeTabId
+            ? { ...tab, nodes: [...tab.nodes, ...workflowData.nodes] }
+            : tab
+        )
+      )
+
+There is NO need to touch edges for MVP.
+
+===========================================================
+6) USE EXISTING WEBVIEWNODE
+===========================================================
+
+WebviewNode.tsx already exists in:
+- client/src/lib/kiteframe/components/WebviewNode.tsx
+
+Ensure it reads:
+- node.data.src (URL to load)
+- node.data.title / kind (optional, use for labels/metadata)
+
+NO changes are required to WebviewNode beyond:
+- Maybe graceful handling of Figma URLs (e.g., showing a Figma icon in chrome UI).
+
+===========================================================
+7) FUTURE (DO NOT IMPLEMENT YET, ONLY LEAVE TODO)
+===========================================================
+
+Leave clear TODOs for:
+- Using MCP Figma tools to fetch screenshots or design context
+- Converting Figma JSON into multiple nodes
+- Integrating "Generate Workflow from Figma" as a second-stage action on a Figma WebviewNode
+
+Example TODO:
+
+  // TODO: In a future iteration, use MCP Figma tools (get_design_context, get_metadata)
+  // to analyze this frame and generate a workflow graph from it.
+
+===========================================================
+END OF FIGMA MVP SPEC
+===========================================================

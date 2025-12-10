@@ -64,6 +64,12 @@ Preferred communication style: Simple, everyday language.
 - **Workflow Generation**: AI-generated workflows from text prompts and image analysis are appended to the canvas with smart offset positioning.
 - **Image Analysis**: Upload workflow diagrams (PNG, JPG, GIF up to 10MB) with drag-and-drop support, confidence scoring above 70% threshold, and comprehensive error handling.
 - **Image Management**: Enhanced system for uploading images via URL or local storage (base64 data URLs) with privacy notices.
+- **Figma Import**: Import Figma designs as interactive webview nodes via Power Features menu or HomeScreen, supports both new project creation and insertion into existing workflows, uses Figma embed URLs for iframe compatibility.
+
+### Power Features
+- **Floating Menu**: Rocket icon button on canvas for quick access to power features.
+- **Figma Import**: Import designs from Figma URLs directly into workflows with dual-mode support (new-project or insert-into-project).
+- **Integration Architecture**: Files in `client/src/lib/integration/` for URL parsing and embed URL generation.
 
 ### AI Integration Layer
 - **Client Interface**: OpenAI-compatible API client with configurable endpoints.
