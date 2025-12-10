@@ -1,0 +1,34 @@
+Running frontend commit c5fdb9a4791163117358b5e2931420b7c57f3fb4
+www.figma.com/embed/interstitial?embed_host=kiteframe&embed_path=%2Ffile%2FDaXoZlrF31ohtPU9TMsZMM%3Fembed_host%3Dkiteframe%26kind%3Dfile%26node-id%3D40000075-7979%26page-selector%3D0%26t%3DNAgmlZaIMK9BbvZ8-4%26viewer%3D1&theme=&version=1:1581 Access to CSS stylesheet at 'https://www.figma.com/webpack-artifacts/assets/embed_interstitial-9babdc0c7e30e3f3.min.css.br' from origin 'null' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+www.figma.com/embed/interstitial?embed_host=kiteframe&embed_path=%2Ffile%2FDaXoZlrF31ohtPU9TMsZMM%3Fembed_host%3Dkiteframe%26kind%3Dfile%26node-id%3D40000075-7979%26page-selector%3D0%26t%3DNAgmlZaIMK9BbvZ8-4%26viewer%3D1&theme=&version=1:1574  GET https://www.figma.com/webpack-artifacts/assets/embed_interstitial-9babdc0c7e30e3f3.min.css.br net::ERR_FAILED 200 (OK)
+interstitial?embed_host=kiteframe&embed_path=%2Ffile%2FDaXoZlrF31ohtPU9TMsZMM%3Fembed_host%3Dkitefr…:1581 Access to link element resource at 'https://www.figma.com/webpack-artifacts/assets/embed_interstitial-b767fdfb75dc3e1a.min.en.json.br' from origin 'null' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+interstitial?embed_host=kiteframe&embed_path=%2Ffile%2FDaXoZlrF31ohtPU9TMsZMM%3Fembed_host%3Dkitefr…:1576  GET https://www.figma.com/webpack-artifacts/assets/embed_interstitial-b767fdfb75dc3e1a.min.en.json.br net::ERR_FAILED 200 (OK)
+interstitial?embed_host=kiteframe&embed_path=%2Ffile%2FDaXoZlrF31ohtPU9TMsZMM%3Fembed_host%3Dkitefr…:1581 Access to script at 'https://www.figma.com/webpack-artifacts/assets/embed_interstitial-e4bef35c3bb0f5e7.min.js.br' from origin 'null' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+interstitial?embed_host=kiteframe&embed_path=%2Ffile%2FDaXoZlrF31ohtPU9TMsZMM%3Fembed_host%3Dkitefr…:460  GET https://www.figma.com/webpack-artifacts/assets/embed_interstitial-e4bef35c3bb0f5e7.min.js.br net::ERR_FAILED 200 (OK)
+content_script.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at elementWasFocused (content_script.js:1:423712)
+    at HTMLDocument.focusInEventHandler (content_script.js:1:423069)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+elementWasFocused @ content_script.js:1
+focusInEventHandler @ content_script.js:1
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+processInputEvent @ content_script.js:1
+setTimeout
+inputEventHandler @ content_script.js:1
+interstitial?embed_host=kiteframe&embed_path=%2Ffile%2FDaXoZlrF31ohtPU9TMsZMM%3Fembed_host%3Dkiteframe%26kind%3Dfile%26node-id%3D40000075-7979%26page-selector%3D0%26t%3DNAgmlZaIMK9BbvZ8-4%26viewer%3D1&theme=&version=1:471 Running frontend commit c5fdb9a4791163117358b5e2931420b7c57f3fb4
+www.figma.com/embed/interstitial?embed_host=kiteframe&embed_path=%2Ffile%2FDaXoZlrF31ohtPU9TMsZMM%3Fembed_host%3Dkiteframe%26kind%3Dfile%26node-id%3D40000075-7979%26page-selector%3D0%26t%3DNAgmlZaIMK9BbvZ8-4%26viewer%3D1&theme=&version=1:478 Access to script at 'https://www.figma.com/webpack-artifacts/assets/embed_interstitial-e4bef35c3bb0f5e7.min.js.br' from origin 'null' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+www.figma.com/embed/interstitial?embed_host=kiteframe&embed_path=%2Ffile%2FDaXoZlrF31ohtPU9TMsZMM%3Fembed_host%3Dkiteframe%26kind%3Dfile%26node-id%3D40000075-7979%26page-selector%3D0%26t%3DNAgmlZaIMK9BbvZ8-4%26viewer%3D1&theme=&version=1:460  GET https://www.figma.com/webpack-artifacts/assets/embed_interstitial-e4bef35c3bb0f5e7.min.js.br net::ERR_FAILED 200 (OK)
+interstitial?embed_host=kiteframe&embed_path=%2Ffile%2FDaXoZlrF31ohtPU9TMsZMM%3Fembed_host%3Dkitefr…:1 Access to CSS stylesheet at 'https://www.figma.com/webpack-artifacts/assets/embed_interstitial-9babdc0c7e30e3f3.min.css.br' from origin 'null' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+interstitial?embed_host=kiteframe&embed_path=%2Ffile%2FDaXoZlrF31ohtPU9TMsZMM%3Fembed_host%3Dkitefr…:1574  GET https://www.figma.com/webpack-artifacts/assets/embed_interstitial-9babdc0c7e30e3f3.min.css.br net::ERR_FAILED 200 (OK)
+interstitial?embed_host=kiteframe&embed_path=%2Ffile%2FDaXoZlrF31ohtPU9TMsZMM%3Fembed_host%3Dkitefr…:1 Access to link element resource at 'https://www.figma.com/webpack-artifacts/assets/embed_interstitial-b767fdfb75dc3e1a.min.en.json.br' from origin 'null' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+interstitial?embed_host=kiteframe&embed_path=%2Ffile%2FDaXoZlrF31ohtPU9TMsZMM%3Fembed_host%3Dkitefr…:1576  GET https://www.figma.com/webpack-artifacts/assets/embed_interstitial-b767fdfb75dc3e1a.min.en.json.br net::ERR_FAILED 200 (OK)

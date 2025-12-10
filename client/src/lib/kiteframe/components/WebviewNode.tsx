@@ -666,13 +666,30 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
               )}
               {loadError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 gap-3 z-10 p-4">
-                  <AlertCircle size={32} className={isEmbedBlocked ? "text-amber-500" : "text-red-500"} />
-                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center">{loadError}</p>
+                  {url.includes('figma.com') ? (
+                    <div className="w-10 h-10 rounded-lg bg-[#F24E1E]/10 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-[#F24E1E]" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M15.852 8.981h-4.588V0h4.588c2.476 0 4.49 2.014 4.49 4.49s-2.014 4.491-4.49 4.491zM12.735 7.51h3.117c1.665 0 3.019-1.355 3.019-3.019s-1.354-3.019-3.019-3.019h-3.117V7.51z"/>
+                        <path d="M8.148 24c2.476 0 4.49-2.014 4.49-4.49v-4.491H8.148c-2.476 0-4.49 2.014-4.49 4.491 0 2.476 2.014 4.49 4.49 4.49zm-3.019-4.49c0-1.664 1.355-3.019 3.019-3.019h3.117v3.019c0 1.665-1.354 3.019-3.019 3.019-1.664 0-3.117-1.354-3.117-3.019z"/>
+                        <path d="M8.148 15.019h4.588V6.009H8.148c-2.476 0-4.49 2.014-4.49 4.505 0 2.476 2.014 4.505 4.49 4.505zm-3.019-4.505c0-1.664 1.355-3.033 3.019-3.033h3.117v6.067H8.148c-1.664 0-3.019-1.37-3.019-3.034z"/>
+                        <path d="M15.852 15.019h-3.117V6.009h3.117c2.476 0 4.49 2.029 4.49 4.505s-2.014 4.505-4.49 4.505zm-1.647-7.538v6.067h1.647c1.665 0 3.019-1.37 3.019-3.034 0-1.664-1.354-3.033-3.019-3.033h-1.647z"/>
+                        <path d="M8.148 8.981H3.658C1.182 8.981-.832 6.967-.832 4.49S1.182 0 3.658 0h4.49v8.981zm-4.49-7.51c-1.664 0-3.019 1.355-3.019 3.019s1.355 3.019 3.019 3.019h3.117V1.471H3.658z"/>
+                      </svg>
+                    </div>
+                  ) : (
+                    <AlertCircle size={32} className={isEmbedBlocked ? "text-amber-500" : "text-red-500"} />
+                  )}
+                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                    {url.includes('figma.com') ? 'Unable to embed Figma file' : loadError}
+                  </p>
                   
                   {isEmbedBlocked ? (
                     <div className="flex flex-col items-center gap-2 mt-2">
                       <p className="text-xs text-gray-500 dark:text-gray-500 text-center max-w-xs">
-                        This website blocks embedding. You can convert this to a clickable link instead.
+                        {url.includes('figma.com') 
+                          ? 'Make sure the Figma file is set to "Anyone with the link can view" in Share settings.'
+                          : 'This website blocks embedding. You can convert this to a clickable link instead.'
+                        }
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <button
@@ -687,11 +704,15 @@ const WebviewNodeComponent: React.FC<WebviewNodeComponentProps> = ({
                         <button
                           onClick={handleOpenExternal}
                           onMouseDown={(e) => e.stopPropagation()}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md transition-colors"
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+                            url.includes('figma.com')
+                              ? 'bg-[#F24E1E] hover:bg-[#E04332] text-white'
+                              : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                          }`}
                           data-testid="webview-open-external-error"
                         >
                           <ExternalLink size={14} />
-                          Open in Tab
+                          {url.includes('figma.com') ? 'Open in Figma' : 'Open in Tab'}
                         </button>
                       </div>
                       <button
