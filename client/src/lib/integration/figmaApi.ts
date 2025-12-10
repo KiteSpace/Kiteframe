@@ -97,3 +97,25 @@ export function extractFileKey(url: string): string | null {
   const parsed = parseFigmaUrl(url);
   return parsed?.fileKey ?? null;
 }
+
+/**
+ * Fetch multiple frame node trees in a single batched API call.
+ * Returns the nodes object keyed by frame ID.
+ */
+export async function fetchFigmaFrameTrees(
+  fileKey: string,
+  frameIds: string[],
+  patToken?: string
+): Promise<Record<string, { document: any; components?: any }>> {
+  if (frameIds.length === 0) {
+    return {};
+  }
+  
+  const idsParam = frameIds.join(',');
+  const response = await callFigmaApi<{ nodes: Record<string, { document: any; components?: any }> }>(
+    `files/${fileKey}/nodes?ids=${encodeURIComponent(idsParam)}`,
+    patToken
+  );
+  
+  return response.nodes || {};
+}

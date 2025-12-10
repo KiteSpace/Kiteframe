@@ -357,6 +357,9 @@ export interface BasicNodeData {
 // Image fit type definition
 export type ImageFit = 'contain' | 'cover' | 'fill' | 'fit'; // fit maps to scale-down
 
+// Figma semantic metadata import (for Figma-imported image nodes)
+import type { FigmaSemanticMetadata } from '../integration/figmaSemanticTypes';
+
 export interface ImageNodeData {
   label?: string;
   description?: string;
@@ -376,6 +379,14 @@ export interface ImageNodeData {
     headerTextColor?: string;
     bodyTextColor?: string;
   };
+  // Figma import metadata
+  figmaId?: string;
+  figmaType?: string;
+  figmaPageName?: string;
+  originalWidth?: number;
+  originalHeight?: number;
+  // Semantic metadata extracted from Figma node tree (for AI workflows)
+  figmaSemantic?: FigmaSemanticMetadata | null;
 }
 
 // Table Node Data - extends BasicNodeData with table-specific properties
