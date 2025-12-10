@@ -1,5 +1,5 @@
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
-import { type ParsedFigmaUrl, buildFigmaEmbedUrl } from '@/lib/integration/figmaUrl';
+import type { FigmaFrame } from '@/lib/integration/figmaApi';
 
 export interface WorkflowData {
   nodes: Node[];
@@ -8,47 +8,78 @@ export interface WorkflowData {
   viewport?: { x: number; y: number; zoom: number };
 }
 
-export function buildFigmaWebviewWorkflow(parsed: ParsedFigmaUrl): WorkflowData {
-  const id = `figma-${parsed.fileKey}-${parsed.nodeId ?? 'root'}-${Date.now()}`;
-  
-  // Use the Figma embed URL for proper iframe embedding
-  const embedUrl = buildFigmaEmbedUrl(parsed);
+export interface FigmaFrameWithThumbnail {
+  frame: FigmaFrame;
+  thumbnailUrl: string | null;
+}
 
-  const node: Node = {
-    id,
-    type: 'webview',
-    position: { x: 100, y: 100 },
-    data: {
-      url: embedUrl,
-      title: 'Figma Import',
-      kind: 'figma-frame',
-      fileKey: parsed.fileKey,
-      nodeId: parsed.nodeId,
-      rawFigmaUrl: parsed.rawUrl,
-      colors: {
-        headerBackground: '#F24E1E',
-        headerTextColor: '#ffffff',
-        bodyBackground: '#ffffff',
-        borderColor: '#E04332',
+function generateId(): string {
+  return `figma-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+export function buildFigmaFrameWorkflow(
+  framesWithThumbnails: FigmaFrameWithThumbnail[],
+  startPosition: { x: number; y: number } = { x: 100, y: 100 },
+  spacing: number = 50
+): WorkflowData {
+  const nodes: Node[] = [];
+  let currentX = startPosition.x;
+
+  for (const { frame, thumbnailUrl } of framesWithThumbnails) {
+    const nodeWidth = Math.min(frame.width, 800);
+    const nodeHeight = Math.min(frame.height, 600);
+    const aspectRatio = frame.width / frame.height;
+    
+    const displayWidth = nodeWidth;
+    const displayHeight = displayWidth / aspectRatio;
+
+    const node: Node = {
+      id: generateId(),
+      type: 'image',
+      position: { x: currentX, y: startPosition.y },
+      data: {
+        label: frame.name,
+        src: thumbnailUrl || '',
+        sourceType: 'url',
+        figmaId: frame.id,
+        figmaType: frame.type,
+        figmaPageName: frame.pageName,
+        originalWidth: frame.width,
+        originalHeight: frame.height,
       },
-    },
-    style: {
-      width: 640,
-      height: 480,
-    },
-    draggable: true,
-    selectable: true,
-    showHandles: true,
-  };
+      style: {
+        width: displayWidth,
+        height: displayHeight,
+      },
+      draggable: true,
+      selectable: true,
+      showHandles: true,
+    };
+
+    nodes.push(node);
+    currentX += displayWidth + spacing;
+  }
 
   return {
-    nodes: [node],
+    nodes,
     edges: [],
     canvasObjects: [],
     viewport: { x: 0, y: 0, zoom: 1 },
   };
 }
 
-// TODO: In a future iteration, use MCP Figma tools (get_design_context, get_metadata)
-// to analyze this frame and generate a workflow graph from it.
-// This would convert Figma frames into multiple interconnected nodes.
+export function insertFigmaFrames(
+  existingNodes: Node[],
+  framesWithThumbnails: FigmaFrameWithThumbnail[],
+  spacing: number = 50
+): Node[] {
+  const maxX = existingNodes.reduce((max, n) => Math.max(max, n.position.x + ((n.style as any)?.width || 200)), 0);
+  
+  const { nodes } = buildFigmaFrameWorkflow(
+    framesWithThumbnails,
+    { x: maxX + spacing, y: 100 },
+    spacing
+  );
+
+  return nodes;
+}

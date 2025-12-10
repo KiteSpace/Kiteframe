@@ -45,7 +45,6 @@ import { SiFigma } from 'react-icons/si';
 import { useCreditsGate } from '@/hooks/useCreditsGate';
 import { useSubscription } from '@/hooks/useSubscription';
 import { FeatureUpsellDialog } from './FeatureUpsellDialog';
-import { FigmaImportModal } from './modals/FigmaImportModal';
 
 interface RecentProject {
   id: string;
@@ -73,7 +72,7 @@ interface HomeScreenProps {
   onCreateBlankWorkflow: () => void;
   onLoadTemplate: (templateType: string) => void;
   onUploadImage: () => void;
-  onImportFigma?: (figmaUrl: string) => Promise<void> | void;
+  onImportFigma?: () => void;
   onShareProject?: (projectId: string) => void;
   onDownloadProject?: (projectId: string) => void;
   onDeleteProject?: (projectId: string) => void;
@@ -180,7 +179,6 @@ export function HomeScreen({
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [showFeatureUpsell, setShowFeatureUpsell] = useState(false);
   const [featureUpsellType, setFeatureUpsellType] = useState<'image' | 'wireframe' | 'figma'>('image');
-  const [showFigmaModal, setShowFigmaModal] = useState(false);
   
   const { tier } = useSubscription();
   const projectToDelete = recentProjects.find(p => p.id === deleteProjectId);
@@ -486,8 +484,8 @@ export function HomeScreen({
                     if (tier !== 'pro') {
                       setFeatureUpsellType('figma');
                       setShowFeatureUpsell(true);
-                    } else {
-                      setShowFigmaModal(true);
+                    } else if (onImportFigma) {
+                      onImportFigma();
                     }
                   }}
                   className="text-muted-foreground hover:text-foreground"
@@ -648,18 +646,6 @@ export function HomeScreen({
           }
         />
 
-        {/* Figma Import Modal */}
-        <FigmaImportModal
-          isOpen={showFigmaModal}
-          onClose={() => setShowFigmaModal(false)}
-          onImport={async (url, _mode) => {
-            if (onImportFigma) {
-              await onImportFigma(url);
-            }
-            setShowFigmaModal(false);
-          }}
-          mode="new-project"
-        />
 
         {/* Delete Confirmation Dialog (for home view) */}
         <AlertDialog open={!!deleteProjectId} onOpenChange={(open) => !open && setDeleteProjectId(null)}>

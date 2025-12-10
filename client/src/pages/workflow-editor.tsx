@@ -83,7 +83,7 @@ import {
 import { SiFigma } from 'react-icons/si';
 import { FigmaImportModal } from '@/components/modals/FigmaImportModal';
 import { parseFigmaUrl } from '@/lib/integration/figmaUrl';
-import { buildFigmaWebviewWorkflow } from '@/utils/createFigmaProject';
+import { buildFigmaFrameWorkflow, insertFigmaFrames, type FigmaFrameWithThumbnail } from '@/utils/createFigmaProject';
 
 // Project metadata types
 interface ProjectLink {
@@ -4578,53 +4578,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setActiveTabId(newTab.id);
                 setShowAiGenerator(true);
               }}
-              onImportFigma={(figmaUrl) => {
-                const parsed = parseFigmaUrl(figmaUrl);
-                if (!parsed) {
-                  toast({
-                    title: "Invalid URL",
-                    description: "Please enter a valid Figma file or frame URL.",
-                    variant: "destructive"
-                  });
-                  return;
-                }
-                
-                const workflowData = buildFigmaWebviewWorkflow(parsed);
-                const name = generateCuteName();
-                
-                const newTab: WorkflowTab = {
-                  id: generateTabId(),
-                  name,
-                  nodes: workflowData.nodes,
-                  edges: workflowData.edges,
-                  canvasObjects: workflowData.canvasObjects || [],
-                  viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
-                  selectedNodeId: '',
-                  selectedEdgeId: '',
-                  history: [{ 
-                    nodes: workflowData.nodes, 
-                    edges: workflowData.edges, 
-                    canvasObjects: workflowData.canvasObjects || [], 
-                    viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 } 
-                  }],
-                  historyIndex: 0,
-                  showImageModal: null,
-                  metadata: {
-                    name,
-                    description: 'Imported from Figma',
-                    links: [],
-                    linksFormat: 'text',
-                    categories: []
-                  }
-                };
-                
-                setTabs(prev => [...prev, newTab]);
-                setActiveTabId(newTab.id);
-                
-                toast({
-                  title: "Figma Imported",
-                  description: `Created "${name}" with your Figma design.`,
-                });
+              onImportFigma={() => {
+                setFigmaImportMode('new-project');
+                setShowFigmaModal(true);
               }}
               onShareProject={(projectId) => {
                 const tab = tabs.find(t => t.id === projectId);
@@ -7921,20 +7877,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         <FigmaImportModal
           isOpen={showFigmaModal}
           onClose={() => setShowFigmaModal(false)}
-          onImport={async (figmaUrl, mode) => {
-            const parsed = parseFigmaUrl(figmaUrl);
-            if (!parsed) {
+          onImport={async (framesWithThumbnails, mode) => {
+            if (framesWithThumbnails.length === 0) {
               toast({
-                title: "Invalid URL",
-                description: "Please enter a valid Figma file or frame URL.",
+                title: "No frames selected",
+                description: "Please select at least one frame to import.",
                 variant: "destructive"
               });
               return;
             }
             
-            const workflowData = buildFigmaWebviewWorkflow(parsed);
-            
             if (mode === 'new-project') {
+              const workflowData = buildFigmaFrameWorkflow(framesWithThumbnails);
               const name = generateCuteName();
               const newTab: WorkflowTab = {
                 id: generateTabId(),
@@ -7965,22 +7919,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               setActiveTabId(newTab.id);
               toast({
                 title: "Figma Imported",
-                description: `Created "${name}" with your Figma design.`,
+                description: `Created "${name}" with ${framesWithThumbnails.length} frame${framesWithThumbnails.length > 1 ? 's' : ''}.`,
               });
             } else {
-              // Insert into existing project
               saveToHistory();
-              const figmaNode = workflowData.nodes[0];
-              if (figmaNode) {
-                // Offset position based on existing nodes to avoid overlap
-                const maxX = nodes.reduce((max, n) => Math.max(max, n.position.x + (n.width || 200)), 0);
-                figmaNode.position = { x: maxX + 50, y: 100 };
-                setNodes(prev => [...prev, figmaNode]);
-                toast({
-                  title: "Figma Added",
-                  description: "Figma design added to your workflow.",
-                });
-              }
+              const newNodes = insertFigmaFrames(nodes, framesWithThumbnails);
+              setNodes(prev => [...prev, ...newNodes]);
+              toast({
+                title: "Figma Added",
+                description: `Added ${framesWithThumbnails.length} frame${framesWithThumbnails.length > 1 ? 's' : ''} to your workflow.`,
+              });
             }
             
             setShowFigmaModal(false);
