@@ -28,7 +28,7 @@ interface CreditsGateResult {
 
 export function useCreditsGate(): CreditsGateResult {
   const { isAuthenticated } = useAuth();
-  const { tier, isServerAuthenticated } = useSubscription();
+  const { tier, isServerAuthenticated, isAdmin, isUnlimited: subscriptionUnlimited } = useSubscription();
 
   const { data: creditsData, isLoading } = useQuery<CreditsResponse>({
     queryKey: ['/api/credits'],
@@ -36,8 +36,10 @@ export function useCreditsGate(): CreditsGateResult {
   });
 
   const credits = creditsData?.credits ?? 0;
-  const isUnlimited = credits >= 999999;
-  const isOutOfCredits = credits === 0 && !isUnlimited;
+  // User has unlimited credits if they're admin, have subscription unlimited flag, or credits >= 999999
+  const isUnlimited = isAdmin || subscriptionUnlimited || credits >= 999999;
+  // Don't consider out of credits while still loading, or if user has unlimited credits
+  const isOutOfCredits = !isLoading && credits === 0 && !isUnlimited;
   const isLowCredits = credits <= 2 && !isUnlimited;
 
   let ctaMessage: string;
