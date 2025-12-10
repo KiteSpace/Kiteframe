@@ -4362,19 +4362,21 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   <div className="flex items-center gap-1.5">
                     {tab.cloudProjectId && (
                       isCloudConnected ? (
-                        <Cloud 
-                          size={12} 
-                          className="text-green-500 flex-shrink-0" 
-                          data-testid={`icon-cloud-connected-${tab.id}`}
-                          title="Synced to cloud"
-                        />
+                        <span title="Synced to cloud">
+                          <Cloud 
+                            size={12} 
+                            className="text-green-500 flex-shrink-0" 
+                            data-testid={`icon-cloud-connected-${tab.id}`}
+                          />
+                        </span>
                       ) : (
-                        <CloudOff 
-                          size={12} 
-                          className="text-amber-500 flex-shrink-0" 
-                          data-testid={`icon-cloud-disconnected-${tab.id}`}
-                          title={lastSyncError || "Not connected to cloud"}
-                        />
+                        <span title={lastSyncError || "Not connected to cloud"}>
+                          <CloudOff 
+                            size={12} 
+                            className="text-amber-500 flex-shrink-0" 
+                            data-testid={`icon-cloud-disconnected-${tab.id}`}
+                          />
+                        </span>
                       )
                     )}
                     <span 
@@ -8538,8 +8540,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onWireframe={() => {
               if (linearToolbar.node) {
-                const tier = subscriptionData?.tier;
-                const canUse = tier && tier !== 'free';
+                const canUse = isPro || isAdmin;
                 if (canUse) {
                   const event = new CustomEvent('generateWireframe', {
                     detail: { nodeId: linearToolbar.node.id, node: linearToolbar.node }
@@ -8549,7 +8550,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setLinearToolbar(null);
               }
             }}
-            canUseWireframe={!!(subscriptionData?.tier && subscriptionData.tier !== 'free')}
+            canUseWireframe={isPro || isAdmin}
             onCanvasObjectColorChange={(color) => {
               if (linearToolbar.canvasObject) {
                 saveToHistory();
