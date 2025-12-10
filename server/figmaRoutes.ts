@@ -223,7 +223,22 @@ export function registerFigmaRoutes(app: Express) {
       delete req.session.figmaOAuthState;
 
       console.log('[Figma OAuth] Successfully connected');
-      res.redirect('/?figma_connected=true');
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head><title>Figma Connected</title></head>
+          <body>
+            <script>
+              if (window.opener) {
+                window.close();
+              } else {
+                window.location.href = '/?figma_connected=true';
+              }
+            </script>
+            <p>Figma connected successfully. You can close this window.</p>
+          </body>
+        </html>
+      `);
     } catch (err) {
       console.error('[Figma OAuth] Callback error:', err);
       res.redirect('/?figma_error=callback_failed');

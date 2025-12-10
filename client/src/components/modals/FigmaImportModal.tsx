@@ -61,7 +61,7 @@ export function FigmaImportModal({
   useEffect(() => {
     if (isOpen) {
       setStatusLoading(true);
-      fetch('/api/figma/status')
+      fetch('/api/figma/status', { credentials: 'include' })
         .then(res => res.json())
         .then((data: FigmaStatus) => {
           setFigmaStatus(data);
@@ -196,7 +196,38 @@ export function FigmaImportModal({
   }, [fileKey, pat, authMethod, figmaStatus, onImport, onClose, mode, resetState]);
 
   const handleOAuthConnect = useCallback(() => {
-    window.location.href = '/api/figma/auth';
+    const width = 600;
+    const height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    
+    const popup = window.open(
+      '/api/figma/auth',
+      'figma-oauth',
+      `width=${width},height=${height},left=${left},top=${top},popup=1`
+    );
+
+    if (!popup) {
+      window.location.href = '/api/figma/auth';
+      return;
+    }
+
+    const checkClosed = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkClosed);
+        setStatusLoading(true);
+        fetch('/api/figma/status', { credentials: 'include' })
+          .then(res => res.json())
+          .then((data: FigmaStatus) => {
+            setFigmaStatus(data);
+            if (data.connected) {
+              setAuthMethod('oauth');
+            }
+          })
+          .catch(() => {})
+          .finally(() => setStatusLoading(false));
+      }
+    }, 500);
   }, []);
 
   const handleClose = useCallback(() => {
