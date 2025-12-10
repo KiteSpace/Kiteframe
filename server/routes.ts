@@ -512,6 +512,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/projects/:id', projectRateLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!hasCloudProjectAccess(user)) {
+        return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
+      }
+
       const { id } = req.params;
       const { name, description, workflowData, thumbnail, folderId, tags, isPublic } = req.body;
 
@@ -567,6 +573,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/projects/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!hasCloudProjectAccess(user)) {
+        return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
+      }
+
       const { id } = req.params;
 
       await storage.deleteSavedProject(id, userId);

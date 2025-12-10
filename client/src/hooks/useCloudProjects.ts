@@ -34,7 +34,7 @@ interface UpdateProjectParams {
 }
 
 export function useCloudProjects() {
-  const { isPro, isAdmin, hasActiveSubscription } = useSubscription();
+  const { isPro, isAdmin } = useSubscription();
   const [isCloudConnected, setIsCloudConnected] = useState(true);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -49,7 +49,7 @@ export function useCloudProjects() {
     isFetching,
   } = useQuery<{ projects: SavedProject[] }>({
     queryKey: ['/api/projects'],
-    enabled: hasCloudAccess && hasActiveSubscription,
+    enabled: hasCloudAccess,
     retry: 2,
     staleTime: 30000,
   });

@@ -75,7 +75,9 @@ import {
   LayoutGrid,
   Share2,
   Eye,
-  RotateCcw
+  RotateCcw,
+  Cloud,
+  CloudOff
 } from 'lucide-react';
 
 // Project metadata types
@@ -110,6 +112,8 @@ interface WorkflowTab {
   thumbnail?: string;
   lastModified?: number;
   flowSettings?: FlowSettingsMap;
+  cloudProjectId?: string;
+  projectUuid?: string;
 }
 
 // Helper to get node position and dimensions (handles different node structures)
@@ -251,6 +255,7 @@ function WorkflowEditorContent({
   const { isOutOfCredits, ctaMessage, ctaAction, ctaButtonText, openSignup, openPricing, openCreditsDialog } = useCreditsGate();
   
   const { isPro, isAdmin } = useSubscription();
+  const { isAuthenticated } = useAuth();
   const { 
     projects: cloudProjects, 
     isLoading: cloudProjectsLoading,
@@ -3382,14 +3387,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   }, [nodes, saveToHistory, core]);
 
-
-  // Subscription data for Pro tier features
-  const { data: subscriptionData } = useQuery<{ tier?: string; status?: string }>({
-    queryKey: ['/api/subscription'],
-  });
-  const isPro = subscriptionData?.tier === 'pro' && subscriptionData?.status === 'active';
-  const isAuthenticated = !!subscriptionData?.tier || subscriptionData?.tier === 'free';
-
   // Other UI state
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
@@ -4362,18 +4359,37 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     data-testid="input-workflow-name"
                   />
                 ) : (
-                  <span 
-                    className="truncate text-sm font-medium max-w-32"
-                    onDoubleClick={(e) => {
-                      e.stopPropagation();
-                      setWorkflowNameInput(tab.name);
-                      setIsEditingWorkflowName(true);
-                    }}
-                    data-testid="text-workflow-name"
-                    title="Double-click to rename"
-                  >
-                    {tab.name}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {tab.cloudProjectId && (
+                      isCloudConnected ? (
+                        <Cloud 
+                          size={12} 
+                          className="text-green-500 flex-shrink-0" 
+                          data-testid={`icon-cloud-connected-${tab.id}`}
+                          title="Synced to cloud"
+                        />
+                      ) : (
+                        <CloudOff 
+                          size={12} 
+                          className="text-amber-500 flex-shrink-0" 
+                          data-testid={`icon-cloud-disconnected-${tab.id}`}
+                          title={lastSyncError || "Not connected to cloud"}
+                        />
+                      )
+                    )}
+                    <span 
+                      className="truncate text-sm font-medium max-w-32"
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setWorkflowNameInput(tab.name);
+                        setIsEditingWorkflowName(true);
+                      }}
+                      data-testid="text-workflow-name"
+                      title="Double-click to rename"
+                    >
+                      {tab.name}
+                    </span>
+                  </div>
                 )}
                 <button
                   className="ml-1 hover:bg-background/20 rounded p-0.5"
