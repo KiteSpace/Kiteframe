@@ -230,6 +230,7 @@ export function registerFigmaRoutes(app: Express) {
           <body>
             <script>
               if (window.opener) {
+                window.opener.postMessage({ figmaAuth: "success" }, window.location.origin);
                 window.close();
               } else {
                 window.location.href = '/?figma_connected=true';

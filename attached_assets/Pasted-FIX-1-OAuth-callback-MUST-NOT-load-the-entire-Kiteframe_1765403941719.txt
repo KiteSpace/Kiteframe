@@ -1,0 +1,85 @@
+FIX #1 — OAuth callback MUST NOT load the entire Kiteframe SPA.
+Instead, it must return a tiny HTML page that:
+
+1. Calls window.opener.postMessage({ figmaAuth: "success" }, "<kiteframe origin>")
+2. Closes the popup window
+
+Implement callback response as:
+
+res.send(`
+  <html><body>
+    <script>
+      window.opener.postMessage({ figmaAuth: "success" }, window.location.origin);
+      window.close();
+    </script>
+  </body></html>
+`);
+
+DO NOT redirect back to the app normally.
+
+-----------------------------------------------------------
+
+FIX #2 — Update user metadata BEFORE sending the HTML response.
+
+Store:
+  figmaAccessToken
+  figmaRefreshToken
+  figmaTokenExpiresAt
+  figmaUserId
+
+After values are stored, return the HTML snippet above.
+
+-----------------------------------------------------------
+
+FIX #3 — In the main window, add a postMessage listener:
+
+useEffect(() => {
+  const handler = (event) => {
+    if (event.data?.figmaAuth === "success") {
+       queryFigmaStatus();  // calls /api/figma/status
+       setShowPAT(false);
+       setShowOAuth(false);
+    }
+  };
+  window.addEventListener("message", handler);
+  return () => window.removeEventListener("message", handler);
+}, []);
+
+-----------------------------------------------------------
+
+FIX #4 — Update importer modal logic:
+
+If /api/figma/status returns { connected: true }:
+  HIDE:
+    - “Connect to Figma”
+    - “Use Personal Access Token”
+    - Authentication tabs
+
+  SHOW:
+    - Only the Figma File URL input
+    - “Continue” button
+
+The modal should NEVER show PAT/Auth again once OAuth is successful.
+
+-----------------------------------------------------------
+
+FIX #5 — Modal should NOT close after OAuth.
+
+Current bug:
+  * After popup closes, main modal dismisses and user must reopen it.
+  
+Change:
+  * Maintain modal open state during OAuth handshake.
+
+Use:
+  setModalOpen(true) after receiving figmaAuth message.
+
+-----------------------------------------------------------
+
+FIX #6 — Avoid infinite loops.
+
+If connected=true, importer must not call the OAuth flow again.
+
+-----------------------------------------------------------
+
+END OF FIX SPEC
