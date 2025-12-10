@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, Loader2, ExternalLink, Key } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertCircle, Loader2, ExternalLink, Key, Link2 } from 'lucide-react';
 import { SiFigma } from 'react-icons/si';
 import { parseFigmaUrl } from '@/lib/integration/figmaUrl';
 import { 
@@ -28,7 +29,14 @@ interface FigmaImportModalProps {
   mode: 'new-project' | 'insert-into-project';
 }
 
+interface FigmaStatus {
+  connected: boolean;
+  oauthAvailable: boolean;
+  message: string;
+}
+
 type Step = 'input' | 'frame-selection';
+type AuthMethod = 'pat' | 'oauth';
 
 export function FigmaImportModal({
   isOpen,
@@ -41,10 +49,32 @@ export function FigmaImportModal({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState<Step>('input');
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('pat');
+  
+  const [figmaStatus, setFigmaStatus] = useState<FigmaStatus | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
   
   const [discoveredFrames, setDiscoveredFrames] = useState<FigmaFrame[]>([]);
   const [fileKey, setFileKey] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setStatusLoading(true);
+      fetch('/api/figma/status')
+        .then(res => res.json())
+        .then((data: FigmaStatus) => {
+          setFigmaStatus(data);
+          if (data.connected) {
+            setAuthMethod('oauth');
+          }
+        })
+        .catch(() => {
+          setFigmaStatus({ connected: false, oauthAvailable: false, message: 'Could not check Figma status' });
+        })
+        .finally(() => setStatusLoading(false));
+    }
+  }, [isOpen]);
 
   const resetState = useCallback(() => {
     setUrl('');
@@ -66,8 +96,13 @@ export function FigmaImportModal({
       return;
     }
 
-    if (!trimmedPat) {
+    if (authMethod === 'pat' && !trimmedPat) {
       setError('Please enter your Personal Access Token');
+      return;
+    }
+
+    if (authMethod === 'oauth' && !figmaStatus?.connected) {
+      setError('Please connect your Figma account first or switch to using a Personal Access Token');
       return;
     }
 
@@ -81,9 +116,11 @@ export function FigmaImportModal({
     setIsLoading(true);
     setFileKey(parsed.fileKey);
 
+    const tokenToUse = authMethod === 'oauth' && figmaStatus?.connected ? undefined : trimmedPat;
+
     try {
       if (parsed.nodeId) {
-        const nodeData = await fetchFigmaNode(parsed.fileKey, parsed.nodeId, trimmedPat);
+        const nodeData = await fetchFigmaNode(parsed.fileKey, parsed.nodeId, tokenToUse);
         const nodeInfo = nodeData.nodes?.[parsed.nodeId];
         
         if (!nodeInfo?.document) {
@@ -100,14 +137,14 @@ export function FigmaImportModal({
           absoluteBoundingBox: nodeInfo.document.absoluteBoundingBox,
         };
 
-        const thumbnails = await fetchFigmaThumbnails(parsed.fileKey, [parsed.nodeId], trimmedPat);
+        const thumbnails = await fetchFigmaThumbnails(parsed.fileKey, [parsed.nodeId], tokenToUse);
         const thumbnailUrl = thumbnails.images?.[parsed.nodeId] || null;
 
         await onImport([{ frame, thumbnailUrl }], mode);
         resetState();
         onClose();
       } else {
-        const fileData = await fetchFigmaFile(parsed.fileKey, trimmedPat);
+        const fileData = await fetchFigmaFile(parsed.fileKey, tokenToUse);
         setFileName(fileData.name || 'Untitled');
         
         const frames = discoverFrames(fileData);
@@ -125,7 +162,7 @@ export function FigmaImportModal({
     } finally {
       setIsLoading(false);
     }
-  }, [url, pat, onImport, onClose, mode, resetState]);
+  }, [url, pat, authMethod, figmaStatus, onImport, onClose, mode, resetState]);
 
   const handleFrameSelect = useCallback(async (selectedFrames: FigmaFrame[]) => {
     if (selectedFrames.length === 0) return;
@@ -133,11 +170,13 @@ export function FigmaImportModal({
     setIsLoading(true);
     setError(null);
 
+    const tokenToUse = authMethod === 'oauth' && figmaStatus?.connected ? undefined : pat.trim();
+
     try {
       const thumbnails = await fetchFigmaThumbnails(
         fileKey,
         selectedFrames.map(f => f.id),
-        pat.trim()
+        tokenToUse
       );
 
       const framesWithThumbnails = selectedFrames.map(frame => ({
@@ -154,7 +193,11 @@ export function FigmaImportModal({
     } finally {
       setIsLoading(false);
     }
-  }, [fileKey, pat, onImport, onClose, mode, resetState]);
+  }, [fileKey, pat, authMethod, figmaStatus, onImport, onClose, mode, resetState]);
+
+  const handleOAuthConnect = useCallback(() => {
+    window.location.href = '/api/figma/auth';
+  }, []);
 
   const handleClose = useCallback(() => {
     if (!isLoading) {
@@ -171,6 +214,7 @@ export function FigmaImportModal({
   }, [handleContinue, isLoading, step]);
 
   if (step === 'frame-selection') {
+    const tokenForPicker = authMethod === 'oauth' && figmaStatus?.connected ? undefined : pat;
     return (
       <FigmaFramePicker
         isOpen={isOpen}
@@ -178,13 +222,16 @@ export function FigmaImportModal({
         frames={discoveredFrames}
         fileName={fileName}
         fileKey={fileKey}
-        patToken={pat}
+        patToken={tokenForPicker}
         onSelect={handleFrameSelect}
         isLoading={isLoading}
         error={error}
       />
     );
   }
+
+  const showTabs = figmaStatus?.oauthAvailable || figmaStatus?.connected;
+  const canProceed = url.trim() && (authMethod === 'oauth' ? figmaStatus?.connected : pat.trim());
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -221,37 +268,113 @@ export function FigmaImportModal({
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="figma-pat" className="flex items-center gap-2">
-              <Key size={14} />
-              Personal Access Token
-            </Label>
-            <Input
-              id="figma-pat"
-              type="password"
-              placeholder="figd_xxxxxxxxxxxx"
-              value={pat}
-              onChange={(e) => {
-                setPat(e.target.value);
-                setError(null);
-              }}
-              onKeyDown={handleKeyDown}
-              disabled={isLoading}
-              data-testid="input-figma-pat"
-            />
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <span>Your token is used only for this import and never stored.</span>
-              <a
-                href="https://help.figma.com/hc/en-us/articles/8085703771159-Manage-personal-access-tokens"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline inline-flex items-center gap-0.5"
-              >
-                How to get this
-                <ExternalLink size={10} />
-              </a>
-            </p>
-          </div>
+          {statusLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 size={14} className="animate-spin" />
+              Checking connection...
+            </div>
+          ) : showTabs ? (
+            <Tabs value={authMethod} onValueChange={(v) => setAuthMethod(v as AuthMethod)}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="oauth" className="flex items-center gap-2">
+                  <Link2 size={14} />
+                  OAuth
+                  {figmaStatus?.connected && <span className="text-xs text-green-500">(Connected)</span>}
+                </TabsTrigger>
+                <TabsTrigger value="pat" className="flex items-center gap-2">
+                  <Key size={14} />
+                  Access Token
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="oauth" className="space-y-3 pt-2">
+                {figmaStatus?.connected ? (
+                  <div className="p-3 bg-green-500/10 text-green-700 dark:text-green-400 rounded-md text-sm">
+                    You're connected to Figma via OAuth. Your session token will be used automatically.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Connect your Figma account to import files without a Personal Access Token.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={handleOAuthConnect}
+                      className="w-full"
+                      data-testid="button-figma-oauth"
+                    >
+                      <SiFigma className="mr-2 h-4 w-4" />
+                      Connect Figma Account
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="pat" className="space-y-2 pt-2">
+                <Label htmlFor="figma-pat" className="flex items-center gap-2">
+                  <Key size={14} />
+                  Personal Access Token
+                </Label>
+                <Input
+                  id="figma-pat"
+                  type="password"
+                  placeholder="figd_xxxxxxxxxxxx"
+                  value={pat}
+                  onChange={(e) => {
+                    setPat(e.target.value);
+                    setError(null);
+                  }}
+                  onKeyDown={handleKeyDown}
+                  disabled={isLoading}
+                  data-testid="input-figma-pat"
+                />
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <span>Your token is used only for this import and never stored.</span>
+                  <a
+                    href="https://help.figma.com/hc/en-us/articles/8085703771159-Manage-personal-access-tokens"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline inline-flex items-center gap-0.5"
+                  >
+                    How to get this
+                    <ExternalLink size={10} />
+                  </a>
+                </p>
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="figma-pat" className="flex items-center gap-2">
+                <Key size={14} />
+                Personal Access Token
+              </Label>
+              <Input
+                id="figma-pat"
+                type="password"
+                placeholder="figd_xxxxxxxxxxxx"
+                value={pat}
+                onChange={(e) => {
+                  setPat(e.target.value);
+                  setError(null);
+                }}
+                onKeyDown={handleKeyDown}
+                disabled={isLoading}
+                data-testid="input-figma-pat"
+              />
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <span>Your token is used only for this import and never stored.</span>
+                <a
+                  href="https://help.figma.com/hc/en-us/articles/8085703771159-Manage-personal-access-tokens"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline inline-flex items-center gap-0.5"
+                >
+                  How to get this
+                  <ExternalLink size={10} />
+                </a>
+              </p>
+            </div>
+          )}
 
           {error && (
             <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
@@ -272,7 +395,7 @@ export function FigmaImportModal({
           </Button>
           <Button
             onClick={handleContinue}
-            disabled={isLoading || !url.trim() || !pat.trim()}
+            disabled={isLoading || !canProceed}
             className="bg-[#F24E1E] hover:bg-[#E04332] text-white"
             data-testid="button-figma-continue"
           >

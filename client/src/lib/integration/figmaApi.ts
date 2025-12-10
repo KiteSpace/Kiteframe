@@ -24,11 +24,12 @@ export interface FigmaApiError {
 
 export async function callFigmaApi<T = any>(
   path: string,
-  patToken: string
+  patToken?: string
 ): Promise<T> {
   const response = await fetch('/api/figma/proxy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ path, patToken }),
   });
 
@@ -40,18 +41,18 @@ export async function callFigmaApi<T = any>(
   return response.json();
 }
 
-export async function fetchFigmaFile(fileKey: string, patToken: string) {
+export async function fetchFigmaFile(fileKey: string, patToken?: string) {
   return callFigmaApi(`files/${fileKey}`, patToken);
 }
 
-export async function fetchFigmaNode(fileKey: string, nodeId: string, patToken: string) {
+export async function fetchFigmaNode(fileKey: string, nodeId: string, patToken?: string) {
   return callFigmaApi(`files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}`, patToken);
 }
 
 export async function fetchFigmaThumbnails(
   fileKey: string,
   nodeIds: string[],
-  patToken: string
+  patToken?: string
 ): Promise<{ images: Record<string, string | null> }> {
   const idsParam = nodeIds.join(',');
   return callFigmaApi(`images/${fileKey}?ids=${encodeURIComponent(idsParam)}&format=png`, patToken);

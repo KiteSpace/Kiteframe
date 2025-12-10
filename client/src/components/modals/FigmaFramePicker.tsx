@@ -19,7 +19,7 @@ interface FigmaFramePickerProps {
   frames: FigmaFrame[];
   fileName: string;
   fileKey: string;
-  patToken: string;
+  patToken?: string;
   onSelect: (frames: FigmaFrame[]) => void;
   isLoading: boolean;
   error: string | null;
@@ -42,7 +42,7 @@ export function FigmaFramePicker({
   const [hoveredFrameId, setHoveredFrameId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (frames.length > 0 && patToken) {
+    if (frames.length > 0) {
       setLoadingThumbnails(true);
       fetchFigmaThumbnails(fileKey, frames.map(f => f.id), patToken)
         .then((result) => {
