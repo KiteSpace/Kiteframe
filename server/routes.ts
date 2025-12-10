@@ -34,6 +34,7 @@ import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter } from "./middleware/rateLimiter";
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
 import { z } from "zod";
+import { registerFigmaRoutes } from "./figmaRoutes";
 
 // Admin email check helper - checks if user email is in ADMIN_EMAILS list
 function isAdminUser(email: string | undefined | null): boolean {
@@ -246,6 +247,9 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Replit Auth
   await setupAuth(app);
+  
+  // Setup Figma API proxy routes
+  registerFigmaRoutes(app);
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {

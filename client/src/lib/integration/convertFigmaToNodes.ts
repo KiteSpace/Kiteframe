@@ -1,0 +1,74 @@
+import type { FigmaFrame } from './figmaApi';
+
+export interface KiteframeNode {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  width: number;
+  height: number;
+  data: Record<string, any>;
+}
+
+export interface ConversionResult {
+  nodes: KiteframeNode[];
+  edges: any[];
+}
+
+function generateId(): string {
+  return `figma-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+export function convertFigmaFrameToNodes(
+  frame: FigmaFrame,
+  thumbnailUrl: string | null,
+  canvasOffset: { x: number; y: number } = { x: 100, y: 100 }
+): ConversionResult {
+  const nodes: KiteframeNode[] = [];
+  const edges: any[] = [];
+
+  const nodeId = generateId();
+
+  nodes.push({
+    id: nodeId,
+    type: 'image',
+    position: {
+      x: canvasOffset.x,
+      y: canvasOffset.y,
+    },
+    width: Math.min(frame.width, 800),
+    height: Math.min(frame.height, 600),
+    data: {
+      label: frame.name,
+      imageUrl: thumbnailUrl || '',
+      figmaId: frame.id,
+      figmaType: frame.type,
+      figmaPageName: frame.pageName,
+      originalWidth: frame.width,
+      originalHeight: frame.height,
+    },
+  });
+
+  return { nodes, edges };
+}
+
+export function convertMultipleFramesToNodes(
+  frames: Array<{ frame: FigmaFrame; thumbnailUrl: string | null }>,
+  canvasOffset: { x: number; y: number } = { x: 100, y: 100 },
+  spacing: number = 50
+): ConversionResult {
+  const allNodes: KiteframeNode[] = [];
+  const allEdges: any[] = [];
+
+  let currentX = canvasOffset.x;
+
+  for (const { frame, thumbnailUrl } of frames) {
+    const result = convertFigmaFrameToNodes(frame, thumbnailUrl, { x: currentX, y: canvasOffset.y });
+    allNodes.push(...result.nodes);
+    allEdges.push(...result.edges);
+
+    const nodeWidth = Math.min(frame.width, 800);
+    currentX += nodeWidth + spacing;
+  }
+
+  return { nodes: allNodes, edges: allEdges };
+}
