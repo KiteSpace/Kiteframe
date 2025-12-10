@@ -8240,6 +8240,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setContextMenu(null);
               }
             }}
+            onViewSemanticData={
+              contextMenu.node?.type === 'image' && contextMenu.node?.data?.figmaSemantic
+                ? () => {
+                    console.log('=== Figma Semantic Data ===');
+                    console.log('Node:', contextMenu.node?.data?.label);
+                    console.log('Figma ID:', contextMenu.node?.data?.figmaId);
+                    console.log('Semantic Metadata:', contextMenu.node?.data?.figmaSemantic);
+                    console.log('Elements:', contextMenu.node?.data?.figmaSemantic?.elements?.length || 0);
+                    console.log('Forms:', contextMenu.node?.data?.figmaSemantic?.forms?.length || 0);
+                    console.log('Navigation Targets:', contextMenu.node?.data?.figmaSemantic?.navigationTargets?.length || 0);
+                    console.log('===========================');
+                  }
+                : undefined
+            }
           />
         )}
 

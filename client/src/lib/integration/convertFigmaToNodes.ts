@@ -1,4 +1,5 @@
 import type { FigmaFrame } from './figmaApi';
+import type { FigmaSemanticMetadata } from './figmaSemanticTypes';
 
 export interface KiteframeNode {
   id: string;
@@ -21,7 +22,8 @@ function generateId(): string {
 export function convertFigmaFrameToNodes(
   frame: FigmaFrame,
   thumbnailUrl: string | null,
-  canvasOffset: { x: number; y: number } = { x: 100, y: 100 }
+  canvasOffset: { x: number; y: number } = { x: 100, y: 100 },
+  figmaSemantic?: FigmaSemanticMetadata | null
 ): ConversionResult {
   const nodes: KiteframeNode[] = [];
   const edges: any[] = [];
@@ -45,14 +47,21 @@ export function convertFigmaFrameToNodes(
       figmaPageName: frame.pageName,
       originalWidth: frame.width,
       originalHeight: frame.height,
+      figmaSemantic: figmaSemantic ?? null,
     },
   });
 
   return { nodes, edges };
 }
 
+export interface FrameWithSemantics {
+  frame: FigmaFrame;
+  thumbnailUrl: string | null;
+  figmaSemantic?: FigmaSemanticMetadata | null;
+}
+
 export function convertMultipleFramesToNodes(
-  frames: Array<{ frame: FigmaFrame; thumbnailUrl: string | null }>,
+  frames: Array<FrameWithSemantics>,
   canvasOffset: { x: number; y: number } = { x: 100, y: 100 },
   spacing: number = 50
 ): ConversionResult {
@@ -61,8 +70,8 @@ export function convertMultipleFramesToNodes(
 
   let currentX = canvasOffset.x;
 
-  for (const { frame, thumbnailUrl } of frames) {
-    const result = convertFigmaFrameToNodes(frame, thumbnailUrl, { x: currentX, y: canvasOffset.y });
+  for (const { frame, thumbnailUrl, figmaSemantic } of frames) {
+    const result = convertFigmaFrameToNodes(frame, thumbnailUrl, { x: currentX, y: canvasOffset.y }, figmaSemantic);
     allNodes.push(...result.nodes);
     allEdges.push(...result.edges);
 

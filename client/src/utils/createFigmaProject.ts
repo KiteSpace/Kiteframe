@@ -1,5 +1,6 @@
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import type { FigmaFrame } from '@/lib/integration/figmaApi';
+import type { FigmaSemanticMetadata } from '@/lib/integration/figmaSemanticTypes';
 
 export interface WorkflowData {
   nodes: Node[];
@@ -11,6 +12,7 @@ export interface WorkflowData {
 export interface FigmaFrameWithThumbnail {
   frame: FigmaFrame;
   thumbnailUrl: string | null;
+  figmaSemantic?: FigmaSemanticMetadata | null;
 }
 
 function generateId(): string {
@@ -25,9 +27,8 @@ export function buildFigmaFrameWorkflow(
   const nodes: Node[] = [];
   let currentX = startPosition.x;
 
-  for (const { frame, thumbnailUrl } of framesWithThumbnails) {
+  for (const { frame, thumbnailUrl, figmaSemantic } of framesWithThumbnails) {
     const nodeWidth = Math.min(frame.width, 800);
-    const nodeHeight = Math.min(frame.height, 600);
     const aspectRatio = frame.width / frame.height;
     
     const displayWidth = nodeWidth;
@@ -46,6 +47,7 @@ export function buildFigmaFrameWorkflow(
         figmaPageName: frame.pageName,
         originalWidth: frame.width,
         originalHeight: frame.height,
+        figmaSemantic: figmaSemantic ?? null,
       },
       style: {
         width: displayWidth,

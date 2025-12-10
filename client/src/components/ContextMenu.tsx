@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Palette, PaintBucket, Copy, Trash2, ArrowUp, ArrowDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { Palette, PaintBucket, Copy, Trash2, ArrowUp, ArrowDown, ChevronUp, ChevronDown, Bug } from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;
@@ -14,9 +14,10 @@ interface ContextMenuProps {
   onBringToFront?: () => void;
   onSendBackward?: () => void;
   onSendToBack?: () => void;
+  onViewSemanticData?: () => void;
 }
 
-export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties, onDuplicate, onDelete, hasPropertiesInClipboard, onBringForward, onBringToFront, onSendBackward, onSendToBack }: ContextMenuProps) {
+export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties, onDuplicate, onDelete, hasPropertiesInClipboard, onBringForward, onBringToFront, onSendBackward, onSendToBack, onViewSemanticData }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -109,6 +110,20 @@ export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties
         <ArrowDown size={16} className="mr-2" />
         Send to Back
       </div>
+      
+      {onViewSemanticData && (
+        <>
+          <div className="border-t border-border my-1" />
+          <div
+            className="px-3 py-2 hover:bg-accent cursor-pointer text-sm text-muted-foreground flex items-center"
+            onClick={() => { onViewSemanticData(); onClose(); }}
+            data-testid="context-menu-view-semantic"
+          >
+            <Bug size={16} className="mr-2" />
+            View Semantic Data (debug)
+          </div>
+        </>
+      )}
       
       <div className="border-t border-border my-1" />
       <div

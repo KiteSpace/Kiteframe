@@ -17,15 +17,18 @@ import {
   fetchFigmaFile, 
   fetchFigmaNode,
   fetchFigmaThumbnails, 
+  fetchFigmaFrameTrees,
   discoverFrames,
   type FigmaFrame 
 } from '@/lib/integration/figmaApi';
+import { extractFigmaSemanticMetadata } from '@/lib/integration/figmaSemanticExtractor';
+import type { FigmaSemanticMetadata } from '@/lib/integration/figmaSemanticTypes';
 import { FigmaFramePicker } from './FigmaFramePicker';
 
 interface FigmaImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (frames: Array<{ frame: FigmaFrame; thumbnailUrl: string | null }>, mode: 'new-project' | 'insert-into-project') => Promise<void> | void;
+  onImport: (frames: Array<{ frame: FigmaFrame; thumbnailUrl: string | null; figmaSemantic?: FigmaSemanticMetadata | null }>, mode: 'new-project' | 'insert-into-project') => Promise<void> | void;
   mode: 'new-project' | 'insert-into-project';
 }
 
@@ -153,7 +156,17 @@ export function FigmaImportModal({
         const thumbnails = await fetchFigmaThumbnails(parsed.fileKey, [parsed.nodeId], tokenToUse);
         const thumbnailUrl = thumbnails.images?.[parsed.nodeId] || null;
 
-        await onImport([{ frame, thumbnailUrl }], mode);
+        // Extract semantic metadata (graceful failure)
+        let figmaSemantic: FigmaSemanticMetadata | null = null;
+        try {
+          if (nodeInfo.document) {
+            figmaSemantic = extractFigmaSemanticMetadata(nodeInfo.document, 'Direct Import');
+          }
+        } catch (extractError) {
+          console.warn('Failed to extract semantic data for direct import:', extractError);
+        }
+
+        await onImport([{ frame, thumbnailUrl, figmaSemantic }], mode);
         resetState();
         onClose();
       } else {
@@ -186,16 +199,36 @@ export function FigmaImportModal({
     const tokenToUse = figmaStatus?.connected ? undefined : pat.trim();
 
     try {
-      const thumbnails = await fetchFigmaThumbnails(
-        fileKey,
-        selectedFrames.map(f => f.id),
-        tokenToUse
-      );
+      // Fetch thumbnails and frame trees in parallel for efficiency
+      const frameIds = selectedFrames.map(f => f.id);
+      
+      const [thumbnails, frameTrees] = await Promise.all([
+        fetchFigmaThumbnails(fileKey, frameIds, tokenToUse),
+        fetchFigmaFrameTrees(fileKey, frameIds, tokenToUse).catch(err => {
+          console.warn('Failed to fetch frame trees for semantic extraction:', err);
+          return {} as Record<string, { document: any }>;
+        })
+      ]);
 
-      const framesWithThumbnails = selectedFrames.map(frame => ({
-        frame,
-        thumbnailUrl: thumbnails.images?.[frame.id] || null,
-      }));
+      const framesWithThumbnails = selectedFrames.map(frame => {
+        let figmaSemantic: FigmaSemanticMetadata | null = null;
+        
+        // Extract semantic metadata from frame tree (graceful failure)
+        try {
+          const frameTree = frameTrees[frame.id];
+          if (frameTree?.document) {
+            figmaSemantic = extractFigmaSemanticMetadata(frameTree.document, frame.pageName);
+          }
+        } catch (extractError) {
+          console.warn(`Failed to extract semantic data for frame ${frame.id}:`, extractError);
+        }
+        
+        return {
+          frame,
+          thumbnailUrl: thumbnails.images?.[frame.id] || null,
+          figmaSemantic,
+        };
+      });
 
       await onImport(framesWithThumbnails, mode);
       resetState();
