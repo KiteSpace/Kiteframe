@@ -1,0 +1,82 @@
+To continue implementation of Figma Frame → Kiteframe Node translation, I need the following items from the Replit project. Please provide these files or outputs exactly as listed:
+
+Full backend code handling Figma OAuth and file fetching:
+
+/api/figma/callback
+
+/api/figma/file
+
+/api/figma/frame (if it exists)
+
+Any supporting utility modules such as figma.ts, figmaClient.ts, or helper functions.
+I need to see how OAuth is implemented, how the file is fetched, and the exact JSON shape returned.
+
+Frontend code for the Figma Import modal, including:
+
+The Figma Import Panel component
+
+Any modal code or UI for choosing OAuth vs PAT
+
+The frame selection UI (if implemented)
+
+Any hook or state logic such as useFigmaImport
+
+The code where imported frame data is passed into the editor and becomes diagram nodes
+
+An actual JSON payload from Figma. Please paste the result of the file fetch:
+GET /api/figma/file?id=FILE_KEY
+Even a partially truncated example is fine as long as it includes:
+
+document root
+
+frame node(s)
+
+children array
+
+absoluteBoundingBox
+
+styles
+
+fills
+
+component metadata if present
+
+Any transformation logic Replit has already created. Examples:
+
+transformFigmaNodesToKiteNodes()
+
+mapFrameToDiagram()
+
+convertFigmaToWorkflow()
+If such a mapping file exists, provide the complete code. If not, state that no transformation layer has been implemented yet.
+
+The current TypeScript interfaces used for node creation in Kiteframe:
+
+KFNode interface
+
+KFEdge interface
+
+Any Compound Node or Container Node interfaces
+
+The code showing how node types are registered in the renderer
+
+The method used to insert nodes (editor.addNode or similar)
+These definitions are required so I can map Figma node types to Kiteframe node types correctly.
+
+After receiving these items, I will produce:
+
+A complete Figma Frame → Kiteframe Diagram translation engine specification, including:
+
+Detection rules
+
+Node-type inference
+
+Layout mapping
+
+Styling translation
+
+Workflow group inference
+
+Full Replit implementation instructions designed to be hallucination-resistant
+
+Provide the requested files and outputs in whatever format is easiest (paste inline or upload). Once I have everything, I will generate the full implementation plan.
