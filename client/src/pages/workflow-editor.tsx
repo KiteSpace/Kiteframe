@@ -4604,6 +4604,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }
               }}
               isGenerating={generatingWireframe}
+              hasCloudAccess={hasCloudAccess}
             />
           ) : (
           <>

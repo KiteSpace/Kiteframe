@@ -15,6 +15,7 @@ interface CreditsGateResult {
   isLowCredits: boolean;
   isUnlimited: boolean;
   isAuthenticated: boolean;
+  isServerAuthenticated: boolean;
   tier: 'free' | 'advanced' | 'pro';
   ctaMessage: string;
   ctaAction: 'signup' | 'upgrade' | 'redeem';
@@ -27,7 +28,7 @@ interface CreditsGateResult {
 
 export function useCreditsGate(): CreditsGateResult {
   const { isAuthenticated } = useAuth();
-  const { tier } = useSubscription();
+  const { tier, isServerAuthenticated } = useSubscription();
 
   const { data: creditsData, isLoading } = useQuery<CreditsResponse>({
     queryKey: ['/api/credits'],
@@ -80,6 +81,7 @@ export function useCreditsGate(): CreditsGateResult {
     isLowCredits,
     isUnlimited,
     isAuthenticated,
+    isServerAuthenticated,
     tier,
     ctaMessage,
     ctaAction,

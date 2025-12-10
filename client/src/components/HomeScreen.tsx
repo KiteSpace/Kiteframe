@@ -74,6 +74,7 @@ interface HomeScreenProps {
   onDownloadProject?: (projectId: string) => void;
   onDeleteProject?: (projectId: string) => void;
   isGenerating?: boolean;
+  hasCloudAccess?: boolean;
 }
 
 const quickExamples = [
@@ -166,7 +167,8 @@ export function HomeScreen({
   onShareProject,
   onDownloadProject,
   onDeleteProject,
-  isGenerating = false
+  isGenerating = false,
+  hasCloudAccess = false
 }: HomeScreenProps) {
   const [promptValue, setPromptValue] = useState('');
   const [showAllProjects, setShowAllProjects] = useState(false);
@@ -181,6 +183,7 @@ export function HomeScreen({
     credits, 
     isOutOfCredits, 
     isAuthenticated, 
+    isServerAuthenticated,
     ctaMessage, 
     ctaAction, 
     ctaButtonText,
@@ -189,7 +192,10 @@ export function HomeScreen({
     openCreditsDialog
   } = useCreditsGate();
   
-  const showZeroCreditsWarning = isOutOfCredits && !isAuthenticated;
+  // User is considered authenticated if either Firebase or server session auth is present
+  const isUserAuthenticated = isAuthenticated || isServerAuthenticated || hasCloudAccess;
+  
+  const showZeroCreditsWarning = isOutOfCredits && !isUserAuthenticated;
 
   const handleExampleClick = useCallback((prompt: string) => {
     setPromptValue(prompt);
@@ -533,7 +539,7 @@ export function HomeScreen({
         <div className="mb-10">
           <h2 className="text-lg font-semibold mb-4">Recent Projects</h2>
           
-          {!isAuthenticated ? (
+          {!isUserAuthenticated ? (
             /* Promo Card for Non-Authenticated Users */
             <div 
               className="rounded-xl p-6"

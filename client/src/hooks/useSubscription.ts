@@ -66,6 +66,9 @@ export function useSubscription() {
     features: TIER_FEATURES[tier],
   };
 
+  // Server considers user authenticated if subscription query returns data without 401
+  const isServerAuthenticated = !isLoading && !error && data !== undefined;
+
   return {
     ...subscriptionData,
     isLoading,
@@ -77,5 +80,6 @@ export function useSubscription() {
     isAdvanced: (tier === 'advanced' || tier === 'pro') && status === 'active',
     isPaid: isAdmin || ((tier === 'advanced' || tier === 'pro') && status === 'active'),
     hasActiveSubscription: isAdmin || status === 'active',
+    isServerAuthenticated,
   };
 }
