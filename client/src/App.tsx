@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -12,6 +13,25 @@ import Account from "@/pages/Account";
 import MockupCodeDataReference from "@/pages/mockup-code-data-reference";
 import ViewOnlyViewer from "@/pages/ViewOnlyViewer";
 import NotFound from "@/pages/not-found";
+
+function useCleanupQueryParams() {
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const paramsToRemove = ['figma_error', 'figma_connected'];
+    let shouldClean = false;
+    
+    paramsToRemove.forEach(param => {
+      if (url.searchParams.has(param)) {
+        url.searchParams.delete(param);
+        shouldClean = true;
+      }
+    });
+    
+    if (shouldClean) {
+      window.history.replaceState({}, '', url.pathname + url.search);
+    }
+  }, []);
+}
 
 function Router() {
   return (
@@ -32,6 +52,8 @@ function Router() {
 }
 
 function App() {
+  useCleanupQueryParams();
+  
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
