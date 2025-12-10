@@ -4430,14 +4430,34 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           {/* Home Screen */}
           {isOnHomeTab ? (
             <HomeScreen
-              recentProjects={hasCloudAccess ? cloudProjects.map(project => ({
-                id: project.id,
-                name: project.name,
-                lastModified: new Date(project.updatedAt || project.createdAt || Date.now()),
-                status: project.isPublic ? 'published' as const : 'private' as const,
-                thumbnail: project.thumbnail || undefined
-              })) : []}
+              recentProjects={[
+                // Local projects from tabs (stored in browser)
+                ...tabs.filter(tab => tab.nodes.length > 0).map(tab => ({
+                  id: tab.id,
+                  name: tab.name,
+                  lastModified: new Date(tab.lastModified || Date.now()),
+                  status: 'private' as const,
+                  thumbnail: tab.thumbnail,
+                  isLocal: true
+                })),
+                // Cloud projects for Pro/Admin users
+                ...(hasCloudAccess ? cloudProjects.map(project => ({
+                  id: project.id,
+                  name: project.name,
+                  lastModified: new Date(project.updatedAt || project.createdAt || Date.now()),
+                  status: project.isPublic ? 'published' as const : 'private' as const,
+                  thumbnail: project.thumbnail || undefined,
+                  isLocal: false
+                })) : [])
+              ].sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime())}
               onOpenProject={(projectId) => {
+                // Check if this is a local tab first
+                const localTab = tabs.find(t => t.id === projectId);
+                if (localTab) {
+                  setActiveTabId(projectId);
+                  return;
+                }
+                // Otherwise, try to open as a cloud project
                 if (hasCloudAccess) {
                   const project = cloudProjects.find(p => p.id === projectId);
                   if (project && project.workflowData) {
@@ -4474,8 +4494,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     setTabs(prev => [...prev, newTab]);
                     setActiveTabId(newTab.id);
                   }
-                } else {
-                  setActiveTabId(projectId);
                 }
               }}
               onGenerateWorkflow={(prompt) => {

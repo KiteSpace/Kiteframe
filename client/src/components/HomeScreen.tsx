@@ -51,6 +51,7 @@ interface RecentProject {
   lastModified: Date;
   thumbnail?: string;
   status: 'published' | 'private' | 'draft';
+  isLocal?: boolean;
 }
 
 interface WorkflowTemplate {
