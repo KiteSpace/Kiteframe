@@ -7924,6 +7924,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           isOpen={showFigmaModal}
           onClose={() => setShowFigmaModal(false)}
           onImport={async (framesWithThumbnails, mode, figmaInfo) => {
+            console.log('[WorkflowEditor] onImport received:', framesWithThumbnails.length, 'frames, mode:', mode);
+            console.log('[WorkflowEditor] Frame details:', framesWithThumbnails.map(f => ({
+              name: f.frame.name,
+              id: f.frame.id,
+              hasThumbnail: !!f.thumbnailUrl,
+              hasSemantic: !!f.figmaSemantic,
+            })));
+            
             if (framesWithThumbnails.length === 0) {
               toast({
                 title: "No frames selected",
@@ -7934,7 +7942,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }
             
             if (mode === 'new-project') {
+              console.log('[WorkflowEditor] Creating new project with', framesWithThumbnails.length, 'frames');
               const workflowData = buildFigmaFrameWorkflow(framesWithThumbnails, { x: 100, y: 100 }, 50, figmaInfo?.fileKey);
+              console.log('[WorkflowEditor] Built workflow data - nodes:', workflowData.nodes.length, 'edges:', workflowData.edges.length);
               const name = generateCuteName();
               const newTabId = generateTabId();
               const projectUuid = `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -7976,8 +7986,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 description: `Created "${name}" with ${framesWithThumbnails.length} frame${framesWithThumbnails.length > 1 ? 's' : ''}.`,
               });
             } else {
+              console.log('[WorkflowEditor] Inserting into existing project with', framesWithThumbnails.length, 'frames');
               saveToHistory();
               const newNodes = insertFigmaFrames(nodes, framesWithThumbnails, 50, figmaInfo?.fileKey);
+              console.log('[WorkflowEditor] Created new nodes:', newNodes.length);
               setNodes(prev => [...prev, ...newNodes]);
               
               if (figmaInfo) {

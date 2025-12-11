@@ -125,6 +125,9 @@ export function FigmaImportModal({
     const trimmedUrl = url.trim();
     const trimmedPat = pat.trim();
     
+    console.log('[FigmaImport] handleContinue called');
+    console.log('[FigmaImport] URL:', trimmedUrl);
+    
     if (!trimmedUrl) {
       setError('Please enter a Figma URL');
       return;
@@ -136,6 +139,8 @@ export function FigmaImportModal({
     }
 
     const parsed = parseFigmaUrl(trimmedUrl);
+    console.log('[FigmaImport] Parsed URL:', parsed);
+    
     if (!parsed) {
       setError('Invalid Figma URL. Please paste a valid Figma file URL.');
       return;
@@ -146,9 +151,11 @@ export function FigmaImportModal({
     setFileKey(parsed.fileKey);
 
     const tokenToUse = figmaStatus?.connected ? undefined : trimmedPat;
+    console.log('[FigmaImport] Using OAuth:', figmaStatus?.connected, '| Has nodeId:', !!parsed.nodeId);
 
     try {
       if (parsed.nodeId) {
+        console.log('[FigmaImport] Fetching node data for nodeId:', parsed.nodeId);
         const nodeData = await fetchFigmaNode(parsed.fileKey, parsed.nodeId, tokenToUse);
         const nodeInfo = nodeData.nodes?.[parsed.nodeId];
         
@@ -158,9 +165,11 @@ export function FigmaImportModal({
 
         const nodeType = nodeInfo.document.type;
         const urlType = detectFigmaUrlTypeWithNodeType(trimmedUrl, nodeType);
+        console.log('[FigmaImport] Node type from API:', nodeType, '| Detected URL type:', urlType);
         setDetectedUrlType(urlType);
 
         if (urlType === 'page') {
+          console.log('[FigmaImport] PAGE detected - showing page-options');
           setPageNode({
             id: parsed.nodeId,
             name: nodeInfo.document.name || 'Untitled Page',
@@ -185,8 +194,11 @@ export function FigmaImportModal({
           }
           
           setDiscoveredFrames(pageFrames);
+          console.log('[FigmaImport] Page frames found:', pageFrames.length, pageFrames.map(f => f.name));
+          console.log('[FigmaImport] Setting step to: page-options');
           setStep('page-options');
         } else {
+          console.log('[FigmaImport] FRAME detected - importing directly');
           const frame: FigmaFrame = {
             id: parsed.nodeId,
             name: nodeInfo.document.name || 'Untitled',
@@ -209,6 +221,7 @@ export function FigmaImportModal({
             console.warn('Failed to extract semantic data for direct import:', extractError);
           }
 
+          console.log('[FigmaImport] Direct import - calling onImport with 1 frame');
           await onImport([{ frame, thumbnailUrl, figmaSemantic }], mode, {
             url: trimmedUrl,
             fileKey: parsed.fileKey,
@@ -218,6 +231,7 @@ export function FigmaImportModal({
           onClose();
         }
       } else {
+        console.log('[FigmaImport] FILE URL (no nodeId) - fetching full file');
         setDetectedUrlType('file');
         const fileData = await fetchFigmaFile(parsed.fileKey, tokenToUse);
         setFileName(fileData.name || 'Untitled');
@@ -241,11 +255,15 @@ export function FigmaImportModal({
           }
         }
         setDiscoveredPages(pages);
+        console.log('[FigmaImport] File loaded:', fileName);
+        console.log('[FigmaImport] Discovered frames:', frames.length, frames.map(f => `${f.pageName}/${f.name}`));
+        console.log('[FigmaImport] Discovered pages:', pages.length, pages.map(p => `${p.name} (${p.frameCount} frames)`));
         
         if (frames.length === 0 && pages.length === 0) {
           throw new Error('No pages or frames found in this Figma file.');
         }
         
+        console.log('[FigmaImport] Setting step to: file-options');
         setStep('file-options');
       }
     } catch (err) {
@@ -263,6 +281,9 @@ export function FigmaImportModal({
   }, [url, pat, figmaStatus, onImport, onClose, mode, resetState, queryFigmaStatus]);
 
   const handleFrameSelect = useCallback(async (selectedFrames: FigmaFrame[]) => {
+    console.log('[FigmaImport] handleFrameSelect called with', selectedFrames.length, 'frames');
+    console.log('[FigmaImport] Selected frames:', selectedFrames.map(f => `${f.id}: ${f.name}`));
+    
     if (selectedFrames.length === 0) return;
 
     setIsLoading(true);
@@ -273,6 +294,7 @@ export function FigmaImportModal({
     try {
       // Fetch thumbnails and frame trees in parallel for efficiency
       const frameIds = selectedFrames.map(f => f.id);
+      console.log('[FigmaImport] Fetching thumbnails and frame trees for:', frameIds);
       
       const [thumbnails, frameTrees] = await Promise.all([
         fetchFigmaThumbnails(fileKey, frameIds, tokenToUse),
@@ -290,6 +312,7 @@ export function FigmaImportModal({
           const frameTree = frameTrees[frame.id];
           if (frameTree?.document) {
             figmaSemantic = extractFigmaSemanticMetadata(frameTree.document, frame.pageName);
+            console.log('[FigmaImport] Semantic extracted for', frame.name, ':', figmaSemantic ? 'YES' : 'NO');
           }
         } catch (extractError) {
           console.warn(`Failed to extract semantic data for frame ${frame.id}:`, extractError);
@@ -302,6 +325,8 @@ export function FigmaImportModal({
         };
       });
 
+      console.log('[FigmaImport] Calling onImport with', framesWithThumbnails.length, 'frames');
+      console.log('[FigmaImport] Frames with semantic:', framesWithThumbnails.filter(f => f.figmaSemantic).length);
       await onImport(framesWithThumbnails, mode, {
         url: url.trim(),
         fileKey,
@@ -411,6 +436,7 @@ export function FigmaImportModal({
 
   const handlePageAsFlattened = useCallback(async (overridePage?: { id: string; name: string; type: string }) => {
     const targetPage = overridePage || pageNode;
+    console.log('[FigmaImport] handlePageAsFlattened called for page:', targetPage?.name);
     if (!targetPage) return;
     
     setIsLoading(true);

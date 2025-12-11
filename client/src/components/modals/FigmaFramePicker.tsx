@@ -79,6 +79,8 @@ export function FigmaFramePicker({
 
   const handleImport = useCallback(() => {
     const selectedFrames = frames.filter(f => selectedIds.has(f.id));
+    console.log('[FigmaFramePicker] Import clicked - selected:', selectedFrames.length, 'frames');
+    console.log('[FigmaFramePicker] Frame names:', selectedFrames.map(f => f.name));
     onSelect(selectedFrames);
   }, [frames, selectedIds, onSelect]);
 
