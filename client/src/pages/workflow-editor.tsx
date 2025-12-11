@@ -7934,7 +7934,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }
             
             if (mode === 'new-project') {
-              const workflowData = buildFigmaFrameWorkflow(framesWithThumbnails);
+              const workflowData = buildFigmaFrameWorkflow(framesWithThumbnails, { x: 100, y: 100 }, 50, figmaInfo?.fileKey);
               const name = generateCuteName();
               const newTabId = generateTabId();
               const projectUuid = `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -7977,7 +7977,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               });
             } else {
               saveToHistory();
-              const newNodes = insertFigmaFrames(nodes, framesWithThumbnails);
+              const newNodes = insertFigmaFrames(nodes, framesWithThumbnails, 50, figmaInfo?.fileKey);
               setNodes(prev => [...prev, ...newNodes]);
               
               if (figmaInfo) {

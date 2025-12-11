@@ -22,7 +22,8 @@ function generateId(): string {
 export function buildFigmaFrameWorkflow(
   framesWithThumbnails: FigmaFrameWithThumbnail[],
   startPosition: { x: number; y: number } = { x: 100, y: 100 },
-  spacing: number = 50
+  spacing: number = 50,
+  figmaFileKey?: string
 ): WorkflowData {
   const nodes: Node[] = [];
   let currentX = startPosition.x;
@@ -42,6 +43,14 @@ export function buildFigmaFrameWorkflow(
         label: frame.name,
         src: thumbnailUrl || '',
         sourceType: 'url',
+        // Core Figma metadata (spec-compliant)
+        figmaFileKey: figmaFileKey || '',
+        figmaNodeId: frame.id,
+        figmaNodeName: frame.name,
+        // Reference frame flags
+        isReferenceFrame: true,
+        importedFrom: 'figma',
+        // Legacy fields (kept for backward compatibility)
         figmaId: frame.id,
         figmaType: frame.type,
         figmaPageName: frame.pageName,
@@ -73,14 +82,16 @@ export function buildFigmaFrameWorkflow(
 export function insertFigmaFrames(
   existingNodes: Node[],
   framesWithThumbnails: FigmaFrameWithThumbnail[],
-  spacing: number = 50
+  spacing: number = 50,
+  figmaFileKey?: string
 ): Node[] {
   const maxX = existingNodes.reduce((max, n) => Math.max(max, n.position.x + ((n.style as any)?.width || 200)), 0);
   
   const { nodes } = buildFigmaFrameWorkflow(
     framesWithThumbnails,
     { x: maxX + spacing, y: 100 },
-    spacing
+    spacing,
+    figmaFileKey
   );
 
   return nodes;
