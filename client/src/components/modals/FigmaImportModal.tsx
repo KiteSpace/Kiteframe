@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, Loader2, ExternalLink, Key, Link2, CheckCircle } from 'lucide-react';
 import { SiFigma } from 'react-icons/si';
-import { parseFigmaUrl } from '@/lib/integration/figmaUrl';
+import { parseFigmaUrl, detectFigmaUrlTypeWithNodeType, type FigmaUrlType } from '@/lib/integration/figmaUrl';
 import { 
   fetchFigmaFile, 
   fetchFigmaNode,
@@ -44,7 +44,7 @@ interface FigmaStatus {
   message: string;
 }
 
-type Step = 'input' | 'frame-selection';
+type Step = 'input' | 'file-options' | 'page-options' | 'frame-selection' | 'page-selection';
 type AuthMethod = 'pat' | 'oauth';
 
 export function FigmaImportModal({
@@ -67,6 +67,9 @@ export function FigmaImportModal({
   const [discoveredFrames, setDiscoveredFrames] = useState<FigmaFrame[]>([]);
   const [fileKey, setFileKey] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
+  const [detectedUrlType, setDetectedUrlType] = useState<FigmaUrlType>(null);
+  const [pageNode, setPageNode] = useState<{ id: string; name: string; type: string } | null>(null);
+  const [discoveredPages, setDiscoveredPages] = useState<Array<{ id: string; name: string; frameCount: number }>>([]);
 
   const queryFigmaStatus = useCallback(() => {
     setStatusLoading(true);
@@ -112,6 +115,9 @@ export function FigmaImportModal({
     setFileKey('');
     setFileName('');
     setOauthPending(false);
+    setDetectedUrlType(null);
+    setPageNode(null);
+    setDiscoveredPages([]);
   }, []);
 
   const handleContinue = useCallback(async () => {
@@ -149,37 +155,69 @@ export function FigmaImportModal({
           throw new Error('Frame not found in Figma file');
         }
 
-        const frame: FigmaFrame = {
-          id: parsed.nodeId,
-          name: nodeInfo.document.name || 'Untitled',
-          type: nodeInfo.document.type,
-          pageName: 'Direct Import',
-          width: nodeInfo.document.absoluteBoundingBox?.width || 800,
-          height: nodeInfo.document.absoluteBoundingBox?.height || 600,
-          absoluteBoundingBox: nodeInfo.document.absoluteBoundingBox,
-        };
+        const nodeType = nodeInfo.document.type;
+        const urlType = detectFigmaUrlTypeWithNodeType(trimmedUrl, nodeType);
+        setDetectedUrlType(urlType);
 
-        const thumbnails = await fetchFigmaThumbnails(parsed.fileKey, [parsed.nodeId], tokenToUse);
-        const thumbnailUrl = thumbnails.images?.[parsed.nodeId] || null;
-
-        // Extract semantic metadata (graceful failure)
-        let figmaSemantic: FigmaSemanticMetadata | null = null;
-        try {
-          if (nodeInfo.document) {
-            figmaSemantic = extractFigmaSemanticMetadata(nodeInfo.document, 'Direct Import');
+        if (urlType === 'page') {
+          setPageNode({
+            id: parsed.nodeId,
+            name: nodeInfo.document.name || 'Untitled Page',
+            type: nodeType,
+          });
+          setFileName(nodeInfo.document.name || 'Untitled Page');
+          
+          const pageFrames: FigmaFrame[] = [];
+          for (const child of nodeInfo.document.children || []) {
+            if (child.type === 'FRAME' || child.type === 'COMPONENT' || child.type === 'INSTANCE') {
+              const bbox = child.absoluteBoundingBox;
+              pageFrames.push({
+                id: child.id,
+                name: child.name || 'Untitled Frame',
+                type: child.type,
+                pageName: nodeInfo.document.name || 'Untitled Page',
+                width: bbox?.width || 0,
+                height: bbox?.height || 0,
+                absoluteBoundingBox: bbox,
+              });
+            }
           }
-        } catch (extractError) {
-          console.warn('Failed to extract semantic data for direct import:', extractError);
-        }
+          
+          setDiscoveredFrames(pageFrames);
+          setStep('page-options');
+        } else {
+          const frame: FigmaFrame = {
+            id: parsed.nodeId,
+            name: nodeInfo.document.name || 'Untitled',
+            type: nodeInfo.document.type,
+            pageName: 'Direct Import',
+            width: nodeInfo.document.absoluteBoundingBox?.width || 800,
+            height: nodeInfo.document.absoluteBoundingBox?.height || 600,
+            absoluteBoundingBox: nodeInfo.document.absoluteBoundingBox,
+          };
 
-        await onImport([{ frame, thumbnailUrl, figmaSemantic }], mode, {
-          url: trimmedUrl,
-          fileKey: parsed.fileKey,
-          fileName: frame.name
-        });
-        resetState();
-        onClose();
+          const thumbnails = await fetchFigmaThumbnails(parsed.fileKey, [parsed.nodeId], tokenToUse);
+          const thumbnailUrl = thumbnails.images?.[parsed.nodeId] || null;
+
+          let figmaSemantic: FigmaSemanticMetadata | null = null;
+          try {
+            if (nodeInfo.document) {
+              figmaSemantic = extractFigmaSemanticMetadata(nodeInfo.document, 'Direct Import');
+            }
+          } catch (extractError) {
+            console.warn('Failed to extract semantic data for direct import:', extractError);
+          }
+
+          await onImport([{ frame, thumbnailUrl, figmaSemantic }], mode, {
+            url: trimmedUrl,
+            fileKey: parsed.fileKey,
+            fileName: frame.name
+          });
+          resetState();
+          onClose();
+        }
       } else {
+        setDetectedUrlType('file');
         const fileData = await fetchFigmaFile(parsed.fileKey, tokenToUse);
         setFileName(fileData.name || 'Untitled');
         
@@ -190,7 +228,25 @@ export function FigmaImportModal({
         }
 
         setDiscoveredFrames(frames);
-        setStep('frame-selection');
+        
+        const pages: Array<{ id: string; name: string; frameCount: number }> = [];
+        if (fileData?.document?.children) {
+          for (const page of fileData.document.children) {
+            if (page.type === 'CANVAS') {
+              const pageFrameCount = (page.children || []).filter(
+                (c: any) => c.type === 'FRAME' || c.type === 'COMPONENT' || c.type === 'INSTANCE'
+              ).length;
+              pages.push({
+                id: page.id,
+                name: page.name || 'Untitled Page',
+                frameCount: pageFrameCount,
+              });
+            }
+          }
+        }
+        setDiscoveredPages(pages);
+        
+        setStep('file-options');
       }
     } catch (err) {
       console.error('Figma import error:', err);
@@ -290,6 +346,43 @@ export function FigmaImportModal({
     }, 500);
   }, [figmaStatus, oauthPending, queryFigmaStatus]);
 
+  const handlePageAsFlattened = useCallback(async (overridePage?: { id: string; name: string; type: string }) => {
+    const targetPage = overridePage || pageNode;
+    if (!targetPage) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    const tokenToUse = figmaStatus?.connected ? undefined : pat.trim();
+    
+    try {
+      const thumbnails = await fetchFigmaThumbnails(fileKey, [targetPage.id], tokenToUse);
+      const thumbnailUrl = thumbnails.images?.[targetPage.id] || null;
+      
+      const frame: FigmaFrame = {
+        id: targetPage.id,
+        name: targetPage.name,
+        type: 'PAGE_FLATTENED',
+        pageName: targetPage.name,
+        width: 1920,
+        height: 1080,
+      };
+      
+      await onImport([{ frame, thumbnailUrl, figmaSemantic: null }], mode, {
+        url: url.trim(),
+        fileKey,
+        fileName: targetPage.name
+      });
+      resetState();
+      onClose();
+    } catch (err) {
+      console.error('Error importing page as flattened:', err);
+      setError(err instanceof Error ? err.message : 'Failed to import page');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pageNode, fileKey, pat, figmaStatus, onImport, onClose, mode, resetState, url]);
+
   const handleClose = useCallback(() => {
     if (!isLoading && !oauthPending) {
       resetState();
@@ -303,6 +396,206 @@ export function FigmaImportModal({
       handleContinue();
     }
   }, [handleContinue, isLoading, step]);
+
+  if (step === 'file-options') {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SiFigma className="h-5 w-5 text-[#F24E1E]" />
+              Import: {fileName}
+            </DialogTitle>
+            <DialogDescription>
+              Choose how to import from this Figma file
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="grid gap-3">
+              <Button
+                variant="outline"
+                className="h-auto p-4 justify-start text-left"
+                onClick={() => setStep('frame-selection')}
+                disabled={isLoading || discoveredFrames.length === 0}
+                data-testid="button-select-frames-file"
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="font-medium">Select individual frames</span>
+                  <span className="text-xs text-muted-foreground">
+                    Choose specific frames to import ({discoveredFrames.length} available)
+                  </span>
+                </div>
+              </Button>
+
+              {discoveredPages.length > 0 && (
+                <Button
+                  variant="outline"
+                  className="h-auto p-4 justify-start text-left"
+                  onClick={() => setStep('page-selection')}
+                  disabled={isLoading}
+                  data-testid="button-import-page-file"
+                >
+                  <div className="flex flex-col gap-1">
+                    <span className="font-medium">Import a page as single image</span>
+                    <span className="text-xs text-muted-foreground">
+                      Import an entire page as one flattened screenshot ({discoveredPages.length} page{discoveredPages.length > 1 ? 's' : ''})
+                    </span>
+                  </div>
+                </Button>
+              )}
+            </div>
+
+            {error && (
+              <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+                <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={handleClose}
+              disabled={isLoading}
+              data-testid="button-file-cancel"
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (step === 'page-selection') {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SiFigma className="h-5 w-5 text-[#F24E1E]" />
+              Select a Page: {fileName}
+            </DialogTitle>
+            <DialogDescription>
+              Choose a page to import as a flattened image
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="grid gap-2 max-h-64 overflow-y-auto">
+              {discoveredPages.map(page => (
+                <Button
+                  key={page.id}
+                  variant="outline"
+                  className="h-auto p-3 justify-start text-left"
+                  onClick={() => handlePageAsFlattened({ id: page.id, name: page.name, type: 'CANVAS' })}
+                  disabled={isLoading}
+                  data-testid={`button-page-${page.id}`}
+                >
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-medium">{page.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {page.frameCount} frame{page.frameCount !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </Button>
+              ))}
+            </div>
+
+            {error && (
+              <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+                <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => setStep('file-options')}
+              disabled={isLoading}
+              data-testid="button-page-select-back"
+            >
+              Back
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (step === 'page-options') {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SiFigma className="h-5 w-5 text-[#F24E1E]" />
+              Import Page: {pageNode?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Choose how to import this Figma page
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="grid gap-3">
+              <Button
+                variant="outline"
+                className="h-auto p-4 justify-start text-left"
+                onClick={() => handlePageAsFlattened()}
+                disabled={isLoading}
+                data-testid="button-import-page-flattened"
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="font-medium">Import as single image</span>
+                  <span className="text-xs text-muted-foreground">
+                    Import the entire page as one flattened screenshot
+                  </span>
+                </div>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-auto p-4 justify-start text-left"
+                onClick={() => setStep('frame-selection')}
+                disabled={isLoading || discoveredFrames.length === 0}
+                data-testid="button-select-frames"
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="font-medium">Select individual frames</span>
+                  <span className="text-xs text-muted-foreground">
+                    Choose specific frames to import ({discoveredFrames.length} available)
+                  </span>
+                </div>
+              </Button>
+            </div>
+
+            {error && (
+              <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+                <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={handleClose}
+              disabled={isLoading}
+              data-testid="button-page-cancel"
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   if (step === 'frame-selection') {
     const tokenForPicker = figmaStatus?.connected ? undefined : pat;

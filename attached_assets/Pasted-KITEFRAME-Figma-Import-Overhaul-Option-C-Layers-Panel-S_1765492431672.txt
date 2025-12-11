@@ -1,0 +1,170 @@
+KITEFRAME — Figma Import Overhaul (Option C) + Layers Panel Stability + Workflow Generator Improvements
+========================================================================================================
+
+THIS DOCUMENT IS A REPLIT EXECUTION SPEC.
+DO NOT HALLINATE. FOLLOW EXACTLY AS WRITTEN.
+
+--------------------------------------------------------------------------------
+SECTION 0 — ARCHITECTURE GOALS (READ FIRST)
+--------------------------------------------------------------------------------
+This spec defines the full implementation for Figma import behavior under OPTION C:
+
+1. Importing a **frame** → import that *single frame* as an image node.
+2. Importing a **page** → user chooses:
+    • A) Import page as one flattened image, OR
+    • B) Import individual frames (with frame-selection grid).
+3. Importing a **file** → user chooses:
+    • A) Import frames individually (default), OR
+    • B) Import a single page as flattened image.
+
+Shared rules for ALL imports:
+• NO automatic workflow creation ever.
+• Only import frames into nodes AFTER user selects them.
+• Semantic workflow generator remains manual.
+• Figma imports NEVER produce orphan nodes or unintended workflows.
+
+This spec ALSO includes:
+• Layers panel project-scoping fix.
+• Workflow generator clean grouping + batching behavior.
+
+--------------------------------------------------------------------------------
+SECTION 1 — DETECT FIGMA URL TYPE
+--------------------------------------------------------------------------------
+Modify figmaUrl.ts:
+
+Add function:
+
+export function detectFigmaUrlType(url: string): 'frame' | 'page' | 'file' | null
+
+Rules:
+1. If URL contains ?node-id=XXXX and node.type === FRAME → return 'frame'.
+2. If URL contains ?node-id=XXXX and node.type === CANVAS (page) → return 'page'.
+3. If URL has no node-id → return 'file'.
+4. If URL fails → return null.
+
+--------------------------------------------------------------------------------
+SECTION 2 — NEW MODAL FLOW
+--------------------------------------------------------------------------------
+Modify FigmaImportModal.tsx.
+
+-----------------------------------
+STEP 1 — Detect URL Type
+-----------------------------------
+If type === 'frame':
+  • Show preview of that frame.
+  • Button: "Import Frame".
+
+If type === 'page':
+  • Show options:
+        1) Import page as single flattened image
+        2) Select frames
+
+If type === 'file':
+  • Show options:
+        1) Select frames (default)
+        2) Import a page as single image
+
+-----------------------------------
+STEP 2 — Frame Selection Grid
+-----------------------------------
+When selecting frames:
+• Fetch all pages + frames
+• Show:
+  - Thumbnail
+  - Frame name
+  - Checkbox
+  - Select All / None
+  - Page filter for file imports
+
+-----------------------------------
+STEP 3 — Node Creation
+-----------------------------------
+For each selected frame:
+
+Create:
+
+{
+  id: generatedNodeId(),
+  type: "image",
+  position: computedPosition,
+  data: {
+    src: thumbnailUrl,
+    figmaFileKey,
+    figmaNodeId,
+    figmaNodeName,
+    isReferenceFrame: true,
+    figmaSemantic
+  }
+}
+
+-----------------------------------
+STEP 4 — Flattened Page Import
+-----------------------------------
+Call Figma images endpoint for page screenshot.
+Create exactly one image node.
+
+--------------------------------------------------------------------------------
+SECTION 3 — LAYERS PANEL FIX
+--------------------------------------------------------------------------------
+Fix global store leakage.
+
+(1) Ensure these stores are project-scoped:
+    • collapseStore
+    • visibilityLockStore
+    • workflowNameStore
+    • nodeToWorkflowStore
+
+Use keys:
+  kiteframe-layers-collapsed-${projectId}
+
+(2) Add:
+  resetLayersState(projectId: string)
+
+Must:
+  - Clear all Maps
+  - Reload correct per-project state
+  - Reset workflow groups
+
+(3) On project change:
+Call resetLayersState(newProjectId).
+
+--------------------------------------------------------------------------------
+SECTION 4 — WORKFLOW GENERATOR FIX
+--------------------------------------------------------------------------------
+Generator MUST NOT run during import.
+
+When “Generate Workflow” is clicked:
+
+(1) Wrap in undo batch:
+undoManager.batch(() => {...}, "Generate workflow from Figma")
+
+(2) Create exactly ONE workflow group per run.
+
+(3) Apply auto-layout:
+layout.horizontalFlow()
+
+(4) Insert nodes away from reference frames.
+
+--------------------------------------------------------------------------------
+SECTION 5 — ACCEPTANCE CRITERIA
+--------------------------------------------------------------------------------
+Replit must confirm each item with PASS.
+
+✔ Frame import  
+✔ Page import options  
+✔ File import options  
+✔ No auto workflow creation  
+✔ Layers panel scoping  
+✔ Workflow generator batching  
+
+--------------------------------------------------------------------------------
+SECTION 6 — DO NOT OVER-IMPLEMENT
+--------------------------------------------------------------------------------
+Replit MUST NOT:
+✘ Change right panel  
+✘ Change PRD system  
+✘ Add AI  
+✘ Modify Figma OAuth  
+✘ Auto-generate workflows  
+
+END OF SPEC

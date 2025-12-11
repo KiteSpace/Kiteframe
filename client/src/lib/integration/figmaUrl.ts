@@ -54,3 +54,59 @@ export function buildFigmaEmbedUrl(parsed: ParsedFigmaUrl): string {
   let embedUrl = `https://www.figma.com/embed?embed_host=kiteframe&url=${encodeURIComponent(parsed.rawUrl)}`;
   return embedUrl;
 }
+
+export type FigmaUrlType = 'frame' | 'page' | 'file' | null;
+
+/**
+ * Detect the type of Figma URL based on node-id presence.
+ * Initial detection based on URL structure only.
+ * For accurate detection (frame vs page), use detectFigmaUrlTypeWithApi after fetching node data.
+ * 
+ * Rules:
+ * 1. If URL contains node-id → 'frame' (could be page, but needs API check)
+ * 2. If URL has no node-id → 'file'
+ * 3. If URL is invalid → null
+ */
+export function detectFigmaUrlType(url: string): FigmaUrlType {
+  const parsed = parseFigmaUrl(url);
+  if (!parsed) {
+    return null;
+  }
+  
+  if (parsed.nodeId) {
+    // Has node-id - could be frame or page (canvas)
+    // For precise detection, need to call API and check node.type
+    return 'frame'; // Default assumption, refined by API check
+  }
+  
+  // No node-id means file-level URL
+  return 'file';
+}
+
+/**
+ * Detect Figma URL type with API data for precise frame vs page detection.
+ * Call this after fetching node data to determine if nodeId points to a CANVAS (page) or FRAME.
+ * 
+ * @param nodeType - The type from Figma API (e.g., 'FRAME', 'CANVAS', 'COMPONENT')
+ */
+export function detectFigmaUrlTypeWithNodeType(
+  url: string,
+  nodeType: string | undefined
+): FigmaUrlType {
+  const parsed = parseFigmaUrl(url);
+  if (!parsed) {
+    return null;
+  }
+  
+  if (!parsed.nodeId) {
+    return 'file';
+  }
+  
+  // Check node type from API
+  if (nodeType === 'CANVAS') {
+    return 'page';
+  }
+  
+  // FRAME, COMPONENT, COMPONENT_SET, GROUP, etc. are treated as frames
+  return 'frame';
+}
