@@ -352,6 +352,10 @@ export interface BasicNodeData {
   rowBinding?: RowBindingMeta;
   rowDisplay?: RowDisplayConfig;
   rowValues?: Record<string, string | number | boolean | null>; // Typed row values
+  // Semantic workflow generation fields (for nodes generated from Figma semantic data)
+  semanticType?: string; // Type of semantic element this node represents (heading, button, input, etc.)
+  figmaElementId?: string; // ID of the original Figma element
+  workflowGroupId?: string; // ID of the workflow group this node belongs to
 }
 
 // Image fit type definition
