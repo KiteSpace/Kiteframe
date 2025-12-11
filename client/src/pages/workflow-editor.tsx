@@ -83,6 +83,7 @@ import {
 import { SiFigma } from 'react-icons/si';
 import { FigmaImportModal } from '@/components/modals/FigmaImportModal';
 import { parseFigmaUrl } from '@/lib/integration/figmaUrl';
+import { generateWorkflowFromFigmaSemantic } from '@/lib/integration/semanticWorkflowGenerator';
 import { buildFigmaFrameWorkflow, insertFigmaFrames, type FigmaFrameWithThumbnail } from '@/utils/createFigmaProject';
 
 // Project metadata types
@@ -8723,6 +8724,45 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             }}
             canUseWireframe={isPro || isAdmin}
+            onGenerateWorkflow={() => {
+              if (linearToolbar.node && linearToolbar.node.data?.figmaSemantic) {
+                const semantic = linearToolbar.node.data.figmaSemantic;
+                const frameName = linearToolbar.node.data.label || 'Figma Frame';
+                
+                try {
+                  const { nodes: generatedNodes, edges: generatedEdges, workflowGroupId } = 
+                    generateWorkflowFromFigmaSemantic(semantic, frameName, linearToolbar.node);
+                  
+                  if (generatedNodes.length > 0) {
+                    saveToHistory();
+                    setNodes(prev => [...prev, ...generatedNodes]);
+                    if (generatedEdges.length > 0) {
+                      setEdges(prev => [...prev, ...generatedEdges]);
+                    }
+                    
+                    toast({
+                      title: "Workflow Generated",
+                      description: `Created ${generatedNodes.length} nodes from "${frameName}"`,
+                    });
+                  } else {
+                    toast({
+                      title: "No Elements Found",
+                      description: "No semantic elements to generate workflow from",
+                      variant: "destructive",
+                    });
+                  }
+                } catch (error) {
+                  console.error('Workflow generation failed:', error);
+                  toast({
+                    title: "Generation Failed",
+                    description: "Could not generate workflow from semantic data",
+                    variant: "destructive",
+                  });
+                }
+                
+                setLinearToolbar(null);
+              }
+            }}
             onCanvasObjectColorChange={(color) => {
               if (linearToolbar.canvasObject) {
                 saveToHistory();
