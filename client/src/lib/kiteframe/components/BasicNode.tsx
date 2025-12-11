@@ -395,6 +395,9 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
 
   const nodeWidth = node.style?.width || node.width || 200;
   const nodeHeight = node.style?.height || node.height || 120;
+  
+  // Auto-size mode: when autoSize is enabled, height adjusts to content
+  const isAutoSize = node.data.autoSize === true;
 
   // Get dynamic class for node positioning and dimensions
   const nodePositionClass = useMemo(() => {
@@ -405,14 +408,22 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
       )
     ) : {};
     
+    const dimensionStyles: Record<string, string> = {
+      position: "absolute",
+      left: `${node.position.x}px`,
+      top: `${node.position.y}px`,
+      width: `${nodeWidth}px`,
+      zIndex: String(node.zIndex || 0),
+    };
+    
+    // Only set fixed height if not auto-sizing
+    if (!isAutoSize) {
+      dimensionStyles.height = `${nodeHeight}px`;
+    }
+    
     return getDynamicClassName(
       {
-        position: "absolute",
-        left: `${node.position.x}px`,
-        top: `${node.position.y}px`,
-        width: `${nodeWidth}px`,
-        height: `${nodeHeight}px`,
-        zIndex: node.zIndex || 0,
+        ...dimensionStyles,
         ...filteredStyle,
       },
       `basic-node-${node.id}`,
@@ -425,6 +436,7 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
     node.zIndex,
     node.id,
     style,
+    isAutoSize,
   ]);
 
   // Get dynamic class for border color
@@ -492,7 +504,8 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
       {/* Header */}
       <div
         className={cn(
-          "h-8 px-3 flex items-center justify-between rounded-t-md",
+          "px-3 flex items-center justify-between rounded-t-md",
+          isAutoSize ? "py-2" : "h-8",
           styleClasses.headerClass,
         )}
         role="heading"
@@ -539,11 +552,10 @@ const BasicNodeComponent: React.FC<BasicNodeComponentProps> = ({
         className={cn(
           "flex-1 p-3 rounded-b-md",
           styleClasses.bodyClass,
-          getDynamicClassName(
-            { minHeight: `${nodeHeight - 32 - 4}px` }, // Account for 2px padding on each side
-            `body-height-${node.id}`,
-          ),
         )}
+        style={{
+          minHeight: isAutoSize ? '60px' : `${nodeHeight - 32 - 4}px`,
+        }}
         role="region"
         aria-label="Node content"
         onDoubleClick={handleDescriptionDoubleClick}

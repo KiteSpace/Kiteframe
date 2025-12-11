@@ -140,10 +140,11 @@ function createBasicNodeFromStep(
     draggable: true,
     selectable: true,
     showHandles: true,
-    style: { width: NODE_WIDTH, height: NODE_HEIGHT },
+    style: { width: NODE_WIDTH },
     data: {
       label: step.title,
       description: description || undefined,
+      autoSize: true,
       figmaSource: {
         frameId: graph.frameId,
         stepId: step.id,

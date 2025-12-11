@@ -335,6 +335,8 @@ export interface BasicNodeData {
     headerTextColor?: string;
     bodyTextColor?: string;
   };
+  // Auto-size mode: when true, node height grows to fit content (with min height)
+  autoSize?: boolean;
   // Border styling for nodes
   borderStyle?: 'solid' | 'dashed' | 'dotted' | 'none';
   borderWidth?: number;
