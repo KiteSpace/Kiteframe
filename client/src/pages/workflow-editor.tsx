@@ -88,6 +88,7 @@ import { generateWorkflowFromFigmaSemantic } from '@/lib/integration/semanticWor
 import { buildFigmaFrameWorkflow, insertFigmaFrames, type FigmaFrameWithThumbnail } from '@/utils/createFigmaProject';
 import { addFigmaSource } from '@/lib/kiteframe/utils/sourceTracking';
 import { sortFrameNodesForWorkflow, filterValidWorkflowFrames } from '@/lib/kiteframe/utils/workflowOrdering';
+import { resetLayersState } from '@/stores/layersStateManager';
 
 // Project metadata types
 interface ProjectLink {
@@ -966,35 +967,8 @@ function WorkflowEditorContent({
       viewport: { x: 0, y: 0, zoom: 1 }
     };
     
-    return {
-      id: generateTabId(),
-      name,
-      ...initialState,
-      selectedNodeId: '',
-      selectedEdgeId: '',
-      history: [initialState], // Initialize with current state
-      historyIndex: 0, // Start at index 0, not -1
-      showImageModal: null,
-      metadata: {
-        name,
-        description: '',
-        links: [],
-        linksFormat: 'text',
-        categories: []
-      },
-      flowSettings: {}
-    };
-  }, [generateTabId, generateCuteName, generateRandomWorkflow]);
-
-  // Create blank tab
-  const createBlankTab = useCallback((): WorkflowTab => {
-    const name = generateCuteName();
-    const initialState = {
-      nodes: [],
-      edges: [],
-      canvasObjects: [],
-      viewport: { x: 0, y: 0, zoom: 1 }
-    };
+    // Generate unique project UUID for this local project
+    const projectUuid = `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     return {
       id: generateTabId(),
@@ -1012,7 +986,42 @@ function WorkflowEditorContent({
         linksFormat: 'text',
         categories: []
       },
-      flowSettings: {}
+      flowSettings: {},
+      projectUuid // Unique identifier for layers state scoping
+    };
+  }, [generateTabId, generateCuteName, generateRandomWorkflow]);
+
+  // Create blank tab
+  const createBlankTab = useCallback((): WorkflowTab => {
+    const name = generateCuteName();
+    const initialState = {
+      nodes: [],
+      edges: [],
+      canvasObjects: [],
+      viewport: { x: 0, y: 0, zoom: 1 }
+    };
+    
+    // Generate unique project UUID for this local project
+    const projectUuid = `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    return {
+      id: generateTabId(),
+      name,
+      ...initialState,
+      selectedNodeId: '',
+      selectedEdgeId: '',
+      history: [initialState], // Initialize with current state
+      historyIndex: 0, // Start at index 0, not -1
+      showImageModal: null,
+      metadata: {
+        name,
+        description: '',
+        links: [],
+        linksFormat: 'text',
+        categories: []
+      },
+      flowSettings: {},
+      projectUuid // Unique identifier for layers state scoping
     };
   }, [generateTabId, generateCuteName]);
 
@@ -1043,7 +1052,8 @@ function WorkflowEditorContent({
           linksFormat: 'text',
           categories: []
         },
-        flowSettings: {}
+        flowSettings: {},
+        projectUuid: `view-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       };
       return [viewTab];
     }
@@ -1142,6 +1152,16 @@ function WorkflowEditorContent({
 
   // Get current active tab
   const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId) || tabs[0], [tabs, activeTabId]);
+
+  // Reset layers panel state when switching projects to prevent state leakage
+  // Use projectUuid or cloudProjectId as the true project identifier
+  useEffect(() => {
+    // Only reset if we have a valid project identifier to prevent premature state clearing
+    const projectIdentifier = activeTab?.projectUuid || activeTab?.cloudProjectId?.toString();
+    if (projectIdentifier) {
+      resetLayersState(projectIdentifier);
+    }
+  }, [activeTab?.projectUuid, activeTab?.cloudProjectId]);
 
   // Convenience getters for current tab state
   const nodes = activeTab?.nodes || [];
@@ -1925,7 +1945,8 @@ Position nodes 250px apart horizontally.`;
         links: [],
         linksFormat: 'text',
         categories: []
-      }
+      },
+      projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     };
 
     setTabs(prev => [...prev, newTab]);
@@ -2319,7 +2340,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         links: [],
         linksFormat: 'text',
         categories: []
-      }
+      },
+      projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     };
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newTab.id);
@@ -2348,7 +2370,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         links: [],
         linksFormat: 'text',
         categories: []
-      }
+      },
+      projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     };
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newTab.id);
@@ -3520,7 +3543,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   ...tab.metadata,
                   name: data.project.name || '',
                   description: data.project.description || ''
-                }
+                },
+                projectUuid: tab.projectUuid || data.project.projectUuid || `cloud-${data.project.id}`,
+                cloudProjectId: data.project.id
               } : tab
             ));
           }
@@ -4219,7 +4244,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       const saved = localStorage.getItem('kiteframe_workflows');
       if (saved) {
         const parsed = JSON.parse(saved);
-        return parsed;
+        // Backfill projectUuid for legacy tabs that don't have it
+        return parsed.map((tab: WorkflowTab) => ({
+          ...tab,
+          projectUuid: tab.projectUuid || `legacy-${tab.id}-${Date.now()}`
+        }));
       }
     } catch (error) {
       console.error('❌ Failed to load workflows from local storage:', error);
@@ -4285,7 +4314,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         linksFormat: 'text',
         categories: []
       },
-      flowSettings: {}
+      flowSettings: {},
+      projectUuid: `view-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     }]);
     setActiveTabId('view-tab');
     
@@ -4504,7 +4534,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       },
                       flowSettings: workflowData.flowSettings || {},
                       cloudProjectId: project.id,
-                      projectUuid: project.projectUuid,
+                      projectUuid: project.projectUuid || `cloud-${project.id}`,
                     };
                     setTabs(prev => [...prev, newTab]);
                     setActiveTabId(newTab.id);
@@ -4568,7 +4598,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     links: [],
                     linksFormat: 'text',
                     categories: []
-                  }
+                  },
+                  projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
                 };
                 
                 setTabs(prev => [...prev, newTab]);
@@ -6207,7 +6238,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     links: [],
                     linksFormat: 'bulleted',
                     categories: []
-                  }
+                  },
+                  projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
                 };
                 
                 setTabs(prev => [...prev, newTab]);
@@ -7525,7 +7557,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               edges={edges}
               frames={[]}
               canvasObjects={canvasObjects}
-              projectId={activeTabId}
+              projectId={activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId}
               projectName={activeTab?.name}
               onProjectNameChange={(name) => updateActiveTab({ name })}
             />
@@ -7905,6 +7937,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               const workflowData = buildFigmaFrameWorkflow(framesWithThumbnails);
               const name = generateCuteName();
               const newTabId = generateTabId();
+              const projectUuid = `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
               const newTab: WorkflowTab = {
                 id: newTabId,
                 name,
@@ -7928,7 +7961,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   links: [],
                   linksFormat: 'text',
                   categories: []
-                }
+                },
+                projectUuid
               };
               setTabs(prev => [...prev, newTab]);
               setActiveTabId(newTabId);
@@ -9274,7 +9308,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 links: [],
                 linksFormat: 'text',
                 categories: []
-              }
+              },
+              projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
             };
             setTabs(prev => [...prev, newTab]);
             setActiveTabId(newTab.id);

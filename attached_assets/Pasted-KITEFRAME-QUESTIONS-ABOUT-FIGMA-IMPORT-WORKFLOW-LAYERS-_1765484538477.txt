@@ -1,0 +1,86 @@
+KITEFRAME — QUESTIONS ABOUT FIGMA IMPORT WORKFLOW & LAYERS PANEL BUG
+
+SECTION 1 — Layers Panel Bug (Critical)
+1. How is the Layers panel state currently scoped?
+   - Is its internal state or store global across all projects/sessions?
+   - Should it be tied to projectId or editor instance?
+
+2. When switching between projects (different URLs), does the Layers panel:
+   - Recompute workflows using FlowDetection?
+   - Load cached workflows incorrectly from previous project?
+   - Use a shared Zustand store or React context?
+
+3. Is FlowDetection running automatically on mount regardless of project?
+   - If so, is it using stale canvas data before the editor loads?
+
+4. Where is workflow grouping stored during the session?
+   - Is it recalculated per project?
+   - Or cached globally?
+
+This bug results in:
+   - Workflow groups from Project A appearing in Project B.
+   - Incorrect "random workflows" shown immediately upon load.
+
+SECTION 2 — Auto-Generated Workflows from Figma Import
+5. When importing Figma frames, what currently triggers creation of workflow groups?
+   - Does convertFigmaFrameToNodes or createFigmaProject automatically call FlowDetection?
+   - Are edges being auto-generated for Figma nodes even when the user has not chosen to?
+
+6. Should Figma import *only* create image nodes with thumbnails + semantic metadata?
+   - Confirm no workflow groups should be generated automatically.
+
+7. Is any function currently generating edges or grouping nodes during import?
+   - If yes, identify the exact location and reasoning behind this behavior.
+
+SECTION 3 — Missing Frame Selection UX During Project Creation
+8. Where in the code does initial Figma import occur during "Create Project"?
+   - Does the FigmaImportModal allow selecting individual frames before calling onCreateProject()?
+   - Or does it import the entire file by default?
+
+9. Confirm whether the modal currently supports:
+   - Frame grid preview
+   - Multi-select
+   - Select all / select none functionality
+
+10. Should we change the behavior so:
+    - Project creation does NOT auto-create workflows?
+    - Only selected frames are imported as nodes?
+    - Selected frames default to "reference images," not workflows?
+
+SECTION 4 — Toolbar “Generate Workflow” Behavior
+11. When clicking "Generate Workflow" on a Figma node:
+    - Where is selection of frames supposed to occur?
+    - Does the current implementation allow choosing:
+        a) All frames
+        b) Only selected frames
+        c) A custom set of frames?
+
+12. Should we redesign "Generate Workflow" to:
+    - Use a small popover next to the button with:
+        - "Generate from all frames"
+        - "Generate from selected frames"
+    - Or should this be part of a modal instead?
+
+SECTION 5 — Intent Clarification for Correct UX Design
+13. Confirm desired behavior:
+    - On Figma import → NO workflows generated automatically.
+    - Only image nodes appear in the canvas.
+    - Workflow groups only created when:
+        - User clicks “Generate Workflow”
+        - And after choosing which frames to include.
+
+14. Are there any existing features relying on auto-grouping or auto-edge-generation that would break if disabled?
+
+SECTION 6 — Implementation-Level Clarifications
+15. Does the editor have a clean hook for:
+    - “Project has finished loading”
+    - “Canvas nodes updated”
+    - “Layers panel should recompute workflows now”
+
+16. Can the Layers panel subscribe to projectId changes to reset state?
+
+17. Should we introduce:
+    - A project-scoped store (e.g., layersStore[projectId])
+    - A cleanup/reset call on project switch?
+
+END OF QUESTIONS

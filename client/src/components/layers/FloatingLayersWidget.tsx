@@ -4,10 +4,10 @@ import LayersPanel from './LayersPanel';
 import type { CanvasObject } from '@/lib/kiteframe/types';
 
 type Props = {
-  nodes:any[]; edges:any[]; frames?:any[]; canvasObjects?:CanvasObject[];
+  nodes:any[]; edges:any[]; frames?:any[]; canvasObjects?:CanvasObject[]; projectId?: string;
 };
 
-export function FloatingLayersWidget({ nodes, edges, frames, canvasObjects }: Props){
+export function FloatingLayersWidget({ nodes, edges, frames, canvasObjects, projectId }: Props){
   const [open, setOpen] = React.useState(false);
   return (
     <div className="absolute top-4 right-4 z-50">
@@ -36,7 +36,7 @@ export function FloatingLayersWidget({ nodes, edges, frames, canvasObjects }: Pr
             </button>
           </div>
           <div className="h-[calc(100%-40px)]">
-            <LayersPanel nodes={nodes} edges={edges} frames={frames} canvasObjects={canvasObjects}/>
+            <LayersPanel nodes={nodes} edges={edges} frames={frames} canvasObjects={canvasObjects} projectId={projectId}/>
           </div>
         </div>
       )}

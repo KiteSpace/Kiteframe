@@ -184,7 +184,8 @@ export function ProjectPanel({
             nodes={nodes} 
             edges={edges} 
             frames={frames} 
-            canvasObjects={canvasObjects} 
+            canvasObjects={canvasObjects}
+            projectId={projectId}
           />
         </TabsContent>
         

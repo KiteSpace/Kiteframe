@@ -1,69 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { LayerModeTabs, type LayerMode } from './LayerModeTabs';
 import { VirtualTree } from './VirtualTree';
-import { VLStore } from './visibilityLockStore';
 import { computeTri, cascade, isEffectivelyOn, Tri } from './triStateUtils';
 import { GroupRow, LeafRow } from './TreeRow';
 import { buildMultiViewTrees } from './multiViewBuilder';
 import { AncestorsStore } from './ancestorsStore';
-import { useWorkflowNames, generateDefaultWorkflowNames } from '@/stores/workflowNameStore';
 import { focusBus } from '@/stores/focusBus';
 import { nodeToWorkflowStore } from '@/stores/nodeToWorkflowStore';
+import { 
+  VLStore, 
+  collapseStore, 
+  useProjectWorkflowNames, 
+  generateDefaultWorkflowNames 
+} from '@/stores/layersStateManager';
 import { Search, Circle, Square, Triangle, Hexagon, Minus, ArrowRight, Pen, Type, StickyNote } from 'lucide-react';
 import type { CanvasObject, ShapeNodeData } from '@/lib/kiteframe/types';
-
-// Collapse state management
-class CollapseStore {
-  private subscribers = new Set<() => void>();
-  private collapsed = new Map<string, boolean>();
-  
-  constructor() {
-    // Load from localStorage
-    const saved = localStorage.getItem('layers-collapsed-state');
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        this.collapsed = new Map(Array.isArray(data) ? data : []);
-      } catch (e) {
-        console.warn('Failed to load collapse state:', e);
-      }
-    }
-  }
-  
-  get(id: string): boolean {
-    return this.collapsed.get(id) ?? false;
-  }
-  
-  toggle(id: string) {
-    const current = this.get(id);
-    this.collapsed.set(id, !current);
-    this.save();
-    this.notify();
-  }
-  
-  private save() {
-    try {
-      const entries: [string, boolean][] = [];
-      this.collapsed.forEach((value, key) => {
-        entries.push([key, value]);
-      });
-      localStorage.setItem('layers-collapsed-state', JSON.stringify(entries));
-    } catch (e) {
-      console.warn('Failed to save collapse state:', e);
-    }
-  }
-  
-  private notify() {
-    this.subscribers.forEach(callback => callback());
-  }
-  
-  subscribe(callback: () => void): () => void {
-    this.subscribers.add(callback);
-    return () => this.subscribers.delete(callback);
-  }
-}
-
-const collapseStore = new CollapseStore();
 
 function getShapeIcon(shapeType: string) {
   switch (shapeType) {
@@ -170,8 +121,8 @@ function ShapesListView({ canvasObjects, searchQuery }: { canvasObjects: CanvasO
   );
 }
 
-export function LayersPanel({ nodes, edges, frames, canvasObjects }:{
-  nodes:any[]; edges:any[]; frames?:any[]; canvasObjects?:CanvasObject[];
+export function LayersPanel({ nodes, edges, frames, canvasObjects, projectId }:{
+  nodes:any[]; edges:any[]; frames?:any[]; canvasObjects?:CanvasObject[]; projectId?: string;
 }) {
   const [mode, setMode] = useState<LayerMode>('structure');
   const [tree, setTree] = useState<any>(null);
@@ -188,12 +139,11 @@ export function LayersPanel({ nodes, edges, frames, canvasObjects }:{
   const rootId = mode==='structure' ? 'structureRoot' : mode==='topology' ? 'topologyRoot' : mode==='spatial' ? 'spatialRoot' : 'linksRoot';
   const getChildren = (id:string):string[] => tree?.groups[id]?.childIds ?? [];
 
-  const workflowNames = useWorkflowNames();
+  const workflowNames = useProjectWorkflowNames();
 
-  const { rows, ancestorsIndex, defaultNames } = useMemo(()=>{
-    if(!tree) return { rows:[], ancestorsIndex:{} as Record<string,string[]>, defaultNames:{} as Record<string,string> };
-    
-    // Generate default workflow names based on position
+  // Compute default workflow names for display
+  const defaultWorkflowNames = useMemo(() => {
+    if (!tree) return {} as Record<string, string>;
     const workflowsById: Record<string, string[]> = {};
     Object.entries(tree.groups).forEach(([groupId, group]) => {
       if ((group as any).role === 'workflow' && groupId.startsWith('wf:')) {
@@ -201,13 +151,16 @@ export function LayersPanel({ nodes, edges, frames, canvasObjects }:{
         workflowsById[wfKey] = (group as any).childIds.filter((id: string) => !id.startsWith('e:'));
       }
     });
-    const generatedDefaults = generateDefaultWorkflowNames(workflowsById, nodes);
-    
-    // Populate nodeToWorkflowStore with node-to-workflow mappings
-    const mappings = [];
+    return generateDefaultWorkflowNames(workflowsById, nodes);
+  }, [tree, nodes]);
+
+  // Update nodeToWorkflowStore in useEffect (not during render)
+  useEffect(() => {
+    if (!tree) return;
+    const mappings: { nodeId: string; workflowGroupId: string; workflowName: string }[] = [];
     Object.entries(tree.groups).forEach(([groupId, group]) => {
       if ((group as any).role === 'workflow' && groupId.startsWith('wf:')) {
-        const wfName = workflowNames.get(groupId) || generatedDefaults[groupId] || (group as any).name;
+        const wfName = workflowNames.get(groupId) || defaultWorkflowNames[groupId] || (group as any).name;
         (group as any).childIds.forEach((childId: string) => {
           if (!childId.startsWith('e:')) {
             mappings.push({ 
@@ -220,6 +173,12 @@ export function LayersPanel({ nodes, edges, frames, canvasObjects }:{
       }
     });
     nodeToWorkflowStore.setMultiple(mappings);
+  }, [tree, workflowNames, defaultWorkflowNames]);
+
+  const { rows, ancestorsIndex, defaultNames } = useMemo(()=>{
+    if(!tree) return { rows:[], ancestorsIndex:{} as Record<string,string[]>, defaultNames:{} as Record<string,string> };
+    
+    const generatedDefaults = defaultWorkflowNames;
     
     const idx: Record<string,string[]> = {};
     const out:any[]=[];
