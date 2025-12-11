@@ -42,13 +42,13 @@ export function convertFigmaFrameToNodes(
     height: Math.min(frame.height, 600),
     data: {
       label: frame.name,
-      imageUrl: thumbnailUrl || '',
+      src: thumbnailUrl || '',
       // Core Figma metadata
       figmaFileKey: figmaFileKey || '',
       figmaNodeId: frame.id,
       figmaNodeName: frame.name,
       // Reference frame flags
-      isReferenceFrame: true,
+      isReferenceFrame: false,
       sourceType: 'figma-frame',
       importedFrom: 'figma',
       // Legacy fields (kept for backward compatibility)

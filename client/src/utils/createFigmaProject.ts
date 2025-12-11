@@ -42,13 +42,13 @@ export function buildFigmaFrameWorkflow(
       data: {
         label: frame.name,
         src: thumbnailUrl || '',
-        sourceType: 'url',
+        sourceType: 'figma-frame',
         // Core Figma metadata (spec-compliant)
         figmaFileKey: figmaFileKey || '',
         figmaNodeId: frame.id,
         figmaNodeName: frame.name,
         // Reference frame flags
-        isReferenceFrame: true,
+        isReferenceFrame: false,
         importedFrom: 'figma',
         // Legacy fields (kept for backward compatibility)
         figmaId: frame.id,
