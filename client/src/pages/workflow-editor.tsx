@@ -8730,8 +8730,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 const frameName = linearToolbar.node.data.label || 'Figma Frame';
                 
                 try {
-                  const { nodes: generatedNodes, edges: generatedEdges, workflowGroupId } = 
-                    generateWorkflowFromFigmaSemantic(semantic, frameName, linearToolbar.node);
+                  const result = generateWorkflowFromFigmaSemantic(semantic, frameName, linearToolbar.node);
+                  const { nodes: generatedNodes, edges: generatedEdges, workflowName } = result;
                   
                   if (generatedNodes.length > 0) {
                     saveToHistory();
@@ -8742,12 +8742,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     
                     toast({
                       title: "Workflow Generated",
-                      description: `Created ${generatedNodes.length} nodes from "${frameName}"`,
+                      description: `Created ${generatedNodes.length} step${generatedNodes.length > 1 ? 's' : ''} from "${workflowName}"`,
                     });
                   } else {
                     toast({
-                      title: "No Elements Found",
-                      description: "No semantic elements to generate workflow from",
+                      title: "No Steps Found",
+                      description: "Could not detect logical screens in this Figma frame. Try a frame with clear visual sections.",
                       variant: "destructive",
                     });
                   }
