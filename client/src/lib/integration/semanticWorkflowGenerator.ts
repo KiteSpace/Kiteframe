@@ -10,9 +10,11 @@
 import type { Node, Edge } from '../kiteframe/types';
 import type { FigmaSemanticMetadata, FigmaScreenStep, FigmaWorkflowGraph } from './figmaSemanticTypes';
 import { buildWorkflowGraphFromSemantic } from './figmaWorkflowGraphBuilder';
+import { createProcessNode } from '../kiteframe/factory/NodeFactory';
 
-const NODE_HEIGHT = 120;
-const NODE_WIDTH = 220;
+// Use factory defaults for consistent sizing with node types menu
+const NODE_HEIGHT = 120;  // Matches createProcessNode default
+const NODE_WIDTH = 200;   // Matches createProcessNode default
 const VERTICAL_SPACING = 50;
 const HORIZONTAL_OFFSET = 100;
 
@@ -133,25 +135,24 @@ function createProcessNodeFromStep(
     }
   }
   
+  // Use factory to ensure consistent sizing with node types menu
+  const baseNode = createProcessNode(nodeId, position, {
+    label: step.title,
+    description: description || undefined,
+    colors: getStepColors(step),
+  });
+  
+  // Merge Figma-specific metadata on top of factory defaults
   return {
-    id: nodeId,
-    type: 'process',
-    position,
-    draggable: true,
-    selectable: true,
-    showHandles: true,
-    width: NODE_WIDTH,
-    height: NODE_HEIGHT,
+    ...baseNode,
     data: {
-      label: step.title,
-      description: description || undefined,
+      ...baseNode.data,
       figmaSource: {
         frameId: graph.frameId,
         stepId: step.id,
         pageName: graph.pageName,
       },
       workflowGroupId,
-      colors: getStepColors(step),
     },
   };
 }
