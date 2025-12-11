@@ -1,24 +1,57 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { onAuthStateChange, signInWithGooglePopup, signInWithGoogleRedirect, signOutUser } from '../lib/firebase';
 import { getRedirectResult } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
+// Sync Firebase auth to backend session
+async function syncFirebaseToBackend(user: User): Promise<{ synced: boolean; reason?: string }> {
+  try {
+    const idToken = await user.getIdToken();
+    const response = await fetch('/api/auth/firebase-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ idToken }),
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ Backend session synced:', data.user?.email);
+      return { synced: true };
+    } else if (response.status === 503) {
+      // Firebase Admin SDK not configured - cloud projects won't be available
+      const data = await response.json().catch(() => ({}));
+      console.warn('⚠️ Cloud project sync unavailable:', data.code || 'Service unavailable');
+      return { synced: false, reason: 'cloud_sync_unavailable' };
+    } else {
+      console.warn('⚠️ Backend sync failed:', response.status);
+      return { synced: false, reason: 'sync_failed' };
+    }
+  } catch (error) {
+    console.error('❌ Backend sync error:', error);
+    return { synced: false, reason: 'network_error' };
+  }
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [backendSynced, setBackendSynced] = useState(false);
+  const syncInProgressRef = useRef(false);
 
   useEffect(() => {
     console.log('🔐 useAuth: Component mounted, checking auth state...');
     
     // Check for redirect result when component mounts
     getRedirectResult(auth)
-      .then((result) => {
+      .then(async (result) => {
         if (result?.user) {
           console.log('✅ User authenticated from redirect:', result.user.displayName || result.user.email);
-          // SECURITY: Don't broadcast tokens - Firebase handles cross-tab auth
-          // via its built-in IndexedDB persistence mechanism
+          // Sync to backend after redirect auth
+          const syncResult = await syncFirebaseToBackend(result.user);
+          setBackendSynced(syncResult.synced);
         } else {
           console.log('ℹ️ No redirect result found');
         }
@@ -62,11 +95,21 @@ export function useAuth() {
     window.addEventListener('message', handleMessage);
 
     // Listen for authentication state changes
-    const unsubscribe = onAuthStateChange((user) => {
+    const unsubscribe = onAuthStateChange(async (user) => {
       console.log('🔄 Auth state changed:', user ? `User: ${user.displayName || user.email}` : 'No user');
       setUser(user);
       setLoading(false);
       setError(null);
+      
+      // Sync to backend when user signs in (if not already synced)
+      if (user && !syncInProgressRef.current) {
+        syncInProgressRef.current = true;
+        const syncResult = await syncFirebaseToBackend(user);
+        setBackendSynced(syncResult.synced);
+        syncInProgressRef.current = false;
+      } else if (!user) {
+        setBackendSynced(false);
+      }
     });
 
     return () => {
@@ -109,10 +152,21 @@ export function useAuth() {
       setError(null);
       console.log('🔓 Starting complete sign out...');
       
-      // 1. Sign out from Firebase
+      // 1. Clear backend session first
+      try {
+        await fetch('/api/auth/firebase-logout', {
+          method: 'POST',
+          credentials: 'include',
+        });
+        console.log('✅ Backend session cleared');
+      } catch (e) {
+        console.log('⚠️ Could not clear backend session:', e);
+      }
+      
+      // 2. Sign out from Firebase
       await signOutUser();
       
-      // 2. Clear any cached auth data from browser storage
+      // 3. Clear any cached auth data from browser storage
       try {
         localStorage.removeItem('firebase:authUser:[DEFAULT]');
         localStorage.removeItem('firebase:authUser:' + import.meta.env.VITE_FIREBASE_PROJECT_ID);
@@ -127,7 +181,7 @@ export function useAuth() {
         console.log('⚠️ Could not clear some storage:', storageError);
       }
       
-      // 3. Broadcast sign out to any other tabs/iframes
+      // 4. Broadcast sign out to any other tabs/iframes
       try {
         new BroadcastChannel('firebase-auth-sync').postMessage({
           type: 'FIREBASE_AUTH_SIGNOUT'
@@ -136,7 +190,8 @@ export function useAuth() {
         console.log('⚠️ BroadcastChannel not available for signout');
       }
       
-      // 4. Force reload to ensure clean state
+      // 5. Force reload to ensure clean state
+      setBackendSynced(false);
       console.log('✅ Complete sign out successful, reloading...');
       window.location.reload();
       
@@ -153,5 +208,6 @@ export function useAuth() {
     signIn,
     signOut,
     isAuthenticated: !!user,
+    backendSynced,
   };
 }

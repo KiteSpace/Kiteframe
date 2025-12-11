@@ -35,6 +35,10 @@ import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, 
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
 import { z } from "zod";
 import { registerFigmaRoutes } from "./figmaRoutes";
+import { verifyFirebaseIdToken, initializeFirebaseAdmin, isAdminSdkAvailable, getInitializationError } from "./firebaseAdmin";
+
+// Initialize Firebase Admin on module load
+initializeFirebaseAdmin();
 
 // Admin email check helper - checks if user email is in ADMIN_EMAILS list
 function isAdminUser(email: string | undefined | null): boolean {
@@ -250,6 +254,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup Figma API proxy routes
   registerFigmaRoutes(app);
+
+  // Firebase auth sync endpoint - syncs Firebase auth to backend session
+  app.post('/api/auth/firebase-sync', authRateLimiter, async (req: any, res) => {
+    try {
+      // Check if Firebase Admin SDK is properly configured
+      if (!isAdminSdkAvailable()) {
+        const error = getInitializationError() || 'Firebase Admin SDK not configured';
+        console.warn('Firebase sync failed: Admin SDK not available');
+        return res.status(503).json({ 
+          error: 'Cloud project sync unavailable', 
+          message: error,
+          code: 'FIREBASE_ADMIN_NOT_CONFIGURED'
+        });
+      }
+      
+      const { idToken } = req.body;
+      
+      if (!idToken || typeof idToken !== 'string') {
+        return res.status(400).json({ error: 'Firebase ID token is required' });
+      }
+
+      const decodedToken = await verifyFirebaseIdToken(idToken);
+      
+      if (!decodedToken) {
+        return res.status(401).json({ error: 'Invalid or expired Firebase token' });
+      }
+
+      const { uid, email, name, picture } = decodedToken;
+      
+      // Find or create user in database
+      let user = await storage.getUserByEmail(email || '');
+      
+      if (!user && email) {
+        // Create new user from Firebase auth
+        user = await storage.upsertUser({
+          id: uid,
+          email: email,
+          firstName: name?.split(' ')[0] || null,
+          lastName: name?.split(' ').slice(1).join(' ') || null,
+          profileImageUrl: picture || null,
+          subscriptionTier: 'free',
+          subscriptionStatus: 'active',
+        });
+      } else if (user) {
+        // Update existing user if needed
+        user = await storage.upsertUser({
+          id: user.id,
+          email: user.email || email,
+          firstName: user.firstName || name?.split(' ')[0] || null,
+          lastName: user.lastName || name?.split(' ').slice(1).join(' ') || null,
+          profileImageUrl: user.profileImageUrl || picture || null,
+        });
+      }
+
+      if (!user) {
+        return res.status(500).json({ error: 'Failed to create or find user' });
+      }
+
+      // Establish session by setting req.user with the same structure as Passport
+      const sessionUser = {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImageUrl: user.profileImageUrl,
+        subscriptionTier: user.subscriptionTier,
+        subscriptionStatus: user.subscriptionStatus,
+        claims: {
+          sub: user.id,
+          email: user.email,
+          name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        },
+        expires_at: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
+      };
+
+      // Use passport's login to establish session
+      req.login(sessionUser, (err: any) => {
+        if (err) {
+          console.error('Failed to establish session:', err);
+          return res.status(500).json({ error: 'Failed to establish session' });
+        }
+
+        const isAdmin = isAdminUser(user!.email);
+        
+        res.json({
+          success: true,
+          user: {
+            ...user,
+            isAdmin,
+            subscriptionTier: isAdmin ? 'pro' : user!.subscriptionTier,
+            isUnlimited: isAdmin ? true : undefined,
+          },
+        });
+      });
+    } catch (error) {
+      console.error('Firebase sync error:', error);
+      res.status(500).json({ error: 'Failed to sync Firebase authentication' });
+    }
+  });
+
+  // Firebase logout - clear backend session
+  app.post('/api/auth/firebase-logout', async (req: any, res) => {
+    try {
+      req.logout((err: any) => {
+        if (err) {
+          console.error('Logout error:', err);
+          return res.status(500).json({ error: 'Failed to logout' });
+        }
+        req.session?.destroy((err: any) => {
+          if (err) {
+            console.error('Session destroy error:', err);
+          }
+          res.clearCookie('connect.sid');
+          res.json({ success: true });
+        });
+      });
+    } catch (error) {
+      console.error('Firebase logout error:', error);
+      res.status(500).json({ error: 'Failed to logout' });
+    }
+  });
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
