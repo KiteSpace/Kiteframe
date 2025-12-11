@@ -1,0 +1,111 @@
+REPLIT: UPDATED SPEC + PANEL SYSTEM ARCHITECTURE DECISIONS
+==========================================================
+
+This document resolves all open structural questions regarding the
+Project Panel, Workflow Specs, and WorkflowGroup identification.
+
+--------------------------
+1. WORKFLOW GROUP SYSTEM
+--------------------------
+
+Implement a computed grouping mechanism, no persistent storage:
+
+groupWorkflows(nodes, edges) → WorkflowGroup[]
+
+Definition:
+A WorkflowGroup is a connected graph of nodes and edges.
+
+Algorithm:
+1. Use DFS/BFS to find connected components.
+2. Within each component, find the node with the smallest (x + y) coordinate.
+3. That node is workflowRoot for the group.
+4. Assign workflowId to each node in the group: workflow-{rootNodeId}
+
+No UI changes required yet; this enables Specs, Notes, and Layers grouping.
+
+--------------------------
+2. SPEC STORAGE MODEL
+--------------------------
+
+MVP storage = localStorage
+Sync model = future phase using Firebase project storage
+
+Key format:
+spec-[projectId]-[workflowId]
+
+Spec loads:
+1. Load from localStorage on project load.
+2. If user signed in, later phases will sync to cloud (not needed now).
+
+--------------------------
+3. SPEC HASH STABILITY
+--------------------------
+
+To prevent frequent “stale spec” messages, hash only semantic data.
+
+Implement a new function:
+extractSemanticNodeData(node) → object
+
+Include:
+- node.type
+- node.data.label
+- node.data.text
+- node.data.fields
+- node connections (incoming/outgoing edges)
+
+Exclude:
+- position
+- style
+- dimensions
+- colors
+
+Workflow hash becomes:
+hash(JSON.stringify({
+  nodes: semanticNodeData[],
+  edges: simplifiedEdgeList
+}))
+
+--------------------------
+4. PROJECT PANEL PHASED IMPLEMENTATION
+--------------------------
+
+Phase 1 (implement now):
+- Right-side Project Panel component
+- Tabs: Layers, Notes (Notes = simple textarea with localStorage)
+- Replace "Layers" button with "Project" button
+- Panel anchored right with width: 360px
+
+Phase 2:
+- Make panel collapsible:
+   panelOpen boolean state
+   width transitions: 360px <-> 0px
+   chevron to collapse/expand
+- Canvas expands when panel collapsed
+
+Phase 3:
+- Add Specs tab:
+   - Generate Spec (AI)
+   - Update Spec
+   - Fresh/Stale indicator via workflow hash
+   - Automatic open on generate/update
+
+Phase 4:
+- Add Sources tab and Project Details tab:
+   - Figma file references
+   - Jira or doc references
+   - Project meta (name, color, description)
+
+--------------------------
+5. UX RULES
+--------------------------
+
+1. Clicking “Project” always opens the panel.
+2. Collapsing does not lose tab state.
+3. When Generate Spec or Update Spec is called:
+   - Force panelOpen = true
+   - Switch to Specs tab
+4. Workflows must reflect grouping from grouping function above.
+
+--------------------------
+END OF DOCUMENT
+--------------------------

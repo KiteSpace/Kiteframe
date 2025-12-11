@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
 import { usePluginSystem } from '@/lib/kiteframe/core/PluginProvider';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
-import FloatingLayersWidget from '@/components/layers/FloatingLayersWidget';
+import { ProjectPanel } from '@/components/panels/ProjectPanel';
 import { BlankCanvasState } from '@/components/BlankCanvasState';
 import { PluginProvider, layoutPlugin, consolePlugin, testPlugin, advancedInteractionsPlugin } from '@/lib/kiteframe';
 import { PluginTestButton } from '@/components/PluginTestButton';
@@ -7336,12 +7336,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }}
             />
                 
-                <FloatingLayersWidget
-                  nodes={nodes}
-                  edges={edges}
-                  frames={[]}
-                  canvasObjects={canvasObjects}
-                />
 
                 {/* Power Features Button */}
                 {!isReadOnly && (
@@ -7517,6 +7511,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               />
             )}
           </div>
+          
+          {/* Project Panel - docked right side */}
+          {tabs.length > 0 && (
+            <ProjectPanel
+              nodes={nodes}
+              edges={edges}
+              frames={[]}
+              canvasObjects={canvasObjects}
+              projectId={activeTabId}
+            />
+          )}
           </>
           )}
         </div>

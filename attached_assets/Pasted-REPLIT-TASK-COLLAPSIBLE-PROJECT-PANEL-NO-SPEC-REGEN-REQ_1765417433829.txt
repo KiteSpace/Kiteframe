@@ -1,0 +1,65 @@
+REPLIT TASK — COLLAPSIBLE PROJECT PANEL (NO SPEC REGEN REQUIRED)
+================================================================
+
+GOAL
+----
+Make the new right-side Project Panel collapsible/expandable without altering 
+spec generation, spec data, workflow hashing, or any existing project logic.
+
+FEATURES
+--------
+1. Replace the existing "Layers" button in the left toolbar with a new button:
+   - Label: "Project"
+   - Icon: sidebar-right or folder
+   - Behavior:
+     - If panel is closed → open it
+     - If panel is open → focus last active tab
+
+2. Add collapsible behavior to ProjectPanel:
+   - Controlled by a new boolean UI state: projectPanelOpen: boolean
+   - Default: open on desktop, closed on mobile if needed
+   - Width transitions:
+       OPEN: 360px (or the existing width)
+       CLOSED: 0px
+   - Smooth CSS transition on width and opacity
+
+3. Add a collapsible chevron in the panel header:
+   - Chevron-left means “collapse”
+   - Chevron-right appears when collapsed (floating over canvas edge)
+   - Clicking toggles projectPanelOpen state
+
+4. Ensure ProjectPanelTabs remain rendered even when closed 
+   (but hidden visually) so state persists.
+
+5. Integration with workflow actions:
+   - When any action explicitly requests to open a tab
+     (Generate Spec, Update Spec, Open Spec, Rename Workflow, etc.)
+     → force projectPanelOpen = true
+
+6. NO CHANGES to:
+   - WorkflowSpec types or data
+   - Workflow hashing or stale detection
+   - AI generation logic
+   - Figma import
+   - Node behavior
+
+7. Component modifications:
+   - workflow-editor.tsx:
+       Wrap ProjectPanel in a width transition container
+       Add projectPanelOpen state to layout
+   - ProjectPanel.tsx:
+       Add chevron button
+       Listen to projectPanelOpen state
+   - LeftToolbar or equivalent:
+       Add new "Project" button that toggles panel
+
+8. Accessibility:
+   - When collapsed, the panel should be removed from tab order
+   - ARIA label for toggle button: "Toggle project panel"
+
+OUTCOME
+-------
+The panel can open/close without affecting any backend logic 
+or AI-driven spec behavior.
+
+END
