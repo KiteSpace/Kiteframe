@@ -250,11 +250,17 @@ export function FigmaImportModal({
       }
     } catch (err) {
       console.error('Figma import error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch Figma file');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch Figma file';
+      setError(errorMessage);
+      
+      // If we got a reconnect message, refresh the status to update the UI
+      if (errorMessage.includes('Reconnect')) {
+        queryFigmaStatus();
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [url, pat, figmaStatus, onImport, onClose, mode, resetState]);
+  }, [url, pat, figmaStatus, onImport, onClose, mode, resetState, queryFigmaStatus]);
 
   const handleFrameSelect = useCallback(async (selectedFrames: FigmaFrame[]) => {
     if (selectedFrames.length === 0) return;
@@ -305,11 +311,17 @@ export function FigmaImportModal({
       onClose();
     } catch (err) {
       console.error('Error importing frames:', err);
-      setError(err instanceof Error ? err.message : 'Failed to import frames');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to import frames';
+      setError(errorMessage);
+      
+      // Refresh status if reconnect is needed
+      if (errorMessage.includes('Reconnect')) {
+        queryFigmaStatus();
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [fileKey, pat, figmaStatus, onImport, onClose, mode, resetState]);
+  }, [fileKey, pat, figmaStatus, onImport, onClose, mode, resetState, queryFigmaStatus]);
 
   const handleOAuthConnect = useCallback(() => {
     if (figmaStatus?.connected) return;
@@ -345,6 +357,57 @@ export function FigmaImportModal({
       }
     }, 500);
   }, [figmaStatus, oauthPending, queryFigmaStatus]);
+
+  const handleReconnect = useCallback(async () => {
+    setOauthPending(true);
+    setError(null);
+    
+    try {
+      // First disconnect to clear invalid tokens
+      await fetch('/api/figma/disconnect', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      
+      // Wait briefly for session to update
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Update status to reflect disconnected state
+      setFigmaStatus(prev => prev ? { ...prev, connected: false } : null);
+      
+      // Now start OAuth flow
+      const width = 600;
+      const height = 700;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      
+      const popup = window.open(
+        '/api/figma/auth',
+        'figma-oauth',
+        `width=${width},height=${height},left=${left},top=${top},popup=1`
+      );
+
+      if (!popup) {
+        setOauthPending(false);
+        setError('Popup was blocked. Please allow popups for this site.');
+        return;
+      }
+
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          setTimeout(() => {
+            setOauthPending(false);
+            queryFigmaStatus();
+          }, 500);
+        }
+      }, 500);
+    } catch (err) {
+      console.error('Error during reconnect:', err);
+      setOauthPending(false);
+      setError('Failed to reconnect. Please try again.');
+    }
+  }, [queryFigmaStatus]);
 
   const handlePageAsFlattened = useCallback(async (overridePage?: { id: string; name: string; type: string }) => {
     const targetPage = overridePage || pageNode;
@@ -382,10 +445,15 @@ export function FigmaImportModal({
       console.error('Error importing page as flattened:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to import page';
       setError(`Could not render page "${targetPage.name}": ${errorMessage}`);
+      
+      // Refresh status if reconnect is needed
+      if (errorMessage.includes('Reconnect')) {
+        queryFigmaStatus();
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [pageNode, fileKey, pat, figmaStatus, onImport, onClose, mode, resetState, url]);
+  }, [pageNode, fileKey, pat, figmaStatus, onImport, onClose, mode, resetState, url, queryFigmaStatus]);
 
   const handleClose = useCallback(() => {
     if (!isLoading && !oauthPending) {
@@ -640,9 +708,25 @@ export function FigmaImportModal({
 
         <div className="space-y-4 py-4">
           {isConnected && (
-            <div className="flex items-center gap-2 p-3 bg-green-500/10 text-green-700 dark:text-green-400 rounded-md text-sm">
-              <CheckCircle size={16} />
-              Connected to Figma via OAuth
+            <div className="flex items-center justify-between p-3 bg-green-500/10 text-green-700 dark:text-green-400 rounded-md text-sm">
+              <div className="flex items-center gap-2">
+                <CheckCircle size={16} />
+                Connected to Figma via OAuth
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleReconnect}
+                disabled={oauthPending}
+                className="text-xs h-7 px-2 text-green-700 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300"
+                data-testid="button-figma-reconnect"
+              >
+                {oauthPending ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  'Reconnect'
+                )}
+              </Button>
             </div>
           )}
 

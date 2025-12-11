@@ -39,6 +39,26 @@ export async function callFigmaApi<T = any>(
 
   if (!response.ok) {
     const errorData: FigmaApiError = await response.json().catch(() => ({ error: 'Unknown error' }));
+    
+    // Handle 401 specifically - token is invalid or expired
+    if (response.status === 401) {
+      // Only handle OAuth-specific recovery if not using PAT
+      if (!patToken) {
+        // Try to clear invalid OAuth tokens by calling disconnect
+        try {
+          await fetch('/api/figma/disconnect', {
+            method: 'POST',
+            credentials: 'include',
+          });
+        } catch (e) {
+          // Ignore disconnect errors
+        }
+        throw new Error('Your Figma connection has expired. Please click "Reconnect" to re-authenticate.');
+      }
+      // For PAT errors, pass through the original error message
+      throw new Error(errorData.error || 'Invalid or expired Figma token. Please verify your Personal Access Token.');
+    }
+    
     throw new Error(errorData.error || `Figma API error: ${response.status}`);
   }
 
