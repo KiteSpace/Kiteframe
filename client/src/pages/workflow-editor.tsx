@@ -7520,6 +7520,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               frames={[]}
               canvasObjects={canvasObjects}
               projectId={activeTabId}
+              projectName={activeTab?.name}
+              onProjectNameChange={(name) => updateActiveTab({ name })}
             />
           )}
           </>
