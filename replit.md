@@ -47,6 +47,20 @@ Preferred communication style: Simple, everyday language.
 - **User Model**: Database users with email, profile info, subscription tier, and linked OAuth providers.
 - **Session Storage**: PostgreSQL-backed sessions with Passport.js.
 - **Account Linking**: Automatically links new OAuth providers to existing accounts by email match.
+- **Firebase-Backend Sync**: Frontend Firebase auth syncs to backend Passport sessions via `/api/auth/firebase-sync` endpoint for cloud project access.
+
+#### Firebase Service Account Setup (Required for Cloud Projects)
+Cloud-saved projects require Firebase Admin SDK credentials for secure token verification. Without credentials, users can still sign in via Firebase but cloud project sync returns 503.
+
+**To enable cloud projects:**
+1. Go to Firebase Console → Project Settings → Service Accounts
+2. Generate a new private key (JSON file)
+3. Add the JSON content as `FIREBASE_SERVICE_ACCOUNT_KEY` secret in Replit
+4. Restart the application - you should see "Firebase Admin initialized with credentials" in logs
+
+**Verification:**
+- With credentials: Sign-in syncs to backend, `/api/auth/user` returns user data, cloud projects save/load
+- Without credentials: Sign-in works but backend returns 503 on sync, local storage only
 
 ### Subscription System (KiteAI)
 - **Three-Tier Model**: Free (25 credits/month), Advanced (150 credits/month, $14.99/mo), Pro (500 credits/month, $29.99/mo).
