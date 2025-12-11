@@ -1,4 +1,5 @@
 import type { Node, Edge } from '../types';
+import { computeWorkflowHash as computeHash, getStoredHash, storeHash, isWorkflowStale } from './semanticHash';
 
 export interface WorkflowGroup {
   id: string;
@@ -6,6 +7,9 @@ export interface WorkflowGroup {
   rootNodeId: string;
   nodeIds: string[];
   edgeIds: string[];
+  nodes: Node[];
+  edges: Edge[];
+  hash: string;
 }
 
 export function groupWorkflows(nodes: Node[], edges: Edge[]): WorkflowGroup[] {
@@ -70,12 +74,15 @@ export function groupWorkflows(nodes: Node[], edges: Edge[]): WorkflowGroup[] {
       }
     });
 
-    const componentEdgeIds = edges
-      .filter(e => componentNodeIds.includes(e.source) && componentNodeIds.includes(e.target))
-      .map(e => e.id);
+    const componentEdges = edges
+      .filter(e => componentNodeIds.includes(e.source) && componentNodeIds.includes(e.target));
+    const componentEdgeIds = componentEdges.map(e => e.id);
+    
+    const componentNodes = componentNodeIds.map(id => nodeMap.get(id)!).filter(Boolean);
 
     const rootNode = nodeMap.get(rootNodeId);
     const defaultName = rootNode?.data?.label || rootNode?.data?.name || `Workflow ${groups.length + 1}`;
+    const hash = computeHash(componentNodes, componentEdges);
 
     groups.push({
       id: `workflow-${rootNodeId}`,
@@ -83,6 +90,9 @@ export function groupWorkflows(nodes: Node[], edges: Edge[]): WorkflowGroup[] {
       rootNodeId,
       nodeIds: componentNodeIds,
       edgeIds: componentEdgeIds,
+      nodes: componentNodes,
+      edges: componentEdges,
+      hash,
     });
   });
 
@@ -107,22 +117,16 @@ export function extractSemanticNodeData(node: Node): object {
 }
 
 export function computeWorkflowHash(nodes: Node[], edges: Edge[]): string {
-  const semanticData = {
-    nodes: nodes.map(extractSemanticNodeData).sort((a: any, b: any) => a.id.localeCompare(b.id)),
-    edges: edges.map(e => ({ 
-      id: e.id, 
-      source: e.source, 
-      target: e.target,
-      label: e.label || ''
-    })).sort((a, b) => a.id.localeCompare(b.id)),
-  };
-  
-  const str = JSON.stringify(semanticData);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return hash.toString(36);
+  return computeHash(nodes, edges);
 }
+
+export function checkWorkflowStale(projectId: string, workflowId: string, nodes: Node[], edges: Edge[]): boolean {
+  return isWorkflowStale(projectId, workflowId, nodes, edges);
+}
+
+export function saveWorkflowHash(projectId: string, workflowId: string, nodes: Node[], edges: Edge[]): void {
+  const hash = computeHash(nodes, edges);
+  storeHash(projectId, workflowId, hash);
+}
+
+export { getStoredHash, storeHash, isWorkflowStale } from './semanticHash';

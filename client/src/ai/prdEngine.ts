@@ -1,0 +1,264 @@
+import type { AiClient, AiMessage } from './types';
+import type { SemanticWorkflowModel } from '../lib/kiteframe/utils/extractSemanticWorkflowModel';
+
+export interface PRDSection {
+  id: string;
+  title: string;
+  content: string;
+}
+
+export interface WorkflowPRD {
+  workflowId: string;
+  workflowName: string;
+  sections: PRDSection[];
+  manualEditedAt: Record<string, number>;
+  version: number;
+  generatedAt: number;
+  hash?: string;
+}
+
+export interface ProjectPRD {
+  projectId: string;
+  projectName: string;
+  sections: PRDSection[];
+  manualEditedAt: Record<string, number>;
+  version: number;
+  generatedAt: number;
+}
+
+const DEFAULT_WORKFLOW_SECTIONS = [
+  { id: 'overview', title: 'Overview' },
+  { id: 'requirements', title: 'Requirements' },
+  { id: 'user-flow', title: 'User Flow' },
+  { id: 'inputs-outputs', title: 'Inputs & Outputs' },
+  { id: 'acceptance-criteria', title: 'Acceptance Criteria' },
+];
+
+const DEFAULT_PROJECT_SECTIONS = [
+  { id: 'overview', title: 'Project Overview' },
+  { id: 'goals', title: 'Goals & Objectives' },
+  { id: 'architecture', title: 'System Architecture' },
+  { id: 'workflows', title: 'Workflow Summary' },
+  { id: 'assumptions', title: 'Assumptions' },
+];
+
+function buildWorkflowPrompt(model: SemanticWorkflowModel): string {
+  const nodesDesc = model.nodes.map(n => 
+    `- ${n.label || n.type} (${n.type})${n.description ? `: ${n.description}` : ''}`
+  ).join('\n');
+  
+  const edgesDesc = model.edges.map(e => {
+    const sourceNode = model.nodes.find(n => n.id === e.source);
+    const targetNode = model.nodes.find(n => n.id === e.target);
+    return `- ${sourceNode?.label || 'Node'} → ${targetNode?.label || 'Node'}${e.label ? ` (${e.label})` : ''}`;
+  }).join('\n');
+  
+  return `
+Generate a Product Requirements Document (PRD) for this workflow:
+
+Workflow Name: ${model.name}
+Node Count: ${model.nodeCount}
+
+Nodes:
+${nodesDesc}
+
+Connections:
+${edgesDesc}
+
+Entry Points: ${model.entryPoints.join(', ') || 'None identified'}
+Exit Points: ${model.exitPoints.join(', ') || 'None identified'}
+Forms: ${model.forms.length > 0 ? model.forms.map(f => f.nodeName).join(', ') : 'None'}
+Screens: ${model.screens.length > 0 ? model.screens.map(s => s.name).join(', ') : 'None'}
+Primary Actions: ${model.primaryActions.join(', ') || 'None identified'}
+Error Paths: ${model.errorPaths.join(', ') || 'None identified'}
+
+Return ONLY valid JSON in this exact format:
+{
+  "overview": "markdown content",
+  "requirements": "markdown content", 
+  "user-flow": "markdown content",
+  "inputs-outputs": "markdown content",
+  "acceptance-criteria": "markdown content"
+}
+`;
+}
+
+function buildProjectPrompt(
+  projectName: string,
+  workflowModels: SemanticWorkflowModel[]
+): string {
+  const workflowSummaries = workflowModels.map(w => 
+    `- ${w.name}: ${w.nodeCount} nodes, ${w.edges.length} connections. Entry: ${w.entryPoints[0] || 'N/A'}, Exit: ${w.exitPoints[0] || 'N/A'}`
+  ).join('\n');
+  
+  return `
+Generate a Project-level PRD for:
+
+Project Name: ${projectName}
+Total Workflows: ${workflowModels.length}
+
+Workflows:
+${workflowSummaries}
+
+Return ONLY valid JSON in this exact format:
+{
+  "overview": "markdown content",
+  "goals": "markdown content",
+  "architecture": "markdown content",
+  "workflows": "markdown content",
+  "assumptions": "markdown content"
+}
+`;
+}
+
+function parseAIResponse(text: string, sectionIds: string[]): Record<string, string> {
+  let cleanedResponse = text
+    .replace(/^```json\s?|```$/g, '')
+    .replace(/^[^{]*/, '')
+    .trim();
+  
+  const lastBraceIndex = cleanedResponse.lastIndexOf('}');
+  if (lastBraceIndex !== -1) {
+    cleanedResponse = cleanedResponse.substring(0, lastBraceIndex + 1);
+  }
+  
+  try {
+    const parsed = JSON.parse(cleanedResponse);
+    const result: Record<string, string> = {};
+    
+    sectionIds.forEach(id => {
+      result[id] = parsed[id] || '';
+    });
+    
+    return result;
+  } catch {
+    return sectionIds.reduce((acc, id) => {
+      acc[id] = '';
+      return acc;
+    }, {} as Record<string, string>);
+  }
+}
+
+export async function generateWorkflowPRD(
+  aiClient: AiClient,
+  model: SemanticWorkflowModel,
+  existingPRD?: WorkflowPRD
+): Promise<WorkflowPRD> {
+  const prompt = buildWorkflowPrompt(model);
+  
+  const messages: AiMessage[] = [
+    { role: 'system', content: 'You are a technical writer creating PRDs for workflow diagrams. Be concise and specific. Output only valid JSON.' },
+    { role: 'user', content: prompt }
+  ];
+  
+  const response = await aiClient.chat({
+    messages,
+    temperature: 0.3,
+    maxTokens: 2000
+  });
+  
+  const sectionIds = DEFAULT_WORKFLOW_SECTIONS.map(s => s.id);
+  const parsedSections = parseAIResponse(response.text, sectionIds);
+  
+  const sections: PRDSection[] = DEFAULT_WORKFLOW_SECTIONS.map(s => {
+    if (existingPRD?.manualEditedAt[s.id]) {
+      const existingSection = existingPRD.sections.find(es => es.id === s.id);
+      if (existingSection) {
+        return existingSection;
+      }
+    }
+    
+    return {
+      id: s.id,
+      title: s.title,
+      content: parsedSections[s.id] || ''
+    };
+  });
+  
+  return {
+    workflowId: model.workflowId,
+    workflowName: model.name,
+    sections,
+    manualEditedAt: existingPRD?.manualEditedAt || {},
+    version: (existingPRD?.version || 0) + 1,
+    generatedAt: Date.now()
+  };
+}
+
+export async function generateProjectPRD(
+  aiClient: AiClient,
+  projectId: string,
+  projectName: string,
+  workflowModels: SemanticWorkflowModel[],
+  existingPRD?: ProjectPRD
+): Promise<ProjectPRD> {
+  const prompt = buildProjectPrompt(projectName, workflowModels);
+  
+  const messages: AiMessage[] = [
+    { role: 'system', content: 'You are a technical writer creating project PRDs. Be concise. Output only valid JSON.' },
+    { role: 'user', content: prompt }
+  ];
+  
+  const response = await aiClient.chat({
+    messages,
+    temperature: 0.3,
+    maxTokens: 2000
+  });
+  
+  const sectionIds = DEFAULT_PROJECT_SECTIONS.map(s => s.id);
+  const parsedSections = parseAIResponse(response.text, sectionIds);
+  
+  const sections: PRDSection[] = DEFAULT_PROJECT_SECTIONS.map(s => {
+    if (existingPRD?.manualEditedAt[s.id]) {
+      const existingSection = existingPRD.sections.find(es => es.id === s.id);
+      if (existingSection) {
+        return existingSection;
+      }
+    }
+    
+    return {
+      id: s.id,
+      title: s.title,
+      content: parsedSections[s.id] || ''
+    };
+  });
+  
+  return {
+    projectId,
+    projectName,
+    sections,
+    manualEditedAt: existingPRD?.manualEditedAt || {},
+    version: (existingPRD?.version || 0) + 1,
+    generatedAt: Date.now()
+  };
+}
+
+export function createEmptyWorkflowPRD(workflowId: string, workflowName: string): WorkflowPRD {
+  return {
+    workflowId,
+    workflowName,
+    sections: DEFAULT_WORKFLOW_SECTIONS.map(s => ({
+      id: s.id,
+      title: s.title,
+      content: ''
+    })),
+    manualEditedAt: {},
+    version: 0,
+    generatedAt: 0
+  };
+}
+
+export function createEmptyProjectPRD(projectId: string, projectName: string): ProjectPRD {
+  return {
+    projectId,
+    projectName,
+    sections: DEFAULT_PROJECT_SECTIONS.map(s => ({
+      id: s.id,
+      title: s.title,
+      content: ''
+    })),
+    manualEditedAt: {},
+    version: 0,
+    generatedAt: 0
+  };
+}

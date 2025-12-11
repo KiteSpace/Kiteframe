@@ -1,0 +1,133 @@
+KITEFRAME — PRD SYSTEM IMPLEMENTATION SPEC (FINAL)
+==================================================
+
+PHASE 1 — REQUIRED IMPLEMENTATION
+---------------------------------
+
+SECTION 1 — WORKFLOW GROUPING
+1. Create computeWorkflowGroups(nodes, edges) using FlowDetection.detectFlows().
+2. Trigger grouping ONLY when:
+   • User clicks "Generate Spec"
+   • OR user opens Specs tab for a workflow
+3. Cache grouping result until any semantic change occurs:
+   • Node label change
+   • Node type change
+   • Data change
+   • Edge add/remove
+4. Name workflows automatically:
+   Workflow 1, Workflow 2, etc.
+5. Do NOT prompt user when grouping changes.
+   Instead display stale banner inside PRD tab.
+
+SECTION 2 — SEMANTIC HASHING
+1. Create file: client/src/lib/kiteframe/semanticHash.ts
+2. Implement:
+   extractSemanticNodeData(node)
+   computeWorkflowHash(workflowGroup)
+3. Exclude from hash:
+   position, style, handles, width/height
+4. Include in hash:
+   node.type, node.data, labels, edges
+5. Debounce hashing by 500ms.
+6. Storage key:
+   localStorage["hash-" + projectId + "-" + workflowId]
+
+SECTION 3 — PRD STORAGE
+1. Workflow PRDs:
+   localStorage: prd-workflow-[projectId]-[workflowId]
+2. Project PRD:
+   localStorage: prd-project-[projectId]
+3. Structure:
+   {
+     "sections": [
+       { "id": "overview", "title": "Overview", "content": "..." },
+       { "id": "requirements", "title": "Requirements", "content": "..." }
+     ],
+     "manualEditedAt": {}, 
+     "version": 1
+   }
+4. Before regeneration:
+   • Save snapshot to prd-workflow-[...]-backup
+   • Show toast "Spec snapshot saved"
+
+SECTION 4 — PROJECT PANEL UPDATES
+1. Panels already exist at:
+   client/src/components/panels/ProjectPanel/
+2. Add collapsibility:
+   • Add state panelOpen: boolean
+   • Chevron to toggle open/closed
+   • Adjust editor flex layout width
+3. Add new tabs (some exist already):
+   • Layers
+   • Notes
+   • Specs (NEW CONTENT)
+   • Sources
+   • Details
+4. Lazy-load PRD content when tab becomes active.
+
+SECTION 5 — PRD EDITOR
+1. PRD tabs show:
+   • Editable Markdown text areas per section
+   • Preview mode using marked/markdown-it
+2. Track user ownership:
+   • manualEditedAt[sectionId] = timestamp
+3. AI regeneration rules:
+   • Do NOT touch sections with manualEditedAt
+   • Provide "Reset to AI Version" button per section
+
+SECTION 6 — PRD ENGINE
+Create new file:
+client/src/lib/ai/prdEngine.ts
+
+Functions to implement:
+1. generateWorkflowPRD(workflowModel)
+2. updateWorkflowPRD(existingPRD, workflowModel)
+3. generateProjectPRD(allWorkflowModels, projectDetails)
+4. All AI output MUST match PRD JSON structure.
+
+SECTION 7 — STALE DETECTION BANNER
+1. Compare stored hash vs computed hash.
+2. If mismatch:
+   Show banner inside Specs tab:
+   "Workflow changed. Regenerate spec?"
+   Buttons:
+   [Regenerate] [Dismiss]
+
+SECTION 8 — SOURCES INTEGRATION
+1. When Figma import occurs:
+   Add Source entry:
+   {
+     id: uuid,
+     type: "figma",
+     url: figmaFileUrl,
+     name: frame.name or file name,
+     addedAt: timestamp
+   }
+2. Do NOT delete source entries when nodes are deleted.
+3. Allow renaming entries via existing SourcesTab.
+
+SECTION 9 — SEMANTIC WORKFLOW MODEL
+Create file:
+client/src/lib/kiteframe/extractSemanticWorkflowModel.ts
+
+Model should include:
+{
+  workflowId,
+  name,
+  nodes: [...cleanedSemanticNodes],
+  edges: [...],
+  forms: [...derivedFromNodes],
+  screens: [...imageNodes],
+  primaryActions,
+  errorPaths,
+  assumptions
+}
+
+SECTION 10 — PERFORMANCE
+1. If workflow has > 50 nodes:
+   Show warning in Specs tab.
+2. Lazy-load PRDs.
+3. AI calls are async; no Web Worker needed.
+
+==================================================
+END OF SPEC
