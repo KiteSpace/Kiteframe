@@ -85,6 +85,7 @@ import { FigmaImportModal } from '@/components/modals/FigmaImportModal';
 import { parseFigmaUrl } from '@/lib/integration/figmaUrl';
 import { generateWorkflowFromFigmaSemantic } from '@/lib/integration/semanticWorkflowGenerator';
 import { buildFigmaFrameWorkflow, insertFigmaFrames, type FigmaFrameWithThumbnail } from '@/utils/createFigmaProject';
+import { addFigmaSource } from '@/lib/kiteframe/utils/sourceTracking';
 
 // Project metadata types
 interface ProjectLink {
@@ -7885,7 +7886,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         <FigmaImportModal
           isOpen={showFigmaModal}
           onClose={() => setShowFigmaModal(false)}
-          onImport={async (framesWithThumbnails, mode) => {
+          onImport={async (framesWithThumbnails, mode, figmaInfo) => {
             if (framesWithThumbnails.length === 0) {
               toast({
                 title: "No frames selected",
@@ -7898,8 +7899,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             if (mode === 'new-project') {
               const workflowData = buildFigmaFrameWorkflow(framesWithThumbnails);
               const name = generateCuteName();
+              const newTabId = generateTabId();
               const newTab: WorkflowTab = {
-                id: generateTabId(),
+                id: newTabId,
                 name,
                 nodes: workflowData.nodes,
                 edges: workflowData.edges,
@@ -7924,7 +7926,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }
               };
               setTabs(prev => [...prev, newTab]);
-              setActiveTabId(newTab.id);
+              setActiveTabId(newTabId);
+              
+              if (figmaInfo) {
+                addFigmaSource(newTabId, figmaInfo.url, figmaInfo.fileName, figmaInfo.fileKey, framesWithThumbnails.length);
+              }
+              
               toast({
                 title: "Figma Imported",
                 description: `Created "${name}" with ${framesWithThumbnails.length} frame${framesWithThumbnails.length > 1 ? 's' : ''}.`,
@@ -7933,6 +7940,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               saveToHistory();
               const newNodes = insertFigmaFrames(nodes, framesWithThumbnails);
               setNodes(prev => [...prev, ...newNodes]);
+              
+              if (figmaInfo) {
+                addFigmaSource(activeTabId, figmaInfo.url, figmaInfo.fileName, figmaInfo.fileKey, framesWithThumbnails.length);
+              }
+              
               toast({
                 title: "Figma Added",
                 description: `Added ${framesWithThumbnails.length} frame${framesWithThumbnails.length > 1 ? 's' : ''} to your workflow.`,

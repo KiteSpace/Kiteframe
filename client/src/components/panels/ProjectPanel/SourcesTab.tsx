@@ -1,15 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link2, Plus, Trash2, ExternalLink, FileText, Image, Globe } from 'lucide-react';
+import { SiFigma } from 'react-icons/si';
+import { SOURCES_UPDATED_EVENT } from '@/lib/kiteframe/utils/sourceTracking';
 
 interface Source {
   id: string;
   url: string;
   title: string;
-  type: 'link' | 'file' | 'image';
+  type: 'link' | 'file' | 'image' | 'figma';
   addedAt: number;
+  metadata?: {
+    figmaFileKey?: string;
+    figmaFileName?: string;
+    frameCount?: number;
+  };
 }
 
 interface SourcesTabProps {
@@ -23,7 +30,7 @@ export function SourcesTab({ projectId }: SourcesTabProps) {
 
   const storageKey = projectId ? `kiteframe-sources-${projectId}` : 'kiteframe-sources-default';
 
-  useEffect(() => {
+  const loadSources = useCallback(() => {
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
@@ -37,12 +44,22 @@ export function SourcesTab({ projectId }: SourcesTabProps) {
   }, [storageKey]);
 
   useEffect(() => {
-    if (sources.length > 0) {
-      localStorage.setItem(storageKey, JSON.stringify(sources));
-    } else {
-      localStorage.removeItem(storageKey);
-    }
-  }, [sources, storageKey]);
+    loadSources();
+  }, [loadSources]);
+
+  useEffect(() => {
+    const handleSourcesUpdated = (event: CustomEvent<{ projectId?: string }>) => {
+      if (event.detail.projectId === projectId || (!event.detail.projectId && !projectId)) {
+        loadSources();
+      }
+    };
+    
+    window.addEventListener(SOURCES_UPDATED_EVENT, handleSourcesUpdated as EventListener);
+    return () => {
+      window.removeEventListener(SOURCES_UPDATED_EVENT, handleSourcesUpdated as EventListener);
+    };
+  }, [projectId, loadSources]);
+
 
   const detectType = (url: string): Source['type'] => {
     const lower = url.toLowerCase();
@@ -65,6 +82,15 @@ export function SourcesTab({ projectId }: SourcesTabProps) {
     }
   };
 
+  const saveSources = useCallback((updatedSources: Source[]) => {
+    setSources(updatedSources);
+    if (updatedSources.length > 0) {
+      localStorage.setItem(storageKey, JSON.stringify(updatedSources));
+    } else {
+      localStorage.removeItem(storageKey);
+    }
+  }, [storageKey]);
+
   const addSource = () => {
     if (!newUrl.trim()) return;
     
@@ -81,17 +107,18 @@ export function SourcesTab({ projectId }: SourcesTabProps) {
       addedAt: Date.now()
     };
 
-    setSources(prev => [source, ...prev]);
+    saveSources([source, ...sources]);
     setNewUrl('');
     setIsAdding(false);
   };
 
   const removeSource = (id: string) => {
-    setSources(prev => prev.filter(s => s.id !== id));
+    saveSources(sources.filter(s => s.id !== id));
   };
 
   const getIcon = (type: Source['type']) => {
     switch (type) {
+      case 'figma': return <SiFigma size={14} className="text-purple-500" />;
       case 'image': return <Image size={14} className="text-blue-500" />;
       case 'file': return <FileText size={14} className="text-orange-500" />;
       default: return <Globe size={14} className="text-green-500" />;

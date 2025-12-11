@@ -25,10 +25,16 @@ import { extractFigmaSemanticMetadata } from '@/lib/integration/figmaSemanticExt
 import type { FigmaSemanticMetadata } from '@/lib/integration/figmaSemanticTypes';
 import { FigmaFramePicker } from './FigmaFramePicker';
 
+export interface FigmaImportInfo {
+  url: string;
+  fileKey: string;
+  fileName: string;
+}
+
 interface FigmaImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (frames: Array<{ frame: FigmaFrame; thumbnailUrl: string | null; figmaSemantic?: FigmaSemanticMetadata | null }>, mode: 'new-project' | 'insert-into-project') => Promise<void> | void;
+  onImport: (frames: Array<{ frame: FigmaFrame; thumbnailUrl: string | null; figmaSemantic?: FigmaSemanticMetadata | null }>, mode: 'new-project' | 'insert-into-project', figmaInfo?: FigmaImportInfo) => Promise<void> | void;
   mode: 'new-project' | 'insert-into-project';
 }
 
@@ -166,7 +172,11 @@ export function FigmaImportModal({
           console.warn('Failed to extract semantic data for direct import:', extractError);
         }
 
-        await onImport([{ frame, thumbnailUrl, figmaSemantic }], mode);
+        await onImport([{ frame, thumbnailUrl, figmaSemantic }], mode, {
+          url: trimmedUrl,
+          fileKey: parsed.fileKey,
+          fileName: frame.name
+        });
         resetState();
         onClose();
       } else {
@@ -230,7 +240,11 @@ export function FigmaImportModal({
         };
       });
 
-      await onImport(framesWithThumbnails, mode);
+      await onImport(framesWithThumbnails, mode, {
+        url: url.trim(),
+        fileKey,
+        fileName
+      });
       resetState();
       onClose();
     } catch (err) {

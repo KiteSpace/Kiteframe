@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { ListTree, FileText, Palette, Link2, FolderOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ListTree, FileText, Palette, Link2, FolderOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { LayersTab } from './LayersTab';
 import { NotesTab } from './NotesTab';
 import { SpecsTab } from './SpecsTab';
@@ -10,6 +12,8 @@ import { ProjectDetailsTab } from './ProjectDetailsTab';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 
 export type ProjectPanelTab = 'layers' | 'notes' | 'specs' | 'sources' | 'details';
+
+const PANEL_COLLAPSED_KEY = 'kiteframe-project-panel-collapsed';
 
 interface ProjectPanelProps {
   nodes: Node[];
@@ -21,6 +25,22 @@ interface ProjectPanelProps {
   onProjectNameChange?: (name: string) => void;
 }
 
+const tabIcons = {
+  layers: ListTree,
+  notes: FileText,
+  specs: Palette,
+  sources: Link2,
+  details: FolderOpen
+};
+
+const tabLabels = {
+  layers: 'Layers',
+  notes: 'Notes',
+  specs: 'Specs',
+  sources: 'Sources',
+  details: 'Details'
+};
+
 export function ProjectPanel({ 
   nodes, 
   edges, 
@@ -31,6 +51,70 @@ export function ProjectPanel({
   onProjectNameChange 
 }: ProjectPanelProps) {
   const [activeTab, setActiveTab] = useState<ProjectPanelTab>('layers');
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const saved = localStorage.getItem(PANEL_COLLAPSED_KEY);
+    return saved === 'true';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(PANEL_COLLAPSED_KEY, String(isCollapsed));
+    }
+  }, [isCollapsed]);
+
+  if (isCollapsed) {
+    return (
+      <div 
+        className="h-full w-12 border-l border-border bg-card flex flex-col flex-shrink-0"
+        data-testid="project-panel-collapsed"
+      >
+        <TooltipProvider delayDuration={100}>
+          <div className="flex flex-col items-center pt-2 gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={() => setIsCollapsed(false)}
+                  data-testid="button-expand-panel"
+                >
+                  <ChevronLeft size={16} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">Expand Panel</TooltipContent>
+            </Tooltip>
+          </div>
+          
+          <div className="flex flex-col items-center gap-1 mt-2 border-t border-border pt-2">
+            {(Object.keys(tabIcons) as ProjectPanelTab[]).map(tab => {
+              const Icon = tabIcons[tab];
+              return (
+                <Tooltip key={tab}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={activeTab === tab ? 'secondary' : 'ghost'}
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setActiveTab(tab);
+                        setIsCollapsed(false);
+                      }}
+                      data-testid={`collapsed-tab-${tab}`}
+                    >
+                      <Icon size={14} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">{tabLabels[tab]}</TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+        </TooltipProvider>
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -38,8 +122,17 @@ export function ProjectPanel({
       data-testid="project-panel"
     >
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ProjectPanelTab)} className="flex flex-col h-full">
-        <div className="border-b border-border">
-          <ScrollArea className="w-full">
+        <div className="border-b border-border flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-10 w-8 flex-shrink-0"
+            onClick={() => setIsCollapsed(true)}
+            data-testid="button-collapse-panel"
+          >
+            <ChevronRight size={16} />
+          </Button>
+          <ScrollArea className="flex-1">
             <TabsList className="inline-flex h-10 w-max min-w-full p-1 gap-1">
               <TabsTrigger 
                 value="layers" 
@@ -100,7 +193,7 @@ export function ProjectPanel({
         </TabsContent>
         
         <TabsContent value="specs" className="flex-1 m-0 overflow-hidden">
-          <SpecsTab nodes={nodes} edges={edges} canvasObjects={canvasObjects} />
+          <SpecsTab nodes={nodes} edges={edges} canvasObjects={canvasObjects} projectId={projectId} />
         </TabsContent>
         
         <TabsContent value="sources" className="flex-1 m-0 overflow-hidden">
