@@ -389,10 +389,13 @@ export interface ImageNodeData {
   figmaId?: string;
   figmaType?: string;
   figmaPageName?: string;
+  figmaFileKey?: string; // Source Figma file key for multi-file tracking
   originalWidth?: number;
   originalHeight?: number;
   // Semantic metadata extracted from Figma node tree (for AI workflows)
   figmaSemantic?: FigmaSemanticMetadata | null;
+  // Reference frame flag - when true, frame is excluded from workflow/PRD generation
+  isReferenceFrame?: boolean;
 }
 
 // Table Node Data - extends BasicNodeData with table-specific properties

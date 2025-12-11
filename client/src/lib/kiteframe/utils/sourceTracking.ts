@@ -8,6 +8,7 @@ interface Source {
     figmaFileKey?: string;
     figmaFileName?: string;
     frameCount?: number;
+    isReference?: boolean;
   };
 }
 
@@ -46,7 +47,8 @@ export function addFigmaSource(
   figmaUrl: string, 
   figmaFileName: string,
   figmaFileKey: string,
-  frameCount: number
+  frameCount: number,
+  isReference: boolean = false
 ): void {
   addSource(projectId, {
     url: figmaUrl,
@@ -55,7 +57,36 @@ export function addFigmaSource(
     metadata: {
       figmaFileKey,
       figmaFileName,
-      frameCount
+      frameCount,
+      isReference
     }
   });
+}
+
+export function updateSourceReferenceStatus(
+  projectId: string | undefined,
+  figmaFileKey: string,
+  isReference: boolean
+): void {
+  const storageKey = projectId ? `kiteframe-sources-${projectId}` : 'kiteframe-sources-default';
+  
+  let sources: Source[] = [];
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      sources = JSON.parse(saved);
+    }
+  } catch {
+    return;
+  }
+
+  const updated = sources.map(s => {
+    if (s.type === 'figma' && s.metadata?.figmaFileKey === figmaFileKey) {
+      return { ...s, metadata: { ...s.metadata, isReference } };
+    }
+    return s;
+  });
+
+  localStorage.setItem(storageKey, JSON.stringify(updated));
+  window.dispatchEvent(new CustomEvent(SOURCES_UPDATED_EVENT, { detail: { projectId } }));
 }

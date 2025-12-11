@@ -369,6 +369,15 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
           </span>
         )}
         <div className="flex items-center gap-1">
+          {node.data.isReferenceFrame && (
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium flex-shrink-0"
+              title="Reference frame - excluded from workflow generation"
+              data-testid={`reference-badge-${node.id}`}
+            >
+              Reference
+            </span>
+          )}
           <div
             className={cn('w-2 h-2 rounded-full flex-shrink-0',
               getDynamicClassName({ backgroundColor: hasImage ? '#22c55e' : '#94a3b8' }, `status-${node.id}-${hasImage}`)

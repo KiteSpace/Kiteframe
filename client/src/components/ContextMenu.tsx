@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { Palette, PaintBucket, Copy, Trash2, ArrowUp, ArrowDown, ChevronUp, ChevronDown, Bug } from 'lucide-react';
+import { Palette, PaintBucket, Copy, Trash2, ArrowUp, ArrowDown, ChevronUp, ChevronDown, Bug, Workflow, BookmarkMinus, Bookmark } from 'lucide-react';
+import type { Node as KiteframeNode } from '@/lib/kiteframe/types';
 
 interface ContextMenuProps {
   x: number;
@@ -15,9 +16,12 @@ interface ContextMenuProps {
   onSendBackward?: () => void;
   onSendToBack?: () => void;
   onViewSemanticData?: () => void;
+  node?: KiteframeNode;
+  onGenerateWorkflowFromFrames?: (nodeIds: string[]) => void;
+  onToggleReferenceFrame?: (nodeId: string) => void;
 }
 
-export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties, onDuplicate, onDelete, hasPropertiesInClipboard, onBringForward, onBringToFront, onSendBackward, onSendToBack, onViewSemanticData }: ContextMenuProps) {
+export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties, onDuplicate, onDelete, hasPropertiesInClipboard, onBringForward, onBringToFront, onSendBackward, onSendToBack, onViewSemanticData, node, onGenerateWorkflowFromFrames, onToggleReferenceFrame }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -123,6 +127,42 @@ export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties
             View Semantic Data (debug)
           </div>
         </>
+      )}
+      
+      {/* Figma Frame Actions - Generate Workflow */}
+      {node?.type === 'image' && node.data?.figmaSemantic && !node.data?.isReferenceFrame && onGenerateWorkflowFromFrames && (
+        <>
+          <div className="border-t border-border my-1" />
+          <div
+            className="px-3 py-2 hover:bg-accent cursor-pointer text-sm flex items-center text-primary"
+            onClick={() => { onGenerateWorkflowFromFrames([node.id]); onClose(); }}
+            data-testid="context-menu-generate-workflow"
+          >
+            <Workflow size={16} className="mr-2" />
+            Generate Workflow from Frame
+          </div>
+        </>
+      )}
+      
+      {/* Figma Frame Actions - Reference Frame Toggle */}
+      {node?.type === 'image' && node.data?.figmaId && onToggleReferenceFrame && (
+        <div
+          className="px-3 py-2 hover:bg-accent cursor-pointer text-sm flex items-center"
+          onClick={() => { onToggleReferenceFrame(node.id); onClose(); }}
+          data-testid="context-menu-toggle-reference"
+        >
+          {node.data?.isReferenceFrame ? (
+            <>
+              <BookmarkMinus size={16} className="mr-2" />
+              Unmark as Reference Frame
+            </>
+          ) : (
+            <>
+              <Bookmark size={16} className="mr-2" />
+              Mark as Reference Frame
+            </>
+          )}
+        </div>
       )}
       
       <div className="border-t border-border my-1" />

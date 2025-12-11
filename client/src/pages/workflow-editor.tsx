@@ -82,10 +82,12 @@ import {
 } from 'lucide-react';
 import { SiFigma } from 'react-icons/si';
 import { FigmaImportModal } from '@/components/modals/FigmaImportModal';
+import { WorkflowGenerationPreviewModal } from '@/components/modals/WorkflowGenerationPreviewModal';
 import { parseFigmaUrl } from '@/lib/integration/figmaUrl';
 import { generateWorkflowFromFigmaSemantic } from '@/lib/integration/semanticWorkflowGenerator';
 import { buildFigmaFrameWorkflow, insertFigmaFrames, type FigmaFrameWithThumbnail } from '@/utils/createFigmaProject';
 import { addFigmaSource } from '@/lib/kiteframe/utils/sourceTracking';
+import { sortFrameNodesForWorkflow, filterValidWorkflowFrames } from '@/lib/kiteframe/utils/workflowOrdering';
 
 // Project metadata types
 interface ProjectLink {
@@ -3408,6 +3410,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showFigmaModal, setShowFigmaModal] = useState(false);
   const [figmaImportMode, setFigmaImportMode] = useState<'new-project' | 'insert-into-project'>('new-project');
   const [showPowerFeaturesMenu, setShowPowerFeaturesMenu] = useState(false);
+  const [showWorkflowPreviewModal, setShowWorkflowPreviewModal] = useState(false);
+  const [workflowPreviewFrameIds, setWorkflowPreviewFrameIds] = useState<string[]>([]);
+  const [isGeneratingWorkflow, setIsGeneratingWorkflow] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node; canvasObject?: CanvasObject } | null>(null);
   const [linearToolbar, setLinearToolbar] = useState<{ 
     x: number; 
@@ -7956,6 +7961,91 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           mode={figmaImportMode}
         />
 
+        {/* Workflow Generation Preview Modal */}
+        <WorkflowGenerationPreviewModal
+          isOpen={showWorkflowPreviewModal}
+          onClose={() => {
+            setShowWorkflowPreviewModal(false);
+            setWorkflowPreviewFrameIds([]);
+          }}
+          frameNodes={nodes.filter(n => workflowPreviewFrameIds.includes(n.id))}
+          onConfirm={async ({ useCleanLayout }) => {
+            setIsGeneratingWorkflow(true);
+            try {
+              const frameNodes = nodes.filter(n => workflowPreviewFrameIds.includes(n.id));
+              const validFrames = filterValidWorkflowFrames(frameNodes);
+              const sortedFrames = sortFrameNodesForWorkflow(validFrames);
+              
+              if (sortedFrames.length === 0) {
+                toast({
+                  title: "No valid frames",
+                  description: "No frames with semantic data found for workflow generation.",
+                  variant: "destructive"
+                });
+                return;
+              }
+
+              saveToHistory();
+              
+              const generatedNodes: Node[] = [];
+              const generatedEdges: Edge[] = [];
+              let offsetY = Math.max(...nodes.map(n => n.position.y + (n.height || 100))) + 100;
+              
+              for (const frame of sortedFrames) {
+                const semantic = frame.data?.figmaSemantic;
+                if (!semantic) continue;
+                
+                const { nodes: newNodes, edges: newEdges } = generateWorkflowFromFigmaSemantic(
+                  semantic,
+                  { x: 100, y: offsetY }
+                );
+                
+                generatedNodes.push(...newNodes);
+                generatedEdges.push(...newEdges);
+                offsetY += newNodes.length * 120 + 100;
+              }
+              
+              if (generatedNodes.length > 0) {
+                setNodes(prev => [...prev, ...generatedNodes]);
+                setEdges(prev => [...prev, ...generatedEdges]);
+                
+                if (useCleanLayout) {
+                  setTimeout(() => {
+                    const allNodes = [...nodes, ...generatedNodes];
+                    const layoutedNodes = allNodes.map((n, i) => ({
+                      ...n,
+                      position: {
+                        x: generatedNodes.some(gn => gn.id === n.id) ? 400 : n.position.x,
+                        y: generatedNodes.some(gn => gn.id === n.id) 
+                          ? Math.max(...nodes.map(node => node.position.y + (node.height || 100))) + 100 + (generatedNodes.indexOf(n) * 120)
+                          : n.position.y
+                      }
+                    }));
+                    setNodes(layoutedNodes);
+                  }, 100);
+                }
+                
+                toast({
+                  title: "Workflow Generated",
+                  description: `Created ${generatedNodes.length} nodes from ${sortedFrames.length} frame(s).`,
+                });
+              }
+            } catch (error) {
+              console.error('Error generating workflow:', error);
+              toast({
+                title: "Generation Failed",
+                description: error instanceof Error ? error.message : "Failed to generate workflow from frames.",
+                variant: "destructive"
+              });
+            } finally {
+              setIsGeneratingWorkflow(false);
+              setShowWorkflowPreviewModal(false);
+              setWorkflowPreviewFrameIds([]);
+            }
+          }}
+          isGenerating={isGeneratingWorkflow}
+        />
+
         {/* Table Panel */}
         {openTablePanel && (
           <TablePanel
@@ -8274,6 +8364,33 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }
                 : undefined
             }
+            node={contextMenu.node}
+            onGenerateWorkflowFromFrames={(nodeIds) => {
+              setWorkflowPreviewFrameIds(nodeIds);
+              setShowWorkflowPreviewModal(true);
+              setContextMenu(null);
+            }}
+            onToggleReferenceFrame={(nodeId) => {
+              const node = nodes.find(n => n.id === nodeId);
+              if (node) {
+                const isNowReference = !node.data?.isReferenceFrame;
+                saveToHistory();
+                updateActiveTab({
+                  nodes: nodes.map(n => 
+                    n.id === nodeId 
+                      ? { ...n, data: { ...n.data, isReferenceFrame: isNowReference } }
+                      : n
+                  )
+                });
+                toast({
+                  title: isNowReference ? 'Marked as Reference' : 'Unmarked as Reference',
+                  description: isNowReference 
+                    ? 'This frame will be excluded from workflow generation.' 
+                    : 'This frame is now available for workflow generation.',
+                });
+              }
+              setContextMenu(null);
+            }}
           />
         )}
 
