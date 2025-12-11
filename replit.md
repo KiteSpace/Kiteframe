@@ -82,8 +82,22 @@ Cloud-saved projects require Firebase Admin SDK credentials for secure token ver
 
 ### Power Features
 - **Floating Menu**: Rocket icon button on canvas for quick access to power features.
-- **Figma Import**: Import designs from Figma URLs directly into workflows with dual-mode support (new-project or insert-into-project).
+- **Figma Import**: Import designs from Figma URLs directly into workflows with dual-mode support (new-project or insert-into-project). Auto-tracks imported Figma files in Sources tab.
 - **Integration Architecture**: Files in `client/src/lib/integration/` for URL parsing and embed URL generation.
+
+### Project Panel
+- **Five Tabs**: Layers (canvas hierarchy), Notes (markdown notes), Specs (PRD/design specs), Sources (external links/references), Details (project metadata).
+- **Collapsible**: Panel can be collapsed to icon-only sidebar, persists state in localStorage.
+- **Per-Project Storage**: All panel content scoped by projectId with localStorage persistence.
+
+### PRD System (Specs Tab)
+- **Workflow Spec Generation**: AI-powered PRD generation from workflow semantic model using configured AI provider.
+- **Semantic Hashing**: Content-based hash (excludes position/style) to detect meaningful workflow changes.
+- **Stale Detection**: Banner shows when workflow has changed since last PRD generation.
+- **Manual Edit Preservation**: Per-section tracking of manual edits; regeneration preserves manually edited sections.
+- **Section-Level Control**: Edit individual sections with markdown, reset to AI-generated content per section.
+- **Backup System**: Automatic backup before regeneration with restore capability.
+- **Workflow Grouping**: Multi-workflow support with selector for complex canvas layouts.
 
 ### AI Integration Layer
 - **Client Interface**: OpenAI-compatible API client with configurable endpoints.
