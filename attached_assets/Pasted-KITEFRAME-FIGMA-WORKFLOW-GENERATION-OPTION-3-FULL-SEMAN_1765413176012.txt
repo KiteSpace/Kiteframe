@@ -1,0 +1,397 @@
+KITEFRAME — FIGMA → WORKFLOW GENERATION (OPTION 3 “FULL SEMANTIC ENGINE”)
+Implementation plan for Replit
+
+GOAL
+Turn an imported Figma frame (currently an Image node with figmaSemantic metadata) into a meaningful Kiteframe workflow:
+- One Basic node per logical “screen” / UX step
+- Edges between steps based on inferred navigation
+- Manual, explicit user action: “Generate workflow” from a Figma Image node
+- Non-destructive: Figma Image node stays as visual reference
+
+IMPORTANT CONSTRAINTS
+- Do NOT auto-generate workflows on import. Generation must be explicit.
+- Only generate Basic nodes (NOT image / table / compound).
+- Never mutate existing nodes or workflows; only append nodes/edges.
+- If semantics are missing/weak, gracefully fall back (few clear nodes, simple edges) instead of noisy output.
+
+==================================================
+1. TYPES & SEMANTIC MODEL EXTENSIONS
+==================================================
+
+1.1 Extend client/src/lib/integration/figmaSemanticTypes.ts
+
+Add two new semantic types:
+
+- FigmaScreenStep
+- FigmaWorkflowGraph
+
+Rough shape (can refine, but keep names and required fields):
+
+export interface FigmaScreenStep {
+  id: string;                     // stable ID for this step (e.g. frameId or synthetic)
+  frameId: string;                // original Figma frame id
+  title: string;                  // best human-readable label
+  subtitle?: string;              // optional supporting text
+  description?: string;           // summary if available
+  bounds?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  primaryActions: string[];       // labels of primary buttons on this screen
+  secondaryActions: string[];     // labels of secondary buttons/links
+  elementIds: string[];           // figmaSemantic.elements[].id that belong to this step
+}
+
+export interface FigmaWorkflowEdgeHint {
+  sourceStepId: string;
+  targetStepId: string;
+  reason: 'spatial-sequence' | 'matching-label' | 'form-submit' | 'unknown';
+  label?: string;                 // edge label, e.g. "Next", "Submit", "Forgot password"
+}
+
+export interface FigmaWorkflowGraph {
+  frameId: string;
+  frameName: string;
+  pageName?: string;
+  steps: FigmaScreenStep[];
+  edges: FigmaWorkflowEdgeHint[];
+}
+
+Then extend FigmaSemanticMetadata to optionally include this graph:
+
+export interface FigmaSemanticMetadata {
+  // existing fields (elements, forms, navigationTargets, truncated, etc.)
+  // ...
+  workflowGraph?: FigmaWorkflowGraph;
+}
+
+1.2 No changes needed to ImageNodeData beyond what already exists:
+
+ImageNodeData already has:
+  figmaSemantic?: FigmaSemanticMetadata | null;
+
+Leave that as is.
+
+==================================================
+2. SEMANTIC WORKFLOW GRAPH BUILDER
+==================================================
+
+Create a new module:
+
+client/src/lib/integration/figmaWorkflowGraphBuilder.ts
+
+This module operates ONLY on FigmaSemanticMetadata and never touches React.
+
+2.1 Public API
+
+export function buildWorkflowGraphFromSemantic(
+  semantic: FigmaSemanticMetadata,
+  frameId: string,
+  frameName: string,
+  pageName?: string
+): FigmaWorkflowGraph;
+
+2.2 Implementation outline
+
+A) Preconditions:
+
+- If semantic.elements is missing or empty:
+  - Return a graph with a single step:
+    - title = frameName
+    - no edges
+  - Set workflowGraph.steps.length === 1 and edges === [].
+
+B) Screen detection (STEP CLUSTERING)
+
+We want “logical screens” derived from the Figma frame. Use a layered fallback strategy:
+
+1) If semantic already has any explicit “section” / “screen” elements:
+   - Group by those section IDs.
+   - A section with multiple child elements becomes one FigmaScreenStep.
+
+2) Else, attempt spatial clustering:
+   - Use bounds.x and bounds.y of elements.
+   - If elements are widely spaced horizontally (classic storyboard row), cluster by X position (e.g. k-means with small K, or simple thresholding).
+   - If elements are stacked vertically, cluster by Y.
+
+3) Else fallback:
+   - One screen step for the entire frame.
+
+Keep logic deterministic and simple:
+- Sort elements by bounds.x (left to right).
+- Split whenever gap between consecutive centers > “large gap” threshold (e.g. 1.5x average width).
+- Each resulting cluster → one screen step.
+
+C) Construct FigmaScreenStep per cluster
+
+For each cluster:
+
+- title:
+  1. Prefer first “heading” type text element in the cluster.
+  2. Else first text element with large font (semantic classifier already knows headings).
+  3. Else fallback to frameName + index (e.g. "FrameName - Step 1").
+
+- subtitle:
+  - Optional: second heading / subtitle-style text (smaller font than title).
+
+- description:
+  - Concise concatenation of up to N non-heading text elements (short sentences).
+
+- primaryActions / secondaryActions:
+  - Use semantic.elements of type 'button' or 'link' within the cluster.
+  - Heuristic:
+    - If element.isPrimaryAction === true → primaryActions.
+    - Else → secondaryActions.
+
+- elementIds:
+  - All semantic elements in this cluster.
+
+D) Edge inference
+
+Given the ordered list of steps (sorted by average bounds.x, then bounds.y):
+
+1) Sequential edges:
+   - Always create linear edges between consecutive steps:
+     - step[i] → step[i+1] with reason='spatial-sequence'.
+
+2) NavigationTargets-based edges:
+   - For each semantic.navigationTargets entry:
+     - Try to map elementId to a cluster (based on elementId in elementIds[]).
+     - Try to match inferredTargetName to step.title with string similarity:
+       - case-insensitive, whitespace-trimmed, startsWith / contains.
+     - If match found, add an additional edge:
+       - sourceStepId = stepContainingElement
+       - targetStepId = matchedStep
+       - label = navigationTargets.label (if available)
+       - reason = 'matching-label'.
+
+3) Form-based edges:
+   - If semantic.forms exists:
+     - For each form, connect form step to the next step in sequence with:
+       - reason='form-submit'
+       - label 'Submit' | 'Continue' | first primary action label if exists.
+
+E) Attach to semantic in memory:
+
+- buildWorkflowGraphFromSemantic returns the graph.
+- The caller (generator) will re-attach as:
+  imageNode.data.figmaSemantic.workflowGraph = graph;
+
+Do NOT persist beyond node.data; no backend changes needed.
+
+==================================================
+3. WORKFLOW NODE/EDGE GENERATOR
+==================================================
+
+Create another module:
+
+client/src/lib/integration/figmaWorkflowNodeGenerator.ts
+
+This transforms a FigmaWorkflowGraph into actual Kiteframe Nodes and Edges.
+
+3.1 Public API
+
+import type { Node, Edge } from '../kiteframe/types';
+
+export interface GeneratedWorkflowResult {
+  nodes: Node[];
+  edges: Edge[];
+  workflowName: string;
+}
+
+export function generateWorkflowFromFigmaImageNode(
+  sourceImageNode: Node  // must be type 'image' with figmaSemantic
+): GeneratedWorkflowResult | null;
+
+3.2 Implementation logic
+
+A) Preconditions
+
+- If sourceImageNode.type !== 'image' → return null.
+- If !sourceImageNode.data?.figmaSemantic → return null.
+
+B) Build / reuse workflowGraph
+
+- const semantic = sourceImageNode.data.figmaSemantic;
+- If !semantic.workflowGraph:
+    semantic.workflowGraph = buildWorkflowGraphFromSemantic(
+      semantic,
+      semantic.frameId || sourceImageNode.data.figmaId || sourceImageNode.id,
+      semantic.frameName || sourceImageNode.data.label || 'Figma Frame',
+      semantic.pageName || sourceImageNode.data.figmaPageName
+    );
+- Use const graph = semantic.workflowGraph;
+
+C) Layout strategy
+
+- Place newly generated nodes near the source image node:
+  - StartX = sourceImageNode.position.x + (sourceImageNode.style?.width || 600) + 80
+  - StartY = sourceImageNode.position.y
+- Use a simple vertical list:
+  - Each step’s node at:
+    x = StartX
+    y = StartY + index * (nodeHeight + verticalSpacing)
+  - nodeHeight ~ 120, verticalSpacing ~ 40 (constants in this module).
+
+D) Node creation (Basic nodes)
+
+- For each graph.steps[i] create a Node:
+
+  const node: Node = {
+    id: generateId(),                        // reuse existing ID helper if available
+    type: 'basic',                           // IMPORTANT: use 'basic'
+    position: { x, y },
+    data: {
+      title: step.title,
+      description: step.description || step.subtitle || '',
+      // Optional metadata:
+      figmaSource: {
+        frameId: graph.frameId,
+        stepId: step.id,
+        pageName: graph.pageName,
+      },
+      // If your BasicNodeData supports tags/badges, add:
+      tags: step.primaryActions?.slice(0, 2) || [],
+    },
+    // Allow default sizing/styling from the Basic node component.
+  };
+
+- DO NOT use ImageNodeData for these; they should be standard BasicNodeData as used by your existing basic node implementation.
+
+E) Edge creation
+
+- For each graph.edges entry, create an Edge:
+
+  const edge: Edge = {
+    id: generateId(),
+    source: nodeIdForStep[edgeHint.sourceStepId],
+    target: nodeIdForStep[edgeHint.targetStepId],
+    type: 'smoothstep',
+    label: edgeHint.label || undefined,
+  };
+
+- Ensure:
+  - Do NOT create duplicate edges (e.g. same source+target+label). Use a Set or key string to dedupe.
+
+F) Result object
+
+Return:
+
+{
+  nodes: generatedNodes,
+  edges: generatedEdges,
+  workflowName: graph.frameName || sourceImageNode.data.label || 'Figma Workflow'
+}
+
+==================================================
+4. INTEGRATION WITH UI (“GENERATE WORKFLOW” BUTTON)
+==================================================
+
+4.1 LinearToolbar / node toolbar integration
+
+The app already has a linearToolbar component that shows actions (Wireframe, etc.) for the selected node.
+
+Update the logic that renders the toolbar to:
+
+- Show “Generate workflow” button IF:
+  - selected node.type === 'image'
+  - selected node.data?.figmaSemantic is present
+
+Button label & icon:
+- Label: “Generate workflow”
+- Icon: something like nodes/graph (Lucide “GitBranch” or similar).
+
+On click handler:
+
+- Call generateWorkflowFromFigmaImageNode(selectedNode).
+- If result is null:
+  - Show toast: “No semantic data available for this Figma frame yet.”
+  - Return.
+
+- Else:
+  - Append result.nodes and result.edges into the current project:
+    - setNodes(prev => [...prev, ...result.nodes]);
+    - setEdges(prev => [...prev, ...result.edges]);
+
+  - Optionally, create a new workflow group with name result.workflowName:
+    - Use the same helper that “New Workflow” uses, if available, and assign generated nodes/edges to that group.
+    - If that helper doesn’t exist or is complicated, skip grouping for now; focus on nodes/edges appearing and being usable.
+
+4.2 Multiple Figma Images
+
+Behavior:
+
+- “Generate workflow” acts on the currently selected Image node only.
+- If user imports multiple frames (multiple Figma image nodes), they can repeat:
+  - Select a different Figma image node.
+  - Click “Generate workflow” again.
+  - Each image can generate its own workflow steps.
+
+We do NOT support:
+- Generating one combined workflow from multiple frames in a single click (avoid complexity for now).
+
+==================================================
+5. FALLBACKS, UX AND NON-GOALS
+==================================================
+
+5.1 Fallback behavior
+
+- If semantic.truncated === true:
+  - Still attempt to build a graph.
+  - If steps.length === 0:
+    - Build a single-step graph (frameName only).
+  - It is acceptable for the graph to be coarse; but DO NOT throw.
+
+- If buildWorkflowGraphFromSemantic throws:
+  - Catch inside generateWorkflowFromFigmaImageNode.
+  - Log console.error with context.
+  - Return null so the caller can show a toast.
+
+5.2 UI feedback
+
+- On successful generation:
+  - Optional toast: “Workflow generated from Figma frame ‘<frameName>’.”
+- On failure:
+  - Toast: “Couldn’t generate a workflow from this Figma frame yet. Try a simpler frame or adjust your Figma structure.”
+
+5.3 Explicit non-goals (to avoid hallucinated work)
+
+DO NOT implement any of the following at this stage:
+
+- No auto-generation on import.
+- No auto-sync back to Figma.
+- No auto-updates to workflow when Figma file changes.
+- No AI (LLM) calls inside this pipeline; heuristics only.
+- No changes to Image node visuals or layout beyond adding figmaSemantic.workflowGraph in data.
+- No attempts to infer every tiny control; we only care about high-level screens/steps.
+
+==================================================
+6. DEV NOTES / TESTING CHECKLIST
+==================================================
+
+Test with a simple Figma file that has:
+
+- A single frame with 3 horizontally aligned sub-frames representing screens.
+- Each screen has:
+  - A title (“Login”, “Dashboard”, “Details”).
+  - A primary button (“Continue”, “Submit”, “Next”).
+  - Optional link (“Forgot password”).
+
+Expected behavior:
+
+- Import frame via “Import Figma”.
+- Click on the generated Figma Image node.
+- Toolbar shows “Generate workflow”.
+- Clicking it:
+  - Creates 3 Basic nodes with titles “Login”, “Dashboard”, “Details”.
+  - Places them vertically next to the Figma image.
+  - Adds edges:
+    - Login → Dashboard
+    - Dashboard → Details
+    - Optional edges based on navigationTargets (e.g., Forgot password).
+
+If this scenario passes and doesn’t create noisy extra nodes, the system is working as intended for v1.
+
+END OF SPEC
