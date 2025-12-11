@@ -35,7 +35,7 @@ export default function KitelineDocs() {
   const [basicDemoNodes, setBasicDemoNodes] = useState<Node[]>([
     {
       id: '1',
-      type: 'basic',
+      type: 'process',
       position: { x: 150, y: 80 },
       data: {
         label: 'Start Node',
@@ -47,7 +47,8 @@ export default function KitelineDocs() {
           bodyTextColor: '#1e40af'
         }
       },
-      style: { width: 180, height: 80 }
+      width: 180, 
+      height: 80
     }
   ]);
   const [basicDemoEdges, setBasicDemoEdges] = useState<Edge[]>([]);
@@ -56,7 +57,7 @@ export default function KitelineDocs() {
   const [edgeDemoNodes, setEdgeDemoNodes] = useState<Node[]>([
     {
       id: 'node-1',
-      type: 'basic',
+      type: 'process',
       position: { x: 50, y: 70 },
       data: {
         label: 'Source',
@@ -68,11 +69,12 @@ export default function KitelineDocs() {
           bodyTextColor: '#1e40af'
         }
       },
-      style: { width: 140, height: 80 }
+      width: 140, 
+      height: 80
     },
     {
       id: 'node-2',
-      type: 'basic',
+      type: 'process',
       position: { x: 430, y: 70 },
       data: {
         label: 'Target',
@@ -84,7 +86,8 @@ export default function KitelineDocs() {
           bodyTextColor: '#6b21a8'
         }
       },
-      style: { width: 140, height: 80 }
+      width: 140, 
+      height: 80
     }
   ]);
   const [edgeDemoEdges, setEdgeDemoEdges] = useState<Edge[]>([
@@ -379,7 +382,7 @@ function MyWorkflow() {
   const [nodes, setNodes] = useState([
     {
       id: '1',
-      type: 'basic',
+      type: 'process',
       position: { x: 100, y: 100 },
       data: { 
         label: 'Start Node',
@@ -423,7 +426,7 @@ function MyWorkflow() {
   const [nodes, setNodes] = useState([
     {
       id: '1',
-      type: 'basic',
+      type: 'process',
       position: { x: 100, y: 100 },
       data: { 
         label: 'Start Node',
@@ -593,7 +596,7 @@ function MyWorkflow() {
                     <pre className="bg-gray-900 dark:bg-black text-gray-100 p-4 rounded-lg overflow-x-auto text-sm" data-testid="code-node-type">
                       <code>{`interface Node {
   id: string;                    // Unique identifier
-  type?: string;                 // Node type: 'basic', 'image', etc.
+  type?: string;                 // Node type: 'process', 'image', etc.
   position: { x: number; y: number };
   data: {
     label?: string;              // Primary text

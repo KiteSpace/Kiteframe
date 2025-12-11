@@ -67,7 +67,7 @@ export const cloneNode = <TData = any>(
   sourceNode: Node & { data: TData },
   positionOffset: Position = { x: 50, y: 50 }
 ): Node & { data: TData } | null => {
-  const factory = nodeRegistry.getFactory<TData>(sourceNode.type || 'basic');
+  const factory = nodeRegistry.getFactory<TData>(sourceNode.type || 'process');
   if (!factory) {
     console.error(`No factory registered for node type: ${sourceNode.type}`);
     return null;

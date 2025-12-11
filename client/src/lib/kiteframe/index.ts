@@ -6,7 +6,6 @@ export { ConnectionEdge } from './components/ConnectionEdge';
 export { NodeHandles } from './components/NodeHandles';
 
 // Library node components
-export { BasicNode } from './components/BasicNode';
 export { ImageNode } from './components/ImageNode';
 export { WebviewNode } from './components/WebviewNode';
 export { TableNode, createTableNode } from './components/TableNode';

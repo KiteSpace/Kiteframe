@@ -4,7 +4,7 @@ export {
   createNode,
   createNodeWithId,
   generateNodeId,
-  createBasicNode,
+  createProcessNode,
   createImageNode,
   createWebviewNode
 } from './NodeFactory.ts';

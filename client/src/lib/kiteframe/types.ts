@@ -105,7 +105,7 @@ export type Edge = {
   data?: any; // Keep for backward compatibility
 };
 
-export type NodeType = 'basic' | 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview' | 'code' | 'render';
+export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview' | 'code' | 'render';
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 
 // ============= COMPOUND NODE TYPES =============
@@ -640,10 +640,13 @@ export interface TemplateStore {
 }
 
 // Typed Node Variants for Type Safety
-export type BasicNode = Node & { 
-  type: 'basic';
+export type ProcessNode = Node & { 
+  type: 'process';
   data: BasicNodeData;
 };
+
+// Alias for backward compatibility
+export type BasicNode = ProcessNode;
 
 export type ImageNode = Node & { 
   type: 'image';
@@ -656,7 +659,7 @@ export type TableNode = Node & {
 };
 
 export type DataBackedNode = Node & {
-  type: 'basic';
+  type: 'process';
   data: DataBackedNodeData;
 };
 
@@ -677,7 +680,7 @@ export type CodeNode = Node & {
 
 // Union type for core library nodes - use this for type-safe node handling
 // This is the preferred type when you need full type safety on node.data
-export type KiteFrameNode = BasicNode | ImageNode | TableNode | DataBackedNode | FormNode | CompoundNode | CodeNode;
+export type KiteFrameNode = ProcessNode | ImageNode | TableNode | DataBackedNode | FormNode | CompoundNode | CodeNode;
 
 // Alias for type-safe node operations (same as KiteFrameNode)
 export type TypedNode = KiteFrameNode;
@@ -703,9 +706,12 @@ export interface NodeTemplate<T = any> {
   defaultPosition?: Position;
 }
 
-export interface BasicNodeTemplate extends NodeTemplate<BasicNodeData> {
-  type: 'basic';
+export interface ProcessNodeTemplate extends NodeTemplate<BasicNodeData> {
+  type: 'process';
 }
+
+// Alias for backward compatibility
+export type BasicNodeTemplate = ProcessNodeTemplate;
 
 export interface ImageNodeTemplate extends NodeTemplate<ImageNodeData> {
   type: 'image';

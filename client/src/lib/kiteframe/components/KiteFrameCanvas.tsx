@@ -4000,7 +4000,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       
                       const newNode: Node = {
                         id: nodeId,
-                        type: 'basic',
+                        type: 'process',
                         position: { ...webviewNode.position },
                         data: {
                           label: title || webviewNode.data?.title || 'Link',

@@ -6,10 +6,8 @@ import type {
   ImageNodeData,
   WebviewNodeData,
   CodeNodeData,
-  BasicNode,
   ImageNode,
   CodeNode,
-  KiteFrameNode
 } from '../types';
 import { createCodeNode } from '../components/CodeNode';
 
@@ -85,17 +83,19 @@ class NodeFactoryRegistry {
 // Create singleton instance
 export const nodeRegistry = new NodeFactoryRegistry();
 
-// Core factory functions for built-in node types
-export const createBasicNode = (
+// Process node type - the standard workflow node type
+export type ProcessNode = Node & { type: 'process'; data: BasicNodeData };
+
+export const createProcessNode = (
   id: string,
   position: Position,
   data: Partial<BasicNodeData> = {}
-): BasicNode => ({
+): ProcessNode => ({
   id,
-  type: 'basic',
+  type: 'process',
   position,
   data: {
-    label: data.label || 'Basic Node',
+    label: data.label || 'Process Node',
     description: data.description || '',
     colors: data.colors || {}
   },
@@ -202,20 +202,20 @@ export const createNodeWithId = <TData = any>(
 
 // Register built-in node types
 nodeRegistry.register({
-  type: 'basic',
-  factory: createBasicNode,
+  type: 'process',
+  factory: createProcessNode,
   template: {
-    type: 'basic',
+    type: 'process',
     defaultData: {
-      label: 'Basic Node',
+      label: 'Process Node',
       description: '',
       colors: {}
     },
     defaultStyle: { width: 200, height: 120 },
     defaultPosition: { x: 0, y: 0 }
   },
-  displayName: 'Basic Node',
-  description: 'A simple node with label and description',
+  displayName: 'Process Node',
+  description: 'A standard workflow node for processes and steps',
   category: 'core'
 });
 

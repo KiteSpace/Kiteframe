@@ -8,7 +8,7 @@ import type { Node, Edge } from '../types';
 // Mock data factories
 export const createMockNode = (overrides?: Partial<Node>): Node => ({
   id: 'node-1',
-  type: 'basic',
+  type: 'process',
   position: { x: 100, y: 100 },
   data: {
     label: 'Test Node',

@@ -359,7 +359,7 @@ export function KiteAIChat({
     }
 
     const nodeTypes = currentNodes.reduce((acc, node) => {
-      const type = node.type || 'basic';
+      const type = node.type || 'process';
       acc[type] = (acc[type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);

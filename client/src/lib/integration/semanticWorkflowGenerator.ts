@@ -68,7 +68,7 @@ export function generateWorkflowFromFigmaImageNode(
     const nodeId = generateNodeId();
     stepIdToNodeId.set(step.id, nodeId);
     
-    const node = createBasicNodeFromStep(
+    const node = createProcessNodeFromStep(
       step,
       nodeId,
       {
@@ -115,7 +115,7 @@ export function generateWorkflowFromFigmaImageNode(
   };
 }
 
-function createBasicNodeFromStep(
+function createProcessNodeFromStep(
   step: FigmaScreenStep,
   nodeId: string,
   position: { x: number; y: number },
@@ -135,16 +135,16 @@ function createBasicNodeFromStep(
   
   return {
     id: nodeId,
-    type: 'basic',
+    type: 'process',
     position,
     draggable: true,
     selectable: true,
     showHandles: true,
-    style: { width: NODE_WIDTH },
+    width: NODE_WIDTH,
+    height: NODE_HEIGHT,
     data: {
       label: step.title,
       description: description || undefined,
-      autoSize: true,
       figmaSource: {
         frameId: graph.frameId,
         stepId: step.id,
@@ -280,7 +280,7 @@ export function generateWorkflowFromFigmaSemantic(
     const nodeId = generateNodeId();
     stepIdToNodeId.set(step.id, nodeId);
     
-    const node = createBasicNodeFromStep(
+    const node = createProcessNodeFromStep(
       step,
       nodeId,
       {

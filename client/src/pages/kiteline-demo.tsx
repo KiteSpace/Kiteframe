@@ -50,7 +50,7 @@ export default function KitelineDemo() {
     setQuickStartDemoNodes([
       {
         id: '1',
-        type: 'basic',
+        type: 'process',
         position: { x: 150, y: 80 },
         data: { 
           label: 'Start Node',
@@ -70,7 +70,7 @@ export default function KitelineDemo() {
     setNodeApiDemoNodes([
       {
         id: 'node-1',
-        type: 'basic',
+        type: 'process',
         position: { x: 120, y: 70 },
         data: {
           label: 'My Node',
@@ -94,7 +94,7 @@ export default function KitelineDemo() {
     setEdgeApiDemoNodes([
       {
         id: 'node-1',
-        type: 'basic',
+        type: 'process',
         position: { x: 50, y: 70 },
         data: {
           label: 'Source',
@@ -110,7 +110,7 @@ export default function KitelineDemo() {
       },
       {
         id: 'node-2',
-        type: 'basic',
+        type: 'process',
         position: { x: 430, y: 70 },
         data: {
           label: 'Target',
@@ -156,7 +156,7 @@ export default function KitelineDemo() {
   const [demoNodes, setDemoNodes] = useState<Node[]>([
     {
       id: "1",
-      type: "basic",
+      type: "process",
       position: { x: 100, y: 100 },
       data: { 
         label: "Start",
@@ -169,11 +169,12 @@ export default function KitelineDemo() {
           bodyTextColor: "#1e40af"
         }
       },
-      style: { width: 200, height: 100 }
+      width: 200, 
+      height: 100
     },
     {
       id: "2",
-      type: "basic",
+      type: "process",
       position: { x: 400, y: 80 },
       data: { 
         label: "Process",
@@ -186,11 +187,12 @@ export default function KitelineDemo() {
           bodyTextColor: "#6b21a8"
         }
       },
-      style: { width: 200, height: 100 }
+      width: 200, 
+      height: 100
     },
     {
       id: "3",
-      type: "basic",
+      type: "process",
       position: { x: 700, y: 100 },
       data: { 
         label: "Validate",
@@ -203,11 +205,12 @@ export default function KitelineDemo() {
           bodyTextColor: "#9f1239"
         }
       },
-      style: { width: 200, height: 100 }
+      width: 200, 
+      height: 100
     },
     {
       id: "4",
-      type: "basic",
+      type: "process",
       position: { x: 400, y: 280 },
       data: { 
         label: "Complete",
@@ -220,7 +223,8 @@ export default function KitelineDemo() {
           bodyTextColor: "#065f46"
         }
       },
-      style: { width: 200, height: 100 }
+      width: 200, 
+      height: 100
     }
   ]);
 
@@ -315,7 +319,7 @@ function MyWorkflow() {
   const [nodes, setNodes] = useState<Node[]>([
     {
       id: '1',
-      type: 'basic',
+      type: 'process',
       position: { x: 100, y: 100 },
       data: { label: 'Start Node' }
     }
@@ -337,7 +341,7 @@ function MyWorkflow() {
       demoNodes: [
         {
           id: '1',
-          type: 'basic',
+          type: 'process',
           position: { x: 150, y: 80 },
           data: { 
             label: 'Start Node',
@@ -366,7 +370,7 @@ function MyWorkflow() {
       code: `// Create a custom node
 const customNode: Node = {
   id: 'node-1',
-  type: 'basic',
+  type: 'process',
   position: { x: 100, y: 100 },
   data: {
     label: 'My Node',
@@ -388,7 +392,7 @@ const customNode: Node = {
       demoNodes: [
         {
           id: 'node-1',
-          type: 'basic',
+          type: 'process',
           position: { x: 120, y: 70 },
           data: {
             label: 'My Node',
@@ -401,7 +405,8 @@ const customNode: Node = {
               bodyTextColor: '#1e40af'
             }
           },
-          style: { width: 200, height: 100 },
+          width: 200, 
+          height: 100,
           draggable: true,
           selectable: true,
           resizable: true
@@ -411,7 +416,7 @@ const customNode: Node = {
       hasProperties: true,
       properties: [
         { name: 'id', type: 'string', description: 'Unique identifier for the node' },
-        { name: 'type', type: 'string', description: 'Node type: "basic", "input", "output", "ai", "image", etc.' },
+        { name: 'type', type: 'string', description: 'Node type: "process", "input", "output", "ai", "image", etc.' },
         { name: 'position', type: '{ x: number, y: number }', description: 'Node position on canvas' },
         { name: 'data.label', type: 'string', description: 'Primary text displayed in node header' },
         { name: 'data.description', type: 'string', description: 'Secondary text displayed in node body' },
@@ -458,7 +463,7 @@ const customEdge: Edge = {
       demoNodes: [
         {
           id: 'node-1',
-          type: 'basic',
+          type: 'process',
           position: { x: 50, y: 70 },
           data: {
             label: 'Source',
@@ -474,7 +479,7 @@ const customEdge: Edge = {
         },
         {
           id: 'node-2',
-          type: 'basic',
+          type: 'process',
           position: { x: 430, y: 70 },
           data: {
             label: 'Target',
@@ -586,7 +591,7 @@ kiteFrameCore.installPlugin(myPlugin);`,
 
     const newNode: Node = {
       id: newId,
-      type: 'basic',
+      type: 'process',
       position: { x: centerX - 100, y: centerY - 50 }, // Center the node (200x100)
       data: {
         label: 'New Node',

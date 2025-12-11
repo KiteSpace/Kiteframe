@@ -1359,7 +1359,7 @@ Position nodes 250px apart horizontally.`;
           body: JSON.stringify({
             label: node.data?.label || 'Untitled',
             description: node.data?.description || '',
-            nodeType: node.type || 'basic',
+            nodeType: node.type || 'process',
           }),
         });
 
@@ -7995,14 +7995,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 const semantic = frame.data?.figmaSemantic;
                 if (!semantic) continue;
                 
-                const { nodes: newNodes, edges: newEdges } = generateWorkflowFromFigmaSemantic(
+                const frameName = frame.data?.label || frame.data?.figmaName || 'Frame';
+                const result = generateWorkflowFromFigmaSemantic(
                   semantic,
-                  { x: 100, y: offsetY }
+                  frameName,
+                  frame
                 );
                 
-                generatedNodes.push(...newNodes);
-                generatedEdges.push(...newEdges);
-                offsetY += newNodes.length * 120 + 100;
+                generatedNodes.push(...result.nodes);
+                generatedEdges.push(...result.edges);
+                offsetY += result.nodes.length * 120 + 100;
               }
               
               if (generatedNodes.length > 0) {
