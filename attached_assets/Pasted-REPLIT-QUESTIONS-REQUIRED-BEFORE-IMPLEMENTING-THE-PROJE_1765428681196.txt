@@ -1,0 +1,142 @@
+REPLIT – QUESTIONS REQUIRED BEFORE IMPLEMENTING THE PROJECT PRD + WORKFLOW PRD SYSTEM
+======================================================================================
+
+## SECTION 1 — WORKFLOW GROUPING & DATA MODEL
+
+1. Does the current codebase already compute connected components of nodes/edges?
+   - If yes, what function calculates this?
+   - If no, should we add a grouping utility or integrate it into editor state?
+
+2. When Figma imports generate new workflows, does each imported frame already map to isolated node groups?
+   - If not, do we need to enforce workflow isolation?
+
+3. Are nodes stored with "workflowId" today, or do we need to add this field as metadata?
+
+4. Can each workflow be uniquely identified across sessions (persistent ID)?
+   - If not, should workflowId be derived from root node ID?
+
+## SECTION 2 — SEMANTIC HASHING
+
+5. Does a semantic hashing utility already exist in the codebase?
+   - If yes, what fields are included/excluded?
+   - If no, where should we insert a new hashing module?
+
+6. Node position (x,y), dimensions, and style must be excluded from the hash.
+   - Any side effects of ignoring these fields?
+
+7. Should workflow hash run automatically on:
+   - node add?
+   - node remove?
+   - edge add/remove?
+   - node label/data change?
+
+8. Where is the best place in the codebase to store “previous workflow hash”
+   so we can detect “stale vs fresh” PRD states?
+
+## SECTION 3 — LOCAL STORAGE & CLOUD STORAGE
+
+9. What is the recommended storage strategy for:
+   - workflow-level PRDs?
+   - project-level PRDs?
+   - notes?
+   - sources?
+
+10. Is there an existing abstraction for saving per-project data?
+    (Ex: projectStore, persistentStore, Firebase, etc.)
+
+11. Should Phase 1 store PRDs only in localStorage?
+    - If yes, confirm paths:
+      spec-[projectId]-[workflowId]
+      project-prd-[projectId]
+
+12. When cloud sync is introduced, does the existing authentication + DB layer
+    support storing arbitrary structured JSON?
+
+## SECTION 4 — RIGHT-SIDE PROJECT PANEL (UI)
+
+13. Does a right-panel component structure already exist, or is this new?
+    - Can we reuse the existing Layers panel?
+    - Or should we create a brand new <ProjectPanel /> component?
+
+14. Does the codebase already use Radix UI Tabs?
+    - If yes, confirm location so we match existing patterns.
+
+15. Canvas resizing:
+    - Is there a layout container we should plug into for the panel?
+    - Does collapsing/expanding require modifying editor layout logic?
+
+16. Should the panel width be fixed (e.g., 360px) or user-resizable?
+
+## SECTION 5 — GENERATION & UPDATE OF PRDs
+
+17. Does the existing AI infrastructure support:
+    - long-form structured output?
+    - JSON + markdown structured responses?
+    - partial updates (diff-writing)?
+
+18. Where should the PRD generation function live?
+    Options:
+      - client/src/lib/ai/workflowSpecGenerator.ts
+      - integrated into createSpec() or similar
+      - new service: prdEngine.ts
+
+19. For “Update Spec”:
+    - Should the AI update only changed sections?
+    - Or regenerate the entire PRD by default and present a diff?
+
+20. Should the user be allowed to edit PRDs manually?
+    - If yes, how do we prevent overwriting user edits during updates?
+    - Should we lock editable sections?
+
+## SECTION 6 — WORKFLOW → PRD MAPPING
+
+21. Where is the current workflow model defined in code?
+    - Node data
+    - Edge data
+    - Data nodes (form inputs, table links)
+
+22. Can we extract a clean semantic model today?
+    - If not, do we need a new module: extractSemanticWorkflowModel()?
+
+23. Which node types need to be included in PRD generation?
+    Examples:
+      - basic nodes
+      - compound nodes
+      - forms (fields → inputs)
+      - tables (→ data dependencies)
+      - code nodes (→ logic blocks)
+
+24. Does the team want PRD sections for:
+    - happy path flow?
+    - edge cases?
+    - variants?
+    - input/output spec?
+    - acceptance criteria?
+
+## SECTION 7 — SOURCES (FIGMA, JIRA, DOCS)
+
+25. Does the current codebase store references to imported Figma frames?
+    - If yes, where?
+    - If not, should we add a "sources" object to project metadata?
+
+26. Should importing a Figma frame automatically add a PRD "Sources" entry?
+
+27. Should we allow users to manually add external links to the Sources tab?
+
+## SECTION 8 — PRD DOCUMENT FORMAT
+
+28. Should PRDs be stored as:
+    - Markdown strings?
+    - Structured JSON with markdown per section (recommended)?
+    - Pure JSON and rendered with a component?
+
+29. For future features (version history):
+    - Should we plan ahead for PRD diffs?
+    - Should PRDs support comments or annotations?
+
+30. Do we need a global “Export PRD” feature?
+    - Download as .md?
+    - Download all workflow PRDs as a zip?
+
+======================================================================================
+END OF QUESTIONS
