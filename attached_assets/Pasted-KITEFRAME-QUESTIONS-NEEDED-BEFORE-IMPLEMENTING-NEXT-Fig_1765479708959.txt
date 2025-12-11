@@ -1,0 +1,76 @@
+KITEFRAME — QUESTIONS NEEDED BEFORE IMPLEMENTING NEXT Figma ENHANCEMENTS
+
+SECTION 1 — NODE + WORKFLOW ARCHITECTURE
+1. For imported Figma image nodes, do nodes already preserve a stable unique ID 
+   (figmaId) across sessions, or is a new node with a new ID created each import?
+
+2. When inserting new nodes onto the canvas (e.g., auto-generated workflow nodes), 
+   is there an existing utility for auto-layout, or would we need to write our own 
+   simple vertical/horizontal layout helper?
+
+3. Does the current codebase support an operation like “insert nodes as a group with 
+   a root position,” or should the workflow generator place nodes individually?
+
+4. Is multi-select already available in the editor? (It appears yes — but confirm 
+   whether the selection API is accessible from custom actions.)
+
+SECTION 2 — CONTEXT MENU + TOOLBAR EXTENSIBILITY
+5. Can context menu items be added conditionally per node type without disrupting 
+   other node types? (We need: “Generate Workflow from this Frame.”)
+
+6. Does the LinearToolbar currently accept extension buttons based on node.type 
+   (e.g., image)? We need: “Generate Workflow.”
+
+7. Is there an existing pattern for toggled node properties stored on node.data? 
+   (We will need node.data.isReferenceFrame = true/false.)
+
+SECTION 3 — FIGMA IMPORT STATE
+8. When frames are imported from Figma, does the modal already return a list of 
+   FrameWithThumbnail objects with figmaSemantic included?
+
+9. Does the Figma import modal support retrieving the list of imported frames 
+   after the modal is closed, or should we track imported frames separately in 
+   state for later operations?
+
+10. Can users import multiple Figma files into the same project? If yes, does the 
+   system track a sourceFileKey or we need to introduce one?
+
+SECTION 4 — WORKFLOW GENERATION
+11. Is there already a function that takes semantic metadata → creates a node? 
+    (Replit recently added a basic generator; confirm whether we should reuse or 
+    replace.)
+
+12. Should generated workflow nodes use the core “Basic Node” implementation with 
+    header + body text, or a specialized node type?
+
+13. Is edge generation already implemented in your new workflow generator, or does 
+    it need to be included as part of these enhancements?
+
+14. When workflow nodes are created, should each workflow become:
+    A) a new WorkflowGroup stored in the DB/tables?
+    B) or just inserted as free-floating nodes with grouping done externally?
+
+SECTION 5 — UNDO / SNAPSHOT BEHAVIOR
+15. Is there already a generalized “save snapshot” function used for Undo/Redo, or 
+    should we create a minimal before/after snapshot specifically for workflow 
+    generation?
+
+16. If a user hits “Undo Workflow Generation,” should:
+    A) only the generated nodes be removed?
+    B) or should the entire canvas revert to the pre-generation state?
+
+SECTION 6 — PERFORMANCE + SCALING
+17. Does Figma semantic metadata extraction run synchronously or async? If async, 
+    do we need a loading spinner in the modal for large imports?
+
+18. Is there a current soft limit on simultaneous AI requests? Workflow generation 
+    from 10+ frames might trigger multiple calls unless batched.
+
+SECTION 7 — FUTURE-PROOFING (OPTIONAL)
+19. Should “Reference Frame” be part of node.data only, or should it also appear 
+    in the Sources tab as a tagged item?
+
+20. For selective frame import in Figma modal, can the modal be modified without 
+    breaking other import workflows (PAT, OAuth, etc.)?
+
+END OF QUESTIONS.
