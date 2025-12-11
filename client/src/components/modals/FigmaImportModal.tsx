@@ -18,6 +18,7 @@ import {
   fetchFigmaNode,
   fetchFigmaThumbnails, 
   fetchFigmaFrameTrees,
+  fetchFigmaPageImage,
   discoverFrames,
   type FigmaFrame 
 } from '@/lib/integration/figmaApi';
@@ -222,11 +223,6 @@ export function FigmaImportModal({
         setFileName(fileData.name || 'Untitled');
         
         const frames = discoverFrames(fileData);
-        
-        if (frames.length === 0) {
-          throw new Error('No frames found in this Figma file. Please select a file with at least one frame.');
-        }
-
         setDiscoveredFrames(frames);
         
         const pages: Array<{ id: string; name: string; frameCount: number }> = [];
@@ -245,6 +241,10 @@ export function FigmaImportModal({
           }
         }
         setDiscoveredPages(pages);
+        
+        if (frames.length === 0 && pages.length === 0) {
+          throw new Error('No pages or frames found in this Figma file.');
+        }
         
         setStep('file-options');
       }
@@ -356,8 +356,11 @@ export function FigmaImportModal({
     const tokenToUse = figmaStatus?.connected ? undefined : pat.trim();
     
     try {
-      const thumbnails = await fetchFigmaThumbnails(fileKey, [targetPage.id], tokenToUse);
-      const thumbnailUrl = thumbnails.images?.[targetPage.id] || null;
+      const thumbnailUrl = await fetchFigmaPageImage(fileKey, targetPage.id, tokenToUse);
+      
+      if (!thumbnailUrl) {
+        throw new Error('Failed to render page image. The page may be empty or the Figma API returned no image.');
+      }
       
       const frame: FigmaFrame = {
         id: targetPage.id,
@@ -377,7 +380,8 @@ export function FigmaImportModal({
       onClose();
     } catch (err) {
       console.error('Error importing page as flattened:', err);
-      setError(err instanceof Error ? err.message : 'Failed to import page');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to import page';
+      setError(`Could not render page "${targetPage.name}": ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }

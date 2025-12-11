@@ -119,3 +119,24 @@ export async function fetchFigmaFrameTrees(
   
   return response.nodes || {};
 }
+
+/**
+ * Fetch a page image (flattened render of entire page).
+ * Uses lower scale for performance on full-page renders.
+ */
+export async function fetchFigmaPageImage(
+  fileKey: string,
+  pageId: string,
+  patToken?: string
+): Promise<string | null> {
+  try {
+    const result = await callFigmaApi<{ images: Record<string, string | null> }>(
+      `images/${fileKey}?ids=${encodeURIComponent(pageId)}&format=png&scale=1`,
+      patToken
+    );
+    return result.images?.[pageId] || null;
+  } catch (error) {
+    console.error('Failed to fetch page image:', error);
+    throw error;
+  }
+}
