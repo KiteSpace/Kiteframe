@@ -1,0 +1,330 @@
+============================================
+KITEFRAME — FIGMA SEMANTIC WORKFLOW GENERATION
+Replit Implementation Instructions (TXT)
+============================================
+
+This document provides complete implementation instructions for adding:
+
+A “Generate Workflow” button to the LinearToolbar for Figma ImageNodes
+
+A backend-free workflow generator that creates Kiteframe nodes + edges
+
+A selective, controlled, user-triggered transformation from frame → workflow
+
+A system that does not auto-generate workflows on import
+
+Logic for future extensibility (Generate UI Map, Convert to Editable Screen)
+
+This implementation MUST follow the architectural constraints below.
+
+===========================================================
+SECTION 1 — UX / FEATURE BEHAVIOR REQUIREMENTS
+
+DO NOT auto-generate workflows for imported Figma frames.
+
+Workflows are generated ONLY when the user selects a Figma ImageNode and clicks:
+“Generate Workflow”
+
+The button appears ONLY for:
+
+node.type === "image"
+
+node.data.figmaSemantic exists and is non-null
+
+The existing “Wireframe” button MUST appear only for node.type === "basic".
+
+Users MUST be able to generate workflows multiple times from different frames.
+
+Generated workflows MUST appear in their own workflow group inside the Layers panel.
+
+Multiple Figma files CAN be imported into the same project, but NOT in one modal session.
+
+The user should be able to delete, regenerate, or modify generated workflows later.
+
+===========================================================
+SECTION 2 — FILES THAT MUST BE UPDATED
+
+The following files require changes:
+
+client/src/components/toolbars/LinearToolbar.tsx
+
+client/src/lib/integration/figmaSemanticTypes.ts
+
+client/src/lib/integration/figmaSemanticExtractor.ts (no modification required, but referenced)
+
+client/src/lib/integration/semanticWorkflowGenerator.ts (NEW FILE)
+
+client/src/pages/workflow-editor.tsx
+
+client/src/lib/kiteframe/types.ts (ensure new node types are compatible)
+
+===========================================================
+SECTION 3 — NEW FILE TO CREATE
+
+Create:
+client/src/lib/integration/semanticWorkflowGenerator.ts
+
+This file will take:
+
+figmaSemantic: FigmaSemanticMetadata
+
+frameName: string
+
+user-defined starting position (optional)
+
+the editor’s insertNodes helper (passed in)
+
+And produce:
+
+An array<Node>
+
+An array<Edge>
+
+===========================================================
+SECTION 4 — GENERATION RULES FOR WORKFLOW NODES
+
+The workflow generator MUST follow deterministic rules:
+
+Create a parent workflow group:
+
+workflowGroupId = wf-${frameId}
+
+name = ${frameName} Workflow
+
+For each semantic element:
+
+headings → BasicNode with bold text
+
+text → BasicNode with normal text
+
+labels → BasicNode labeled accordingly
+
+buttons → BasicNode with button-style appearance
+
+inputs → FormNode (if available) or BasicNode with input styling
+
+navigationTargets → create edges connecting logical screens (Phase 1: not implemented)
+
+Node placement strategy:
+
+Vertical stack layout
+
+24px spacing
+
+Starting position = original ImageNode.x + 400 (to avoid overlap)
+
+Required fields to populate in the node:
+node: {
+id, type, position, data: { label, semanticType, figmaSourceId }
+}
+
+Edges:
+For MVP, skip actual navigation edges.
+Generate an empty edges array.
+
+===========================================================
+SECTION 5 — EXACT API FOR semanticWorkflowGenerator
+
+The file MUST export a function:
+
+export function generateWorkflowFromFigmaSemantic(
+semantic: FigmaSemanticMetadata,
+frameName: string,
+sourceNode: Node // The ImageNode being transformed
+): { nodes: Node[]; edges: Edge[]; workflowGroupId: string }
+
+The return object MUST contain:
+
+nodes[]
+
+edges[]
+
+workflowGroupId
+
+===========================================================
+SECTION 6 — REQUIRED CODE FOR semanticWorkflowGenerator.ts
+
+(Provide this EXACT structure—Replit must fill in details.)
+
+FILE: client/src/lib/integration/semanticWorkflowGenerator.ts
+
+import { Node, Edge } from "../kiteframe/types";
+import type { FigmaSemanticMetadata, FigmaSemanticElement } from "./figmaSemanticTypes";
+import { generateId } from "../kiteframe/id";
+
+export function generateWorkflowFromFigmaSemantic(
+semantic: FigmaSemanticMetadata,
+frameName: string,
+sourceNode: Node
+): { nodes: Node[]; edges: Edge[]; workflowGroupId: string } {
+
+const workflowGroupId = wf-${sourceNode.data.figmaId || generateId()};
+
+const nodes: Node[] = [];
+const edges: Edge[] = [];
+
+// Layout strategy
+let x = sourceNode.position.x + (sourceNode.style?.width || 400) + 120;
+let y = sourceNode.position.y;
+
+for (const element of semantic.elements || []) {
+const node = createNodeFromSemanticElement(element, { x, y }, workflowGroupId);
+nodes.push(node);
+y += 120; // vertical spacing
+}
+
+return { nodes, edges, workflowGroupId };
+}
+
+// Helper to create specific node types
+function createNodeFromSemanticElement(
+element: FigmaSemanticElement,
+position: { x: number; y: number },
+workflowGroupId: string
+): Node {
+
+const baseData = {
+label: element.name || element.type,
+semanticType: element.type,
+figmaElementId: element.id,
+workflowGroupId
+};
+
+const common = {
+id: generateId(),
+position,
+draggable: true,
+selectable: true,
+showHandles: true,
+};
+
+switch (element.type) {
+case "heading":
+return {
+...common,
+type: "basic",
+data: { ...baseData, fontWeight: 700, fontSize: 18 }
+};
+
+case "text":
+case "label":
+  return {
+    ...common,
+    type: "basic",
+    data: { ...baseData }
+  };
+
+case "button":
+  return {
+    ...common,
+    type: "basic",
+    data: { ...baseData, isButton: true }
+  };
+
+case "input":
+  return {
+    ...common,
+    type: "form",
+    data: { ...baseData, placeholder: element.name || "Input" }
+  };
+
+default:
+  return {
+    ...common,
+    type: "basic",
+    data: { ...baseData }
+  };
+
+
+}
+}
+
+===========================================================
+SECTION 7 — MODIFY LinearToolbar.tsx
+
+Add button logic so that Generate Workflow appears ONLY when:
+
+node.type === "image" &&
+node.data.figmaSemantic != null
+
+Pseudocode (Replit must adapt to file):
+
+if (selectedNode?.type === "image" && selectedNode.data?.figmaSemantic) {
+toolbarItems.push({
+id: "generate-workflow",
+label: "Generate Workflow",
+icon: WorkflowIcon,
+onClick: () => onGenerateWorkflow(selectedNode)
+});
+}
+
+===========================================================
+SECTION 8 — MODIFY workflow-editor.tsx
+
+You need to:
+
+Import the generator:
+import { generateWorkflowFromFigmaSemantic } from "../lib/integration/semanticWorkflowGenerator";
+
+Add handler:
+
+const handleGenerateWorkflow = (node: Node) => {
+const semantic = node.data?.figmaSemantic;
+if (!semantic) return;
+
+const { nodes, edges, workflowGroupId } =
+generateWorkflowFromFigmaSemantic(semantic, node.data.label, node);
+
+setNodes(prev => [...prev, ...nodes]);
+setEdges(prev => [...prev, ...edges]);
+
+// Add workflow group to Layers Panel (existing pattern)
+addWorkflowGroup(workflowGroupId, node.data.label + " Workflow");
+};
+
+Pass handler to LinearToolbar:
+
+<LinearToolbar
+...
+onGenerateWorkflow={handleGenerateWorkflow}
+/>
+
+===========================================================
+SECTION 9 — UPDATE types.ts ONLY IF NEEDED
+
+Ensure nodes allow:
+data.semanticType
+data.figmaElementId
+data.workflowGroupId
+
+Use optional fields only—do NOT remove anything.
+
+===========================================================
+SECTION 10 — TEST CASES
+
+Replit must ensure all the following work:
+
+Import Figma → select a frame → image nodes with semantic metadata appear.
+
+Select an imported frame → toolbar shows "Generate Workflow".
+
+Clicking the button generates nodes to the right of the image.
+
+Layers panel shows a new workflow group.
+
+BasicNodes and FormNodes are created correctly.
+
+No automatic workflows appear on import.
+
+"Wireframe" button does NOT appear on Figma nodes.
+
+"Generate Workflow" does NOT appear on BasicNodes or CompoundNodes.
+
+Multiple Figma files can be imported sequentially without interfering.
+
+Semantic extraction failures simply prevent workflow generation (image import still works).
+
+===========================================================
+END OF IMPLEMENTATION DOCUMENT
+
+If you need the Phase 2 UI Map Generator, Wireframe restrictions, or Workflow Group spec, I can produce those in TXT as well.
