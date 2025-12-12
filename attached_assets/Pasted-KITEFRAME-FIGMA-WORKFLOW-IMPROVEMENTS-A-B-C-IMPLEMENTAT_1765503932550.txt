@@ -1,0 +1,436 @@
+KITEFRAME — FIGMA WORKFLOW IMPROVEMENTS
+A + B + C IMPLEMENTATION SPEC (LOGGING, MODES, STATE SPLITTING)
+Version: v1
+Owner: Andrew / Kiteframe
+Audience: Replit devs
+IMPORTANT: Do NOT redesign architectures. Implement the steps below using the existing patterns and files. When in doubt, prefer the simplest possible change.
+
+------------------------------------------------------------
+HIGH-LEVEL GOALS
+------------------------------------------------------------
+1) A — ENHANCED LOGGING PIPELINE
+   Make it easy to see what the Figma semantic extractor finds vs. what the workflow generator and AI actually output.
+
+2) B — MODE SELECTOR: REFERENCE VS WORKFLOW
+   Let the user explicitly choose if selected Figma frames are:
+   - Reference-only images
+   - Used to generate workflow nodes
+
+3) C — SINGLE-FRAME STATE SPLITTING
+   Improve workflow generation for “big storyboard” frames by breaking one complex frame into multiple logical steps when appropriate.
+
+All changes MUST preserve current behavior unless explicitly changed below. Importing frames must remain stable and backwards compatible.
+
+------------------------------------------------------------
+SECTION A — ENHANCED LOGGING
+------------------------------------------------------------
+Goal: Add detailed, structured logging across the semantic pipeline so we can see:
+- What the extractor detects
+- What the workflow generator and AI actually do
+- What final nodes/edges are created
+
+A1. FILES TO TOUCH
+-------------------
+client/src/lib/integration/figmaSemanticExtractor.ts
+client/src/lib/workflow/semanticWorkflowGenerator.ts
+client/src/lib/workflow/aiWorkflowGenerator.ts (or equivalent file where AI refinement is implemented)
+client/src/pages/workflow-editor.tsx (where the generator is called)
+
+Do NOT rename these files. If a name differs slightly, adapt but keep structure similar.
+
+A2. LOGGING HELPER
+------------------
+Add a small helper function in a shared place (or local to each file) to avoid console spam formatting errors:
+
+  function logSemanticDebug(...args: unknown[]) {
+    if (process.env.NODE_ENV === 'production') return;
+    // eslint-disable-next-line no-console
+    console.log('[SemanticDebug]', ...args);
+  }
+
+Use this same pattern in all files below. Do NOT add environment-specific imports; just rely on NODE_ENV.
+
+A3. LOGGING IN figmaSemanticExtractor.ts
+----------------------------------------
+Immediately after semantic extraction completes (i.e., just before returning FigmaSemanticMetadata), log the summary:
+
+  logSemanticDebug('Extractor result for frame', {
+    frameId,
+    frameName,
+    pageName,
+    totalElements: elements.length,
+    counts: {
+      headings: elements.filter(e => e.type === 'heading').length,
+      text: elements.filter(e => e.type === 'text').length,
+      buttons: elements.filter(e => e.type === 'button').length,
+      inputs: elements.filter(e => e.type === 'input').length,
+      links: elements.filter(e => e.type === 'link').length,
+      sections: elements.filter(e => e.type === 'section').length,
+    },
+    forms: forms.length,
+    navigationTargets: navigationTargets.length,
+    truncated: metadata.truncated ?? false,
+    truncationReason: metadata.truncationReason ?? null,
+  });
+
+Also, inside the main traversal loop, add ONE compact log when limits hit:
+
+  if (depth > MAX_DEPTH || elementCount >= MAX_ELEMENTS) {
+    if (!truncated) {
+      logSemanticDebug('Extractor truncating tree', {
+        frameId,
+        reason: depth > MAX_DEPTH ? 'MAX_DEPTH' : 'MAX_ELEMENTS',
+        depth,
+        elementCount,
+      });
+    }
+    // existing truncation logic ...
+  }
+
+Avoid logging for every node; only summary and truncation events.
+
+A4. LOGGING IN semanticWorkflowGenerator.ts
+-------------------------------------------
+Just after reading figmaSemantic from the image node, log what we received:
+
+  const semantic = sourceImageNode.data?.figmaSemantic;
+  logSemanticDebug('WorkflowGenerator input', {
+    nodeId: sourceImageNode.id,
+    label: sourceImageNode.data?.label,
+    hasSemantic: !!semantic,
+    elementCount: semantic?.elements?.length ?? 0,
+    formCount: semantic?.forms?.length ?? 0,
+    navTargetCount: semantic?.navigationTargets?.length ?? 0,
+  });
+
+After building the “detailed workflow” (before any AI refinement), log the steps and edges:
+
+  logSemanticDebug('WorkflowGenerator detailed workflow', {
+    steps: detailedWorkflow.steps.map(s => ({
+      id: s.id,
+      label: s.label,
+      type: s.type,
+      fromElements: s.sourceElementIds,
+    })),
+    edges: detailedWorkflow.edges.map(e => ({
+      from: e.sourceStepId,
+      to: e.targetStepId,
+      reason: e.reason,
+    })),
+  });
+
+If the code currently has no “detailedWorkflow” object, create a simple internal structure before converting to nodes:
+
+  type DetailedWorkflowStep = {
+    id: string;
+    label: string;
+    type: 'user' | 'system' | 'decision';
+    sourceElementIds: string[];
+  };
+
+  type DetailedWorkflowEdge = {
+    sourceStepId: string;
+    targetStepId: string;
+    reason?: string;
+  };
+
+Use whatever minimal structure matches existing logic; the key is to log the intermediate representation BEFORE mapping to nodes.
+
+A5. LOGGING IN AI WORKFLOW REFINEMENT
+-------------------------------------
+Wherever the AI call happens (e.g., aiWorkflowGenerator.ts or similar), log:
+
+Before sending:
+  logSemanticDebug('AIWorkflow request', {
+    model,
+    elementCount: semantic.elements.length,
+    truncated: semantic.truncated ?? false,
+    promptPreview: prompt.slice(0, 500),
+  });
+
+After receiving:
+  logSemanticDebug('AIWorkflow response', {
+    stepCount: parsedSteps.length,
+    steps: parsedSteps.map(s => ({
+      id: s.id,
+      label: s.label,
+      type: s.type,
+    })),
+    rawTokenCount: approxTokenCount,
+  });
+
+If the AI returns zero steps and you fall back to the detailed workflow, log that explicitly:
+
+  if (!parsedSteps.length) {
+    logSemanticDebug('AIWorkflow empty result, falling back to detailed workflow');
+  }
+
+A6. LOGGING FINAL NODE/EDGE CREATION
+------------------------------------
+In semanticWorkflowGenerator.ts, AFTER converting steps into Kiteframe nodes/edges, log the counts and mapping:
+
+  logSemanticDebug('WorkflowGenerator final graph', {
+    nodeCount: newNodes.length,
+    edgeCount: newEdges.length,
+    nodeLabels: newNodes.map(n => n.data?.label ?? n.id),
+  });
+
+Do NOT change any undo/redo or layout behavior here. Only add logging.
+
+------------------------------------------------------------
+SECTION B — MODE SELECTOR: REFERENCE VS WORKFLOW
+------------------------------------------------------------
+Goal: Let the user choose whether imported Figma frames are:
+- Reference-only images
+- Workflow-generating frames
+
+B1. UX BEHAVIOR SUMMARY
+------------------------
+1) When the user pastes a Figma URL and we discover frames (page or file mode):
+   - Show the existing frame selection grid.
+   - Add a small mode selector above or below the grid:
+
+     [x] Treat selected frames as reference images
+     [ ] Analyze selected frames to generate workflows
+
+   - Default: REFERENCE mode SELECTED.
+
+2) When mode = reference:
+   - Import image nodes exactly as today.
+   - Set node.data.isReferenceFrame = true.
+   - Do NOT auto-generate any workflows.
+   - The “Generate Workflow” toolbar/context action should still be available later and use the semantic data as usual.
+
+3) When mode = workflow:
+   - Import image nodes exactly as today.
+   - Set node.data.isReferenceFrame = false (or omit the flag).
+   - Immediately open the “Generate Workflow” preview modal AFTER import completes, with the imported frame(s) pre-selected.
+   - The user confirms to generate workflow nodes from those frames.
+
+B2. FILES TO TOUCH
+------------------
+client/src/components/modals/FigmaImportModal.tsx
+client/src/components/modals/FigmaFramePicker.tsx
+client/src/pages/workflow-editor.tsx
+client/src/lib/kiteframe/types.ts (to ensure isReferenceFrame is typed correctly)
+
+B3. TYPE UPDATE FOR isReferenceFrame
+------------------------------------
+In ImageNodeData (already extended for figmaSemantic), ensure we have:
+
+  export interface ImageNodeData {
+    // existing fields...
+    figmaId?: string;
+    figmaType?: string;
+    figmaPageName?: string;
+    originalWidth?: number;
+    originalHeight?: number;
+
+    figmaSemantic?: FigmaSemanticMetadata | null;
+
+    // NEW: explicit reference flag
+    isReferenceFrame?: boolean;
+  }
+
+Default behavior:
+- If not set, treat as non-reference.
+- For new Figma imports in reference mode, set to true explicitly.
+
+B4. MODE STATE IN FigmaImportModal
+----------------------------------
+Add simple local state in FigmaImportModal.tsx:
+
+  const [importMode, setImportMode] = useState<'reference' | 'workflow'>('reference');
+
+When rendering the frame selection step (where FigmaFramePicker is used), render a simple toggle near it:
+
+  <div className="kf-import-mode-toggle">
+    <label>
+      <input
+        type="radio"
+        checked={importMode === 'reference'}
+        onChange={() => setImportMode('reference')}
+      />
+      Reference images only
+    </label>
+    <label>
+      <input
+        type="radio"
+        checked={importMode === 'workflow'}
+        onChange={() => setImportMode('workflow')}
+      />
+      Generate workflows from selected frames
+    </label>
+  </div>
+
+Do NOT introduce new component libraries; use existing styling or minimal CSS.
+
+Pass importMode down via onImport to workflow-editor.tsx. If onImport currently expects only (frames, mode), extend the second argument to include importMode or add a new parameter. Prefer a single context object for forward compatibility.
+
+B5. APPLY isReferenceFrame WHEN CREATING NODES
+----------------------------------------------
+In createFigmaProject.ts (or wherever Figma frames are converted to nodes), when building each ImageNodeData, set:
+
+  data: {
+    label: frame.name,
+    src: thumbnailUrl || '',
+    sourceType: 'url',
+    figmaId: frame.id,
+    figmaType: frame.type,
+    figmaPageName: frame.pageName,
+    originalWidth: frame.width,
+    originalHeight: frame.height,
+    figmaSemantic: figmaSemantic ?? null,
+    isReferenceFrame: importMode === 'reference',
+  }
+
+IMPORTANT: importMode must be passed down into createFigmaProject. If that function currently takes only (frames, thumbnails, semantic), extend it with an options object:
+
+  createFigmaProject({
+    frames,
+    thumbnails,
+    semantics,
+    importMode, // 'reference' | 'workflow'
+  });
+
+B6. WORKFLOW-ON-IMPORT BEHAVIOR
+-------------------------------
+In workflow-editor.tsx, after onImport is called and we have created the project and inserted the Figma image nodes:
+
+- If importMode === 'reference':
+  - Do nothing extra. Canvas ends with reference images, user can manually click “Generate Workflow” later.
+- If importMode === 'workflow':
+  - Immediately open the existing “Generate Workflow” preview UI.
+  - Pre-select the just-imported frames as the workflow candidates.
+  - Let the user confirm before generation.
+
+If the preview modal does not currently support “pre-select by node IDs”, add a small hook that takes an array of node IDs and populates the preview state from them.
+
+Do NOT auto-generate nodes without a preview/confirm step.
+
+------------------------------------------------------------
+SECTION C — SINGLE-FRAME STATE SPLITTING
+------------------------------------------------------------
+Goal: When a single Figma frame contains multiple logical UI states (e.g., multiple modals, before/after tables, multiple map overlays), generate more than a trivial 3-step flow. We will do this with heuristics FIRST and only optionally lean on AI.
+
+C1. DESIGN PRINCIPLES
+---------------------
+- KEEP IT SAFE: If heuristics are unsure, fall back to the existing simple workflow so we never hallucinate wildly incorrect flows.
+- NO NEW API CALLS TO FIGMA: Use the semantic metadata we already extracted.
+- LEVERAGE EXISTING semantic.elements AND forms: Don’t invent a new structure.
+
+C2. HEURISTIC: DETECT MULTI-STATE FRAMES
+----------------------------------------
+Add a helper in semanticWorkflowGenerator.ts (or a new module it imports) to decide if a frame “looks like” it contains multiple states.
+
+  function inferStateClustersFromSemantic(semantic: FigmaSemanticMetadata): {
+    clusters: { id: string; label: string; elementIds: string[] }[];
+  } {
+    const elements = semantic.elements ?? [];
+    const forms = semantic.forms ?? [];
+    const clusters: { id: string; label: string; elementIds: string[] }[] = [];
+
+    // Heuristic 1: multiple distinct forms
+    if (forms.length > 1) {
+      forms.forEach((form, index) => {
+        clusters.push({
+          id: `form-${index + 1}`,
+          label: form.name || `Form state ${index + 1}`,
+          elementIds: [...form.fieldIds, ...form.submitButtonIds],
+        });
+      });
+    }
+
+    // Heuristic 2: multiple sets of section-like containers
+    const sectionElements = elements.filter(e => e.type === 'section');
+    if (sectionElements.length > 1) {
+      sectionElements.forEach((section, index) => {
+        clusters.push({
+          id: `section-${index + 1}`,
+          label: section.name || `Section ${index + 1}`,
+          elementIds: [section.id],
+        });
+      });
+    }
+
+    // Heuristic 3: navigation targets pointing to different inferredTargetName
+    const navTargets = semantic.navigationTargets ?? [];
+    const navGroupsByTarget = new Map<string, string[]>();
+    for (const target of navTargets) {
+      if (!target.inferredTargetName) continue;
+      const key = target.inferredTargetName;
+      const arr = navGroupsByTarget.get(key) ?? [];
+      arr.push(target.elementId);
+      navGroupsByTarget.set(key, arr);
+    }
+    if (navGroupsByTarget.size > 1) {
+      let idx = 1;
+      for (const [name, elementIds] of navGroupsByTarget.entries()) {
+        clusters.push({
+          id: `nav-${idx}`,
+          label: `State: ${name}`,
+          elementIds,
+        });
+        idx += 1;
+      }
+    }
+
+    // Optional de-duplication: if two clusters share > 70% of elementIds, keep only one.
+
+    return { clusters };
+  }
+
+C3. USE STATE CLUSTERS IN DETAILED WORKFLOW GENERATION
+------------------------------------------------------
+In semanticWorkflowGenerator.ts, when building the “detailed workflow” steps, do:
+
+  const { clusters } = inferStateClustersFromSemantic(semantic);
+
+  if (clusters.length > 1) {
+    logSemanticDebug('WorkflowGenerator multi-state heuristic triggered', {
+      clusterCount: clusters.length,
+      clusters: clusters.map(c => ({
+        id: c.id,
+        label: c.label,
+        elementCount: c.elementIds.length,
+      })),
+    });
+
+    const steps: DetailedWorkflowStep[] = clusters.map((cluster, index) => ({
+      id: `state-${index + 1}`,
+      label: cluster.label || `State ${index + 1}`,
+      type: 'user',
+      sourceElementIds: cluster.elementIds,
+    }));
+
+    const edges: DetailedWorkflowEdge[] = [];
+    for (let i = 0; i < steps.length - 1; i++) {
+      edges.push({
+        sourceStepId: steps[i].id,
+        targetStepId: steps[i + 1].id,
+        reason: 'inferred-sequence',
+      });
+    }
+
+    detailedWorkflow = { steps, edges };
+  } else {
+    // FALL BACK TO EXISTING LOGIC
+  }
+
+C4. SAFETY + FALLBACKS
+----------------------
+- If semantic.elements is empty or missing → skip clustering, use existing logic.
+- If clusters.length === 0 → use existing logic.
+- If clusters.length is extremely large (> 8) → cap at 8 clusters and log truncation, or fall back to simple chain.
+- Never throw an error because clustering failed; just log and continue with the current behavior.
+
+------------------------------------------------------------
+FINAL NOTES FOR REPLIT
+------------------------------------------------------------
+1) Do NOT change the fundamental import behavior or existing public APIs unless explicitly described.
+2) When unsure, add logging and keep the previous behavior as a fallback.
+3) All new behaviors (mode selector, state clustering) should be opt-in and non-destructive:
+   - If importMode is not passed, assume 'reference' and behave as today.
+   - If inferStateClustersFromSemantic returns no clusters, behave as today.
+4) Please keep all function and type names as close as possible to what is described here, adapting only when necessary to match the current codebase.
+
