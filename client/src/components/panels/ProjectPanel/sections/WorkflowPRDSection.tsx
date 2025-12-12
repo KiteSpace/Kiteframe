@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, RefreshCw, Loader2, AlertTriangle } from 'lucide-react';
+import { Sparkles, RefreshCw, Loader2, AlertTriangle, X } from 'lucide-react';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { extractSemanticWorkflowModel } from '@/lib/kiteframe/utils/extractSemanticWorkflowModel';
 import { isWorkflowStale, storeHash, computeWorkflowHash } from '@/lib/kiteframe/utils/semanticHash';
@@ -13,6 +13,8 @@ import { useAi } from '@/ai/AiProvider';
 import { generateWorkflowPRD } from '@/ai/prdEngine';
 import { useToast } from '@/hooks/use-toast';
 import { DocSection, WorkflowDocument } from '@/components/docs';
+import { usePRDNodeLinks } from '@/stores/prdNodeLinkStore';
+import { focusBus } from '@/stores/focusBus';
 
 interface WorkflowPRDSectionProps {
   projectId: string;
@@ -20,6 +22,49 @@ interface WorkflowPRDSectionProps {
   workflowName: string;
   nodes: Node[];
   edges: Edge[];
+}
+
+function NodePickerModal({ 
+  nodes, 
+  onSelect, 
+  onClose 
+}: { 
+  nodes: Node[]; 
+  onSelect: (nodeId: string) => void; 
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={onClose}>
+      <div 
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-96 overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-semibold">Select Node to Link</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="overflow-y-auto max-h-72 p-2">
+          {nodes.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No nodes available</p>
+          ) : (
+            nodes.map(node => (
+              <button
+                key={node.id}
+                onClick={() => onSelect(node.id)}
+                className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                data-testid={`pick-node-${node.id}`}
+              >
+                <span className="text-xs text-muted-foreground">{node.type || 'node'}</span>
+                <span>{node.data?.label || node.id}</span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function WorkflowPRDSection({ 
@@ -32,8 +77,10 @@ export function WorkflowPRDSection({
   const [prd, setPrd] = useState<WorkflowPRD | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isStale, setIsStale] = useState(false);
+  const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
   const ai = useAi();
   const { toast } = useToast();
+  const prdLinks = usePRDNodeLinks(projectId);
 
   useEffect(() => {
     if (projectId && workflowId) {
@@ -111,6 +158,26 @@ export function WorkflowPRDSection({
     saveWorkflowPRD(projectId, workflowId, updated);
   }, [prd, projectId, workflowId]);
 
+  const handleLinkNode = useCallback((sectionId: string) => {
+    setLinkingSectionId(sectionId);
+  }, []);
+
+  const handleNodeSelected = useCallback((nodeId: string) => {
+    if (!linkingSectionId) return;
+    prdLinks.addLink(nodeId, workflowId, linkingSectionId);
+    setLinkingSectionId(null);
+    toast({ title: 'Node linked', description: 'Node connected to this section.' });
+  }, [linkingSectionId, workflowId, prdLinks, toast]);
+
+  const handleUnlinkNode = useCallback((nodeId: string, sectionId: string) => {
+    prdLinks.removeLink(nodeId, workflowId, sectionId);
+    toast({ title: 'Node unlinked', description: 'Link removed.' });
+  }, [workflowId, prdLinks, toast]);
+
+  const handleFocusNode = useCallback((nodeId: string) => {
+    focusBus.focusNodes([nodeId], { select: true });
+  }, []);
+
   return (
     <div data-testid="workflow-prd-section">
       {isStale && prd && (
@@ -179,9 +246,21 @@ export function WorkflowPRDSection({
               manuallyEdited={!!prd.manualEditedAt[section.id]}
               onSave={handleSectionSave}
               onResetToAI={handleResetSection}
+              linkedNodes={prdLinks.getLinksForSection(workflowId, section.id)}
+              onLinkNode={() => handleLinkNode(section.id)}
+              onUnlinkNode={(nodeId) => handleUnlinkNode(nodeId, section.id)}
+              onFocusNode={handleFocusNode}
             />
           ))}
         </WorkflowDocument>
+      )}
+
+      {linkingSectionId && (
+        <NodePickerModal
+          nodes={nodes}
+          onSelect={handleNodeSelected}
+          onClose={() => setLinkingSectionId(null)}
+        />
       )}
     </div>
   );

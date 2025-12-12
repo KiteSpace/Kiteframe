@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback, KeyboardEvent, useMemo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Edit3, RotateCcw, Sparkles, Loader2, Check, X } from 'lucide-react';
+import { Edit3, RotateCcw, Sparkles, Loader2, Check, X, Link2, Unlink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAi } from '@/ai/AiProvider';
 import { useToast } from '@/hooks/use-toast';
+import type { PRDNodeLink } from '@/stores/prdNodeLinkStore';
 
 interface DocSectionProps {
   title: string;
@@ -14,6 +15,10 @@ interface DocSectionProps {
   onSave: (sectionKey: string, value: string) => void;
   onResetToAI?: (sectionKey: string) => void;
   enableAISuggestions?: boolean;
+  linkedNodes?: PRDNodeLink[];
+  onLinkNode?: () => void;
+  onUnlinkNode?: (nodeId: string) => void;
+  onFocusNode?: (nodeId: string) => void;
 }
 
 function renderFormattedContent(content: string): ReactNode {
@@ -139,7 +144,11 @@ export function DocSection({
   manuallyEdited = false,
   onSave,
   onResetToAI,
-  enableAISuggestions = true
+  enableAISuggestions = true,
+  linkedNodes = [],
+  onLinkNode,
+  onUnlinkNode,
+  onFocusNode
 }: DocSectionProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(content);
@@ -289,6 +298,18 @@ export function DocSection({
               Reset
             </Button>
           )}
+          {onLinkNode && !isEditing && !suggestion && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+              onClick={onLinkNode}
+              data-testid={`link-${sectionKey}`}
+            >
+              <Link2 size={10} className="mr-1" />
+              Link
+            </Button>
+          )}
           {!isEditing && !suggestion && (
             <Button
               variant="ghost"
@@ -302,6 +323,34 @@ export function DocSection({
           )}
         </div>
       </div>
+
+      {linkedNodes.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2" data-testid={`linked-nodes-${sectionKey}`}>
+          {linkedNodes.map(link => (
+            <span
+              key={link.nodeId}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+              onClick={() => onFocusNode?.(link.nodeId)}
+              data-testid={`linked-node-${link.nodeId}`}
+            >
+              <Link2 size={8} />
+              Node
+              {onUnlinkNode && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUnlinkNode(link.nodeId);
+                  }}
+                  className="ml-0.5 hover:text-red-500"
+                  data-testid={`unlink-${link.nodeId}`}
+                >
+                  <X size={8} />
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
 
       {isEditing ? (
         <div className="space-y-2">
