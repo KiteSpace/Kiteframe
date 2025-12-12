@@ -18,51 +18,113 @@ function renderFormattedContent(content: string): ReactNode {
 
   const lines = content.split('\n');
   const elements: ReactNode[] = [];
-  let currentList: { number: number; text: string }[] = [];
-  let listStartIndex = 0;
+  let i = 0;
 
-  const flushList = () => {
-    if (currentList.length > 0) {
-      elements.push(
-        <ol key={`list-${listStartIndex}`} className="list-decimal list-inside space-y-1.5 my-2">
-          {currentList.map((item, idx) => (
-            <li key={idx} className="text-sm leading-relaxed">
-              {item.text}
-            </li>
-          ))}
-        </ol>
-      );
-      currentList = [];
-    }
-  };
-
-  lines.forEach((line, index) => {
-    const numberedMatch = line.match(/^(\d+)\.\s+(.+)$/);
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
     
-    if (numberedMatch) {
-      if (currentList.length === 0) {
-        listStartIndex = index;
-      }
-      currentList.push({
-        number: parseInt(numberedMatch[1], 10),
-        text: numberedMatch[2]
-      });
-    } else {
-      flushList();
-      
-      if (line.trim()) {
-        elements.push(
-          <p key={index} className="text-sm leading-relaxed">
-            {line}
-          </p>
-        );
-      } else if (index > 0 && index < lines.length - 1) {
-        elements.push(<div key={index} className="h-2" />);
-      }
+    if (!trimmedLine) {
+      i++;
+      continue;
     }
-  });
 
-  flushList();
+    // Check if line starts with a numbered item (e.g., "1. Item")
+    const startsWithNumber = /^(\d+)\.\s+(.+)$/.test(trimmedLine);
+    
+    if (startsWithNumber) {
+      // This line is a numbered item, collect consecutive numbered items
+      const items: { number: number; text: string }[] = [];
+      
+      while (i < lines.length) {
+        const currentLine = lines[i].trim();
+        if (!currentLine) break;
+        
+        const match = currentLine.match(/^(\d+)\.\s+(.+)$/);
+        if (match) {
+          items.push({
+            number: parseInt(match[1], 10),
+            text: match[2]
+          });
+          i++;
+        } else {
+          break;
+        }
+      }
+      
+      if (items.length > 0) {
+        elements.push(
+          <ol key={`list-${elements.length}`} className="list-decimal list-inside space-y-1.5 my-2">
+            {items.map((item, idx) => (
+              <li key={idx} className="text-sm leading-relaxed">
+                {item.text}
+              </li>
+            ))}
+          </ol>
+        );
+      }
+    } else {
+      // Check if line contains text followed by numbered items (e.g., "Text here. 2. Item 2. 3. Item 3")
+      const parts = trimmedLine.split(/\s+(\d+\.)\s+/);
+      
+      // Check if we actually found numbered patterns in this line
+      if (parts.length > 1) {
+        const items: { number: number; text: string }[] = [];
+        let pendingText = '';
+        
+        for (let j = 0; j < parts.length; j++) {
+          if (j === 0) {
+            // First part is either text or empty
+            pendingText = parts[j].trim();
+          } else if (/^\d+\.$/.test(parts[j])) {
+            // This is a number like "2."
+            const numberStr = parts[j].replace('.', '');
+            const itemNumber = parseInt(numberStr, 10);
+            const itemText = parts[j + 1]?.trim() || '';
+            
+            if (itemText) {
+              items.push({
+                number: itemNumber,
+                text: itemText
+              });
+              j++; // Skip the next part as we've consumed it
+            }
+          }
+        }
+        
+        // If we found at least 1 numbered item, render as list
+        if (items.length > 0) {
+          // Add pending text as first item if it exists
+          if (pendingText && pendingText !== '0.') {
+            items.unshift({
+              number: 1,
+              text: pendingText
+            });
+          }
+          
+          elements.push(
+            <ol key={`list-${elements.length}`} className="list-decimal list-inside space-y-1.5 my-2">
+              {items.map((item, idx) => (
+                <li key={idx} className="text-sm leading-relaxed">
+                  {item.text}
+                </li>
+              ))}
+            </ol>
+          );
+          i++;
+          continue;
+        }
+      }
+      
+      // No numbered pattern found, render as regular paragraph
+      elements.push(
+        <p key={elements.length} className="text-sm leading-relaxed">
+          {trimmedLine}
+        </p>
+      );
+      i++;
+    }
+  }
 
   return <div className="space-y-1">{elements}</div>;
 }
