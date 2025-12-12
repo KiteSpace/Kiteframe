@@ -176,17 +176,49 @@
 /* Kiteframe Ambient Gradient Animation */
 @keyframes gradientShift {
   0% {
-    background-position: 0% 50%, 100% 50%, 50% 0%;
+    background-position: 0% 0%, 100% 100%, 50% 0%, 0% 100%;
+  }
+  25% {
+    background-position: 100% 0%, 0% 100%, 100% 50%, 50% 0%;
   }
   50% {
-    background-position: 100% 50%, 0% 50%, 50% 100%;
+    background-position: 100% 100%, 0% 0%, 50% 100%, 100% 50%;
+  }
+  75% {
+    background-position: 0% 100%, 100% 0%, 0% 50%, 50% 100%;
   }
   100% {
-    background-position: 0% 50%, 100% 50%, 50% 0%;
+    background-position: 0% 0%, 100% 100%, 50% 0%, 0% 100%;
   }
 }
 
 .kiteframe-ambient-gradient {
+  background-image:
+    radial-gradient(
+      at top left,
+      rgba(255, 142, 28, 0.8),
+      transparent 50%
+    ),
+    radial-gradient(
+      at top right,
+      rgba(135, 221, 254, 0.8),
+      transparent 50%
+    ),
+    radial-gradient(
+      at bottom left,
+      rgba(35, 30, 254, 0.7),
+      transparent 50%
+    ),
+    radial-gradient(
+      at bottom right,
+      rgba(255, 10, 83, 0.75),
+      transparent 50%
+    );
+  background-size: 200% 200%;
+  animation: gradientShift 20s ease-in-out infinite;
+}
+
+.dark .kiteframe-ambient-gradient {
   background-image:
     radial-gradient(
       at top left,
@@ -200,38 +232,12 @@
     ),
     radial-gradient(
       at bottom left,
-      rgba(35, 30, 254, 0.4),
+      rgba(35, 30, 254, 0.45),
       transparent 50%
     ),
     radial-gradient(
       at bottom right,
-      rgba(255, 10, 83, 0.45),
-      transparent 50%
-    );
-  background-size: 200% 200%;
-  animation: gradientShift 40s ease-in-out infinite;
-}
-
-.dark .kiteframe-ambient-gradient {
-  background-image:
-    radial-gradient(
-      at top left,
-      rgba(255, 142, 28, 0.35),
-      transparent 50%
-    ),
-    radial-gradient(
-      at top right,
-      rgba(135, 221, 254, 0.35),
-      transparent 50%
-    ),
-    radial-gradient(
-      at bottom left,
-      rgba(35, 30, 254, 0.3),
-      transparent 50%
-    ),
-    radial-gradient(
-      at bottom right,
-      rgba(255, 10, 83, 0.35),
+      rgba(255, 10, 83, 0.5),
       transparent 50%
     );
 }
