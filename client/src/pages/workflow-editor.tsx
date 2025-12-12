@@ -12,7 +12,6 @@ import { Sidebar } from '@/components/Sidebar';
 import { CollapsedSidebar } from '@/components/CollapsedSidebar';
 import { NodeTypesPopout } from '@/components/NodeTypesPopout';
 import { ShapesPopout } from '@/components/ShapesPopout';
-import { PropertiesCard } from '@/components/PropertiesCard';
 import { Toolbar } from '@/components/Toolbar';
 import { AiSettingsModal } from '@/components/AiSettingsModal';
 import { AiWorkflowGenerator } from '@/components/AiWorkflowGenerator';
@@ -5418,82 +5417,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     });
                   }}
                 />
-
-                {/* Properties Card for selected objects - DISABLED: using toolbar mechanism instead */}
-                {false && isSidebarCollapsed && (selectedNodeId || selectedEdgeId || canvasObjects.some(obj => obj.selected)) && (
-                  <PropertiesCard
-                    selectedNode={nodes.find(n => n.id === selectedNodeId)}
-                    selectedEdge={edges.find(e => e.id === selectedEdgeId)}
-                    selectedCanvasObject={canvasObjects.find(obj => obj.selected)}
-                    selectedNodeIds={nodes.filter(n => n.selected).map(n => n.id)}
-                    selectedCanvasObjectIds={canvasObjects.filter(obj => obj.selected).map(obj => obj.id)}
-                    nodes={nodes}
-                    onNodeUpdate={(nodeId: string, updates: Partial<Node>) => {
-                      setNodes(prev => prev.map(node => 
-                        node.id === nodeId ? { ...node, ...updates } : node
-                      ));
-                      saveToHistory();
-                    }}
-                    onEdgeUpdate={(edgeId: string, updates: Partial<Edge>) => {
-                      setEdges(prev => prev.map(edge => 
-                        edge.id === edgeId ? { ...edge, ...updates } : edge
-                      ));
-                      saveToHistory();
-                    }}
-                    onCanvasObjectUpdate={(objectId: string, updates: any) => {
-                      updateActiveTab({
-                        canvasObjects: canvasObjects.map(obj => 
-                          obj.id === objectId 
-                            ? { 
-                                ...obj, 
-                                ...updates,
-                                // If updates contains data, merge it with existing data
-                                ...(updates.data && { data: { ...obj.data, ...updates.data } })
-                              }
-                            : obj
-                        )
-                      });
-                      saveToHistory();
-                    }}
-                    onDeselect={() => {
-                      // Only deselect the currently selected object, not all objects
-                      if (selectedNodeId) {
-                        setSelectedNodeId('');
-                        setNodes(prev => prev.map(n => 
-                          n.id === selectedNodeId ? { ...n, selected: false } : n
-                        ));
-                      }
-                      if (selectedEdgeId) {
-                        setSelectedEdgeId('');
-                        setEdges(prev => prev.map(e => 
-                          e.id === selectedEdgeId ? { ...e, selected: false } : e
-                        ));
-                      }
-                      // Deselect any selected canvas objects
-                      const hasSelectedCanvasObjects = canvasObjects.some(obj => obj.selected);
-                      if (hasSelectedCanvasObjects) {
-                        updateActiveTab({
-                          canvasObjects: canvasObjects.map(obj => ({ ...obj, selected: false }))
-                        });
-                      }
-                    }}
-                    onImageUpload={async (nodeId: string, file: File) => {
-                      // Convert file to data URL for local storage
-                      return new Promise<string>((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          const dataUrl = reader.result as string;
-                          resolve(dataUrl);
-                        };
-                        reader.onerror = reject;
-                        reader.readAsDataURL(file);
-                      });
-                    }}
-                    onImageUrlSet={(nodeId: string, url: string) => {
-                      // This handler is called when URL is set via modal
-                    }}
-                  />
-                )}
               </>
             ) : (
               <Sidebar
