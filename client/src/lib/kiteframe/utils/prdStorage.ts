@@ -3,6 +3,21 @@ import type { WorkflowPRD, ProjectPRD } from '../../../ai/prdEngine';
 const WORKFLOW_PRD_PREFIX = 'prd-workflow-';
 const PROJECT_PRD_PREFIX = 'prd-project-';
 const BACKUP_SUFFIX = '-backup';
+const HISTORY_SUFFIX = '-history';
+const MAX_HISTORY_VERSIONS = 10;
+
+export type PRDVersionReason = 'ai-generate' | 'ai-update' | 'manual';
+
+export interface PRDVersion<T = WorkflowPRD | ProjectPRD> {
+  version: number;
+  createdAt: string;
+  content: T;
+  reason: PRDVersionReason;
+}
+
+export interface PRDHistory<T = WorkflowPRD | ProjectPRD> {
+  versions: PRDVersion<T>[];
+}
 
 export function getWorkflowPRDKey(projectId: string, workflowId: string): string {
   return `${WORKFLOW_PRD_PREFIX}${projectId}-${workflowId}`;
@@ -141,4 +156,149 @@ export function clearManualEdit(
     ...prd,
     manualEditedAt: remainingEdits
   };
+}
+
+function getWorkflowHistoryKey(projectId: string, workflowId: string): string {
+  return `${WORKFLOW_PRD_PREFIX}${projectId}-${workflowId}${HISTORY_SUFFIX}`;
+}
+
+function getProjectHistoryKey(projectId: string): string {
+  return `${PROJECT_PRD_PREFIX}${projectId}${HISTORY_SUFFIX}`;
+}
+
+export function saveWorkflowPRDVersion(
+  projectId: string,
+  workflowId: string,
+  prd: WorkflowPRD,
+  reason: PRDVersionReason
+): void {
+  const historyKey = getWorkflowHistoryKey(projectId, workflowId);
+  
+  try {
+    const stored = localStorage.getItem(historyKey);
+    const history: PRDHistory<WorkflowPRD> = stored ? JSON.parse(stored) : { versions: [] };
+    
+    const nextVersion = history.versions.length > 0 
+      ? Math.max(...history.versions.map(v => v.version)) + 1 
+      : 1;
+    
+    const newVersion: PRDVersion<WorkflowPRD> = {
+      version: nextVersion,
+      createdAt: new Date().toISOString(),
+      content: prd,
+      reason
+    };
+    
+    history.versions.push(newVersion);
+    
+    if (history.versions.length > MAX_HISTORY_VERSIONS) {
+      history.versions = history.versions.slice(-MAX_HISTORY_VERSIONS);
+    }
+    
+    localStorage.setItem(historyKey, JSON.stringify(history));
+  } catch (e) {
+    console.error('Failed to save workflow PRD version:', e);
+  }
+}
+
+export function loadWorkflowPRDHistory(
+  projectId: string,
+  workflowId: string
+): PRDVersion<WorkflowPRD>[] {
+  const historyKey = getWorkflowHistoryKey(projectId, workflowId);
+  
+  try {
+    const stored = localStorage.getItem(historyKey);
+    if (!stored) return [];
+    
+    const history: PRDHistory<WorkflowPRD> = JSON.parse(stored);
+    return history.versions.sort((a, b) => b.version - a.version);
+  } catch {
+    return [];
+  }
+}
+
+export function restoreWorkflowPRDVersion(
+  projectId: string,
+  workflowId: string,
+  version: number
+): WorkflowPRD | null {
+  const history = loadWorkflowPRDHistory(projectId, workflowId);
+  const versionToRestore = history.find(v => v.version === version);
+  
+  if (!versionToRestore) return null;
+  
+  const currentPrd = loadWorkflowPRD(projectId, workflowId);
+  if (currentPrd) {
+    saveWorkflowPRDVersion(projectId, workflowId, currentPrd, 'manual');
+  }
+  
+  saveWorkflowPRD(projectId, workflowId, versionToRestore.content);
+  return versionToRestore.content;
+}
+
+export function saveProjectPRDVersion(
+  projectId: string,
+  prd: ProjectPRD,
+  reason: PRDVersionReason
+): void {
+  const historyKey = getProjectHistoryKey(projectId);
+  
+  try {
+    const stored = localStorage.getItem(historyKey);
+    const history: PRDHistory<ProjectPRD> = stored ? JSON.parse(stored) : { versions: [] };
+    
+    const nextVersion = history.versions.length > 0 
+      ? Math.max(...history.versions.map(v => v.version)) + 1 
+      : 1;
+    
+    const newVersion: PRDVersion<ProjectPRD> = {
+      version: nextVersion,
+      createdAt: new Date().toISOString(),
+      content: prd,
+      reason
+    };
+    
+    history.versions.push(newVersion);
+    
+    if (history.versions.length > MAX_HISTORY_VERSIONS) {
+      history.versions = history.versions.slice(-MAX_HISTORY_VERSIONS);
+    }
+    
+    localStorage.setItem(historyKey, JSON.stringify(history));
+  } catch (e) {
+    console.error('Failed to save project PRD version:', e);
+  }
+}
+
+export function loadProjectPRDHistory(projectId: string): PRDVersion<ProjectPRD>[] {
+  const historyKey = getProjectHistoryKey(projectId);
+  
+  try {
+    const stored = localStorage.getItem(historyKey);
+    if (!stored) return [];
+    
+    const history: PRDHistory<ProjectPRD> = JSON.parse(stored);
+    return history.versions.sort((a, b) => b.version - a.version);
+  } catch {
+    return [];
+  }
+}
+
+export function restoreProjectPRDVersion(
+  projectId: string,
+  version: number
+): ProjectPRD | null {
+  const history = loadProjectPRDHistory(projectId);
+  const versionToRestore = history.find(v => v.version === version);
+  
+  if (!versionToRestore) return null;
+  
+  const currentPrd = loadProjectPRD(projectId);
+  if (currentPrd) {
+    saveProjectPRDVersion(projectId, currentPrd, 'manual');
+  }
+  
+  saveProjectPRD(projectId, versionToRestore.content);
+  return versionToRestore.content;
 }

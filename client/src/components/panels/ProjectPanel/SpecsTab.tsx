@@ -7,15 +7,25 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { 
   Palette, Type, Square, Maximize2, ChevronDown, ChevronRight, 
   Sparkles, RefreshCw, FileText, AlertTriangle, Loader2, RotateCcw,
-  Edit3, Eye
+  Edit3, Eye, History, RotateCw
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import { groupWorkflows, type WorkflowGroup } from '@/lib/kiteframe/utils/workflowGrouping';
 import { extractSemanticWorkflowModel } from '@/lib/kiteframe/utils/extractSemanticWorkflowModel';
 import { isWorkflowStale, storeHash, computeWorkflowHash } from '@/lib/kiteframe/utils/semanticHash';
 import { 
   loadWorkflowPRD, saveWorkflowPRD, saveWorkflowPRDBackup, 
-  updatePRDSection, clearManualEdit 
+  updatePRDSection, clearManualEdit,
+  saveWorkflowPRDVersion, loadWorkflowPRDHistory, restoreWorkflowPRDVersion,
+  type PRDVersion
 } from '@/lib/kiteframe/utils/prdStorage';
 import { createEmptyWorkflowPRD, type WorkflowPRD, type PRDSection } from '@/ai/prdEngine';
 import { useAi } from '@/ai/AiProvider';
@@ -315,6 +325,7 @@ export function SpecsTab({ nodes, edges, canvasObjects = [], projectId }: SpecsT
   const [prd, setPrd] = useState<WorkflowPRD | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isStale, setIsStale] = useState(false);
+  const [history, setHistory] = useState<PRDVersion<WorkflowPRD>[]>([]);
   const ai = useAi();
   const { toast } = useToast();
 
@@ -338,6 +349,8 @@ export function SpecsTab({ nodes, edges, canvasObjects = [], projectId }: SpecsT
         setPrd(null);
         setIsStale(false);
       }
+      const loadedHistory = loadWorkflowPRDHistory(projectId, selectedWorkflow.id);
+      setHistory(loadedHistory);
     }
   }, [selectedWorkflow, projectId]);
 
@@ -354,9 +367,11 @@ export function SpecsTab({ nodes, edges, canvasObjects = [], projectId }: SpecsT
     setIsGenerating(true);
 
     try {
+      const isFirstGeneration = !prd;
+      
       if (prd) {
+        saveWorkflowPRDVersion(projectId, selectedWorkflow.id, prd, 'ai-update');
         saveWorkflowPRDBackup(projectId, selectedWorkflow.id, prd);
-        toast({ title: 'Backup saved', description: 'Previous spec saved as backup.' });
       }
 
       const model = extractSemanticWorkflowModel(
@@ -371,9 +386,18 @@ export function SpecsTab({ nodes, edges, canvasObjects = [], projectId }: SpecsT
       const hash = computeWorkflowHash(selectedWorkflow.nodes, selectedWorkflow.edges);
       storeHash(projectId, selectedWorkflow.id, hash);
       
-      saveWorkflowPRD(projectId, selectedWorkflow.id, { ...newPrd, hash });
-      setPrd({ ...newPrd, hash });
+      const prdWithHash = { ...newPrd, hash };
+      
+      if (isFirstGeneration) {
+        saveWorkflowPRDVersion(projectId, selectedWorkflow.id, prdWithHash, 'ai-generate');
+      }
+      
+      saveWorkflowPRD(projectId, selectedWorkflow.id, prdWithHash);
+      setPrd(prdWithHash);
       setIsStale(false);
+
+      const updatedHistory = loadWorkflowPRDHistory(projectId, selectedWorkflow.id);
+      setHistory(updatedHistory);
 
       toast({ title: 'Spec generated', description: 'Workflow spec has been created.' });
     } catch (error) {
@@ -386,6 +410,20 @@ export function SpecsTab({ nodes, edges, canvasObjects = [], projectId }: SpecsT
       setIsGenerating(false);
     }
   }, [selectedWorkflow, projectId, prd, ai, toast]);
+
+  const handleRestoreVersion = useCallback((version: number) => {
+    if (!selectedWorkflow || !projectId) return;
+
+    const restored = restoreWorkflowPRDVersion(projectId, selectedWorkflow.id, version);
+    if (restored) {
+      setPrd(restored);
+      const updatedHistory = loadWorkflowPRDHistory(projectId, selectedWorkflow.id);
+      setHistory(updatedHistory);
+      toast({ title: 'Version restored', description: `Restored to version ${version}.` });
+    } else {
+      toast({ title: 'Restore failed', description: 'Could not restore version.', variant: 'destructive' });
+    }
+  }, [selectedWorkflow, projectId, toast]);
 
   const handleSectionUpdate = useCallback((sectionId: string, content: string) => {
     if (!prd || !projectId || !selectedWorkflow) return;
@@ -460,21 +498,57 @@ export function SpecsTab({ nodes, edges, canvasObjects = [], projectId }: SpecsT
               <FileText size={12} />
               Workflow Spec
             </h3>
-            <Button
-              variant={prd ? 'outline' : 'default'}
-              size="sm"
-              className="h-7 text-xs"
-              onClick={handleGenerate}
-              disabled={isGenerating || !projectId}
-              data-testid="generate-prd"
-            >
-              {isGenerating ? (
-                <Loader2 size={12} className="mr-1 animate-spin" />
-              ) : (
-                <Sparkles size={12} className="mr-1" />
+            <div className="flex items-center gap-1">
+              {history.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      data-testid="history-dropdown"
+                    >
+                      <History size={12} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="text-xs">Version History</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {history.map((v) => (
+                      <DropdownMenuItem
+                        key={v.version}
+                        onClick={() => handleRestoreVersion(v.version)}
+                        className="text-xs cursor-pointer"
+                        data-testid={`restore-version-${v.version}`}
+                      >
+                        <RotateCw size={10} className="mr-2" />
+                        <div className="flex-1">
+                          <div className="font-medium">v{v.version}</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {new Date(v.createdAt).toLocaleString()} · {v.reason}
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
-              {prd ? 'Regenerate' : 'Generate'}
-            </Button>
+              <Button
+                variant={prd ? 'outline' : 'default'}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleGenerate}
+                disabled={isGenerating || !projectId}
+                data-testid="generate-prd"
+              >
+                {isGenerating ? (
+                  <Loader2 size={12} className="mr-1 animate-spin" />
+                ) : (
+                  <Sparkles size={12} className="mr-1" />
+                )}
+                {prd ? 'Regenerate' : 'Generate'}
+              </Button>
+            </div>
           </div>
 
           {!projectId && (

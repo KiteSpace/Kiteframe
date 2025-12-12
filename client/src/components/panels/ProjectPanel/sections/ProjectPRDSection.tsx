@@ -1,12 +1,22 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, RefreshCw, Loader2 } from 'lucide-react';
+import { Sparkles, RefreshCw, Loader2, History, RotateCw } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { extractSemanticWorkflowModel } from '@/lib/kiteframe/utils/extractSemanticWorkflowModel';
 import { FlowDetection } from '@/lib/kiteframe/utils/FlowDetection';
 import { 
   loadProjectPRD, saveProjectPRD, saveProjectPRDBackup, 
-  updatePRDSection, clearManualEdit 
+  updatePRDSection, clearManualEdit,
+  saveProjectPRDVersion, loadProjectPRDHistory, restoreProjectPRDVersion,
+  type PRDVersion
 } from '@/lib/kiteframe/utils/prdStorage';
 import { type ProjectPRD, generateProjectPRD } from '@/ai/prdEngine';
 import { useAi } from '@/ai/AiProvider';
@@ -30,6 +40,7 @@ export function ProjectPRDSection({
 }: ProjectPRDSectionProps) {
   const [prd, setPrd] = useState<ProjectPRD | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [history, setHistory] = useState<PRDVersion<ProjectPRD>[]>([]);
   const ai = useAi();
   const { toast } = useToast();
 
@@ -41,6 +52,8 @@ export function ProjectPRDSection({
       } else {
         setPrd(null);
       }
+      const loadedHistory = loadProjectPRDHistory(projectId);
+      setHistory(loadedHistory);
     }
   }, [projectId]);
 
@@ -50,9 +63,11 @@ export function ProjectPRDSection({
     setIsGenerating(true);
 
     try {
+      const isFirstGeneration = !prd;
+      
       if (prd) {
+        saveProjectPRDVersion(projectId, prd, 'ai-update');
         saveProjectPRDBackup(projectId, prd);
-        toast({ title: 'Backup saved', description: 'Previous spec saved as backup.' });
       }
 
       const flows = FlowDetection.detectFlows(nodes, edges);
@@ -67,9 +82,16 @@ export function ProjectPRDSection({
 
       const newPrd = await generateProjectPRD(ai, projectId, projectName, workflowModels, prd || undefined);
       
+      if (isFirstGeneration) {
+        saveProjectPRDVersion(projectId, newPrd, 'ai-generate');
+      }
+      
       saveProjectPRD(projectId, newPrd);
       setPrd(newPrd);
       onPRDGenerated?.();
+
+      const updatedHistory = loadProjectPRDHistory(projectId);
+      setHistory(updatedHistory);
 
       toast({ title: 'Spec generated', description: 'Project spec has been created.' });
     } catch (error) {
@@ -82,6 +104,21 @@ export function ProjectPRDSection({
       setIsGenerating(false);
     }
   }, [projectId, projectName, nodes, edges, prd, ai, toast, onPRDGenerated]);
+
+  const handleRestoreVersion = useCallback((version: number) => {
+    if (!projectId) return;
+
+    const restored = restoreProjectPRDVersion(projectId, version);
+    if (restored) {
+      setPrd(restored);
+      onPRDGenerated?.();
+      const updatedHistory = loadProjectPRDHistory(projectId);
+      setHistory(updatedHistory);
+      toast({ title: 'Version restored', description: `Restored to version ${version}.` });
+    } else {
+      toast({ title: 'Restore failed', description: 'Could not restore version.', variant: 'destructive' });
+    }
+  }, [projectId, toast, onPRDGenerated]);
 
   const handleSectionSave = useCallback((sectionKey: string, content: string) => {
     if (!prd || !projectId) return;
@@ -128,17 +165,53 @@ export function ProjectPRDSection({
         <WorkflowDocument>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold">{projectName} Spec</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs text-muted-foreground"
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              data-testid="regenerate-project-prd"
-            >
-              <RefreshCw size={12} className="mr-1" />
-              Regenerate
-            </Button>
+            <div className="flex items-center gap-1">
+              {history.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      data-testid="project-history-dropdown"
+                    >
+                      <History size={12} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="text-xs">Version History</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {history.map((v) => (
+                      <DropdownMenuItem
+                        key={v.version}
+                        onClick={() => handleRestoreVersion(v.version)}
+                        className="text-xs cursor-pointer"
+                        data-testid={`restore-project-version-${v.version}`}
+                      >
+                        <RotateCw size={10} className="mr-2" />
+                        <div className="flex-1">
+                          <div className="font-medium">v{v.version}</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {new Date(v.createdAt).toLocaleString()} · {v.reason}
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-muted-foreground"
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                data-testid="regenerate-project-prd"
+              >
+                <RefreshCw size={12} className="mr-1" />
+                Regenerate
+              </Button>
+            </div>
           </div>
 
           {prd.sections.map((section) => (
