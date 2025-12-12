@@ -1,6 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, RefreshCw, Loader2, AlertTriangle, X, Eye, Check, Lightbulb, AlertCircle, Clock } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Sparkles, RefreshCw, Loader2, AlertTriangle, X, Eye, Check, Lightbulb, AlertCircle, Clock, MoreHorizontal, Copy, Download, Upload } from 'lucide-react';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { extractSemanticWorkflowModel } from '@/lib/kiteframe/utils/extractSemanticWorkflowModel';
 import { isWorkflowStale, storeHash, computeWorkflowHash } from '@/lib/kiteframe/utils/semanticHash';
@@ -8,6 +15,12 @@ import {
   loadWorkflowPRD, saveWorkflowPRD, saveWorkflowPRDBackup, 
   updatePRDSection, clearManualEdit 
 } from '@/lib/kiteframe/utils/prdStorage';
+import { 
+  exportWorkflowPRDToMarkdown, 
+  copyToClipboard, 
+  downloadMarkdownFile, 
+  generatePRDFilename 
+} from '@/lib/kiteframe/utils/prdExport';
 import { type WorkflowPRD } from '@/ai/prdEngine';
 import { useAi } from '@/ai/AiProvider';
 import { generateWorkflowPRD } from '@/ai/prdEngine';
@@ -16,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { DocSection, WorkflowDocument } from '@/components/docs';
 import { usePRDNodeLinks } from '@/stores/prdNodeLinkStore';
 import { focusBus } from '@/stores/focusBus';
+import { ImportPRDModal } from '@/components/ImportPRDModal';
 
 interface WorkflowPRDSectionProps {
   projectId: string;
@@ -153,6 +167,7 @@ export function WorkflowPRDSection({
   const [reviewResult, setReviewResult] = useState<PRDReviewResult | null>(null);
   const [isStale, setIsStale] = useState(false);
   const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const ai = useAi();
   const { toast } = useToast();
   const prdLinks = usePRDNodeLinks(projectId);
@@ -312,6 +327,37 @@ export function WorkflowPRDSection({
     } : null);
   }, []);
 
+  const handleCopyMarkdown = useCallback(async () => {
+    if (!prd) return;
+    const markdown = exportWorkflowPRDToMarkdown(prd);
+    const success = await copyToClipboard(markdown);
+    if (success) {
+      toast({ title: 'Copied', description: 'Spec copied to clipboard as markdown.' });
+    } else {
+      toast({ title: 'Copy failed', description: 'Could not copy to clipboard.', variant: 'destructive' });
+    }
+  }, [prd, toast]);
+
+  const handleDownloadMarkdown = useCallback(() => {
+    if (!prd) return;
+    const markdown = exportWorkflowPRDToMarkdown(prd);
+    const filename = generatePRDFilename('project', workflowName);
+    downloadMarkdownFile(markdown, filename);
+    toast({ title: 'Downloaded', description: `Saved as ${filename}` });
+  }, [prd, workflowName, toast]);
+
+  const handleImportPRD = useCallback((importedPrd: WorkflowPRD) => {
+    if (!projectId || !workflowId) return;
+    
+    if (prd) {
+      saveWorkflowPRDBackup(projectId, workflowId, prd);
+    }
+    
+    saveWorkflowPRD(projectId, workflowId, importedPrd);
+    setPrd(importedPrd);
+    setIsImportModalOpen(false);
+  }, [projectId, workflowId, prd]);
+
   return (
     <div data-testid="workflow-prd-section">
       {isStale && prd && (
@@ -385,6 +431,33 @@ export function WorkflowPRDSection({
                 <RefreshCw size={12} className="mr-1" />
                 Regenerate
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    data-testid="prd-menu-btn"
+                  >
+                    <MoreHorizontal size={14} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleCopyMarkdown} data-testid="copy-prd-markdown">
+                    <Copy size={14} className="mr-2" />
+                    Copy as Markdown
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDownloadMarkdown} data-testid="download-prd-markdown">
+                    <Download size={14} className="mr-2" />
+                    Download .md
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setIsImportModalOpen(true)} data-testid="import-prd">
+                    <Upload size={14} className="mr-2" />
+                    Import PRD
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -443,6 +516,14 @@ export function WorkflowPRDSection({
           onClose={() => setLinkingSectionId(null)}
         />
       )}
+
+      <ImportPRDModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleImportPRD}
+        workflowId={workflowId}
+        workflowName={workflowName}
+      />
     </div>
   );
 }
