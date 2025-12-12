@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Sparkles, Upload, FileText } from 'lucide-react';
 import { SiFigma } from 'react-icons/si';
-import { motion } from 'framer-motion';
 
 interface HomeHeroProps {
   onStartDesigning: (prompt: string) => void;
@@ -49,62 +48,11 @@ export function HomeHero({
   }, [promptValue, isGenerating, isDisabled, handleStartDesigning]);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl mb-10">
-      <div className="absolute inset-0 overflow-hidden">
-        <motion.div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(135deg, hsl(220, 20%, 95%) 0%, hsl(280, 15%, 93%) 25%, hsl(200, 18%, 94%) 50%, hsl(260, 12%, 95%) 75%, hsl(220, 20%, 95%) 100%)',
-            backgroundSize: '400% 400%',
-          }}
-          animate={{
-            backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'],
-          }}
-          transition={{
-            duration: 30,
-            ease: 'linear',
-            repeat: Infinity,
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/80" />
-      </div>
+    <div className="relative w-full -mx-6 px-6 mb-10">
+      <div className="absolute inset-0 kiteframe-ambient-gradient" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
 
-      <div className="dark:hidden absolute inset-0 overflow-hidden">
-        <motion.div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(135deg, hsl(220, 20%, 95%) 0%, hsl(280, 15%, 93%) 25%, hsl(200, 18%, 94%) 50%, hsl(260, 12%, 95%) 75%, hsl(220, 20%, 95%) 100%)',
-            backgroundSize: '400% 400%',
-          }}
-          animate={{
-            backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'],
-          }}
-          transition={{
-            duration: 30,
-            ease: 'linear',
-            repeat: Infinity,
-          }}
-        />
-      </div>
-      <div className="hidden dark:block absolute inset-0 overflow-hidden">
-        <motion.div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(135deg, hsl(220, 15%, 12%) 0%, hsl(280, 10%, 14%) 25%, hsl(200, 12%, 13%) 50%, hsl(260, 8%, 15%) 75%, hsl(220, 15%, 12%) 100%)',
-            backgroundSize: '400% 400%',
-          }}
-          animate={{
-            backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'],
-          }}
-          transition={{
-            duration: 30,
-            ease: 'linear',
-            repeat: Infinity,
-          }}
-        />
-      </div>
-
-      <div className="relative z-10 px-8 py-12 flex flex-col items-center">
+      <div className="relative z-10 py-16 flex flex-col items-center">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent">
             What would you like to build?
@@ -193,7 +141,7 @@ export function HomeHero({
             <button
               key={example.label}
               onClick={() => handleExampleClick(example.prompt)}
-              className="text-xs px-3 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              className="text-xs px-3 py-1.5 rounded-full bg-card/80 backdrop-blur-sm border border-border/50 hover:bg-card text-muted-foreground hover:text-foreground transition-colors"
               disabled={isDisabled}
               data-testid={`button-example-${example.label.toLowerCase().replace(/\s+/g, '-')}`}
             >

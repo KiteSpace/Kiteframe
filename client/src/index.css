@@ -172,3 +172,56 @@
 .dark [data-table-scrollable="true"]::-webkit-scrollbar-thumb:hover {
   background-color: rgba(107, 114, 128, 0.9);
 }
+
+/* Kiteframe Ambient Gradient Animation */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%, 100% 50%, 50% 0%;
+  }
+  50% {
+    background-position: 100% 50%, 0% 50%, 50% 100%;
+  }
+  100% {
+    background-position: 0% 50%, 100% 50%, 50% 0%;
+  }
+}
+
+.kiteframe-ambient-gradient {
+  background-image:
+    radial-gradient(
+      at top left,
+      rgba(99, 102, 241, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      at top right,
+      rgba(56, 189, 248, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      at bottom center,
+      rgba(168, 85, 247, 0.14),
+      transparent 65%
+    );
+  background-size: 200% 200%;
+  animation: gradientShift 40s ease-in-out infinite;
+}
+
+.dark .kiteframe-ambient-gradient {
+  background-image:
+    radial-gradient(
+      at top left,
+      rgba(99, 102, 241, 0.25),
+      transparent 60%
+    ),
+    radial-gradient(
+      at top right,
+      rgba(56, 189, 248, 0.25),
+      transparent 60%
+    ),
+    radial-gradient(
+      at bottom center,
+      rgba(168, 85, 247, 0.20),
+      transparent 65%
+    );
+}
