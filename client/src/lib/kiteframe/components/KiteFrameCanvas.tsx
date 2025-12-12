@@ -5763,17 +5763,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           />
         )}
 
-        {/* Floating workflow name input */}
-        {props.workflowName !== undefined && props.onWorkflowNameChange && (
-          <div role="region" aria-label="Workflow information">
-            <WorkflowNameInput
-              name={props.workflowName}
-              onChange={props.onWorkflowNameChange}
-              metadata={props.workflowMetadata}
-              onMetadataChange={props.onWorkflowMetadataChange}
-            />
-          </div>
-        )}
 
         {/* ========== PRODUCTION FEATURES UI FEEDBACK ========== */}
         {/* Memory Warning */}
