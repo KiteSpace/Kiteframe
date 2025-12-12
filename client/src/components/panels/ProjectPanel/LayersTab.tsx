@@ -12,6 +12,7 @@ import {
   useProjectWorkflowNames, 
   generateDefaultWorkflowNames 
 } from '@/stores/layersStateManager';
+import { useWorkflowMetadata, type WorkflowStatus } from '@/stores/workflowMetadataStore';
 import { Search } from 'lucide-react';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 
@@ -27,6 +28,7 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, projectId }: La
   const [tree, setTree] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [collapseVersion, forceCollapseUpdate] = useReducer((x: number) => x + 1, 0);
+  const workflowMeta = useWorkflowMetadata(projectId);
 
   useEffect(() => {
     const w = new Worker(new URL('@/components/layers/graphWorker.ts', import.meta.url), { type: 'module' });
@@ -235,6 +237,12 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, projectId }: La
                 collapseStore.toggle(id);
               };
               
+              const wfKey = id.startsWith('wf:') ? id.slice(3) : id;
+              const wfStatus = role === 'workflow' ? workflowMeta.get(wfKey).status : undefined;
+              const handleStatusChange = role === 'workflow' ? (newStatus: WorkflowStatus) => {
+                workflowMeta.setStatus(wfKey, newStatus);
+              } : undefined;
+              
               return <GroupRow 
                 id={id} depth={depth} label={label} childIds={childIds ?? []}
                 triHidden={triHidden} triLocked={triLocked}
@@ -244,6 +252,8 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, projectId }: La
                 role={role}
                 collapsed={collapsed}
                 onToggleCollapse={handleToggleCollapse}
+                status={wfStatus}
+                onStatusChange={handleStatusChange}
               />;
             } else {
               const ancestors = ancestorsIndex[id] ?? [];

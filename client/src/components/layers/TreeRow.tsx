@@ -1,11 +1,19 @@
 import * as React from 'react';
 import { 
   Eye, EyeOff, Lock, Unlock, MinusSquare, Edit2, ChevronRight, ChevronDown,
-  ArrowRight, ArrowLeft, Cog, HelpCircle, Bot, Image, Folder, Link2, Layers
+  ArrowRight, ArrowLeft, Cog, HelpCircle, Bot, Image, Folder, Link2, Layers,
+  Circle, Clock, CheckCircle2
 } from 'lucide-react';
 import type { Tri } from './triStateUtils';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import type { WorkflowStatus } from '@/stores/workflowMetadataStore';
+
+const statusConfig: Record<WorkflowStatus, { icon: typeof Circle; label: string; color: string; bg: string }> = {
+  'todo': { icon: Circle, label: 'To Do', color: 'text-gray-400', bg: 'bg-gray-100 dark:bg-gray-700' },
+  'in-progress': { icon: Clock, label: 'In Progress', color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/30' },
+  'done': { icon: CheckCircle2, label: 'Done', color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/30' }
+};
 
 // Node type to icon mapping (matching NodeTypesPopout)
 const getNodeTypeIcon = (nodeType: string) => {
@@ -30,18 +38,49 @@ const getGroupRoleIcon = (role: string) => {
   }
 };
 
+function StatusBadge({ status, onStatusChange, workflowId }: { 
+  status: WorkflowStatus; 
+  onStatusChange: (status: WorkflowStatus) => void;
+  workflowId: string;
+}) {
+  const config = statusConfig[status];
+  const StatusIcon = config.icon;
+  
+  const handleCycle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const statuses: WorkflowStatus[] = ['todo', 'in-progress', 'done'];
+    const currentIndex = statuses.indexOf(status);
+    const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+    onStatusChange(nextStatus);
+  };
+  
+  return (
+    <button
+      data-testid={`button-status-${workflowId}`}
+      onClick={handleCycle}
+      className={`ml-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium ${config.bg} ${config.color} hover:opacity-80 transition-opacity`}
+      title={`Status: ${config.label} (click to change)`}
+    >
+      <StatusIcon size={10} />
+      <span className="hidden sm:inline">{config.label}</span>
+    </button>
+  );
+}
+
 export function GroupRow({
   id, depth, label, childIds,
   triHidden, triLocked,
   onToggleHidden, onToggleLocked,
   onClick, onNameChange, role,
-  collapsed, onToggleCollapse
+  collapsed, onToggleCollapse,
+  status, onStatusChange
 }:{
   id:string; depth:number; label:string; childIds:string[];
   triHidden:Tri; triLocked:Tri;
   onToggleHidden:()=>void; onToggleLocked:()=>void;
   onClick?:()=>void; onNameChange?:(newName:string)=>void; role?:string;
   collapsed?:boolean; onToggleCollapse?:()=>void;
+  status?: WorkflowStatus; onStatusChange?: (status: WorkflowStatus) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(label);
@@ -160,6 +199,9 @@ export function GroupRow({
           >
             <Edit2 size={11} />
           </button>
+        )}
+        {role === 'workflow' && status && onStatusChange && (
+          <StatusBadge status={status} onStatusChange={onStatusChange} workflowId={id} />
         )}
       </div>
       <span className="flex gap-0.5">
