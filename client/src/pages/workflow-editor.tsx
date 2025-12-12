@@ -960,7 +960,7 @@ function WorkflowEditorContent({
   // Create default tab with random workflow
   const createDefaultTab = useCallback((): WorkflowTab => {
     const { nodes, edges } = generateRandomWorkflow();
-    const name = generateCuteName();
+    const name = 'Untitled';
     const initialState = {
       nodes,
       edges,
@@ -995,7 +995,7 @@ function WorkflowEditorContent({
 
   // Create blank tab
   const createBlankTab = useCallback((): WorkflowTab => {
-    const name = generateCuteName();
+    const name = 'Untitled';
     const initialState = {
       nodes: [],
       edges: [],
@@ -1919,7 +1919,7 @@ Position nodes 250px apart horizontally.`;
   // Handle template creation from canvas
   const handleCreateTemplateFromCanvas = useCallback((templateType: string) => {
     let templateData;
-    const name = generateCuteName();
+    const name = 'Untitled';
 
     // Generate appropriate template based on type
     switch (templateType) {
