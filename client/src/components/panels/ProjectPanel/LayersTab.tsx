@@ -146,6 +146,9 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, projectId }: La
             walk(cid, childDepth, ancestors.concat(id));
           } else {
             const leaf = tree.leaves[cid];
+            // Skip edges - they should not be rendered in Layers UI
+            if (leaf && leaf.role === 'edge') continue;
+            
             if (leaf && (!lowerQuery || matchesSearch(leaf.label || cid))) {
               const leafDepth = shouldRenderGroup ? depth + 1 : depth + 1;
               out.push({ 
@@ -154,7 +157,9 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, projectId }: La
                 label: leaf.label ?? cid, 
                 depth: leafDepth, 
                 role: leaf.role,
-                nodeType: leaf.role === 'node' ? nodes.find(n => n.id === cid)?.type : undefined
+                nodeType: leaf.role === 'node' ? nodes.find(n => n.id === cid)?.type : undefined,
+                isDecision: leaf.isDecision,
+                branchDepth: leaf.branchDepth ?? 0
               });
             }
           }
@@ -201,7 +206,7 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, projectId }: La
       <div className="flex-1 overflow-hidden bg-gray-50/30 dark:bg-gray-800/30">
         <VirtualTree
           rows={rows}
-          Row={({ type, id, label, depth, childIds, role, collapsed, nodeType }: { type: 'group' | 'leaf'; id: string; label: string; depth: number; childIds?: string[]; role?: string; collapsed?: boolean; nodeType?: string }) => {
+          Row={({ type, id, label, depth, childIds, role, collapsed, nodeType, isDecision, branchDepth }: { type: 'group' | 'leaf'; id: string; label: string; depth: number; childIds?: string[]; role?: string; collapsed?: boolean; nodeType?: string; isDecision?: boolean; branchDepth?: number }) => {
             if (type === 'group') {
               const triHidden: Tri = computeTri(childIds ?? [], flags.hidden);
               const triLocked: Tri = computeTri(childIds ?? [], flags.locked);
@@ -263,6 +268,8 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, projectId }: La
                 onClick={handleClick}
                 role={role}
                 nodeType={role === 'node' ? nodes.find(n => n.id === id)?.type : undefined}
+                isDecision={isDecision}
+                branchDepth={branchDepth}
               />;
             }
           }}

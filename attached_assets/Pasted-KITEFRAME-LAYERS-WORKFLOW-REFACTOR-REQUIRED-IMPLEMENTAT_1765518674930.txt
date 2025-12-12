@@ -1,0 +1,191 @@
+KITEFRAME — LAYERS WORKFLOW REFACTOR (REQUIRED IMPLEMENTATION)
+
+GOAL
+Refactor the Layers panel so it represents meaningful workflows instead of raw graph artifacts.
+This is a structural + UX correctness change, NOT a visual redesign.
+
+A “workflow” must represent a real process, not a single node or debugging artifact.
+
+---
+
+SECTION 0 — DEFINITIONS (DO NOT DEVIATE)
+
+Workflow:
+- A connected component with **≥ 2 internal edges**
+- Represents a real multi-step process
+
+Standalone Node:
+- Any node that does NOT belong to a workflow
+- Includes isolated nodes or components with < 2 internal edges
+
+Edges:
+- Used for grouping, PRD generation, and AI context
+- MUST NOT be rendered in the Layers UI
+
+Decision Node:
+- node.type === 'condition'
+- Or any node with >1 outgoing edge
+
+---
+
+SECTION 1 — CHANGE WORKFLOW GROUPING LOGIC (CRITICAL)
+
+FILE:
+client/src/components/layers/multiViewBuilder.ts
+
+CURRENT BEHAVIOR (WRONG):
+- Any connected component = workflow
+- Single-node or single-edge components become workflows
+
+REQUIRED CHANGE:
+1. After graphWorker returns connected components:
+   - Count internal edges per component
+2. Only treat a component as a workflow IF:
+   internalEdgeCount >= 2
+
+3. If internalEdgeCount < 2:
+   - DO NOT create a workflow group
+   - Treat all nodes in that component as standalone nodes
+
+IMPLEMENTATION NOTE:
+You already have access to:
+- nodes
+- edges
+- component nodeIds
+
+Example logic:
+
+const internalEdges = edges.filter(e =>
+  nodeIds.includes(e.source) &&
+  nodeIds.includes(e.target)
+);
+
+if (internalEdges.length < 2) {
+  // add nodes to standalone bucket
+  continue;
+}
+
+---
+
+SECTION 2 — ADD STANDALONE NODES GROUP
+
+FILE:
+client/src/components/layers/multiViewBuilder.ts
+
+REQUIRED:
+- Create a single synthetic group:
+  id: 'standalone'
+  label: 'Standalone Nodes'
+
+- Any node not assigned to a workflow group must appear here
+
+IMPORTANT:
+- This is a display-only grouping
+- Do NOT assign workflowGroupId to these nodes
+- Do NOT modify underlying node data
+
+---
+
+SECTION 3 — REMOVE EDGES FROM LAYERS UI (MANDATORY)
+
+FILES:
+client/src/components/layers/LayersTab.tsx
+client/src/components/layers/TreeRow.tsx
+
+CURRENT:
+- Edge rows are rendered as leaf items
+
+REQUIRED:
+- Completely remove edge rows from Layers rendering
+- Do NOT display edges as list items
+
+IMPORTANT:
+- DO NOT remove edges from state
+- DO NOT modify graphWorker
+- This is UI-only
+
+Minimal acceptable solution:
+- Skip rendering items where role === 'edge'
+
+---
+
+SECTION 4 — HYBRID DECISION TREE VISUALIZATION
+
+GOAL:
+Improve readability for non-linear workflows without rendering a graph.
+
+FILES:
+client/src/components/layers/TreeRow.tsx
+(optional helper in same folder)
+
+REQUIRED BEHAVIOR:
+- Render workflows as a linear list
+- Detect branching using existing data:
+  - node.type === 'condition'
+  - OR outgoingEdgeCount > 1
+
+- Indent child rows to indicate branches
+
+Example visual structure:
+
+Workflow: Handling Duplicates
+  User submits form
+  Decision: Duplicate exists?
+    ↳ Yes → Merge records
+    ↳ No → Create new record
+  System confirms result
+
+IMPLEMENTATION NOTES:
+- outgoingEdgeCount is computable from edges prop
+- No new data model needed
+- No canvas changes required
+- Do NOT attempt to render a full graph
+
+Indentation-only is sufficient for v1.
+
+---
+
+SECTION 5 — DO NOT CHANGE (IMPORTANT)
+
+❌ DO NOT:
+- Change graphWorker.ts logic
+- Change PRD generation logic
+- Change AI workflow generator
+- Change canvas rendering
+- Add new stores
+- Add new backend APIs
+- Add new node metadata
+
+This refactor is LIMITED to:
+- multiViewBuilder.ts
+- LayersTab.tsx
+- TreeRow.tsx
+
+---
+
+SECTION 6 — ACCEPTANCE CRITERIA (REQUIRED)
+
+The implementation is correct ONLY IF:
+
+1. A single isolated node does NOT appear as “Workflow 1”
+2. Workflows only appear when ≥2 edges exist
+3. Edges are NOT shown in Layers
+4. Standalone nodes are visible under “Standalone Nodes”
+5. Decision workflows show indentation for branches
+6. PRD generation continues to work unchanged
+7. AI context continues to receive full node + edge data
+
+---
+
+SECTION 7 — IMPLEMENTATION ORDER (FOLLOW THIS)
+
+1. Enforce ≥2-edge workflow threshold
+2. Remove edge rows from Layers UI
+3. Add Standalone Nodes group
+4. Add branch indentation for decision nodes
+
+Steps 1–2 are REQUIRED before proceeding to 3–4.
+
+---
+
+END OF INSTRUCTIONS

@@ -25,6 +25,7 @@ const getGroupRoleIcon = (role: string) => {
   switch (role) {
     case 'workflow': return { icon: Layers, color: 'text-blue-600' };
     case 'linkGroup': return { icon: Link2, color: 'text-purple-500' };
+    case 'standalone': return { icon: Folder, color: 'text-gray-400' };
     default: return { icon: Folder, color: 'text-gray-500' };
   }
 };
@@ -83,11 +84,13 @@ export function GroupRow({
   // Professional styling based on role and hierarchy
   const getTextStyles = () => {
     if (role === 'workflow') {
-      return "text-sm font-medium text-gray-900 cursor-pointer flex-1 leading-tight ml-1";
+      return "text-sm font-medium text-gray-900 dark:text-gray-100 cursor-pointer flex-1 leading-tight ml-1";
     } else if (role === 'linkGroup') {
-      return "text-sm font-medium text-gray-700 cursor-pointer flex-1 leading-tight ml-1";
+      return "text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer flex-1 leading-tight ml-1";
+    } else if (role === 'standalone') {
+      return "text-sm font-medium text-gray-500 dark:text-gray-400 cursor-pointer flex-1 leading-tight ml-1 italic";
     } else {
-      return "text-sm font-medium text-gray-700 cursor-pointer flex-1 leading-tight ml-1";
+      return "text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer flex-1 leading-tight ml-1";
     }
   };
 
@@ -182,11 +185,13 @@ export function GroupRow({
 }
 
 export function LeafRow({
-  id, depth, label, effHidden, effLocked, onClick, role, nodeType
+  id, depth, label, effHidden, effLocked, onClick, role, nodeType, isDecision, branchDepth
 }:{
   id:string; depth:number; label:string; effHidden:boolean; effLocked:boolean;
-  onClick?:()=>void; role?:string; nodeType?:string;
+  onClick?:()=>void; role?:string; nodeType?:string; isDecision?:boolean; branchDepth?:number;
 }) {
+  // Add branch indentation for decision tree visualization
+  const effectiveDepth = depth + (branchDepth ?? 0);
   const leafStyles = `px-2 py-1 h-6 flex items-center hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors duration-150 ${effHidden ? 'opacity-50' : ''}`;
   
   // Get icon based on node type or role
@@ -202,14 +207,22 @@ export function LeafRow({
   
   const { icon: LeafIcon, color: iconColor } = getLeafIcon();
   
+  // Show branch indicator for nodes under decision branches
+  const branchIndicator = (branchDepth ?? 0) > 0 ? '↳ ' : '';
+  
   return (
-    <div role="treeitem" aria-level={depth+1}
+    <div role="treeitem" aria-level={effectiveDepth+1}
          className={leafStyles}
          onClick={onClick}
          data-testid={`row-layer-${id}`}>
-      <div style={{paddingLeft: depth*16}} className="flex items-center gap-1 flex-1">
+      <div style={{paddingLeft: effectiveDepth*16}} className="flex items-center gap-1 flex-1">
         {/* Spacer to align with parent chevrons */}
         <div className="w-4" />
+        
+        {/* Branch indicator for decision tree visualization */}
+        {branchIndicator && (
+          <span className="text-gray-400 dark:text-gray-500 text-xs mr-0.5">{branchIndicator}</span>
+        )}
         
         {/* Type Icon - Figma style */}
         <div className={`flex items-center justify-center w-4 h-4 ${iconColor}`}>
@@ -219,6 +232,13 @@ export function LeafRow({
         <span className="text-sm text-gray-700 dark:text-gray-300 leading-tight flex-1 ml-1">
           {label}
         </span>
+        
+        {/* Decision indicator */}
+        {isDecision && (
+          <span className="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded font-medium">
+            ?
+          </span>
+        )}
       </div>
       {effLocked && (
         <span className="ml-2 text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full font-medium">
