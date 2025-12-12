@@ -1,0 +1,268 @@
+KITEFRAME – AI WORKFLOW GENERATION DETAIL MODES (COMPACT + DETAILED)
+Hand-off spec for Replit – PLEASE FOLLOW EXACTLY, DO NOT HALLUCINATE NEW STRUCTURES
+
+---------------------------------------------------
+0. SCOPE AND GOAL
+---------------------------------------------------
+Goal: Improve the “Generate workflow” feature so that:
+- We support two behavior modes:
+  1) Compact – current behavior (short summary, 3–5 steps)
+  2) Detailed – new behavior (8–12 steps where possible, less collapsing)
+- The Figma import + semantic extraction pipeline REMAINS UNCHANGED.
+- Only the workflow generation layer and UI controls are updated.
+- All changes are client-side in existing files (no new backend routes, no new models).
+
+Key constraints:
+- Reuse existing semantic extraction and clustering.
+- Reuse existing AI client and credit/token system.
+- DO NOT auto-generate workflows on import; keep generation as an explicit user action.
+- Keep a “Beta” label on the AI-generated workflow flows.
+
+Primary files expected to be touched (names based on current repo):
+- client/src/lib/integration/semanticWorkflowGenerator.ts
+- client/src/components/modals/WorkflowGenerationPreviewModal.tsx
+- client/src/components/ContextMenu.tsx (only if needed for debug)
+- client/src/lib/integration/figmaSemanticTypes.ts (only if we add a small enum)
+If file names differ slightly, adapt but follow the same architecture and patterns.
+
+---------------------------------------------------
+1. ADD A “DETAIL MODE” ENUM / TYPE
+---------------------------------------------------
+1.1 Add a simple TypeScript type for the workflow detail level.
+
+In a shared place used by the workflow generator (preferably semanticWorkflowGenerator.ts or figmaSemanticTypes.ts):
+
+export type WorkflowDetailMode = 'compact' | 'detailed';
+
+Do NOT add extra modes. Only these two are supported.
+
+1.2 If semanticWorkflowGenerator.ts already has a config/options type, extend that instead of inventing a new structure. The goal is to pass this mode cleanly into the workflow generation pipeline.
+
+---------------------------------------------------
+2. CONFIGURE CLUSTER LIMITS PER MODE
+---------------------------------------------------
+We already log things like:
+
+"WorkflowGenerator cluster count exceeds max, truncating {originalCount: 32, maxClusters: 8}"
+
+2.1 In semanticWorkflowGenerator.ts, introduce constants for caps:
+
+const MAX_CLUSTERS_COMPACT = 8;
+const MAX_CLUSTERS_DETAILED = 15; // or 12–15, choose one and hard-code
+
+2.2 Where the current clustering logic enforces a single maxClusters value, refactor so it takes a parameter:
+
+function clusterSemanticElements(
+  elements: FigmaSemanticElement[],
+  maxClusters: number
+): ClusterResult { ... }
+
+2.3 When calling clusterSemanticElements, choose maxClusters based on mode:
+
+- If mode === 'compact' → use MAX_CLUSTERS_COMPACT
+- If mode === 'detailed' → use MAX_CLUSTERS_DETAILED
+
+Default behavior (when no mode is passed) MUST preserve current behavior:
+- Treat undefined / missing mode as 'compact'.
+
+Do NOT change the clustering algorithm itself; only adjust its cap based on mode.
+
+---------------------------------------------------
+3. THREAD DETAIL MODE THROUGH THE WORKFLOW GENERATOR
+---------------------------------------------------
+We already have two main stages:
+- A “detailed workflow” builder from semantic metadata and clusters.
+- An AI refinement step that may simplify / rewrite the structure.
+
+3.1 Update function signatures.
+
+If there is a public function like:
+
+export async function generateWorkflowFromFigmaSemantic(
+  sourceImageNode: Node,
+  options?: { useAIRefinement?: boolean; ... }
+): Promise<GeneratedWorkflowResult> { ... }
+
+Extend options to include detailMode:
+
+type WorkflowGenerationOptions = {
+  useAIRefinement?: boolean;
+  detailMode?: WorkflowDetailMode; // 'compact' | 'detailed'
+  // keep any existing fields untouched
+};
+
+Inside this function:
+- Compute const mode = options?.detailMode ?? 'compact';
+- Pass mode down to:
+  - clustering
+  - AI prompt builder
+
+3.2 Ensure that ALL internal helper calls that need mode receive it via parameters. DO NOT read it from global state or React context.
+
+---------------------------------------------------
+4. MODIFY THE AI PROMPT BUILDER (CRITICAL BEHAVIOR CHANGE)
+---------------------------------------------------
+Today, the AI prompt is tuned toward “simplify / summarize”. For detailed workflows we must change the instructions, not the data.
+
+Assume there is some helper like:
+
+function buildWorkflowPrompt(
+  semantic: FigmaSemanticMetadata,
+  clusters: ClusterResult,
+  preliminarySteps: DraftStep[],
+  mode: WorkflowDetailMode
+): string { ... }
+
+If this helper does not exist yet, create it in semanticWorkflowGenerator.ts and route all AI calls through it.
+
+4.1 For COMPACT mode (keep behavior close to current):
+
+- Keep the current tone:
+  - “Reduce redundant decorative elements”
+  - “Clarify the main flow”
+  - Aim for 3–5 steps.
+- You may lightly refactor the prompt text for clarity, but do NOT change its intent.
+
+4.2 For DETAILED mode (new behavior):
+
+Update the prompt so it explicitly instructs the model to keep more states and not over-collapse. For example, include guidance like (you can paraphrase but must keep the meaning):
+
+- “You are analyzing UI states derived from a Figma design.”
+- “Each cluster represents a potential distinct UI state or screen.”
+- “Your goal is to infer an ordered list of workflow steps derived from these states.”
+- “Err on the side of keeping states separate when they show different UI contents or modals.”
+- “Target 8–12 steps for complex flows if the data supports it.”
+- “Only merge two states into a single step if they are nearly identical and differ only in minor visual details.”
+- “Explicitly call out user actions (clicks, selections) and system responses (modals, results, updated maps).”
+
+Also:
+- Include a short bullet list of the clusters and their high-level descriptions in the prompt text, so the AI has explicit structure:
+  - E.g. “State 1: map with duplicate markers and table. State 2: map + duplicate resolution modal. State 3: map + confirmation dialog” etc.
+- This cluster summary should be auto-generated from the cluster metadata you already have; keep it short (one line per cluster), but always present.
+
+4.3 Output structure must stay the SAME as today:
+- Same JSON schema / fields.
+- Same parsing logic.
+- No new fields, no new shapes.
+This prevents breaking downstream code.
+
+---------------------------------------------------
+5. MAP DETAIL MODE INTO THE UI (WORKFLOW GENERATION MODAL)
+---------------------------------------------------
+We already have a “Generate workflow” UI (usually a modal or panel) that the user uses to confirm the generation.
+
+File is likely:
+- client/src/components/modals/WorkflowGenerationPreviewModal.tsx
+
+5.1 Add a simple control inside this modal for choosing detail level.
+
+Requirements:
+- Label: “Workflow detail” or “Output detail level”
+- Options (exact labels):
+  - “Compact (summary)”
+  - “Detailed (multi-step)”
+- Default selection: “Compact (summary)” to preserve existing behavior.
+- Implementation can be:
+  - Radio buttons, OR
+  - A small segmented control, OR
+  - A simple dropdown/select.
+
+Do NOT add advanced / hidden settings; keep it straightforward.
+
+5.2 Wire the control to a React state:
+
+const [detailMode, setDetailMode] = useState<WorkflowDetailMode>('compact');
+
+5.3 When the user confirms generation, pass this detailMode into the generation call:
+
+generateWorkflowFromFigmaSemantic(selectedImageNode, {
+  useAIRefinement: true,
+  detailMode,
+  // preserve any existing options
+});
+
+Make sure this is the ONLY place where detailMode originates for this feature; do not infer it from URL, global config, etc.
+
+5.4 Add a small “Beta” badge in the modal near the generate button or title:
+
+- Text: “AI workflow generation (Beta)”
+- Do not add extra functionality here, just a visual indicator.
+
+---------------------------------------------------
+6. LOGGING AND DEBUG OUTPUT
+---------------------------------------------------
+We already have SemanticDebug logs like:
+
+[SemanticDebug] WorkflowGenerator cluster count exceeds max, truncating {...}
+[SemanticDebug] WorkflowGenerator multi-state heuristic triggered {...}
+[SemanticDebug] AIWorkflow parsed steps {stepCount: N, ...}
+
+6.1 Extend logs to include detailMode:
+
+When logging:
+- Add mode: 'compact' or 'detailed' to the payload.
+
+Example:
+
+[SemanticDebug] WorkflowGenerator multi-state heuristic triggered { mode: 'detailed', clusterCount: 8, ... }
+[SemanticDebug] AIWorkflow parsed steps { mode: 'detailed', stepCount: 9, ... }
+
+6.2 DO NOT spam logs excessively:
+- Use a single log per generation stage, not per element.
+
+6.3 Do NOT introduce new UI debug panels at this step. Logging to console is sufficient for now.
+
+---------------------------------------------------
+7. BEHAVIORAL ACCEPTANCE CRITERIA
+---------------------------------------------------
+After implementation, the following must be true:
+
+1) When user imports a Figma frame (or page → selects frames) and then:
+   - Opens “Generate workflow”.
+   - Leaves detail level as Compact.
+   - Confirms generation.
+
+   → The behavior should be very close to the CURRENT system:
+   - ~3–5 steps for complex flows.
+   - Simplified summary.
+   - No regressions.
+
+2) On the same project, same frame, when the user:
+   - Opens “Generate workflow”.
+   - Chooses Detailed (multi-step).
+   - Confirms generation.
+
+   → The result MUST:
+   - Produce MORE steps than Compact (when the underlying semantic data supports it).
+   - Respect the higher maxClusters limit.
+   - Explicitly reference distinct states (e.g., initial selection, modal open, confirmation, results).
+   - Only collapse clusters when clearly redundant.
+
+3) For simple frames (e.g., a basic login form):
+   - Compact and Detailed modes may both produce 3–4 steps; that is acceptable.
+   - Detailed mode must NOT produce fewer steps than Compact on the same data.
+
+4) No change to:
+   - Figma import behavior.
+   - Reference image node creation.
+   - Layers panel grouping logic.
+   - PRD generation behavior (out of scope for this task).
+
+---------------------------------------------------
+8. NON-GOALS (DO NOT IMPLEMENT NOW)
+---------------------------------------------------
+To keep this change focused, DO NOT:
+
+- Add automatic workflow generation on import.
+- Add new backend endpoints or token types.
+- Add JIRA/Google integrations.
+- Change the figmaSemantic schema.
+- Change how PRDs are generated or displayed.
+- Implement image-based AI (no screenshot upload to AI in this task).
+- Implement a new state segmentation engine beyond the existing clustering logic.
+
+These items may come later; for this task, only implement the two detail modes and associated prompt/cluster tuning as described above.
+
+---------------------------------------------------
+END OF SPEC
+---------------------------------------------------
