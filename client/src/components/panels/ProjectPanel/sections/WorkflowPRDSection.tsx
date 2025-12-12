@@ -31,6 +31,8 @@ import { usePRDNodeLinks } from '@/stores/prdNodeLinkStore';
 import { focusBus } from '@/stores/focusBus';
 import { ImportPRDModal } from '@/components/ImportPRDModal';
 import { addImportedDocumentSource } from '@/lib/kiteframe/utils/sourceTracking';
+import { getInsightsForTarget, dismissInsight } from '@/stores/aiInsightStore';
+import { getInsightIcon, type AIInsight } from '@/ai/insights';
 
 interface WorkflowPRDSectionProps {
   projectId: string;
@@ -499,21 +501,52 @@ export function WorkflowPRDSection({
             </div>
           )}
 
-          {prd.sections.map((section) => (
-            <DocSection
-              key={section.id}
-              title={section.title}
-              content={section.content}
-              sectionKey={section.id}
-              manuallyEdited={!!prd.manualEditedAt[section.id]}
-              onSave={handleSectionSave}
-              onResetToAI={handleResetSection}
-              linkedNodes={prdLinks.getLinksForSection(workflowId, section.id)}
-              onLinkNode={() => handleLinkNode(section.id)}
-              onUnlinkNode={(nodeId) => handleUnlinkNode(nodeId, section.id)}
-              onFocusNode={handleFocusNode}
-            />
-          ))}
+          {prd.sections.map((section) => {
+            const sectionInsights = getInsightsForTarget(projectId, 'prd-section', section.id);
+            return (
+              <div key={section.id}>
+                {sectionInsights.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {sectionInsights.map((insight) => (
+                      <div
+                        key={insight.id}
+                        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs ${
+                          insight.level === 'risk' 
+                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' 
+                            : insight.level === 'warning'
+                            ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
+                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                        }`}
+                        data-testid={`insight-chip-${insight.id}`}
+                      >
+                        <span>{getInsightIcon(insight.level)}</span>
+                        <span className="max-w-[200px] truncate">{insight.message}</span>
+                        <button
+                          onClick={() => dismissInsight(projectId, insight.id)}
+                          className="ml-1 hover:opacity-70"
+                          data-testid={`dismiss-insight-${insight.id}`}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <DocSection
+                  title={section.title}
+                  content={section.content}
+                  sectionKey={section.id}
+                  manuallyEdited={!!prd.manualEditedAt[section.id]}
+                  onSave={handleSectionSave}
+                  onResetToAI={handleResetSection}
+                  linkedNodes={prdLinks.getLinksForSection(workflowId, section.id)}
+                  onLinkNode={() => handleLinkNode(section.id)}
+                  onUnlinkNode={(nodeId) => handleUnlinkNode(nodeId, section.id)}
+                  onFocusNode={handleFocusNode}
+                />
+              </div>
+            );
+          })}
         </WorkflowDocument>
       )}
 
