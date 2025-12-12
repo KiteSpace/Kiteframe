@@ -29,6 +29,8 @@ export function parseImportedPRD(
     });
   }
   
+  const usedIds = new Set<string>();
+  
   if (matches.length === 0) {
     sections.push({
       id: 'imported',
@@ -44,7 +46,15 @@ export function parseImportedPRD(
       const contentEndIndex = nextMatch ? nextMatch.startIndex : trimmedText.length;
       
       const content = trimmedText.slice(contentStartIndex, contentEndIndex).trim();
-      const sectionId = generateSectionId(currentMatch.title);
+      let sectionId = generateSectionId(currentMatch.title);
+      
+      let suffix = 1;
+      const baseId = sectionId;
+      while (usedIds.has(sectionId)) {
+        sectionId = `${baseId}-${suffix}`;
+        suffix++;
+      }
+      usedIds.add(sectionId);
       
       sections.push({
         id: sectionId,

@@ -342,7 +342,7 @@ export function WorkflowPRDSection({
   const handleDownloadMarkdown = useCallback(() => {
     if (!prd) return;
     const markdown = exportWorkflowPRDToMarkdown(prd);
-    const filename = generatePRDFilename('project', workflowName);
+    const filename = generatePRDFilename(workflowName);
     downloadMarkdownFile(markdown, filename);
     toast({ title: 'Downloaded', description: `Saved as ${filename}` });
   }, [prd, workflowName, toast]);
