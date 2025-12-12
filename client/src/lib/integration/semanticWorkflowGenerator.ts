@@ -10,10 +10,11 @@
 /**
  * Semantic Debug Logger - logs structured debug info in development only.
  */
-function logSemanticDebug(...args: unknown[]) {
+function logSemanticDebug(message: string, data?: Record<string, unknown>, mode?: WorkflowGenerationMode) {
   if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production') return;
+  const payload = mode ? { mode, ...data } : data;
   // eslint-disable-next-line no-console
-  console.log('[SemanticDebug]', ...args);
+  console.log('[SemanticDebug]', message, payload ?? '');
 }
 
 import type { Node, Edge } from '../kiteframe/types';
@@ -35,13 +36,15 @@ const VERTICAL_SPACING = 50;
 const HORIZONTAL_OFFSET = 100;
 const BRANCH_HORIZONTAL_OFFSET = 250;
 
-const MODE_DEFAULTS: Record<WorkflowGenerationMode, { maxSteps: number }> = {
-  summary: { maxSteps: 10 },
-  detailed: { maxSteps: 30 },
-  ai_refined: { maxSteps: 50 },
+const MODE_DEFAULTS: Record<WorkflowGenerationMode, { maxSteps: number; maxClusters: number }> = {
+  summary: { maxSteps: 10, maxClusters: 8 },
+  detailed: { maxSteps: 30, maxClusters: 15 },
+  ai_refined: { maxSteps: 50, maxClusters: 15 },
+  ai_vision: { maxSteps: 50, maxClusters: 15 },
 };
 
-const MAX_CLUSTERS = 8;
+const MAX_CLUSTERS_COMPACT = 8;
+const MAX_CLUSTERS_DETAILED = 15;
 
 interface StateCluster {
   id: string;
@@ -53,11 +56,16 @@ interface StateCluster {
  * Infer logical state clusters from a single frame's semantic data.
  * Used for single-frame state splitting in detailed workflow generation.
  */
-function inferStateClustersFromSemantic(semantic: FigmaSemanticMetadata): { clusters: StateCluster[] } {
+function inferStateClustersFromSemantic(
+  semantic: FigmaSemanticMetadata,
+  mode: WorkflowGenerationMode = 'summary'
+): { clusters: StateCluster[] } {
   const elements = semantic.elements ?? [];
   const forms = semantic.forms ?? [];
   const navigationTargets = semantic.navigationTargets ?? [];
   const clusters: StateCluster[] = [];
+
+  const maxClusters = mode === 'summary' ? MAX_CLUSTERS_COMPACT : MAX_CLUSTERS_DETAILED;
 
   if (elements.length === 0) {
     return { clusters };
@@ -104,12 +112,12 @@ function inferStateClustersFromSemantic(semantic: FigmaSemanticMetadata): { clus
     });
   }
 
-  if (clusters.length > MAX_CLUSTERS) {
+  if (clusters.length > maxClusters) {
     logSemanticDebug('WorkflowGenerator cluster count exceeds max, truncating', {
       originalCount: clusters.length,
-      maxClusters: MAX_CLUSTERS,
-    });
-    return { clusters: clusters.slice(0, MAX_CLUSTERS) };
+      maxClusters,
+    }, mode);
+    return { clusters: clusters.slice(0, maxClusters) };
   }
 
   return { clusters };
@@ -154,10 +162,8 @@ export function buildWorkflowFromSemantic(
   
   if (mode === 'summary') {
     return buildSummaryWorkflow(semantic, workflowGroupId, startPosition, maxSteps);
-  } else if (mode === 'detailed') {
-    return buildDetailedWorkflow(semantic, workflowGroupId, startPosition, maxSteps);
   } else {
-    return buildDetailedWorkflow(semantic, workflowGroupId, startPosition, maxSteps);
+    return buildDetailedWorkflow(semantic, workflowGroupId, startPosition, maxSteps, mode);
   }
 }
 
@@ -243,9 +249,10 @@ function buildDetailedWorkflow(
   semantic: FigmaSemanticMetadata,
   workflowGroupId: string,
   startPosition: { x: number; y: number },
-  maxSteps: number
+  maxSteps: number,
+  mode: WorkflowGenerationMode = 'detailed'
 ): GeneratedWorkflow {
-  const { clusters } = inferStateClustersFromSemantic(semantic);
+  const { clusters } = inferStateClustersFromSemantic(semantic, mode);
   
   if (clusters.length > 1) {
     logSemanticDebug('WorkflowGenerator multi-state heuristic triggered', {
@@ -255,7 +262,7 @@ function buildDetailedWorkflow(
         label: c.label,
         elementCount: c.elementIds.length,
       })),
-    });
+    }, mode);
 
     const nodes: Node[] = [];
     const edges: Edge[] = [];
@@ -685,6 +692,196 @@ Example response format:
     logSemanticDebug('AIWorkflow error, falling back to detailed workflow', { error });
     return detailedResults;
   }
+}
+
+/**
+ * AI Vision Workflow Generator
+ * 
+ * Combines visual analysis of frame thumbnails with semantic metadata
+ * to generate comprehensive workflows using GPT-4o Vision API.
+ */
+export async function generateAIVisionWorkflow(
+  semantics: FigmaSemanticMetadata[],
+  thumbnailUrls: string[],
+  startPosition: { x: number; y: number },
+  maxSteps: number = 50
+): Promise<GeneratedWorkflow> {
+  const mode: WorkflowGenerationMode = 'ai_vision';
+  
+  logSemanticDebug('AIVision workflow generation started', {
+    frameCount: semantics.length,
+    thumbnailCount: thumbnailUrls.length,
+    maxSteps,
+  }, mode);
+
+  if (thumbnailUrls.length === 0) {
+    logSemanticDebug('AIVision no thumbnails available, falling back to AI refined', {}, mode);
+    return generateAIRefinedWorkflow(semantics, startPosition, maxSteps);
+  }
+
+  const clusterSummaries = semantics.map((s, idx) => {
+    const { clusters } = inferStateClustersFromSemantic(s, mode);
+    return {
+      frame: s.frameName,
+      screenType: s.screenType,
+      stateType: s.stateType,
+      clusters: clusters.slice(0, 5).map(c => c.label),
+      primaryActions: s.elements
+        .filter(e => e.isPrimaryAction)
+        .slice(0, 3)
+        .map(e => e.text || e.name),
+      forms: s.forms.slice(0, 2).map(f => f.name),
+      imageIndex: idx,
+    };
+  });
+
+  const promptText = `You are analyzing UI screens from a Figma design to generate a comprehensive user workflow.
+
+CONTEXT:
+You have ${semantics.length} UI screens with both visual appearance (images) and semantic metadata extracted from Figma.
+
+SEMANTIC DATA (extracted from Figma layer structure):
+${JSON.stringify(clusterSummaries, null, 2)}
+
+YOUR TASK:
+Analyze both the visual appearance and semantic data to produce an ordered list of workflow steps.
+
+GUIDELINES:
+1. Each step should represent a distinct user action or system response
+2. Err on the side of keeping states separate when they show different UI contents, modals, or results
+3. Target 8-15 steps for complex multi-screen flows
+4. Explicitly call out user actions (clicks, selections, form inputs) and system responses (modals, validation, results)
+5. Only merge states when they are nearly identical and differ only in minor visual details
+6. Use clear, action-oriented language (e.g., "User clicks Submit", "System displays confirmation modal")
+7. Include transitions between screens when navigation is evident
+
+RESPONSE FORMAT (JSON only):
+{
+  "steps": [
+    { "label": "Step description", "type": "user_action" | "system_response" | "transition" },
+    ...
+  ],
+  "flowSummary": "Brief description of the overall user journey",
+  "confidence": 0.0-1.0
+}`;
+
+  const messageContent: Array<{ type: string; text?: string; image_url?: { url: string; detail: string } }> = [
+    { type: 'text', text: promptText },
+  ];
+  
+  for (const url of thumbnailUrls.slice(0, 5)) {
+    messageContent.push({
+      type: 'image_url',
+      image_url: { url, detail: 'low' },
+    });
+  }
+
+  const messages = [
+    {
+      role: 'user',
+      content: messageContent,
+    },
+  ];
+
+  try {
+    const response = await fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages,
+        temperature: 0.3,
+        maxTokens: 3000,
+      }),
+    });
+
+    if (!response.ok) {
+      logSemanticDebug('AIVision request failed, falling back to AI refined', {
+        status: response.status,
+      }, mode);
+      return generateAIRefinedWorkflow(semantics, startPosition, maxSteps);
+    }
+
+    const data = await response.json();
+    const text = data.text || '';
+
+    logSemanticDebug('AIVision response received', {
+      responseLength: text.length,
+    }, mode);
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      logSemanticDebug('AIVision empty/invalid JSON, falling back to AI refined', {}, mode);
+      return generateAIRefinedWorkflow(semantics, startPosition, maxSteps);
+    }
+
+    const aiResult = JSON.parse(jsonMatch[0]);
+    const steps = aiResult.steps || [];
+
+    logSemanticDebug('AIVision parsed steps', {
+      stepCount: steps.length,
+      flowSummary: aiResult.flowSummary,
+      confidence: aiResult.confidence,
+    }, mode);
+
+    if (steps.length === 0) {
+      logSemanticDebug('AIVision returned 0 steps, falling back to AI refined', {}, mode);
+      return generateAIRefinedWorkflow(semantics, startPosition, maxSteps);
+    }
+
+    const workflowGroupId = `wf-vision-${Date.now()}`;
+    const nodes: Node[] = [];
+    const edges: Edge[] = [];
+    let y = startPosition.y;
+
+    for (let i = 0; i < steps.length && i < maxSteps; i++) {
+      const step = steps[i];
+      const stepLabel = typeof step === 'string' ? step : step.label || `Step ${i + 1}`;
+      const stepType = typeof step === 'object' ? step.type : undefined;
+      
+      const colors = getVisionStepColors(stepLabel, stepType);
+      const node = createProcessNode(generateNodeId(), { x: startPosition.x, y }, {
+        label: stepLabel,
+        colors,
+      });
+      node.data.workflowGroupId = workflowGroupId;
+      node.data.generatedBy = 'ai_vision';
+      nodes.push(node);
+
+      if (i > 0) {
+        edges.push(createEdge(nodes[i - 1].id, node.id, workflowGroupId));
+      }
+      y += NODE_HEIGHT + VERTICAL_SPACING;
+    }
+
+    logSemanticDebug('AIVision workflow generated successfully', {
+      nodeCount: nodes.length,
+      edgeCount: edges.length,
+    }, mode);
+
+    return { nodes, edges };
+  } catch (error) {
+    logSemanticDebug('AIVision error, falling back to AI refined', { 
+      error: error instanceof Error ? error.message : String(error),
+    }, mode);
+    return generateAIRefinedWorkflow(semantics, startPosition, maxSteps);
+  }
+}
+
+function getVisionStepColors(
+  label: string, 
+  stepType?: string
+): { headerBackground: string; bodyBackground: string; headerTextColor: string } {
+  if (stepType === 'user_action') {
+    return { headerBackground: '#059669', bodyBackground: '#d1fae5', headerTextColor: '#ffffff' };
+  }
+  if (stepType === 'system_response') {
+    return { headerBackground: '#7c3aed', bodyBackground: '#f5f3ff', headerTextColor: '#ffffff' };
+  }
+  if (stepType === 'transition') {
+    return { headerBackground: '#8b5cf6', bodyBackground: '#ede9fe', headerTextColor: '#ffffff' };
+  }
+  return getStepColors(label);
 }
 
 function getStepColors(label: string): { headerBackground: string; bodyBackground: string; headerTextColor: string } {

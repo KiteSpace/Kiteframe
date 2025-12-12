@@ -84,7 +84,7 @@ import { SiFigma } from 'react-icons/si';
 import { FigmaImportModal } from '@/components/modals/FigmaImportModal';
 import { WorkflowGenerationPreviewModal } from '@/components/modals/WorkflowGenerationPreviewModal';
 import { parseFigmaUrl } from '@/lib/integration/figmaUrl';
-import { generateWorkflowFromFigmaSemantic, generateAIRefinedWorkflow } from '@/lib/integration/semanticWorkflowGenerator';
+import { generateWorkflowFromFigmaSemantic, generateAIRefinedWorkflow, generateAIVisionWorkflow } from '@/lib/integration/semanticWorkflowGenerator';
 import type { WorkflowGenerationMode } from '@/lib/integration/figmaSemanticTypes';
 import { buildFigmaFrameWorkflow, insertFigmaFrames, type FigmaFrameWithThumbnail } from '@/utils/createFigmaProject';
 import { addFigmaSource } from '@/lib/kiteframe/utils/sourceTracking';
@@ -8056,7 +8056,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               let generatedEdges: Edge[] = [];
               const startY = Math.max(...nodes.map(n => n.position.y + (n.height || 100))) + 100;
               
-              if (mode === 'ai_refined') {
+              if (mode === 'ai_vision') {
+                const semantics = sortedFrames
+                  .map(f => f.data?.figmaSemantic)
+                  .filter(Boolean) as any[];
+                const thumbnailUrls = sortedFrames
+                  .map(f => f.data?.src)
+                  .filter(Boolean) as string[];
+                
+                const result = await generateAIVisionWorkflow(semantics, thumbnailUrls, { x: 400, y: startY });
+                generatedNodes = result.nodes;
+                generatedEdges = result.edges;
+              } else if (mode === 'ai_refined') {
                 const semantics = sortedFrames
                   .map(f => f.data?.figmaSemantic)
                   .filter(Boolean) as any[];
@@ -8105,7 +8116,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }, 100);
                 }
                 
-                const modeLabel = mode === 'ai_refined' ? 'AI Refined' : mode === 'detailed' ? 'Detailed' : 'Summary';
+                const modeLabel = mode === 'ai_vision' ? 'AI Vision' : mode === 'ai_refined' ? 'AI Refined' : mode === 'detailed' ? 'Detailed' : 'Compact';
                 toast({
                   title: "Workflow Generated",
                   description: `Created ${generatedNodes.length} nodes (${modeLabel} mode) from ${sortedFrames.length} frame(s).`,

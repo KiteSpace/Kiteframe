@@ -11,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { AlertTriangle, Workflow, Image, Bookmark, Loader2, Sparkles, ListTree, ListChecks } from 'lucide-react';
+import { AlertTriangle, Workflow, Image, Bookmark, Loader2, Sparkles, ListTree, ListChecks, Eye } from 'lucide-react';
 import type { Node } from '@/lib/kiteframe/types';
 import { sortFrameNodesForWorkflow, getWorkflowFramesSummary } from '@/lib/kiteframe/utils/workflowOrdering';
 import { getWorkflowPreview } from '@/lib/integration/semanticWorkflowGenerator';
@@ -25,21 +25,28 @@ interface WorkflowGenerationPreviewModalProps {
   isGenerating?: boolean;
 }
 
-const MODE_INFO: Record<WorkflowGenerationMode, { label: string; description: string; icon: typeof ListChecks }> = {
+const MODE_INFO: Record<WorkflowGenerationMode, { label: string; description: string; icon: typeof ListChecks; creditCost?: string }> = {
   summary: {
-    label: 'Summary',
-    description: '7-10 steps, primary path only',
+    label: 'Compact',
+    description: '3-5 steps, summary only',
     icon: ListChecks,
   },
   detailed: {
     label: 'Detailed',
-    description: '25-30 steps with branches',
+    description: '8-12 steps with branches',
     icon: ListTree,
   },
   ai_refined: {
     label: 'AI Refined',
-    description: 'AI-optimized flow (requires API)',
+    description: 'AI-optimized flow',
     icon: Sparkles,
+    creditCost: '~1 credit',
+  },
+  ai_vision: {
+    label: 'AI Vision',
+    description: 'Visual + semantic analysis',
+    icon: Eye,
+    creditCost: '~2 credits',
   },
 };
 
@@ -86,6 +93,7 @@ export function WorkflowGenerationPreviewModal({
           <DialogTitle className="flex items-center gap-2">
             <Workflow className="h-5 w-5 text-primary" />
             Generate Workflow
+            <span className="ml-2 px-1.5 py-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded">Beta</span>
           </DialogTitle>
           <DialogDescription>
             Select a generation mode and review the frames
@@ -98,7 +106,7 @@ export function WorkflowGenerationPreviewModal({
             <RadioGroup
               value={selectedMode}
               onValueChange={(v) => setSelectedMode(v as WorkflowGenerationMode)}
-              className="grid grid-cols-3 gap-2"
+              className="grid grid-cols-4 gap-2"
             >
               {(Object.keys(MODE_INFO) as WorkflowGenerationMode[]).map((mode) => {
                 const info = MODE_INFO[mode];
@@ -112,14 +120,19 @@ export function WorkflowGenerationPreviewModal({
                     />
                     <Label
                       htmlFor={`mode-${mode}`}
-                      className="flex flex-col items-center gap-1.5 rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors"
+                      className="flex flex-col items-center gap-1 rounded-md border-2 border-muted bg-popover p-2 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors min-h-[90px]"
                       data-testid={`radio-mode-${mode}`}
                     >
-                      <Icon size={18} className={selectedMode === mode ? 'text-primary' : 'text-muted-foreground'} />
-                      <span className="text-xs font-medium">{info.label}</span>
-                      <span className="text-[10px] text-muted-foreground text-center leading-tight">
+                      <Icon size={16} className={selectedMode === mode ? 'text-primary' : 'text-muted-foreground'} />
+                      <span className="text-[11px] font-medium">{info.label}</span>
+                      <span className="text-[9px] text-muted-foreground text-center leading-tight">
                         {info.description}
                       </span>
+                      {info.creditCost && (
+                        <span className="text-[9px] text-primary/80 font-medium mt-auto">
+                          {info.creditCost}
+                        </span>
+                      )}
                     </Label>
                   </div>
                 );
@@ -154,10 +167,10 @@ export function WorkflowGenerationPreviewModal({
               <span className="text-muted-foreground">Total estimated steps:</span>
               <span className="font-medium">
                 {selectedMode === 'summary' 
-                  ? `~${validFrames.length * 5}-${validFrames.length * 10}`
+                  ? `~${validFrames.length * 3}-${validFrames.length * 5}`
                   : selectedMode === 'detailed'
-                    ? `~${validFrames.length * 15}-${validFrames.length * 30}`
-                    : `~${validFrames.length * 10}-${validFrames.length * 20}`
+                    ? `~${validFrames.length * 8}-${validFrames.length * 12}`
+                    : `~${validFrames.length * 8}-${validFrames.length * 15}`
                 }
               </span>
             </div>

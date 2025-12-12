@@ -158,9 +158,10 @@ export interface FigmaSemanticMetadata {
   secondaryActionIds?: string[];
 }
 
-export type WorkflowGenerationMode = 'summary' | 'detailed' | 'ai_refined';
+export type WorkflowGenerationMode = 'summary' | 'detailed' | 'ai_refined' | 'ai_vision';
 
 export interface WorkflowGenerationOptions {
   mode: WorkflowGenerationMode;
   maxSteps?: number;
+  thumbnailUrls?: string[];
 }
