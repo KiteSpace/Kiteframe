@@ -1,11 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Sparkles, RefreshCw, FileText, AlertTriangle, Loader2, RotateCcw,
-  Edit3, Eye
-} from 'lucide-react';
+import { Sparkles, RefreshCw, Loader2, AlertTriangle } from 'lucide-react';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { extractSemanticWorkflowModel } from '@/lib/kiteframe/utils/extractSemanticWorkflowModel';
 import { isWorkflowStale, storeHash, computeWorkflowHash } from '@/lib/kiteframe/utils/semanticHash';
@@ -13,10 +8,11 @@ import {
   loadWorkflowPRD, saveWorkflowPRD, saveWorkflowPRDBackup, 
   updatePRDSection, clearManualEdit 
 } from '@/lib/kiteframe/utils/prdStorage';
-import { type WorkflowPRD, type PRDSection } from '@/ai/prdEngine';
+import { type WorkflowPRD } from '@/ai/prdEngine';
 import { useAi } from '@/ai/AiProvider';
 import { generateWorkflowPRD } from '@/ai/prdEngine';
 import { useToast } from '@/hooks/use-toast';
+import { DocSection, WorkflowDocument } from '@/components/docs';
 
 interface WorkflowPRDSectionProps {
   projectId: string;
@@ -24,87 +20,6 @@ interface WorkflowPRDSectionProps {
   workflowName: string;
   nodes: Node[];
   edges: Edge[];
-}
-
-function PRDSectionEditor({ 
-  section, 
-  isManuallyEdited,
-  onUpdate, 
-  onResetToAI 
-}: { 
-  section: PRDSection;
-  isManuallyEdited: boolean;
-  onUpdate: (content: string) => void;
-  onResetToAI: () => void;
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState(section.content);
-
-  const handleSave = () => {
-    onUpdate(editContent);
-    setIsEditing(false);
-  };
-
-  const handleCancel = () => {
-    setEditContent(section.content);
-    setIsEditing(false);
-  };
-
-  return (
-    <div className="border border-border rounded-md overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 bg-muted/30">
-        <h4 className="text-xs font-medium">{section.title}</h4>
-        <div className="flex items-center gap-1">
-          {isManuallyEdited && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 px-2 text-[10px]"
-              onClick={onResetToAI}
-              data-testid={`reset-section-${section.id}`}
-            >
-              <RotateCcw size={10} className="mr-1" />
-              Reset
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-5 w-5 p-0"
-            onClick={() => setIsEditing(!isEditing)}
-            data-testid={`edit-section-${section.id}`}
-          >
-            {isEditing ? <Eye size={10} /> : <Edit3 size={10} />}
-          </Button>
-        </div>
-      </div>
-      <div className="p-3">
-        {isEditing ? (
-          <div className="space-y-2">
-            <Textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="min-h-[80px] text-xs font-mono"
-              placeholder="Enter content..."
-              data-testid={`textarea-section-${section.id}`}
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={handleCancel} className="h-6 text-xs">
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleSave} className="h-6 text-xs">
-                Save
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="text-xs text-muted-foreground whitespace-pre-wrap">
-            {section.content || <span className="italic">No content yet. Click Generate to create.</span>}
-          </div>
-        )}
-      </div>
-    </div>
-  );
 }
 
 export function WorkflowPRDSection({ 
@@ -180,84 +95,93 @@ export function WorkflowPRDSection({
     }
   }, [workflowId, projectId, workflowName, nodes, edges, prd, ai, toast]);
 
-  const handleSectionUpdate = useCallback((sectionId: string, content: string) => {
+  const handleSectionSave = useCallback((sectionKey: string, content: string) => {
     if (!prd || !projectId || !workflowId) return;
 
-    const updated = updatePRDSection(prd, sectionId, content, true) as WorkflowPRD;
+    const updated = updatePRDSection(prd, sectionKey, content, true) as WorkflowPRD;
     setPrd(updated);
     saveWorkflowPRD(projectId, workflowId, updated);
   }, [prd, projectId, workflowId]);
 
-  const handleResetSection = useCallback((sectionId: string) => {
+  const handleResetSection = useCallback((sectionKey: string) => {
     if (!prd || !projectId || !workflowId) return;
 
-    const updated = clearManualEdit(prd, sectionId) as WorkflowPRD;
+    const updated = clearManualEdit(prd, sectionKey) as WorkflowPRD;
     setPrd(updated);
     saveWorkflowPRD(projectId, workflowId, updated);
   }, [prd, projectId, workflowId]);
 
   return (
-    <div className="space-y-3" data-testid="workflow-prd-section">
+    <div data-testid="workflow-prd-section">
       {isStale && prd && (
-        <Alert className="py-2">
-          <AlertTriangle size={12} className="text-yellow-500" />
-          <AlertDescription className="text-xs ml-2 flex items-center justify-between">
-            <span>Workflow changed. Spec may be outdated.</span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-5 text-[10px] ml-2"
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              data-testid="regenerate-prd"
-            >
-              <RefreshCw size={10} className="mr-1" />
-              Update
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-medium flex items-center gap-1.5">
-          <FileText size={12} />
-          Workflow Spec
-        </h3>
-        <Button
-          variant={prd ? 'outline' : 'default'}
-          size="sm"
-          className="h-6 text-[10px]"
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          data-testid="generate-prd"
-        >
-          {isGenerating ? (
-            <Loader2 size={10} className="mr-1 animate-spin" />
-          ) : (
-            <Sparkles size={10} className="mr-1" />
-          )}
-          {prd ? 'Regenerate' : 'Generate'}
-        </Button>
-      </div>
-
-      {prd && (
-        <div className="space-y-2">
-          {prd.sections.map((section) => (
-            <PRDSectionEditor
-              key={section.id}
-              section={section}
-              isManuallyEdited={!!prd.manualEditedAt[section.id]}
-              onUpdate={(content) => handleSectionUpdate(section.id, content)}
-              onResetToAI={() => handleResetSection(section.id)}
-            />
-          ))}
+        <div className="flex items-center gap-2 mb-4 text-xs text-yellow-600 dark:text-yellow-500">
+          <AlertTriangle size={12} />
+          <span>Workflow changed since last update.</span>
+          <Button
+            variant="link"
+            size="sm"
+            className="h-auto p-0 text-xs underline"
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            data-testid="regenerate-prd"
+          >
+            Regenerate
+          </Button>
         </div>
       )}
 
       {!prd && !isGenerating && (
-        <p className="text-xs text-muted-foreground italic">
-          Click Generate to create a spec for this workflow.
-        </p>
+        <div className="text-center py-6">
+          <p className="text-sm text-muted-foreground mb-3">
+            No spec generated yet for this workflow.
+          </p>
+          <Button
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            data-testid="generate-prd"
+          >
+            <Sparkles size={14} className="mr-2" />
+            Generate Spec
+          </Button>
+        </div>
+      )}
+
+      {isGenerating && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 size={20} className="animate-spin text-muted-foreground" />
+          <span className="ml-2 text-sm text-muted-foreground">Generating spec...</span>
+        </div>
+      )}
+
+      {prd && !isGenerating && (
+        <WorkflowDocument>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold">{workflowName} Spec</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-muted-foreground"
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              data-testid="regenerate-btn"
+            >
+              <RefreshCw size={12} className="mr-1" />
+              Regenerate
+            </Button>
+          </div>
+
+          {prd.sections.map((section) => (
+            <DocSection
+              key={section.id}
+              title={section.title}
+              content={section.content}
+              sectionKey={section.id}
+              manuallyEdited={!!prd.manualEditedAt[section.id]}
+              onSave={handleSectionSave}
+              onResetToAI={handleResetSection}
+            />
+          ))}
+        </WorkflowDocument>
       )}
     </div>
   );
