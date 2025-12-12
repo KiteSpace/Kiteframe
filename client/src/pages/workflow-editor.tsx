@@ -124,6 +124,7 @@ interface WorkflowTab {
   flowSettings?: FlowSettingsMap;
   cloudProjectId?: string;
   projectUuid?: string;
+  isOpen?: boolean; // Whether tab is shown in tab bar (project stays in gallery even when closed)
 }
 
 // Helper to get node position and dimensions (handles different node structures)
@@ -987,7 +988,8 @@ function WorkflowEditorContent({
         categories: []
       },
       flowSettings: {},
-      projectUuid // Unique identifier for layers state scoping
+      projectUuid, // Unique identifier for layers state scoping
+      isOpen: true // Show in tab bar by default
     };
   }, [generateTabId, generateCuteName, generateRandomWorkflow]);
 
@@ -1021,7 +1023,8 @@ function WorkflowEditorContent({
         categories: []
       },
       flowSettings: {},
-      projectUuid // Unique identifier for layers state scoping
+      projectUuid, // Unique identifier for layers state scoping
+      isOpen: true // Show in tab bar by default
     };
   }, [generateTabId, generateCuteName]);
 
@@ -1150,8 +1153,17 @@ function WorkflowEditorContent({
     setIsDarkMode(prev => !prev);
   }, []);
 
-  // Get current active tab
-  const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId) || tabs[0], [tabs, activeTabId]);
+  // Compute open tabs (shown in tab bar) - closed tabs still exist for gallery but aren't active
+  const openTabs = useMemo(() => tabs.filter(tab => tab.isOpen !== false), [tabs]);
+
+  // Get current active tab - only returns an open tab, undefined when on home or no open tabs
+  const activeTab = useMemo(() => {
+    if (activeTabId === 'home') return undefined;
+    const tab = openTabs.find(tab => tab.id === activeTabId);
+    if (tab) return tab;
+    // If activeTabId doesn't match any open tab, return first open tab or undefined
+    return openTabs[0];
+  }, [openTabs, activeTabId]);
 
   // Reset layers panel state when switching projects to prevent state leakage
   // Use projectUuid or cloudProjectId as the true project identifier
@@ -1768,22 +1780,34 @@ Position nodes 250px apart horizontally.`;
   }, [createBlankTab]);
 
   const closeTab = useCallback((tabId: string) => {
-    setTabs(prev => {
-      const newTabs = prev.filter(tab => tab.id !== tabId);
-      // If we're closing the active tab, switch to the previous tab or home
-      if (tabId === activeTabId) {
-        if (newTabs.length > 0) {
-          const closingIndex = prev.findIndex(tab => tab.id === tabId);
-          const newActiveTab = newTabs[Math.max(0, closingIndex - 1)] || newTabs[0];
-          setActiveTabId(newActiveTab.id);
-        } else {
-          // No tabs remaining, go to home
-          setActiveTabId('home');
-        }
+    // Closing a tab marks it as not open - does NOT delete the project
+    // Projects remain in the gallery until explicitly deleted via onDeleteProject
+    
+    // Calculate remaining open tabs BEFORE mutation for correct tab switching
+    const remainingOpenTabs = tabs.filter(tab => tab.id !== tabId && tab.isOpen !== false);
+    
+    // Determine new active tab ID first
+    let newActiveTabId: string | null = null;
+    if (tabId === activeTabId) {
+      if (remainingOpenTabs.length > 0) {
+        const closingIndex = tabs.findIndex(tab => tab.id === tabId);
+        const newActiveTab = remainingOpenTabs[Math.max(0, closingIndex - 1)] || remainingOpenTabs[0];
+        newActiveTabId = newActiveTab.id;
+      } else {
+        // No open tabs remaining, go to home
+        newActiveTabId = 'home';
       }
-      return newTabs;
-    });
-  }, [tabs.length, activeTabId]);
+    }
+    
+    // Update both states atomically - set activeTabId first to avoid stale state reads
+    if (newActiveTabId !== null) {
+      setActiveTabId(newActiveTabId);
+    }
+    
+    setTabs(prev => prev.map(tab => 
+      tab.id === tabId ? { ...tab, isOpen: false } : tab
+    ));
+  }, [tabs, activeTabId]);
 
   const renameTab = useCallback((tabId: string, newName: string) => {
     setTabs(prev => prev.map(tab => 
@@ -3196,7 +3220,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       // G - Open AI Generator (KiteAI)
       if (e.key === 'g' && !isCtrlOrCmd) {
         e.preventDefault();
-        if (!isOnHomeTab && tabs.length > 0) {
+        if (!isOnHomeTab && openTabs.length > 0) {
           setShowAiGenerator(true);
           toast({
             title: "AI Generator",
@@ -3255,7 +3279,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nodes, edges, setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, saveToHistory, handleUndo, handleRedo, viewport, setViewport, activeTab, createNewTab, isOnHomeTab, tabs.length, toast]);
+  }, [nodes, edges, setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, saveToHistory, handleUndo, handleRedo, viewport, setViewport, activeTab, createNewTab, isOnHomeTab, openTabs.length, toast]);
 
   // Track mouse position for quick create menu
   useEffect(() => {
@@ -3529,7 +3553,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         } else if (data.project) {
           // Load project data into editor
           const workflowData = data.project.workflowData;
-          if (workflowData && activeTabId && tabs.length > 0) {
+          if (workflowData && activeTabId && openTabs.length > 0) {
             // Update the active tab with project data
             setTabs(prev => prev.map(tab => 
               tab.id === activeTabId ? {
@@ -3570,7 +3594,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           variant: 'destructive'
         });
       });
-  }, [projectUuid, setLocation, activeTabId, tabs.length, toast]);
+  }, [projectUuid, setLocation, activeTabId, openTabs.length, toast]);
 
   // Track toolbar position when node/canvas object is being dragged
   useEffect(() => {
@@ -4244,10 +4268,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       const saved = localStorage.getItem('kiteframe_workflows');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Backfill projectUuid for legacy tabs that don't have it
+        // Backfill projectUuid and isOpen for legacy tabs
         return parsed.map((tab: WorkflowTab) => ({
           ...tab,
-          projectUuid: tab.projectUuid || `legacy-${tab.id}-${Date.now()}`
+          projectUuid: tab.projectUuid || `legacy-${tab.id}-${Date.now()}`,
+          // Legacy tabs default to closed (not shown in tab bar, but still in gallery)
+          isOpen: tab.isOpen ?? false
         }));
       }
     } catch (error) {
@@ -4364,8 +4390,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             </button>
             )}
             
-            {/* Workflow Tabs - hidden in view mode */}
-            {!isReadOnly && tabs.map((tab) => (
+            {/* Workflow Tabs - hidden in view mode, only show open tabs */}
+            {!isReadOnly && tabs.filter(tab => tab.isOpen !== false).map((tab) => (
               <div
                 key={tab.id}
                 className={`flex items-center space-x-2 px-3 py-1.5 rounded-md cursor-pointer min-w-0 ${
@@ -4499,6 +4525,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 // Check if this is a local tab first
                 const localTab = tabs.find(t => t.id === projectId);
                 if (localTab) {
+                  // Mark the tab as open (show in tab bar)
+                  setTabs(prev => prev.map(tab => 
+                    tab.id === projectId ? { ...tab, isOpen: true } : tab
+                  ));
                   setActiveTabId(projectId);
                   return;
                 }
@@ -4535,6 +4565,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       flowSettings: workflowData.flowSettings || {},
                       cloudProjectId: project.id,
                       projectUuid: project.projectUuid || `cloud-${project.id}`,
+                      isOpen: true
                     };
                     setTabs(prev => [...prev, newTab]);
                     setActiveTabId(newTab.id);
@@ -4729,9 +4760,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     
                     // Handle actual node creation for table/form types
                     if (['table', 'form'].includes(type)) {
-                      if (tabs.length === 0) {
+                      if (openTabs.length === 0) {
                         const newTab = createBlankTab();
-                        setTabs([newTab]);
+                        setTabs(prev => [...prev, newTab]);
                         setActiveTabId(newTab.id);
                       }
 
@@ -4851,9 +4882,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     
                     // Handle actual node creation for table/form types at position
                     if (['table', 'form'].includes(type)) {
-                      if (tabs.length === 0) {
+                      if (openTabs.length === 0) {
                         const newTab = createBlankTab();
-                        setTabs([newTab]);
+                        setTabs(prev => [...prev, newTab]);
                         setActiveTabId(newTab.id);
                       }
 
@@ -4994,10 +5025,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   onShare={() => setShowShareModal(true)}
                   onOpenAiGenerator={() => setShowAiGenerator(true)}
                   onCreateTemplate={(templateType: string) => {
-                    // Create a new tab if none exist
-                    if (tabs.length === 0) {
+                    // Create a new tab if none are open
+                    if (openTabs.length === 0) {
                       const newTab = createBlankTab();
-                      setTabs([newTab]);
+                      setTabs(prev => [...prev, newTab]);
                       setActiveTabId(newTab.id);
                       // Wait for the tab to be created before adding the template
                       setTimeout(() => {
@@ -5010,10 +5041,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     handleAddTemplateToCurrentTab(templateType);
                   }}
                   onCreateTemplateAtPosition={(templateType: string, position: { x: number; y: number }) => {
-                    // Create a new tab if none exist
-                    if (tabs.length === 0) {
+                    // Create a new tab if none are open
+                    if (openTabs.length === 0) {
                       const newTab = createBlankTab();
-                      setTabs([newTab]);
+                      setTabs(prev => [...prev, newTab]);
                       setActiveTabId(newTab.id);
                       // Wait for the tab to be created before adding the template
                       setTimeout(() => {
@@ -5057,9 +5088,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   isToolbarExpanded={isToolbarExpanded}
                   onCreateNode={(type: string) => {
                     // Handle regular node creation from popout
-                    if (tabs.length === 0) {
+                    if (openTabs.length === 0) {
                       const newTab = createBlankTab();
-                      setTabs([newTab]);
+                      setTabs(prev => [...prev, newTab]);
                       setActiveTabId(newTab.id);
                     }
 
@@ -5183,9 +5214,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }}
                   onCreateNodeAtPosition={(type: string, position: { x: number; y: number }) => {
                     // Handle drag-and-drop node creation from popout
-                    if (tabs.length === 0) {
+                    if (openTabs.length === 0) {
                       const newTab = createBlankTab();
-                      setTabs([newTab]);
+                      setTabs(prev => [...prev, newTab]);
                       setActiveTabId(newTab.id);
                     }
 
@@ -5471,10 +5502,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 nodes={nodes}
                 onToggleSidebar={toggleSidebar}
                 onCreateNode={(type: string) => {
-                // Create a new tab if none exist (Sidebar handler)
-                if (tabs.length === 0) {
+                // Create a new tab if none are open (Sidebar handler)
+                if (openTabs.length === 0) {
                   const newTab = createBlankTab();
-                  setTabs([newTab]);
+                  setTabs(prev => [...prev, newTab]);
                   setActiveTabId(newTab.id);
                   // Wait for the tab to be created before adding the node
                   setTimeout(() => {
@@ -5738,10 +5769,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 });
               }}
               onCreateNodeAtPosition={(type: string, position: { x: number; y: number }) => {
-                // Create a new tab if none exist
-                if (tabs.length === 0) {
+                // Create a new tab if none are open
+                if (openTabs.length === 0) {
                   const newTab = createBlankTab();
-                  setTabs([newTab]);
+                  setTabs(prev => [...prev, newTab]);
                   setActiveTabId(newTab.id);
                   return;
                 }
@@ -6246,10 +6277,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setActiveTabId(newTab.id);
               }}
               onCreateTemplate={(templateType: string) => {
-                // Create a new tab if none exist
-                if (tabs.length === 0) {
+                // Create a new tab if none are open
+                if (openTabs.length === 0) {
                   const newTab = createBlankTab();
-                  setTabs([newTab]);
+                  setTabs(prev => [...prev, newTab]);
                   setActiveTabId(newTab.id);
                   // Wait for the tab to be created before adding the template
                   setTimeout(() => {
@@ -6262,10 +6293,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 handleAddTemplateToCurrentTab(templateType);
               }}
               onCreateTemplateAtPosition={(templateType: string, position: { x: number; y: number }) => {
-                // Create a new tab if none exist
-                if (tabs.length === 0) {
+                // Create a new tab if none are open
+                if (openTabs.length === 0) {
                   const newTab = createBlankTab();
-                  setTabs([newTab]);
+                  setTabs(prev => [...prev, newTab]);
                   setActiveTabId(newTab.id);
                   // Wait for the tab to be created before adding the template
                   setTimeout(() => {
@@ -6337,10 +6368,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           {/* Canvas Area */}
           <div 
             ref={canvasContainerRef}
-            className={`flex-1 relative ${tabs.length > 0 ? 'overflow-hidden' : 'overflow-y-auto'}`}
+            className={`flex-1 relative ${openTabs.length > 0 ? 'overflow-hidden' : 'overflow-y-auto'}`}
           >
             
-            {tabs.length > 0 ? (
+            {openTabs.length > 0 ? (
               <>
                 <WorkflowCanvas
                 data-testid="workflow-canvas"
@@ -7452,7 +7483,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           </div>
           
           {/* Project Panel - docked right side */}
-          {tabs.length > 0 && (
+          {openTabs.length > 0 && (
             <ProjectPanel
               nodes={nodes}
               edges={edges}
