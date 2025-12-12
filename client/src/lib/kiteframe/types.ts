@@ -29,6 +29,13 @@ export interface BaseNodeData {
 
 // Node type uses 'any' for backward compatibility
 // Use TypedNode or specific node types (BasicNode, TableNode, etc.) for type-safe code
+export interface NodeMeta {
+  beta?: boolean;
+  visionGenerated?: boolean;
+  source?: 'heuristic' | 'vision' | 'user';
+  confidence?: 'low' | 'medium' | 'high';
+}
+
 export type Node = {
   id: string;
   type?: string;
@@ -46,8 +53,9 @@ export type Node = {
   width?: number;
   height?: number;
   zIndex?: number;
-  measuredWidth?: number; // Transient: DOM-measured width for edge anchoring (not persisted)
-  measuredHeight?: number; // Transient: DOM-measured height for edge anchoring (not persisted)
+  measuredWidth?: number;
+  measuredHeight?: number;
+  meta?: NodeMeta;
 };
 
 export type EdgeStyle = {

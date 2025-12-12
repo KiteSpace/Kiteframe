@@ -12,6 +12,7 @@ import { computeConfidence, isConfidenceInsufficient } from '../ai/confidenceSco
 import { getSystemPromptForRole } from '../ai/systemPrompts';
 import { computeWorkflowMaturity, type WorkflowMaturity } from '../ai/workflowMaturity';
 import { generateFollowUps, shouldAskFollowUps } from '../ai/followUpGenerator';
+import type { VisionRole } from '../ai/workflow/visionPipeline';
 import { 
   MessageCircle, 
   Send, 
@@ -123,6 +124,7 @@ function ChatView({
   const [dragActive, setDragActive] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [showDiffPreview, setShowDiffPreview] = useState<string | null>(null);
+  const [visionRole, setVisionRole] = useState<VisionRole>('pm');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -988,6 +990,38 @@ For CONVERSATIONS, respond naturally without JSON.`;
                 <Send className="w-4 h-4" />
               </Button>
             </div>
+            
+            {pendingFiles.some(f => f.type.startsWith('image/')) && (
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <span className="text-[10px] text-muted-foreground">Vision mode:</span>
+                <div className="flex rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setVisionRole('pm')}
+                    className={`px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                      visionRole === 'pm' 
+                        ? 'bg-purple-600 text-white' 
+                        : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                    data-testid="button-vision-role-pm"
+                  >
+                    PM
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVisionRole('designer')}
+                    className={`px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                      visionRole === 'designer' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                    data-testid="button-vision-role-designer"
+                  >
+                    Designer
+                  </button>
+                </div>
+              </div>
+            )}
             
             <div className="text-[10px] text-muted-foreground mt-2 text-center">
               Drop images or .kiteframe files, or click the paperclip to upload

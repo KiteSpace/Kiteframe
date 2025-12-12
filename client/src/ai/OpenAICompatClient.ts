@@ -1,19 +1,35 @@
-import type { AiClient, AiRequest, AiResponse } from './types';
+import type { AiClient, AiRequest, AiResponse, AiMessage } from './types';
+import { supportsVision } from './types';
+
+function hasImageContent(messages: AiMessage[]): boolean {
+  return messages.some(m => {
+    if (typeof m.content === 'string') return false;
+    return m.content.some(part => part.type === 'image_url');
+  });
+}
+
+function serializeMessages(messages: AiMessage[]): unknown[] {
+  return messages.map(m => ({
+    role: m.role,
+    content: typeof m.content === 'string' ? m.content : m.content.map(part => {
+      if (part.type === 'text') return { type: 'text', text: part.text };
+      return { type: 'image_url', image_url: { url: part.image_url.url } };
+    })
+  }));
+}
 
 export class OpenAICompatClient implements AiClient {
   constructor(private opts: { baseURL: string; apiKey?: string; headers?: Record<string,string>; defaultModel?: string }) {}
   
   async chat(req: AiRequest): Promise<AiResponse> {
-    // Get the current AI settings from localStorage
     const savedSettings = localStorage.getItem('ai_settings');
-    let currentModel = req.model || this.opts.defaultModel || 'gpt-4o'; // the newest OpenAI model is gpt-4o
+    let currentModel = req.model || this.opts.defaultModel || 'gpt-4o';
     let provider = 'openai';
     let apiKey = null;
     
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
-        // Use the saved settings
         if (!req.model) {
           currentModel = settings.model === 'custom' && settings.customModel 
             ? settings.customModel 
@@ -26,13 +42,20 @@ export class OpenAICompatClient implements AiClient {
       }
     }
     
-    // Use backend proxy with provider information
+    const containsImages = hasImageContent(req.messages);
+    if (containsImages && !supportsVision(currentModel)) {
+      console.warn(`[OpenAICompatClient] Model ${currentModel} does not support vision. Falling back to gpt-4o.`);
+      currentModel = 'gpt-4o';
+    }
+    
+    const serializedMessages = serializeMessages(req.messages);
+    
     const res = await fetch('/api/ai/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         model: currentModel, 
-        messages: req.messages, 
+        messages: serializedMessages, 
         temperature: req.temperature ?? 0.7, 
         maxTokens: req.maxTokens ?? 1024,
         provider: provider,
