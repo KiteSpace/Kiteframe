@@ -1,0 +1,181 @@
+KITEFRAME — HOME TAB PRE-PROJECT CHAT + HERO REFACTOR
+FINAL IMPLEMENTATION HANDOFF (STRICT SCOPE)
+
+IMPORTANT:
+- DO NOT change project pages, workflow editor, or existing tabs
+- DO NOT refactor global architecture
+- DO NOT modify workflow generation logic
+- ONLY modify the Home tab experience BEFORE a project is created
+- If something is unclear, ASK — do not assume
+
+----------------------------------------------------
+GOAL
+----------------------------------------------------
+
+Refactor the Home tab to support a modern, AI-first pre-project experience:
+
+1) A redesigned hero section with prompt + entry options
+2) A full-screen pre-project chat mode for clarification/brainstorming
+3) NO project is created until the user explicitly proceeds
+4) All existing Home content (Recent Projects, Templates) remains intact
+
+This mirrors Figma’s Home tab behavior.
+Project pages are NOT affected.
+
+----------------------------------------------------
+FILE OWNERSHIP
+----------------------------------------------------
+
+Primary file to modify:
+client/src/components/HomeScreen.tsx
+
+You MAY create new components:
+- client/src/components/PreProjectChat.tsx
+- client/src/components/HomeHero.tsx
+
+You MUST NOT modify:
+- workflow-editor.tsx
+- project pages
+- Layers, Notes, Specs, or Sources tabs
+- Existing KiteAIChat used inside projects
+
+----------------------------------------------------
+SECTION 1 — HOME HERO REFACTOR
+----------------------------------------------------
+
+Replace the existing inline hero input with a new HomeHero component.
+
+REQUIREMENTS:
+- Centered hero card
+- Subtle animated gradient background (slow morphing)
+- Single primary textarea prompt
+- Secondary actions:
+  - Import Figma
+  - Upload Image
+  - Upload Document (placeholder OK)
+- CTA button: "Start designing"
+
+DO NOT:
+- Create a project here
+- Call workflow generation yet
+- Trigger AI automatically
+
+STATE (local to HomeScreen):
+- promptValue: string
+- isPreProjectChatOpen: boolean
+
+When user clicks "Start designing":
+- If prompt is simple → open pre-project chat
+- If prompt is ambiguous → open pre-project chat
+- For now: ALWAYS open pre-project chat
+
+----------------------------------------------------
+SECTION 2 — PRE-PROJECT CHAT MODE
+----------------------------------------------------
+
+Create a full-screen overlay chat experience.
+
+Component:
+PreProjectChat.tsx
+
+VISUAL BEHAVIOR:
+- Full viewport overlay
+- Back / Cancel button at top-left
+- Chat-style vertical message list
+- Input anchored at bottom
+- No project tabs visible
+- ESC or Back button exits chat
+
+STATE (local to HomeScreen OR passed as props):
+- preProjectMessages: { role: 'user' | 'assistant', content: string }[]
+- isPreProjectChatOpen: boolean
+
+API:
+- Reuse existing POST /api/ai/chat
+- NO streaming required
+- NO projectId
+- Stateless
+
+SYSTEM PROMPT (HARD CODE FOR NOW):
+
+"You are KiteAI helping a user clarify what they want to build BEFORE creating a project.
+Ask clarifying questions if needed.
+Do not generate workflows yet.
+Help the user refine intent."
+
+----------------------------------------------------
+SECTION 3 — EXITING CHAT & PROJECT CREATION
+----------------------------------------------------
+
+Add a primary action inside PreProjectChat:
+
+Button: "Create project"
+
+On click:
+1) Summarize the conversation into a single prompt
+2) Call existing HomeScreen workflow generation handler
+3) Call createNewTab({ nodes, edges, name })
+
+ALLOWED:
+- Empty project
+- AI-generated nodes
+- Name inferred from chat
+
+NOT ALLOWED:
+- Partial project creation
+- Auto-create on first AI response
+- Silent project creation
+
+----------------------------------------------------
+SECTION 4 — GRADIENT BACKGROUND
+----------------------------------------------------
+
+Add a subtle animated gradient behind the hero.
+
+REQUIREMENTS:
+- Use Tailwind + optional Framer Motion
+- Slow animation (30s+ loop)
+- Low saturation
+- No user controls yet
+- No global CSS changes
+
+----------------------------------------------------
+SECTION 5 — WHAT MUST REMAIN UNCHANGED
+----------------------------------------------------
+
+DO NOT modify:
+- Recent Projects grid
+- Templates grid
+- Project cards
+- Delete dialogs
+- Feature upsells
+- Existing AI chat inside projects
+- Figma import flow
+- Workflow generation logic
+
+----------------------------------------------------
+SECTION 6 — ACCEPTANCE CRITERIA
+----------------------------------------------------
+
+This task is complete when:
+
+- Home tab shows new hero design
+- Clicking CTA opens full-screen chat
+- Chat can ask clarifying questions
+- User can cancel back to Home
+- Project is only created AFTER explicit action
+- No regressions to existing project pages
+
+----------------------------------------------------
+SECTION 7 — IF YOU ARE UNSURE
+----------------------------------------------------
+
+STOP and ask for clarification if:
+- You think a change affects project pages
+- You feel tempted to refactor AI logic
+- You want to reuse KiteAIChat directly
+- You want to auto-create projects
+
+Do NOT guess.
+
+END OF HANDOFF

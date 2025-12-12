@@ -1,0 +1,192 @@
+KITEFRAME — INTENT RESOLUTION & CHAT-FIRST CREATION
+ARCHITECTURE QUESTIONS FOR REPLIT
+
+Purpose:
+These questions are required to understand Kiteframe’s current implementation
+so we can safely introduce a chat-first, intent-resolution flow BEFORE project
+creation (for prompts, Figma imports, and image uploads), without breaking
+existing workflow, PRD, Layers, or AI systems.
+
+==================================================
+SECTION 1 — PROJECT CREATION LIFECYCLE (CRITICAL)
+==================================================
+
+1. Where is a new project actually instantiated?
+   - File(s) responsible for:
+     - Creating project UUID
+     - Initializing canvas state
+     - Creating default workflow group
+   - Is this logic inside:
+     - WorkflowEditor?
+     - onImport handlers?
+     - A project store / utility?
+
+2. Is project creation currently coupled to any of the following?
+   - Prompt → workflow generation
+   - Figma import
+   - Image upload
+   - First node insertion
+
+3. Can project creation be deferred without breaking:
+   - Undo/redo
+   - Layers state
+   - PRD storage
+   - AI context resolution
+
+4. What is the minimum data required to create a project?
+   - projectId only?
+   - projectName?
+   - initial nodes?
+   - cloud sync metadata?
+
+Goal: Confirm whether a “pre-project” state is safe to introduce.
+
+==================================================
+SECTION 2 — HOMEPAGE PROMPT GENERATOR
+==================================================
+
+5. Where does the homepage prompt-to-workflow generator live?
+   - Confirm file path (e.g. AiWorkflowGenerator.tsx)
+   - Is it mounted inside routing or the workflow editor?
+
+6. Does the homepage generator currently:
+   - Call aiClient.chat() directly?
+   - Create nodes and edges immediately?
+   - Create a project immediately?
+
+7. Can this generator be refactored to return an intermediate result instead
+   of mutating canvas state?
+   Example:
+     {
+       confidence: number
+       requiresClarification: boolean
+       suggestedQuestions: string[]
+       preview?: WorkflowPreview
+     }
+
+8. Is there an existing chat component or lightweight message UI that could
+   be reused here (instead of creating a new one)?
+
+==================================================
+SECTION 3 — FIGMA IMPORT FLOW BREAKPOINTS
+==================================================
+
+9. Where is the Figma import flow triggered from?
+   - Modal?
+   - Toolbar action?
+   - Command palette?
+
+10. At what exact point does Figma import currently:
+    - Fetch frames
+    - Extract semantic data
+    - Create nodes
+    - Create a project (if new)
+
+11. Is frame selection already a pure UI step,
+    or does selection immediately mutate canvas state?
+
+12. Can the import be paused AFTER frame discovery but BEFORE insertion?
+    (i.e. hold a PendingImport object in memory)
+
+13. Where is “reference-only” vs “generate workflow” decided today?
+    - Per import?
+    - Per frame?
+    - Global flag?
+
+==================================================
+SECTION 4 — IMAGE UPLOAD & VISION PIPELINE
+==================================================
+
+14. Where are images uploaded today?
+    - Chat only?
+    - Canvas?
+    - Homepage?
+
+15. Does image upload currently:
+    - Immediately invoke vision?
+    - Immediately create nodes?
+    - Or wait for user confirmation?
+
+16. Can the vision pipeline run in a “preview-only” mode
+    (analyze without committing to canvas/project)?
+
+17. Is there already a concept of “pending analysis” in state,
+    or would this need to be introduced?
+
+==================================================
+SECTION 5 — CHAT SYSTEM REUSE
+==================================================
+
+18. Can KiteAIChat be mounted WITHOUT a projectId?
+    - If not, what does it require?
+
+19. Are chat messages strictly project-scoped today,
+    or can they exist temporarily?
+
+20. Can chat produce structured outputs (questions, previews, summaries)
+    without mutating the canvas?
+
+==================================================
+SECTION 6 — STATE MANAGEMENT & SAFE PAUSE
+==================================================
+
+21. Which stores assume a projectId must exist?
+    - Layers
+    - PRDs
+    - Notes
+    - AI context
+
+22. Are there global side effects that would break
+    if no project exists yet?
+
+23. Is there precedent for “draft” or “temporary” objects in state?
+    - Draft PRD
+    - Draft workflow
+    - Draft import
+
+24. What is the safest place to store “pending intent resolution” state?
+    - React local state
+    - Zustand
+    - Context provider
+
+==================================================
+SECTION 7 — CONFIRMATION & COMMIT MECHANISM
+==================================================
+
+25. Is there an existing “Apply / Confirm” abstraction
+    used by AI previews today?
+
+26. What is the cleanest API to call when the user clicks
+    “Create project” after clarification?
+
+27. Should project creation + insertion be wrapped in undo history,
+    or excluded as a single irreversible action?
+
+==================================================
+SECTION 8 — VISUAL TRANSITION CAPABILITIES
+==================================================
+
+28. Is the homepage layout flexible enough to animate
+    into a ChatGPT-like expanded chat mode?
+
+29. What animation / transition system is in use?
+    - CSS only
+    - Framer Motion
+    - None
+
+30. Is it acceptable to temporarily hide canvas / panels
+    before a project is created?
+
+==================================================
+SECTION 9 — NON-GOALS CONFIRMATION
+==================================================
+
+31. Confirm for this phase:
+    - No real-time collaboration
+    - No background project creation
+    - No auto-commit without user confirmation
+    - No live external integrations
+
+==================================================
+END
+==================================================
