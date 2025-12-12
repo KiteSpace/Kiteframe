@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ListTree, FileText, Palette, Link2, FolderOpen, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ListTree, FileText, Palette, Link2, FolderOpen, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { KiteAITab } from './KiteAITab';
 import { LayersTab } from './LayersTab';
 import { NotesTab } from './NotesTab';
 import { SpecsTab } from './SpecsTab';
@@ -11,9 +12,10 @@ import { SourcesTab } from './SourcesTab';
 import { ProjectDetailsTab } from './ProjectDetailsTab';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 
-export type ProjectPanelTab = 'layers' | 'notes' | 'specs' | 'sources' | 'details';
+export type ProjectPanelTab = 'kiteai' | 'layers' | 'specs' | 'notes' | 'sources' | 'details';
 
 const PANEL_COLLAPSED_KEY = 'kiteframe-project-panel-collapsed';
+const PANEL_TAB_KEY_PREFIX = 'kiteframe-project-panel-tab-';
 
 interface ProjectPanelProps {
   nodes: Node[];
@@ -23,34 +25,42 @@ interface ProjectPanelProps {
   projectId?: string;
   projectName?: string;
   onProjectNameChange?: (name: string) => void;
+  onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
+  onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
 }
 
-const tabIcons = {
-  layers: ListTree,
-  notes: FileText,
-  specs: Palette,
-  sources: Link2,
-  details: FolderOpen
-};
-
-const tabLabels = {
-  layers: 'Layers',
-  notes: 'Notes',
-  specs: 'Specs',
-  sources: 'Sources',
-  details: 'Details'
-};
+const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string }[] = [
+  { id: 'kiteai', icon: Sparkles, label: 'KiteAI' },
+  { id: 'layers', icon: ListTree, label: 'Layers' },
+  { id: 'specs', icon: Palette, label: 'Specs' },
+  { id: 'notes', icon: FileText, label: 'Notes' },
+  { id: 'sources', icon: Link2, label: 'Sources' },
+  { id: 'details', icon: FolderOpen, label: 'Details' }
+];
 
 export function ProjectPanel({ 
   nodes, 
   edges, 
   frames, 
-  canvasObjects, 
+  canvasObjects = [], 
   projectId,
   projectName,
-  onProjectNameChange 
+  onProjectNameChange,
+  onApplyWorkflow,
+  onPreviewWorkflow
 }: ProjectPanelProps) {
-  const [activeTab, setActiveTab] = useState<ProjectPanelTab>('layers');
+  const getStoredTab = (pid?: string): ProjectPanelTab => {
+    if (typeof window === 'undefined' || !pid) return 'kiteai';
+    try {
+      const saved = localStorage.getItem(`${PANEL_TAB_KEY_PREFIX}${pid}`);
+      if (saved && tabConfig.some(t => t.id === saved)) {
+        return saved as ProjectPanelTab;
+      }
+    } catch {}
+    return 'kiteai';
+  };
+
+  const [activeTab, setActiveTab] = useState<ProjectPanelTab>(() => getStoredTab(projectId));
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
     const saved = localStorage.getItem(PANEL_COLLAPSED_KEY);
@@ -62,6 +72,19 @@ export function ProjectPanel({
       localStorage.setItem(PANEL_COLLAPSED_KEY, String(isCollapsed));
     }
   }, [isCollapsed]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    const storedTab = getStoredTab(projectId);
+    setActiveTab(storedTab);
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId || !activeTab) return;
+    try {
+      localStorage.setItem(`${PANEL_TAB_KEY_PREFIX}${projectId}`, activeTab);
+    } catch {}
+  }, [projectId, activeTab]);
 
   if (isCollapsed) {
     return (
@@ -88,28 +111,25 @@ export function ProjectPanel({
           </div>
           
           <div className="flex flex-col items-center gap-1 mt-2 border-t border-border pt-2">
-            {(Object.keys(tabIcons) as ProjectPanelTab[]).map(tab => {
-              const Icon = tabIcons[tab];
-              return (
-                <Tooltip key={tab}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={activeTab === tab ? 'secondary' : 'ghost'}
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => {
-                        setActiveTab(tab);
-                        setIsCollapsed(false);
-                      }}
-                      data-testid={`collapsed-tab-${tab}`}
-                    >
-                      <Icon size={14} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">{tabLabels[tab]}</TooltipContent>
-                </Tooltip>
-              );
-            })}
+            {tabConfig.map(({ id, icon: Icon, label }) => (
+              <Tooltip key={id}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={activeTab === id ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className={`h-8 w-8 ${id === 'kiteai' ? 'text-purple-500' : ''}`}
+                    onClick={() => {
+                      setActiveTab(id);
+                      setIsCollapsed(false);
+                    }}
+                    data-testid={`collapsed-tab-${id}`}
+                  >
+                    <Icon size={14} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">{label}</TooltipContent>
+              </Tooltip>
+            ))}
           </div>
         </TooltipProvider>
       </div>
@@ -135,6 +155,14 @@ export function ProjectPanel({
           <ScrollArea className="flex-1">
             <TabsList className="inline-flex h-10 w-max min-w-full p-1 gap-1">
               <TabsTrigger 
+                value="kiteai" 
+                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background data-[state=active]:text-purple-500" 
+                data-testid="tab-kiteai"
+              >
+                <Sparkles size={14} className="text-purple-500" />
+                KiteAI
+              </TabsTrigger>
+              <TabsTrigger 
                 value="layers" 
                 className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
                 data-testid="tab-layers"
@@ -143,20 +171,20 @@ export function ProjectPanel({
                 Layers
               </TabsTrigger>
               <TabsTrigger 
-                value="notes" 
-                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
-                data-testid="tab-notes"
-              >
-                <FileText size={14} />
-                Notes
-              </TabsTrigger>
-              <TabsTrigger 
                 value="specs" 
                 className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
                 data-testid="tab-specs"
               >
                 <Palette size={14} />
                 Specs
+              </TabsTrigger>
+              <TabsTrigger 
+                value="notes" 
+                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
+                data-testid="tab-notes"
+              >
+                <FileText size={14} />
+                Notes
               </TabsTrigger>
               <TabsTrigger 
                 value="sources" 
@@ -179,6 +207,17 @@ export function ProjectPanel({
           </ScrollArea>
         </div>
         
+        <TabsContent value="kiteai" className="flex-1 m-0 overflow-hidden">
+          <KiteAITab
+            projectId={projectId || 'default'}
+            nodes={nodes}
+            edges={edges}
+            canvasObjects={canvasObjects}
+            onApplyWorkflow={onApplyWorkflow}
+            onPreviewWorkflow={onPreviewWorkflow}
+          />
+        </TabsContent>
+        
         <TabsContent value="layers" className="flex-1 m-0 overflow-hidden">
           <LayersTab 
             nodes={nodes} 
@@ -189,12 +228,12 @@ export function ProjectPanel({
           />
         </TabsContent>
         
-        <TabsContent value="notes" className="flex-1 m-0 overflow-hidden">
-          <NotesTab projectId={projectId} />
-        </TabsContent>
-        
         <TabsContent value="specs" className="flex-1 m-0 overflow-hidden">
           <SpecsTab nodes={nodes} edges={edges} canvasObjects={canvasObjects} projectId={projectId} />
+        </TabsContent>
+        
+        <TabsContent value="notes" className="flex-1 m-0 overflow-hidden">
+          <NotesTab projectId={projectId} />
         </TabsContent>
         
         <TabsContent value="sources" className="flex-1 m-0 overflow-hidden">

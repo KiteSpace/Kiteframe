@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, MouseEvent } from 'react';
+import { useState, useRef, useEffect, useCallback, MouseEvent, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -29,7 +29,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 
-// Message types for conversation
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -50,38 +49,64 @@ export interface ChatMessage {
   };
 }
 
-// Diff visualization for workflow changes
 interface WorkflowDiff {
   added: { nodes: Node[]; edges: Edge[] };
   removed: { nodes: Node[]; edges: Edge[] };
   modified: { nodes: Node[]; edges: Edge[] };
 }
 
-interface KiteAIChatProps {
-  currentNodes: Node[];
-  currentEdges: Edge[];
-  currentCanvasObjects: CanvasObject[];
-  onApplyWorkflow: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
-  onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
+const CHAT_STORAGE_KEY_PREFIX = 'kiteframe-kiteai-chat-';
+
+function getDefaultWelcomeMessage(): ChatMessage {
+  return {
+    id: 'welcome',
+    role: 'assistant',
+    content: "Hi! I'm KiteAI, your workflow assistant. I can help you:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images or .kiteframe files\n• Answer questions about workflow design\n\nThis feature uses AI tokens. Need more? Contact info@kiteframe.space\n\nHow can I help you today?",
+    timestamp: new Date()
+  };
 }
 
-export function KiteAIChat({ 
-  currentNodes, 
-  currentEdges, 
-  currentCanvasObjects,
+function rehydrateMessages(stored: any[]): ChatMessage[] {
+  return stored.map((m: any) => ({
+    ...m,
+    timestamp: m.timestamp instanceof Date ? m.timestamp : new Date(m.timestamp)
+  }));
+}
+
+function loadMessagesFromStorage(storageKey: string): ChatMessage[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return rehydrateMessages(parsed);
+      }
+    }
+  } catch {
+  }
+  return null;
+}
+
+interface ChatViewProps {
+  projectId?: string;
+  nodes: Node[];
+  edges: Edge[];
+  canvasObjects: CanvasObject[];
+  onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
+  onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
+  mode: 'panel' | 'floating';
+}
+
+function ChatView({ 
+  projectId,
+  nodes: currentNodes, 
+  edges: currentEdges, 
+  canvasObjects: currentCanvasObjects,
   onApplyWorkflow,
-  onPreviewWorkflow
-}: KiteAIChatProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [size, setSize] = useState({ width: 384, height: 512 }); // w-96 = 384px, h-[32rem] = 512px
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
-  const chatWindowRef = useRef<HTMLDivElement>(null);
-  
+  onPreviewWorkflow,
+  mode
+}: ChatViewProps) {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -106,6 +131,8 @@ export function KiteAIChat({
     openCreditsDialog
   } = useCreditsGate();
   
+  const storageKey = projectId ? `${CHAT_STORAGE_KEY_PREFIX}${projectId}` : null;
+  
   const getWelcomeMessage = useCallback(() => {
     if (isOutOfCredits) {
       if (!isAuthenticated) {
@@ -117,116 +144,60 @@ export function KiteAIChat({
     return "Hi! I'm KiteAI, your workflow assistant. I can help you:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images or .kiteframe files\n• Answer questions about workflow design\n\nThis feature uses AI tokens. Need more? Contact info@kiteframe.space\n\nHow can I help you today?";
   }, [isOutOfCredits, isAuthenticated, ctaMessage]);
   
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: "Hi! I'm KiteAI, your workflow assistant. I can help you:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images or .kiteframe files\n• Answer questions about workflow design\n\nThis feature uses AI tokens. Need more? Contact info@kiteframe.space\n\nHow can I help you today?",
-      timestamp: new Date()
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (!storageKey) {
+      return [getDefaultWelcomeMessage()];
     }
-  ]);
+    return loadMessagesFromStorage(storageKey) || [getDefaultWelcomeMessage()];
+  });
+  
+  const prevProjectIdRef = useRef<string | undefined>(projectId);
+  
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(messages));
+    } catch {
+    }
+  }, [messages, storageKey]);
+  
+  useEffect(() => {
+    if (prevProjectIdRef.current === projectId) return;
+    prevProjectIdRef.current = projectId;
+    
+    if (!storageKey) {
+      setMessages([getDefaultWelcomeMessage()]);
+      return;
+    }
+    
+    const loaded = loadMessagesFromStorage(storageKey);
+    setMessages(loaded || [getDefaultWelcomeMessage()]);
+  }, [projectId, storageKey]);
   
   useEffect(() => {
     if (messages.length === 1 && messages[0].id === 'welcome') {
-      setMessages([{
-        id: 'welcome',
-        role: 'assistant',
-        content: getWelcomeMessage(),
-        timestamp: new Date()
-      }]);
+      const welcomeContent = getWelcomeMessage();
+      if (messages[0].content !== welcomeContent) {
+        setMessages([{
+          id: 'welcome',
+          role: 'assistant',
+          content: welcomeContent,
+          timestamp: new Date()
+        }]);
+      }
     }
   }, [isOutOfCredits, getWelcomeMessage]);
 
-  // Drag and Resize handlers
-  const handleHeaderMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!chatWindowRef.current) return;
-    setIsDragging(true);
-    const rect = chatWindowRef.current.getBoundingClientRect();
-    setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    });
-  };
-
-  const handleResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!chatWindowRef.current) return;
-    setIsResizing(true);
-    const rect = chatWindowRef.current.getBoundingClientRect();
-    setResizeStart({
-      x: e.clientX,
-      y: e.clientY,
-      width: rect.width,
-      height: rect.height
-    });
-  };
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging) {
-      setPosition({
-        x: e.clientX - dragOffset.x,
-        y: e.clientY - dragOffset.y
-      });
-    } else if (isResizing) {
-      const deltaX = e.clientX - resizeStart.x;
-      const deltaY = -(e.clientY - resizeStart.y); // negative because we resize upward
-      
-      setSize({
-        width: Math.max(300, resizeStart.width + deltaX),
-        height: Math.max(200, resizeStart.height + deltaY)
-      });
-    }
-  }, [isDragging, isResizing, dragOffset, resizeStart]);
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    setIsResizing(false);
-  };
-
-  const resetSize = () => {
-    setSize({ width: 384, height: 512 });
-    setPosition({ x: 0, y: 0 });
-  };
-
-  const handleToggleMinimize = () => {
-    // If the window has been dragged (position changed), adjust top so bottom stays anchored
-    if (position.x !== 0 || position.y !== 0) {
-      const heightDiff = isMinimized ? size.height - 56 : 512 - size.height;
-      setPosition(prev => ({
-        ...prev,
-        y: prev.y + heightDiff
-      }));
-    }
-    setIsMinimized(!isMinimized);
-  };
-
-  // Add/remove global mouse event listeners
-  useEffect(() => {
-    if (isDragging || isResizing) {
-      document.addEventListener('mousemove', handleMouseMove as any);
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove as any);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, isResizing, handleMouseMove]);
-
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Focus input when chat opens
   useEffect(() => {
-    if (isOpen && !isMinimized) {
+    if (mode === 'panel') {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [isOpen, isMinimized]);
+  }, [mode]);
 
-  // Calculate workflow diff between current and proposed
   const calculateDiff = useCallback((proposed: { nodes: Node[]; edges: Edge[] }): WorkflowDiff => {
     const currentNodeIds = new Set(currentNodes.map(n => n.id));
     const proposedNodeIds = new Set(proposed.nodes.map(n => n.id));
@@ -257,7 +228,6 @@ export function KiteAIChat({
     };
   }, [currentNodes, currentEdges]);
 
-  // Handle file drop
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -301,7 +271,6 @@ export function KiteAIChat({
     if (files) {
       handleFiles(Array.from(files));
     }
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -311,18 +280,15 @@ export function KiteAIChat({
     setPendingFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Parse .kiteframe file
   const parseKiteframeFile = async (file: File): Promise<{ nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] } | null> => {
     try {
       const text = await file.text();
       const data = JSON.parse(text);
       
-      // Handle various kiteframe format structures
       let nodes: Node[] = [];
       let edges: Edge[] = [];
       let canvasObjects: CanvasObject[] = [];
 
-      // Try different path structures
       if (data.canvas?.nodes) {
         nodes = data.canvas.nodes;
         edges = data.canvas.edges || [];
@@ -352,7 +318,6 @@ export function KiteAIChat({
     }
   };
 
-  // Build context about current canvas for AI
   const buildCanvasContext = useCallback(() => {
     if (currentNodes.length === 0) {
       return "The canvas is currently empty.";
@@ -369,11 +334,9 @@ export function KiteAIChat({
     return `Current canvas has ${currentNodes.length} nodes (${Object.entries(nodeTypes).map(([t, c]) => `${c} ${t}`).join(', ')}) and ${currentEdges.length} connections. Node labels: ${nodeLabels}`;
   }, [currentNodes, currentEdges]);
 
-  // Send message
   const handleSend = async () => {
     if (!inputValue.trim() && pendingFiles.length === 0) return;
     
-    // Defense in depth: check credits before sending
     if (isOutOfCredits) {
       toast({
         title: 'Out of credits',
@@ -389,7 +352,6 @@ export function KiteAIChat({
     const messageId = `msg-${Date.now()}`;
     const attachments: ChatMessage['attachments'] = [];
 
-    // Process pending files
     for (const file of pendingFiles) {
       if (file.type.startsWith('image/')) {
         const preview = await new Promise<string>((resolve) => {
@@ -408,7 +370,6 @@ export function KiteAIChat({
       }
     }
 
-    // Add user message
     const userMessage: ChatMessage = {
       id: messageId,
       role: 'user',
@@ -423,7 +384,6 @@ export function KiteAIChat({
     setIsLoading(true);
 
     try {
-      // Handle kiteframe file uploads directly
       const kiteframeAttachment = attachments.find(a => a.type === 'kiteframe' && a.data);
       if (kiteframeAttachment?.data) {
         const workflow = kiteframeAttachment.data;
@@ -445,10 +405,8 @@ export function KiteAIChat({
         return;
       }
 
-      // Handle image uploads
       const imageAttachment = attachments.find(a => a.type === 'image');
       if (imageAttachment?.preview) {
-        // Send to image analysis endpoint
         const file = pendingFiles.find(f => f.type.startsWith('image/'));
         if (file) {
           const formData = new FormData();
@@ -482,7 +440,6 @@ export function KiteAIChat({
         }
       }
 
-      // Regular text conversation
       const canvasContext = buildCanvasContext();
       const conversationHistory = messages.slice(-6).map(m => ({
         role: m.role as 'user' | 'assistant' | 'system',
@@ -526,11 +483,9 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
         maxTokens: 3000
       });
 
-      // Check if response contains workflow JSON
       let workflowProposal: ChatMessage['workflowProposal'] | undefined;
       let responseText = response.text;
 
-      // Try to extract JSON if present
       const jsonMatch = response.text.match(/\{[\s\S]*"nodes"[\s\S]*"edges"[\s\S]*\}/);
       if (jsonMatch) {
         try {
@@ -546,7 +501,6 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
               description: 'AI-generated workflow',
               status: 'pending'
             };
-            // Remove JSON from display text
             responseText = response.text.replace(jsonMatch[0], '').trim();
             if (!responseText) {
               responseText = `I've created a workflow with ${parsed.nodes.length} nodes and ${parsed.edges.length} connections. Would you like me to apply it to your canvas?`;
@@ -587,10 +541,9 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
     }
   };
 
-  // Handle workflow proposal actions
   const handleAcceptWorkflow = (messageId: string) => {
     const message = messages.find(m => m.id === messageId);
-    if (!message?.workflowProposal) return;
+    if (!message?.workflowProposal || !onApplyWorkflow) return;
 
     onApplyWorkflow({
       nodes: message.workflowProposal.nodes,
@@ -598,7 +551,6 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
       canvasObjects: message.workflowProposal.canvasObjects
     });
 
-    // Update message status
     setMessages(prev => prev.map(m => 
       m.id === messageId && m.workflowProposal
         ? { ...m, workflowProposal: { ...m.workflowProposal, status: 'accepted' } }
@@ -625,7 +577,6 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
 
     setShowDiffPreview(showDiffPreview === messageId ? null : messageId);
     
-    // Trigger visual preview on canvas if callback provided
     if (onPreviewWorkflow) {
       if (showDiffPreview === messageId) {
         onPreviewWorkflow(null);
@@ -638,7 +589,6 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
     }
   };
 
-  // Clear chat history
   const clearChat = () => {
     setMessages([{
       id: 'welcome',
@@ -648,7 +598,6 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
     }]);
   };
 
-  // Handle key press in input
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -656,7 +605,6 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
     }
   };
 
-  // Render workflow diff preview
   const renderDiffPreview = (proposal: ChatMessage['workflowProposal']) => {
     if (!proposal) return null;
     
@@ -711,8 +659,393 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
   };
 
   return (
+    <div className="flex flex-col h-full w-full">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-purple-600/10 to-blue-600/10 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-semibold">KiteAI</span>
+          {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={clearChat}
+            className="p-1.5 hover:bg-accent rounded-md transition-colors"
+            title="Clear chat"
+            data-testid="button-kiteai-clear"
+          >
+            <Trash2 className="w-4 h-4 text-muted-foreground" />
+          </button>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <ScrollArea className="flex-1 p-4">
+        <div className="space-y-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
+            >
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+                message.role === 'user' 
+                  ? 'bg-primary' 
+                  : 'bg-gradient-to-r from-purple-600 to-blue-600'
+              }`}>
+                {message.role === 'user' 
+                  ? <User className="w-4 h-4 text-primary-foreground" />
+                  : <Bot className="w-4 h-4 text-white" />
+                }
+              </div>
+              
+              <div className={`flex-1 ${message.role === 'user' ? 'text-right' : ''}`}>
+                <div className={`inline-block max-w-[85%] p-3 rounded-lg text-sm ${
+                  message.role === 'user'
+                    ? 'bg-primary text-primary-foreground rounded-br-none'
+                    : 'bg-muted rounded-bl-none'
+                }`}>
+                  {message.attachments && message.attachments.length > 0 && (
+                    <div className="mb-2 space-y-1">
+                      {message.attachments.map((att, i) => (
+                        <div key={i} className="flex items-center gap-2 p-2 bg-background/50 rounded">
+                          {att.type === 'image' ? (
+                            <>
+                              {att.preview && (
+                                <img src={att.preview} alt={att.name} className="w-16 h-16 object-cover rounded" />
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="w-4 h-4" />
+                              <span className="text-xs truncate">{att.name}</span>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="whitespace-pre-wrap">{message.content}</div>
+                  
+                  {message.workflowProposal && (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant="secondary" className="text-xs">
+                          {message.workflowProposal.nodes.length} nodes, {message.workflowProposal.edges.length} edges
+                        </Badge>
+                        <span className={`text-xs ${
+                          message.workflowProposal.status === 'accepted' 
+                            ? 'text-green-500' 
+                            : message.workflowProposal.status === 'rejected'
+                            ? 'text-red-500'
+                            : 'text-muted-foreground'
+                        }`}>
+                          {message.workflowProposal.status === 'accepted' && '✓ Applied'}
+                          {message.workflowProposal.status === 'rejected' && '✗ Declined'}
+                        </span>
+                      </div>
+                      
+                      {showDiffPreview === message.id && renderDiffPreview(message.workflowProposal)}
+                      
+                      {message.workflowProposal.status === 'pending' && (
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handlePreviewWorkflow(message.id)}
+                            className="flex-1 h-8 text-xs"
+                            data-testid={`button-preview-workflow-${message.id}`}
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            {showDiffPreview === message.id ? 'Hide' : 'Preview'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleAcceptWorkflow(message.id)}
+                            className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700"
+                            data-testid={`button-accept-workflow-${message.id}`}
+                          >
+                            <Check className="w-3 h-3 mr-1" />
+                            Apply
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleRejectWorkflow(message.id)}
+                            className="h-8 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                            data-testid={`button-reject-workflow-${message.id}`}
+                          >
+                            <XCircle className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                <div className={`text-[10px] text-muted-foreground mt-1 ${message.role === 'user' ? 'text-right' : ''}`}>
+                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            </div>
+          ))}
+          
+          {isLoading && (
+            <div className="flex gap-3">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
+                <Bot className="w-4 h-4 text-white" />
+              </div>
+              <div className="bg-muted rounded-lg p-3 rounded-bl-none">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm text-muted-foreground">Thinking...</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
+
+      {/* Input Area */}
+      <div 
+        className={`p-3 border-t border-border flex-shrink-0 ${dragActive ? 'bg-primary/10' : ''}`}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+      >
+        {pendingFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {pendingFiles.map((file, index) => (
+              <div key={index} className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs">
+                {file.type.startsWith('image/') ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+                <span className="truncate max-w-[100px]">{file.name}</span>
+                <button 
+                  onClick={() => removePendingFile(index)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {dragActive && (
+          <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-xl flex items-center justify-center pointer-events-none">
+            <span className="text-primary font-medium">Drop files here</span>
+          </div>
+        )}
+        
+        {isOutOfCredits ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 text-sm">
+              <AlertCircle className="w-4 h-4" />
+              <span>AI features disabled - out of credits</span>
+            </div>
+            <Button
+              onClick={() => {
+                if (ctaAction === 'signup') openSignup();
+                else if (ctaAction === 'upgrade') openPricing();
+                else openCreditsDialog();
+              }}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              data-testid="button-kiteai-get-credits"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              {ctaButtonText}
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.kiteframe,.json"
+                onChange={handleFileInputChange}
+                className="hidden"
+                multiple
+              />
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-shrink-0"
+                disabled={isLoading}
+                data-testid="button-kiteai-attach"
+              >
+                <Paperclip className="w-4 h-4" />
+              </Button>
+              <Input
+                ref={inputRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Describe your workflow..."
+                className="flex-1"
+                disabled={isLoading}
+                data-testid="input-kiteai-message"
+              />
+              <Button
+                size="icon"
+                onClick={handleSend}
+                disabled={isLoading || (!inputValue.trim() && pendingFiles.length === 0)}
+                className="flex-shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                data-testid="button-kiteai-send"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="text-[10px] text-muted-foreground mt-2 text-center">
+              Drop images or .kiteframe files, or click the paperclip to upload
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface KiteAIChatPanelProps {
+  projectId: string;
+  nodes: Node[];
+  edges: Edge[];
+  canvasObjects: CanvasObject[];
+  onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
+  onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
+}
+
+export function KiteAIChatPanel({
+  projectId,
+  nodes,
+  edges,
+  canvasObjects,
+  onApplyWorkflow,
+  onPreviewWorkflow
+}: KiteAIChatPanelProps) {
+  return (
+    <div className="flex h-full w-full flex-col">
+      <ChatView
+        mode="panel"
+        projectId={projectId}
+        nodes={nodes}
+        edges={edges}
+        canvasObjects={canvasObjects}
+        onApplyWorkflow={onApplyWorkflow}
+        onPreviewWorkflow={onPreviewWorkflow}
+      />
+    </div>
+  );
+}
+
+interface KiteAIChatProps {
+  currentNodes: Node[];
+  currentEdges: Edge[];
+  currentCanvasObjects: CanvasObject[];
+  onApplyWorkflow: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
+  onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
+}
+
+export function KiteAIChat({ 
+  currentNodes, 
+  currentEdges, 
+  currentCanvasObjects,
+  onApplyWorkflow,
+  onPreviewWorkflow
+}: KiteAIChatProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [size, setSize] = useState({ width: 384, height: 512 });
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const chatWindowRef = useRef<HTMLDivElement>(null);
+
+  const handleHeaderMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!chatWindowRef.current) return;
+    setIsDragging(true);
+    const rect = chatWindowRef.current.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!chatWindowRef.current) return;
+    setIsResizing(true);
+    const rect = chatWindowRef.current.getBoundingClientRect();
+    setResizeStart({
+      x: e.clientX,
+      y: e.clientY,
+      width: rect.width,
+      height: rect.height
+    });
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isDragging) {
+      setPosition({
+        x: e.clientX - dragOffset.x,
+        y: e.clientY - dragOffset.y
+      });
+    } else if (isResizing) {
+      const deltaX = e.clientX - resizeStart.x;
+      const deltaY = -(e.clientY - resizeStart.y);
+      
+      setSize({
+        width: Math.max(300, resizeStart.width + deltaX),
+        height: Math.max(200, resizeStart.height + deltaY)
+      });
+    }
+  }, [isDragging, isResizing, dragOffset, resizeStart]);
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    setIsResizing(false);
+  };
+
+  const resetSize = () => {
+    setSize({ width: 384, height: 512 });
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const handleToggleMinimize = () => {
+    if (position.x !== 0 || position.y !== 0) {
+      const heightDiff = isMinimized ? size.height - 56 : 512 - size.height;
+      setPosition(prev => ({
+        ...prev,
+        y: prev.y + heightDiff
+      }));
+    }
+    setIsMinimized(!isMinimized);
+  };
+
+  useEffect(() => {
+    if (isDragging || isResizing) {
+      document.addEventListener('mousemove', handleMouseMove as any);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove as any);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, isResizing, handleMouseMove]);
+
+  return (
     <>
-      {/* Floating Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
@@ -724,7 +1057,6 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
         </button>
       )}
 
-      {/* Chat Window */}
       {isOpen && (
         <div 
           ref={chatWindowRef}
@@ -740,7 +1072,6 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
           }}
           data-testid="panel-kiteai-chat"
         >
-          {/* Header - Draggable */}
           <div 
             className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-purple-600/10 to-blue-600/10 rounded-t-xl select-none cursor-grab active:cursor-grabbing"
             onMouseDown={handleHeaderMouseDown}
@@ -751,17 +1082,8 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <span className="font-semibold">KiteAI</span>
-              {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
             </div>
             <div className="flex items-center gap-1 pointer-events-auto">
-              <button
-                onClick={(e) => { e.stopPropagation(); clearChat(); }}
-                className="p-1.5 hover:bg-accent rounded-md transition-colors"
-                title="Clear chat"
-                data-testid="button-kiteai-clear"
-              >
-                <Trash2 className="w-4 h-4 text-muted-foreground" />
-              </button>
               <button
                 onClick={(e) => { e.stopPropagation(); resetSize(); }}
                 className="p-1.5 hover:bg-accent rounded-md transition-colors"
@@ -787,260 +1109,27 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
             </div>
           </div>
 
-          {/* Chat Content */}
           {!isMinimized && (
-            <>
-              {/* Messages Area */}
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
-                    >
-                      {/* Avatar */}
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        message.role === 'user' 
-                          ? 'bg-primary' 
-                          : 'bg-gradient-to-r from-purple-600 to-blue-600'
-                      }`}>
-                        {message.role === 'user' 
-                          ? <User className="w-4 h-4 text-primary-foreground" />
-                          : <Bot className="w-4 h-4 text-white" />
-                        }
-                      </div>
-                      
-                      {/* Message Content */}
-                      <div className={`flex-1 ${message.role === 'user' ? 'text-right' : ''}`}>
-                        <div className={`inline-block max-w-[85%] p-3 rounded-lg text-sm ${
-                          message.role === 'user'
-                            ? 'bg-primary text-primary-foreground rounded-br-none'
-                            : 'bg-muted rounded-bl-none'
-                        }`}>
-                          {/* Attachments */}
-                          {message.attachments && message.attachments.length > 0 && (
-                            <div className="mb-2 space-y-1">
-                              {message.attachments.map((att, i) => (
-                                <div key={i} className="flex items-center gap-2 p-2 bg-background/50 rounded">
-                                  {att.type === 'image' ? (
-                                    <>
-                                      {att.preview && (
-                                        <img src={att.preview} alt={att.name} className="w-16 h-16 object-cover rounded" />
-                                      )}
-                                    </>
-                                  ) : (
-                                    <>
-                                      <FileText className="w-4 h-4" />
-                                      <span className="text-xs truncate">{att.name}</span>
-                                    </>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          
-                          {/* Text content with line breaks preserved */}
-                          <div className="whitespace-pre-wrap">{message.content}</div>
-                          
-                          {/* Workflow Proposal */}
-                          {message.workflowProposal && (
-                            <div className="mt-3 pt-3 border-t border-border/50">
-                              <div className="flex items-center justify-between mb-2">
-                                <Badge variant="secondary" className="text-xs">
-                                  {message.workflowProposal.nodes.length} nodes, {message.workflowProposal.edges.length} edges
-                                </Badge>
-                                <span className={`text-xs ${
-                                  message.workflowProposal.status === 'accepted' 
-                                    ? 'text-green-500' 
-                                    : message.workflowProposal.status === 'rejected'
-                                    ? 'text-red-500'
-                                    : 'text-muted-foreground'
-                                }`}>
-                                  {message.workflowProposal.status === 'accepted' && '✓ Applied'}
-                                  {message.workflowProposal.status === 'rejected' && '✗ Declined'}
-                                </span>
-                              </div>
-                              
-                              {/* Diff Preview Toggle */}
-                              {showDiffPreview === message.id && renderDiffPreview(message.workflowProposal)}
-                              
-                              {/* Action Buttons */}
-                              {message.workflowProposal.status === 'pending' && (
-                                <div className="flex gap-2 mt-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handlePreviewWorkflow(message.id)}
-                                    className="flex-1 h-8 text-xs"
-                                    data-testid={`button-preview-workflow-${message.id}`}
-                                  >
-                                    <Eye className="w-3 h-3 mr-1" />
-                                    {showDiffPreview === message.id ? 'Hide' : 'Preview'}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    onClick={() => handleAcceptWorkflow(message.id)}
-                                    className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700"
-                                    data-testid={`button-accept-workflow-${message.id}`}
-                                  >
-                                    <Check className="w-3 h-3 mr-1" />
-                                    Apply
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleRejectWorkflow(message.id)}
-                                    className="h-8 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                                    data-testid={`button-reject-workflow-${message.id}`}
-                                  >
-                                    <XCircle className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Timestamp */}
-                        <div className={`text-[10px] text-muted-foreground mt-1 ${message.role === 'user' ? 'text-right' : ''}`}>
-                          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* Loading indicator */}
-                  {isLoading && (
-                    <div className="flex gap-3">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
-                        <Bot className="w-4 h-4 text-white" />
-                      </div>
-                      <div className="bg-muted rounded-lg p-3 rounded-bl-none">
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-sm text-muted-foreground">Thinking...</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div ref={messagesEndRef} />
-                </div>
-              </ScrollArea>
-
-              {/* Input Area */}
-              <div 
-                className={`p-3 border-t border-border ${dragActive ? 'bg-primary/10' : ''}`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-              >
-                {/* Pending Files Preview */}
-                {pendingFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {pendingFiles.map((file, index) => (
-                      <div key={index} className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs">
-                        {file.type.startsWith('image/') ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
-                        <span className="truncate max-w-[100px]">{file.name}</span>
-                        <button 
-                          onClick={() => removePendingFile(index)}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Drop Zone Indicator */}
-                {dragActive && (
-                  <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-xl flex items-center justify-center pointer-events-none">
-                    <span className="text-primary font-medium">Drop files here</span>
-                  </div>
-                )}
-                
-                {isOutOfCredits ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 text-sm">
-                      <AlertCircle className="w-4 h-4" />
-                      <span>AI features disabled - out of credits</span>
-                    </div>
-                    <Button
-                      onClick={() => {
-                        if (ctaAction === 'signup') openSignup();
-                        else if (ctaAction === 'upgrade') openPricing();
-                        else openCreditsDialog();
-                      }}
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                      data-testid="button-kiteai-get-credits"
-                    >
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      {ctaButtonText}
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex gap-2">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*,.kiteframe,.json"
-                        onChange={handleFileInputChange}
-                        className="hidden"
-                        multiple
-                      />
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex-shrink-0"
-                        disabled={isLoading}
-                        data-testid="button-kiteai-attach"
-                      >
-                        <Paperclip className="w-4 h-4" />
-                      </Button>
-                      <Input
-                        ref={inputRef}
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        placeholder="Describe your workflow..."
-                        className="flex-1"
-                        disabled={isLoading}
-                        data-testid="input-kiteai-message"
-                      />
-                      <Button
-                        size="icon"
-                        onClick={handleSend}
-                        disabled={isLoading || (!inputValue.trim() && pendingFiles.length === 0)}
-                        className="flex-shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                        data-testid="button-kiteai-send"
-                      >
-                        <Send className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    
-                    <div className="text-[10px] text-muted-foreground mt-2 text-center">
-                      Drop images or .kiteframe files, or click the paperclip to upload
-                    </div>
-                  </>
-                )}
-
-                {/* Resize Handle */}
-                <div
-                  onMouseDown={handleResizeStart}
-                  className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize hover:bg-primary/20 rounded-tl"
-                  title="Drag to resize"
-                  style={{
-                    backgroundImage: 'linear-gradient(135deg, transparent 50%, currentColor 50%)',
-                    opacity: 0.6
-                  }}
-                />
-              </div>
-            </>
+            <div className="flex-1 overflow-hidden">
+              <ChatView
+                mode="floating"
+                nodes={currentNodes}
+                edges={currentEdges}
+                canvasObjects={currentCanvasObjects}
+                onApplyWorkflow={onApplyWorkflow}
+                onPreviewWorkflow={onPreviewWorkflow}
+              />
+              
+              <div
+                onMouseDown={handleResizeStart}
+                className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize hover:bg-primary/20 rounded-tl"
+                title="Drag to resize"
+                style={{
+                  backgroundImage: 'linear-gradient(135deg, transparent 50%, currentColor 50%)',
+                  opacity: 0.6
+                }}
+              />
+            </div>
           )}
         </div>
       )}

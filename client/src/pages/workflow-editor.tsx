@@ -16,7 +16,6 @@ import { PropertiesCard } from '@/components/PropertiesCard';
 import { Toolbar } from '@/components/Toolbar';
 import { AiSettingsModal } from '@/components/AiSettingsModal';
 import { AiWorkflowGenerator } from '@/components/AiWorkflowGenerator';
-import { KiteAIChat } from '@/components/KiteAIChat';
 import { WorkflowImportModal } from '@/components/WorkflowImportModal';
 import { ShareModal } from '@/components/ShareModal';
 import { BugReportModal } from '@/components/BugReportModal';
@@ -7440,105 +7439,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   </div>
                 )}
                 
-                {/* KiteAI Floating Chat */}
-                <KiteAIChat
-                  currentNodes={nodes}
-                  currentEdges={edges}
-                  currentCanvasObjects={canvasObjects}
-                  onApplyWorkflow={(workflow) => {
-                    // Calculate offset to avoid overlap with existing nodes
-                    const offset = calculateWorkflowOffset(workflow.nodes);
-                    
-                    // Generate unique batch ID
-                    const batchId = Date.now();
-                    
-                    // Create mapping from original IDs to new IDs
-                    const nodeIdMapping: { [oldId: string]: string } = {};
-                    
-                    // Apply offset and create unique IDs for nodes
-                    const offsetNodes = workflow.nodes.map((node: Node, index: number) => {
-                      const oldId = node.id || `node-${index}`;
-                      const newId = `node-${batchId}-${index}`;
-                      nodeIdMapping[oldId] = newId;
-                      
-                      return {
-                        ...node,
-                        id: newId,
-                        position: {
-                          x: node.position.x + offset.x,
-                          y: node.position.y + offset.y
-                        },
-                        selected: false
-                      };
-                    });
-
-                    // Remap edges to use new node IDs with fallback to numeric index matching
-                    const offsetEdges = workflow.edges.map((edge: Edge, index: number) => {
-                      let newSource = nodeIdMapping[edge.source];
-                      let newTarget = nodeIdMapping[edge.target];
-                      
-                      // Fallback: try numeric index matching if exact ID matching fails
-                      // This handles cases where edges reference nodes by position (e.g., "1", "2", "3")
-                      if (!newSource) {
-                        const sourceNumeric = parseInt(edge.source);
-                        if (!isNaN(sourceNumeric) && sourceNumeric < workflow.nodes.length) {
-                          const sourceNodeId = workflow.nodes[sourceNumeric]?.id || `node-${sourceNumeric}`;
-                          newSource = nodeIdMapping[sourceNodeId];
-                        }
-                      }
-                      
-                      if (!newTarget) {
-                        const targetNumeric = parseInt(edge.target);
-                        if (!isNaN(targetNumeric) && targetNumeric < workflow.nodes.length) {
-                          const targetNodeId = workflow.nodes[targetNumeric]?.id || `node-${targetNumeric}`;
-                          newTarget = nodeIdMapping[targetNodeId];
-                        }
-                      }
-                      
-                      // Log warnings for unresolved references
-                      if (!newSource) {
-                        console.warn(`⚠️ Edge ${edge.id} source ${edge.source} could not be mapped to any node`);
-                      }
-                      if (!newTarget) {
-                        console.warn(`⚠️ Edge ${edge.id} target ${edge.target} could not be mapped to any node`);
-                      }
-                      
-                      return {
-                        ...edge,
-                        id: `edge-${batchId}-${index}`,
-                        source: newSource || edge.source,
-                        target: newTarget || edge.target,
-                        selected: false
-                      };
-                    });
-
-                    // Append to existing canvas
-                    setNodes(prev => [...prev, ...offsetNodes]);
-                    setEdges(prev => [...prev, ...offsetEdges]);
-                    
-                    // Handle canvas objects if present
-                    if (workflow.canvasObjects && workflow.canvasObjects.length > 0) {
-                      const offsetObjects = workflow.canvasObjects.map((obj: CanvasObject, index: number) => ({
-                        ...obj,
-                        id: `obj-${batchId}-${index}`,
-                        position: {
-                          x: obj.position.x + offset.x,
-                          y: obj.position.y + offset.y
-                        },
-                        selected: false
-                      }));
-                      updateActiveTab({ canvasObjects: [...canvasObjects, ...offsetObjects] });
-                    }
-                    
-                    // Save to history
-                    setTimeout(() => saveToHistory(), 0);
-                    
-                    toast({
-                      title: "Workflow Applied",
-                      description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections.`
-                    });
-                  }}
-                />
               </>
             ) : (
               <BlankCanvasState
@@ -7561,6 +7461,79 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               projectId={activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId}
               projectName={activeTab?.name}
               onProjectNameChange={(name) => updateActiveTab({ name })}
+              onApplyWorkflow={(workflow) => {
+                const offset = calculateWorkflowOffset(workflow.nodes);
+                const batchId = Date.now();
+                const nodeIdMapping: { [oldId: string]: string } = {};
+                
+                const offsetNodes = workflow.nodes.map((node: Node, index: number) => {
+                  const oldId = node.id || `node-${index}`;
+                  const newId = `node-${batchId}-${index}`;
+                  nodeIdMapping[oldId] = newId;
+                  
+                  return {
+                    ...node,
+                    id: newId,
+                    position: {
+                      x: node.position.x + offset.x,
+                      y: node.position.y + offset.y
+                    },
+                    selected: false
+                  };
+                });
+
+                const offsetEdges = workflow.edges.map((edge: Edge, index: number) => {
+                  let newSource = nodeIdMapping[edge.source];
+                  let newTarget = nodeIdMapping[edge.target];
+                  
+                  if (!newSource) {
+                    const sourceNumeric = parseInt(edge.source);
+                    if (!isNaN(sourceNumeric) && sourceNumeric < workflow.nodes.length) {
+                      const sourceNodeId = workflow.nodes[sourceNumeric]?.id || `node-${sourceNumeric}`;
+                      newSource = nodeIdMapping[sourceNodeId];
+                    }
+                  }
+                  
+                  if (!newTarget) {
+                    const targetNumeric = parseInt(edge.target);
+                    if (!isNaN(targetNumeric) && targetNumeric < workflow.nodes.length) {
+                      const targetNodeId = workflow.nodes[targetNumeric]?.id || `node-${targetNumeric}`;
+                      newTarget = nodeIdMapping[targetNodeId];
+                    }
+                  }
+                  
+                  return {
+                    ...edge,
+                    id: `edge-${batchId}-${index}`,
+                    source: newSource || edge.source,
+                    target: newTarget || edge.target,
+                    selected: false
+                  };
+                });
+
+                setNodes(prev => [...prev, ...offsetNodes]);
+                setEdges(prev => [...prev, ...offsetEdges]);
+                
+                if (workflow.canvasObjects && workflow.canvasObjects.length > 0) {
+                  const offsetObjects = workflow.canvasObjects.map((obj: CanvasObject, index: number) => ({
+                    ...obj,
+                    id: `obj-${batchId}-${index}`,
+                    position: {
+                      x: obj.position.x + offset.x,
+                      y: obj.position.y + offset.y
+                    },
+                    selected: false
+                  }));
+                  updateActiveTab({ canvasObjects: [...canvasObjects, ...offsetObjects] });
+                }
+                
+                setTimeout(() => saveToHistory(), 0);
+                
+                toast({
+                  title: "Workflow Applied",
+                  description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections.`
+                });
+              }}
             />
           )}
           </>
