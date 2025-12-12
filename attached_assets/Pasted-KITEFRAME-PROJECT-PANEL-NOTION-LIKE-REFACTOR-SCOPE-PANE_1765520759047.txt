@@ -1,0 +1,280 @@
+KITEFRAME — PROJECT PANEL (NOTION-LIKE) REFACTOR
+SCOPE: PANEL STRUCTURE + UX ONLY (NO CANVAS / NO AI LOGIC CHANGES)
+
+DO NOT:
+- Change canvas behavior
+- Change workflow generation
+- Change PRD generation logic
+- Add new backend APIs
+- Add Jira / Google integrations
+- Rework AI prompts or models
+
+GOAL:
+Refactor the right-side ProjectPanel to feel like a single, document-oriented panel (Notion-like),
+while keeping Layers as a separate tab.
+
+FINAL PANEL STRUCTURE (3 TABS ONLY):
+
+1. 🤖 KiteAI (DEFAULT)
+2. 📄 Project
+3. 🧩 Layers
+
+------------------------------------------------
+PHASE 1 — TAB RESTRUCTURE
+------------------------------------------------
+
+1. MODIFY ProjectPanel TAB DEFINITIONS
+
+File:
+client/src/components/panels/ProjectPanel/ProjectPanel.tsx
+
+Current tabs:
+- layers
+- notes
+- specs
+- sources
+- details
+
+CHANGE TO:
+- ai        (new, first, default)
+- project   (new, second)
+- layers    (existing, third)
+
+REMOVE:
+- notes
+- specs
+- sources
+- details tabs entirely
+
+IMPORTANT:
+- Do NOT delete underlying components yet (NotesTab, SpecsTab, etc.)
+- They will be reused inside the Project tab as sections
+
+Default tab:
+- KiteAI MUST be the default selected tab on panel mount
+
+Persist tab state:
+- Store selected tab in localStorage scoped by projectId:
+  kiteframe-project-panel-tab-${projectId}
+
+------------------------------------------------
+PHASE 2 — KITEAI TAB (MOVE EXISTING CHAT)
+------------------------------------------------
+
+2. MOVE KiteAIChat INTO PANEL
+
+Existing component:
+client/src/components/KiteAIChat.tsx
+
+Actions:
+- Remove floating / draggable behavior
+- Remove window mouse listeners (drag/resize)
+- Convert to a standard, scrollable panel layout
+- Keep existing AI logic intact (NO prompt changes)
+
+Create:
+client/src/components/panels/ProjectPanel/KiteAITab.tsx
+
+Mount:
+<TabsContent value="ai">
+  <KiteAITab
+    projectId={projectId}
+    nodes={nodes}
+    edges={edges}
+    canvasObjects={canvasObjects}
+  />
+</TabsContent>
+
+State persistence:
+- Persist chat messages per project:
+  localStorage key: kiteframe-ai-chat-${projectId}
+
+Behavior:
+- Messages MUST survive tab switches
+- Messages MUST survive panel collapse
+- Messages MAY reset on full page reload (acceptable for now)
+
+------------------------------------------------
+PHASE 3 — PROJECT TAB (NOTION-LIKE DOCUMENT)
+------------------------------------------------
+
+3. CREATE ProjectTab (DOCUMENT-STYLE, NO CARDS)
+
+Create:
+client/src/components/panels/ProjectPanel/ProjectTab.tsx
+
+Layout rules:
+- Vertical scroll
+- No cards
+- No nested tabs
+- No boxed UI
+- Sections are stacked, inline, collapsible
+
+------------------------------------------------
+PROJECT TAB SECTIONS (ORDERED)
+------------------------------------------------
+
+SECTION 1 — PROJECT METADATA
+Source:
+- Reuse ProjectDetailsTab logic
+
+Fields:
+- Name (editable)
+- Description (editable)
+- Categories/tags
+- Created / updated dates
+
+Action:
+- REMOVE ProjectDetailsTab usage elsewhere
+- Render its content inline here
+
+------------------------------------------------
+
+SECTION 2 — WORKFLOWS LIST (CRITICAL)
+
+Purpose:
+Single list representing ALL workflows in the project.
+
+Data source:
+- Use existing workflow grouping:
+  groupWorkflows(nodes, edges)
+- Use workflowNameStore for names
+
+Rules:
+- A workflow MUST have >= 2 edges
+- Otherwise, it is a standalone node and NOT listed here
+
+Each workflow row shows:
+- Workflow name (editable)
+- Status badge (todo / in-progress / done)
+- Node count
+- Hover actions:
+  - "Open PRD"
+  - "Jump to canvas"
+  - "Generate / Update PRD"
+
+Click behavior:
+- Clicking a workflow row selects it as the "active workflow"
+- DOES NOT require clicking the canvas
+
+Persist active workflow:
+localStorage key:
+kiteframe-active-workflow-${projectId}
+
+------------------------------------------------
+
+SECTION 3 — PROJECT PRD
+
+Reuse existing logic:
+- loadProjectPRD(projectId)
+- saveProjectPRD(projectId)
+
+Render:
+- Inline markdown editor / viewer
+- Collapsible sections
+- No tabs
+
+Add indicator:
+- If project PRD exists → show
+- Else → show "Generate Project PRD" CTA
+
+------------------------------------------------
+
+SECTION 4 — WORKFLOW PRD VIEWER
+
+Behavior:
+- Shows PRD for the currently selected workflow
+- If none selected:
+  Show empty state: "Select a workflow to view its PRD"
+
+Reuse:
+- SpecsTab rendering logic
+- prdStorage.ts
+- Stale detection (hash comparison)
+
+UX:
+- Inline warning if stale:
+  "Workflow changed since last update"
+  [Regenerate PRD]
+
+------------------------------------------------
+
+SECTION 5 — NOTES
+
+Reuse:
+- NotesTab logic
+
+Storage:
+- kiteframe-notes-${projectId}
+
+Render:
+- Inline text blocks
+- No cards
+- Collapsible section
+
+------------------------------------------------
+
+SECTION 6 — REFERENCES / SOURCES
+
+Reuse:
+- SourcesTab logic
+
+Render:
+- Simple list of links
+- Group by type (Figma, Docs, Jira future)
+
+------------------------------------------------
+PHASE 4 — LAYERS TAB (MINIMAL CHANGES)
+------------------------------------------------
+
+4. KEEP LayersTab AS THIRD TAB
+
+Changes REQUIRED:
+- Edges are NOT rendered
+- Only workflow groups (>=2 edges) shown
+- Standalone nodes grouped separately
+- Decision trees rendered as hybrid:
+  linear spine + indented branches
+
+NO other changes needed.
+
+------------------------------------------------
+PHASE 5 — PANEL STATE PERSISTENCE
+------------------------------------------------
+
+5. PANEL STATE RULES
+
+Persist per project:
+- Selected tab
+- Panel collapsed / expanded state
+- Active workflow selection
+
+Storage keys MUST include projectId.
+
+------------------------------------------------
+NON-GOALS (DO NOT IMPLEMENT)
+------------------------------------------------
+
+- Do NOT redesign canvas
+- Do NOT change workflow generator
+- Do NOT improve AI prompts yet
+- Do NOT add Jira / Google APIs
+- Do NOT add search yet
+- Do NOT add drag-and-drop blocks
+
+------------------------------------------------
+DELIVERABLE CHECKLIST
+------------------------------------------------
+
+✅ KiteAI tab is first + default
+✅ Floating AI panel removed
+✅ Project tab replaces specs/notes/sources/details
+✅ Workflows visible without clicking canvas
+✅ PRDs accessible from Project tab
+✅ Layers simplified and readable
+✅ State persists per project
+✅ No regression to canvas behavior
+
+------------------------------------------------
+END OF INSTRUCTIONS
+------------------------------------------------
