@@ -171,9 +171,28 @@ export function WorkflowPRDSection({
   const [isStale, setIsStale] = useState(false);
   const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [sectionInsights, setSectionInsights] = useState<Record<string, AIInsight[]>>({});
   const ai = useAi();
   const { toast } = useToast();
   const prdLinks = usePRDNodeLinks(projectId);
+  
+  const loadSectionInsights = useCallback(() => {
+    if (!prd) return;
+    const insightMap: Record<string, AIInsight[]> = {};
+    prd.sections.forEach(section => {
+      insightMap[section.id] = getInsightsForTarget(projectId, 'prd-section', section.id);
+    });
+    setSectionInsights(insightMap);
+  }, [projectId, prd]);
+  
+  useEffect(() => {
+    loadSectionInsights();
+  }, [loadSectionInsights]);
+  
+  const handleDismissInsight = useCallback((insightId: string) => {
+    dismissInsight(projectId, insightId);
+    loadSectionInsights();
+  }, [projectId, loadSectionInsights]);
 
   useEffect(() => {
     if (projectId && workflowId) {
@@ -502,12 +521,12 @@ export function WorkflowPRDSection({
           )}
 
           {prd.sections.map((section) => {
-            const sectionInsights = getInsightsForTarget(projectId, 'prd-section', section.id);
+            const insights = sectionInsights[section.id] || [];
             return (
               <div key={section.id}>
-                {sectionInsights.length > 0 && (
+                {insights.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-2">
-                    {sectionInsights.map((insight) => (
+                    {insights.map((insight) => (
                       <div
                         key={insight.id}
                         className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs ${
@@ -522,7 +541,7 @@ export function WorkflowPRDSection({
                         <span>{getInsightIcon(insight.level)}</span>
                         <span className="max-w-[200px] truncate">{insight.message}</span>
                         <button
-                          onClick={() => dismissInsight(projectId, insight.id)}
+                          onClick={() => handleDismissInsight(insight.id)}
                           className="ml-1 hover:opacity-70"
                           data-testid={`dismiss-insight-${insight.id}`}
                         >
