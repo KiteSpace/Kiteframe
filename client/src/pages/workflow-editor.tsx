@@ -8488,9 +8488,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
               setContextMenu(null);
             }}
-            prdLinks={contextMenu.node ? prdNodeLinkStore.getLinksForNode(currentTab.projectUuid, contextMenu.node.id) : undefined}
+            prdLinks={contextMenu.node && activeTab?.projectUuid ? prdNodeLinkStore.getLinksForNode(activeTab.projectUuid, contextMenu.node.id) : undefined}
             onViewLinkedPRD={(link: PRDNodeLink) => {
-              setRightPanelOpen(true);
+              // Scroll to the linked PRD section in the right panel
               setTimeout(() => {
                 const sectionEl = document.getElementById(`prd-section-${link.sectionId}`);
                 if (sectionEl) {

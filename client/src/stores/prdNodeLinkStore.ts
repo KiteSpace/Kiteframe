@@ -23,11 +23,18 @@ const STORAGE_KEY_PREFIX = 'kiteframe-prd-node-links-';
 class PRDNodeLinkStoreImpl implements PRDNodeLinkStore {
   private subscribers: Set<() => void> = new Set();
 
+  private isValidProjectId(projectId: string): boolean {
+    return !!projectId && projectId !== 'undefined' && projectId !== 'null';
+  }
+
   private getStorageKey(projectId: string): string {
     return `${STORAGE_KEY_PREFIX}${projectId}`;
   }
 
   private getData(projectId: string): PRDNodeLink[] {
+    if (!this.isValidProjectId(projectId)) {
+      return [];
+    }
     try {
       const stored = localStorage.getItem(this.getStorageKey(projectId));
       return stored ? JSON.parse(stored) : [];
@@ -37,6 +44,10 @@ class PRDNodeLinkStoreImpl implements PRDNodeLinkStore {
   }
 
   private saveData(projectId: string, links: PRDNodeLink[]): void {
+    if (!this.isValidProjectId(projectId)) {
+      console.warn('Cannot save PRD-node links: invalid projectId');
+      return;
+    }
     try {
       localStorage.setItem(this.getStorageKey(projectId), JSON.stringify(links));
       this.subscribers.forEach(callback => callback());
@@ -56,6 +67,10 @@ class PRDNodeLinkStoreImpl implements PRDNodeLinkStore {
   }
 
   addLink(projectId: string, nodeId: string, workflowId: string, sectionId: string): void {
+    if (!this.isValidProjectId(projectId)) {
+      console.warn('Cannot add PRD-node link: invalid projectId');
+      return;
+    }
     const links = this.getData(projectId);
     const exists = links.some(l => 
       l.nodeId === nodeId && l.workflowId === workflowId && l.sectionId === sectionId
@@ -73,6 +88,9 @@ class PRDNodeLinkStoreImpl implements PRDNodeLinkStore {
   }
 
   removeLink(projectId: string, nodeId: string, workflowId: string, sectionId: string): void {
+    if (!this.isValidProjectId(projectId)) {
+      return;
+    }
     const links = this.getData(projectId);
     const filtered = links.filter(l => 
       !(l.nodeId === nodeId && l.workflowId === workflowId && l.sectionId === sectionId)
