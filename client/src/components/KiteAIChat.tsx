@@ -10,6 +10,8 @@ import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
 import { selectKiteRole, getRoleLabel, type KiteRole, type RoleContext } from '../ai/roleSelector';
 import { computeConfidence, isConfidenceInsufficient } from '../ai/confidenceScoring';
 import { getSystemPromptForRole } from '../ai/systemPrompts';
+import { computeWorkflowMaturity, type WorkflowMaturity } from '../ai/workflowMaturity';
+import { generateFollowUps, shouldAskFollowUps } from '../ai/followUpGenerator';
 import { 
   MessageCircle, 
   Send, 
@@ -53,7 +55,9 @@ export interface ChatMessage {
   meta?: {
     kiteRole?: KiteRole;
     confidence?: number;
+    maturity?: WorkflowMaturity;
   };
+  followUps?: string[];
 }
 
 interface WorkflowDiff {
@@ -474,21 +478,50 @@ function ChatView({
         userPromptLength: inputValue.length
       });
 
+      const maturity = computeWorkflowMaturity({
+        nodeCount: currentNodes.length,
+        edgeCount: currentEdges.length,
+        hasDecisionNodes: currentNodes.some(n => n.type === 'condition'),
+        hasInputs: currentNodes.some(n => n.type === 'input'),
+        hasOutputs: currentNodes.some(n => n.type === 'output')
+      });
+
       if (isConfidenceInsufficient(confidence)) {
-        const roleLabel = getRoleLabel(selectedRole);
         const lowConfidenceMessage: ChatMessage = {
           id: `msg-${Date.now()}`,
           role: 'assistant',
           content: "I don't have enough context to provide a confident analysis yet. Try adding more nodes to your workflow, or describe what you're trying to build in more detail.",
           timestamp: new Date(),
-          meta: { kiteRole: selectedRole, confidence }
+          meta: { kiteRole: selectedRole, confidence, maturity }
         };
         setMessages(prev => [...prev, lowConfidenceMessage]);
         setIsLoading(false);
         return;
       }
 
-      const systemPrompt = `${rolePrompt}
+      if (shouldAskFollowUps(confidence)) {
+        const followUps = generateFollowUps({ maturity, role: selectedRole });
+        const followUpMessage: ChatMessage = {
+          id: `msg-${Date.now()}`,
+          role: 'assistant',
+          content: 'Before going further, I need clarification:',
+          timestamp: new Date(),
+          meta: { kiteRole: selectedRole, confidence, maturity },
+          followUps
+        };
+        setMessages(prev => [...prev, followUpMessage]);
+        setIsLoading(false);
+        return;
+      }
+
+      const maturityGuidance = maturity === 'draft'
+        ? `\n\nWORKFLOW MATURITY: Draft
+- Focus on clarification, risks, and missing structure
+- Do NOT generate acceptance criteria or hard requirements yet`
+        : `\n\nWORKFLOW MATURITY: Stable
+- You MAY generate requirements, acceptance criteria, and edge cases`;
+
+      const systemPrompt = `${rolePrompt}${maturityGuidance}
 
 ---
 
@@ -549,7 +582,7 @@ For CONVERSATIONS, respond naturally without JSON.`;
         content: responseText,
         timestamp: new Date(),
         workflowProposal,
-        meta: { kiteRole: selectedRole, confidence }
+        meta: { kiteRole: selectedRole, confidence, maturity }
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -761,6 +794,21 @@ For CONVERSATIONS, respond naturally without JSON.`;
                   )}
                   
                   <div className="whitespace-pre-wrap">{message.content}</div>
+                  
+                  {message.followUps && message.followUps.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {message.followUps.map((q, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setInputValue(q)}
+                          className="block w-full text-left p-2 text-xs bg-background/50 hover:bg-background rounded border border-border/50 hover:border-primary/50 transition-colors"
+                          data-testid={`button-followup-${i}`}
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   
                   {message.workflowProposal && (
                     <div className="mt-3 pt-3 border-t border-border/50">
