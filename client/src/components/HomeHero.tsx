@@ -62,7 +62,7 @@ export function HomeHero({
           </p>
         </div>
 
-        <div className={`w-full max-w-2xl bg-card/90 backdrop-blur-sm border border-border rounded-xl p-4 shadow-lg ${isDisabled ? 'opacity-60' : ''}`}>
+        <div className={`w-full max-w-2xl bg-white dark:bg-card border border-border rounded-xl p-4 shadow-xl ${isDisabled ? 'opacity-60' : ''}`}>
           <Textarea
             ref={textareaRef}
             placeholder="Describe the workflow you want to create..."
