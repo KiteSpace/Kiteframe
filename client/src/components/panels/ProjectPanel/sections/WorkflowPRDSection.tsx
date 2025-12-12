@@ -30,6 +30,7 @@ import { DocSection, WorkflowDocument } from '@/components/docs';
 import { usePRDNodeLinks } from '@/stores/prdNodeLinkStore';
 import { focusBus } from '@/stores/focusBus';
 import { ImportPRDModal } from '@/components/ImportPRDModal';
+import { addImportedDocumentSource } from '@/lib/kiteframe/utils/sourceTracking';
 
 interface WorkflowPRDSectionProps {
   projectId: string;
@@ -356,7 +357,14 @@ export function WorkflowPRDSection({
     saveWorkflowPRD(projectId, workflowId, importedPrd);
     setPrd(importedPrd);
     setIsImportModalOpen(false);
-  }, [projectId, workflowId, prd]);
+    
+    addImportedDocumentSource(
+      projectId,
+      workflowId,
+      `Imported PRD: ${workflowName}`,
+      importedPrd.sections.length
+    );
+  }, [projectId, workflowId, workflowName, prd]);
 
   return (
     <div data-testid="workflow-prd-section">

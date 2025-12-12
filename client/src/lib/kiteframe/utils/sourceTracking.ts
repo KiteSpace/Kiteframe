@@ -2,13 +2,16 @@ interface Source {
   id: string;
   url: string;
   title: string;
-  type: 'link' | 'file' | 'image' | 'figma';
+  type: 'link' | 'file' | 'image' | 'figma' | 'document';
   addedAt: number;
   metadata?: {
     figmaFileKey?: string;
     figmaFileName?: string;
     frameCount?: number;
     isReference?: boolean;
+    origin?: 'manual' | 'import';
+    workflowId?: string;
+    sectionCount?: number;
   };
 }
 
@@ -89,4 +92,22 @@ export function updateSourceReferenceStatus(
 
   localStorage.setItem(storageKey, JSON.stringify(updated));
   window.dispatchEvent(new CustomEvent(SOURCES_UPDATED_EVENT, { detail: { projectId } }));
+}
+
+export function addImportedDocumentSource(
+  projectId: string | undefined,
+  workflowId: string,
+  title: string,
+  sectionCount: number
+): void {
+  addSource(projectId, {
+    url: `imported://prd/${workflowId}/${Date.now()}`,
+    title: title || 'Imported PRD',
+    type: 'document',
+    metadata: {
+      origin: 'import',
+      workflowId,
+      sectionCount
+    }
+  });
 }
