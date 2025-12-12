@@ -93,7 +93,7 @@ Cloud-saved projects require Firebase Admin SDK credentials for secure token ver
   - Workflow Selection with inline PRD generation per workflow
   - Notes section (markdown notes with persistence)
   - Sources section (external links and references, auto-tracked Figma imports)
-- **Layers Tab**: Full canvas hierarchy with mode switching, visibility toggles, and collapse state.
+- **Layers Tab**: Simplified structure view with search input, visibility toggles, and collapse state (no subtabs).
 - **Collapsible**: Panel can be collapsed to icon-only sidebar, persists state in localStorage.
 - **Global Tab Persistence**: Active tab stored globally (not per-project) with KiteAI as default.
 - **Per-Project Storage**: All content (details, notes, sources, PRDs) scoped by projectId with localStorage persistence.
