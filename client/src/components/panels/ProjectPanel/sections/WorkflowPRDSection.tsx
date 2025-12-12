@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, RefreshCw, Loader2, AlertTriangle, X } from 'lucide-react';
+import { Sparkles, RefreshCw, Loader2, AlertTriangle, X, Eye, Check, Lightbulb, AlertCircle, Clock } from 'lucide-react';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { extractSemanticWorkflowModel } from '@/lib/kiteframe/utils/extractSemanticWorkflowModel';
 import { isWorkflowStale, storeHash, computeWorkflowHash } from '@/lib/kiteframe/utils/semanticHash';
@@ -11,6 +11,7 @@ import {
 import { type WorkflowPRD } from '@/ai/prdEngine';
 import { useAi } from '@/ai/AiProvider';
 import { generateWorkflowPRD } from '@/ai/prdEngine';
+import { reviewPRD, type PRDReviewResult, type PRDSuggestion } from '@/ai/prdSteward';
 import { useToast } from '@/hooks/use-toast';
 import { DocSection, WorkflowDocument } from '@/components/docs';
 import { usePRDNodeLinks } from '@/stores/prdNodeLinkStore';
@@ -67,6 +68,78 @@ function NodePickerModal({
   );
 }
 
+function SuggestionCard({ 
+  suggestion, 
+  onApply,
+  onDismiss 
+}: { 
+  suggestion: PRDSuggestion; 
+  onApply: () => void;
+  onDismiss: () => void;
+}) {
+  const typeIcons = {
+    improvement: <Lightbulb size={14} className="text-blue-500" />,
+    missing: <AlertCircle size={14} className="text-orange-500" />,
+    stale: <Clock size={14} className="text-yellow-500" />
+  };
+
+  const typeBorders = {
+    improvement: 'border-blue-200 dark:border-blue-800',
+    missing: 'border-orange-200 dark:border-orange-800',
+    stale: 'border-yellow-200 dark:border-yellow-800'
+  };
+
+  return (
+    <div 
+      className={`border rounded-md p-3 mb-2 bg-white dark:bg-gray-800 ${typeBorders[suggestion.type]}`}
+      data-testid={`suggestion-${suggestion.sectionId}-${suggestion.type}`}
+    >
+      <div className="flex items-start gap-2">
+        {typeIcons[suggestion.type]}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-medium">{suggestion.title}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase">
+              {suggestion.type}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{suggestion.description}</p>
+          {suggestion.suggestedContent && (
+            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-900 rounded text-xs font-mono max-h-24 overflow-y-auto">
+              {suggestion.suggestedContent.substring(0, 200)}
+              {suggestion.suggestedContent.length > 200 && '...'}
+            </div>
+          )}
+          <div className="flex gap-2 mt-2">
+            {suggestion.suggestedContent && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 text-xs"
+                onClick={onApply}
+                data-testid={`apply-suggestion-${suggestion.sectionId}`}
+              >
+                <Check size={12} className="mr-1" />
+                Apply
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs text-muted-foreground"
+              onClick={onDismiss}
+              data-testid={`dismiss-suggestion-${suggestion.sectionId}`}
+            >
+              <X size={12} className="mr-1" />
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function WorkflowPRDSection({ 
   projectId, 
   workflowId, 
@@ -76,6 +149,8 @@ export function WorkflowPRDSection({
 }: WorkflowPRDSectionProps) {
   const [prd, setPrd] = useState<WorkflowPRD | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [reviewResult, setReviewResult] = useState<PRDReviewResult | null>(null);
   const [isStale, setIsStale] = useState(false);
   const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
   const ai = useAi();
@@ -178,6 +253,65 @@ export function WorkflowPRDSection({
     focusBus.focusNodes([nodeId], { select: true });
   }, []);
 
+  const handleReview = useCallback(async () => {
+    if (!workflowId || !projectId || !prd) return;
+
+    setIsReviewing(true);
+    setReviewResult(null);
+
+    try {
+      const model = extractSemanticWorkflowModel(
+        workflowId,
+        workflowName,
+        nodes,
+        edges
+      );
+
+      const result = await reviewPRD(ai, model, prd);
+      setReviewResult(result);
+
+      if (result.suggestions.length === 0) {
+        toast({ title: 'Review complete', description: 'No suggestions - your spec looks good!' });
+      } else {
+        toast({ title: 'Review complete', description: `${result.suggestions.length} suggestion(s) found.` });
+      }
+    } catch (error) {
+      toast({
+        title: 'Review failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsReviewing(false);
+    }
+  }, [workflowId, projectId, workflowName, nodes, edges, prd, ai, toast]);
+
+  const handleApplySuggestion = useCallback((suggestion: PRDSuggestion) => {
+    if (!prd || !projectId || !workflowId || !suggestion.suggestedContent) return;
+
+    const updated = updatePRDSection(prd, suggestion.sectionId, suggestion.suggestedContent, true) as WorkflowPRD;
+    setPrd(updated);
+    saveWorkflowPRD(projectId, workflowId, updated);
+
+    setReviewResult(prev => prev ? {
+      ...prev,
+      suggestions: prev.suggestions.filter(s => 
+        !(s.sectionId === suggestion.sectionId && s.type === suggestion.type)
+      )
+    } : null);
+
+    toast({ title: 'Applied', description: `Updated ${suggestion.sectionId} section.` });
+  }, [prd, projectId, workflowId, toast]);
+
+  const handleDismissSuggestion = useCallback((suggestion: PRDSuggestion) => {
+    setReviewResult(prev => prev ? {
+      ...prev,
+      suggestions: prev.suggestions.filter(s => 
+        !(s.sectionId === suggestion.sectionId && s.type === suggestion.type)
+      )
+    } : null);
+  }, []);
+
   return (
     <div data-testid="workflow-prd-section">
       {isStale && prd && (
@@ -224,18 +358,65 @@ export function WorkflowPRDSection({
         <WorkflowDocument>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold">{workflowName} Spec</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs text-muted-foreground"
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              data-testid="regenerate-btn"
-            >
-              <RefreshCw size={12} className="mr-1" />
-              Regenerate
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleReview}
+                disabled={isReviewing || isGenerating}
+                data-testid="review-prd-btn"
+              >
+                {isReviewing ? (
+                  <Loader2 size={12} className="mr-1 animate-spin" />
+                ) : (
+                  <Eye size={12} className="mr-1" />
+                )}
+                Review with AI
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-muted-foreground"
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                data-testid="regenerate-btn"
+              >
+                <RefreshCw size={12} className="mr-1" />
+                Regenerate
+              </Button>
+            </div>
           </div>
+
+          {reviewResult && reviewResult.suggestions.length > 0 && (
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Eye size={14} className="text-blue-600" />
+                  <span className="text-sm font-medium">AI Review Suggestions</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs"
+                  onClick={() => setReviewResult(null)}
+                  data-testid="dismiss-all-suggestions"
+                >
+                  <X size={12} className="mr-1" />
+                  Dismiss All
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">{reviewResult.summary}</p>
+              {reviewResult.suggestions.map((suggestion, idx) => (
+                <SuggestionCard
+                  key={`${suggestion.sectionId}-${suggestion.type}-${idx}`}
+                  suggestion={suggestion}
+                  onApply={() => handleApplySuggestion(suggestion)}
+                  onDismiss={() => handleDismissSuggestion(suggestion)}
+                />
+              ))}
+            </div>
+          )}
 
           {prd.sections.map((section) => (
             <DocSection
