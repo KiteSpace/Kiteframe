@@ -1,0 +1,637 @@
+
+KITEFRAME – RIGHT PANEL REFACTOR (KITEAI + NOTION-STYLE PROJECT TAB + SIMPLIFIED LAYERS)
+Target: Replit implementation guide (NO HALLUCINATIONS)
+
+IMPORTANT EXECUTION NOTES
+- Only modify the files explicitly listed in this document.
+- Do NOT create new concepts, features, or behaviors that are not described here.
+- When something is unclear or a dependency is missing, STOP and surface the question to the user instead of guessing.
+- Preserve all existing behavior except where this doc explicitly overrides or consolidates it.
+
+HIGH-LEVEL GOALS
+1) Refactor the existing right-side ProjectPanel into:
+   - Tab 1: KiteAI (chat-based assistant for the current project/workflows)
+   - Tab 2: Project (a single, Notion-style continuous document for project + workflows + PRDs + notes + sources)
+   - Tab 3: Layers (simplified layer/workflow overview)
+2) Make the Project tab behave as ONE scrollable, Notion-like document (Option A).
+3) Within the Project tab, show workflow-level details inline when the user selects a workflow (Option C).
+4) Do NOT break the existing PRD engine, notes system, or sources system. Instead, integrate them into the new Project tab.
+5) Keep the visual style aligned with current Kiteframe UI but simplify toward a more “DOM-like” / Notion-like layout (less boxy cards, more vertical sections + subtle dividers).
+
+----------------------------------------------------------------------
+SECTION 0 — FILES YOU ARE ALLOWED TO TOUCH
+----------------------------------------------------------------------
+
+You MAY modify:
+- client/src/pages/workflow-editor.tsx
+- client/src/components/panels/ProjectPanel/ProjectPanel.tsx
+- client/src/components/panels/ProjectPanel/LayersTab.tsx
+- client/src/components/panels/ProjectPanel/NotesTab.tsx
+- client/src/components/panels/ProjectPanel/SpecsTab.tsx
+- client/src/components/panels/ProjectPanel/SourcesTab.tsx
+- client/src/components/panels/ProjectPanel/ProjectDetailsTab.tsx
+- client/src/components/panels/ProjectPanel/index.ts
+- client/src/components/KiteAIChat.tsx (ONLY as described here)
+- client/src/lib/kiteframe/utils/prdStorage.ts (only for small helper additions if needed)
+- client/src/lib/kiteframe/utils/FlowDetection.ts (read-only; you may import it)
+- client/src/stores (only if you need a tiny store helper and it’s clearly described in this spec)
+
+You MUST NOT:
+- Change Figma integration behavior in this pass.
+- Change workflow generation semantics.
+- Break existing PRD storage keys or structure.
+- Remove existing AI capabilities; only refactor UI placement and state-handling as described.
+
+----------------------------------------------------------------------
+SECTION 1 — UPDATE PROJECTPANEL TABS (KITEAI, PROJECT, LAYERS)
+----------------------------------------------------------------------
+
+Goal: Replace the current 5-tab ProjectPanel (Layers, Notes, Specs, Sources, Details) with 3 tabs:
+1) KiteAI
+2) Project
+3) Layers
+
+1.1 ProjectPanel imports and tab values
+File: client/src/components/panels/ProjectPanel/ProjectPanel.tsx
+
+CURRENT:
+- Tabs values: "layers", "notes", "specs", "sources", "details"
+- Corresponding <TabsTrigger> + <TabsContent> for each.
+
+CHANGE TO:
+- Tabs values (in this order):
+  - "kite-ai"   // new default tab
+  - "project"   // new Notion-style project tab
+  - "layers"    // simplified layers tab
+- Remove explicit tabs for: notes, specs, sources, details as separate top-level tabs.
+- Notes, specs, sources, details will be surfaced INSIDE the "project" tab as sections.
+
+Implementation steps:
+
+(1) Add imports for the new sub-components:
+- We will reuse existing tab components, but refactor their internals into smaller “section” components.
+- For now, import them as:
+
+  import { KiteAITab } from './KiteAITab';
+  import { ProjectDocTab } from './ProjectDocTab';
+  import { LayersTab } from './LayersTab';
+
+(You will create KiteAITab.tsx and ProjectDocTab.tsx in this folder; see later sections.)
+
+(2) Change the <TabsList> and triggers:
+
+- Replace existing triggers with:
+
+  <TabsList ...>
+    <TabsTrigger value="kite-ai">
+      {/* icon: use existing AI icon or Lucide Sparkles */}
+      <Sparkles className="mr-2 h-4 w-4" />
+      <span className="hidden md:inline">KiteAI</span>
+    </TabsTrigger>
+
+    <TabsTrigger value="project">
+      {/* icon: e.g., ClipboardList or FileText */}
+      <ClipboardList className="mr-2 h-4 w-4" />
+      <span className="hidden md:inline">Project</span>
+    </TabsTrigger>
+
+    <TabsTrigger value="layers">
+      {/* existing Layers icon (ListTree / Layers icon) */}
+      <ListTree className="mr-2 h-4 w-4" />
+      <span className="hidden md:inline">Layers</span>
+    </TabsTrigger>
+  </TabsList>
+
+- Keep the responsive behavior that shows icon-only when collapsed / narrow.
+
+(3) Change the <TabsContent> mapping:
+
+- Replace the old content blocks with:
+
+  <TabsContent value="kite-ai" className="flex flex-col h-full">
+    <KiteAITab
+      projectId={projectId}
+      projectName={projectName}
+      nodes={nodes}
+      edges={edges}
+      canvasObjects={canvasObjects}
+    />
+  </TabsContent>
+
+  <TabsContent value="project" className="flex flex-col h-full">
+    <ProjectDocTab
+      projectId={projectId}
+      projectName={projectName}
+      nodes={nodes}
+      edges={edges}
+      canvasObjects={canvasObjects}
+      onProjectNameChange={onProjectNameChange}
+    />
+  </TabsContent>
+
+  <TabsContent value="layers" className="flex flex-col h-full">
+    <LayersTab
+      projectId={projectId}
+      nodes={nodes}
+      edges={edges}
+    />
+  </TabsContent>
+
+(4) Active tab persistence:
+- Keep the existing localStorage persistence but update the key name to something specific:
+  const PANEL_ACTIVE_TAB_KEY = 'kiteframe-project-panel-active-tab';
+- Default value should be "kite-ai".
+- Do NOT scope the active tab key by projectId; one global active tab is OK per user (state persists across projects).
+
+----------------------------------------------------------------------
+SECTION 2 — KITEAI TAB (EMBED EXISTING CHAT IN PANEL)
+----------------------------------------------------------------------
+
+Goal: Move the existing KiteAIChat into the “KiteAI” tab, but keep behavior the same as much as possible. For now, we DO NOT remove the floating version entirely; we just support the panel-embedded use.
+
+2.1 Create KiteAITab wrapper
+File: client/src/components/panels/ProjectPanel/KiteAITab.tsx (NEW)
+
+Basic structure:
+
+- Props:
+  - projectId: string
+  - projectName?: string
+  - nodes: Node[]
+  - edges: Edge[]
+  - canvasObjects: CanvasObject[] (or whatever the type currently used by KiteAIChat)
+
+- Render:
+  - A simple flex column container with padding and a single embedded KiteAIChat in “panel mode”.
+
+Pseudocode:
+
+import KiteAIChat from '@/components/KiteAIChat';
+
+export function KiteAITab(props) {
+  const { projectId, projectName, nodes, edges, canvasObjects } = props;
+
+  return (
+    <div className="flex flex-col h-full">
+      <KiteAIChat
+        mode="panel"                // NEW prop, see 2.2
+        projectId={projectId}
+        projectName={projectName}
+        nodes={nodes}
+        edges={edges}
+        canvasObjects={canvasObjects}
+      />
+    </div>
+  );
+}
+
+2.2 Update KiteAIChat to support “panel” mode
+File: client/src/components/KiteAIChat.tsx
+
+Currently, KiteAIChat manages:
+- Floating positioning (absolute, draggable, resizable)
+- Internal messages state
+- Input, send, AI calls
+
+We need to make it aware of a new prop:
+
+type KiteAIChatProps = {
+  mode?: 'floating' | 'panel';
+  projectId?: string;
+  projectName?: string;
+  nodes: Node[];
+  edges: Edge[];
+  canvasObjects: CanvasObject[];
+  // existing props like onApplyWorkflow, etc., should remain
+};
+
+Implementation details:
+
+(1) Default mode to 'floating' for backward compatibility:
+  const effectiveMode = props.mode ?? 'floating';
+
+(2) Conditional layout:
+- If mode === 'floating':
+  - Keep existing behavior: absolute positioning, drag, resize, close button, etc.
+- If mode === 'panel':
+  - DO NOT:
+    - Render draggable/resize handles
+    - Attach window mousemove/mouseup listeners
+    - Use absolute/fixed positioning
+  - INSTEAD:
+    - Render as a normal flex column that fills parent height:
+      <div className="flex flex-col h-full border-l border-border bg-background">
+        {/* header with title + small description */}
+        {/* messages list */}
+        {/* input bar */}
+      </div>
+
+- You can keep the same message list + input components; only container styling & positioning logic changes.
+
+(3) Gate drag/resize logic:
+- Wrap all drag/resize logic in:
+  if (effectiveMode === 'floating') {
+    // existing window event listeners and drag state
+  }
+
+- If mode === 'panel', skip registering those listeners and hide any drag UI.
+
+(4) Optional: message persistence per project (simple version)
+- For now, you can keep messages in local component state (no storage).
+- If you want to give better UX, you may:
+  - Initialize messages from localStorage key: kiteframe-kiteai-chat-${projectId}
+  - Save every time messages change.
+- This is optional; do NOT overcomplicate unless everything else is stable.
+
+2.3 workflow-editor: keep or remove floating entrypoint?
+File: client/src/pages/workflow-editor.tsx
+
+- If there is a floating KiteAI entrypoint button, you MAY keep it for now.
+- The goal of this spec is to ensure the tab-based experience is primary.
+- Do NOT delete floating code unless it causes conflicts. If removed, ensure mode='panel' is used exclusively via ProjectPanel.
+
+----------------------------------------------------------------------
+SECTION 3 — PROJECT TAB: NOTION-STYLE SINGLE DOCUMENT
+----------------------------------------------------------------------
+
+Goal: Replace separate Notes/Specs/Sources/Details tabs with a single continuous “Project” document tab that includes:
+
+1) Project Overview (reusing ProjectDetailsTab logic)
+2) Workflows section (list + selection)
+3) Selected Workflow Detail inline:
+   - Workflow header (name, status, counts)
+   - Workflow PRD (generate + edit)
+   - (Optionally) Workflow-level notes later
+4) Project-level PRD (optional initial surface)
+5) Project-level Notes
+6) Sources
+
+All in ONE scrollable vertical layout with collapsible sections.
+
+3.1 Create ProjectDocTab
+File: client/src/components/panels/ProjectPanel/ProjectDocTab.tsx (NEW)
+
+Props:
+- projectId: string
+- projectName?: string
+- nodes: Node[]
+- edges: Edge[]
+- canvasObjects: CanvasObject[]
+- onProjectNameChange?: (name: string) => void
+
+Structure:
+
+- Use a vertical layout:
+
+  <div className="flex flex-col h-full">
+    <ScrollArea className="flex-1">
+      <div className="px-4 py-4 space-y-6">
+
+        {/* A. Project Overview */}
+        {/* B. Workflows */}
+        {/* C. Selected Workflow Detail */}
+        {/* D. Project PRD */}
+        {/* E. Project Notes */}
+        {/* F. Sources */}
+
+      </div>
+    </ScrollArea>
+  </div>
+
+3.2 Extract reusable “section” components from existing tabs
+You should NOT re-write all logic from scratch. Instead:
+
+(1) Project Overview section:
+- Source: ProjectDetailsTab.tsx
+- Move the core JSX and hook usage into a new component:
+  - client/src/components/panels/ProjectPanel/sections/ProjectOverviewSection.tsx
+- Props:
+  - projectId, projectName, onProjectNameChange
+- Responsibilities:
+  - Show/edit project name
+  - Show/edit description, tags/categories
+  - Show createdAt/updatedAt as read-only
+
+Then, in ProjectDocTab, use:
+
+  <ProjectOverviewSection
+    projectId={projectId}
+    projectName={projectName}
+    onProjectNameChange={onProjectNameChange}
+  />
+
+(2) Workflow PRD section (per-workflow):
+- Source: SpecsTab.tsx
+- Extract the PRD editor/viewer logic into:
+  - client/src/components/panels/ProjectPanel/sections/WorkflowPRDSection.tsx
+- Props:
+  - projectId
+  - workflowId
+  - workflowName
+  - semanticWorkflowModel (optional; you can compute inside or pass)
+- Implementation:
+  - Reuse the existing PRD load/save/generate logic from SpecsTab.
+  - Do NOT change prdStorage.ts keys or structure.
+- In ProjectDocTab, when a workflow is selected, render:
+
+  {selectedWorkflow && (
+    <WorkflowPRDSection
+      projectId={projectId}
+      workflowId={selectedWorkflow.id}
+      workflowName={selectedWorkflow.name}
+    />
+  )}
+
+(3) Notes section (project-level):
+- Source: NotesTab.tsx
+- Extract into:
+  - sections/ProjectNotesSection.tsx
+- Props:
+  - projectId
+- Use existing storage keys: notes-[projectId] (or equivalent in current code).
+- Render markdown/textarea similar to existing NotesTab.
+
+(4) Sources section:
+- Source: SourcesTab.tsx
+- Extract into:
+  - sections/ProjectSourcesSection.tsx
+- Props:
+  - projectId
+- Reuse the existing logic for adding/removing/editing links.
+
+3.3 Workflows section (list + selection, inline detail)
+We want:
+
+- A “Workflows” section listing all workflows + standalone nodes.
+- Clicking a workflow row selects it and reveals the “Selected Workflow Detail” section further down in the same Project tab.
+
+Implementation:
+
+(1) Get workflows and standalone nodes:
+- Use existing FlowDetection / groupWorkflows utilities:
+  - import { detectFlows } from '@/lib/kiteframe/utils/FlowDetection';
+- Run detectFlows(nodes, edges) to get connected components.
+- For each component:
+  - Count edges and nodes:
+    - If edgesCount >= 2 AND nodesCount >= 2 → treat as a workflow group.
+    - Else → treat its nodes as "standalone nodes".
+- Build a data structure:
+
+  type WorkflowSummary = {
+    id: string;             // stable identifier, e.g., group root node id or computed hash
+    name: string;           // from workflowNameStore or fallback like "Workflow 1"
+    nodeIds: string[];
+    edgeIds: string[];
+    nodeCount: number;
+    edgeCount: number;
+    status?: 'todo' | 'in-progress' | 'done'; // existing badge system, if present
+  };
+
+  type StandaloneNodeSummary = {
+    nodeId: string;
+    label: string;
+    status?: 'todo' | 'in-progress' | 'done';
+  };
+
+- Prefer using the existing workflowNameStore (if available) to supply names.
+
+(2) Render Workflows section:
+
+- In ProjectDocTab, include a section:
+
+  <section>
+    <header className="flex items-center justify-between mb-2">
+      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+        Workflows
+      </h2>
+      {/* Optional: small search input */}
+    </header>
+
+    {/* List of workflow rows */}
+    <div className="space-y-1">
+      {workflowSummaries.map((wf) => (
+        <button
+          key={wf.id}
+          className={cn(
+            "w-full text-left px-2 py-1 rounded hover:bg-accent/60 text-sm flex items-center justify-between",
+            wf.id === selectedWorkflowId && "bg-accent"
+          )}
+          onClick={() => setSelectedWorkflowId(wf.id)}
+        >
+          <div className="flex items-center gap-2">
+            {/* tiny status pill if available */}
+            {/* name and counts */}
+            <span className="font-medium">{wf.name}</span>
+            <span className="text-xs text-muted-foreground">
+              {wf.nodeCount} nodes · {wf.edgeCount} edges
+            </span>
+          </div>
+        </button>
+      ))}
+    </div>
+
+    {/* Standalone nodes (optional separate sub-section) */}
+    {standaloneNodes.length > 0 && (
+      <div className="mt-3">
+        <div className="text-xs uppercase text-muted-foreground mb-1">
+          Standalone nodes
+        </div>
+        <div className="space-y-1">
+          {standaloneNodes.map((sn) => (
+            <div key={sn.nodeId} className="px-2 py-1 text-sm text-muted-foreground">
+              {sn.label}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+  </section>
+
+(3) Selected Workflow detail (inline, Option C)
+- After the Workflows section, render a “Selected Workflow” section if selectedWorkflowId is set:
+
+  const selectedWorkflow = workflowSummaries.find(w => w.id === selectedWorkflowId);
+
+  {selectedWorkflow && (
+    <section className="border-t border-border pt-4 mt-4">
+      <header className="mb-2">
+        <h2 className="text-sm font-semibold">
+          {selectedWorkflow.name}
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          {selectedWorkflow.nodeCount} nodes · {selectedWorkflow.edgeCount} edges
+        </p>
+      </header>
+
+      {/* Inline PRD section */}
+      <WorkflowPRDSection
+        projectId={projectId}
+        workflowId={selectedWorkflow.id}
+        workflowName={selectedWorkflow.name}
+      />
+
+      {/* Optional: future workflow-level notes here */}
+    </section>
+  )}
+
+- IMPORTANT: The PRD generation / editing behavior should remain identical to what SpecsTab does today (stale detection, manual edit protection, etc.). You are only changing where it is rendered.
+
+3.4 Project-level PRD (optional, below workflows)
+- Use the existing project-level PRD storage in prdStorage.ts:
+  - loadProjectPRD(projectId)
+  - saveProjectPRD(projectId, data)
+
+- Create another section component:
+  - sections/ProjectPRDSection.tsx
+  - Similar pattern to WorkflowPRDSection, but scoped to projectId only.
+
+- In ProjectDocTab, render:
+
+  <section className="border-t border-border pt-4 mt-4">
+    <header className="mb-2 flex items-center justify-between">
+      <h2 className="text-sm font-semibold">Project PRD</h2>
+      {/* optional "Generate from all workflows" button for future */}
+    </header>
+
+    <ProjectPRDSection projectId={projectId} />
+  </section>
+
+3.5 Notes & Sources sections
+- Use the extracted sections:
+  - <ProjectNotesSection projectId={projectId} />
+  - <ProjectSourcesSection projectId={projectId} />
+
+- Each should be its own <section> with a small header, similar to Project PRD.
+
+----------------------------------------------------------------------
+SECTION 4 — LAYERS TAB: SIMPLIFY & PREP FOR HYBRID VIEW
+----------------------------------------------------------------------
+
+Goal: Simplify the Layers tab so that:
+- It shows a clean list of workflows and nodes (no confusing edge-level entries).
+- Only groups with >= 2 nodes AND >= 2 edges are considered workflows.
+- Single nodes or tiny fragments appear as “Standalone nodes”.
+- This prepares us later for hybrid visualization (list + mini-diagram) without changing data semantics now.
+
+4.1 Simplify LayersTab
+File: client/src/components/panels/ProjectPanel/LayersTab.tsx
+
+CURRENT:
+- Likely has multiple “view modes” or sub-tabs (workflows, tree, etc.).
+- May show edges as separate rows, which is confusing.
+
+CHANGES:
+
+(1) Remove sub-tabs / multiple views:
+- The Layers tab content should be a single list view.
+- If there are internal Tabs inside LayersTab, remove them.
+- Aim for a simple structure:
+
+  <div className="flex flex-col h-full">
+    <ScrollArea className="flex-1 px-2 py-2">
+      {/* Workflows list */}
+      {/* Standalone nodes */}
+    </ScrollArea>
+  </div>
+
+(2) Use the same FlowDetection/grouping logic as in ProjectDocTab:
+- Reuse detectFlows(nodes, edges) or the existing groupWorkflows helper.
+- Filter into:
+  - Workflows: components with nodeCount >= 2 AND edgeCount >= 2
+  - Standalone nodes: everything else
+
+(3) Rows UI:
+- Each workflow row:
+  - Displays workflow name (from workflowNameStore) and small metadata.
+  - Optionally shows a tiny badge for status.
+  - Optionally indicates number of decision branches (count of nodes with outdegree > 1).
+- Do NOT show edges as explicit rows.
+
+(4) Interaction:
+- Clicking a workflow row should:
+  - Focus the corresponding nodes on the canvas (using existing selection APIs, if already wired).
+  - Optionally set the selectedWorkflowId in some store used by ProjectDocTab (only if that store already exists; do NOT invent cross-store wiring unless there is a clear pattern).
+
+If cross-linking is non-trivial, you may leave the selection behavior local to LayersTab for now.
+
+----------------------------------------------------------------------
+SECTION 5 — STYLING GUIDELINES (TOWARD A NOTION-LIKE PANEL)
+----------------------------------------------------------------------
+
+Do NOT rebuild the entire design system. Just adjust panel internals to feel more “document-like”:
+
+1) Reduce heavy card borders:
+   - Use light borders between sections: border-t border-border pt-4 mt-4
+   - Keep backgrounds mostly default (bg-background), not nested cards.
+
+2) Typographic hierarchy:
+   - Section label: text-xs uppercase tracking-wide text-muted-foreground
+   - Section title: text-sm font-semibold
+   - Body text: text-sm text-foreground
+   - Muted text: text-xs text-muted-foreground
+
+3) Spacing:
+   - Top-level container inside ScrollArea: className="px-4 py-4 space-y-6"
+   - Inside sections: use space-y-2 or space-y-3 for vertical rhythm.
+
+4) Inputs:
+   - Reuse existing shadcn Input, Textarea, etc.
+   - No custom fancy components for now.
+
+----------------------------------------------------------------------
+SECTION 6 — CLEANUP & SAFETY CHECKS
+----------------------------------------------------------------------
+
+6.1 Remove or deprecate old tab components only when safely migrated:
+- After extracting section components from:
+  - NotesTab.tsx
+  - SpecsTab.tsx
+  - SourcesTab.tsx
+  - ProjectDetailsTab.tsx
+- You MAY:
+  - Leave these files as thin wrappers (if still referenced somewhere else), or
+  - Delete them if only used by ProjectPanel and fully replaced by ProjectDocTab.
+
+If uncertain: keep them as thin wrappers or just leave them unused for now. Do NOT break imports without verifying.
+
+6.2 Do not change PRD storage structure
+- prdStorage.ts keys and JSON structure are part of a contract with existing data.
+- Only call existing APIs: loadWorkflowPRD, saveWorkflowPRD, loadProjectPRD, saveProjectPRD, etc.
+
+6.3 Do not change AI behavior at this stage
+- The AI that generates PRDs should behave exactly the same; only its location in the UI changes.
+- Do not touch prdEngine.ts.
+
+----------------------------------------------------------------------
+SECTION 7 — QUICK TEST CHECKLIST
+----------------------------------------------------------------------
+
+After implementation:
+
+1) Open a project:
+   - Right panel visible with 3 tabs: KiteAI, Project, Layers.
+   - Default active tab is KiteAI.
+
+2) KiteAI tab:
+   - Shows AI chat embedded in the panel (no floating panel).
+   - Drag/resize handles are NOT visible in panel mode.
+   - Chat can still see current nodes/edges and respond as before.
+
+3) Project tab:
+   - Shows Project Overview, Workflows, Selected Workflow (when clicked), Project PRD, Notes, Sources, all in ONE scrollable view.
+   - Editing project name/description works and persists as before.
+   - Selecting a workflow in the list shows its PRD section inline.
+   - Generating/updating PRD behaves the same as the old Specs tab.
+
+4) Layers tab:
+   - Shows a simple list of workflows and standalone nodes.
+   - No direct edge rows.
+   - Workflows require >=2 nodes AND >=2 edges; single nodes do NOT appear as workflows.
+
+5) Persistence:
+   - Collapsed/expanded state of the right panel still works and persists.
+   - Active tab “kite-ai/project/layers” persists between reloads via PANEL_ACTIVE_TAB_KEY.
+
+If any of these fail, stop and adjust according to this spec instead of guessing.
+
+END OF SPEC

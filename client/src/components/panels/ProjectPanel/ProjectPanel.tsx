@@ -1,21 +1,18 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ListTree, FileText, Palette, Link2, FolderOpen, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { ListTree, ClipboardList, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { KiteAITab } from './KiteAITab';
+import { ProjectDocTab } from './ProjectDocTab';
 import { LayersTab } from './LayersTab';
-import { NotesTab } from './NotesTab';
-import { SpecsTab } from './SpecsTab';
-import { SourcesTab } from './SourcesTab';
-import { ProjectDetailsTab } from './ProjectDetailsTab';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 
-export type ProjectPanelTab = 'kiteai' | 'layers' | 'specs' | 'notes' | 'sources' | 'details';
+export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers';
 
 const PANEL_COLLAPSED_KEY = 'kiteframe-project-panel-collapsed';
-const PANEL_TAB_KEY_PREFIX = 'kiteframe-project-panel-tab-';
+const PANEL_ACTIVE_TAB_KEY = 'kiteframe-project-panel-active-tab';
 
 interface ProjectPanelProps {
   nodes: Node[];
@@ -30,12 +27,9 @@ interface ProjectPanelProps {
 }
 
 const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string }[] = [
-  { id: 'kiteai', icon: Sparkles, label: 'KiteAI' },
-  { id: 'layers', icon: ListTree, label: 'Layers' },
-  { id: 'specs', icon: Palette, label: 'Specs' },
-  { id: 'notes', icon: FileText, label: 'Notes' },
-  { id: 'sources', icon: Link2, label: 'Sources' },
-  { id: 'details', icon: FolderOpen, label: 'Details' }
+  { id: 'kite-ai', icon: Sparkles, label: 'KiteAI' },
+  { id: 'project', icon: ClipboardList, label: 'Project' },
+  { id: 'layers', icon: ListTree, label: 'Layers' }
 ];
 
 export function ProjectPanel({ 
@@ -49,18 +43,18 @@ export function ProjectPanel({
   onApplyWorkflow,
   onPreviewWorkflow
 }: ProjectPanelProps) {
-  const getStoredTab = (pid?: string): ProjectPanelTab => {
-    if (typeof window === 'undefined' || !pid) return 'kiteai';
+  const getStoredTab = (): ProjectPanelTab => {
+    if (typeof window === 'undefined') return 'kite-ai';
     try {
-      const saved = localStorage.getItem(`${PANEL_TAB_KEY_PREFIX}${pid}`);
+      const saved = localStorage.getItem(PANEL_ACTIVE_TAB_KEY);
       if (saved && tabConfig.some(t => t.id === saved)) {
         return saved as ProjectPanelTab;
       }
     } catch {}
-    return 'kiteai';
+    return 'kite-ai';
   };
 
-  const [activeTab, setActiveTab] = useState<ProjectPanelTab>(() => getStoredTab(projectId));
+  const [activeTab, setActiveTab] = useState<ProjectPanelTab>(() => getStoredTab());
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
     const saved = localStorage.getItem(PANEL_COLLAPSED_KEY);
@@ -74,17 +68,11 @@ export function ProjectPanel({
   }, [isCollapsed]);
 
   useEffect(() => {
-    if (!projectId) return;
-    const storedTab = getStoredTab(projectId);
-    setActiveTab(storedTab);
-  }, [projectId]);
-
-  useEffect(() => {
-    if (!projectId || !activeTab) return;
+    if (!activeTab) return;
     try {
-      localStorage.setItem(`${PANEL_TAB_KEY_PREFIX}${projectId}`, activeTab);
+      localStorage.setItem(PANEL_ACTIVE_TAB_KEY, activeTab);
     } catch {}
-  }, [projectId, activeTab]);
+  }, [activeTab]);
 
   if (isCollapsed) {
     return (
@@ -117,7 +105,7 @@ export function ProjectPanel({
                   <Button
                     variant={activeTab === id ? 'secondary' : 'ghost'}
                     size="icon"
-                    className={`h-8 w-8 ${id === 'kiteai' ? 'text-purple-500' : ''}`}
+                    className={`h-8 w-8 ${id === 'kite-ai' ? 'text-purple-500' : ''}`}
                     onClick={() => {
                       setActiveTab(id);
                       setIsCollapsed(false);
@@ -155,12 +143,20 @@ export function ProjectPanel({
           <ScrollArea className="flex-1">
             <TabsList className="inline-flex h-10 w-max min-w-full p-1 gap-1">
               <TabsTrigger 
-                value="kiteai" 
+                value="kite-ai" 
                 className="text-xs px-3 gap-1.5 data-[state=active]:bg-background data-[state=active]:text-purple-500" 
-                data-testid="tab-kiteai"
+                data-testid="tab-kite-ai"
               >
                 <Sparkles size={14} className="text-purple-500" />
                 KiteAI
+              </TabsTrigger>
+              <TabsTrigger 
+                value="project" 
+                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
+                data-testid="tab-project"
+              >
+                <ClipboardList size={14} />
+                Project
               </TabsTrigger>
               <TabsTrigger 
                 value="layers" 
@@ -170,44 +166,12 @@ export function ProjectPanel({
                 <ListTree size={14} />
                 Layers
               </TabsTrigger>
-              <TabsTrigger 
-                value="specs" 
-                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
-                data-testid="tab-specs"
-              >
-                <Palette size={14} />
-                Specs
-              </TabsTrigger>
-              <TabsTrigger 
-                value="notes" 
-                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
-                data-testid="tab-notes"
-              >
-                <FileText size={14} />
-                Notes
-              </TabsTrigger>
-              <TabsTrigger 
-                value="sources" 
-                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
-                data-testid="tab-sources"
-              >
-                <Link2 size={14} />
-                Sources
-              </TabsTrigger>
-              <TabsTrigger 
-                value="details" 
-                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
-                data-testid="tab-details"
-              >
-                <FolderOpen size={14} />
-                Details
-              </TabsTrigger>
             </TabsList>
             <ScrollBar orientation="horizontal" className="h-1.5" />
           </ScrollArea>
         </div>
         
-        <TabsContent value="kiteai" className="flex-1 m-0 overflow-hidden">
+        <TabsContent value="kite-ai" className="flex-1 m-0 overflow-hidden">
           <KiteAITab
             projectId={projectId || 'default'}
             nodes={nodes}
@@ -218,33 +182,24 @@ export function ProjectPanel({
           />
         </TabsContent>
         
+        <TabsContent value="project" className="flex-1 m-0 overflow-hidden">
+          <ProjectDocTab
+            projectId={projectId}
+            projectName={projectName}
+            nodes={nodes}
+            edges={edges}
+            canvasObjects={canvasObjects}
+            onProjectNameChange={onProjectNameChange}
+          />
+        </TabsContent>
+        
         <TabsContent value="layers" className="flex-1 m-0 overflow-hidden">
           <LayersTab 
             nodes={nodes} 
             edges={edges} 
-            frames={frames} 
+            frames={frames}
             canvasObjects={canvasObjects}
             projectId={projectId}
-          />
-        </TabsContent>
-        
-        <TabsContent value="specs" className="flex-1 m-0 overflow-hidden">
-          <SpecsTab nodes={nodes} edges={edges} canvasObjects={canvasObjects} projectId={projectId} />
-        </TabsContent>
-        
-        <TabsContent value="notes" className="flex-1 m-0 overflow-hidden">
-          <NotesTab projectId={projectId} />
-        </TabsContent>
-        
-        <TabsContent value="sources" className="flex-1 m-0 overflow-hidden">
-          <SourcesTab projectId={projectId} />
-        </TabsContent>
-        
-        <TabsContent value="details" className="flex-1 m-0 overflow-hidden">
-          <ProjectDetailsTab 
-            projectId={projectId} 
-            projectName={projectName}
-            onProjectNameChange={onProjectNameChange}
           />
         </TabsContent>
       </Tabs>
