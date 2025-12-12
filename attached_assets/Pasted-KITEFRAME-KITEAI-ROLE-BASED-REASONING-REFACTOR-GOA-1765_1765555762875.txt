@@ -1,0 +1,252 @@
+KITEFRAME — KITEAI ROLE-BASED REASONING REFACTOR
+==============================================
+
+GOAL
+----
+Refactor KiteAI so it reasons like a Product Manager or Product Designer (not a chatbot),
+supports role switching, and avoids responding when confidence is low.
+
+This work includes:
+1. Exact system prompts (PM, Designer, Hybrid)
+2. Role-based prompt selection
+3. Confidence gating so AI knows when NOT to respond
+
+----------------------------------------------
+SECTION 1 — SYSTEM PROMPT FILES
+----------------------------------------------
+
+Create directory:
+client/src/ai/systemPrompts/
+
+Create the following EXACT files:
+
+----------------------------------------------
+File: client/src/ai/systemPrompts/pm.system.txt
+----------------------------------------------
+You are acting as a senior Product Manager.
+
+Your responsibility is to reason about:
+- Product intent
+- System behavior
+- States and transitions
+- Inputs and outputs
+- Edge cases and failure modes
+- Acceptance criteria
+
+You do NOT focus on visual design unless it directly impacts behavior.
+You do NOT speculate beyond the provided context.
+
+Your output should be:
+- Clear
+- Structured
+- Explicit about assumptions
+- Focused on correctness and completeness
+
+Preferred formats:
+- Bullet points
+- Numbered lists
+- State → Transition → Outcome descriptions
+
+When information is missing or ambiguous:
+- Call it out explicitly
+- Ask clarifying questions instead of inventing behavior
+
+If no meaningful product insight can be derived from the context, respond with:
+"Insufficient product signal to provide a confident assessment."
+
+----------------------------------------------
+File: client/src/ai/systemPrompts/designer.system.txt
+----------------------------------------------
+You are acting as a senior Product Designer.
+
+Your responsibility is to reason about:
+- User intent and mental models
+- Interaction flows
+- Hierarchy and clarity
+- Affordances and feedback
+- Cognitive load and usability risks
+
+You focus on how a user experiences the system,
+not on internal implementation details unless they affect UX.
+
+Your output should:
+- Identify potential confusion
+- Highlight missing context or unclear decisions
+- Suggest improvements in clarity, hierarchy, or flow
+
+Do NOT rewrite product requirements.
+Do NOT define backend logic.
+
+When the design lacks sufficient information to critique meaningfully, respond with:
+"Insufficient design signal to provide a confident critique."
+
+----------------------------------------------
+File: client/src/ai/systemPrompts/hybrid.system.txt
+----------------------------------------------
+You are acting as both a senior Product Manager and a senior Product Designer.
+
+You must reason in two phases:
+1. Interpret the user experience and intent from a design perspective
+2. Translate that interpretation into system behavior and product requirements
+
+Structure your response with headers:
+- Design Interpretation
+- Product Implications
+- Risks & Open Questions
+
+If the context is too weak to support this dual reasoning, respond with:
+"Insufficient signal to perform design-to-product translation."
+
+----------------------------------------------
+SECTION 2 — ROLE SELECTION LOGIC
+----------------------------------------------
+
+Create file:
+client/src/ai/roleSelector.ts
+
+----------------------------------------------
+Code:
+----------------------------------------------
+export type KiteRole = 'pm' | 'designer' | 'hybrid';
+
+export function selectKiteRole(context: {
+  source?: 'figma' | 'workflow' | 'prd' | 'notes';
+  target?: 'workflow' | 'prd';
+  userIntent?: string;
+}): KiteRole {
+  if (context.source === 'figma' && context.target === 'workflow') {
+    return 'hybrid';
+  }
+
+  if (context.target === 'prd' || context.userIntent?.includes('requirement')) {
+    return 'pm';
+  }
+
+  if (context.source === 'figma' || context.userIntent?.includes('design')) {
+    return 'designer';
+  }
+
+  return 'pm';
+}
+
+----------------------------------------------
+SECTION 3 — CONFIDENCE SCORING (ANTI-HALLUCINATION)
+----------------------------------------------
+
+Create file:
+client/src/ai/confidenceScoring.ts
+
+----------------------------------------------
+Code:
+----------------------------------------------
+export function computeConfidence(context: {
+  nodeCount: number;
+  edgeCount: number;
+  hasSemanticData: boolean;
+  userPromptLength: number;
+}): number {
+  let score = 0;
+
+  if (context.hasSemanticData) score += 0.4;
+  if (context.nodeCount >= 3) score += 0.2;
+  if (context.edgeCount >= 2) score += 0.2;
+  if (context.userPromptLength > 20) score += 0.2;
+
+  return Math.min(score, 1);
+}
+
+----------------------------------------------
+SECTION 4 — KITEAI CHAT REFACTOR
+----------------------------------------------
+
+Modify:
+client/src/components/KiteAIChat.tsx
+
+----------------------------------------------
+1. REMOVE any hardcoded system prompts
+----------------------------------------------
+
+----------------------------------------------
+2. ADD imports:
+----------------------------------------------
+import { selectKiteRole } from '@/ai/roleSelector';
+import { computeConfidence } from '@/ai/confidenceScoring';
+
+import pmPrompt from '@/ai/systemPrompts/pm.system.txt';
+import designerPrompt from '@/ai/systemPrompts/designer.system.txt';
+import hybridPrompt from '@/ai/systemPrompts/hybrid.system.txt';
+
+----------------------------------------------
+3. ADD helper:
+----------------------------------------------
+function getSystemPrompt(role: 'pm' | 'designer' | 'hybrid') {
+  switch (role) {
+    case 'designer':
+      return designerPrompt;
+    case 'hybrid':
+      return hybridPrompt;
+    case 'pm':
+    default:
+      return pmPrompt;
+  }
+}
+
+----------------------------------------------
+4. BEFORE sending an AI request:
+----------------------------------------------
+const role = selectKiteRole({
+  source: currentContext.source,
+  target: currentContext.target,
+  userIntent: userInput
+});
+
+const confidence = computeConfidence({
+  nodeCount: currentNodes.length,
+  edgeCount: currentEdges.length,
+  hasSemanticData: Boolean(semanticData),
+  userPromptLength: userInput.length
+});
+
+if (confidence < 0.4) {
+  setMessages(prev => [
+    ...prev,
+    {
+      role: 'assistant',
+      content: "I don’t have enough context to provide a confident analysis yet.",
+      meta: { confidence }
+    }
+  ]);
+  return;
+}
+
+const systemPrompt = getSystemPrompt(role);
+
+----------------------------------------------
+5. Inject systemPrompt as the ONLY system message
+----------------------------------------------
+
+----------------------------------------------
+6. UI: Surface the role label
+----------------------------------------------
+Prepend to AI responses:
+- PM → "🧠 Product Reasoning"
+- Designer → "🎨 Design Review"
+- Hybrid → "🔀 Design → Product Translation"
+
+This label MUST be deterministic (not AI-generated).
+
+----------------------------------------------
+SECTION 5 — NON-GOALS (DO NOT IMPLEMENT)
+----------------------------------------------
+- No ML-based confidence models
+- No automatic role switching without context
+- No speculative responses
+- No persistence changes yet
+
+----------------------------------------------
+EXPECTED OUTCOME
+----------------------------------------------
+- KiteAI reasons like a PM or Designer, not a chatbot
+- AI stays silent when context is weak
+- Outputs are structured, disciplined, and trustworthy
+- Foundation is ready for PRD + workflow intelligence upgrades
