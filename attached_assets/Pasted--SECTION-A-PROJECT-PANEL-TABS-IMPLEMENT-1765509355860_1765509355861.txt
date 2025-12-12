@@ -1,0 +1,221 @@
+========================================================
+
+SECTION A — PROJECT PANEL + TABS IMPLEMENTATION
+
+========================================================
+
+A1. Where is the ProjectPanel implemented?
+
+Please identify:
+	•	File path (likely something like components/panels/ProjectPanel.tsx)
+	•	Folder structure around it
+	•	Which tabs currently exist and how they are registered (Radix? Custom Tabs?)
+
+A2. How is the ProjectPanel mounted in the main workflow editor?
+
+In the file where the canvas is displayed:
+	•	What is the file path? (workflow-editor.tsx or similar)
+	•	How is the right panel imported and positioned?
+	•	Is the panel already in a flex layout with the canvas?
+
+A3. Is there already a collapse/expand mechanism?
+
+If yes:
+	•	How is the collapse state stored today?
+	•	Is it global or project-scoped?
+
+If no:
+	•	Confirm that adding a project-scoped localStorage entry is acceptable.
+
+A4. Do tabs inside the ProjectPanel already have a standard layout pattern?
+
+Please confirm:
+	•	Tab container component name
+	•	How tab content and triggers are rendered today
+	•	Whether tabs support full-height scrolling content
+
+⸻
+
+========================================================
+
+SECTION B — AI CHAT CURRENT IMPLEMENTATION
+
+========================================================
+
+B1. What is the exact component name and file path of the current floating AI chat?
+
+We need:
+	•	Primary UI component name
+	•	File path for the floating version
+	•	Whether it uses:
+	•	A global store for messages
+	•	Props from the workflow editor
+	•	A dedicated <ChatPanel> component
+
+B2. How does AI streaming currently work?
+
+Please confirm:
+	•	Which utility handles streaming? (useChatStream, callChatAPI, etc.)
+	•	Is the streaming logic embedded inside the component or imported from a helper?
+	•	Does the chat component need any projectId or workflowId context?
+
+B3. Are AI messages stored globally or per-project?
+
+Options:
+	•	In React local state
+	•	In Zustand/Redux global store
+	•	In localStorage
+	•	In a server-backed store
+
+We need to understand this, because moving the component into a tab changes mount/unmount cycles.
+
+B4. Does the floating AI panel currently take any keyboard shortcuts, focus behaviors, or window listeners?
+
+We must know whether these need to be disabled or moved.
+
+⸻
+
+========================================================
+
+SECTION C — PRD / SPECS CURRENT IMPLEMENTATION
+
+========================================================
+
+C1. Where is the Specs tab implemented today?
+
+Please provide:
+	•	File path
+	•	Whether it renders Markdown, a form, or a custom spec view
+	•	The data flow for getting/setting PRD text
+
+C2. How are workflow specs stored?
+
+We need to know whether:
+	•	There’s a workflowSpecStore
+	•	Specs are keyed by projectId + workflowId
+	•	Specs are generated once or on-demand
+	•	Specs include timestamps, hashes, “needs update” flags, etc.
+
+C3. How is the project-level PRD stored today?
+
+Is it:
+	•	In a project store?
+	•	In a “Details” structure?
+	•	Not implemented at all?
+
+C4. How does the system determine the active workflow?
+
+Possibilities:
+	•	Selected node(s)
+	•	Stored in a workflow-level store
+	•	Derived from Layers panel grouping
+	•	Not implemented at all
+
+C5. Is there an API or function that regenerates a PRD using AI?
+
+Provide:
+	•	File path
+	•	Function name
+	•	Expected inputs/outputs
+	•	Any post-processing or spec-parsing logic
+
+This determines how we wire AI generation to the Specs tab.
+
+⸻
+
+========================================================
+
+SECTION D — PROJECT DETAILS (FLOATING CARD)
+
+========================================================
+
+D1. What is the current floating project details card component called, and where does it live?
+
+Please provide:
+	•	File path
+	•	How it gets its project metadata
+	•	What fields it currently displays
+	•	Any special behavior (editing, saving, syncing)
+
+D2. How is the floating details card mounted in the workflow editor?
+
+We need to confirm:
+	•	Whether it’s a portal
+	•	Whether it’s absolutely positioned over the canvas
+	•	Whether it has its own local state
+
+D3. Can the project details card be directly rendered inside a tab without breaking functionality?
+
+If not, we need to understand what needs to be preserved.
+
+⸻
+
+========================================================
+
+SECTION E — GLOBAL STATE + PROJECT CONTEXT
+
+========================================================
+
+E1. How is projectId accessed across components today?
+
+Is it available:
+	•	As a prop from workflow-editor.tsx?
+	•	Through a store?
+	•	Through React Router or URL params?
+
+E2. Are there any stores already namespaced by projectId?
+
+You previously confirmed this for Layers, but confirm whether:
+	•	Notes store
+	•	Spec store
+	•	AI chat store
+also require project-scoping.
+
+E3. Are there any global side effects depending on the floating components we are removing?
+
+For example:
+	•	Event listeners
+	•	Global keyboard shortcuts
+	•	Resize observers
+	•	Auto-scroll logic
+
+We must know what to clean up safely.
+
+⸻
+
+========================================================
+
+SECTION F — VISUAL / UI LIBRARIES
+
+========================================================
+
+F1. Which UI library powers the ProjectPanel tabs?
+
+Is it:
+	•	Radix UI Tabs
+	•	shadcn/ui Tabs (Radix wrapper)
+	•	Custom tabs
+	•	Material UI
+	•	Something else?
+
+F2. Is the panel styled with Tailwind, CSS modules, or styled-components?
+
+We need this to match spacing and appearance in the AI tab.
+
+⸻
+
+========================================================
+
+ONCE REPLIT ANSWERS THESE
+
+I will generate:
+	1.	A fully accurate, file-specific, step-by-step implementation guide
+	2.	A single .txt file for direct Replit ingestion
+	3.	Safeguards to prevent hallucinations
+	4.	Final wiring instructions for:
+	•	AI chat tab
+	•	Specs context switching
+	•	Workflow PRD selector
+	•	Details tab
+	•	Panel collapse persistence
+	•	Cleanup of floating UI elements
