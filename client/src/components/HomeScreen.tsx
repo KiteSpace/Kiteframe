@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -21,8 +20,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { 
-  Sparkles, 
-  Upload, 
   ArrowRight, 
   ArrowLeft,
   Clock, 
@@ -33,7 +30,6 @@ import {
   Zap,
   Settings,
   Database,
-  Globe,
   Plus,
   FolderOpen,
   Share2,
@@ -41,10 +37,11 @@ import {
   Trash2,
   AlertCircle
 } from 'lucide-react';
-import { SiFigma } from 'react-icons/si';
 import { useCreditsGate } from '@/hooks/useCreditsGate';
 import { useSubscription } from '@/hooks/useSubscription';
 import { FeatureUpsellDialog } from './FeatureUpsellDialog';
+import { HomeHero } from './HomeHero';
+import { PreProjectChat } from './PreProjectChat';
 
 interface RecentProject {
   id: string;
@@ -79,12 +76,6 @@ interface HomeScreenProps {
   isGenerating?: boolean;
   hasCloudAccess?: boolean;
 }
-
-const quickExamples = [
-  { label: 'User Onboarding Flow', prompt: 'Create a user onboarding workflow that includes account creation, email verification, profile setup, and a welcome tutorial' },
-  { label: 'API Request Handler', prompt: 'Design an API request handling workflow with authentication, rate limiting, request validation, processing, and response formatting' },
-  { label: 'Decision Tree', prompt: 'Build a customer support decision tree workflow that routes inquiries to the right department based on issue type and priority' },
-];
 
 const workflowTemplates: WorkflowTemplate[] = [
   {
@@ -174,11 +165,12 @@ export function HomeScreen({
   isGenerating = false,
   hasCloudAccess = false
 }: HomeScreenProps) {
-  const [promptValue, setPromptValue] = useState('');
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [showFeatureUpsell, setShowFeatureUpsell] = useState(false);
   const [featureUpsellType, setFeatureUpsellType] = useState<'image' | 'wireframe' | 'figma'>('image');
+  const [isPreProjectChatOpen, setIsPreProjectChatOpen] = useState(false);
+  const [preProjectChatPrompt, setPreProjectChatPrompt] = useState('');
   
   const { tier } = useSubscription();
   const projectToDelete = recentProjects.find(p => p.id === deleteProjectId);
@@ -201,33 +193,49 @@ export function HomeScreen({
   
   const showZeroCreditsWarning = isOutOfCredits && !isUserAuthenticated;
 
-  const handleExampleClick = useCallback((prompt: string) => {
-    setPromptValue(prompt);
-  }, []);
-
   const handleTemplateClick = useCallback((template: WorkflowTemplate) => {
     onLoadTemplate(template.templateType);
   }, [onLoadTemplate]);
 
-  const handleGenerate = useCallback(() => {
-    // Defense in depth: check credits before generating
+  const handleStartDesigning = useCallback((prompt: string) => {
     if (isOutOfCredits) {
       if (ctaAction === 'signup') openSignup();
       else if (ctaAction === 'upgrade') openPricing();
       else openCreditsDialog();
       return;
     }
-    if (promptValue.trim()) {
-      onGenerateWorkflow(promptValue.trim());
-    }
-  }, [promptValue, onGenerateWorkflow, isOutOfCredits, ctaAction, openSignup, openPricing, openCreditsDialog]);
+    setPreProjectChatPrompt(prompt);
+    setIsPreProjectChatOpen(true);
+  }, [isOutOfCredits, ctaAction, openSignup, openPricing, openCreditsDialog]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    // Block keyboard shortcut when out of credits
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && promptValue.trim() && !isGenerating && !isOutOfCredits) {
-      handleGenerate();
+  const handlePreProjectChatClose = useCallback(() => {
+    setIsPreProjectChatOpen(false);
+    setPreProjectChatPrompt('');
+  }, []);
+
+  const handleCreateProjectFromChat = useCallback((summary: string) => {
+    setIsPreProjectChatOpen(false);
+    setPreProjectChatPrompt('');
+    onGenerateWorkflow(summary);
+  }, [onGenerateWorkflow]);
+
+  const handleUploadImageWithGate = useCallback(() => {
+    if (tier !== 'pro') {
+      setFeatureUpsellType('image');
+      setShowFeatureUpsell(true);
+    } else {
+      onUploadImage();
     }
-  }, [promptValue, isGenerating, isOutOfCredits, handleGenerate]);
+  }, [tier, onUploadImage]);
+
+  const handleImportFigmaWithGate = useCallback(() => {
+    if (tier !== 'pro') {
+      setFeatureUpsellType('figma');
+      setShowFeatureUpsell(true);
+    } else if (onImportFigma) {
+      onImportFigma();
+    }
+  }, [tier, onImportFigma]);
 
   const handleConfirmDelete = useCallback(() => {
     if (deleteProjectId && onDeleteProject) {
@@ -443,120 +451,14 @@ export function HomeScreen({
           </div>
         )}
 
-        {/* AI Prompt Section */}
-        <div className="mb-10">
-          <div className={`bg-card border border-border rounded-xl p-4 ${isOutOfCredits ? 'opacity-60' : ''}`}>
-            <Textarea
-              value={promptValue}
-              onChange={(e) => setPromptValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={isOutOfCredits ? "AI generation disabled - out of credits" : "Describe the workflow you want to create, or upload an image"}
-              className="min-h-[100px] resize-none border-0 p-0 focus-visible:ring-0 text-base bg-transparent"
-              disabled={isOutOfCredits}
-              data-testid="input-workflow-prompt"
-            />
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    // Image upload is Pro tier only
-                    if (tier !== 'pro') {
-                      setFeatureUpsellType('image');
-                      setShowFeatureUpsell(true);
-                    } else {
-                      onUploadImage();
-                    }
-                  }}
-                  className="text-muted-foreground hover:text-foreground"
-                  disabled={isOutOfCredits}
-                  data-testid="button-upload-image"
-                >
-                  <Upload size={16} className="mr-1" />
-                  Upload Image
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    // Figma import is Pro tier only
-                    if (tier !== 'pro') {
-                      setFeatureUpsellType('figma');
-                      setShowFeatureUpsell(true);
-                    } else if (onImportFigma) {
-                      onImportFigma();
-                    }
-                  }}
-                  className="text-muted-foreground hover:text-foreground"
-                  disabled={isOutOfCredits}
-                  data-testid="button-import-figma"
-                >
-                  <SiFigma size={14} className="mr-1" />
-                  Import Figma
-                </Button>
-              </div>
-              {isOutOfCredits ? (
-                <Button
-                  onClick={() => {
-                    if (ctaAction === 'signup') openSignup();
-                    else if (ctaAction === 'upgrade') openPricing();
-                    else openCreditsDialog();
-                  }}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                  data-testid="button-get-credits"
-                >
-                  <Sparkles size={16} className="mr-2" />
-                  {ctaButtonText}
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleGenerate}
-                  disabled={!promptValue.trim() || isGenerating}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
-                  data-testid="button-start-designing"
-                >
-                  {isGenerating ? (
-                    <>
-                      <span className="animate-spin mr-2">⏳</span>
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={16} className="mr-2" />
-                      Start designing
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            {isOutOfCredits 
-              ? ctaMessage 
-              : "The fastest way to create visual workflows – ideal for designers and PMs. See results in ~30 seconds."
-            }
-          </p>
-
-          {/* Quick Example Chips */}
-          <div className="mt-4">
-            <span className="text-sm text-muted-foreground mr-3">Start with an example</span>
-            <div className="inline-flex flex-wrap gap-2 mt-2">
-              {quickExamples.map((example) => (
-                <button
-                  key={example.label}
-                  onClick={() => handleExampleClick(example.prompt)}
-                  disabled={isOutOfCredits}
-                  className={`inline-flex items-center px-3 py-1.5 rounded-full bg-muted text-sm text-foreground transition-colors ${isOutOfCredits ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted/80'}`}
-                  data-testid={`chip-example-${example.label.toLowerCase().replace(/\s+/g, '-')}`}
-                >
-                  <Workflow size={14} className="mr-1.5 text-muted-foreground" />
-                  {example.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        {/* AI Hero Section */}
+        <HomeHero
+          onStartDesigning={handleStartDesigning}
+          onImportFigma={onImportFigma ? handleImportFigmaWithGate : undefined}
+          onUploadImage={handleUploadImageWithGate}
+          isGenerating={isGenerating}
+          isDisabled={isOutOfCredits}
+        />
 
         {/* Recent Projects Section */}
         <div className="mb-10">
@@ -708,6 +610,14 @@ export function HomeScreen({
           </div>
         </div>
       </div>
+
+      {/* Pre-Project Chat Overlay */}
+      <PreProjectChat
+        isOpen={isPreProjectChatOpen}
+        onClose={handlePreProjectChatClose}
+        onCreateProject={handleCreateProjectFromChat}
+        initialPrompt={preProjectChatPrompt}
+      />
     </div>
   );
 }
