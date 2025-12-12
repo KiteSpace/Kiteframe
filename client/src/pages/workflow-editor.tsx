@@ -84,7 +84,8 @@ import { SiFigma } from 'react-icons/si';
 import { FigmaImportModal } from '@/components/modals/FigmaImportModal';
 import { WorkflowGenerationPreviewModal } from '@/components/modals/WorkflowGenerationPreviewModal';
 import { parseFigmaUrl } from '@/lib/integration/figmaUrl';
-import { generateWorkflowFromFigmaSemantic } from '@/lib/integration/semanticWorkflowGenerator';
+import { generateWorkflowFromFigmaSemantic, generateAIRefinedWorkflow } from '@/lib/integration/semanticWorkflowGenerator';
+import type { WorkflowGenerationMode } from '@/lib/integration/figmaSemanticTypes';
 import { buildFigmaFrameWorkflow, insertFigmaFrames, type FigmaFrameWithThumbnail } from '@/utils/createFigmaProject';
 import { addFigmaSource } from '@/lib/kiteframe/utils/sourceTracking';
 import { sortFrameNodesForWorkflow, filterValidWorkflowFrames } from '@/lib/kiteframe/utils/workflowOrdering';
@@ -8015,7 +8016,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             setWorkflowPreviewFrameIds([]);
           }}
           frameNodes={nodes.filter(n => workflowPreviewFrameIds.includes(n.id))}
-          onConfirm={async ({ useCleanLayout }) => {
+          onConfirm={async ({ useCleanLayout, mode }) => {
             setIsGeneratingWorkflow(true);
             try {
               const frameNodes = nodes.filter(n => workflowPreviewFrameIds.includes(n.id));
@@ -8033,24 +8034,37 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
               saveToHistory();
               
-              const generatedNodes: Node[] = [];
-              const generatedEdges: Edge[] = [];
-              let offsetY = Math.max(...nodes.map(n => n.position.y + (n.height || 100))) + 100;
+              let generatedNodes: Node[] = [];
+              let generatedEdges: Edge[] = [];
+              const startY = Math.max(...nodes.map(n => n.position.y + (n.height || 100))) + 100;
               
-              for (const frame of sortedFrames) {
-                const semantic = frame.data?.figmaSemantic;
-                if (!semantic) continue;
+              if (mode === 'ai_refined') {
+                const semantics = sortedFrames
+                  .map(f => f.data?.figmaSemantic)
+                  .filter(Boolean) as any[];
                 
-                const frameName = frame.data?.label || frame.data?.figmaName || 'Frame';
-                const result = generateWorkflowFromFigmaSemantic(
-                  semantic,
-                  frameName,
-                  frame
-                );
+                const result = await generateAIRefinedWorkflow(semantics, { x: 400, y: startY });
+                generatedNodes = result.nodes;
+                generatedEdges = result.edges;
+              } else {
+                let offsetY = startY;
                 
-                generatedNodes.push(...result.nodes);
-                generatedEdges.push(...result.edges);
-                offsetY += result.nodes.length * 120 + 100;
+                for (const frame of sortedFrames) {
+                  const semantic = frame.data?.figmaSemantic;
+                  if (!semantic) continue;
+                  
+                  const frameName = frame.data?.label || frame.data?.figmaName || 'Frame';
+                  const result = generateWorkflowFromFigmaSemantic(
+                    semantic,
+                    frameName,
+                    frame,
+                    { mode }
+                  );
+                  
+                  generatedNodes.push(...result.nodes);
+                  generatedEdges.push(...result.edges);
+                  offsetY += result.nodes.length * 120 + 100;
+                }
               }
               
               if (generatedNodes.length > 0) {
@@ -8073,9 +8087,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }, 100);
                 }
                 
+                const modeLabel = mode === 'ai_refined' ? 'AI Refined' : mode === 'detailed' ? 'Detailed' : 'Summary';
                 toast({
                   title: "Workflow Generated",
-                  description: `Created ${generatedNodes.length} nodes from ${sortedFrames.length} frame(s).`,
+                  description: `Created ${generatedNodes.length} nodes (${modeLabel} mode) from ${sortedFrames.length} frame(s).`,
                 });
               }
             } catch (error) {

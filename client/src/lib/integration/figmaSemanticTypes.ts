@@ -19,6 +19,43 @@ export type FigmaSemanticElementType =
   | 'icon'
   | 'section';
 
+export type FigmaSemanticRole = 
+  | 'input' 
+  | 'action' 
+  | 'navigation' 
+  | 'heading' 
+  | 'context' 
+  | 'decorative';
+
+export type FigmaSemanticControlType =
+  | 'text'
+  | 'email'
+  | 'password'
+  | 'search'
+  | 'checkbox'
+  | 'radio'
+  | 'select'
+  | 'button'
+  | 'link'
+  | 'unknown';
+
+export type FigmaScreenType = 
+  | 'form' 
+  | 'detail' 
+  | 'list' 
+  | 'settings' 
+  | 'landing' 
+  | 'unknown';
+
+export type FigmaStateType = 
+  | 'default' 
+  | 'empty' 
+  | 'error' 
+  | 'success' 
+  | 'loading' 
+  | 'variant' 
+  | 'unknown';
+
 export interface FigmaSemanticBounds {
   x: number;
   y: number;
@@ -36,8 +73,13 @@ export interface FigmaSemanticElement {
   parentId?: string | null;
   childrenIds?: string[];
   isPrimaryAction?: boolean;
+  isSecondaryAction?: boolean;
   isDisabled?: boolean;
   isRequiredField?: boolean;
+  role?: FigmaSemanticRole;
+  controlType?: FigmaSemanticControlType;
+  groupId?: string;
+  screenRefName?: string;
 }
 
 export interface FigmaSemanticFormCandidate {
@@ -45,6 +87,8 @@ export interface FigmaSemanticFormCandidate {
   name: string;
   fieldIds: string[];
   submitButtonIds: string[];
+  cancelButtonIds?: string[];
+  descriptionElementIds?: string[];
 }
 
 export interface FigmaSemanticNavigationTarget {
@@ -108,4 +152,15 @@ export interface FigmaSemanticMetadata {
   truncated?: boolean;
   truncationReason?: string;
   workflowGraph?: FigmaWorkflowGraph;
+  screenType?: FigmaScreenType;
+  stateType?: FigmaStateType;
+  primaryActionIds?: string[];
+  secondaryActionIds?: string[];
+}
+
+export type WorkflowGenerationMode = 'summary' | 'detailed' | 'ai_refined';
+
+export interface WorkflowGenerationOptions {
+  mode: WorkflowGenerationMode;
+  maxSteps?: number;
 }
