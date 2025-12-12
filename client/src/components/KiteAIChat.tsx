@@ -7,6 +7,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
 import { useCreditsGate } from '@/hooks/useCreditsGate';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
+import { selectKiteRole, getRoleLabel, type KiteRole, type RoleContext } from '../ai/roleSelector';
+import { computeConfidence, isConfidenceInsufficient } from '../ai/confidenceScoring';
+import { getSystemPromptForRole } from '../ai/systemPrompts';
 import { 
   MessageCircle, 
   Send, 
@@ -46,6 +49,10 @@ export interface ChatMessage {
     canvasObjects?: CanvasObject[];
     description?: string;
     status: 'pending' | 'accepted' | 'rejected';
+  };
+  meta?: {
+    kiteRole?: KiteRole;
+    confidence?: number;
   };
 }
 
@@ -446,32 +453,57 @@ function ChatView({
         content: m.content
       }));
 
-      const systemPrompt = `You are KiteAI, a helpful workflow design assistant for the Kiteframe workflow editor. You help users create, modify, and understand workflows.
+      const hasFigmaAttachment = attachments.some(a => 
+        a.name?.toLowerCase().includes('figma') || 
+        a.type === 'image'
+      );
+      
+      const roleContext: RoleContext = {
+        source: hasFigmaAttachment ? 'figma' : 'workflow',
+        target: 'workflow',
+        userIntent: inputValue
+      };
+      const selectedRole = selectKiteRole(roleContext);
+      const rolePrompt = getSystemPromptForRole(selectedRole);
+      
+      const hasSemanticData = currentNodes.some(n => n.data?.label || n.data?.description);
+      const confidence = computeConfidence({
+        nodeCount: currentNodes.length,
+        edgeCount: currentEdges.length,
+        hasSemanticData,
+        userPromptLength: inputValue.length
+      });
+
+      if (isConfidenceInsufficient(confidence)) {
+        const roleLabel = getRoleLabel(selectedRole);
+        const lowConfidenceMessage: ChatMessage = {
+          id: `msg-${Date.now()}`,
+          role: 'assistant',
+          content: "I don't have enough context to provide a confident analysis yet. Try adding more nodes to your workflow, or describe what you're trying to build in more detail.",
+          timestamp: new Date(),
+          meta: { kiteRole: selectedRole, confidence }
+        };
+        setMessages(prev => [...prev, lowConfidenceMessage]);
+        setIsLoading(false);
+        return;
+      }
+
+      const systemPrompt = `${rolePrompt}
+
+---
+
+You are also KiteAI, a workflow design assistant for the Kiteframe workflow editor.
 
 Current canvas state: ${canvasContext}
 
-IMPORTANT RULES:
-1. When the user asks you to CREATE or MODIFY a workflow, you MUST respond with valid JSON in this exact format:
-{"nodes":[...],"edges":[...]}
+WORKFLOW GENERATION RULES (when asked to CREATE or MODIFY a workflow):
+1. Respond with valid JSON: {"nodes":[...],"edges":[...]}
+2. Node types: input, process, output, condition, ai, image
+3. Position nodes with x starting at 300, spacing 250px apart. y around 200-400.
+4. Each node needs: id, type, position: {x, y}, data: {label, description, icon, iconColor}, width: 200, height: 100
+5. Each edge needs: id, source, target, type: "bezier", style: {strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2}, markers: {type: "arrow", position: "end"}
 
-2. When having a CONVERSATION or answering QUESTIONS, respond naturally without JSON.
-
-3. For workflow generation, use these node types: input, process, output, condition, ai, image
-   - input nodes: ArrowRight icon, text-blue-500
-   - process nodes: Cog icon, text-green-500
-   - output nodes: ArrowLeft icon, text-red-500
-   - condition nodes: HelpCircle icon, text-yellow-500
-   - ai nodes: Bot icon, text-purple-500
-
-4. Position nodes with x starting at 300, spacing 250px apart. y should be around 200-400.
-
-5. Each node needs: id, type, position: {x, y}, data: {label, description, icon, iconColor}, width: 200, height: 100
-
-6. Each edge needs: id, source, target, type: "bezier", style: {strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2}, markers: {type: "arrow", position: "end"}
-
-7. When modifying existing workflows, keep existing node IDs and add new ones with unique IDs.
-
-Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
+For CONVERSATIONS, respond naturally without JSON.`;
 
       const response = await aiClient.chat({
         messages: [
@@ -516,7 +548,8 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
         role: 'assistant',
         content: responseText,
         timestamp: new Date(),
-        workflowProposal
+        workflowProposal,
+        meta: { kiteRole: selectedRole, confidence }
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -786,8 +819,13 @@ Be friendly, helpful, and conversational. Ask clarifying questions if needed.`;
                   )}
                 </div>
                 
-                <div className={`text-[10px] text-muted-foreground mt-1 ${message.role === 'user' ? 'text-right' : ''}`}>
-                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <div className={`text-[10px] text-muted-foreground mt-1 flex items-center gap-2 ${message.role === 'user' ? 'justify-end' : ''}`}>
+                  {message.role === 'assistant' && message.meta?.kiteRole && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted-foreground/10">
+                      {getRoleLabel(message.meta.kiteRole).emoji} {getRoleLabel(message.meta.kiteRole).label}
+                    </span>
+                  )}
+                  <span>{message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
               </div>
             </div>
