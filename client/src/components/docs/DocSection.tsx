@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, useCallback, KeyboardEvent, useMemo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Edit3, RotateCcw } from 'lucide-react';
@@ -11,6 +11,60 @@ interface DocSectionProps {
   manuallyEdited?: boolean;
   onSave: (sectionKey: string, value: string) => void;
   onResetToAI?: (sectionKey: string) => void;
+}
+
+function renderFormattedContent(content: string): ReactNode {
+  if (!content) return null;
+
+  const lines = content.split('\n');
+  const elements: ReactNode[] = [];
+  let currentList: { number: number; text: string }[] = [];
+  let listStartIndex = 0;
+
+  const flushList = () => {
+    if (currentList.length > 0) {
+      elements.push(
+        <ol key={`list-${listStartIndex}`} className="list-decimal list-inside space-y-1.5 my-2">
+          {currentList.map((item, idx) => (
+            <li key={idx} className="text-sm leading-relaxed">
+              {item.text}
+            </li>
+          ))}
+        </ol>
+      );
+      currentList = [];
+    }
+  };
+
+  lines.forEach((line, index) => {
+    const numberedMatch = line.match(/^(\d+)\.\s+(.+)$/);
+    
+    if (numberedMatch) {
+      if (currentList.length === 0) {
+        listStartIndex = index;
+      }
+      currentList.push({
+        number: parseInt(numberedMatch[1], 10),
+        text: numberedMatch[2]
+      });
+    } else {
+      flushList();
+      
+      if (line.trim()) {
+        elements.push(
+          <p key={index} className="text-sm leading-relaxed">
+            {line}
+          </p>
+        );
+      } else if (index > 0 && index < lines.length - 1) {
+        elements.push(<div key={index} className="h-2" />);
+      }
+    }
+  });
+
+  flushList();
+
+  return <div className="space-y-1">{elements}</div>;
 }
 
 export function DocSection({
@@ -69,6 +123,8 @@ export function DocSection({
   const handleReset = useCallback(() => {
     onResetToAI?.(sectionKey);
   }, [sectionKey, onResetToAI]);
+
+  const formattedContent = useMemo(() => renderFormattedContent(content), [content]);
 
   return (
     <section
@@ -134,13 +190,13 @@ export function DocSection({
         <div
           onClick={handleContentClick}
           className={cn(
-            "text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap cursor-text",
+            "text-muted-foreground cursor-text",
             "hover:bg-accent/30 rounded-md transition-colors duration-100 -mx-2 px-2 py-1",
-            !content && "italic"
+            !content && "italic text-sm"
           )}
           data-testid={`content-${sectionKey}`}
         >
-          {content || "Click to add content..."}
+          {formattedContent || "Click to add content..."}
         </div>
       )}
     </section>
