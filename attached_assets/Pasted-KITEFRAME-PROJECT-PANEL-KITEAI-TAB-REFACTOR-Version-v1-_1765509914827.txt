@@ -1,0 +1,444 @@
+KITEFRAME — PROJECT PANEL + KITEAI TAB REFACTOR
+Version: v1
+Author: ChatGPT (spec based on current code description)
+Scope: UI + light state changes only, no behavior changes to PRD/AI logic yet
+
+GOALS
+1) Move KiteAI chat into the right-side ProjectPanel as the FIRST tab.
+2) New tab order: KiteAI, Layers, Specs, Notes, Sources, Details.
+3) KiteAI tab becomes the DEFAULT tab when opening a project.
+4) Tab selection is persisted PER PROJECT (using projectId).
+5) Remove the floating KiteAI chat panel (for now) so there is a single, consistent chat workspace.
+6) Do NOT change the business logic of AI or PRD yet — just rewire UI, state, and layout.
+
+FILES TO TOUCH (EXPECTED)
+- client/src/components/panels/ProjectPanel/ProjectPanel.tsx
+- client/src/components/panels/ProjectPanel/LayersTab.tsx (read-only, no changes expected)
+- client/src/components/panels/ProjectPanel/SpecsTab.tsx (read-only, no changes expected)
+- client/src/components/panels/ProjectPanel/NotesTab.tsx (read-only)
+- client/src/components/panels/ProjectPanel/SourcesTab.tsx (read-only)
+- client/src/components/panels/ProjectPanel/ProjectDetailsTab.tsx (read-only)
+- client/src/components/KiteAIChat.tsx (refactor into a reusable “panel” variant)
+- client/src/pages/workflow-editor.tsx (remove floating chat, pass props into panel)
+- client/src/stores or utils (if we create a small helper for tab persistence; optional)
+
+If you find structural differences, STOP and leave TODO comments instead of guessing.
+
+======================================================================
+SECTION 1 — ADD A KITEAI TAB TO PROJECT PANEL
+======================================================================
+
+1.1. CREATE A LIGHTWEIGHT KITEAI TAB WRAPPER
+
+Goal:
+- Keep ProjectPanel presentation simple.
+- Wrap the existing KiteAIChat logic in a “panel-style” component without drag/resize.
+
+Implementation:
+
+a) Create a new file:
+- client/src/components/panels/ProjectPanel/KiteAITab.tsx
+
+b) Implement a simple wrapper that:
+- Accepts projectId, nodes, edges, canvasObjects as props.
+- Renders the “panel variant” of KiteAI chat (see Section 2).
+- Uses full height of the TabsContent area.
+
+Sketch:
+
+import React from 'react';
+import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
+import { KiteAIChatPanel } from '@/components/KiteAIChat'; // this will be created in Section 2
+
+type KiteAITabProps = {
+  projectId: string;
+  nodes: Node[];
+  edges: Edge[];
+  canvasObjects: CanvasObject[];
+};
+
+export function KiteAITab({ projectId, nodes, edges, canvasObjects }: KiteAITabProps) {
+  return (
+    <div className="flex h-full w-full">
+      <KiteAIChatPanel
+        projectId={projectId}
+        nodes={nodes}
+        edges={edges}
+        canvasObjects={canvasObjects}
+      />
+    </div>
+  );
+}
+
+NOTE:
+- If types/names differ slightly, adapt but keep this architecture: ProjectPanel → KiteAITab → KiteAIChatPanel.
+
+======================================================================
+SECTION 2 — REFATOR KITEAICHAT INTO FLOATING + PANEL VARIANTS
+======================================================================
+
+Current state (from answers):
+- client/src/components/KiteAIChat.tsx is a single 1000+ line component.
+- It contains:
+  - message state
+  - drag/resize logic (window-level mousemove/mouseup)
+  - visual “floating window” container
+  - AI calls via useAi()
+  - uses nodes/edges/canvasObjects props from workflow editor
+
+We need to split this into:
+- A PRESENTATIONAL “chat view” that can live inside any container (no drag/resize).
+- A FLOATING wrapper (optional, but for now we will *not* mount it).
+- A PANEL wrapper (KiteAIChatPanel) used by ProjectPanel.
+
+2.1. INTERNAL REFACTOR (SINGLE FILE, NO NEW EXPORTS YET)
+
+Inside client/src/components/KiteAIChat.tsx:
+
+a) Introduce a new internal component, e.g. ChatView:
+
+- Responsibility:
+  - Render header, messages list, input, send button, etc.
+  - Handle message state, AI calls, scrolling, etc.
+  - NO drag/resize logic.
+  - NO absolutely-positioned container.
+
+- Props (minimum):
+  - projectId: string
+  - nodes: Node[]
+  - edges: Edge[]
+  - canvasObjects: CanvasObject[]
+  - mode?: 'panel' | 'floating' (for small style tweaks, if needed)
+
+b) Keep existing message state & AI logic inside ChatView:
+  - Reuse useAi() and existing sendMessage logic.
+  - DO NOT change the AI prompt logic in this refactor.
+  - Later we can improve prompts/agents.
+
+c) Move drag/resize + absolutely-positioned wrapper into a new internal component, e.g. FloatingKiteAIChat:
+
+- FloatingKiteAIChat:
+  - Renders a <div> with absolute/fixed positioning.
+  - Manages isOpen, isDragging, isResizing, position, size.
+  - Inside that div, render <ChatView mode="floating" ... />
+
+d) Create a PANEL EXPORT:
+
+- Export a new named component from this file:
+
+export function KiteAIChatPanel(props: {
+  projectId: string;
+  nodes: Node[];
+  edges: Edge[];
+  canvasObjects: CanvasObject[];
+}) {
+  // No dragging; layout is controlled by parent (ProjectPanel).
+  // Use a simple flex column that fills its parent.
+  return (
+    <div className="flex h-full w-full flex-col border-l">
+      <ChatView
+        mode="panel"
+        projectId={props.projectId}
+        nodes={props.nodes}
+        edges={props.edges}
+        canvasObjects={props.canvasObjects}
+      />
+    </div>
+  );
+}
+
+e) Preserve the existing default export (if any) for backwards compatibility:
+
+- If the current file exports default function KiteAIChat(...) used by workflow-editor:
+  - Keep it, but have it just render FloatingKiteAIChat.
+  - We will then stop mounting it in workflow-editor.tsx (Section 3).
+  - This keeps the code usable if we bring back the floating panel later.
+
+2.2. OPTIONAL (BUT RECOMMENDED): PROJECT-SCOPED CHAT PERSISTENCE
+
+- Today, chat messages live only in React state and are lost on unmount.
+- Since panel tabs may unmount/remount, we should persist per project.
+
+Implementation pattern (inside ChatView):
+
+- Use projectId prop in a useEffect/useState pair:
+
+const STORAGE_KEY = `kiteframe-kiteai-chat-${projectId}`;
+
+const [messages, setMessages] = useState<ChatMessage[]>(() => {
+  if (typeof window === 'undefined') return defaultMessages;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : defaultMessages;
+  } catch {
+    return defaultMessages;
+  }
+});
+
+useEffect(() => {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+  } catch {
+    // fail silently
+  }
+}, [projectId, messages]);
+
+- “defaultMessages” can be the current initial welcome message.
+
+- DO NOT persist isDragging/isResizing/position/size in this refactor.
+
+======================================================================
+SECTION 3 — REMOVE FLOATING CHAT FROM WORKFLOW EDITOR
+======================================================================
+
+Goal:
+- There should be only ONE KiteAI UI: the tab inside ProjectPanel.
+- No floating chat on top of the canvas for now (we can add “pop out” later).
+
+3.1. FIND AND REMOVE FLOATING KITEAI MOUNT
+
+In client/src/pages/workflow-editor.tsx:
+
+a) Search for KiteAIChat usage, something like:
+
+import KiteAIChat from '@/components/KiteAIChat';
+// or
+<KiteAIChat ... />
+
+b) Remove the JSX that renders the floating chat component.
+
+- DO NOT remove useAi provider or any AI-related hooks used elsewhere.
+- DO NOT remove the rocket “power” button if it is used for other imports.
+- If the rocket currently toggles KiteAIChat’s visibility, remove that logic
+  or change it to a TODO comment (we will repurpose later).
+
+c) Make sure workflow-editor still compiles:
+- No unused imports for KiteAIChat.
+- No undefined handlers.
+
+NOTE:
+- The AI functionality is now accessed exclusively via the KiteAI tab
+  in the right panel.
+
+======================================================================
+SECTION 4 — PROJECTPANEL: ADD KITEAI TAB, CHANGE ORDER, PERSIST SELECTION
+======================================================================
+
+4.1. IMPORT NEW KITEAI TAB
+
+In client/src/components/panels/ProjectPanel/ProjectPanel.tsx:
+
+a) Add import:
+
+import { KiteAITab } from './KiteAITab';
+
+b) Ensure we still import all other tabs:
+- LayersTab
+- NotesTab
+- SpecsTab
+- SourcesTab
+- ProjectDetailsTab
+
+4.2. TAB ORDER UPDATE
+
+Current tabs (from your answers):
+- layers
+- notes
+- specs
+- sources
+- details
+
+New order (explicit):
+1) kiteai
+2) layers
+3) specs
+4) notes
+5) sources
+6) details
+
+Implementation:
+
+a) In the <TabsList>, reorder the <TabsTrigger> components.
+
+Example (adapt to exact code):
+
+<TabsList className="...">
+  <TabsTrigger value="kiteai">
+    <RocketIcon className="mr-2 h-4 w-4" />
+    KiteAI
+  </TabsTrigger>
+
+  <TabsTrigger value="layers">
+    <ListTree className="mr-2 h-4 w-4" />
+    Layers
+  </TabsTrigger>
+
+  <TabsTrigger value="specs">
+    <Palette className="mr-2 h-4 w-4" />
+    Specs
+  </TabsTrigger>
+
+  <TabsTrigger value="notes">
+    <FileText className="mr-2 h-4 w-4" />
+    Notes
+  </TabsTrigger>
+
+  <TabsTrigger value="sources">
+    <Link2 className="mr-2 h-4 w-4" />
+    Sources
+  </TabsTrigger>
+
+  <TabsTrigger value="details">
+    <FolderOpen className="mr-2 h-4 w-4" />
+    Details
+  </TabsTrigger>
+</TabsList>
+
+NOTE:
+- Reuse the existing Rocket icon import if it exists.
+- If you don’t have a Rocket icon in this file yet, import the same
+  icon used in the left toolbar “power” button (Lucide Rocket).
+
+b) Add corresponding <TabsContent> for "kiteai" BEFORE all others:
+
+<TabsContent value="kiteai" className="h-full">
+  <KiteAITab
+    projectId={projectId}
+    nodes={nodes}
+    edges={edges}
+    canvasObjects={canvasObjects}
+  />
+</TabsContent>
+
+Keep existing TabsContent for:
+- layers
+- specs
+- notes
+- sources
+- details
+
+4.3. DEFAULT TAB LOGIC + PER-PROJECT PERSISTENCE
+
+Goal:
+- Initially, when a project is opened, KiteAI should be the default tab.
+- If the user switches tabs, that choice should persist PER project.
+
+Implementation:
+
+a) Add a project-scoped storage key near top of ProjectPanel.tsx:
+
+const PANEL_TAB_KEY_PREFIX = 'kiteframe-project-panel-tab-';
+
+b) Derive an initialTab value using projectId:
+
+const initialTab = React.useMemo(() => {
+  if (typeof window === 'undefined' || !projectId) return 'kiteai';
+  try {
+    const saved = window.localStorage.getItem(
+      `${PANEL_TAB_KEY_PREFIX}${projectId}`
+    );
+    return saved || 'kiteai';
+  } catch {
+    return 'kiteai';
+  }
+}, [projectId]);
+
+c) Use a controlled Tabs component instead of fixed defaultValue if needed:
+
+const [activeTab, setActiveTab] = React.useState(initialTab);
+
+useEffect(() => {
+  // If project changes, update activeTab from storage (or default to kiteai)
+  if (!projectId) return;
+  try {
+    const saved = window.localStorage.getItem(
+      `${PANEL_TAB_KEY_PREFIX}${projectId}`
+    );
+    setActiveTab(saved || 'kiteai');
+  } catch {
+    setActiveTab('kiteai');
+  }
+}, [projectId]);
+
+// Persist on change
+useEffect(() => {
+  if (!projectId || !activeTab) return;
+  try {
+    window.localStorage.setItem(
+      `${PANEL_TAB_KEY_PREFIX}${projectId}`,
+      activeTab
+    );
+  } catch {
+    // ignore
+  }
+}, [projectId, activeTab]);
+
+d) Wire Tabs to activeTab:
+
+<Tabs
+  value={activeTab}
+  onValueChange={setActiveTab}
+  className="flex h-full flex-col"
+>
+
+- Remove any existing defaultValue="layers" or similar.
+- If Tabs is already controlled, merge with the existing logic rather than overwrite.
+
+======================================================================
+SECTION 5 — PRESERVE SPEC/PRD UX (NO BEHAVIOR CHANGE)
+======================================================================
+
+We are NOT changing PRD behavior in this refactor. However, please confirm:
+
+5.1. SpecsTab continues to:
+- Use groupWorkflows(nodes, edges) to list workflow groups.
+- Let the user choose a workflow from a selector/dropdown.
+- Load/save PRD via prdStorage.ts (prd-workflow-${projectId}-${workflowId}).
+
+5.2. The user can still:
+- Manually open Specs tab without clicking a node.
+- Change the workflow selection from within the tab.
+
+If any of this is not true, DO NOT change behavior in this spec. Instead:
+- Leave code as-is and add a TODO comment summarizing the deviation.
+
+======================================================================
+SECTION 6 — CLEANUP + QA CHECKLIST
+======================================================================
+
+After implementing the above, please verify the following in the browser:
+
+1) On page load for any project:
+   - Right panel is visible.
+   - KiteAI tab is the first tab in the header.
+   - KiteAI tab is selected by default.
+   - KiteAI chat shows its welcome message.
+   - No floating chat panel is visible anywhere.
+
+2) Switch to “Layers”, “Specs”, “Notes”, “Sources”, “Details”:
+   - All content behaves exactly as before (no regressions).
+   - Scrolling, editing notes, editing PRDs, editing details still works.
+
+3) Switch projects (change top-center project tab):
+   - ProjectPanel stays visible on the right.
+   - For each project:
+     - If the tab was never changed, default selection should be KiteAI.
+     - If you previously selected “Layers” for Project A, it should reopen to Layers for Project A.
+     - If you then switch to Project B and select “Specs”, that selection should be remembered independently.
+
+4) Refresh the page while on a non-KiteAI tab:
+   - The last-known tab for that project should be restored after reload.
+
+5) Confirm no console errors:
+   - No React key warnings from Tabs.
+   - No undefined props for KiteAITab.
+   - No window listener leaks (drag/resize should not be active for panel mode).
+
+6) Confirm AI still works:
+   - From KiteAI tab, send a message asking about the current workflow.
+   - Ensure it responds similarly to the old floating chat behavior.
+   - Confirm messages persist if you switch tabs and come back.
+
+======================================================================
+END OF SPEC
+======================================================================
