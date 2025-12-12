@@ -1,0 +1,180 @@
+=================================================
+KITEFRAME — PHASE 3.6
+PRD IMPORT / EXPORT (MVP)
+REPLIT IMPLEMENTATION INSTRUCTIONS
+=================================================
+
+GOAL
+-----
+Enable users to IMPORT and EXPORT PRDs without OAuth or live sync.
+This phase establishes the foundation for future Jira / Google / Notion
+integrations while delivering immediate user value.
+
+NON-GOALS (DO NOT IMPLEMENT)
+----------------------------
+- No OAuth integrations (Jira, Google, Notion)
+- No live sync
+- No round-trip updates
+- No version merging
+- No background polling or webhooks
+- No PDF export
+
+-------------------------------------------------
+SECTION 1 — DATA MODEL (NO CHANGES REQUIRED)
+-------------------------------------------------
+
+1.1 Canonical PRD format remains:
+WorkflowPRD {
+  sections: Array<{
+    id: string
+    title: string
+    content: string (markdown)
+  }>
+  version: number
+  generatedAt: timestamp
+  manualEditedAt?: Record<sectionId, timestamp>
+}
+
+1.2 All imports must produce a NEW PRD draft.
+Never overwrite existing PRDs.
+
+-------------------------------------------------
+SECTION 2 — EXPORT PRD AS MARKDOWN
+-------------------------------------------------
+
+2.1 Add PRD export utilities
+File: client/src/lib/kiteframe/utils/prdExport.ts
+
+Functions:
+- exportWorkflowPRDToMarkdown(prd: WorkflowPRD): string
+- exportProjectPRDToMarkdown(prd: ProjectPRD): string
+
+Rules:
+- Each section becomes:
+  ## {section.title}
+  {section.content}
+- Preserve markdown exactly as stored
+- No AI rewriting
+- Deterministic output
+
+2.2 UI — Export actions
+File: client/src/components/panels/ProjectPanel/SpecsTab.tsx
+
+Add an "Import / Export" dropdown in the Specs tab header:
+- Copy as Markdown
+- Download .md
+
+Behavior:
+- Copy uses clipboard API
+- Download uses Blob + URL.createObjectURL
+- Filename format:
+  kiteframe-{projectName}-{workflowName}.md
+
+-------------------------------------------------
+SECTION 3 — IMPORT PRD FROM TEXT / MARKDOWN
+-------------------------------------------------
+
+3.1 Import parser
+File: client/src/lib/kiteframe/utils/prdImport.ts
+
+Function:
+- parseImportedPRD(inputText: string): WorkflowPRD
+
+Parsing rules (MVP):
+- Split on markdown headings (## )
+- Each heading becomes a section
+- Content under heading becomes section.content
+- If no headings found:
+  - Create single section:
+    title = "Imported PRD"
+    content = full text
+
+3.2 Import behavior
+- Always create a NEW PRD draft
+- Set generatedAt = now
+- version = 1
+- manualEditedAt = empty
+
+-------------------------------------------------
+SECTION 4 — UI FOR IMPORT
+-------------------------------------------------
+
+4.1 Import UI location
+Specs tab header → "Import / Export" dropdown
+
+Options:
+- Paste text / markdown
+- Upload .txt or .md file
+
+4.2 Import modal
+File: client/src/components/modals/ImportPRDModal.tsx (new)
+
+Modal contents:
+- Large textarea for paste
+- File upload input
+- Preview (optional, can be skipped for MVP)
+- Confirm / Cancel buttons
+
+On confirm:
+- Call parseImportedPRD()
+- Save as new workflow PRD
+- Do NOT overwrite existing PRDs
+
+-------------------------------------------------
+SECTION 5 — SOURCES TAB INTEGRATION
+-------------------------------------------------
+
+5.1 Track imported documents
+When a PRD is imported:
+- Add entry to Sources tab:
+  {
+    type: "document"
+    title: "Imported PRD"
+    origin: "manual"
+    createdAt
+  }
+
+5.2 No backlinks required yet
+Just list as reference.
+
+-------------------------------------------------
+SECTION 6 — STATE & PERSISTENCE
+-------------------------------------------------
+
+6.1 Storage
+Continue using existing storage:
+- prd-workflow-${projectId}-${workflowId}
+- prd-project-${projectId}
+
+6.2 Versioning
+- Save previous PRD as backup before import
+- Reuse existing backup mechanism
+
+-------------------------------------------------
+SECTION 7 — TESTING CHECKLIST
+-------------------------------------------------
+
+Confirm:
+- Exported markdown matches PRD exactly
+- Import creates a NEW PRD
+- Existing PRDs remain untouched
+- Imported PRD renders correctly in Specs tab
+- Source entry appears after import
+- Works for both workflow PRD and project PRD
+
+-------------------------------------------------
+SECTION 8 — FUTURE-PROOFING (NO CODE YET)
+-------------------------------------------------
+
+DO NOT implement yet, but structure code so this is easy later:
+- Jira adapter (read-only)
+- Google Docs adapter
+- Notion markdown export
+- OAuth-based fetchers
+
+Place future adapters under:
+client/src/lib/integrations/
+
+=================================================
+END PHASE 3.6 INSTRUCTIONS
+=================================================
