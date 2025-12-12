@@ -196,7 +196,7 @@ export function WorkflowCanvas({
     const zoomX = (containerWidth - 2 * padding) / contentWidth;
     const zoomY = (containerHeight - 2 * padding) / contentHeight;
     const fitZoom = Math.min(zoomX, zoomY);
-    const zoom = Math.max(0.1, Math.min(fitZoom, 2)); // Properly clamp between 0.1 and 2
+    const zoom = Math.max(0.1, fitZoom); // Remove upper cap to allow proper zoom for single nodes
     
     // Calculate center position
     const centerX = minX + (maxX - minX) / 2;
