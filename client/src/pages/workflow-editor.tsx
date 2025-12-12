@@ -7924,8 +7924,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         <FigmaImportModal
           isOpen={showFigmaModal}
           onClose={() => setShowFigmaModal(false)}
-          onImport={async (framesWithThumbnails, mode, figmaInfo) => {
-            console.log('[WorkflowEditor] onImport received:', framesWithThumbnails.length, 'frames, mode:', mode);
+          onImport={async (framesWithThumbnails, mode, figmaInfo, importMode) => {
+            console.log('[WorkflowEditor] onImport received:', framesWithThumbnails.length, 'frames, mode:', mode, 'importMode:', importMode);
             console.log('[WorkflowEditor] Frame details:', framesWithThumbnails.map(f => ({
               name: f.frame.name,
               id: f.frame.id,
@@ -7942,10 +7942,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               return;
             }
             
+            let importedNodeIds: string[] = [];
+            
             if (mode === 'new-project') {
               console.log('[WorkflowEditor] Creating new project with', framesWithThumbnails.length, 'frames');
-              const workflowData = buildFigmaFrameWorkflow(framesWithThumbnails, { x: 100, y: 100 }, 50, figmaInfo?.fileKey);
+              const workflowData = buildFigmaFrameWorkflow(framesWithThumbnails, { x: 100, y: 100 }, 50, figmaInfo?.fileKey, { importMode });
               console.log('[WorkflowEditor] Built workflow data - nodes:', workflowData.nodes.length, 'edges:', workflowData.edges.length);
+              importedNodeIds = workflowData.nodes.map(n => n.id);
               const name = generateCuteName();
               const newTabId = generateTabId();
               const projectUuid = `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -7986,10 +7989,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 title: "Figma Imported",
                 description: `Created "${name}" with ${framesWithThumbnails.length} frame${framesWithThumbnails.length > 1 ? 's' : ''}.`,
               });
+              
+              if (importMode === 'workflow' && importedNodeIds.length > 0) {
+                setTimeout(() => {
+                  setWorkflowPreviewFrameIds(importedNodeIds);
+                  setShowWorkflowPreviewModal(true);
+                }, 300);
+              }
             } else {
               console.log('[WorkflowEditor] Inserting into existing project with', framesWithThumbnails.length, 'frames');
               saveToHistory();
-              const newNodes = insertFigmaFrames(nodes, framesWithThumbnails, 50, figmaInfo?.fileKey);
+              const newNodes = insertFigmaFrames(nodes, framesWithThumbnails, 50, figmaInfo?.fileKey, { importMode });
+              importedNodeIds = newNodes.map(n => n.id);
               console.log('[WorkflowEditor] Created new nodes:', newNodes.length);
               setNodes(prev => [...prev, ...newNodes]);
               
@@ -8001,6 +8012,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 title: "Figma Added",
                 description: `Added ${framesWithThumbnails.length} frame${framesWithThumbnails.length > 1 ? 's' : ''} to your workflow.`,
               });
+              
+              if (importMode === 'workflow' && importedNodeIds.length > 0) {
+                setTimeout(() => {
+                  setWorkflowPreviewFrameIds(importedNodeIds);
+                  setShowWorkflowPreviewModal(true);
+                }, 300);
+              }
             }
             
             setShowFigmaModal(false);

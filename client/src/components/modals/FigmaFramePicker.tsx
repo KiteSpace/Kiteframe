@@ -9,9 +9,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, Loader2, Image, Layers } from 'lucide-react';
+import { AlertCircle, Loader2, Image, Layers, ImageIcon, Workflow } from 'lucide-react';
 import { SiFigma } from 'react-icons/si';
 import { fetchFigmaThumbnails, type FigmaFrame } from '@/lib/integration/figmaApi';
+
+export type FigmaImportMode = 'reference' | 'workflow';
 
 interface FigmaFramePickerProps {
   isOpen: boolean;
@@ -20,7 +22,7 @@ interface FigmaFramePickerProps {
   fileName: string;
   fileKey: string;
   patToken?: string;
-  onSelect: (frames: FigmaFrame[]) => void;
+  onSelect: (frames: FigmaFrame[], importMode: FigmaImportMode) => void;
   isLoading: boolean;
   error: string | null;
 }
@@ -40,6 +42,7 @@ export function FigmaFramePicker({
   const [thumbnails, setThumbnails] = useState<Record<string, string | null>>({});
   const [loadingThumbnails, setLoadingThumbnails] = useState(false);
   const [hoveredFrameId, setHoveredFrameId] = useState<string | null>(null);
+  const [importMode, setImportMode] = useState<FigmaImportMode>('reference');
 
   useEffect(() => {
     if (frames.length > 0) {
@@ -79,10 +82,10 @@ export function FigmaFramePicker({
 
   const handleImport = useCallback(() => {
     const selectedFrames = frames.filter(f => selectedIds.has(f.id));
-    console.log('[FigmaFramePicker] Import clicked - selected:', selectedFrames.length, 'frames');
+    console.log('[FigmaFramePicker] Import clicked - selected:', selectedFrames.length, 'frames', 'mode:', importMode);
     console.log('[FigmaFramePicker] Frame names:', selectedFrames.map(f => f.name));
-    onSelect(selectedFrames);
-  }, [frames, selectedIds, onSelect]);
+    onSelect(selectedFrames, importMode);
+  }, [frames, selectedIds, onSelect, importMode]);
 
   const groupedByPage = frames.reduce((acc, frame) => {
     if (!acc[frame.pageName]) {
@@ -219,6 +222,60 @@ export function FigmaFramePicker({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        <div className="border rounded-md p-3 bg-muted/20">
+          <div className="text-sm font-medium mb-2">Import Mode</div>
+          <div className="flex flex-col gap-2">
+            <label 
+              className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
+                importMode === 'reference' ? 'bg-primary/10 border border-primary/30' : 'hover:bg-muted/50'
+              }`}
+              data-testid="radio-import-reference"
+            >
+              <input
+                type="radio"
+                name="importMode"
+                checked={importMode === 'reference'}
+                onChange={() => setImportMode('reference')}
+                className="sr-only"
+              />
+              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                importMode === 'reference' ? 'border-primary' : 'border-muted-foreground'
+              }`}>
+                {importMode === 'reference' && <div className="w-2 h-2 rounded-full bg-primary" />}
+              </div>
+              <ImageIcon size={16} className="text-muted-foreground" />
+              <div className="flex-1">
+                <div className="text-sm font-medium">Reference images only</div>
+                <div className="text-xs text-muted-foreground">Import as visual references, no workflow generation</div>
+              </div>
+            </label>
+            <label 
+              className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
+                importMode === 'workflow' ? 'bg-primary/10 border border-primary/30' : 'hover:bg-muted/50'
+              }`}
+              data-testid="radio-import-workflow"
+            >
+              <input
+                type="radio"
+                name="importMode"
+                checked={importMode === 'workflow'}
+                onChange={() => setImportMode('workflow')}
+                className="sr-only"
+              />
+              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                importMode === 'workflow' ? 'border-primary' : 'border-muted-foreground'
+              }`}>
+                {importMode === 'workflow' && <div className="w-2 h-2 rounded-full bg-primary" />}
+              </div>
+              <Workflow size={16} className="text-muted-foreground" />
+              <div className="flex-1">
+                <div className="text-sm font-medium">Generate workflows from selected frames</div>
+                <div className="text-xs text-muted-foreground">Analyze frames and create workflow nodes</div>
+              </div>
+            </label>
           </div>
         </div>
 

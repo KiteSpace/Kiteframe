@@ -7,6 +7,16 @@
  * NOT used for visual reconstruction - only for AI workflow generation and analysis.
  */
 
+/**
+ * Semantic Debug Logger - logs structured debug info in development only.
+ * Avoid console spam; use for summary and truncation events only.
+ */
+function logSemanticDebug(...args: unknown[]) {
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production') return;
+  // eslint-disable-next-line no-console
+  console.log('[SemanticDebug]', ...args);
+}
+
 import type {
   FigmaSemanticMetadata,
   FigmaSemanticElement,
@@ -48,6 +58,12 @@ export function extractFigmaSemanticMetadata(
       if (!truncated) {
         truncated = true;
         truncationReason = `Max depth (${MAX_DEPTH}) exceeded`;
+        logSemanticDebug('Extractor truncating tree', {
+          frameId,
+          reason: 'MAX_DEPTH',
+          depth,
+          elementCount,
+        });
       }
       return;
     }
@@ -56,6 +72,12 @@ export function extractFigmaSemanticMetadata(
       if (!truncated) {
         truncated = true;
         truncationReason = `Max elements (${MAX_ELEMENTS}) exceeded`;
+        logSemanticDebug('Extractor truncating tree', {
+          frameId,
+          reason: 'MAX_ELEMENTS',
+          depth,
+          elementCount,
+        });
       }
       return;
     }
@@ -162,6 +184,25 @@ export function extractFigmaSemanticMetadata(
   const secondaryActionIds = elements
     .filter(e => e.isSecondaryAction && e.role === 'action')
     .map(e => e.id);
+
+  logSemanticDebug('Extractor result for frame', {
+    frameId,
+    frameName,
+    pageName,
+    totalElements: elements.length,
+    counts: {
+      headings: elements.filter(e => e.type === 'heading').length,
+      text: elements.filter(e => e.type === 'text').length,
+      buttons: elements.filter(e => e.type === 'button').length,
+      inputs: elements.filter(e => e.type === 'input').length,
+      links: elements.filter(e => e.type === 'link').length,
+      sections: elements.filter(e => e.type === 'section').length,
+    },
+    forms: forms.length,
+    navigationTargets: navigationTargets.length,
+    truncated: truncated ?? false,
+    truncationReason: truncationReason ?? null,
+  });
 
   return {
     frameId,

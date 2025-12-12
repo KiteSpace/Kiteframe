@@ -1,6 +1,7 @@
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import type { FigmaFrame } from '@/lib/integration/figmaApi';
 import type { FigmaSemanticMetadata } from '@/lib/integration/figmaSemanticTypes';
+import type { FigmaImportMode } from '@/components/modals/FigmaFramePicker';
 
 export interface WorkflowData {
   nodes: Node[];
@@ -15,6 +16,10 @@ export interface FigmaFrameWithThumbnail {
   figmaSemantic?: FigmaSemanticMetadata | null;
 }
 
+export interface FigmaBuildOptions {
+  importMode?: FigmaImportMode;
+}
+
 function generateId(): string {
   return `figma-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
@@ -23,10 +28,12 @@ export function buildFigmaFrameWorkflow(
   framesWithThumbnails: FigmaFrameWithThumbnail[],
   startPosition: { x: number; y: number } = { x: 100, y: 100 },
   spacing: number = 50,
-  figmaFileKey?: string
+  figmaFileKey?: string,
+  options?: FigmaBuildOptions
 ): WorkflowData {
   const nodes: Node[] = [];
   let currentX = startPosition.x;
+  const isReferenceFrame = options?.importMode !== 'workflow';
 
   for (const { frame, thumbnailUrl, figmaSemantic } of framesWithThumbnails) {
     const nodeWidth = Math.min(frame.width, 800);
@@ -43,14 +50,11 @@ export function buildFigmaFrameWorkflow(
         label: frame.name,
         src: thumbnailUrl || '',
         sourceType: 'figma-frame',
-        // Core Figma metadata (spec-compliant)
         figmaFileKey: figmaFileKey || '',
         figmaNodeId: frame.id,
         figmaNodeName: frame.name,
-        // Reference frame flags
-        isReferenceFrame: false,
+        isReferenceFrame,
         importedFrom: 'figma',
-        // Legacy fields (kept for backward compatibility)
         figmaId: frame.id,
         figmaType: frame.type,
         figmaPageName: frame.pageName,
@@ -83,7 +87,8 @@ export function insertFigmaFrames(
   existingNodes: Node[],
   framesWithThumbnails: FigmaFrameWithThumbnail[],
   spacing: number = 50,
-  figmaFileKey?: string
+  figmaFileKey?: string,
+  options?: FigmaBuildOptions
 ): Node[] {
   const maxX = existingNodes.reduce((max, n) => Math.max(max, n.position.x + ((n.style as any)?.width || 200)), 0);
   
@@ -91,7 +96,8 @@ export function insertFigmaFrames(
     framesWithThumbnails,
     { x: maxX + spacing, y: 100 },
     spacing,
-    figmaFileKey
+    figmaFileKey,
+    options
   );
 
   return nodes;

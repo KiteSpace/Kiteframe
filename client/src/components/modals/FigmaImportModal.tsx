@@ -24,7 +24,7 @@ import {
 } from '@/lib/integration/figmaApi';
 import { extractFigmaSemanticMetadata } from '@/lib/integration/figmaSemanticExtractor';
 import type { FigmaSemanticMetadata } from '@/lib/integration/figmaSemanticTypes';
-import { FigmaFramePicker } from './FigmaFramePicker';
+import { FigmaFramePicker, type FigmaImportMode } from './FigmaFramePicker';
 
 export interface FigmaImportInfo {
   url: string;
@@ -35,7 +35,12 @@ export interface FigmaImportInfo {
 interface FigmaImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (frames: Array<{ frame: FigmaFrame; thumbnailUrl: string | null; figmaSemantic?: FigmaSemanticMetadata | null }>, mode: 'new-project' | 'insert-into-project', figmaInfo?: FigmaImportInfo) => Promise<void> | void;
+  onImport: (
+    frames: Array<{ frame: FigmaFrame; thumbnailUrl: string | null; figmaSemantic?: FigmaSemanticMetadata | null }>, 
+    mode: 'new-project' | 'insert-into-project', 
+    figmaInfo?: FigmaImportInfo,
+    importMode?: FigmaImportMode
+  ) => Promise<void> | void;
   mode: 'new-project' | 'insert-into-project';
 }
 
@@ -280,8 +285,8 @@ export function FigmaImportModal({
     }
   }, [url, pat, figmaStatus, onImport, onClose, mode, resetState, queryFigmaStatus]);
 
-  const handleFrameSelect = useCallback(async (selectedFrames: FigmaFrame[]) => {
-    console.log('[FigmaImport] handleFrameSelect called with', selectedFrames.length, 'frames');
+  const handleFrameSelect = useCallback(async (selectedFrames: FigmaFrame[], importMode: FigmaImportMode = 'reference') => {
+    console.log('[FigmaImport] handleFrameSelect called with', selectedFrames.length, 'frames', 'importMode:', importMode);
     console.log('[FigmaImport] Selected frames:', selectedFrames.map(f => `${f.id}: ${f.name}`));
     
     if (selectedFrames.length === 0) return;
@@ -325,13 +330,13 @@ export function FigmaImportModal({
         };
       });
 
-      console.log('[FigmaImport] Calling onImport with', framesWithThumbnails.length, 'frames');
+      console.log('[FigmaImport] Calling onImport with', framesWithThumbnails.length, 'frames', 'importMode:', importMode);
       console.log('[FigmaImport] Frames with semantic:', framesWithThumbnails.filter(f => f.figmaSemantic).length);
       await onImport(framesWithThumbnails, mode, {
         url: url.trim(),
         fileKey,
         fileName
-      });
+      }, importMode);
       resetState();
       onClose();
     } catch (err) {
@@ -346,7 +351,7 @@ export function FigmaImportModal({
     } finally {
       setIsLoading(false);
     }
-  }, [fileKey, pat, figmaStatus, onImport, onClose, mode, resetState, queryFigmaStatus]);
+  }, [fileKey, fileName, url, pat, figmaStatus, onImport, onClose, mode, resetState, queryFigmaStatus]);
 
   const handleOAuthConnect = useCallback(() => {
     if (figmaStatus?.connected) return;

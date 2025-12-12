@@ -7,6 +7,15 @@
  * Usage: Select a Figma ImageNode with semantic data, click "Generate Workflow" in toolbar.
  */
 
+/**
+ * Semantic Debug Logger - logs structured debug info in development only.
+ */
+function logSemanticDebug(...args: unknown[]) {
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production') return;
+  // eslint-disable-next-line no-console
+  console.log('[SemanticDebug]', ...args);
+}
+
 import type { Node, Edge } from '../kiteframe/types';
 import type { 
   FigmaSemanticMetadata, 
@@ -31,6 +40,80 @@ const MODE_DEFAULTS: Record<WorkflowGenerationMode, { maxSteps: number }> = {
   detailed: { maxSteps: 30 },
   ai_refined: { maxSteps: 50 },
 };
+
+const MAX_CLUSTERS = 8;
+
+interface StateCluster {
+  id: string;
+  label: string;
+  elementIds: string[];
+}
+
+/**
+ * Infer logical state clusters from a single frame's semantic data.
+ * Used for single-frame state splitting in detailed workflow generation.
+ */
+function inferStateClustersFromSemantic(semantic: FigmaSemanticMetadata): { clusters: StateCluster[] } {
+  const elements = semantic.elements ?? [];
+  const forms = semantic.forms ?? [];
+  const navigationTargets = semantic.navigationTargets ?? [];
+  const clusters: StateCluster[] = [];
+
+  if (elements.length === 0) {
+    return { clusters };
+  }
+
+  if (forms.length > 1) {
+    forms.forEach((form, index) => {
+      clusters.push({
+        id: `form-${index + 1}`,
+        label: form.name || `Form state ${index + 1}`,
+        elementIds: [...form.fieldIds, ...form.submitButtonIds],
+      });
+    });
+  }
+
+  const sectionElements = elements.filter(e => e.type === 'section');
+  if (sectionElements.length > 1) {
+    sectionElements.forEach((section, index) => {
+      clusters.push({
+        id: `section-${index + 1}`,
+        label: section.name || `Section ${index + 1}`,
+        elementIds: [section.id],
+      });
+    });
+  }
+
+  const navGroupsByTarget = new Map<string, string[]>();
+  for (const target of navigationTargets) {
+    if (!target.inferredTargetName) continue;
+    const key = target.inferredTargetName;
+    const arr = navGroupsByTarget.get(key) ?? [];
+    arr.push(target.elementId);
+    navGroupsByTarget.set(key, arr);
+  }
+  if (navGroupsByTarget.size > 1) {
+    let idx = 1;
+    navGroupsByTarget.forEach((elementIds, name) => {
+      clusters.push({
+        id: `nav-${idx}`,
+        label: `State: ${name}`,
+        elementIds,
+      });
+      idx += 1;
+    });
+  }
+
+  if (clusters.length > MAX_CLUSTERS) {
+    logSemanticDebug('WorkflowGenerator cluster count exceeds max, truncating', {
+      originalCount: clusters.length,
+      maxClusters: MAX_CLUSTERS,
+    });
+    return { clusters: clusters.slice(0, MAX_CLUSTERS) };
+  }
+
+  return { clusters };
+}
 
 function generateNodeId(): string {
   return `wf-node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -162,6 +245,41 @@ function buildDetailedWorkflow(
   startPosition: { x: number; y: number },
   maxSteps: number
 ): GeneratedWorkflow {
+  const { clusters } = inferStateClustersFromSemantic(semantic);
+  
+  if (clusters.length > 1) {
+    logSemanticDebug('WorkflowGenerator multi-state heuristic triggered', {
+      clusterCount: clusters.length,
+      clusters: clusters.map(c => ({
+        id: c.id,
+        label: c.label,
+        elementCount: c.elementIds.length,
+      })),
+    });
+
+    const nodes: Node[] = [];
+    const edges: Edge[] = [];
+    let currentY = startPosition.y;
+
+    for (let i = 0; i < clusters.length && nodes.length < maxSteps; i++) {
+      const cluster = clusters[i];
+      const node = createProcessNode(generateNodeId(), { x: startPosition.x, y: currentY }, {
+        label: cluster.label || `State ${i + 1}`,
+        colors: { headerBackground: '#4f46e5', bodyBackground: '#eef2ff', headerTextColor: '#ffffff' },
+      });
+      node.data.workflowGroupId = workflowGroupId;
+      node.data.sourceElementIds = cluster.elementIds;
+      nodes.push(node);
+
+      if (i > 0) {
+        edges.push(createEdge(nodes[i - 1].id, node.id, workflowGroupId, 'inferred-sequence'));
+      }
+      currentY += NODE_HEIGHT + VERTICAL_SPACING;
+    }
+
+    return { nodes, edges };
+  }
+
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   let currentY = startPosition.y;
@@ -368,6 +486,17 @@ export function generateWorkflowFromFigmaSemantic(
   const mode = options?.mode ?? 'summary';
   const maxSteps = options?.maxSteps ?? MODE_DEFAULTS[mode].maxSteps;
   
+  logSemanticDebug('WorkflowGenerator input', {
+    nodeId: sourceNode.id,
+    label: sourceNode.data?.label,
+    hasSemantic: !!semantic,
+    elementCount: semantic?.elements?.length ?? 0,
+    formCount: semantic?.forms?.length ?? 0,
+    navTargetCount: semantic?.navigationTargets?.length ?? 0,
+    mode,
+    maxSteps,
+  });
+  
   const sourceWidth = (sourceNode.style?.width as number) || sourceNode.width || 400;
   const startPosition = {
     x: sourceNode.position.x + sourceWidth + HORIZONTAL_OFFSET,
@@ -378,6 +507,13 @@ export function generateWorkflowFromFigmaSemantic(
   const workflowGroupId = nodes[0]?.data?.workflowGroupId || `wf-${semantic.frameId || Date.now()}`;
   
   const stepLabels = nodes.map(n => n.data?.label || 'Step');
+  
+  logSemanticDebug('WorkflowGenerator final graph', {
+    nodeCount: nodes.length,
+    edgeCount: edges.length,
+    nodeLabels: stepLabels,
+    mode,
+  });
   
   return {
     nodes,
@@ -490,23 +626,37 @@ Example response format:
     });
 
     if (!response.ok) {
-      console.warn('AI refinement failed, falling back to detailed mode');
+      logSemanticDebug('AIWorkflow request failed, falling back to detailed workflow', {
+        status: response.status,
+      });
       return detailedResults;
     }
 
     const data = await response.json();
     const text = data.text || '';
     
+    logSemanticDebug('AIWorkflow response received', {
+      responseLength: text.length,
+      promptPreview: prompt.slice(0, 300),
+    });
+
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.warn('Could not parse AI response, falling back to detailed mode');
+      logSemanticDebug('AIWorkflow empty/invalid result, falling back to detailed workflow');
       return detailedResults;
     }
 
     const aiResult = JSON.parse(jsonMatch[0]);
     const refinedSteps = aiResult.refinedSteps || [];
 
+    logSemanticDebug('AIWorkflow parsed steps', {
+      stepCount: refinedSteps.length,
+      steps: refinedSteps.slice(0, 10),
+      optimization: aiResult.optimization,
+    });
+
     if (refinedSteps.length === 0) {
+      logSemanticDebug('AIWorkflow returned 0 steps, falling back to detailed workflow');
       return detailedResults;
     }
 
@@ -532,7 +682,7 @@ Example response format:
 
     return { nodes: refinedNodes, edges: refinedEdges };
   } catch (error) {
-    console.warn('AI refinement error, falling back to detailed mode:', error);
+    logSemanticDebug('AIWorkflow error, falling back to detailed workflow', { error });
     return detailedResults;
   }
 }
