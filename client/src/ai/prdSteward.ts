@@ -92,15 +92,17 @@ function parseReviewResponse(text: string): { summary: string; suggestions: PRDS
   
   try {
     const parsed = JSON.parse(cleanedResponse);
+    const allSuggestions = (parsed.suggestions || []).map((s: Record<string, unknown>) => ({
+      sectionId: String(s.sectionId || ''),
+      type: (['improvement', 'missing', 'stale'].includes(String(s.type)) ? s.type : 'improvement') as PRDSuggestion['type'],
+      title: String(s.title || 'Suggestion'),
+      description: String(s.description || ''),
+      suggestedContent: s.suggestedContent ? String(s.suggestedContent) : undefined
+    }));
+    
     return {
       summary: parsed.summary || 'Review complete.',
-      suggestions: (parsed.suggestions || []).map((s: Record<string, unknown>) => ({
-        sectionId: String(s.sectionId || ''),
-        type: (['improvement', 'missing', 'stale'].includes(String(s.type)) ? s.type : 'improvement') as PRDSuggestion['type'],
-        title: String(s.title || 'Suggestion'),
-        description: String(s.description || ''),
-        suggestedContent: s.suggestedContent ? String(s.suggestedContent) : undefined
-      }))
+      suggestions: allSuggestions.slice(0, 5)
     };
   } catch {
     return {
