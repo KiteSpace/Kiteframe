@@ -12,11 +12,19 @@ export type NodeColors = {
 // Node status type for task tracking
 export type NodeStatus = 'todo' | 'inprogress' | 'done';
 
+// PRD reference for linking nodes to PRD sections
+export interface PRDRef {
+  workflowId: string;
+  sectionId: string;
+  projectId?: string;
+}
+
 // Base node data with common properties shared by all node types
 export interface BaseNodeData {
   colors?: NodeColors;
   reactions?: NodeReactions;
   status?: NodeStatus;
+  prdRefs?: PRDRef[];
 }
 
 // Node type uses 'any' for backward compatibility
