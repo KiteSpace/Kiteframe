@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { Palette, PaintBucket, Copy, Trash2, ArrowUp, ArrowDown, ChevronUp, ChevronDown, Bug, Workflow, BookmarkMinus, Bookmark } from 'lucide-react';
+import { Palette, PaintBucket, Copy, Trash2, ArrowUp, ArrowDown, ChevronUp, ChevronDown, Bug, Workflow, BookmarkMinus, Bookmark, FileText } from 'lucide-react';
 import type { Node as KiteframeNode } from '@/lib/kiteframe/types';
+import type { PRDNodeLink } from '@/stores/prdNodeLinkStore';
 
 interface ContextMenuProps {
   x: number;
@@ -19,9 +20,11 @@ interface ContextMenuProps {
   node?: KiteframeNode;
   onGenerateWorkflowFromFrames?: (nodeIds: string[]) => void;
   onToggleReferenceFrame?: (nodeId: string) => void;
+  prdLinks?: PRDNodeLink[];
+  onViewLinkedPRD?: (link: PRDNodeLink) => void;
 }
 
-export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties, onDuplicate, onDelete, hasPropertiesInClipboard, onBringForward, onBringToFront, onSendBackward, onSendToBack, onViewSemanticData, node, onGenerateWorkflowFromFrames, onToggleReferenceFrame }: ContextMenuProps) {
+export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties, onDuplicate, onDelete, hasPropertiesInClipboard, onBringForward, onBringToFront, onSendBackward, onSendToBack, onViewSemanticData, node, onGenerateWorkflowFromFrames, onToggleReferenceFrame, prdLinks, onViewLinkedPRD }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -163,6 +166,25 @@ export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties
             </>
           )}
         </div>
+      )}
+      
+      {/* PRD Links - View linked PRD sections */}
+      {prdLinks && prdLinks.length > 0 && onViewLinkedPRD && (
+        <>
+          <div className="border-t border-border my-1" />
+          <div className="px-3 py-1 text-xs text-muted-foreground">Linked Spec Sections</div>
+          {prdLinks.map((link, idx) => (
+            <div
+              key={`${link.workflowId}-${link.sectionId}-${idx}`}
+              className="px-3 py-2 hover:bg-accent cursor-pointer text-sm flex items-center"
+              onClick={() => { onViewLinkedPRD(link); onClose(); }}
+              data-testid={`context-menu-view-prd-${link.sectionId}`}
+            >
+              <FileText size={16} className="mr-2 text-blue-500" />
+              View: {link.sectionId}
+            </div>
+          ))}
+        </>
       )}
       
       <div className="border-t border-border my-1" />

@@ -89,6 +89,7 @@ import { buildFigmaFrameWorkflow, insertFigmaFrames, type FigmaFrameWithThumbnai
 import { addFigmaSource } from '@/lib/kiteframe/utils/sourceTracking';
 import { sortFrameNodesForWorkflow, filterValidWorkflowFrames } from '@/lib/kiteframe/utils/workflowOrdering';
 import { resetLayersState } from '@/stores/layersStateManager';
+import { prdNodeLinkStore, type PRDNodeLink } from '@/stores/prdNodeLinkStore';
 
 // Project metadata types
 interface ProjectLink {
@@ -8485,6 +8486,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     : 'This frame is now available for workflow generation.',
                 });
               }
+              setContextMenu(null);
+            }}
+            prdLinks={contextMenu.node ? prdNodeLinkStore.getLinksForNode(currentTab.projectUuid, contextMenu.node.id) : undefined}
+            onViewLinkedPRD={(link: PRDNodeLink) => {
+              setRightPanelOpen(true);
+              setTimeout(() => {
+                const sectionEl = document.getElementById(`prd-section-${link.sectionId}`);
+                if (sectionEl) {
+                  sectionEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  sectionEl.classList.add('ring-2', 'ring-blue-500');
+                  setTimeout(() => sectionEl.classList.remove('ring-2', 'ring-blue-500'), 2000);
+                }
+              }, 100);
               setContextMenu(null);
             }}
           />
