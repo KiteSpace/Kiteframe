@@ -161,6 +161,10 @@ export function FigmaFramePicker({
                               src={thumbnails[frame.id]!}
                               alt={frame.name}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = "/placeholder-frame.svg";
+                              }}
                             />
                           ) : loadingThumbnails ? (
                             <Loader2 size={12} className="animate-spin text-muted-foreground" />
@@ -190,6 +194,10 @@ export function FigmaFramePicker({
                   src={previewThumbnail}
                   alt={previewFrame?.name || 'Preview'}
                   className="max-w-full max-h-full object-contain"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = "/placeholder-frame.svg";
+                  }}
                 />
               ) : loadingThumbnails ? (
                 <div className="flex flex-col items-center gap-2 text-muted-foreground">

@@ -1,0 +1,484 @@
+KITEFRAME — Figma Import (Option C) + File-Size Fix + Layers Panel + Workflow Generator
+==============================================================================================
+
+THIS DOCUMENT IS A REPLIT EXECUTION SPEC.
+DO NOT HALLUCINATE. IMPLEMENT ONLY WHAT IS DESCRIBED HERE.
+
+Overview
+--------
+This spec refines and fixes three subsystems:
+
+1) Figma Import (Option C) — frame / page / file handling with multi-step UX
+2) Large Figma file support — avoid 400 "Request too large" using depth=1
+3) Layers panel project scoping and workflow generator behavior
+
+Most of the multi-step logic is already implemented and working for FRAME and PAGE URLs.
+The main remaining issues are:
+- FILE URLs failing with 400 due to large response size
+- Some metadata fields missing on imported nodes (e.g., importedFrom)
+- Minor UX/robustness gaps (thumbnails, error handling)
+
+This spec assumes the current codebase as described in the diagnostic answers.
+
+--------------------------------------------------------------------------------
+SECTION 0 — FILES TO TOUCH
+--------------------------------------------------------------------------------
+
+Client:
+- client/src/lib/integration/figmaApi.ts
+- client/src/lib/integration/figmaUrl.ts (for reference, no major change)
+- client/src/components/modals/FigmaImportModal.tsx
+- client/src/components/modals/FigmaFramePicker.tsx
+- client/src/utils/createFigmaProject.ts (or equivalent Figma → nodes builder)
+- client/src/lib/kiteframe/types.ts (node data types)
+- client/src/lib/kiteframe/semanticWorkflowGenerator.ts (optional refinements)
+- client/src/components/panels/LayersPanel/* (for layers scoping confirmation)
+
+Server:
+- server/src/figmaRoutes.ts
+
+Do not introduce new architecture. Only extend existing behavior.
+
+================================================================================
+SECTION 1 — FIX FILE-LEVEL IMPORT (Figma 400 "Request too large")
+================================================================================
+
+Problem
+-------
+Current FILE imports (links without node-id) fail with:
+  { "status": 400, "err": "Request too large. If applicable, filter by query params." }
+
+This happens because:
+  GET /v1/files/{fileKey}  (no query params) can be too large for complex files.
+
+Required Fix
+------------
+Use Figma's depth parameter to limit the file response:
+
+  GET /v1/files/{fileKey}?depth=1
+
+This returns high-level page/frame structure without full deep node trees.
+
+Step 1 — Update fetchFigmaFile
+------------------------------
+
+File: client/src/lib/integration/figmaApi.ts
+
+1) Locate the existing fetchFigmaFile function. It likely looks similar to:
+
+   export async function fetchFigmaFile(fileKey: string, patToken?: string) {
+     return callFigmaApi(`files/${fileKey}`, patToken);
+   }
+
+2) Change it to:
+
+   export async function fetchFigmaFile(
+     fileKey: string,
+     patToken?: string,
+     depth: number = 1
+   ) {
+     // Use depth=1 by default to avoid "Request too large" errors on big files.
+     return callFigmaApi(`files/${fileKey}?depth=${depth}`, patToken);
+   }
+
+3) Update all call sites to pass only (fileKey, token) OR (fileKey) and rely on the default depth=1.
+
+   - In FigmaImportModal.tsx wherever fetchFigmaFile is called, do NOT pass an explicit depth,
+     unless you intentionally want deeper hierarchy (rare).
+
+Step 2 — Graceful Error Handling for FILE Imports
+-------------------------------------------------
+
+File: client/src/components/modals/FigmaImportModal.tsx
+
+In the logic that handles FILE URLs (no nodeId), you already have something like:
+
+   try {
+     const fileData = await fetchFigmaFile(parsed.fileKey, tokenToUse);
+     const discovered = discoverFrames(fileData);
+     ...
+   } catch (error) {
+     console.error("Figma import error:", error);
+     // show error message to user
+   }
+
+With depth=1, the 400 "Request too large" case should be resolved for most files.
+No further change is required here, beyond using the new fetchFigmaFile signature.
+
+================================================================================
+SECTION 2 — CONFIRM URL TYPE HANDLING (FRAME / PAGE / FILE)
+================================================================================
+
+This section is mainly to confirm, not rewrite.
+
+URL Detection
+-------------
+
+File: client/src/lib/integration/figmaUrl.ts
+
+You already have detectFigmaUrlTypeWithNodeType(...) and detectFigmaUrlType(...).
+Do NOT change their behavior if they already:
+
+- Return 'frame' when node-id resolves to FRAME or SECTION-like frame
+- Return 'page' when node-id resolves to CANVAS
+- Return 'file' when no node-id is present
+- Return null for invalid URLs
+
+FigmaImportModal Step Routing
+-----------------------------
+
+File: client/src/components/modals/FigmaImportModal.tsx
+
+Confirm the following behavior:
+
+1) FRAME URL
+   - Has nodeId AND node.type === FRAME or SECTION
+   - Behavior:
+     - NO multi-step options
+     - Directly imports a single frame as an image node
+     - Calls onImport with [frame] and mode: 'new-project' or 'current-project'
+     - Does NOT generate workflows automatically
+
+2) PAGE URL
+   - Has nodeId AND node.type === CANVAS
+   - Behavior:
+     - Shows 'page-options' step
+       - Option A: "Import as a single image"
+       - Option B: "Select individual frames from this page"
+     - If Option A selected:
+         → Call images endpoint for the PAGE and create ONE flattened image node
+     - If Option B selected:
+         → Transition to 'frame-selection' with only frames from this page
+
+3) FILE URL
+   - No nodeId parameter present
+   - Behavior:
+     - Shows 'file-options' step:
+       - Option A: "Select individual frames" (default)
+       - Option B: "Import a page as a single image"
+     - Option A:
+         → Use fetchFigmaFile(fileKey, tokenToUse) (now depth=1)
+         → discoverFrames(...) returns frames for all pages
+         → Show FigmaFramePicker with frames grouped by page
+     - Option B:
+         → Show 'page-selection' step (list of pages)
+         → User chooses a page
+         → Use images endpoint to fetch a single flattened page image
+         → Create ONE image node
+
+If any of this behavior is missing or diverges, align it to the above.
+
+================================================================================
+SECTION 3 — FRAME SELECTION GRID BEHAVIOR (Option C)
+================================================================================
+
+File: client/src/components/modals/FigmaFramePicker.tsx
+
+The grid is mostly working. We only need two small enhancements.
+
+Behavior Recap
+--------------
+
+- Receives a list of candidate frames (likely grouped by page).
+- Allows user to:
+  - Select/deselect individual frames
+  - "Select all" / "Clear all"
+- onSelect(selectedFrames) is called with ONLY selected frames.
+
+Required Enhancements
+---------------------
+
+1) Add thumbnail fallback to avoid broken image icons:
+
+   In FigmaFramePicker.tsx where you render each <img>:
+
+   <img
+     src={thumbnailUrl}
+     alt={frame.name}
+     onError={(e) => {
+       // fallback to a local placeholder if thumbnail fails CORS or 404
+       e.currentTarget.src = "/placeholder-frame.png";
+     }}
+   />
+
+   - Ensure a simple placeholder image exists in the public folder
+     (e.g., public/placeholder-frame.png).
+   - This avoids ugly broken-image icons when S3 blocks CORS or fails transiently.
+
+2) (Optional) Mark reference frames visually:
+
+   - If frame is being imported as "reference only", you may add a small "Ref" badge.
+   - This is optional and can be done later; do not block this spec on it.
+
+================================================================================
+SECTION 4 — NODE CREATION: METADATA AND FLAGS
+================================================================================
+
+File: client/src/utils/createFigmaProject.ts
+(or whichever file creates image nodes from Figma frames)
+
+Current Behavior
+----------------
+
+- For each frame, you already create an image node with:
+  - data.label = frame.name
+  - data.src = thumbnailUrl
+  - data.figmaFileKey
+  - data.figmaNodeId
+  - data.figmaSemantic (semantic metadata)
+  - style.width/height etc.
+
+Required Changes
+----------------
+
+1) Add importedFrom: "figma" flag:
+
+   In the data object:
+
+   data: {
+     label: frame.name,
+     src: thumbnailUrl || "",
+     sourceType: "url",
+     figmaFileKey: figmaFileKey || "",
+     figmaNodeId: frame.id,
+     figmaType: frame.type,
+     figmaPageName: frame.pageName,
+     originalWidth: frame.width,
+     originalHeight: frame.height,
+     figmaSemantic: figmaSemantic ?? null,
+     importedFrom: "figma",        // NEW
+     isReferenceFrame: true        // see next item
+   }
+
+2) Set isReferenceFrame: true for all newly imported Figma frames:
+
+   - This allows other parts of the app (Layers panel, Sources tab, workflow generator)
+     to distinguish between:
+       - Figma reference nodes
+       - Normal manually-created nodes
+
+3) Confirm corresponding type definitions:
+
+   File: client/src/lib/kiteframe/types.ts
+
+   - Extend ImageNodeData (or equivalent) with:
+
+     importedFrom?: "figma" | "upload" | "url" | string;
+     isReferenceFrame?: boolean;
+
+   - Type must remain backward compatible — make fields optional.
+
+================================================================================
+SECTION 5 — LAYERS PANEL PROJECT-SCOPING CONFIRMATION
+================================================================================
+
+Objective
+---------
+Ensure that Layers panel state does NOT leak across projects and that workflow
+grouping is recomputed per project correctly.
+
+Stores to Verify
+----------------
+
+The following should all be project-scoped:
+
+- collapseStore
+- visibilityLockStore
+- workflowNameStore
+- nodeToWorkflowStore
+
+Implementation Rules
+--------------------
+
+1) LocalStorage keys MUST include projectId:
+
+   Examples:
+
+   - "kiteframe-layers-collapse-${projectId}"
+   - "kiteframe-layers-visibility-${projectId}"
+   - "kiteframe-workflow-names-${projectId}"
+
+2) There MUST be a function similar to:
+
+   resetLayersState(projectId: string)
+
+   That:
+   - Clears in-memory Maps for:
+       - collapse
+       - visibility/lock
+       - nodeToWorkflow
+   - Reloads any persisted state from project-scoped localStorage keys
+   - Triggers re-running of FlowDetection.detectFlows() for the current project's nodes/edges
+
+3) On project change:
+
+   In workflow-editor.tsx (or wherever the active project changes):
+
+   - Call resetLayersState(activeProjectId) before rendering LayersPanel.
+   - Pass projectId down into LayersPanel as a prop.
+
+Acceptance Criteria
+-------------------
+
+- Switching between two projects with different workflows should NEVER show
+  stale workflow groupings from the previous project.
+- Collapsed/hidden states should be independent per project.
+
+================================================================================
+SECTION 6 — WORKFLOW GENERATOR: ENSURE METADATA USAGE AND BATCH UNDO
+================================================================================
+
+Objective
+---------
+Ensure that the workflow generator:
+
+- ONLY runs when explicitly triggered (already true).
+- Uses figmaSemantic metadata as its primary source (already mostly true).
+- Produces a single coherent workflow group per generation.
+- Is fully undoable in one step.
+
+File: client/src/lib/kiteframe/semanticWorkflowGenerator.ts
+File: client/src/pages/workflow-editor.tsx
+
+Step 1 — Confirm semantic usage
+--------------------------------
+
+In semanticWorkflowGenerator.ts:
+
+- It should read:
+    const semantic = sourceImageNode.data?.figmaSemantic;
+- It should access semantic.workflowGraph or equivalent.
+- It should build nodes and edges using semantic.edges, semantic.elements, etc.
+
+If any fallback logic exists that generates nodes with no semantic basis, it
+should be removed or clearly guarded behind a flag.
+
+Step 2 — Batch undo for generated workflows
+-------------------------------------------
+
+In workflow-editor.tsx, where "Generate Workflow" is invoked:
+
+- Wrap all node/edge creation in a single undo batch:
+
+  undoManager.batch(() => {
+    // create new workflow nodes
+    // create edges
+    // update any workflow grouping metadata if needed
+  }, "Generate workflow from Figma");
+
+- Ensure that pressing Undo once removes ONLY the newly generated workflow
+  nodes and edges, and does not affect:
+    - Figma reference nodes
+    - Other existing workflows
+
+Step 3 — One workflow group per generation
+------------------------------------------
+
+- If your grouping system uses workflowGroupId or similar:
+  - Assign a unique workflowGroupId to all nodes created in a single generation.
+  - Edges must connect nodes within this group.
+- Do not create multiple disjoint workflows from a single generation action
+  unless explicitly required.
+
+================================================================================
+SECTION 7 — OPTIONAL BUT RECOMMENDED: SEMANTIC QUALITY IMPROVEMENTS
+================================================================================
+
+This section is OPTIONAL and should be implemented only after all prior sections
+are complete and stable.
+
+Goals
+-----
+
+- Improve quality of generated workflows from Figma semantic data.
+- Reduce "messy" or orphan-heavy graphs.
+
+Suggested Heuristics
+--------------------
+
+In semanticWorkflowGenerator.ts:
+
+1) Deduplicate elements:
+   - If two semantic elements map to the same visual or label, merge into one node.
+
+2) Pair labels + inputs:
+   - For a TEXT label immediately adjacent to an INPUT-like element,
+     create a single "field" node with both label and name.
+
+3) Ignore decorative sections:
+   - Containers without interactive children should not become separate steps.
+
+4) Filter out non-interactive icons:
+   - Icons that do not represent actions should not map to workflow steps.
+
+5) Simple layout:
+   - After node creation, apply horizontal or vertical flow layout so that
+     the resulting workflow is readable by default.
+
+These are guidelines, not hard requirements. Keep initial implementation simple.
+
+================================================================================
+SECTION 8 — DO NOT DO LIST
+================================================================================
+
+To avoid scope creep and hallucinated work, Replit MUST NOT:
+
+- Change the right-side Project Panel layout or tab structure.
+- Modify PRD generation logic or data model in this task.
+- Modify AI chat behavior or OpenAI integration.
+- Add new external dependencies beyond what is necessary for the above.
+- Introduce automatic workflow generation during Figma import.
+- Change Figma OAuth flow, scopes, or token persistence logic.
+
+================================================================================
+SECTION 9 — ACCEPTANCE CHECKLIST
+================================================================================
+
+Replit should confirm each item as PASS/FAIL with logs or screenshots where applicable.
+
+1) FILE IMPORT (DEPTH FIX)
+   - FILE URL no longer 400s with "Request too large".
+   - fetchFigmaFile uses depth=1 and receives a valid response.
+   - discoverFrames runs for FILE URLs.
+
+2) FRAME IMPORT
+   - Frame URL imports exactly one node.
+   - No selection modal shown.
+   - No workflow created automatically.
+
+3) PAGE IMPORT
+   - PAGE URL shows options:
+       - "Import as single image"
+       - "Select individual frames"
+   - Selecting "single image" → one flattened node.
+   - Selecting "frames" → frame grid, then multiple image nodes.
+
+4) FILE IMPORT
+   - FILE URL shows file-options step.
+   - User can select frames across pages.
+   - Only selected frames import as nodes.
+   - No workflows generated automatically.
+
+5) NODE METADATA
+   - Imported Figma nodes have:
+       data.importedFrom = "figma"
+       data.isReferenceFrame = true
+       data.figmaFileKey set
+       data.figmaNodeId set
+       data.figmaSemantic set (when available)
+
+6) LAYERS PANEL
+   - Switching between projects no longer shows stale workflow groupings.
+   - Collapse/visibility state is isolated per project.
+
+7) WORKFLOW GENERATOR
+   - Triggered only via explicit user action.
+   - Uses figmaSemantic when present.
+   - Creates a single coherent workflow group per generation.
+   - Undo once removes all generated nodes/edges, leaving reference nodes intact.
+
+8) THUMBNAIL FALLBACK
+   - Broken Figma thumbnail URLs now show a placeholder instead of broken icon.
+   - No unhandled errors caused by CORS issues.
+
+END OF SPEC

@@ -1,0 +1,160 @@
+KITEFRAME — FIGMA MULTI-STEP IMPORT DIAGNOSTIC QUESTIONS FOR REPLIT
+==================================================================
+
+The following questions MUST be answered before the multi-step Figma import
+feature can function correctly. These questions are structured to be actionable,
+non-ambiguous, and designed to surface exactly where the import flow or API
+handling is failing.
+
+This .txt must be followed by Replit EXACTLY as written. Do not infer or
+hallucinate expected behavior — answer based strictly on the observed code and logs.
+
+--------------------------------------------------------------------
+SECTION 1 — FILE-LEVEL IMPORT FAILING (400 Bad Request)
+--------------------------------------------------------------------
+
+Q1. When calling GET /files/{fileKey}, which token is being sent to Figma?
+- Is it the OAuth access_token, refresh_token, or a stale/undefined token?
+- Confirm by logging the Authorization header sent to Figma.
+
+Q2. Is callFigmaApi() always attaching the Authorization: Bearer <token> header
+when a PAT is not provided?
+
+Q3. What is the raw HTTP status and response body returned by Figma for:
+GET https://api.figma.com/v1/files/{fileKey}
+
+Q4. Are the following OAuth scopes confirmed to be attached to the token?
+- file_content:read
+- file_metadata:read
+- file_versions:read
+- current_user:read
+- library_assets:read
+
+Q5. When debugging file import, please print the following:
+- URL being requested
+- Full headers sent
+- Token type (PAT vs OAuth)
+- Token expiration (expires_in)
+- Figma response JSON
+
+--------------------------------------------------------------------
+SECTION 2 — MULTI-STEP MODAL STATE VERIFICATION
+--------------------------------------------------------------------
+
+Q6. Confirm that FigmaImportModal step transitions are happening:
+- Should transition to 'file-options' for file URLs without node-id
+- Should transition to 'page-options' for node-type CANVAS
+- Should transition to 'frame-selection' after user chooses an option
+
+Q7. Add temporary logging immediately after each setStep() call:
+console.log("[FigmaImport] Setting step:", newStep)
+
+Q8. Does the modal close early due to an unhandled exception?
+Add logging to catch errors inside handleContinue(), handlePageSelect(),
+handleFrameSelect(), and onImport callbacks.
+
+--------------------------------------------------------------------
+SECTION 3 — FRAME SELECTION GRID
+--------------------------------------------------------------------
+
+Q9. Confirm that discoverFrames() is returning the correct number of frames for:
+- File URLs
+- Page URLs
+If empty, log the document tree returned by fetchFigmaFile().
+
+Q10. Confirm that FigmaFramePicker receives exactly the frame list returned by
+discoverFrames().
+
+Q11. Confirm that selected frames (array of frame objects) is passed intact to:
+handleFrameSelect()
+and then into onImport()
+
+Log:
+console.log("[DEBUG] Selected frames:", selectedFrames)
+
+--------------------------------------------------------------------
+SECTION 4 — NODE CREATION VALIDATION
+--------------------------------------------------------------------
+
+Q12. Confirm that each selected frame creates exactly one image node.
+Log node count after creation:
+console.log("[DEBUG] Nodes created:", nodes.length)
+
+Q13. Confirm node metadata:
+- figmaSemantic
+- figmaFileKey
+- figmaNodeId
+- importedFrom: 'figma'
+
+Log:
+console.log("[DEBUG] Node metadata:", node.data)
+
+--------------------------------------------------------------------
+SECTION 5 — WORKFLOW GENERATION VALIDATION
+--------------------------------------------------------------------
+
+Q14. Confirm semanticWorkflowGenerator is receiving:
+sourceImageNode.data.figmaSemantic populated with elements, forms, and workflowGraph.
+
+Log before generation:
+console.log("[DEBUG] Semantic for workflow gen:", sourceImageNode.data.figmaSemantic)
+
+Q15. Confirm that workflowGraph is not empty. If empty, log:
+- frameTree.document for this frame
+- extractFigmaSemanticMetadata output
+
+Q16. Confirm that edges are being created based on semantic workflowGraph.
+Log edges:
+console.log("[DEBUG] Generated edges:", edges)
+
+--------------------------------------------------------------------
+SECTION 6 — FIX WORKFLOW GROUPING BUG
+--------------------------------------------------------------------
+
+Q17. Confirm that Layers Panel state is fully project-scoped after the recent fixes:
+- collapseStore
+- visibilityLockStore
+- workflowNameStore
+- nodeToWorkflowStore
+
+Add logging when switching projects:
+console.log("[Layers] Resetting state for project:", projectId)
+
+Q18. Confirm that detectFlows() is running on the correct, current nodes/edges.
+
+--------------------------------------------------------------------
+SECTION 7 — CONFIRM EXPECTED UX LOGIC
+--------------------------------------------------------------------
+
+Q19. Confirm the following behavior is currently implemented:
+
+FRAME URL:
+- Should NOT show selection modal
+- Should import ONE image node
+- Should NOT generate workflow automatically
+
+PAGE URL:
+- Should show page-options → frame grid
+- Should allow selecting individual frames
+
+FILE URL:
+- Should show file-options → page selection → frame grid
+- Currently 400s and stops before frame selection
+
+Q20. Confirm whether any auto-generation of workflows is happening during import.
+
+--------------------------------------------------------------------
+SECTION 8 — REQUIRED FIXES BEFORE MOVING FORWARD
+--------------------------------------------------------------------
+
+Q21. Provide confirmation that:
+- All S3 image URLs (thumbnails) are being fetched through the server proxy.
+(Direct browser fetch causes CORS errors and breaks selection UI.)
+
+Q22. Confirm proxy recognizes:
+Content-Type: application/json
+Accept: application/json
+
+--------------------------------------------------------------------
+
+END OF .TXT

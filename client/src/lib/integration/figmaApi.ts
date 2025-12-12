@@ -65,8 +65,29 @@ export async function callFigmaApi<T = any>(
   return response.json();
 }
 
-export async function fetchFigmaFile(fileKey: string, patToken?: string) {
-  return callFigmaApi(`files/${fileKey}`, patToken);
+export async function fetchFigmaFile(
+  fileKey: string,
+  patToken?: string,
+  options?: { depth?: number; retryWithDepth1?: boolean }
+) {
+  const { depth, retryWithDepth1 = true } = options || {};
+  
+  // Build path with optional depth parameter
+  const path = depth !== undefined 
+    ? `files/${fileKey}?depth=${depth}` 
+    : `files/${fileKey}`;
+  
+  try {
+    return await callFigmaApi(path, patToken);
+  } catch (error) {
+    // If request failed due to file being too large and retry is enabled, try with depth=1
+    if (retryWithDepth1 && error instanceof Error && 
+        (error.message.includes('too large') || error.message.includes('Request too large'))) {
+      console.log('[FigmaApi] File too large, retrying with depth=1');
+      return callFigmaApi(`files/${fileKey}?depth=1`, patToken);
+    }
+    throw error;
+  }
 }
 
 export async function fetchFigmaNode(fileKey: string, nodeId: string, patToken?: string) {

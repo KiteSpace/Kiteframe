@@ -396,6 +396,8 @@ export interface ImageNodeData {
   figmaSemantic?: FigmaSemanticMetadata | null;
   // Reference frame flag - when true, frame is excluded from workflow/PRD generation
   isReferenceFrame?: boolean;
+  // Import source tracking - identifies where the image originated from
+  importedFrom?: 'figma' | 'upload' | 'url' | string;
 }
 
 // Table Node Data - extends BasicNodeData with table-specific properties
