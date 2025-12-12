@@ -175,8 +175,8 @@ export function PreProjectChat({
           </Button>
         </header>
 
-        <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full">
-          <ScrollArea ref={scrollAreaRef} className="flex-1 px-4">
+        <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full overflow-hidden">
+          <ScrollArea ref={scrollAreaRef} className="flex-1 px-4 h-0">
             <div className="py-6 space-y-6">
               {messages.length === 0 && !isLoading && (
                 <div className="text-center py-12">
