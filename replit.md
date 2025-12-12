@@ -86,11 +86,19 @@ Cloud-saved projects require Firebase Admin SDK credentials for secure token ver
 - **Integration Architecture**: Files in `client/src/lib/integration/` for URL parsing and embed URL generation.
 
 ### Project Panel
-- **Five Tabs**: Layers (canvas hierarchy), Notes (markdown notes), Specs (PRD/design specs), Sources (external links/references), Details (project metadata).
+- **Three Tabs**: KiteAI (AI chat assistant), Project (Notion-style unified document), Layers (canvas hierarchy).
+- **KiteAI Tab**: AI-powered workflow generation from text prompts and image analysis, with credits system and provider settings.
+- **Project Tab**: Single scrollable document combining:
+  - Project Overview section (name, description, categories, timestamps)
+  - Workflow Selection with inline PRD generation per workflow
+  - Notes section (markdown notes with persistence)
+  - Sources section (external links and references, auto-tracked Figma imports)
+- **Layers Tab**: Full canvas hierarchy with mode switching, visibility toggles, and collapse state.
 - **Collapsible**: Panel can be collapsed to icon-only sidebar, persists state in localStorage.
-- **Per-Project Storage**: All panel content scoped by projectId with localStorage persistence.
+- **Global Tab Persistence**: Active tab stored globally (not per-project) with KiteAI as default.
+- **Per-Project Storage**: All content (details, notes, sources, PRDs) scoped by projectId with localStorage persistence.
 
-### PRD System (Specs Tab)
+### PRD System (Project Tab)
 - **Workflow Spec Generation**: AI-powered PRD generation from workflow semantic model using configured AI provider.
 - **Semantic Hashing**: Content-based hash (excludes position/style) to detect meaningful workflow changes.
 - **Stale Detection**: Banner shows when workflow has changed since last PRD generation.
