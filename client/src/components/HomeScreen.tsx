@@ -62,6 +62,14 @@ interface WorkflowTemplate {
   templateType: string;
 }
 
+interface PreProjectContext {
+  prompt: string;
+  uploadedFiles?: File[];
+  aiSummary?: string;
+  isHighConfidence?: boolean;
+  clarifyingQuestions?: string[];
+}
+
 interface HomeScreenProps {
   recentProjects: RecentProject[];
   onOpenProject: (projectId: string) => void;
@@ -171,6 +179,8 @@ export function HomeScreen({
   const [featureUpsellType, setFeatureUpsellType] = useState<'image' | 'wireframe' | 'figma'>('image');
   const [isPreProjectChatOpen, setIsPreProjectChatOpen] = useState(false);
   const [preProjectChatPrompt, setPreProjectChatPrompt] = useState('');
+  const [preProjectContext, setPreProjectContext] = useState<PreProjectContext | null>(null);
+  const [isClassifyingIntent, setIsClassifyingIntent] = useState(false);
   
   const { tier } = useSubscription();
   const projectToDelete = recentProjects.find(p => p.id === deleteProjectId);
@@ -197,6 +207,59 @@ export function HomeScreen({
     onLoadTemplate(template.templateType);
   }, [onLoadTemplate]);
 
+  const classifyIntent = useCallback(async (prompt: string) => {
+    if (!prompt.trim()) return;
+    
+    setIsClassifyingIntent(true);
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{
+            role: 'user',
+            content: `Analyze this workflow intent and respond in JSON: "${prompt}"
+            
+Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, "questions": ["Q1", "Q2"] or [], "summary": "brief workflow summary"}`
+          }],
+          temperature: 0.5,
+          maxTokens: 200
+        })
+      });
+      
+      if (!response.ok) throw new Error('Intent classification failed');
+      const data = await response.json();
+      
+      const jsonMatch = data.text?.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const result = JSON.parse(jsonMatch[0]);
+        const isHighConfidence = result.confidence === 'high' && !result.hasQuestions;
+        
+        if (isHighConfidence) {
+          onGenerateWorkflow(prompt);
+        } else {
+          setPreProjectContext({
+            prompt,
+            isHighConfidence: false,
+            clarifyingQuestions: result.questions || [],
+            aiSummary: result.summary
+          });
+          setPreProjectChatPrompt(prompt);
+          setIsPreProjectChatOpen(true);
+        }
+      } else {
+        setPreProjectChatPrompt(prompt);
+        setIsPreProjectChatOpen(true);
+      }
+    } catch (error) {
+      console.error('Intent classification error:', error);
+      setPreProjectChatPrompt(prompt);
+      setIsPreProjectChatOpen(true);
+    } finally {
+      setIsClassifyingIntent(false);
+    }
+  }, [onGenerateWorkflow]);
+
   const handleStartDesigning = useCallback((prompt: string) => {
     if (isOutOfCredits) {
       if (ctaAction === 'signup') openSignup();
@@ -204,9 +267,8 @@ export function HomeScreen({
       else openCreditsDialog();
       return;
     }
-    setPreProjectChatPrompt(prompt);
-    setIsPreProjectChatOpen(true);
-  }, [isOutOfCredits, ctaAction, openSignup, openPricing, openCreditsDialog]);
+    classifyIntent(prompt);
+  }, [isOutOfCredits, ctaAction, openSignup, openPricing, openCreditsDialog, classifyIntent]);
 
   const handlePreProjectChatClose = useCallback(() => {
     setIsPreProjectChatOpen(false);
@@ -224,6 +286,9 @@ export function HomeScreen({
       setFeatureUpsellType('image');
       setShowFeatureUpsell(true);
     } else {
+      setPreProjectContext({ prompt: 'Image upload', uploadedFiles: [] });
+      setPreProjectChatPrompt('I uploaded an image for analysis');
+      setIsPreProjectChatOpen(true);
       onUploadImage();
     }
   }, [tier, onUploadImage]);
@@ -233,6 +298,9 @@ export function HomeScreen({
       setFeatureUpsellType('figma');
       setShowFeatureUpsell(true);
     } else if (onImportFigma) {
+      setPreProjectContext({ prompt: 'Figma import', uploadedFiles: [] });
+      setPreProjectChatPrompt('I imported a Figma design');
+      setIsPreProjectChatOpen(true);
       onImportFigma();
     }
   }, [tier, onImportFigma]);
@@ -456,7 +524,7 @@ export function HomeScreen({
           onStartDesigning={handleStartDesigning}
           onImportFigma={onImportFigma ? handleImportFigmaWithGate : undefined}
           onUploadImage={handleUploadImageWithGate}
-          isGenerating={isGenerating}
+          isGenerating={isGenerating || isClassifyingIntent}
           isDisabled={isOutOfCredits}
         />
 
@@ -617,6 +685,7 @@ export function HomeScreen({
         onClose={handlePreProjectChatClose}
         onCreateProject={handleCreateProjectFromChat}
         initialPrompt={preProjectChatPrompt}
+        context={preProjectContext}
       />
     </div>
   );

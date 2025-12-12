@@ -11,11 +11,20 @@ interface Message {
   content: string;
 }
 
+interface PreProjectContext {
+  prompt: string;
+  uploadedFiles?: File[];
+  aiSummary?: string;
+  isHighConfidence?: boolean;
+  clarifyingQuestions?: string[];
+}
+
 interface PreProjectChatProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateProject: (summary: string) => void;
   initialPrompt?: string;
+  context?: PreProjectContext | null;
 }
 
 const CLARIFICATION_SYSTEM_PROMPT = `You are KiteAI helping a user clarify what they want to build BEFORE creating a project.
@@ -34,12 +43,14 @@ export function PreProjectChat({
   isOpen,
   onClose,
   onCreateProject,
-  initialPrompt = ''
+  initialPrompt = '',
+  context = null
 }: PreProjectChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [isReadyToCreate, setIsReadyToCreate] = useState(context?.isHighConfidence ?? false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const aiClient = useAi();
@@ -166,9 +177,10 @@ export function PreProjectChat({
 
           <Button
             onClick={handleCreateProject}
-            disabled={messages.length === 0}
+            disabled={messages.length === 0 && !isReadyToCreate}
             className="bg-primary hover:bg-primary/90"
             data-testid="button-create-project"
+            title={!isReadyToCreate ? "Have a conversation first to clarify your intent" : "Ready to create project"}
           >
             <Plus className="w-4 h-4 mr-2" />
             Create project

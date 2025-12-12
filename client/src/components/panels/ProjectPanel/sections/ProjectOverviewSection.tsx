@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Calendar, Tag, X, Plus, ChevronDown, ChevronRight, Edit3 } from 'lucide-react';
+import { Calendar, Tag, X, Plus, ChevronDown, ChevronRight, Edit3, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAi } from '@/ai/AiProvider';
+import type { Node, Edge } from '@/lib/kiteframe/types';
 
 interface ProjectDetails {
   name: string;
@@ -19,6 +21,8 @@ interface ProjectOverviewSectionProps {
   projectId?: string;
   projectName?: string;
   onProjectNameChange?: (name: string) => void;
+  nodes?: Node[];
+  edges?: Edge[];
 }
 
 const DEFAULT_DETAILS: ProjectDetails = {
@@ -139,14 +143,16 @@ function InlineEditField({ value, placeholder, onSave, className, multiline = fa
   );
 }
 
-export function ProjectOverviewSection({ projectId, projectName, onProjectNameChange }: ProjectOverviewSectionProps) {
+export function ProjectOverviewSection({ projectId, projectName, onProjectNameChange, nodes = [], edges = [] }: ProjectOverviewSectionProps) {
   const [details, setDetails] = useState<ProjectDetails>(DEFAULT_DETAILS);
   const [newCategory, setNewCategory] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
   const [isCategoriesHovered, setIsCategoriesHovered] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const prevProjectId = useRef<string | undefined>(undefined);
   const categoryInputRef = useRef<HTMLInputElement>(null);
+  const aiClient = useAi();
 
   const storageKey = projectId ? `kiteframe-details-${projectId}` : null;
 
@@ -231,6 +237,46 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
     });
   };
 
+  const generateProjectInfo = useCallback(async () => {
+    if (!nodes || nodes.length === 0 || !aiClient) return;
+    
+    setIsGenerating(true);
+    try {
+      const nodeTypes = nodes.map(n => n.type).join(', ');
+      const nodeCount = nodes.length;
+      const edgeCount = edges?.length || 0;
+      
+      const workflowSummary = `Analyze this workflow structure and generate a concise project name and description:
+- Node count: ${nodeCount}
+- Node types: ${nodeTypes}
+- Connection count: ${edgeCount}
+
+Respond in JSON format: {"name": "descriptive project name", "description": "2-3 sentence description of what this workflow does"}`;
+
+      const response = await aiClient.chat({
+        messages: [{ role: 'user', content: workflowSummary }],
+        temperature: 0.7,
+        maxTokens: 200
+      });
+
+      // Parse the JSON response
+      const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.name) {
+          updateName(parsed.name);
+        }
+        if (parsed.description) {
+          updateDescription(parsed.description);
+        }
+      }
+    } catch (error) {
+      console.error('Error generating project info:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [nodes, edges, aiClient]);
+
   if (!projectId) {
     return (
       <div className="text-sm text-muted-foreground italic">
@@ -242,11 +288,31 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
   return (
     <section data-testid="project-overview-section">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger className="flex items-center gap-2 w-full text-left mb-3">
+        <CollapsibleTrigger className="flex items-center gap-2 w-full text-left mb-3 group">
           {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex-1">
             Project Overview
           </h2>
+          {nodes && nodes.length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                generateProjectInfo();
+              }}
+              disabled={isGenerating}
+              data-testid="button-ai-fill"
+              title="Fill project details with AI"
+            >
+              {isGenerating ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Sparkles size={12} />
+              )}
+            </Button>
+          )}
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-4">
           <InlineEditField

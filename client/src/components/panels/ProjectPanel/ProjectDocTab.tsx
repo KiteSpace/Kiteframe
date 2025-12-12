@@ -246,6 +246,8 @@ export function ProjectDocTab({
                 projectId={projectId}
                 projectName={projectName}
                 onProjectNameChange={onProjectNameChange}
+                nodes={nodes}
+                edges={edges}
               />
 
               {(workflowSummaries.length > 0 || standaloneNodes.length > 0) && (
