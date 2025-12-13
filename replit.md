@@ -77,6 +77,18 @@ Preferred communication style: Simple, everyday language.
 - **Privacy Tiers**: UI options for "Maximum Privacy" (Ollama-based) and "Standard Privacy" (OpenAI, Anthropic).
 - **Image-to-Workflow Generation**: AI analysis of diagrams for conversion to interactive workflows.
 
+### PM Depth Guards (Phase 3.5)
+- **Location**: `client/src/ai/guards/pmDepthGuards.ts`
+- **Purpose**: Enforces PM-level reasoning depth, blocking workflows that are structurally valid but lack meaningful product decisions.
+- **Detection Functions**:
+  - `detectTradeoff()`: Identifies speed vs accuracy, friction vs conversion, option A/B patterns
+  - `detectRisk()`: Finds fraud, churn, abuse mentions with mitigations
+  - `detectIrreversible()`: Detects account creation, payments, data submission
+  - `detectNonRetryBranches()`: Validates branches lead to different outcomes
+- **Gate Condition**: Requires AT LEAST ONE of: tradeoff, risk, irreversible action, or meaningful branching
+- **Role Context**: Only applies when role === 'pm' OR (role === 'hybrid' AND confidence >= 0.7)
+- **System Prompt**: `client/src/ai/prompts/system.pm.txt` requires 5 proof obligations (WHO, GOAL, DECISIONS 3+, TRADEOFF 1+, FAILURE MODE 1+)
+
 ### Plugin Architecture
 - **KiteFrameCore**: Plugin management system with `PluginProvider`, hooks, and an event system.
 - **Extension Points**: 8 defined extension points for canvas interactions.
