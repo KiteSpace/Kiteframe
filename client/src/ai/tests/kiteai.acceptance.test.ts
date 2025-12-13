@@ -419,6 +419,7 @@ describe('KiteAI Acceptance Tests', () => {
         
         expect(result.passed).toBe(false);
       });
+
     });
 
     describe('Meaningful workflows should pass PM depth', () => {

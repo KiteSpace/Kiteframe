@@ -219,13 +219,25 @@ export function detectNonRetryBranches(workflow: SemanticWorkflow): { detected: 
       }
     }
     
-    const leadsToDifferentTerminals = targetNodes.some(target => {
-      const terminalReachable = findReachableTerminals(target.id, workflow);
-      return terminalReachable.length > 0;
+    const branchTerminals = targetNodes.map(target => {
+      const terminals = findReachableTerminals(target.id, workflow);
+      return new Set(terminals.map(t => `${categorizeNode(t)}:${t.label || t.id}`));
     });
     
-    if (leadsToDifferentTerminals) {
-      signals.push(`Branch leads to distinct terminals: ${node.label || node.id}`);
+    if (branchTerminals.length >= 2) {
+      const allTerminalSets = branchTerminals.filter(s => s.size > 0);
+      if (allTerminalSets.length >= 2) {
+        const firstSet = allTerminalSets[0];
+        const hasDifferentTerminals = allTerminalSets.some((set, i) => {
+          if (i === 0) return false;
+          const intersection = [...set].filter(t => firstSet.has(t));
+          return intersection.length === 0 || intersection.length < Math.min(set.size, firstSet.size);
+        });
+        
+        if (hasDifferentTerminals) {
+          signals.push(`Branch leads to distinct terminals: ${node.label || node.id}`);
+        }
+      }
     }
   }
   
