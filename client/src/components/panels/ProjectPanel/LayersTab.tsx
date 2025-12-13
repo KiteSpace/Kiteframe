@@ -262,12 +262,12 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, projectId }: La
               
               const handleClick = () => {
                 if (role === 'node') {
-                  focusBus.focusNodes([id], { select: true });
+                  focusBus.focusNodes([id], { select: true, padding: 200 });
                 } else if (role === 'edge' && id.startsWith('e:')) {
                   const edgeId = id.slice(2);
                   const edge = edges.find(e => e.id === edgeId);
                   if (edge) {
-                    focusBus.focusNodes([edge.source, edge.target]);
+                    focusBus.focusNodes([edge.source, edge.target], { padding: 200 });
                   }
                 }
               };

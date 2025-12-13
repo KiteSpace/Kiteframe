@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { GitBranch, Circle, FileText, FolderOpen, List } from 'lucide-react';
+import { focusBus } from '@/stores/focusBus';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import { FlowDetection } from '@/lib/kiteframe/utils/FlowDetection';
 import { 
@@ -269,38 +270,46 @@ export function ProjectDocTab({
                           done: wf.nodes.filter(n => n.data?.status === 'done').length
                         } : null;
                         
+                        const stepCount = wf.nodeCount;
+                        const decisionCount = wf.nodes.filter(n => n.type === 'condition').length;
+                        
                         return (
                           <button
                             key={wf.id}
                             onClick={() => {
-                              const firstNode = wf.nodes[0];
-                              if (firstNode) {
-                                const x = firstNode.position?.x || 0;
-                                const y = firstNode.position?.y || 0;
-                                window.dispatchEvent(new CustomEvent('zoom-to-node', { 
-                                  detail: { x, y, nodeId: firstNode.id }
-                                }));
+                              if (wf.nodeIds.length > 0) {
+                                focusBus.focusWorkflow(wf.nodeIds, { padding: 150 });
                               }
                             }}
                             className="w-full text-left px-2 py-2 rounded hover:bg-accent/50 transition-colors"
                             data-testid={`workflow-${wf.id}`}
                           >
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2">
                               <Circle size={8} className="text-primary fill-primary" />
                               <span className="font-medium text-sm">{wf.name}</span>
                             </div>
+                            <div className="pl-4 text-[10px] text-muted-foreground mt-0.5">
+                              {stepCount} steps{decisionCount > 0 && ` · ${decisionCount} decisions`}
+                            </div>
                             {statusBreakdown && (
-                              <div className="pl-4 text-[10px] text-muted-foreground mb-1">
-                                <div className="flex gap-3">
-                                  {statusBreakdown.todo > 0 && <span>To-do: {statusBreakdown.todo}</span>}
-                                  {statusBreakdown.inprogress > 0 && <span>In progress: {statusBreakdown.inprogress}</span>}
-                                  {statusBreakdown.done > 0 && <span>Done: {statusBreakdown.done}</span>}
-                                </div>
+                              <div className="pl-4 flex gap-1.5 mt-1.5">
+                                {statusBreakdown.todo > 0 && (
+                                  <span className="px-1.5 py-0.5 text-[9px] rounded-full bg-muted text-muted-foreground">
+                                    {statusBreakdown.todo} to-do
+                                  </span>
+                                )}
+                                {statusBreakdown.inprogress > 0 && (
+                                  <span className="px-1.5 py-0.5 text-[9px] rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                    {statusBreakdown.inprogress} in progress
+                                  </span>
+                                )}
+                                {statusBreakdown.done > 0 && (
+                                  <span className="px-1.5 py-0.5 text-[9px] rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                    {statusBreakdown.done} done
+                                  </span>
+                                )}
                               </div>
                             )}
-                            <div className="pl-4 text-[10px] text-muted-foreground">
-                              {wf.nodeCount} nodes · {wf.edgeCount} edges
-                            </div>
                           </button>
                         );
                       })}
