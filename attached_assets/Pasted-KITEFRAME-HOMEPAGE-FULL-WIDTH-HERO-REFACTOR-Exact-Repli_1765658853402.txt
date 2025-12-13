@@ -1,0 +1,145 @@
+KITEFRAME — HOMEPAGE FULL-WIDTH HERO REFACTOR
+(Exact Replit Implementation Instructions)
+
+GOAL
+-----
+Allow the homepage hero / prompt section (gradient + content) to span the full viewport width,
+even though HomeScreen is rendered inside WorkflowEditor and constrained containers.
+
+We are NOT changing routing, App.tsx, or editor architecture.
+We are introducing a reusable FullBleedSection component.
+
+This must:
+- Work inside overflow-hidden parents
+- Preserve centered inner content
+- Be reusable for future chat expansion flows
+- Have zero impact on canvas, panels, auth, or tabs
+
+DO NOT invent new layout shells.
+DO NOT move HomeScreen out of WorkflowEditor.
+
+
+SECTION 1 — CREATE FullBleedSection COMPONENT
+--------------------------------------------
+
+Create a new reusable component:
+
+Path:
+client/src/components/layout/FullBleedSection.tsx
+
+Purpose:
+Render content at true viewport width (100vw) while keeping inner content centered
+and unaffected by parent padding or overflow-hidden constraints.
+
+Implementation requirements:
+- Use viewport-relative width (100vw)
+- Re-center content using the standard CSS viewport offset trick
+- Accept children and optional className
+- NO external dependencies
+
+Expected behavior:
+- Visually breaks out of any container
+- Inner content remains centered and readable
+- Safe to use anywhere in the app
+
+Do NOT:
+- Use negative margins based on px values
+- Modify global styles
+- Modify parent containers
+
+
+SECTION 2 — APPLY FullBleedSection TO HOMEPAGE HERO
+---------------------------------------------------
+
+Files involved:
+- client/src/pages/HomeScreen.tsx
+- client/src/components/home/HomeHero.tsx (or equivalent)
+
+Current issue:
+The hero gradient is rendered inside a constrained container and uses -mx utilities,
+which fail due to overflow-hidden ancestors.
+
+Required change:
+1. Wrap the hero section in <FullBleedSection>
+2. Move the ambient gradient layer inside FullBleedSection
+3. Remove all -mx-* hacks related to width breakout
+4. Keep inner content constrained via max-width utilities
+
+Structure should conceptually become:
+
+<FullBleedSection>
+  <div className="absolute inset-0 ambient-gradient" />
+  <div className="relative max-w-6xl mx-auto px-6">
+    {hero content}
+  </div>
+</FullBleedSection>
+
+Important:
+- The gradient must span edge-to-edge viewport width
+- Text and controls remain centered
+- Padding is applied to inner content, NOT the bleed container
+
+
+SECTION 3 — VERIFY NO ARCHITECTURAL REGRESSIONS
+-----------------------------------------------
+
+Confirm the following after implementation:
+
+- WorkflowEditor layout is unchanged
+- Canvas behavior is unchanged
+- Panels (KiteAI / Project / Layers) are unchanged
+- Auth flows unaffected
+- Tab switching unaffected
+- No routing changes introduced
+- No new global CSS added
+
+If anything outside HomeScreen changes, STOP and revert.
+
+
+SECTION 4 — PREPARE FOR FUTURE CHAT EXPANSION (NO IMPLEMENTATION YET)
+--------------------------------------------------------------------
+
+This refactor is a prerequisite for a later feature:
+Expanding the prompt input into a ChatGPT-style conversational surface.
+
+DO NOT implement animations yet.
+
+However:
+- Ensure FullBleedSection can safely be re-used
+- Ensure it supports dynamic height changes
+- Ensure z-index does not interfere with panels or canvas
+
+We will layer animation and state transitions later.
+
+
+SECTION 5 — ACCEPTANCE CRITERIA
+-------------------------------
+
+This task is complete when:
+
+✓ Homepage hero gradient spans full viewport width
+✓ Inner content remains centered and readable
+✓ No layout hacks remain (-mx-*)
+✓ No regressions in editor or panels
+✓ FullBleedSection is reusable and isolated
+✓ Works on desktop and mobile widths
+
+This is a UI-only refactor.
+No AI, no canvas, no project creation logic involved.
+
+
+SECTION 6 — NON-GOALS (IMPORTANT)
+---------------------------------
+
+Do NOT:
+- Create a new AppShell
+- Move HomeScreen out of WorkflowEditor
+- Change routing
+- Add animation logic
+- Modify prompt behavior
+- Modify gradient implementation (already exists)
+
+ONLY solve the layout containment problem cleanly.
+
+
+END OF INSTRUCTIONS

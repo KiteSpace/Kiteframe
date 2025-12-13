@@ -1,0 +1,97 @@
+KITEFRAME — HOMEPAGE LAYOUT REFACTOR QUESTIONS
+
+Goal:
+We need the homepage hero (gradient background + prompt card)
+to span the FULL viewport width, while keeping the prompt card
+itself centered and constrained.
+
+The gradient currently does NOT extend full width,
+which suggests it is nested inside a constrained layout container.
+
+=====================================
+SECTION 1 — CURRENT LAYOUT STRUCTURE
+=====================================
+
+1. What is the top-level layout wrapper for the homepage?
+   - Is there a shared <Layout> or <AppShell> component?
+   - Does it apply max-width (e.g. max-w-6xl / mx-auto)?
+
+2. Is the homepage using the same layout container
+   as the workflow editor and project views?
+
+3. Where is padding / max-width enforced?
+   - Global CSS?
+   - Layout component?
+   - Page-level wrapper?
+
+=====================================
+SECTION 2 — HERO / GRADIENT PLACEMENT
+=====================================
+
+4. Where is the gradient currently rendered?
+   - Inside the homepage component?
+   - As part of a shared layout background?
+   - As a pseudo-element?
+
+5. Is the gradient inside a container that has:
+   - max-width
+   - overflow-hidden
+   - padding or margin
+
+6. Can the gradient be moved to a full-width
+   <section class="w-screen"> safely without affecting
+   other pages?
+
+=====================================
+SECTION 3 — ROUTING & PAGE BOUNDARIES
+=====================================
+
+7. Is the homepage rendered inside a route-level layout
+   (e.g. <Route element={<Layout />}> )?
+
+8. Is it acceptable to:
+   - Render the homepage OUTSIDE the app shell
+   - Or conditionally disable the shell for `/` route?
+
+=====================================
+SECTION 4 — CSS / TAILWIND CONSTRAINTS
+=====================================
+
+9. Are there global styles applying:
+   - max-width to body
+   - overflow-x hidden
+   - padding to main
+
+10. Is Tailwind configured with a custom container plugin?
+    If so, does it auto-apply max-width to all sections?
+
+=====================================
+SECTION 5 — SAFE REFACTOR QUESTIONS
+=====================================
+
+11. What is the safest way to allow ONE page
+    (homepage) to break out of the standard layout
+    without affecting:
+      - Editor canvas
+      - Panels
+      - Tabs
+      - Auth layout
+
+12. Would Replit prefer:
+    (a) A page-specific layout override
+    (b) A new FullBleedSection component
+    (c) A homepage-only layout file
+
+=====================================
+SECTION 6 — CONFIRMATION
+=====================================
+
+13. Can we confirm the following is safe:
+    - Full-width hero section
+    - Inner centered content
+    - No impact to other routes
+
+14. Any constraints we should know about
+    before refactoring the homepage layout?
+
+END
