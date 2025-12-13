@@ -3,13 +3,23 @@ import { FileText, Save, CheckCircle, ChevronDown, ChevronRight } from 'lucide-r
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
 
 interface ProjectNotesSectionProps {
   projectId?: string;
 }
 
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 function getNotesStorageKey(projectId?: string): string {
   return `kiteframe-notes-${projectId || 'default'}`;
+}
+
+function getPromptTranscriptKey(projectId?: string): string {
+  return `kiteframe-prompt-transcript-${projectId || 'default'}`;
 }
 
 export function ProjectNotesSection({ projectId }: ProjectNotesSectionProps) {
@@ -18,6 +28,9 @@ export function ProjectNotesSection({ projectId }: ProjectNotesSectionProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isOpen, setIsOpen] = useState(true);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [promptTranscript, setPromptTranscript] = useState<Message[]>([]);
+  const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
 
   useEffect(() => {
     const key = getNotesStorageKey(projectId);
@@ -38,6 +51,17 @@ export function ProjectNotesSection({ projectId }: ProjectNotesSectionProps) {
       setNotes('');
       setSavedNotes('');
       setLastSaved(null);
+    }
+
+    // Load prompt transcript
+    const transcriptKey = getPromptTranscriptKey(projectId);
+    const savedTranscript = localStorage.getItem(transcriptKey);
+    if (savedTranscript) {
+      try {
+        setPromptTranscript(JSON.parse(savedTranscript));
+      } catch (e) {
+        setPromptTranscript([]);
+      }
     }
   }, [projectId]);
 
@@ -115,21 +139,64 @@ export function ProjectNotesSection({ projectId }: ProjectNotesSectionProps) {
           </div>
         </div>
         
-        <CollapsibleContent>
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Add notes about your project..."
-            className="min-h-[100px] resize-none text-sm"
-            data-testid="input-notes"
-          />
+        <CollapsibleContent className="space-y-4">
+          <div
+            className={cn(
+              "rounded-md transition-colors duration-100 -mx-1 px-1",
+              "hover:bg-accent/30",
+              !isEditingNotes && "cursor-text"
+            )}
+            onClick={() => setIsEditingNotes(true)}
+            data-testid="notes-field"
+          >
+            {isEditingNotes ? (
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                onBlur={() => setIsEditingNotes(false)}
+                placeholder="Add notes about your project..."
+                autoFocus
+                className={cn("min-h-[100px] resize-none text-sm border-primary/20 focus:border-primary/40")}
+                data-testid="input-notes"
+              />
+            ) : (
+              <div className={cn("text-sm min-h-[100px] py-2", !notes && "italic text-muted-foreground")}>
+                {notes || "Add notes about your project..."}
+              </div>
+            )}
+          </div>
           {notes.length > 0 && (
-            <div className="mt-1 text-[10px] text-muted-foreground">
+            <div className="text-[10px] text-muted-foreground">
               {notes.length} characters
             </div>
           )}
         </CollapsibleContent>
       </Collapsible>
+
+      {promptTranscript.length > 0 && (
+        <Collapsible open={isTranscriptOpen} onOpenChange={setIsTranscriptOpen}>
+          <div className="flex items-center gap-2 border-t border-border pt-4 mt-4">
+            <CollapsibleTrigger className="flex items-center gap-2">
+              {isTranscriptOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <FileText size={12} />
+                Prompt Transcript
+              </h2>
+            </CollapsibleTrigger>
+          </div>
+
+          <CollapsibleContent className="mt-3">
+            <div className="space-y-3 rounded-md border border-border/50 p-3 bg-muted/20 max-h-[300px] overflow-y-auto text-sm" data-testid="prompt-transcript">
+              {promptTranscript.map((msg, idx) => (
+                <div key={idx} className={cn("text-xs", msg.role === 'user' ? "text-foreground" : "text-muted-foreground")}>
+                  <span className="font-semibold">{msg.role === 'user' ? 'You: ' : 'AI: '}</span>
+                  {msg.content}
+                </div>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
     </section>
   );
 }
