@@ -5,12 +5,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Send, Sparkles, Loader2, Rocket, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAi } from '../ai/AiProvider';
+import { buildKiteAIContext, inferRoleFromIntent, type KiteAIRole } from '../lib/ai/buildKiteAIContext';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
-  showActions?: boolean;
 }
+
+type ChatState = 'idle' | 'clarifying' | 'actionable' | 'ready_to_create';
 
 interface PreProjectContext {
   prompt: string;
@@ -27,37 +29,6 @@ interface PreProjectChatProps {
   initialPrompt?: string;
   context?: PreProjectContext | null;
 }
-
-const CLARIFICATION_SYSTEM_PROMPT = `You are KiteAI, a decisive product design and workflow assistant.
-
-Your primary goal is to help the user move from idea → project creation with minimal friction.
-
-You MUST follow these rules:
-
-1. Bias toward action over clarification.
-2. Do NOT trap the user in extended brainstorming loops.
-3. Once the user intent is actionable, you MUST present a clear decision.
-4. You are allowed to start a project even if details are incomplete.
-5. Missing details can be refined after project creation.
-
-Actionable intent means:
-- A general goal exists
-- A user or system is implied
-- The problem space is identifiable
-- Remaining questions are refinements, not blockers
-
-Once intent is actionable:
-- Ask at most 1–2 clarifying questions
-- Then IMMEDIATELY present decision actions:
-  - "Ready to start the project"
-  - "Keep brainstorming"
-
-If you have asked questions for more than 3 turns total, you MUST stop and present the decision actions.
-
-You should summarize your understanding briefly (2–3 sentences max), then allow the user to decide.
-
-Never hide project creation behind more questions.
-Keep responses concise and conversational.`;
 
 function calculateConfidenceScore(allMessages: Message[], hasUploadedFiles: boolean): number {
   let score = 0;
@@ -98,6 +69,23 @@ function calculateConfidenceScore(allMessages: Message[], hasUploadedFiles: bool
   }
   
   return Math.min(score, 100);
+}
+
+function determineChatState(
+  messages: Message[],
+  confidenceScore: number,
+  aiTurnCount: number,
+  hasUploadedFiles: boolean
+): ChatState {
+  if (messages.length === 0) return 'idle';
+  
+  if (hasUploadedFiles && aiTurnCount >= 1) return 'ready_to_create';
+  if (aiTurnCount >= 2) return 'ready_to_create';
+  if (confidenceScore >= 70) return 'actionable';
+  if (confidenceScore >= 50) return 'actionable';
+  if (aiTurnCount >= 1) return 'clarifying';
+  
+  return 'idle';
 }
 
 function ActionButtons({ 
@@ -154,6 +142,7 @@ export function PreProjectChat({
   const [hasStarted, setHasStarted] = useState(false);
   const [showActionButtons, setShowActionButtons] = useState(false);
   const [actionButtonsDismissed, setActionButtonsDismissed] = useState(false);
+  const [currentRole, setCurrentRole] = useState<KiteAIRole>('brainstorm');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const aiClient = useAi();
@@ -170,17 +159,15 @@ export function PreProjectChat({
     return calculateConfidenceScore(messages, hasUploadedFiles);
   }, [messages, hasUploadedFiles]);
 
+  const chatState = useMemo(() => {
+    return determineChatState(messages, confidenceScore, aiTurnCount, hasUploadedFiles);
+  }, [messages, confidenceScore, aiTurnCount, hasUploadedFiles]);
+
   const shouldShowActions = useMemo(() => {
     if (actionButtonsDismissed) return false;
     if (messages.length === 0) return false;
-    
-    if (hasUploadedFiles && aiTurnCount >= 1) return true;
-    if (aiTurnCount >= 3) return true;
-    if (confidenceScore >= 70) return true;
-    if (confidenceScore >= 50 && aiTurnCount >= 2) return true;
-    
-    return false;
-  }, [actionButtonsDismissed, messages.length, hasUploadedFiles, aiTurnCount, confidenceScore]);
+    return chatState === 'actionable' || chatState === 'ready_to_create';
+  }, [actionButtonsDismissed, messages.length, chatState]);
 
   useEffect(() => {
     if (shouldShowActions && !showActionButtons) {
@@ -191,9 +178,11 @@ export function PreProjectChat({
   useEffect(() => {
     if (isOpen && initialPrompt && !hasStarted) {
       setHasStarted(true);
+      const inferredRole = inferRoleFromIntent(initialPrompt, hasUploadedFiles);
+      setCurrentRole(inferredRole);
       handleSendMessage(initialPrompt);
     }
-  }, [isOpen, initialPrompt, hasStarted]);
+  }, [isOpen, initialPrompt, hasStarted, hasUploadedFiles]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -202,6 +191,7 @@ export function PreProjectChat({
       setHasStarted(false);
       setShowActionButtons(false);
       setActionButtonsDismissed(false);
+      setCurrentRole('brainstorm');
     }
   }, [isOpen]);
 
@@ -236,10 +226,21 @@ export function PreProjectChat({
       setActionButtonsDismissed(false);
     }
 
+    const inferredRole = inferRoleFromIntent(content, hasUploadedFiles);
+    setCurrentRole(inferredRole);
+
     try {
+      const aiContext = buildKiteAIContext(
+        'pre_project',
+        inferredRole,
+        undefined,
+        undefined,
+        { hasUploadedFiles, turnCount: aiTurnCount }
+      );
+
       const response = await aiClient.chat({
         messages: [
-          { role: 'system', content: CLARIFICATION_SYSTEM_PROMPT },
+          { role: 'system', content: aiContext.systemPrompt },
           ...messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
           { role: 'user', content: content.trim() }
         ],
@@ -260,7 +261,7 @@ export function PreProjectChat({
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [messages, isLoading, aiClient, actionButtonsDismissed]);
+  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, aiTurnCount]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

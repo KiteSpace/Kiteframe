@@ -14,6 +14,12 @@ import { computeWorkflowMaturity, type WorkflowMaturity } from '../ai/workflowMa
 import { generateFollowUps, shouldAskFollowUps } from '../ai/followUpGenerator';
 import type { VisionRole } from '../ai/workflow/visionPipeline';
 import { 
+  buildKiteAIContext, 
+  inferRoleFromIntent, 
+  getRoleDisplayInfo,
+  type KiteAIRole 
+} from '../lib/ai/buildKiteAIContext';
+import { 
   MessageCircle, 
   Send, 
   Paperclip, 
@@ -125,6 +131,8 @@ function ChatView({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [showDiffPreview, setShowDiffPreview] = useState<string | null>(null);
   const [visionRole, setVisionRole] = useState<VisionRole>('pm');
+  const [selectedRole, setSelectedRole] = useState<KiteAIRole>('brainstorm');
+  const [hasManualRoleSelection, setHasManualRoleSelection] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -453,7 +461,6 @@ function ChatView({
         }
       }
 
-      const canvasContext = buildCanvasContext();
       const conversationHistory = messages.slice(-6).map(m => ({
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content
@@ -464,85 +471,33 @@ function ChatView({
         a.type === 'image'
       );
       
-      const roleContext: RoleContext = {
-        source: hasFigmaAttachment ? 'figma' : 'workflow',
-        target: 'workflow',
-        userIntent: inputValue
-      };
-      const selectedRole = selectKiteRole(roleContext);
-      const rolePrompt = getSystemPromptForRole(selectedRole);
+      const inferredRole = inferRoleFromIntent(inputValue, hasFigmaAttachment);
+      const effectiveRole = hasManualRoleSelection ? selectedRole : inferredRole;
       
+      const hasCanvasContext = currentNodes.length > 0;
       const hasSemanticData = currentNodes.some(n => n.data?.label || n.data?.description);
-      const confidence = computeConfidence({
-        nodeCount: currentNodes.length,
-        edgeCount: currentEdges.length,
-        hasSemanticData,
-        userPromptLength: inputValue.length
-      });
-
-      const maturity = computeWorkflowMaturity({
-        nodeCount: currentNodes.length,
-        edgeCount: currentEdges.length,
-        hasDecisionNodes: currentNodes.some(n => n.type === 'condition'),
-        hasInputs: currentNodes.some(n => n.type === 'input'),
-        hasOutputs: currentNodes.some(n => n.type === 'output')
-      });
-
-      if (isConfidenceInsufficient(confidence)) {
-        const lowConfidenceMessage: ChatMessage = {
-          id: `msg-${Date.now()}`,
-          role: 'assistant',
-          content: "I don't have enough context to provide a confident analysis yet. Try adding more nodes to your workflow, or describe what you're trying to build in more detail.",
-          timestamp: new Date(),
-          meta: { kiteRole: selectedRole, confidence, maturity }
-        };
-        setMessages(prev => [...prev, lowConfidenceMessage]);
-        setIsLoading(false);
-        return;
+      
+      const kiteAIContext = buildKiteAIContext(
+        'in_project',
+        effectiveRole,
+        {
+          nodes: currentNodes,
+          edges: currentEdges,
+          canvasObjects: currentCanvasObjects,
+          projectName: projectId
+        }
+      );
+      
+      let enhancedPrompt = kiteAIContext.systemPrompt;
+      if (!hasCanvasContext) {
+        enhancedPrompt += `\n\nIMPORTANT: The canvas is empty. Help the user build their first workflow. Do NOT ask "What are you building?" - instead, help them create nodes based on their request.`;
+      } else if (!hasSemanticData) {
+        enhancedPrompt += `\n\nNOTE: Nodes exist but lack labels/descriptions. Help refine them rather than asking foundational questions.`;
       }
-
-      if (shouldAskFollowUps(confidence)) {
-        const followUps = generateFollowUps({ maturity, role: selectedRole });
-        const followUpMessage: ChatMessage = {
-          id: `msg-${Date.now()}`,
-          role: 'assistant',
-          content: 'Before going further, I need clarification:',
-          timestamp: new Date(),
-          meta: { kiteRole: selectedRole, confidence, maturity },
-          followUps
-        };
-        setMessages(prev => [...prev, followUpMessage]);
-        setIsLoading(false);
-        return;
-      }
-
-      const maturityGuidance = maturity === 'draft'
-        ? `\n\nWORKFLOW MATURITY: Draft
-- Focus on clarification, risks, and missing structure
-- Do NOT generate acceptance criteria or hard requirements yet`
-        : `\n\nWORKFLOW MATURITY: Stable
-- You MAY generate requirements, acceptance criteria, and edge cases`;
-
-      const systemPrompt = `${rolePrompt}${maturityGuidance}
-
----
-
-You are also KiteAI, a workflow design assistant for the Kiteframe workflow editor.
-
-Current canvas state: ${canvasContext}
-
-WORKFLOW GENERATION RULES (when asked to CREATE or MODIFY a workflow):
-1. Respond with valid JSON: {"nodes":[...],"edges":[...]}
-2. Node types: input, process, output, condition, ai, image
-3. Position nodes with x starting at 300, spacing 250px apart. y around 200-400.
-4. Each node needs: id, type, position: {x, y}, data: {label, description, icon, iconColor}, width: 200, height: 100
-5. Each edge needs: id, source, target, type: "bezier", style: {strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2}, markers: {type: "arrow", position: "end"}
-
-For CONVERSATIONS, respond naturally without JSON.`;
 
       const response = await aiClient.chat({
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'system', content: enhancedPrompt },
           ...conversationHistory,
           { role: 'user', content: inputValue }
         ],
@@ -584,7 +539,7 @@ For CONVERSATIONS, respond naturally without JSON.`;
         content: responseText,
         timestamp: new Date(),
         workflowProposal,
-        meta: { kiteRole: selectedRole, confidence, maturity }
+        meta: { kiteRole: effectiveRole as KiteRole }
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -737,7 +692,31 @@ For CONVERSATIONS, respond naturally without JSON.`;
           <span className="font-semibold">KiteAI</span>
           {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {(['brainstorm', 'designer', 'pm'] as const).map((role) => {
+              const info = getRoleDisplayInfo(role);
+              return (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => {
+                    setSelectedRole(role);
+                    setHasManualRoleSelection(true);
+                  }}
+                  className={`px-2 py-1 text-[10px] font-medium transition-colors ${
+                    selectedRole === role 
+                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white' 
+                      : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  title={info.description}
+                  data-testid={`button-role-${role}`}
+                >
+                  {info.emoji}
+                </button>
+              );
+            })}
+          </div>
           <button
             onClick={clearChat}
             className="p-1.5 hover:bg-accent rounded-md transition-colors"
