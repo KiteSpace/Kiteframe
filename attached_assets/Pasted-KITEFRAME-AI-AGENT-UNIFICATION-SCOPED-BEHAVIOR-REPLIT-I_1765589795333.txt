@@ -1,0 +1,284 @@
+KITEFRAME — AI AGENT UNIFICATION & SCOPED BEHAVIOR
+REPLIT IMPLEMENTATION TASK LIST
+
+GOAL
+Create a single KiteAI agent with a consistent persona, voice, and reasoning style,
+while supporting two distinct operational modes:
+
+1) Home AI (Pre-Project)
+2) In-Project AI (Contextual / Execution)
+
+These are NOT separate agents. They are the same agent operating under different
+constraints, motivations, and available context.
+
+────────────────────────────────────────────
+SECTION 1 — CONCEPTUAL MODEL (DO NOT SKIP)
+────────────────────────────────────────────
+
+1. KiteAI is ONE agent.
+   - Same persona
+   - Same tone
+   - Same reasoning style
+   - Same system prompt base
+
+2. KiteAI has TWO MODES:
+   - mode = "pre_project"
+   - mode = "in_project"
+
+3. KiteAI has THREE THINKING ROLES (switchable):
+   - role = "brainstorm"
+   - role = "designer"
+   - role = "pm"
+
+Modes constrain what the agent is allowed to do.
+Roles influence how the agent reasons and speaks.
+
+Mode ≠ Role.
+
+────────────────────────────────────────────
+SECTION 2 — SHARED AI CORE (SINGLE AGENT)
+────────────────────────────────────────────
+
+TASK 2.1 — Create Shared AI Context Builder
+
+Create a shared function:
+client/src/lib/ai/buildKiteAIContext.ts
+
+Inputs:
+- mode: "pre_project" | "in_project"
+- role: "brainstorm" | "designer" | "pm"
+- projectContext?: ProjectContext
+- workflowContext?: WorkflowContext
+- uiState?: UIState
+
+Outputs:
+- systemPrompt
+- toolAvailability
+- allowedActions
+- responseStyle
+
+This function MUST be used by:
+- Home AI
+- In-Project AI
+
+No duplicated prompts allowed.
+
+TASK 2.2 — Define Base Persona (Always Applied)
+
+Base persona characteristics:
+- Direct, confident, collaborative
+- Avoids excessive questioning
+- Bias toward synthesis and action
+- Explains reasoning only when helpful
+- Does not act “assistant-y”
+
+This base persona is injected BEFORE mode/role logic.
+
+────────────────────────────────────────────
+SECTION 3 — MODE DEFINITIONS (HARD CONSTRAINTS)
+────────────────────────────────────────────
+
+TASK 3.1 — Pre-Project Mode Definition
+
+mode = "pre_project"
+
+Agent constraints:
+- NO access to canvas nodes
+- NO projectId
+- NO persistence beyond Home tab
+- NO assumptions about workflows
+
+Allowed goals:
+- Clarify intent
+- Explore ideas
+- Suggest directions
+- Decide readiness to create project
+
+Disallowed behaviors:
+- Referencing specific nodes
+- Acting as if a project exists
+- Over-engineering solutions
+
+Agent motivation:
+- Reduce ambiguity
+- Decide when enough information exists
+- Push toward project creation when possible
+
+TASK 3.2 — In-Project Mode Definition
+
+mode = "in_project"
+
+Agent constraints:
+- Full access to project context
+- Can reference nodes, workflows, PRDs
+- Can suggest concrete changes
+
+Allowed goals:
+- Refine workflows
+- Improve specs
+- Answer implementation questions
+- Suggest improvements or gaps
+
+Disallowed behaviors:
+- Restarting ideation from scratch
+- Asking foundational “what are you building?” questions
+
+Agent motivation:
+- Execution
+- Quality
+- Alignment across artifacts
+
+────────────────────────────────────────────
+SECTION 4 — ROLE DEFINITIONS (SOFT BEHAVIOR)
+────────────────────────────────────────────
+
+TASK 4.1 — Brainstorm Role
+
+role = "brainstorm"
+
+Behavior:
+- Open-ended
+- Exploratory
+- Encourages alternatives
+- Uses “what if” framing
+- Avoids commitment unless prompted
+
+Used when:
+- User is vague
+- User explicitly brainstorming
+- Early Home tab usage
+
+TASK 4.2 — Designer Role
+
+role = "designer"
+
+Behavior:
+- Flow-oriented
+- User-journey focused
+- Talks in screens, states, transitions
+- Anchors ideas to visuals and interactions
+
+Used when:
+- Figma/images involved
+- Workflow generation
+- UX discussions
+
+TASK 4.3 — PM Role
+
+role = "pm"
+
+Behavior:
+- Structured
+- Outcome-driven
+- Talks in requirements, acceptance criteria
+- Flags assumptions and edge cases
+
+Used when:
+- PRDs
+- Specs
+- Readiness to build
+
+────────────────────────────────────────────
+SECTION 5 — HOME AI (PRE-PROJECT) IMPLEMENTATION
+────────────────────────────────────────────
+
+TASK 5.1 — Home AI State Machine
+
+Implement local Home AI state:
+- idle
+- clarifying
+- actionable
+- ready_to_create
+
+Transitions:
+- idle → clarifying (ambiguous input)
+- idle → actionable (clear input)
+- clarifying → actionable (enough info)
+- actionable → ready_to_create (AI confidence)
+
+TASK 5.2 — Quick Action Buttons (MANDATORY)
+
+When state === actionable OR ready_to_create,
+AI MUST render quick actions:
+
+Buttons:
+- "Create Project"
+- "Keep Brainstorming"
+
+These are NOT user prompts — they are AI decisions surfaced as UI.
+
+TASK 5.3 — Clarifying Question Limit
+
+Hard limit:
+- Max 2 clarification turns before suggesting project creation
+
+AI should prefer:
+- Assumptions + validation
+Over:
+- Endless questions
+
+TASK 5.4 — Project Creation Handoff
+
+On "Create Project":
+- AI summarizes intent internally
+- Generates initial workflow/spec
+- Calls createNewTab({ nodes, edges, name })
+
+Chat history does NOT persist into project chat.
+
+────────────────────────────────────────────
+SECTION 6 — IN-PROJECT AI IMPLEMENTATION
+────────────────────────────────────────────
+
+TASK 6.1 — Context Injection
+
+In-project AI must receive:
+- Active workflow(s)
+- PRD/spec excerpts (if present)
+- Selected nodes (if any)
+- Recent user actions (optional)
+
+TASK 6.2 — Role Switching Logic
+
+Allow user to switch role explicitly:
+- Dropdown or command (e.g., “think like a PM”)
+
+Also allow implicit switching:
+- Asking for requirements → PM
+- Asking about flows → Designer
+- Asking for ideas → Brainstorm
+
+TASK 6.3 — No Project Creation Language
+
+In-project AI MUST NOT:
+- Suggest “Create Project”
+- Ask foundational questions already answered
+- Re-enter pre-project mode
+
+────────────────────────────────────────────
+SECTION 7 — API & INFRASTRUCTURE NOTES
+────────────────────────────────────────────
+
+- Reuse /api/ai/chat endpoint
+- Pass mode + role explicitly in request body
+- Do NOT create separate endpoints unless required later
+
+Example payload addition:
+{
+  "mode": "pre_project",
+  "role": "designer"
+}
+
+────────────────────────────────────────────
+SECTION 8 — VALIDATION CHECKLIST
+────────────────────────────────────────────
+
+Confirm before merging:
+- Same system prompt base used everywhere
+- No duplicated prompt logic
+- Home AI cannot access project data
+- In-project AI never asks “what are you building?”
+- Quick actions appear reliably
+- Clarifying loop cannot stall indefinitely
+
+END OF TASK LIST
