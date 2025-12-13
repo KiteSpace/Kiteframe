@@ -176,9 +176,22 @@ function ChatView({
     if (!storageKey) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(messages));
+      
+      // Also save prompt transcript (user/assistant messages only, excluding welcome)
+      const transcript = messages
+        .filter(msg => msg.role !== 'system' && msg.id !== 'welcome')
+        .map(msg => ({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content
+        }));
+      
+      if (transcript.length > 0) {
+        const transcriptKey = `kiteframe-prompt-transcript-${projectId}`;
+        localStorage.setItem(transcriptKey, JSON.stringify(transcript));
+      }
     } catch {
     }
-  }, [messages, storageKey]);
+  }, [messages, storageKey, projectId]);
   
   useEffect(() => {
     if (prevProjectIdRef.current === projectId) return;
