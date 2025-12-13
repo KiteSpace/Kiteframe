@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Sparkles, Upload, FileText } from 'lucide-react';
 import { SiFigma } from 'react-icons/si';
+import { FullBleedSection } from '@/components/layout/FullBleedSection';
 
 interface HomeHeroProps {
   onStartDesigning: (prompt: string) => void;
@@ -48,11 +49,11 @@ export function HomeHero({
   }, [promptValue, isGenerating, isDisabled, handleStartDesigning]);
 
   return (
-    <div className="relative w-full -mx-6 px-6 mb-10">
+    <FullBleedSection className="mb-10">
       <div className="absolute inset-0 kiteframe-ambient-gradient" />
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
 
-      <div className="relative z-10 py-16 flex flex-col items-center">
+      <div className="relative z-10 py-16 flex flex-col items-center max-w-6xl mx-auto px-6">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent">
             What would you like to build?
@@ -150,6 +151,6 @@ export function HomeHero({
           ))}
         </div>
       </div>
-    </div>
+    </FullBleedSection>
   );
 }
