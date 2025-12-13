@@ -261,20 +261,49 @@ export function ProjectDocTab({
 
                   {workflowSummaries.length > 0 && (
                     <div className="space-y-1">
-                      {workflowSummaries.map((wf) => (
-                        <div
-                          key={wf.id}
-                          className="px-2 py-1.5 text-sm flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Circle size={8} className="text-primary fill-primary" />
-                            <span className="font-medium">{wf.name}</span>
-                          </div>
-                          <span className="text-[10px] text-muted-foreground">
-                            {wf.nodeCount} nodes · {wf.edgeCount} edges
-                          </span>
-                        </div>
-                      ))}
+                      {workflowSummaries.map((wf) => {
+                        const hasStatuses = wf.nodes.some(n => n.data?.status);
+                        const statusBreakdown = hasStatuses ? {
+                          todo: wf.nodes.filter(n => !n.data?.status || n.data?.status === 'todo').length,
+                          inprogress: wf.nodes.filter(n => n.data?.status === 'inprogress').length,
+                          done: wf.nodes.filter(n => n.data?.status === 'done').length
+                        } : null;
+                        
+                        return (
+                          <button
+                            key={wf.id}
+                            onClick={() => {
+                              const firstNode = wf.nodes[0];
+                              if (firstNode) {
+                                const x = firstNode.position?.x || 0;
+                                const y = firstNode.position?.y || 0;
+                                window.dispatchEvent(new CustomEvent('zoom-to-node', { 
+                                  detail: { x, y, nodeId: firstNode.id }
+                                }));
+                              }
+                            }}
+                            className="w-full text-left px-2 py-2 rounded hover:bg-accent/50 transition-colors"
+                            data-testid={`workflow-${wf.id}`}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <Circle size={8} className="text-primary fill-primary" />
+                              <span className="font-medium text-sm">{wf.name}</span>
+                            </div>
+                            {statusBreakdown && (
+                              <div className="pl-4 text-[10px] text-muted-foreground mb-1">
+                                <div className="flex gap-3">
+                                  {statusBreakdown.todo > 0 && <span>To-do: {statusBreakdown.todo}</span>}
+                                  {statusBreakdown.inprogress > 0 && <span>In progress: {statusBreakdown.inprogress}</span>}
+                                  {statusBreakdown.done > 0 && <span>Done: {statusBreakdown.done}</span>}
+                                </div>
+                              </div>
+                            )}
+                            <div className="pl-4 text-[10px] text-muted-foreground">
+                              {wf.nodeCount} nodes · {wf.edgeCount} edges
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 

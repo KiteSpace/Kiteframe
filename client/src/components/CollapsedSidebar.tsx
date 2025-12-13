@@ -120,6 +120,18 @@ export function CollapsedSidebar({
       case 'share':
         onShare?.();
         break;
+      case 'rocket':
+        onOpenAiGenerator?.();
+        break;
+      case 'download':
+        onExport();
+        break;
+      case 'upload':
+        onImport();
+        break;
+      case 'delete':
+        onClearCanvas();
+        break;
       default:
         console.log('🚫 UNKNOWN ICON KEY:', iconKey);
         break;
@@ -314,6 +326,7 @@ export function CollapsedSidebar({
       case 'export': return 'Export';
       case 'import': return 'Import';
       case 'share': return 'Share Link';
+      case 'rocket': return 'Power Features';
       default: return iconKey;
     }
   };
@@ -335,13 +348,13 @@ export function CollapsedSidebar({
   // Note: 'table' and 'form' removed - they exist inside node-types menu
   const mainIcons = ['workflow', 'type', 'shapes', 'sticky-note'];
   const templateThemeIcons = ['route', 'palette'];
-  const actionIcons = readOnly ? ['clear', 'export', 'import'] : ['clear', 'export', 'share', 'import'];
+  const actionIcons = readOnly ? ['clear', 'export', 'import'] : ['rocket', 'share', 'download', 'upload', 'delete'];
 
   return (
     <TooltipProvider>
       <div 
         className={`absolute left-4 top-1/2 -translate-y-1/2 flex flex-col bg-card border border-border shadow-lg p-2 z-40 transition-all duration-200 ${isExpanded ? 'w-44' : 'w-12'}`}
-        style={{ borderRadius: '12px' }}
+        style={{ borderRadius: isExpanded ? '12px' : '50%' }}
         data-testid="collapsed-sidebar"
       >
         {/* Hamburger Menu Toggle */}

@@ -184,7 +184,7 @@ export function ProjectPanel({
             <ChevronRight size={16} />
           </Button>
           <ScrollArea className="flex-1">
-            <TabsList className="inline-flex h-10 w-max min-w-full p-1 gap-1">
+            <TabsList className="inline-flex h-10 w-max min-w-full p-1 gap-1 bg-transparent">
               <TabsTrigger 
                 value="kite-ai" 
                 className="text-xs px-3 gap-1.5 data-[state=active]:bg-background data-[state=active]:text-purple-500" 

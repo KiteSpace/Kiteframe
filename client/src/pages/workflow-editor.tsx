@@ -7336,69 +7336,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             />
                 
 
-                {/* Power Features Button */}
-                {!isReadOnly && (
-                  <div className="absolute bottom-20 right-4 z-30">
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowPowerFeaturesMenu(!showPowerFeaturesMenu)}
-                        className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg hover:from-purple-700 hover:to-blue-700 transition-all"
-                        title="Power Features"
-                        data-testid="button-power-features"
-                      >
-                        <Rocket size={18} />
-                      </button>
-                      {showPowerFeaturesMenu && (
-                        <div className="absolute bottom-12 right-0 w-56 bg-card border border-border rounded-lg shadow-lg z-50 py-2">
-                          <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground border-b border-border mb-1">
-                            Power Features
-                          </div>
-                          <button
-                            onClick={() => {
-                              setShowPowerFeaturesMenu(false);
-                              setShowAiGenerator(true);
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
-                            data-testid="power-feature-upload-image"
-                          >
-                            <Upload size={16} className="text-muted-foreground" />
-                            Upload Image
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowPowerFeaturesMenu(false);
-                              setFigmaImportMode('insert-into-project');
-                              setShowFigmaModal(true);
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
-                            data-testid="power-feature-import-figma"
-                          >
-                            <SiFigma size={14} className="text-[#F24E1E]" />
-                            Import Figma
-                          </button>
-                          <div className="border-t border-border mt-1 pt-1">
-                            <button
-                              disabled
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground cursor-not-allowed opacity-50"
-                              data-testid="power-feature-jira"
-                            >
-                              <span className="w-4 h-4 flex items-center justify-center">📋</span>
-                              Jira <span className="text-xs ml-auto">(Coming soon)</span>
-                            </button>
-                            <button
-                              disabled
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground cursor-not-allowed opacity-50"
-                              data-testid="power-feature-google-doc"
-                            >
-                              <span className="w-4 h-4 flex items-center justify-center">📄</span>
-                              Google Doc <span className="text-xs ml-auto">(Coming soon)</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
                 
               </>
             ) : (
