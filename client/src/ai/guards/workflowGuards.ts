@@ -6,6 +6,7 @@
  */
 
 import { ActionabilityResult } from '../actionability';
+import { assertPMDepth, PMDepthResult, RoleContext, SemanticWorkflow } from './pmDepthGuards';
 
 export interface WorkflowNode {
   id: string;
@@ -255,12 +256,14 @@ export function runAllGuards(
   prompt: string,
   actionability: ActionabilityResult,
   workflow: WorkflowStructure | null,
-  generationState: GenerationState
+  generationState: GenerationState,
+  roleContext?: RoleContext
 ): {
   canProceed: boolean;
   failures: GuardResult[];
   promptResult: PromptActionabilityResult;
   workflowResult: WorkflowStructureResult | null;
+  pmDepthResult: PMDepthResult | null;
   confirmationResult: GuardResult;
 } {
   const promptResult = assertPromptActionable(prompt, actionability);
@@ -269,12 +272,17 @@ export function runAllGuards(
     ? assertWorkflowStructure(workflow)
     : null;
   
+  const pmDepthResult = workflow
+    ? assertPMDepth(workflow as SemanticWorkflow, roleContext)
+    : null;
+  
   const confirmationResult = assertUserConfirmedGeneration(generationState);
 
   const failures: GuardResult[] = [];
   
   if (!promptResult.passed) failures.push(promptResult);
   if (workflowResult && !workflowResult.passed) failures.push(workflowResult);
+  if (pmDepthResult && !pmDepthResult.passed) failures.push(pmDepthResult);
   if (!confirmationResult.passed) failures.push(confirmationResult);
 
   const canProceed = failures.length === 0;
@@ -290,6 +298,9 @@ export function runAllGuards(
     failures,
     promptResult,
     workflowResult,
+    pmDepthResult,
     confirmationResult,
   };
 }
+
+export { assertPMDepth, type PMDepthResult, type RoleContext, type SemanticWorkflow } from './pmDepthGuards';

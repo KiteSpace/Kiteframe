@@ -21,8 +21,11 @@ import {
   assertWorkflowStructure,
   assertUserConfirmedGeneration,
   runAllGuards,
+  assertPMDepth,
   WorkflowStructure,
   GenerationState,
+  SemanticWorkflow,
+  RoleContext,
 } from '../guards/workflowGuards';
 
 describe('KiteAI Acceptance Tests', () => {
@@ -367,6 +370,218 @@ describe('KiteAI Acceptance Tests', () => {
         
         expect(actionability.isActionable).toBe(false);
         expect(actionability.score).toBeLessThan(3);
+      });
+    });
+  });
+
+  describe('G. PM Depth Guards', () => {
+    const pmRoleContext: RoleContext = { role: 'pm', confidence: 0.8 };
+    const developerRoleContext: RoleContext = { role: 'developer', confidence: 0.8 };
+
+    describe('Shallow outlines should fail PM depth', () => {
+      it('should reject workflow with no tradeoffs, risks, or meaningful decisions', () => {
+        const shallowWorkflow: SemanticWorkflow = {
+          nodes: [
+            { id: '1', type: 'input', label: 'Begin' },
+            { id: '2', type: 'process', label: 'Step A' },
+            { id: '3', type: 'process', label: 'Step B' },
+            { id: '4', type: 'output', label: 'End' },
+          ],
+          edges: [
+            { id: 'e1', source: '1', target: '2' },
+            { id: 'e2', source: '2', target: '3' },
+            { id: 'e3', source: '3', target: '4' },
+          ],
+        };
+
+        const result = assertPMDepth(shallowWorkflow, pmRoleContext);
+        
+        expect(result.passed).toBe(false);
+        expect(result.reason).toContain('lacks meaningful product decisions');
+      });
+
+      it('should reject linear checklist disguised as workflow', () => {
+        const checklistWorkflow: SemanticWorkflow = {
+          nodes: [
+            { id: '1', type: 'input', label: 'Start' },
+            { id: '2', type: 'process', label: 'Do Thing' },
+            { id: '3', type: 'process', label: 'Do Another Thing' },
+            { id: '4', type: 'output', label: 'Done' },
+          ],
+          edges: [
+            { id: 'e1', source: '1', target: '2' },
+            { id: 'e2', source: '2', target: '3' },
+            { id: 'e3', source: '3', target: '4' },
+          ],
+        };
+
+        const result = assertPMDepth(checklistWorkflow, pmRoleContext);
+        
+        expect(result.passed).toBe(false);
+      });
+    });
+
+    describe('Meaningful workflows should pass PM depth', () => {
+      it('should pass workflow with explicit tradeoffs', () => {
+        const tradeoffWorkflow: SemanticWorkflow = {
+          nodes: [
+            { id: '1', type: 'input', label: 'New User Registration' },
+            { id: '2', type: 'condition', label: 'Identity Verification: Speed vs Security Tradeoff' },
+            { id: '3', type: 'process', label: 'Quick Email Verification (faster but less secure)' },
+            { id: '4', type: 'process', label: 'Full Document Verification (slower but more secure)' },
+            { id: '5', type: 'output', label: 'Account Created' },
+          ],
+          edges: [
+            { id: 'e1', source: '1', target: '2' },
+            { id: 'e2', source: '2', target: '3', label: 'Option A: Speed' },
+            { id: 'e3', source: '2', target: '4', label: 'Option B: Security' },
+            { id: 'e4', source: '3', target: '5' },
+            { id: 'e5', source: '4', target: '5' },
+          ],
+        };
+
+        const result = assertPMDepth(tradeoffWorkflow, pmRoleContext);
+        
+        expect(result.passed).toBe(true);
+        expect(result.hasTradeoff).toBe(true);
+        expect(result.detectedSignals.length).toBeGreaterThan(0);
+      });
+
+      it('should pass workflow with risk mitigation', () => {
+        const riskWorkflow: SemanticWorkflow = {
+          nodes: [
+            { id: '1', type: 'input', label: 'Payment Submitted' },
+            { id: '2', type: 'condition', label: 'Fraud Risk Assessment' },
+            { id: '3', type: 'process', label: 'Process Payment' },
+            { id: '4', type: 'process', label: 'Escalate to Fraud Team' },
+            { id: '5', type: 'process', label: 'Fallback Manual Review' },
+            { id: '6', type: 'output', label: 'Complete' },
+          ],
+          edges: [
+            { id: 'e1', source: '1', target: '2' },
+            { id: 'e2', source: '2', target: '3', label: 'Low Risk' },
+            { id: 'e3', source: '2', target: '4', label: 'High Risk' },
+            { id: 'e4', source: '4', target: '5' },
+            { id: 'e5', source: '3', target: '6' },
+            { id: 'e6', source: '5', target: '6' },
+          ],
+        };
+
+        const result = assertPMDepth(riskWorkflow, pmRoleContext);
+        
+        expect(result.passed).toBe(true);
+        expect(result.hasRisk).toBe(true);
+      });
+
+      it('should pass workflow with irreversible decision points', () => {
+        const irreversibleWorkflow: SemanticWorkflow = {
+          nodes: [
+            { id: '1', type: 'input', label: 'User Checkout' },
+            { id: '2', type: 'condition', label: 'Review Order' },
+            { id: '3', type: 'process', label: 'Confirm Payment - Charges Credit Card' },
+            { id: '4', type: 'output', label: 'Order Submitted' },
+          ],
+          edges: [
+            { id: 'e1', source: '1', target: '2' },
+            { id: 'e2', source: '2', target: '3', label: 'Confirm' },
+            { id: 'e3', source: '3', target: '4' },
+          ],
+        };
+
+        const result = assertPMDepth(irreversibleWorkflow, pmRoleContext);
+        
+        expect(result.passed).toBe(true);
+        expect(result.hasIrreversible).toBe(true);
+      });
+    });
+
+    describe('Role context should determine when guards apply', () => {
+      it('should skip PM guards for developer role', () => {
+        const shallowWorkflow: SemanticWorkflow = {
+          nodes: [
+            { id: '1', type: 'input', label: 'Start' },
+            { id: '2', type: 'process', label: 'Process' },
+            { id: '3', type: 'output', label: 'End' },
+          ],
+          edges: [
+            { id: 'e1', source: '1', target: '2' },
+            { id: 'e2', source: '2', target: '3' },
+          ],
+        };
+
+        const result = assertPMDepth(shallowWorkflow, developerRoleContext);
+        
+        expect(result.passed).toBe(true);
+        expect(result.reason).toContain('not applicable');
+      });
+
+      it('should apply PM guards for hybrid role with high confidence', () => {
+        const hybridHighConfidence: RoleContext = { role: 'hybrid', confidence: 0.8 };
+        const shallowWorkflow: SemanticWorkflow = {
+          nodes: [
+            { id: '1', type: 'input', label: 'Start' },
+            { id: '2', type: 'condition', label: 'Check' },
+            { id: '3', type: 'output', label: 'End' },
+          ],
+          edges: [
+            { id: 'e1', source: '1', target: '2' },
+            { id: 'e2', source: '2', target: '3' },
+          ],
+        };
+
+        const result = assertPMDepth(shallowWorkflow, hybridHighConfidence);
+        
+        expect(result.passed).toBe(false);
+      });
+
+      it('should skip PM guards for hybrid role with low confidence', () => {
+        const hybridLowConfidence: RoleContext = { role: 'hybrid', confidence: 0.5 };
+        const shallowWorkflow: SemanticWorkflow = {
+          nodes: [
+            { id: '1', type: 'input', label: 'Start' },
+            { id: '2', type: 'process', label: 'Process' },
+            { id: '3', type: 'output', label: 'End' },
+          ],
+          edges: [
+            { id: 'e1', source: '1', target: '2' },
+            { id: 'e2', source: '2', target: '3' },
+          ],
+        };
+
+        const result = assertPMDepth(shallowWorkflow, hybridLowConfidence);
+        
+        expect(result.passed).toBe(true);
+        expect(result.reason).toContain('not applicable');
+      });
+    });
+
+    describe('Integration with runAllGuards', () => {
+      it('should include PM depth check in combined guards', () => {
+        const prompt = 'detailed workflow';
+        const actionability = computeActionability(prompt);
+        const shallowWorkflow: WorkflowStructure = {
+          nodes: [
+            { id: '1', type: 'input', label: 'Begin' },
+            { id: '2', type: 'process', label: 'Do Something' },
+            { id: '3', type: 'process', label: 'Do More' },
+            { id: '4', type: 'output', label: 'Finish' },
+          ],
+          edges: [
+            { id: 'e1', source: '1', target: '2' },
+            { id: 'e2', source: '2', target: '3' },
+            { id: 'e3', source: '3', target: '4' },
+          ],
+        };
+        const generationState: GenerationState = {
+          userConfirmed: true,
+          assumptionsAccepted: true,
+          clarificationComplete: true,
+        };
+
+        const result = runAllGuards(prompt, actionability, shallowWorkflow, generationState, pmRoleContext);
+        
+        expect(result.pmDepthResult).not.toBeNull();
+        expect(result.pmDepthResult?.passed).toBe(false);
       });
     });
   });
