@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Sparkles, Upload, FileText } from 'lucide-react';
+import { Upload, FileText, ArrowUp } from 'lucide-react';
 import { SiFigma } from 'react-icons/si';
 import { FullBleedSection } from '@/components/layout/FullBleedSection';
 
@@ -14,12 +13,6 @@ interface HomeHeroProps {
   isDisabled?: boolean;
 }
 
-const quickExamples = [
-  { label: 'User Onboarding', prompt: 'Create a user onboarding workflow that includes account creation, email verification, profile setup, and a welcome tutorial' },
-  { label: 'API Handler', prompt: 'Design an API request handling workflow with authentication, rate limiting, request validation, processing, and response formatting' },
-  { label: 'Support Tree', prompt: 'Build a customer support decision tree workflow that routes inquiries to the right department based on issue type and priority' },
-];
-
 export function HomeHero({
   onStartDesigning,
   onImportFigma,
@@ -31,13 +24,8 @@ export function HomeHero({
   const [promptValue, setPromptValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleExampleClick = useCallback((prompt: string) => {
-    setPromptValue(prompt);
-    textareaRef.current?.focus();
-  }, []);
-
   const handleStartDesigning = useCallback(() => {
-    if (promptValue.trim() || !isDisabled) {
+    if (promptValue.trim() && !isDisabled) {
       onStartDesigning(promptValue.trim());
     }
   }, [promptValue, onStartDesigning, isDisabled]);
@@ -48,107 +36,99 @@ export function HomeHero({
     }
   }, [promptValue, isGenerating, isDisabled, handleStartDesigning]);
 
+  const canSubmit = promptValue.trim().length > 0 && !isGenerating && !isDisabled;
+
   return (
     <FullBleedSection className="mb-10">
       <div className="absolute inset-0 kiteframe-ambient-gradient" />
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
 
       <div className="relative z-10 py-16 flex flex-col items-center max-w-6xl mx-auto px-6">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent">
-            What would you like to build?
-          </h1>
-          <p className="text-muted-foreground">
-            Describe your workflow, upload a design, or import from Figma
-          </p>
-        </div>
+        <div 
+          className={`relative w-full max-w-2xl bg-white dark:bg-card rounded-2xl shadow-xl border border-border/50 ${isDisabled ? 'opacity-60' : ''}`}
+          style={{ minHeight: '280px' }}
+        >
+          <div className="p-6 pb-20">
+            <h1 className="text-2xl font-bold text-foreground mb-2">
+              What would you like to build?
+            </h1>
+            <p className="text-muted-foreground text-sm mb-6">
+              Describe your workflow, upload a photo, import from Figma, or start brainstorming with KiteAI
+            </p>
 
-        <div className={`w-full max-w-2xl bg-white dark:bg-card border border-border rounded-xl p-4 shadow-xl ${isDisabled ? 'opacity-60' : ''}`}>
-          <Textarea
-            ref={textareaRef}
-            placeholder="Describe the workflow you want to create..."
-            value={promptValue}
-            onChange={(e) => setPromptValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="min-h-[100px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
-            disabled={isDisabled}
-            data-testid="input-hero-prompt"
-          />
+            <Textarea
+              ref={textareaRef}
+              placeholder="Describe what you want to build..."
+              value={promptValue}
+              onChange={(e) => setPromptValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="min-h-[100px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base p-0 placeholder:text-muted-foreground/60"
+              disabled={isDisabled}
+              data-testid="input-hero-prompt"
+            />
+          </div>
 
-          <div className="flex items-center justify-between pt-3 border-t border-border/50">
+          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
             <div className="flex items-center gap-2">
               {onImportFigma && (
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
                   onClick={onImportFigma}
                   disabled={isDisabled}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-sm disabled:opacity-50"
                   data-testid="button-hero-figma"
                 >
-                  <SiFigma className="w-4 h-4 mr-1.5" />
-                  Figma
-                </Button>
+                  <SiFigma className="w-4 h-4" />
+                  <div className="text-left">
+                    <div className="font-medium text-xs">Figma</div>
+                    <div className="text-[10px] opacity-70">Import design</div>
+                  </div>
+                </button>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
+              <button
                 onClick={onUploadImage}
                 disabled={isDisabled}
-                className="text-muted-foreground hover:text-foreground"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-sm disabled:opacity-50"
                 data-testid="button-hero-image"
               >
-                <Upload className="w-4 h-4 mr-1.5" />
-                Image
-              </Button>
+                <Upload className="w-4 h-4" />
+                <div className="text-left">
+                  <div className="font-medium text-xs">Image</div>
+                  <div className="text-[10px] opacity-70">Upload photo</div>
+                </div>
+              </button>
               {onUploadDocument && (
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
                   onClick={onUploadDocument}
                   disabled={isDisabled}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-sm disabled:opacity-50"
                   data-testid="button-hero-document"
                 >
-                  <FileText className="w-4 h-4 mr-1.5" />
-                  Document
-                </Button>
+                  <FileText className="w-4 h-4" />
+                  <div className="text-left">
+                    <div className="font-medium text-xs">Document</div>
+                    <div className="text-[10px] opacity-70">Upload file</div>
+                  </div>
+                </button>
               )}
             </div>
 
-            <Button
+            <button
               onClick={handleStartDesigning}
-              disabled={isGenerating || isDisabled}
-              className="bg-primary hover:bg-primary/90"
+              disabled={!canSubmit}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                canSubmit 
+                  ? 'bg-foreground text-background hover:bg-foreground/90 cursor-pointer' 
+                  : 'bg-muted text-muted-foreground cursor-not-allowed'
+              }`}
               data-testid="button-start-designing"
             >
               {isGenerating ? (
-                <>
-                  <div className="w-4 h-4 mr-2 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Working...
-                </>
+                <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
               ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Start designing
-                </>
+                <ArrowUp className="w-5 h-5" />
               )}
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap justify-center gap-2 mt-4">
-          {quickExamples.map((example) => (
-            <button
-              key={example.label}
-              onClick={() => handleExampleClick(example.prompt)}
-              className="text-xs px-3 py-1.5 rounded-full bg-card/80 backdrop-blur-sm border border-border/50 hover:bg-card text-muted-foreground hover:text-foreground transition-colors"
-              disabled={isDisabled}
-              data-testid={`button-example-${example.label.toLowerCase().replace(/\s+/g, '-')}`}
-            >
-              {example.label}
             </button>
-          ))}
+          </div>
         </div>
       </div>
     </FullBleedSection>
