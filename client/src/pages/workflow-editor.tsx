@@ -1733,11 +1733,13 @@ Position nodes 250px apart horizontally.`;
     // screen = world * zoom + viewport
     // viewport = screen - world * zoom
     // For centering: screenCenter = canvasWidth/2, canvasHeight/2
-    const newX = canvasWidth / 2 - nodeCenterX * viewport.zoom;
-    const newY = canvasHeight / 2 - nodeCenterY * viewport.zoom;
+    // Use half the current zoom for a less zoomed-in view
+    const focusZoom = viewport.zoom * 0.5;
+    const newX = canvasWidth / 2 - nodeCenterX * focusZoom;
+    const newY = canvasHeight / 2 - nodeCenterY * focusZoom;
     
     // Animate viewport with smooth transition
-    setViewport({ x: newX, y: newY, zoom: viewport.zoom });
+    setViewport({ x: newX, y: newY, zoom: focusZoom });
     
     // Also select the node for visibility
     setNodes(prev => prev.map(n => ({

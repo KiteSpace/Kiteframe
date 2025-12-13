@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,9 @@ export function ProjectPanel({
   onApplyWorkflow,
   onPreviewWorkflow
 }: ProjectPanelProps) {
+  const resizeRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  
   const getStoredTab = (): ProjectPanelTab => {
     if (typeof window === 'undefined') return 'kite-ai';
     try {
@@ -60,6 +63,17 @@ export function ProjectPanel({
     const saved = localStorage.getItem(PANEL_COLLAPSED_KEY);
     return saved === 'true';
   });
+  const [panelWidth, setPanelWidth] = useState(() => {
+    if (typeof window === 'undefined') return 440;
+    try {
+      const saved = localStorage.getItem('kiteframe-project-panel-width');
+      const width = saved ? parseInt(saved) : 440;
+      return Math.max(300, Math.min(600, width));
+    } catch {
+      return 440;
+    }
+  });
+  const [isResizing, setIsResizing] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -73,6 +87,27 @@ export function ProjectPanel({
       localStorage.setItem(PANEL_ACTIVE_TAB_KEY, activeTab);
     } catch {}
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!panelRef.current) return;
+      const rect = panelRef.current.getBoundingClientRect();
+      const newWidth = rect.left + rect.width - e.clientX;
+      const clampedWidth = Math.max(300, Math.min(600, newWidth));
+      setPanelWidth(clampedWidth);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('kiteframe-project-panel-width', String(clampedWidth));
+      }
+    };
+    const handleMouseUp = () => setIsResizing(false);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   if (isCollapsed) {
     return (
@@ -126,9 +161,17 @@ export function ProjectPanel({
 
   return (
     <div 
-      className="h-full w-[360px] border-l border-border bg-card flex flex-col flex-shrink-0"
+      ref={panelRef}
+      className="h-full border-l border-border bg-card flex flex-col flex-shrink-0 relative"
+      style={{ width: `${panelWidth}px` }}
       data-testid="project-panel"
     >
+      <div
+        ref={resizeRef}
+        onMouseDown={() => setIsResizing(true)}
+        className="absolute left-0 top-0 bottom-0 w-1 hover:bg-primary/50 cursor-col-resize transition-colors"
+        title="Drag to resize"
+      />
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ProjectPanelTab)} className="flex flex-col h-full">
         <div className="border-b border-border flex items-center">
           <Button 
