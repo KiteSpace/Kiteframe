@@ -435,19 +435,19 @@ export function WorkflowPRDSection({
             <h2 className="text-base font-semibold">{workflowName} Spec</h2>
             <div className="flex items-center gap-1">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="h-7 text-xs"
+                className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
                 onClick={handleReview}
                 disabled={isReviewing || isGenerating}
                 data-testid="review-prd-btn"
               >
                 {isReviewing ? (
-                  <Loader2 size={12} className="mr-1 animate-spin" />
+                  <Loader2 size={10} className="mr-1 animate-spin" />
                 ) : (
-                  <Eye size={12} className="mr-1" />
+                  <Sparkles size={10} className="mr-1" />
                 )}
-                Review with AI
+                Analyze
               </Button>
               <Button
                 variant="ghost"
