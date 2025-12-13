@@ -4,6 +4,7 @@ import { useParams, useLocation } from 'wouter';
 import { usePluginSystem } from '@/lib/kiteframe/core/PluginProvider';
 import { WorkflowCanvas } from '@/components/WorkflowCanvas';
 import { ProjectPanel } from '@/components/panels/ProjectPanel';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { BlankCanvasState } from '@/components/BlankCanvasState';
 import { PluginProvider, layoutPlugin, consolePlugin, testPlugin, advancedInteractionsPlugin } from '@/lib/kiteframe';
 import { PluginTestButton } from '@/components/PluginTestButton';
@@ -4367,8 +4368,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         />
         
         {/* Tab Bar */}
-        <div className="flex items-center bg-card border-b border-border px-4 py-2">
-          <div className="flex items-center space-x-1 flex-1 overflow-x-auto min-w-0">
+        <div className="flex items-center bg-card border-b border-border px-4 py-2 h-12">
+          <ScrollArea className="flex-1 min-w-0">
             {/* Read Only Badge */}
             {isReadOnly && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-md text-sm font-medium mr-2" data-testid="badge-read-only">
@@ -4396,7 +4397,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             {!isReadOnly && tabs.filter(tab => tab.isOpen !== false).map((tab) => (
               <div
                 key={tab.id}
-                className={`flex items-center space-x-2 px-3 py-1.5 rounded-md cursor-pointer min-w-0 ${
+                className={`flex items-center space-x-2 px-3 py-1.5 rounded-md cursor-pointer flex-shrink-0 ${
                   tab.id === activeTabId
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
@@ -4453,16 +4454,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       )
                     )}
                     <span 
-                      className="truncate text-sm font-medium max-w-32"
+                      className="truncate text-sm font-medium max-w-[60px]"
                       onDoubleClick={(e) => {
                         e.stopPropagation();
                         setWorkflowNameInput(tab.name);
                         setIsEditingWorkflowName(true);
                       }}
                       data-testid="text-workflow-name"
-                      title="Double-click to rename"
+                      title={`${tab.name} - Double-click to rename`}
                     >
-                      {tab.name}
+                      {tab.name.length > 10 ? `${tab.name.substring(0, 10)}...` : tab.name}
                     </span>
                   </div>
                 )}
@@ -4495,7 +4496,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 {initialProjectName}
               </span>
             )}
-          </div>
+            <ScrollBar orientation="horizontal" className="h-1" />
+          </ScrollArea>
         </div>
 
         {/* Main Content */}
