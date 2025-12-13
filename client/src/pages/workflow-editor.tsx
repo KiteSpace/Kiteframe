@@ -4370,31 +4370,32 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         {/* Tab Bar */}
         <div className="flex items-center bg-card border-b border-border px-4 py-2 h-12">
           <ScrollArea className="flex-1 min-w-0">
-            {/* Read Only Badge */}
-            {isReadOnly && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-md text-sm font-medium mr-2" data-testid="badge-read-only">
-                <Eye size={14} />
-                <span>Read Only</span>
-              </div>
-            )}
-            {/* Home Tab Icon */}
-            {!isReadOnly && (
-            <button
-              className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${
-                isOnHomeTab
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => setActiveTabId('home')}
-              data-testid="tab-home"
-              title="Home"
-            >
-              <Home size={16} />
-            </button>
-            )}
-            
-            {/* Workflow Tabs - hidden in view mode, only show open tabs */}
-            {!isReadOnly && tabs.filter(tab => tab.isOpen !== false).map((tab) => (
+            <div className="flex items-center space-x-1 w-max">
+              {/* Read Only Badge */}
+              {isReadOnly && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-md text-sm font-medium mr-2" data-testid="badge-read-only">
+                  <Eye size={14} />
+                  <span>Read Only</span>
+                </div>
+              )}
+              {/* Home Tab Icon */}
+              {!isReadOnly && (
+              <button
+                className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors flex-shrink-0 ${
+                  isOnHomeTab
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setActiveTabId('home')}
+                data-testid="tab-home"
+                title="Home"
+              >
+                <Home size={16} />
+              </button>
+              )}
+              
+              {/* Workflow Tabs - hidden in view mode, only show open tabs */}
+              {!isReadOnly && tabs.filter(tab => tab.isOpen !== false).map((tab) => (
               <div
                 key={tab.id}
                 className={`flex items-center space-x-2 px-3 py-1.5 rounded-md cursor-pointer flex-shrink-0 ${
@@ -4479,23 +4480,24 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 </button>
               </div>
             ))}
-            {/* New Tab button - hidden in view mode */}
-            {!isReadOnly && (
-              <button
-                className="flex items-center justify-center w-8 h-8 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
-                onClick={createNewTab}
-                data-testid="button-new-tab"
-                title="New Workflow Tab"
-              >
-                <Plus size={16} />
-              </button>
-            )}
-            {/* View mode: show project name */}
-            {isReadOnly && initialProjectName && (
-              <span className="text-sm font-medium text-foreground px-2">
-                {initialProjectName}
-              </span>
-            )}
+              {/* New Tab button - hidden in view mode */}
+              {!isReadOnly && (
+                <button
+                  className="flex items-center justify-center w-8 h-8 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground flex-shrink-0"
+                  onClick={createNewTab}
+                  data-testid="button-new-tab"
+                  title="New Workflow Tab"
+                >
+                  <Plus size={16} />
+                </button>
+              )}
+              {/* View mode: show project name */}
+              {isReadOnly && initialProjectName && (
+                <span className="text-sm font-medium text-foreground px-2">
+                  {initialProjectName}
+                </span>
+              )}
+            </div>
             <ScrollBar orientation="horizontal" className="h-1" />
           </ScrollArea>
         </div>
