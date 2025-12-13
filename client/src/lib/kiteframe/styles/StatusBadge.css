@@ -1,14 +1,14 @@
 .kf-status-badge {
-  font-size: 13px;
-  padding: 6px 12px;
+  font-size: 10px;
+  padding: 4px 8px;
   border-radius: 9999px; /* Pill shape */
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   cursor: pointer;
   user-select: none;
   font-weight: 500;
-  border: 2px solid;
+  border: 1.5px solid;
   transition: all 0.15s ease;
   background: transparent;
 }

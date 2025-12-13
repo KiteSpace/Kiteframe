@@ -18,10 +18,10 @@ export function StatusBadge({ status, onClick, disabled }: StatusBadgeProps) {
 
   const icon =
     status === 'inprogress'
-      ? <Clock size={16} />
+      ? <Clock size={12} />
       : status === 'done'
-      ? <CheckCircle2 size={16} />
-      : <ListTodo size={16} />;
+      ? <CheckCircle2 size={12} />
+      : <ListTodo size={12} />;
 
   return (
     <button

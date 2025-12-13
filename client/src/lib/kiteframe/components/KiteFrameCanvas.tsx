@@ -3565,29 +3565,39 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               })()}
           </svg>
 
-          {/* Workflow Headers for each detected flow */}
-          {flows.map((flow, index) => {
+          {/* Workflow Headers for each detected flow - only show if flow has 2+ nodes */}
+          {flows.filter(flow => flow.nodes.length >= 2).map((flow, index) => {
             // Use workflow name from props, or generate a default name based on flow index
-            const defaultName = flows.length > 1 
+            const multiNodeFlows = flows.filter(f => f.nodes.length >= 2);
+            const defaultName = multiNodeFlows.length > 1 
               ? `${props.workflowName || 'Workflow'} ${index + 1}` 
               : (props.workflowName || 'Workflow');
             const flowSettings = props.flowSettings?.[flow.id] || {
               name: defaultName,
               statusTrackingEnabled: false,
             };
+            // Position header above the first node in the flow
+            const firstNode = flow.nodes[0];
+            const headerPosition = firstNode 
+              ? { x: firstNode.position.x, y: firstNode.position.y }
+              : { x: flow.boundingBox.x, y: flow.boundingBox.y };
             return (
               <WorkflowHeader
                 key={`workflow-header-${flow.id}`}
                 flowId={flow.id}
                 flowNodes={flow.nodes}
                 settings={flowSettings}
-                position={{ x: flow.boundingBox.x, y: flow.boundingBox.y }}
+                position={headerPosition}
                 scale={viewport.zoom}
                 onSettingsChange={(flowId, settings) => {
                   props.onFlowSettingsChange?.(flowId, settings);
                 }}
                 onResetStatuses={(flowId) => {
                   props.onResetFlowStatuses?.(flowId);
+                }}
+                onSelectAll={() => {
+                  const nodeIds = flow.nodes.map(n => n.id);
+                  props.onSelectionChange?.(nodeIds);
                 }}
                 readOnly={false}
               />
@@ -3599,8 +3609,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             .filter((n) => !n.hidden)
             .map((n) => {
               // Determine if status tracking is enabled for this node's flow
+              // Status tracking only applies to default 'input' (Step) nodes
               const nodeFlowId = nodeToFlowIdMap.get(n.id);
-              const isStatusEnabled = nodeFlowId 
+              const isStatusEnabled = nodeFlowId && n.type === 'input'
                 ? props.flowSettings?.[nodeFlowId]?.statusTrackingEnabled ?? false 
                 : false;
               
@@ -5089,11 +5100,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     </div>
                   )}
                   
-                  {/* Status Badge Footer */}
+                  {/* Status Badge - inline after content */}
                   {isStatusEnabled && (
                     <div
-                      className="px-3 py-1.5 border-t flex items-center justify-end"
-                      style={{ borderColor: border }}
+                      className="px-3 pb-2 flex items-center justify-end"
                       onClick={(e) => e.stopPropagation()}
                       onDoubleClick={(e) => e.stopPropagation()}
                     >

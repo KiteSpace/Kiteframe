@@ -5,7 +5,6 @@ import {
   FileText,
   Layers,
   Table2,
-  Globe,
   Code2,
 } from "lucide-react";
 import { clientToWorld } from "@/lib/kiteframe/utils/geometry";
@@ -43,7 +42,6 @@ export function NodeTypesPopout({
     { type: "table", icon: Table2, color: "text-indigo-500", label: "Table" },
     { type: "form", icon: FileText, color: "text-indigo-500", label: "Form" },
     { type: "compound", icon: Layers, color: "text-emerald-500", label: "Compound" },
-    { type: "webview", icon: Globe, color: "text-cyan-500", label: "Web View" },
     { type: "code", icon: Code2, color: "text-orange-500", label: "Code" },
   ];
 
