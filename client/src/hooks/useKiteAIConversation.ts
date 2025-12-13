@@ -1,0 +1,200 @@
+/**
+ * useKiteAIConversation Hook
+ * 
+ * Manages KiteAI conversation state machine, actionability scoring,
+ * and UI gating for workflow generation.
+ */
+
+import { useState, useCallback, useMemo } from 'react';
+import {
+  computeActionability,
+  ActionabilityResult,
+  getMissingDimensionQuestions,
+} from '@/ai/actionability';
+import {
+  KiteAIState,
+  KiteAIMode,
+  ConversationContext,
+  createInitialContext,
+  computeNextState,
+  applyTransition,
+  canShowStartProject,
+  getConfidenceLevel,
+} from '@/ai/kiteaiState';
+import {
+  getSystemPrompt,
+  buildClarificationPrompt,
+  buildEscalationPrompt,
+  buildExecutionConfirmationPrompt,
+} from '@/ai/kiteaiPrompts';
+
+export interface KiteAIConversationState {
+  context: ConversationContext;
+  canStartProject: boolean;
+  currentScore: number;
+  currentConfidence: number;
+  missingDimensions: string[];
+  suggestedQuestions: string[];
+  systemPrompt: string;
+  stateLabel: string;
+}
+
+export interface UseKiteAIConversationResult {
+  state: KiteAIConversationState;
+  processUserInput: (input: string) => ProcessInputResult;
+  setMode: (mode: KiteAIMode) => void;
+  reset: () => void;
+  addAssistantMessage: (content: string) => void;
+  getAccumulatedSummary: () => string;
+}
+
+export interface ProcessInputResult {
+  actionability: ActionabilityResult;
+  previousState: KiteAIState;
+  newState: KiteAIState;
+  stateChanged: boolean;
+  canProceed: boolean;
+  guidancePrompt: string;
+}
+
+const STATE_LABELS: Record<KiteAIState, string> = {
+  'clarification': 'Gathering Requirements',
+  'escalation': 'Suggesting Options',
+  'execution-ready': 'Ready to Build',
+};
+
+export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKiteAIConversationResult {
+  const [context, setContext] = useState<ConversationContext>(() => 
+    createInitialContext(initialMode)
+  );
+
+  const processUserInput = useCallback((input: string): ProcessInputResult => {
+    const actionability = computeActionability(input);
+    const transition = computeNextState(context, actionability);
+    const newContext = applyTransition(context, transition, input);
+    
+    setContext(newContext);
+
+    let guidancePrompt = '';
+    
+    if (transition.to === 'clarification') {
+      guidancePrompt = buildClarificationPrompt(
+        actionability.missing,
+        actionability.score,
+        context.mode
+      );
+    } else if (transition.to === 'escalation') {
+      const userContext = context.conversationHistory
+        .filter(m => m.role === 'user')
+        .map(m => m.content)
+        .join('. ');
+      guidancePrompt = buildEscalationPrompt(userContext, context.mode);
+    } else if (transition.to === 'execution-ready') {
+      const summary = buildContextSummary(newContext);
+      guidancePrompt = buildExecutionConfirmationPrompt(summary);
+    }
+
+    return {
+      actionability,
+      previousState: transition.from,
+      newState: transition.to,
+      stateChanged: transition.from !== transition.to,
+      canProceed: transition.to === 'execution-ready',
+      guidancePrompt,
+    };
+  }, [context]);
+
+  const setMode = useCallback((mode: KiteAIMode) => {
+    setContext(prev => ({ ...prev, mode }));
+    console.log(`[KiteAI] mode changed to: ${mode}`);
+  }, []);
+
+  const reset = useCallback(() => {
+    const newContext = createInitialContext(context.mode);
+    setContext(newContext);
+    console.log('[KiteAI] conversation reset');
+  }, [context.mode]);
+
+  const addAssistantMessage = useCallback((content: string) => {
+    setContext(prev => ({
+      ...prev,
+      conversationHistory: [
+        ...prev.conversationHistory,
+        {
+          role: 'assistant',
+          content,
+          timestamp: Date.now(),
+        },
+      ],
+    }));
+  }, []);
+
+  const getAccumulatedSummary = useCallback((): string => {
+    return buildContextSummary(context);
+  }, [context]);
+
+  const state = useMemo((): KiteAIConversationState => {
+    const lastActionability = context.lastActionability;
+    const score = lastActionability?.score ?? 0;
+    const confidence = lastActionability?.confidence ?? 0;
+    const missing = lastActionability?.missing ?? [];
+    
+    return {
+      context,
+      canStartProject: canShowStartProject(context),
+      currentScore: score,
+      currentConfidence: confidence,
+      missingDimensions: missing,
+      suggestedQuestions: getMissingDimensionQuestions(missing),
+      systemPrompt: getSystemPrompt(context.mode),
+      stateLabel: STATE_LABELS[context.state],
+    };
+  }, [context]);
+
+  return {
+    state,
+    processUserInput,
+    setMode,
+    reset,
+    addAssistantMessage,
+    getAccumulatedSummary,
+  };
+}
+
+function buildContextSummary(context: ConversationContext): string {
+  const userMessages = context.conversationHistory
+    .filter(m => m.role === 'user')
+    .map(m => m.content);
+  
+  if (userMessages.length === 0) {
+    return 'No context gathered yet.';
+  }
+
+  const lastActionability = context.lastActionability;
+  const parts: string[] = [];
+
+  if (lastActionability) {
+    const { present } = lastActionability;
+    if (present.includes('actor')) {
+      parts.push('• Actor: Identified from conversation');
+    }
+    if (present.includes('trigger')) {
+      parts.push('• Trigger: Workflow start condition defined');
+    }
+    if (present.includes('goal')) {
+      parts.push('• Goal: Success criteria understood');
+    }
+    if (present.includes('scope')) {
+      parts.push('• Scope: Boundaries established');
+    }
+    if (present.includes('flowSignal')) {
+      parts.push('• Flow: Process steps outlined');
+    }
+  }
+
+  const summary = userMessages.join(' ').slice(0, 500);
+  
+  return `Based on our conversation:\n${parts.join('\n')}\n\nContext: "${summary}${summary.length >= 500 ? '...' : ''}"`;
+}
+
+export default useKiteAIConversation;

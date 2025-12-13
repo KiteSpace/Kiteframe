@@ -2,17 +2,18 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Send, Sparkles, Loader2, Rocket, MessageCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Send, Sparkles, Loader2, Rocket, MessageCircle, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAi } from '../ai/AiProvider';
 import { buildKiteAIContext, inferRoleFromIntent, type KiteAIRole } from '../lib/ai/buildKiteAIContext';
+import { useKiteAIConversation } from '@/hooks/useKiteAIConversation';
+import { getSystemPrompt, buildFollowUpEnforcement } from '@/ai/kiteaiPrompts';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
-
-type ChatState = 'idle' | 'clarifying' | 'actionable' | 'ready_to_create';
 
 interface PreProjectContext {
   prompt: string;
@@ -28,64 +29,6 @@ interface PreProjectChatProps {
   onCreateProject: (summary: string) => void;
   initialPrompt?: string;
   context?: PreProjectContext | null;
-}
-
-function calculateConfidenceScore(allMessages: Message[], hasUploadedFiles: boolean): number {
-  let score = 0;
-  const allText = allMessages.map(m => m.content.toLowerCase()).join(' ');
-  
-  const goalKeywords = ['build', 'design', 'create', 'workflow', 'tool', 'system', 'make', 'develop', 'implement', 'set up', 'automate'];
-  if (goalKeywords.some(kw => allText.includes(kw))) {
-    score += 25;
-  }
-  
-  const userKeywords = ['ops team', 'users', 'admins', 'backend', 'product', 'customers', 'team', 'employee', 'manager', 'client', 'developer', 'engineer', 'designer', 'marketing', 'sales', 'support', 'hr', 'finance'];
-  if (userKeywords.some(kw => allText.includes(kw))) {
-    score += 20;
-  }
-  
-  const problemKeywords = ['duplicate', 'confusion', 'slow', 'error', 'manual', 'tedious', 'inefficient', 'broken', 'problem', 'issue', 'pain', 'frustrating', 'difficult', 'complex', 'time-consuming', 'bottleneck', 'missed', 'forgot', 'lack'];
-  if (problemKeywords.some(kw => allText.includes(kw))) {
-    score += 20;
-  }
-  
-  if (hasUploadedFiles) {
-    score += 15;
-  }
-  const artifactKeywords = ['figma', 'image', 'doc', 'jira', 'screenshot', 'mockup', 'wireframe', 'diagram', 'spec', 'requirement', 'document', 'file', 'pdf', 'spreadsheet', 'csv'];
-  if (artifactKeywords.some(kw => allText.includes(kw))) {
-    score += 15;
-  }
-  
-  const constraintKeywords = ['platform', 'scale', 'data', 'environment', 'api', 'integration', 'database', 'security', 'performance', 'deadline', 'budget', 'must', 'should', 'need to', 'require'];
-  if (constraintKeywords.some(kw => allText.includes(kw))) {
-    score += 10;
-  }
-  
-  const confirmKeywords = ['yes', 'correct', 'exactly', 'that\'s right', 'sounds good', 'perfect', 'agreed', 'confirmed', 'looks good', 'that works'];
-  const userMessages = allMessages.filter(m => m.role === 'user');
-  if (userMessages.length > 1 && confirmKeywords.some(kw => userMessages[userMessages.length - 1].content.toLowerCase().includes(kw))) {
-    score += 10;
-  }
-  
-  return Math.min(score, 100);
-}
-
-function determineChatState(
-  messages: Message[],
-  confidenceScore: number,
-  aiTurnCount: number,
-  hasUploadedFiles: boolean
-): ChatState {
-  if (messages.length === 0) return 'idle';
-  
-  if (hasUploadedFiles && aiTurnCount >= 1) return 'ready_to_create';
-  if (aiTurnCount >= 2) return 'ready_to_create';
-  if (confidenceScore >= 70) return 'actionable';
-  if (confidenceScore >= 50) return 'actionable';
-  if (aiTurnCount >= 1) return 'clarifying';
-  
-  return 'idle';
 }
 
 function ActionButtons({ 
@@ -104,7 +47,7 @@ function ActionButtons({
     >
       <div className="bg-muted/50 border border-border rounded-2xl p-4 max-w-[80%]">
         <p className="text-sm text-muted-foreground mb-3">
-          Looks like we have enough to start. You can refine things inside the project.
+          I have enough context to create your workflow now. You can refine it further inside the project.
         </p>
         <div className="flex gap-2 flex-wrap">
           <Button
@@ -129,6 +72,75 @@ function ActionButtons({
   );
 }
 
+function EscalationOptions({
+  options,
+  onSelect
+}: {
+  options: string[];
+  onSelect: (option: string) => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex justify-start mt-3"
+    >
+      <div className="bg-muted/50 border border-border rounded-2xl p-4 max-w-[85%]">
+        <p className="text-sm font-medium mb-3">
+          Let me suggest some concrete directions:
+        </p>
+        <div className="space-y-2">
+          {options.map((option, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              className="w-full justify-start text-left h-auto py-3 px-4"
+              onClick={() => onSelect(option)}
+              data-testid={`button-escalation-option-${index}`}
+            >
+              <span className="text-sm">{option}</span>
+            </Button>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function StateIndicator({ 
+  state, 
+  score, 
+  confidence 
+}: { 
+  state: string; 
+  score: number; 
+  confidence: number;
+}) {
+  const getStateColor = () => {
+    if (state === 'execution-ready') return 'bg-green-500/10 text-green-600 border-green-500/20';
+    if (state === 'escalation') return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20';
+    return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+  };
+
+  const getStateIcon = () => {
+    if (state === 'execution-ready') return <CheckCircle2 className="w-3 h-3" />;
+    if (state === 'escalation') return <AlertCircle className="w-3 h-3" />;
+    return <Sparkles className="w-3 h-3" />;
+  };
+
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <Badge variant="outline" className={`${getStateColor()} flex items-center gap-1`}>
+        {getStateIcon()}
+        <span className="capitalize">{state.replace('-', ' ')}</span>
+      </Badge>
+      <span className="text-muted-foreground">
+        Score: {score}/5 | Confidence: {Math.round(confidence * 100)}%
+      </span>
+    </div>
+  );
+}
+
 export function PreProjectChat({
   isOpen,
   onClose,
@@ -143,9 +155,18 @@ export function PreProjectChat({
   const [showActionButtons, setShowActionButtons] = useState(false);
   const [actionButtonsDismissed, setActionButtonsDismissed] = useState(false);
   const [currentRole, setCurrentRole] = useState<KiteAIRole>('brainstorm');
+  const [escalationOptions, setEscalationOptions] = useState<string[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const aiClient = useAi();
+
+  const { 
+    state: conversationState, 
+    processUserInput, 
+    reset: resetConversation,
+    addAssistantMessage,
+    getAccumulatedSummary
+  } = useKiteAIConversation('base');
 
   const hasUploadedFiles = useMemo(() => {
     return (context?.uploadedFiles?.length ?? 0) > 0;
@@ -155,19 +176,16 @@ export function PreProjectChat({
     return messages.filter(m => m.role === 'assistant').length;
   }, [messages]);
 
-  const confidenceScore = useMemo(() => {
-    return calculateConfidenceScore(messages, hasUploadedFiles);
-  }, [messages, hasUploadedFiles]);
-
-  const chatState = useMemo(() => {
-    return determineChatState(messages, confidenceScore, aiTurnCount, hasUploadedFiles);
-  }, [messages, confidenceScore, aiTurnCount, hasUploadedFiles]);
+  const canStartProject = conversationState.canStartProject;
+  const currentState = conversationState.context.state;
+  const currentScore = conversationState.currentScore;
+  const currentConfidence = conversationState.currentConfidence;
 
   const shouldShowActions = useMemo(() => {
     if (actionButtonsDismissed) return false;
     if (messages.length === 0) return false;
-    return chatState === 'actionable' || chatState === 'ready_to_create';
-  }, [actionButtonsDismissed, messages.length, chatState]);
+    return canStartProject;
+  }, [actionButtonsDismissed, messages.length, canStartProject]);
 
   useEffect(() => {
     if (shouldShowActions && !showActionButtons) {
@@ -192,8 +210,10 @@ export function PreProjectChat({
       setShowActionButtons(false);
       setActionButtonsDismissed(false);
       setCurrentRole('brainstorm');
+      setEscalationOptions([]);
+      resetConversation();
     }
-  }, [isOpen]);
+  }, [isOpen, resetConversation]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -202,7 +222,7 @@ export function PreProjectChat({
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
     }
-  }, [messages, showActionButtons]);
+  }, [messages, showActionButtons, escalationOptions]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -221,6 +241,7 @@ export function PreProjectChat({
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
+    setEscalationOptions([]);
     
     if (actionButtonsDismissed) {
       setActionButtonsDismissed(false);
@@ -229,27 +250,50 @@ export function PreProjectChat({
     const inferredRole = inferRoleFromIntent(content, hasUploadedFiles);
     setCurrentRole(inferredRole);
 
+    const processResult = processUserInput(content);
+
     try {
-      const aiContext = buildKiteAIContext(
-        'pre_project',
-        inferredRole,
-        undefined,
-        undefined,
-        { hasUploadedFiles, turnCount: aiTurnCount }
-      );
+      const systemPrompt = getSystemPrompt('base');
+      
+      let enhancedSystemPrompt = systemPrompt;
+      
+      // Add confidence enforcement to ALL states
+      const confidenceEnforcement = buildFollowUpEnforcement(processResult.actionability.confidence);
+      enhancedSystemPrompt += confidenceEnforcement;
+      
+      if (processResult.newState === 'clarification' && processResult.guidancePrompt) {
+        enhancedSystemPrompt += `\n\n${processResult.guidancePrompt}`;
+      } else if (processResult.newState === 'escalation') {
+        enhancedSystemPrompt += `\n\n${processResult.guidancePrompt}`;
+      } else if (processResult.newState === 'execution-ready') {
+        enhancedSystemPrompt += `\n\nThe user has provided sufficient information (score=${processResult.actionability.score}/5, confidence=${Math.round(processResult.actionability.confidence * 100)}%). Confirm that you're ready to create their workflow and summarize what you understood.`;
+      }
 
       const response = await aiClient.chat({
         messages: [
-          { role: 'system', content: aiContext.systemPrompt },
+          { role: 'system', content: enhancedSystemPrompt },
           ...messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
           { role: 'user', content: content.trim() }
         ],
         temperature: 0.7,
-        maxTokens: 500
+        maxTokens: 600
       });
 
       const assistantMessage: Message = { role: 'assistant', content: response.text };
       setMessages(prev => [...prev, assistantMessage]);
+      addAssistantMessage(response.text);
+
+      if (processResult.newState === 'escalation') {
+        const options = extractEscalationOptions(response.text);
+        if (options.length > 0) {
+          setEscalationOptions(options);
+        }
+      }
+
+      if (processResult.newState === 'execution-ready') {
+        setShowActionButtons(true);
+      }
+
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage: Message = { 
@@ -261,7 +305,7 @@ export function PreProjectChat({
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, aiTurnCount]);
+  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, processUserInput, addAssistantMessage]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -271,27 +315,33 @@ export function PreProjectChat({
   }, [inputValue, handleSendMessage]);
 
   const handleCreateProject = useCallback(() => {
-    const conversationSummary = messages
-      .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-      .join('\n\n');
+    const summary = getAccumulatedSummary();
     
     const userMessages = messages.filter(m => m.role === 'user');
     const lastUserIntent = userMessages.length > 0 
       ? userMessages[userMessages.length - 1].content 
       : initialPrompt;
 
-    const summary = userMessages.length > 1
-      ? `Based on our conversation:\n${conversationSummary}\n\nCreate a workflow for: ${lastUserIntent}`
+    const fullSummary = userMessages.length > 1
+      ? `${summary}\n\nLatest request: ${lastUserIntent}`
       : lastUserIntent || 'Create a new workflow';
 
-    onCreateProject(summary);
-  }, [messages, initialPrompt, onCreateProject]);
+    console.log('[KiteAI] Creating project with summary:', fullSummary);
+    onCreateProject(fullSummary);
+  }, [messages, initialPrompt, onCreateProject, getAccumulatedSummary]);
 
   const handleKeepBrainstorming = useCallback(() => {
     setShowActionButtons(false);
     setActionButtonsDismissed(true);
     inputRef.current?.focus();
   }, []);
+
+  const handleEscalationSelect = useCallback((option: string) => {
+    setEscalationOptions([]);
+    // Use a structured format that signals clear selection
+    const structuredSelection = `I want to build this: ${option}. Please confirm this is what we'll create and ask me any final clarifying questions.`;
+    handleSendMessage(structuredSelection);
+  }, [handleSendMessage]);
 
   if (!isOpen) return null;
 
@@ -321,7 +371,15 @@ export function PreProjectChat({
             <span className="font-medium">KiteAI</span>
           </div>
 
-          <div className="w-[120px]" />
+          {messages.length > 0 && (
+            <StateIndicator 
+              state={currentState} 
+              score={currentScore} 
+              confidence={currentConfidence} 
+            />
+          )}
+          
+          {messages.length === 0 && <div className="w-[120px]" />}
         </header>
 
         <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full overflow-hidden">
@@ -334,8 +392,15 @@ export function PreProjectChat({
                   </div>
                   <h2 className="text-xl font-semibold mb-2">Let's refine your idea</h2>
                   <p className="text-muted-foreground max-w-md mx-auto">
-                    I'll help you clarify what you want to build before we create your project.
+                    I'll help you clarify what you want to build. I need to understand:
                   </p>
+                  <div className="mt-4 text-sm text-muted-foreground max-w-sm mx-auto text-left space-y-1">
+                    <p>• <strong>Who</strong> will use this workflow</p>
+                    <p>• <strong>What</strong> triggers it to start</p>
+                    <p>• <strong>What</strong> success looks like</p>
+                    <p>• <strong>What's</strong> in or out of scope</p>
+                    <p>• <strong>What</strong> steps are involved</p>
+                  </div>
                 </div>
               )}
 
@@ -375,7 +440,14 @@ export function PreProjectChat({
                 </motion.div>
               )}
 
-              {showActionButtons && !isLoading && messages.length > 0 && (
+              {escalationOptions.length > 0 && !isLoading && (
+                <EscalationOptions 
+                  options={escalationOptions} 
+                  onSelect={handleEscalationSelect} 
+                />
+              )}
+
+              {showActionButtons && !isLoading && messages.length > 0 && canStartProject && (
                 <ActionButtons 
                   onStartProject={handleCreateProject}
                   onKeepBrainstorming={handleKeepBrainstorming}
@@ -414,4 +486,19 @@ export function PreProjectChat({
       </motion.div>
     </AnimatePresence>
   );
+}
+
+function extractEscalationOptions(responseText: string): string[] {
+  const options: string[] = [];
+  
+  const numberedPattern = /(?:^|\n)\s*(?:\d+[.)]\s*|[-•]\s*)(.+?)(?=\n\s*(?:\d+[.)]\s*|[-•]\s*)|$)/g;
+  let match;
+  while ((match = numberedPattern.exec(responseText)) !== null) {
+    const option = match[1].trim();
+    if (option.length > 10 && option.length < 200) {
+      options.push(option);
+    }
+  }
+  
+  return options.slice(0, 3);
 }
