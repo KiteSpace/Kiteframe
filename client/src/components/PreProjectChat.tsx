@@ -1,14 +1,15 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Send, Sparkles, Loader2, Plus } from 'lucide-react';
+import { ArrowLeft, Send, Sparkles, Loader2, Rocket, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAi } from '../ai/AiProvider';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  showActions?: boolean;
 }
 
 interface PreProjectContext {
@@ -27,17 +28,118 @@ interface PreProjectChatProps {
   context?: PreProjectContext | null;
 }
 
-const CLARIFICATION_SYSTEM_PROMPT = `You are KiteAI helping a user clarify what they want to build BEFORE creating a project.
-Ask clarifying questions if needed.
-Do not generate workflows yet.
-Help the user refine intent.
+const CLARIFICATION_SYSTEM_PROMPT = `You are KiteAI, a decisive product design and workflow assistant.
 
-Guidelines:
-- Ask 1-2 focused questions at a time
-- Understand the user's goals, constraints, and requirements
-- Help identify edge cases and decision points
-- When you have enough clarity, suggest they create the project
-- Keep responses concise and conversational`;
+Your primary goal is to help the user move from idea → project creation with minimal friction.
+
+You MUST follow these rules:
+
+1. Bias toward action over clarification.
+2. Do NOT trap the user in extended brainstorming loops.
+3. Once the user intent is actionable, you MUST present a clear decision.
+4. You are allowed to start a project even if details are incomplete.
+5. Missing details can be refined after project creation.
+
+Actionable intent means:
+- A general goal exists
+- A user or system is implied
+- The problem space is identifiable
+- Remaining questions are refinements, not blockers
+
+Once intent is actionable:
+- Ask at most 1–2 clarifying questions
+- Then IMMEDIATELY present decision actions:
+  - "Ready to start the project"
+  - "Keep brainstorming"
+
+If you have asked questions for more than 3 turns total, you MUST stop and present the decision actions.
+
+You should summarize your understanding briefly (2–3 sentences max), then allow the user to decide.
+
+Never hide project creation behind more questions.
+Keep responses concise and conversational.`;
+
+function calculateConfidenceScore(allMessages: Message[], hasUploadedFiles: boolean): number {
+  let score = 0;
+  const allText = allMessages.map(m => m.content.toLowerCase()).join(' ');
+  
+  const goalKeywords = ['build', 'design', 'create', 'workflow', 'tool', 'system', 'make', 'develop', 'implement', 'set up', 'automate'];
+  if (goalKeywords.some(kw => allText.includes(kw))) {
+    score += 25;
+  }
+  
+  const userKeywords = ['ops team', 'users', 'admins', 'backend', 'product', 'customers', 'team', 'employee', 'manager', 'client', 'developer', 'engineer', 'designer', 'marketing', 'sales', 'support', 'hr', 'finance'];
+  if (userKeywords.some(kw => allText.includes(kw))) {
+    score += 20;
+  }
+  
+  const problemKeywords = ['duplicate', 'confusion', 'slow', 'error', 'manual', 'tedious', 'inefficient', 'broken', 'problem', 'issue', 'pain', 'frustrating', 'difficult', 'complex', 'time-consuming', 'bottleneck', 'missed', 'forgot', 'lack'];
+  if (problemKeywords.some(kw => allText.includes(kw))) {
+    score += 20;
+  }
+  
+  if (hasUploadedFiles) {
+    score += 15;
+  }
+  const artifactKeywords = ['figma', 'image', 'doc', 'jira', 'screenshot', 'mockup', 'wireframe', 'diagram', 'spec', 'requirement', 'document', 'file', 'pdf', 'spreadsheet', 'csv'];
+  if (artifactKeywords.some(kw => allText.includes(kw))) {
+    score += 15;
+  }
+  
+  const constraintKeywords = ['platform', 'scale', 'data', 'environment', 'api', 'integration', 'database', 'security', 'performance', 'deadline', 'budget', 'must', 'should', 'need to', 'require'];
+  if (constraintKeywords.some(kw => allText.includes(kw))) {
+    score += 10;
+  }
+  
+  const confirmKeywords = ['yes', 'correct', 'exactly', 'that\'s right', 'sounds good', 'perfect', 'agreed', 'confirmed', 'looks good', 'that works'];
+  const userMessages = allMessages.filter(m => m.role === 'user');
+  if (userMessages.length > 1 && confirmKeywords.some(kw => userMessages[userMessages.length - 1].content.toLowerCase().includes(kw))) {
+    score += 10;
+  }
+  
+  return Math.min(score, 100);
+}
+
+function ActionButtons({ 
+  onStartProject, 
+  onKeepBrainstorming 
+}: { 
+  onStartProject: () => void; 
+  onKeepBrainstorming: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: 0.2 }}
+      className="flex justify-start mt-3"
+    >
+      <div className="bg-muted/50 border border-border rounded-2xl p-4 max-w-[80%]">
+        <p className="text-sm text-muted-foreground mb-3">
+          Looks like we have enough to start. You can refine things inside the project.
+        </p>
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            onClick={onStartProject}
+            className="bg-primary hover:bg-primary/90"
+            data-testid="button-ready-to-start"
+          >
+            <Rocket className="w-4 h-4 mr-2" />
+            Start the project
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onKeepBrainstorming}
+            data-testid="button-keep-brainstorming"
+          >
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Keep brainstorming
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export function PreProjectChat({
   isOpen,
@@ -50,10 +152,41 @@ export function PreProjectChat({
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
-  const [isReadyToCreate, setIsReadyToCreate] = useState(context?.isHighConfidence ?? false);
+  const [showActionButtons, setShowActionButtons] = useState(false);
+  const [actionButtonsDismissed, setActionButtonsDismissed] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const aiClient = useAi();
+
+  const hasUploadedFiles = useMemo(() => {
+    return (context?.uploadedFiles?.length ?? 0) > 0;
+  }, [context?.uploadedFiles]);
+
+  const aiTurnCount = useMemo(() => {
+    return messages.filter(m => m.role === 'assistant').length;
+  }, [messages]);
+
+  const confidenceScore = useMemo(() => {
+    return calculateConfidenceScore(messages, hasUploadedFiles);
+  }, [messages, hasUploadedFiles]);
+
+  const shouldShowActions = useMemo(() => {
+    if (actionButtonsDismissed) return false;
+    if (messages.length === 0) return false;
+    
+    if (hasUploadedFiles && aiTurnCount >= 1) return true;
+    if (aiTurnCount >= 3) return true;
+    if (confidenceScore >= 70) return true;
+    if (confidenceScore >= 50 && aiTurnCount >= 2) return true;
+    
+    return false;
+  }, [actionButtonsDismissed, messages.length, hasUploadedFiles, aiTurnCount, confidenceScore]);
+
+  useEffect(() => {
+    if (shouldShowActions && !showActionButtons) {
+      setShowActionButtons(true);
+    }
+  }, [shouldShowActions, showActionButtons]);
 
   useEffect(() => {
     if (isOpen && initialPrompt && !hasStarted) {
@@ -67,6 +200,8 @@ export function PreProjectChat({
       setMessages([]);
       setInputValue('');
       setHasStarted(false);
+      setShowActionButtons(false);
+      setActionButtonsDismissed(false);
     }
   }, [isOpen]);
 
@@ -77,7 +212,7 @@ export function PreProjectChat({
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
     }
-  }, [messages]);
+  }, [messages, showActionButtons]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -96,6 +231,10 @@ export function PreProjectChat({
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
+    
+    if (actionButtonsDismissed) {
+      setActionButtonsDismissed(false);
+    }
 
     try {
       const response = await aiClient.chat({
@@ -121,7 +260,7 @@ export function PreProjectChat({
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [messages, isLoading, aiClient]);
+  }, [messages, isLoading, aiClient, actionButtonsDismissed]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -146,6 +285,12 @@ export function PreProjectChat({
 
     onCreateProject(summary);
   }, [messages, initialPrompt, onCreateProject]);
+
+  const handleKeepBrainstorming = useCallback(() => {
+    setShowActionButtons(false);
+    setActionButtonsDismissed(true);
+    inputRef.current?.focus();
+  }, []);
 
   if (!isOpen) return null;
 
@@ -175,16 +320,7 @@ export function PreProjectChat({
             <span className="font-medium">KiteAI</span>
           </div>
 
-          <Button
-            onClick={handleCreateProject}
-            disabled={messages.length === 0 && !isReadyToCreate}
-            className="bg-primary hover:bg-primary/90"
-            data-testid="button-create-project"
-            title={!isReadyToCreate ? "Have a conversation first to clarify your intent" : "Ready to create project"}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create project
-          </Button>
+          <div className="w-[120px]" />
         </header>
 
         <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full overflow-hidden">
@@ -236,6 +372,13 @@ export function PreProjectChat({
                     </div>
                   </div>
                 </motion.div>
+              )}
+
+              {showActionButtons && !isLoading && messages.length > 0 && (
+                <ActionButtons 
+                  onStartProject={handleCreateProject}
+                  onKeepBrainstorming={handleKeepBrainstorming}
+                />
               )}
             </div>
           </ScrollArea>

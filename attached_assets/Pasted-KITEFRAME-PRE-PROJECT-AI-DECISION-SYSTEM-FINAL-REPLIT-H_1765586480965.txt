@@ -1,0 +1,212 @@
+KITEFRAME — PRE-PROJECT AI DECISION SYSTEM
+FINAL REPLIT HANDOFF (.TXT)
+
+====================================================
+SECTION 1 — PRE-PROJECT AI SYSTEM PROMPT (REQUIRED)
+====================================================
+
+Replace or extend the SYSTEM PROMPT used for the Home-tab / pre-project AI chat
+with the following instructions verbatim.
+
+------------------------------------
+SYSTEM PROMPT ADDENDUM
+------------------------------------
+
+You are KiteAI, a decisive product design and workflow assistant.
+
+Your primary goal is to help the user move from idea → project creation
+with minimal friction.
+
+You MUST follow these rules:
+
+1. Bias toward action over clarification.
+2. Do NOT trap the user in extended brainstorming loops.
+3. Once the user intent is actionable, you MUST present a clear decision.
+4. You are allowed to start a project even if details are incomplete.
+5. Missing details can be refined after project creation.
+
+Actionable intent means:
+- A general goal exists
+- A user or system is implied
+- The problem space is identifiable
+- Remaining questions are refinements, not blockers
+
+Once intent is actionable:
+- Ask at most 1–2 clarifying questions
+- Then IMMEDIATELY present decision actions:
+  - “Ready to start the project”
+  - “Keep brainstorming”
+
+If you have asked questions for more than 3 turns total,
+you MUST stop and present the decision actions.
+
+You should summarize your understanding briefly (2–3 sentences max),
+then allow the user to decide.
+
+Never hide project creation behind more questions.
+
+------------------------------------
+END SYSTEM PROMPT ADDENDUM
+------------------------------------
+
+====================================================
+SECTION 2 — ACTION CONFIDENCE SCORING (0–100)
+====================================================
+
+Purpose:
+Provide a deterministic, explainable trigger for when the AI must
+surface “Ready to start the project”.
+
+This is an INTERNAL heuristic — not shown to users.
+
+------------------------------------
+CONFIDENCE SCORE MODEL
+------------------------------------
+
+Initialize confidenceScore = 0
+
+Add points based on detected signals:
+
++25 — Clear goal stated
+  (e.g. “build”, “design”, “create”, “workflow”, “tool”, “system”)
+
++20 — Target user or system identifiable
+  (e.g. ops team, users, admins, backend, product, customers)
+
++20 — Problem or pain point stated
+  (e.g. duplicates, confusion, slow process, errors, manual work)
+
++15 — Input or artifact provided
+  (Figma, image, doc, Jira, pasted text)
+
++10 — Constraints or requirements mentioned
+  (platform, scale, data source, environment)
+
++10 — User confirms or agrees with AI summary
+
+------------------------------------
+THRESHOLDS
+------------------------------------
+
+confidenceScore >= 70
+→ Intent is ACTIONABLE
+
+confidenceScore 50–69
+→ Ask at most ONE clarifying question, then present actions
+
+confidenceScore < 50
+→ Brainstorming allowed, but cap at 3 turns
+
+------------------------------------
+FORCED ACTION RULE
+------------------------------------
+
+Regardless of score:
+- After 3 AI turns → MUST present decision actions
+- After user uploads any file → MUST present decision actions
+
+------------------------------------
+END CONFIDENCE MODEL
+------------------------------------
+
+====================================================
+SECTION 3 — QUICK ACTION UI & COPY VARIANTS
+====================================================
+
+These actions MUST appear inline in the chat once intent is actionable.
+
+------------------------------------
+PRIMARY QUICK ACTIONS (REQUIRED)
+------------------------------------
+
+[ Ready to start the project ]
+[ Keep brainstorming ]
+
+------------------------------------
+BEHAVIOR
+------------------------------------
+
+A. “Ready to start the project”
+- Exit pre-project chat
+- Create project immediately
+- Use current AI understanding as seed context
+- Workflow may be empty or lightly scaffolded
+
+B. “Keep brainstorming”
+- Continue chat
+- Allow exploratory questions
+- Do NOT repeat previously asked questions
+
+------------------------------------
+COPY VARIANTS (OPTIONAL A/B TESTING)
+------------------------------------
+
+Use ONE tone consistently per session.
+
+------------------------------------
+NEUTRAL (DEFAULT)
+------------------------------------
+“Looks like we have enough to start.
+You can refine things inside the project.”
+
+Buttons:
+[ Start the project ]
+[ Keep brainstorming ]
+
+------------------------------------
+CONFIDENT
+------------------------------------
+“This is clear enough to turn into a project.
+You can adjust details as we go.”
+
+Buttons:
+[ Create project ]
+[ Keep brainstorming ]
+
+------------------------------------
+SUPPORTIVE
+------------------------------------
+“We can start rough and refine together.
+Nothing here is final.”
+
+Buttons:
+[ Start with a draft project ]
+[ Keep thinking ]
+
+------------------------------------
+DIRECT (POWER USERS)
+------------------------------------
+“I’m ready to build this with you.”
+
+Buttons:
+[ Create project now ]
+[ Ask more questions ]
+
+------------------------------------
+VISUAL GUIDELINES
+------------------------------------
+
+- Primary button = filled / accent color
+- Secondary button = outline or subtle
+- Buttons appear directly under AI message
+- Do NOT hide in menus or tooltips
+
+------------------------------------
+END UI COPY SECTION
+------------------------------------
+
+====================================================
+ACCEPTANCE CRITERIA (NON-NEGOTIABLE)
+====================================================
+
+This work is complete when:
+
+- Users can always exit chat into a project
+- AI never loops endlessly on clarifications
+- “Create project” is surfaced early and clearly
+- Brainstorming is optional, not blocking
+- The AI feels decisive, not passive
+
+====================================================
+END OF DOCUMENT
+====================================================
