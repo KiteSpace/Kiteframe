@@ -15,10 +15,10 @@ import { generateFollowUps, shouldAskFollowUps } from '../ai/followUpGenerator';
 import type { VisionRole } from '../ai/workflow/visionPipeline';
 import { 
   buildKiteAIContext, 
-  inferRoleFromIntent, 
   getRoleDisplayInfo,
   type KiteAIRole 
 } from '../lib/ai/buildKiteAIContext';
+import { inferKiteAIRole } from '../lib/ai/inferKiteAIRole';
 import { 
   MessageCircle, 
   Send, 
@@ -131,8 +131,6 @@ function ChatView({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [showDiffPreview, setShowDiffPreview] = useState<string | null>(null);
   const [visionRole, setVisionRole] = useState<VisionRole>('pm');
-  const [selectedRole, setSelectedRole] = useState<KiteAIRole>('brainstorm');
-  const [hasManualRoleSelection, setHasManualRoleSelection] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -470,9 +468,22 @@ function ChatView({
         a.name?.toLowerCase().includes('figma') || 
         a.type === 'image'
       );
+      const hasImageAttachments = attachments.some(a => a.type === 'image');
       
-      const inferredRole = inferRoleFromIntent(inputValue, hasFigmaAttachment);
-      const effectiveRole = hasManualRoleSelection ? selectedRole : inferredRole;
+      const effectiveRole = inferKiteAIRole({
+        mode: 'in_project',
+        userMessage: inputValue,
+        projectContext: {
+          nodes: currentNodes,
+          edges: currentEdges,
+          canvasObjects: currentCanvasObjects,
+          projectName: projectId
+        },
+        uiContext: {
+          hasUploadedImages: hasImageAttachments,
+          hasFigmaAttachment
+        }
+      });
       
       const hasCanvasContext = currentNodes.length > 0;
       const hasSemanticData = currentNodes.some(n => n.data?.label || n.data?.description);
@@ -693,30 +704,6 @@ function ChatView({
           {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-            {(['brainstorm', 'designer', 'pm'] as const).map((role) => {
-              const info = getRoleDisplayInfo(role);
-              return (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => {
-                    setSelectedRole(role);
-                    setHasManualRoleSelection(true);
-                  }}
-                  className={`px-2 py-1 text-[10px] font-medium transition-colors ${
-                    selectedRole === role 
-                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white' 
-                      : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                  title={info.description}
-                  data-testid={`button-role-${role}`}
-                >
-                  {info.emoji}
-                </button>
-              );
-            })}
-          </div>
           <button
             onClick={clearChat}
             className="p-1.5 hover:bg-accent rounded-md transition-colors"

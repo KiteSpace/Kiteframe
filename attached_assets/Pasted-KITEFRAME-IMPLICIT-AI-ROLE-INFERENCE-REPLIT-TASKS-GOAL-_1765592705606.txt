@@ -1,0 +1,177 @@
+KITEFRAME — IMPLICIT AI ROLE INFERENCE (REPLIT TASKS)
+
+GOAL
+Remove manual role switching UI.
+KiteAI must automatically infer and shift its thinking role
+(brainstorm / designer / PM) based on context, project stage,
+and user intent — without requiring user input.
+
+The user should NEVER choose an AI role.
+
+────────────────────────────────────────────
+SECTION 1 — REMOVE USER-FACING ROLE CONTROLS
+────────────────────────────────────────────
+
+TASK 1.1 — Deprecate Role Toggle UI
+
+- Remove any dropdown, toggle, or selector that allows:
+  - "Brainstorm"
+  - "Designer"
+  - "PM"
+
+- These controls should NOT appear in:
+  - Project panel
+  - Chat input
+  - Settings
+
+Reason:
+Role selection is an internal reasoning concern, not a user decision.
+
+────────────────────────────────────────────
+SECTION 2 — INTERNAL ROLE INFERENCE ENGINE
+────────────────────────────────────────────
+
+TASK 2.1 — Introduce inferKiteAIRole()
+
+Create:
+client/src/lib/ai/inferKiteAIRole.ts
+
+Function signature:
+inferKiteAIRole({
+  mode,                 // "pre_project" | "in_project"
+  userMessage,
+  projectContext?,
+  workflowContext?,
+  uiContext?
+}) => "brainstorm" | "designer" | "pm"
+
+This function determines the role BEFORE building the prompt.
+
+────────────────────────────────────────────
+SECTION 3 — ROLE INFERENCE HEURISTICS (ORDERED)
+────────────────────────────────────────────
+
+TASK 3.1 — Priority Rules (Top → Bottom)
+
+1. PROJECT STAGE (highest priority)
+
+IF mode === "pre_project":
+  → Default role = "brainstorm"
+
+IF project exists AND workflows exist:
+  → Bias toward "designer"
+
+IF PRD/spec tab exists OR user references requirements:
+  → Bias toward "pm"
+
+2. USER INTENT SIGNALS
+
+IF message includes:
+- "ideas", "explore", "what if", "not sure yet"
+  → brainstorm
+
+IF message includes:
+- "flow", "screen", "interaction", "UX", "user sees"
+  → designer
+
+IF message includes:
+- "requirements", "acceptance", "scope", "edge cases"
+  → pm
+
+3. CONTEXTUAL ARTIFACTS
+
+IF user is:
+- Highlighting nodes
+- Asking about transitions
+- Importing Figma
+  → designer
+
+IF user is:
+- Editing PRD
+- Reviewing spec
+- Asking “is this complete”
+  → pm
+
+4. FALLBACK
+
+If signals conflict:
+→ Choose the role that drives action, not discussion
+(designer > pm > brainstorm)
+
+────────────────────────────────────────────
+SECTION 4 — ROLE IS INTERNAL, NOT USER-CONTROLLED
+────────────────────────────────────────────
+
+TASK 4.1 — Role Is NOT Stored as State
+
+- Do NOT store role in:
+  - React state
+  - Zustand
+  - localStorage
+  - user preferences
+
+Role is inferred PER MESSAGE.
+
+This prevents stale role lock-in.
+
+────────────────────────────────────────────
+SECTION 5 — OPTIONAL RESPONSE BADGE (NON-INTERACTIVE)
+────────────────────────────────────────────
+
+TASK 5.1 — Passive Role Indicator (Optional)
+
+If desired, AI responses may include a small, non-clickable badge:
+
+Examples:
+- "Brainstorming"
+- "Design Review"
+- "Product Spec"
+
+Rules:
+- Badge is informational only
+- No click interaction
+- No ability to change role
+- Do NOT show on every message — only when role shifts
+
+────────────────────────────────────────────
+SECTION 6 — PROMPT CONSTRUCTION UPDATE
+────────────────────────────────────────────
+
+TASK 6.1 — Inject Role AFTER Mode
+
+Prompt layering order (MANDATORY):
+
+1. Base KiteAI persona (always same)
+2. Mode constraints (pre_project / in_project)
+3. Inferred role instructions
+4. Context (project, workflow, PRD)
+5. User message
+
+Roles influence reasoning style ONLY —
+they must not override mode constraints.
+
+────────────────────────────────────────────
+SECTION 7 — BEHAVIORAL GUARANTEES
+────────────────────────────────────────────
+
+Confirm the following behaviors:
+
+- User never chooses an AI role
+- AI naturally shifts tone and structure
+- AI stops over-questioning when action is possible
+- AI becomes more structured as project matures
+- Brainstorm mode fades naturally into execution
+
+────────────────────────────────────────────
+SECTION 8 — REGRESSION CHECKS
+────────────────────────────────────────────
+
+Before merge, validate:
+
+- No visible role toggle remains
+- Role inference runs per message
+- Same agent persona across Home + Project
+- AI does NOT ask “what are you building?” in-project
+- AI does NOT stay in brainstorm mode late-stage
+
+END OF TASKS
