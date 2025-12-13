@@ -1,0 +1,171 @@
+KITEFRAME — AI IMPLEMENTATION VALIDATION QUESTIONS (FOR REPLIT)
+
+SECTION 1 — MODEL & PIPELINE CONFIRMATION
+	1.	Which exact model(s) are currently used for each AI path?
+	•	Homepage prompt → workflow
+	•	KiteAI chat (PM / Designer modes)
+	•	Vision interpretation (image + Figma)
+	•	Follow-up clarification mode
+	2.	Is GPT-5.1 used anywhere today, or is everything still routed through GPT-4o?
+	•	If mixed, where is the routing logic?
+	•	Is the model choice logged per request?
+	3.	Is there a single unified AI pipeline, or multiple parallel ones?
+	•	Specifically: does the homepage generator bypass the KiteAI pipeline?
+	4.	Is there any environment-based model fallback (e.g. dev vs prod)?
+	•	If yes, what are the fallback conditions?
+
+⸻
+
+SECTION 2 — ROLE SELECTION & SYSTEM PROMPTS
+	5.	Where is role selection (PM vs Designer vs Hybrid) decided?
+	•	File path(s)
+	•	Trigger logic (keywords, context, user selection)
+	6.	Are PM and Designer system prompts stored as separate, immutable files?
+	•	Or are they dynamically constructed strings?
+	7.	Can you confirm that the PM prompt explicitly blocks linear/checklist workflows?
+	•	Show the exact system prompt text currently in use.
+	8.	Is the role locked for a session, or can it switch mid-conversation?
+	•	If it switches, what triggers that switch?
+
+⸻
+
+SECTION 3 — CONFIDENCE SCORING & GATING
+	9.	How is confidence computed today?
+	•	Heuristic score?
+	•	Model-reported?
+	•	Hybrid?
+	10.	What confidence thresholds are enforced in code (exact values)?
+
+	•	Below which value does the agent:
+	•	Stop generating?
+	•	Ask clarifying questions?
+	•	Block project creation?
+
+	11.	Is confidence gating enforced at the code level or only via prompts?
+
+	•	If prompt-only → this is a blocker.
+
+	12.	Can you show where project creation is explicitly blocked when confidence < threshold?
+
+	•	File + line number.
+
+⸻
+
+SECTION 4 — ACTIONABILITY & CLARIFICATION LOGIC
+	13.	Is there a formal definition of “actionable prompt” in code today?
+
+	•	If yes: where?
+	•	If no: how does the agent decide it’s “ready”?
+
+	14.	What happens when a user submits a vague prompt like:
+
+	•	“user onboarding”
+	•	“approval workflow”
+	•	“import flow”
+
+	15.	Is there any hard requirement that a workflow must include:
+
+	•	A decision node?
+	•	A non-happy path?
+	•	≥ 2 edges?
+
+	16.	If the model returns a linear flow, is it rejected or accepted?
+
+	•	Where is that enforced?
+
+⸻
+
+SECTION 5 — HOMEPAGE VS CHAT PARITY
+	17.	Does the homepage prompt generator use the same pipeline as KiteAI chat?
+
+	•	If not, list all missing stages.
+
+	18.	Does the homepage generator support:
+
+	•	Role selection?
+	•	Confidence scoring?
+	•	Follow-up question generation?
+	•	Vision switching?
+
+	19.	If a prompt is ambiguous on the homepage, does it:
+
+	•	Automatically open chat mode?
+	•	Or still create a project?
+
+	20.	Where is the logic that decides between “start project” vs “keep brainstorming”?
+
+⸻
+
+SECTION 6 — FOLLOW-UP QUESTION BEHAVIOR
+	21.	When confidence is medium, how many follow-up questions are generated?
+
+	•	Fixed number or adaptive?
+
+	22.	Are follow-up questions required to be answered before generation continues?
+
+	•	Or can the user bypass them?
+
+	23.	What happens if the user repeatedly avoids specifics?
+
+	•	Does the agent:
+	•	Stall?
+	•	Propose assumptions?
+	•	Force a choice?
+
+	24.	Is assumption-proposal implemented as a first-class state or just text?
+
+⸻
+
+SECTION 7 — VISION + FIGMA INTEGRATION
+	25.	What exact signal triggers vision model invocation?
+
+	•	Confidence threshold?
+	•	Element count?
+	•	User intent?
+
+	26.	Is vision analysis cached per frame/image?
+
+	•	If yes, what is the cache key?
+
+	27.	Can vision results be rejected by heuristics if they are too shallow?
+	28.	Does vision output go through the same workflow quality guards as text-only flows?
+
+⸻
+
+SECTION 8 — PREVIEW & COMMIT FLOW
+	29.	Is there a distinct “preview workflow” state before project creation?
+
+	•	Or are nodes immediately committed to canvas?
+
+	30.	Can the user cancel after preview without leaving behind a project UUID?
+	31.	Is there a difference between “reference-only” and “generate workflow” modes in AI logic, or just UI?
+
+⸻
+
+SECTION 9 — LOGGING & DEBUGGING
+	32.	What is logged for every AI request?
+
+	•	Model
+	•	Role
+	•	Confidence
+	•	Decision outcome (generate / clarify / block)
+
+	33.	Is there a way to replay an AI decision for debugging?
+	34.	Are failed generations distinguishable from successful ones in logs?
+
+⸻
+
+SECTION 10 — QUALITY REGRESSION PROTECTION
+	35.	Are there automated tests that fail if:
+
+	•	A linear workflow is produced?
+	•	A project is created from a vague prompt?
+	•	Confidence gating is bypassed?
+
+	36.	If the model output format degrades, what prevents silent acceptance?
+
+	•	Regex repair?
+	•	Schema validation?
+	•	Hard failure?
+
+	37.	What would currently stop KiteAI from regressing back into “chatbot mode”?
