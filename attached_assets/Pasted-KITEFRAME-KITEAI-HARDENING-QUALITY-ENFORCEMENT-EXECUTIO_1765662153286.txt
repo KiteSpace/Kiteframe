@@ -1,0 +1,270 @@
+KITEFRAME — KITEAI HARDENING & QUALITY ENFORCEMENT
+EXECUTION BUNDLE (REPLIT HANDOFF)
+
+GOAL
+-----
+Bring KiteAI from “helpful chatbot” to a **product-grade PM/Designer agent** with:
+• Consistent, high-quality workflow generation
+• Mandatory clarification for vague prompts
+• Enforced actionability before project creation
+• No regression as prompts/models evolve
+
+This bundle defines:
+1) Non-negotiable acceptance tests
+2) Generator-level constraints (code, not prompt-only)
+3) System prompts (PM + Designer)
+4) Confidence + maturity enforcement
+5) Homepage / Figma / Image parity rules
+
+================================================================
+SECTION 1 — DEFINITIONS (ALIGNMENT FIRST)
+================================================================
+
+Actionable Prompt
+-----------------
+A prompt is considered ACTIONABLE only if it includes:
+• A user or actor
+• A goal or outcome
+• At least one constraint OR decision dimension
+• Enough specificity to imply branching or tradeoffs
+
+Examples:
+❌ “User onboarding”
+❌ “Approval workflow”
+✅ “New user onboarding for a B2B SaaS with a trial period and admin approval”
+✅ “Mobile onboarding where activation depends on completing 2 of 3 steps”
+
+Workflow Minimum Viability
+--------------------------
+A valid workflow MUST contain:
+• ≥ 1 decision point (branch)
+• ≥ 1 non-happy-path (error, retry, rejection, exit)
+• ≥ 1 loop OR explicit termination
+• ≥ 2 edges
+
+If not met → workflow generation is BLOCKED.
+
+================================================================
+SECTION 2 — GENERATOR-LEVEL CONSTRAINTS (MANDATORY)
+================================================================
+
+These checks MUST live in code (not just prompts).
+
+Create: `ai/guards/workflowGuards.ts`
+
+Required Guards
+---------------
+
+1. assertPromptActionable(prompt, confidence)
+   • If confidence < 0.70 → BLOCK generation
+   • Return missing dimensions (goal, user, constraints)
+
+2. assertWorkflowStructure(workflow)
+   • Fail if:
+     - No decision nodes
+     - Only linear flow
+     - < 2 edges
+   • Return specific failure reasons
+
+3. assertUserConfirmedGeneration(state)
+   • Project creation ONLY allowed after:
+     - User confirms readiness
+     - Or accepts AI-proposed assumptions
+
+Behavior
+--------
+If any guard fails:
+• DO NOT create project
+• DO NOT emit workflow
+• Switch UI into “Clarification Mode”
+• KiteAI must ask targeted follow-ups
+
+================================================================
+SECTION 3 — ACCEPTANCE TESTS (NON-NEGOTIABLE)
+================================================================
+
+Create: `ai/tests/kiteai.acceptance.test.ts`
+
+Test Categories
+---------------
+
+A. Prompt Handling
+------------------
+• GIVEN prompt = “user onboarding”
+  EXPECT:
+  - confidence < 0.7
+  - NO workflow generated
+  - KiteAI asks clarifying questions
+  - No “Start project” CTA
+
+• GIVEN question prompt (“How should onboarding work?”)
+  EXPECT:
+  - Chat mode activated
+  - No project created
+  - Follow-ups required
+
+B. Workflow Quality
+-------------------
+• GIVEN actionable prompt
+  EXPECT workflow to contain:
+  - ≥ 1 decision node
+  - ≥ 1 alternative path
+  - ≥ 1 failure or retry path
+
+• GIVEN linear-only output
+  EXPECT generation to FAIL with reason
+
+C. Project Creation Gate
+------------------------
+• GIVEN vague prompt
+  EXPECT:
+  - No project UUID created
+  - No canvas mutations
+
+• GIVEN confirmed assumptions
+  EXPECT:
+  - Project created
+  - Workflow inserted
+
+D. Regression Tests
+-------------------
+• Snapshot expected workflow shapes for:
+  - Onboarding
+  - Approval flow
+  - Import flow
+• Fail test if shape regresses to linear list
+
+================================================================
+SECTION 4 — SYSTEM PROMPTS (REQUIRED)
+================================================================
+
+Create files:
+• ai/prompts/system.pm.txt
+• ai/prompts/system.designer.txt
+
+--------------------------------------------------
+SYSTEM PROMPT — PM MODE
+--------------------------------------------------
+You are a senior Product Manager.
+
+Your job is NOT to be helpful.
+Your job is to ensure the problem is well-defined before execution.
+
+Rules:
+• Never generate a workflow from vague input
+• Always identify:
+  - User
+  - Goal
+  - Tradeoffs
+  - Failure modes
+• If information is missing:
+  - Ask direct, concrete questions
+• If the user avoids answering:
+  - Propose assumptions explicitly and ask for confirmation
+• You MUST include decisions, alternatives, and risks
+• Linear checklists are NOT workflows
+
+If insufficient signal exists:
+Respond only with clarification questions.
+Do NOT proceed.
+
+--------------------------------------------------
+SYSTEM PROMPT — DESIGNER MODE
+--------------------------------------------------
+You are a senior Product Designer.
+
+Your job is to reason about:
+• States
+• Transitions
+• User intent
+• Friction and drop-off
+• Error recovery
+
+Rules:
+• Every flow must include:
+  - Entry state
+  - Exit state
+  - At least one failure or detour
+• Prefer flows over steps
+• Call out ambiguous UI states explicitly
+• Never assume happy paths only
+
+If the design intent is unclear:
+Ask questions before generating structure.
+
+================================================================
+SECTION 5 — CONFIDENCE & MATURITY AWARENESS
+================================================================
+
+Confidence Scoring
+------------------
+0.0 – 0.4  → Do NOT speak (insufficient signal)
+0.4 – 0.7  → Ask clarifying questions ONLY
+0.7 – 0.85 → Propose assumptions + preview
+0.85+      → Generate workflow (still gated)
+
+Workflow Maturity
+-----------------
+• draft:
+  - Show “Beta” label
+  - Enable suggestion chips
+• stable:
+  - Reduce interruptions
+  - Focus on refinement, not questioning
+
+================================================================
+SECTION 6 — HOMEPAGE / FIGMA / IMAGE PARITY
+================================================================
+
+All entry points MUST use the same pipeline:
+• Homepage prompt
+• Figma import
+• Image upload
+
+Unified Flow
+------------
+1. User submits input
+2. Heuristics evaluate actionability
+3. If unclear:
+   - Expand into chat-style clarification UI
+   - DO NOT create project
+4. If actionable:
+   - Generate preview (text + ghost nodes)
+   - Ask for confirmation
+5. Only then:
+   - Create project
+   - Commit workflow
+
+No shortcuts allowed per entry point.
+
+================================================================
+SECTION 7 — UI REQUIREMENTS (ENFORCEMENT)
+================================================================
+
+• “Start project” CTA ONLY appears after confirmation
+• “Keep brainstorming” remains default until ready
+• Ghost workflow preview allowed
+• No silent project creation
+
+================================================================
+SECTION 8 — NON-GOALS (DO NOT IMPLEMENT)
+================================================================
+
+• No auto-generation without user confirmation
+• No silent assumption filling
+• No purely linear workflows
+• No chatbot-style rambling answers
+
+================================================================
+SECTION 9 — SUCCESS CRITERIA
+================================================================
+
+This work is complete when:
+• “User onboarding” does NOT create a project
+• KiteAI insists on clarification
+• Generated workflows always branch
+• Regressions are caught by tests
+• PM-level reasoning is visible and consistent
+
+END OF EXECUTION BUNDLE
+================================================================

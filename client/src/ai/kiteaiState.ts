@@ -45,10 +45,13 @@ export interface StateTransition {
 }
 
 const CONFIDENCE_THRESHOLDS = {
-  stop: 0.4,
-  followUp: 0.7,
-  execute: 0.75,
+  silent: 0.4,         // 0.0-0.4: Do NOT speak (insufficient signal)
+  clarify: 0.7,        // 0.4-0.7: Ask clarifying questions ONLY
+  proposeAssumptions: 0.85, // 0.7-0.85: Propose assumptions + preview
+  execute: 0.85,       // 0.85+: Generate workflow (still gated by confirmation)
 } as const;
+
+export type ConfidenceLevel = 'silent' | 'clarify' | 'proposeAssumptions' | 'execute';
 
 const ACTIONABILITY_THRESHOLD = 3;
 const VAGUE_REPLY_LIMIT = 2;
@@ -65,7 +68,7 @@ export function createInitialContext(mode: KiteAIMode = 'base'): ConversationCon
 }
 
 export function isVagueReply(actionability: ActionabilityResult): boolean {
-  return actionability.score < 2 || actionability.confidence < CONFIDENCE_THRESHOLDS.stop;
+  return actionability.score < 2 || actionability.confidence < CONFIDENCE_THRESHOLDS.silent;
 }
 
 export function shouldEscalate(context: ConversationContext, actionability: ActionabilityResult): boolean {
@@ -84,13 +87,27 @@ export function isExecutionReady(actionability: ActionabilityResult): boolean {
 }
 
 export function isLowConfidence(actionability: ActionabilityResult): boolean {
-  return actionability.confidence < CONFIDENCE_THRESHOLDS.stop;
+  return actionability.confidence < CONFIDENCE_THRESHOLDS.silent;
+}
+
+export function shouldProposeAssumptions(actionability: ActionabilityResult): boolean {
+  return (
+    actionability.confidence >= CONFIDENCE_THRESHOLDS.clarify &&
+    actionability.confidence < CONFIDENCE_THRESHOLDS.proposeAssumptions
+  );
 }
 
 export function needsFollowUp(actionability: ActionabilityResult): boolean {
   return (
-    actionability.confidence >= CONFIDENCE_THRESHOLDS.stop &&
-    actionability.confidence < CONFIDENCE_THRESHOLDS.execute
+    actionability.confidence >= CONFIDENCE_THRESHOLDS.silent &&
+    actionability.confidence < CONFIDENCE_THRESHOLDS.clarify
+  );
+}
+
+export function needsClarificationOnly(actionability: ActionabilityResult): boolean {
+  return (
+    actionability.confidence >= CONFIDENCE_THRESHOLDS.silent &&
+    actionability.confidence < CONFIDENCE_THRESHOLDS.clarify
   );
 }
 
@@ -128,7 +145,7 @@ export function computeNextState(
     return {
       from: currentState,
       to: 'clarification',
-      reason: `Confidence too low (${actionability.confidence} < ${CONFIDENCE_THRESHOLDS.stop}) - cannot proceed`,
+      reason: `Confidence too low (${actionability.confidence} < ${CONFIDENCE_THRESHOLDS.silent}) - cannot proceed`,
       actionability,
     };
   }
@@ -247,8 +264,9 @@ export function canShowStartProject(context: ConversationContext): boolean {
   return context.state === 'execution-ready';
 }
 
-export function getConfidenceLevel(confidence: number): 'stop' | 'followUp' | 'execute' {
-  if (confidence < CONFIDENCE_THRESHOLDS.stop) return 'stop';
-  if (confidence < CONFIDENCE_THRESHOLDS.execute) return 'followUp';
+export function getConfidenceLevel(confidence: number): ConfidenceLevel {
+  if (confidence < CONFIDENCE_THRESHOLDS.silent) return 'silent';
+  if (confidence < CONFIDENCE_THRESHOLDS.clarify) return 'clarify';
+  if (confidence < CONFIDENCE_THRESHOLDS.proposeAssumptions) return 'proposeAssumptions';
   return 'execute';
 }

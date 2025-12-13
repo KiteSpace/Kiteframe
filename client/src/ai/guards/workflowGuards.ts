@@ -1,0 +1,295 @@
+/**
+ * Workflow Guards - Generator-Level Constraints
+ * 
+ * These guards MUST be checked in code before workflow generation.
+ * They enforce quality standards that cannot be bypassed by prompts.
+ */
+
+import { ActionabilityResult } from '../actionability';
+
+export interface WorkflowNode {
+  id: string;
+  type: string;
+  label?: string;
+  data?: Record<string, unknown>;
+}
+
+export interface WorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  type?: string;
+}
+
+export interface WorkflowStructure {
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+}
+
+export interface GuardResult {
+  passed: boolean;
+  reason: string;
+  details?: string[];
+}
+
+export interface PromptActionabilityResult extends GuardResult {
+  missingDimensions?: string[];
+  confidence: number;
+}
+
+export interface WorkflowStructureResult extends GuardResult {
+  hasDecisionNode: boolean;
+  hasAlternativePath: boolean;
+  hasFailurePath: boolean;
+  hasTermination: boolean;
+  edgeCount: number;
+}
+
+export interface GenerationState {
+  userConfirmed: boolean;
+  assumptionsAccepted: boolean;
+  clarificationComplete: boolean;
+}
+
+const CONFIDENCE_THRESHOLD_BLOCK = 0.70;
+
+const DECISION_NODE_TYPES = ['condition', 'decision', 'branch', 'switch', 'gateway'];
+const FAILURE_NODE_TYPES = ['error', 'failure', 'retry', 'reject', 'exit', 'exception'];
+const TERMINATION_NODE_TYPES = ['end', 'exit', 'terminate', 'complete', 'finish', 'output'];
+
+/**
+ * Guard 1: Assert Prompt is Actionable
+ * 
+ * Blocks generation if confidence < 0.70
+ * Returns missing dimensions for clarification
+ */
+export function assertPromptActionable(
+  prompt: string,
+  actionability: ActionabilityResult
+): PromptActionabilityResult {
+  const { confidence, score, missing, isActionable } = actionability;
+
+  if (confidence < CONFIDENCE_THRESHOLD_BLOCK) {
+    console.log(`[KiteAI Guard] BLOCKED: Confidence ${confidence} < ${CONFIDENCE_THRESHOLD_BLOCK}`);
+    
+    const missingDescriptions = missing.map(dim => {
+      switch (dim) {
+        case 'actor': return 'Who will use this workflow (user/actor)';
+        case 'trigger': return 'What triggers the workflow (context/event)';
+        case 'goal': return 'What the successful outcome looks like (goal/intent)';
+        case 'scope': return 'What is included or excluded (boundaries/constraints)';
+        case 'flowSignal': return 'The steps or sequence involved (flow/process)';
+        default: return dim;
+      }
+    });
+
+    return {
+      passed: false,
+      reason: `Insufficient actionability (confidence: ${Math.round(confidence * 100)}%, score: ${score}/5)`,
+      missingDimensions: missingDescriptions,
+      confidence,
+      details: [
+        `Prompt needs more specificity in: ${missing.join(', ')}`,
+        'Ask clarifying questions before proceeding',
+      ],
+    };
+  }
+
+  if (score < 3) {
+    console.log(`[KiteAI Guard] BLOCKED: Score ${score} < 3`);
+    return {
+      passed: false,
+      reason: `Actionability score too low (${score}/5)`,
+      missingDimensions: missing,
+      confidence,
+      details: [
+        'Prompt must satisfy at least 3 of 5 dimensions',
+        `Missing: ${missing.join(', ')}`,
+      ],
+    };
+  }
+
+  console.log(`[KiteAI Guard] PASSED: Prompt actionable (confidence: ${confidence}, score: ${score})`);
+  return {
+    passed: true,
+    reason: 'Prompt meets actionability threshold',
+    confidence,
+    missingDimensions: [],
+  };
+}
+
+/**
+ * Guard 2: Assert Workflow Structure
+ * 
+ * Validates that a workflow meets minimum viability:
+ * - ≥ 1 decision point (branch)
+ * - ≥ 1 non-happy-path (error, retry, rejection, exit)
+ * - ≥ 1 loop OR explicit termination
+ * - ≥ 2 edges
+ */
+export function assertWorkflowStructure(workflow: WorkflowStructure): WorkflowStructureResult {
+  const { nodes, edges } = workflow;
+  
+  const hasDecisionNode = nodes.some(node => 
+    DECISION_NODE_TYPES.some(type => 
+      node.type.toLowerCase().includes(type) ||
+      (node.label?.toLowerCase() || '').includes(type)
+    )
+  );
+
+  const hasFailurePath = nodes.some(node =>
+    FAILURE_NODE_TYPES.some(type =>
+      node.type.toLowerCase().includes(type) ||
+      (node.label?.toLowerCase() || '').includes(type)
+    )
+  );
+
+  const hasTermination = nodes.some(node =>
+    TERMINATION_NODE_TYPES.some(type =>
+      node.type.toLowerCase().includes(type) ||
+      (node.label?.toLowerCase() || '').includes(type)
+    )
+  );
+
+  const nodeOutgoingEdges = new Map<string, number>();
+  edges.forEach(edge => {
+    const count = nodeOutgoingEdges.get(edge.source) || 0;
+    nodeOutgoingEdges.set(edge.source, count + 1);
+  });
+  const hasMultipleOutgoingEdges = Array.from(nodeOutgoingEdges.values()).some(count => count > 1);
+
+  const hasAlternativePath = hasDecisionNode || hasMultipleOutgoingEdges;
+
+  const edgeCount = edges.length;
+  const failures: string[] = [];
+
+  if (!hasDecisionNode) {
+    failures.push('No decision/branch node found - workflow is purely linear');
+  }
+  if (!hasAlternativePath) {
+    failures.push('No alternative paths - all flows are happy-path only');
+  }
+  if (!hasFailurePath) {
+    failures.push('No failure/error/retry handling - missing non-happy-path');
+  }
+  if (!hasTermination) {
+    failures.push('No explicit termination node - workflow has no clear end state');
+  }
+  if (edgeCount < 2) {
+    failures.push(`Only ${edgeCount} edge(s) - minimum 2 required for valid workflow`);
+  }
+
+  const isLinearOnly = !hasDecisionNode && !hasAlternativePath && edgeCount <= nodes.length;
+  if (isLinearOnly) {
+    failures.push('Workflow is a linear checklist, not a proper workflow with decisions');
+  }
+
+  const passed = failures.length === 0;
+
+  if (!passed) {
+    console.log(`[KiteAI Guard] BLOCKED: Workflow structure invalid`, failures);
+  } else {
+    console.log(`[KiteAI Guard] PASSED: Workflow structure valid`);
+  }
+
+  return {
+    passed,
+    reason: passed 
+      ? 'Workflow meets minimum viability requirements'
+      : 'Workflow structure does not meet minimum requirements',
+    details: failures,
+    hasDecisionNode,
+    hasAlternativePath,
+    hasFailurePath,
+    hasTermination,
+    edgeCount,
+  };
+}
+
+/**
+ * Guard 3: Assert User Confirmed Generation
+ * 
+ * Project creation ONLY allowed after:
+ * - User confirms readiness, OR
+ * - User accepts AI-proposed assumptions
+ */
+export function assertUserConfirmedGeneration(state: GenerationState): GuardResult {
+  const { userConfirmed, assumptionsAccepted, clarificationComplete } = state;
+
+  if (!clarificationComplete) {
+    console.log(`[KiteAI Guard] BLOCKED: Clarification not complete`);
+    return {
+      passed: false,
+      reason: 'Clarification process not complete',
+      details: ['User must answer clarifying questions before project creation'],
+    };
+  }
+
+  if (!userConfirmed && !assumptionsAccepted) {
+    console.log(`[KiteAI Guard] BLOCKED: No user confirmation`);
+    return {
+      passed: false,
+      reason: 'User confirmation required',
+      details: [
+        'User must either:',
+        '- Explicitly confirm readiness to proceed',
+        '- Accept AI-proposed assumptions',
+      ],
+    };
+  }
+
+  console.log(`[KiteAI Guard] PASSED: User confirmed generation`);
+  return {
+    passed: true,
+    reason: userConfirmed 
+      ? 'User explicitly confirmed readiness'
+      : 'User accepted proposed assumptions',
+  };
+}
+
+/**
+ * Combined guard check - runs all guards and returns aggregated result
+ */
+export function runAllGuards(
+  prompt: string,
+  actionability: ActionabilityResult,
+  workflow: WorkflowStructure | null,
+  generationState: GenerationState
+): {
+  canProceed: boolean;
+  failures: GuardResult[];
+  promptResult: PromptActionabilityResult;
+  workflowResult: WorkflowStructureResult | null;
+  confirmationResult: GuardResult;
+} {
+  const promptResult = assertPromptActionable(prompt, actionability);
+  
+  const workflowResult = workflow 
+    ? assertWorkflowStructure(workflow)
+    : null;
+  
+  const confirmationResult = assertUserConfirmedGeneration(generationState);
+
+  const failures: GuardResult[] = [];
+  
+  if (!promptResult.passed) failures.push(promptResult);
+  if (workflowResult && !workflowResult.passed) failures.push(workflowResult);
+  if (!confirmationResult.passed) failures.push(confirmationResult);
+
+  const canProceed = failures.length === 0;
+
+  if (!canProceed) {
+    console.log(`[KiteAI Guard] ALL GUARDS: ${failures.length} failure(s) - blocking project creation`);
+  } else {
+    console.log(`[KiteAI Guard] ALL GUARDS: All passed - project creation allowed`);
+  }
+
+  return {
+    canProceed,
+    failures,
+    promptResult,
+    workflowResult,
+    confirmationResult,
+  };
+}
