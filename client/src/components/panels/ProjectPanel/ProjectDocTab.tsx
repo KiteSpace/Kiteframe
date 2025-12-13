@@ -404,25 +404,74 @@ export function ProjectDocTab({
                   </header>
 
                   <div className="space-y-1">
-                    {workflowSummaries.map((wf) => (
-                      <button
-                        key={wf.id}
-                        className={cn(
-                          "w-full text-left px-2 py-1.5 rounded hover:bg-accent/60 text-sm flex items-center justify-between transition-colors",
-                          wf.id === selectedWorkflow?.id && "bg-accent"
-                        )}
-                        onClick={() => setSelectedWorkflowId(wf.id)}
-                        data-testid={`workflow-${wf.id}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Circle size={8} className="text-primary fill-primary" />
-                          <span className="font-medium">{wf.name}</span>
+                    {workflowSummaries.map((wf) => {
+                      const hasStatuses = wf.nodes.some(n => n.data?.status);
+                      const statusBreakdown = hasStatuses ? {
+                        todo: wf.nodes.filter(n => !n.data?.status || n.data?.status === 'todo').length,
+                        inprogress: wf.nodes.filter(n => n.data?.status === 'inprogress').length,
+                        done: wf.nodes.filter(n => n.data?.status === 'done').length
+                      } : null;
+                      
+                      const stepCount = wf.nodeCount;
+                      const decisionCount = wf.nodes.filter(n => n.type === 'condition').length;
+                      
+                      const nodeLabels = wf.nodes
+                        .map(n => n.data?.label || n.type || '')
+                        .filter(Boolean)
+                        .slice(0, 4);
+                      const previewText = nodeLabels.length > 0 
+                        ? nodeLabels.join(' → ') + (wf.nodes.length > 4 ? '...' : '')
+                        : null;
+                      
+                      return (
+                        <div
+                          key={wf.id}
+                          className={cn(
+                            "w-full text-left px-2 py-2 rounded hover:bg-accent/50 transition-colors cursor-pointer",
+                            wf.id === selectedWorkflow?.id && "bg-accent"
+                          )}
+                          data-testid={`workflow-prd-${wf.id}`}
+                          onClick={() => {
+                            setSelectedWorkflowId(wf.id);
+                            if (wf.nodeIds.length > 0) {
+                              focusBus.focusWorkflow(wf.nodeIds, { padding: 150 });
+                            }
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Circle size={8} className="text-primary fill-primary" />
+                            <span className="font-medium text-sm">{wf.name}</span>
+                          </div>
+                          <div className="pl-4 text-[10px] text-muted-foreground mt-0.5">
+                            {stepCount} steps{decisionCount > 0 && ` · ${decisionCount} decisions`}
+                          </div>
+                          {previewText && (
+                            <div className="pl-4 mt-1 text-[10px] text-muted-foreground line-clamp-2">
+                              {previewText}
+                            </div>
+                          )}
+                          {statusBreakdown && (
+                            <div className="pl-4 flex gap-1.5 mt-1.5">
+                              {statusBreakdown.todo > 0 && (
+                                <span className="px-1.5 py-0.5 text-[9px] rounded-full bg-muted text-muted-foreground">
+                                  {statusBreakdown.todo} to-do
+                                </span>
+                              )}
+                              {statusBreakdown.inprogress > 0 && (
+                                <span className="px-1.5 py-0.5 text-[9px] rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                  {statusBreakdown.inprogress} in progress
+                                </span>
+                              )}
+                              {statusBreakdown.done > 0 && (
+                                <span className="px-1.5 py-0.5 text-[9px] rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                  {statusBreakdown.done} done
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <span className="text-[10px] text-muted-foreground">
-                          {wf.nodeCount} nodes · {wf.edgeCount} edges
-                        </span>
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </section>
               )}

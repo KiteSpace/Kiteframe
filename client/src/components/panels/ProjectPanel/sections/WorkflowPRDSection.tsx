@@ -4,16 +4,19 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sparkles, RefreshCw, Loader2, AlertTriangle, X, Eye, Check, Lightbulb, AlertCircle, Clock, MoreHorizontal, Copy, Download, Upload } from 'lucide-react';
+import { Sparkles, RefreshCw, Loader2, AlertTriangle, X, Eye, Check, Lightbulb, AlertCircle, Clock, MoreHorizontal, Copy, Download, Upload, History, RotateCw } from 'lucide-react';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { extractSemanticWorkflowModel } from '@/lib/kiteframe/utils/extractSemanticWorkflowModel';
 import { isWorkflowStale, storeHash, computeWorkflowHash } from '@/lib/kiteframe/utils/semanticHash';
 import { 
   loadWorkflowPRD, saveWorkflowPRD, saveWorkflowPRDBackup, 
-  updatePRDSection, clearManualEdit 
+  updatePRDSection, clearManualEdit,
+  saveWorkflowPRDVersion, loadWorkflowPRDHistory, restoreWorkflowPRDVersion,
+  type PRDVersion
 } from '@/lib/kiteframe/utils/prdStorage';
 import { 
   exportWorkflowPRDToMarkdown, 
@@ -165,6 +168,7 @@ export function WorkflowPRDSection({
   edges 
 }: WorkflowPRDSectionProps) {
   const [prd, setPrd] = useState<WorkflowPRD | null>(null);
+  const [history, setHistory] = useState<PRDVersion<WorkflowPRD>[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [reviewResult, setReviewResult] = useState<PRDReviewResult | null>(null);
@@ -205,6 +209,8 @@ export function WorkflowPRDSection({
         setPrd(null);
         setIsStale(false);
       }
+      const loadedHistory = loadWorkflowPRDHistory(projectId, workflowId);
+      setHistory(loadedHistory);
     }
   }, [projectId, workflowId, nodes, edges]);
 
@@ -222,6 +228,7 @@ export function WorkflowPRDSection({
 
     try {
       if (prd) {
+        saveWorkflowPRDVersion(projectId, workflowId, prd, 'ai-update');
         saveWorkflowPRDBackup(projectId, workflowId, prd);
         toast({ title: 'Backup saved', description: 'Previous spec saved as backup.' });
       }
@@ -241,6 +248,10 @@ export function WorkflowPRDSection({
       saveWorkflowPRD(projectId, workflowId, { ...newPrd, hash });
       setPrd({ ...newPrd, hash });
       setIsStale(false);
+      
+      saveWorkflowPRDVersion(projectId, workflowId, { ...newPrd, hash }, 'ai-generate');
+      const updatedHistory = loadWorkflowPRDHistory(projectId, workflowId);
+      setHistory(updatedHistory);
 
       toast({ title: 'Spec generated', description: 'Workflow spec has been created.' });
     } catch (error) {
@@ -322,6 +333,19 @@ export function WorkflowPRDSection({
       setIsReviewing(false);
     }
   }, [workflowId, projectId, workflowName, nodes, edges, prd, ai, toast]);
+
+  const handleRestoreVersion = useCallback((version: number) => {
+    if (!projectId || !workflowId) return;
+    const restored = restoreWorkflowPRDVersion(projectId, workflowId, version);
+    if (restored) {
+      setPrd(restored);
+      const updatedHistory = loadWorkflowPRDHistory(projectId, workflowId);
+      setHistory(updatedHistory);
+      toast({ title: 'Version restored', description: `Restored to version ${version}.` });
+    } else {
+      toast({ title: 'Restore failed', description: 'Could not restore version.', variant: 'destructive' });
+    }
+  }, [projectId, workflowId, toast]);
 
   const handleApplySuggestion = useCallback((suggestion: PRDSuggestion) => {
     if (!prd || !projectId || !workflowId || !suggestion.suggestedContent) return;
@@ -434,6 +458,30 @@ export function WorkflowPRDSection({
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold">{workflowName} Spec</h2>
             <div className="flex items-center gap-1">
+              {history.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" data-testid="workflow-history-dropdown">
+                      <History size={12} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="text-xs">Version History</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {history.map((v) => (
+                      <DropdownMenuItem key={v.version} onClick={() => handleRestoreVersion(v.version)} className="text-xs cursor-pointer" data-testid={`restore-workflow-version-${v.version}`}>
+                        <RotateCw size={10} className="mr-2" />
+                        <div className="flex-1">
+                          <div className="font-medium">v{v.version}</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {new Date(v.createdAt).toLocaleString()} · {v.reason}
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
