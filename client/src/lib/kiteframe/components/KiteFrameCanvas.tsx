@@ -1284,6 +1284,7 @@ type Props = {
   flowSettings?: import('../utils/FlowDetection').FlowSettingsMap;
   onFlowSettingsChange?: (flowId: string, settings: import('../utils/FlowDetection').FlowSettings) => void;
   onResetFlowStatuses?: (flowId: string) => void;
+  onThemeChangeRequested?: (flowId: string, nodeIds: string[]) => void;
 
   // Node status change callback
   onNodeStatusChange?: (nodeId: string) => void;
@@ -3595,9 +3596,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 onResetStatuses={(flowId) => {
                   props.onResetFlowStatuses?.(flowId);
                 }}
-                onSelectAll={() => {
+                onSelectAll={(flowId) => {
                   const nodeIds = flow.nodes.map(n => n.id);
                   props.onSelectionChange?.(nodeIds);
+                }}
+                onThemeChange={(flowId) => {
+                  props.onThemeChangeRequested?.(flowId, flow.nodes.map(n => n.id));
                 }}
                 readOnly={false}
               />

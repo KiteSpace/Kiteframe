@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, MoreVertical } from 'lucide-react';
+import { ChevronDown, GripVertical, MousePointer2, Palette } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { FlowSettings, Flow } from '../utils/FlowDetection';
 import { useWorkflowNames } from '../../../stores/workflowNameStore';
@@ -12,6 +12,8 @@ interface WorkflowHeaderProps {
   scale: number;
   onSettingsChange: (flowId: string, settings: FlowSettings) => void;
   onResetStatuses: (flowId: string) => void;
+  onSelectAll?: (flowId: string) => void;
+  onThemeChange?: (flowId: string) => void;
   readOnly?: boolean;
   flowNodes?: any[];
 }
@@ -23,6 +25,8 @@ export function WorkflowHeader({
   scale,
   onSettingsChange,
   onResetStatuses,
+  onSelectAll,
+  onThemeChange,
   readOnly = false,
   flowNodes = [],
 }: WorkflowHeaderProps) {
@@ -124,6 +128,7 @@ export function WorkflowHeader({
           style={{ backgroundColor: '#2b313d', color: '#ffffff' }}
           data-testid={`workflow-header-toggle-${flowId}`}
         >
+          <GripVertical size={14} className="opacity-60 cursor-grab" />
           <ChevronDown
             size={14}
             className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -178,6 +183,34 @@ export function WorkflowHeader({
                 Reset all statuses
               </button>
             )}
+
+            <div className="border-t border-gray-200 dark:border-gray-600 my-2" />
+
+            <button
+              onClick={() => {
+                onSelectAll?.(flowId);
+                setIsOpen(false);
+              }}
+              disabled={readOnly}
+              className="flex items-center gap-2 w-full text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1.5 transition-colors disabled:opacity-50"
+              data-testid={`workflow-select-all-${flowId}`}
+            >
+              <MousePointer2 size={14} />
+              Select All
+            </button>
+
+            <button
+              onClick={() => {
+                onThemeChange?.(flowId);
+                setIsOpen(false);
+              }}
+              disabled={readOnly}
+              className="flex items-center gap-2 w-full text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1.5 transition-colors disabled:opacity-50"
+              data-testid={`workflow-theme-${flowId}`}
+            >
+              <Palette size={14} />
+              Theme
+            </button>
           </div>
         )}
       </div>
