@@ -4040,7 +4040,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     'export': Download,
     'import': Upload,
     'share': Share2,
-    'chevron-right': ChevronRight
+    'chevron-right': ChevronRight,
+    'rocket': Rocket,
+    'download': Download,
+    'upload': Upload,
+    'delete': Trash2
   }), []);
 
   // Collapse/expand sidebar toggle

@@ -273,16 +273,24 @@ export function ProjectDocTab({
                         const stepCount = wf.nodeCount;
                         const decisionCount = wf.nodes.filter(n => n.type === 'condition').length;
                         
+                        const nodeLabels = wf.nodes
+                          .map(n => n.data?.label || n.type || '')
+                          .filter(Boolean)
+                          .slice(0, 4);
+                        const previewText = nodeLabels.length > 0 
+                          ? nodeLabels.join(' → ') + (wf.nodes.length > 4 ? '...' : '')
+                          : null;
+                        
                         return (
-                          <button
+                          <div
                             key={wf.id}
+                            className="w-full text-left px-2 py-2 rounded hover:bg-accent/50 transition-colors cursor-pointer"
+                            data-testid={`workflow-${wf.id}`}
                             onClick={() => {
                               if (wf.nodeIds.length > 0) {
                                 focusBus.focusWorkflow(wf.nodeIds, { padding: 150 });
                               }
                             }}
-                            className="w-full text-left px-2 py-2 rounded hover:bg-accent/50 transition-colors"
-                            data-testid={`workflow-${wf.id}`}
                           >
                             <div className="flex items-center gap-2">
                               <Circle size={8} className="text-primary fill-primary" />
@@ -291,6 +299,31 @@ export function ProjectDocTab({
                             <div className="pl-4 text-[10px] text-muted-foreground mt-0.5">
                               {stepCount} steps{decisionCount > 0 && ` · ${decisionCount} decisions`}
                             </div>
+                            {previewText && (
+                              <div className="pl-4 mt-1 text-[10px] text-muted-foreground line-clamp-2">
+                                {previewText}
+                              </div>
+                            )}
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedWorkflowId(wf.id);
+                                setDocMode('workflow-prd');
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.stopPropagation();
+                                  setSelectedWorkflowId(wf.id);
+                                  setDocMode('workflow-prd');
+                                }
+                              }}
+                              className="pl-4 mt-1 text-[10px] text-primary hover:underline inline-block"
+                              data-testid={`workflow-details-${wf.id}`}
+                            >
+                              ...See details
+                            </span>
                             {statusBreakdown && (
                               <div className="pl-4 flex gap-1.5 mt-1.5">
                                 {statusBreakdown.todo > 0 && (
@@ -310,7 +343,7 @@ export function ProjectDocTab({
                                 )}
                               </div>
                             )}
-                          </button>
+                          </div>
                         );
                       })}
                     </div>

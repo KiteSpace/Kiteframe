@@ -225,7 +225,7 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, projectId }: La
               const handleClick = () => {
                 if (role === 'workflow' && childIds) {
                   const nodeIds = childIds.filter(cid => !cid.startsWith('e:'));
-                  focusBus.focusWorkflow(nodeIds);
+                  focusBus.focusWorkflow(nodeIds, { padding: 150 });
                 }
               };
               
@@ -262,12 +262,12 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, projectId }: La
               
               const handleClick = () => {
                 if (role === 'node') {
-                  focusBus.focusNodes([id], { select: true, padding: 200 });
+                  focusBus.focusNodes([id], { select: true, padding: 150 });
                 } else if (role === 'edge' && id.startsWith('e:')) {
                   const edgeId = id.slice(2);
                   const edge = edges.find(e => e.id === edgeId);
                   if (edge) {
-                    focusBus.focusNodes([edge.source, edge.target], { padding: 200 });
+                    focusBus.focusNodes([edge.source, edge.target], { padding: 150 });
                   }
                 }
               };
