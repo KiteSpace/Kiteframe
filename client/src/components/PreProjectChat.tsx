@@ -5,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { ChatSendButton } from '@/components/chat';
 import { ArrowLeft, Sparkles, Loader2, Rocket, MessageCircle, AlertCircle, CheckCircle2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAi } from '../ai/AiProvider';
 import { buildKiteAIContext, inferRoleFromIntent, type KiteAIRole } from '../lib/ai/buildKiteAIContext';
@@ -421,7 +422,28 @@ export function PreProjectChat({
                     }`}
                     data-testid={`message-${message.role}-${index}`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <div className="text-sm whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1">
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                          ul: ({ children }) => <ul className="list-disc list-inside my-1">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal list-inside my-1">{children}</ol>,
+                          li: ({ children }) => <li className="my-0.5">{children}</li>,
+                          code: ({ children, className }) => {
+                            if (className === 'language-json') return null;
+                            return <code className="px-1 py-0.5 bg-muted rounded text-xs">{children}</code>;
+                          },
+                          pre: ({ children, ...props }) => {
+                            const codeChild = (children as any)?.props;
+                            if (codeChild?.className === 'language-json') return null;
+                            return <pre className="bg-muted/50 p-2 rounded text-xs overflow-x-auto my-1" {...props}>{children}</pre>;
+                          },
+                        }}
+                      >
+                        {message.content.replace(/```json[\s\S]*?```/g, '').trim()}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 </motion.div>
               ))}

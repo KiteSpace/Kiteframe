@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect, useCallback, MouseEvent, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, MouseEvent, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import ReactMarkdown from 'react-markdown';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
@@ -134,7 +135,7 @@ function ChatView({
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   
   const { toast } = useToast();
   const aiClient = useAi();
@@ -229,6 +230,13 @@ function ChatView({
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [mode]);
+
+  useLayoutEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
+    }
+  }, [inputValue]);
 
   const calculateDiff = useCallback((proposed: { nodes: Node[]; edges: Edge[] }): WorkflowDiff => {
     const currentNodeIds = new Set(currentNodes.map(n => n.id));
@@ -412,6 +420,9 @@ function ChatView({
 
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
     setPendingFiles([]);
     setIsLoading(true);
 
@@ -774,7 +785,28 @@ function ChatView({
                     </div>
                   )}
                   
-                  <div className="whitespace-pre-wrap">{message.content}</div>
+                  <div className="whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1">
+                                    <ReactMarkdown
+                                      components={{
+                                        p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                                        ul: ({ children }) => <ul className="list-disc list-inside my-1">{children}</ul>,
+                                        ol: ({ children }) => <ol className="list-decimal list-inside my-1">{children}</ol>,
+                                        li: ({ children }) => <li className="my-0.5">{children}</li>,
+                                        code: ({ children, className }) => {
+                                          if (className === 'language-json') return null;
+                                          return <code className="px-1 py-0.5 bg-muted rounded text-xs">{children}</code>;
+                                        },
+                                        pre: ({ children, ...props }) => {
+                                          const codeChild = (children as any)?.props;
+                                          if (codeChild?.className === 'language-json') return null;
+                                          return <pre className="bg-muted/50 p-2 rounded text-xs overflow-x-auto my-1" {...props}>{children}</pre>;
+                                        },
+                                      }}
+                                    >
+                                      {message.content.replace(/```json[\s\S]*?```/g, '').trim()}
+                                    </ReactMarkdown>
+                                  </div>
                   
                   {message.followUps && message.followUps.length > 0 && (
                     <div className="mt-3 space-y-2">
@@ -949,14 +981,19 @@ function ChatView({
               >
                 <Paperclip className="w-4 h-4" />
               </Button>
-              <Input
+              <Textarea
                 ref={inputRef}
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                onChange={(e) => {
+                  setInputValue(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                }}
                 onKeyDown={handleKeyPress}
                 placeholder="Describe your workflow..."
-                className="flex-1"
+                className="flex-1 min-h-[40px] max-h-[120px] resize-none py-2"
                 disabled={isLoading}
+                rows={1}
                 data-testid="input-kiteai-message"
               />
               <ChatSendButton
