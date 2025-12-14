@@ -161,6 +161,7 @@ export function PreProjectChat({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const aiClient = useAi();
+  const [imageDataUrls, setImageDataUrls] = useState<string[]>([]);
 
   const { 
     state: conversationState, 
@@ -172,6 +173,25 @@ export function PreProjectChat({
 
   const hasUploadedFiles = useMemo(() => {
     return (context?.uploadedFiles?.length ?? 0) > 0;
+  }, [context?.uploadedFiles]);
+
+  useEffect(() => {
+    if (!context?.uploadedFiles || context.uploadedFiles.length === 0) {
+      setImageDataUrls([]);
+      return;
+    }
+    const loadImages = async () => {
+      const urls = await Promise.all(
+        context.uploadedFiles!.map(file => new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsDataURL(file);
+        }))
+      );
+      setImageDataUrls(urls);
+    };
+    loadImages().catch(err => console.error('Error loading images:', err));
   }, [context?.uploadedFiles]);
 
   const aiTurnCount = useMemo(() => {
@@ -271,11 +291,19 @@ export function PreProjectChat({
         enhancedSystemPrompt += `\n\nThe user has provided sufficient information (score=${processResult.actionability.score}/5, confidence=${Math.round(processResult.actionability.confidence * 100)}%). Confirm that you're ready to create their workflow and summarize what you understood.`;
       }
 
+      const userContent: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = 
+        imageDataUrls.length > 0 && messages.length === 0
+          ? [
+              { type: 'text', text: content.trim() },
+              ...imageDataUrls.map(url => ({ type: 'image_url' as const, image_url: { url } }))
+            ]
+          : content.trim();
+
       const response = await aiClient.chat({
         messages: [
           { role: 'system', content: enhancedSystemPrompt },
           ...messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-          { role: 'user', content: content.trim() }
+          { role: 'user', content: userContent }
         ],
         temperature: 0.7,
         maxTokens: 600
@@ -307,7 +335,7 @@ export function PreProjectChat({
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, processUserInput, addAssistantMessage]);
+  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, processUserInput, addAssistantMessage, imageDataUrls]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
