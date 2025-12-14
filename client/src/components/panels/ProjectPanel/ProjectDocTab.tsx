@@ -1,7 +1,8 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GitBranch, Circle, FileText, FolderOpen, List } from 'lucide-react';
+import { GitBranch, Circle, FileText, FolderOpen, List, Download } from 'lucide-react';
 import { focusBus } from '@/stores/focusBus';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import { FlowDetection } from '@/lib/kiteframe/utils/FlowDetection';
@@ -15,6 +16,7 @@ import {
 } from './sections';
 import { loadProjectPRD } from '@/lib/kiteframe/utils/prdStorage';
 import type { PRDSection } from '@/ai/prdEngine';
+import { ExportPRDModal } from '@/components/ExportPRDModal';
 
 type DocMode = 'overview' | 'project-prd' | 'workflow-prd';
 
@@ -107,6 +109,7 @@ export function ProjectDocTab({
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [prdUpdateKey, setPrdUpdateKey] = useState(0);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const { workflowSummaries, standaloneNodes } = useMemo(() => {
@@ -198,7 +201,7 @@ export function ProjectDocTab({
 
   return (
     <div className="flex flex-col h-full" data-testid="project-doc-tab">
-      <div className="px-4 py-2 border-b border-border flex gap-1">
+      <div className="px-4 py-2 border-b border-border flex gap-1 items-center">
         <button
           onClick={() => setDocMode('overview')}
           className={cn(
@@ -238,6 +241,17 @@ export function ProjectDocTab({
           <GitBranch size={12} />
           Workflow PRD
         </button>
+        <div className="flex-1" />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsExportModalOpen(true)}
+          className="h-7 px-2 text-xs"
+          data-testid="button-open-export-modal"
+        >
+          <Download size={12} className="mr-1" />
+          Export
+        </Button>
       </div>
 
       <ScrollArea className="flex-1" ref={scrollAreaRef}>
@@ -514,6 +528,14 @@ export function ProjectDocTab({
           )}
         </div>
       </ScrollArea>
+
+      <ExportPRDModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        projectId={projectId || 'default'}
+        projectName={projectName || 'Untitled Project'}
+        workflows={workflowSummaries.map(wf => ({ id: wf.id, name: wf.name }))}
+      />
     </div>
   );
 }

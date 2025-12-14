@@ -1,0 +1,322 @@
+KITEFRAME — PRD EXPORT (PROJECT-LEVEL) EXECUTION BUNDLE
+Version: Regenerated Final
+Scope: PRD export (NOT workflow export), Google Docs, workflow selection
+Non-goal: AI sophistication, live sync, collaboration, vision
+
+====================================================
+SECTION 0 — GOAL & CONSTRAINTS (READ FIRST)
+====================================================
+
+GOAL
+-----
+Allow users to export a PROJECT PRD (not just workflows) with:
+• Selectable workflows (default: all)
+• Multiple export formats
+• Clear, explicit UX
+
+EXPORT FORMATS (MVP ORDER)
+-------------------------
+1. Prototyping Prompt (Cursor / Claude / GPT-friendly)
+2. Kiteframe PRD (.json)
+3. Markdown (.md)
+4. Google Docs (OAuth-based, create-only)
+
+STRICT NON-GOALS
+----------------
+• No live sync
+• No round-trip editing
+• No PDF (later phase)
+• No backend schema migrations
+• No AI rewriting during export
+• No Google Drive file picker
+
+====================================================
+SECTION 1 — UX: EXPORT ENTRY POINT
+====================================================
+
+LOCATION
+--------
+Specs Tab (Project-level header, NOT per-workflow)
+
+Add button:
+[ Export PRD ]
+
+Click opens modal: ExportPRDModal
+
+====================================================
+SECTION 2 — EXPORT MODAL UX (EXACT COPY)
+====================================================
+
+TITLE
+-----
+Export Project PRD
+
+SUBTITLE
+--------
+Export the product requirements document for this project.
+Choose which workflows to include and your preferred format.
+
+WORKFLOW SELECTION
+------------------
+Label:
+Include workflows
+
+Control:
+☑ Select all (default ON)
+
+Below:
+☑ Workflow: <Workflow Name 1>
+☑ Workflow: <Workflow Name 2>
+☑ Workflow: <Workflow Name 3>
+
+HELP TEXT:
+Only selected workflows will be included in the exported PRD.
+
+FORMAT SELECTION
+----------------
+Radio buttons (single select):
+
+◉ Prototyping Prompt
+○ Kiteframe PRD (.json)
+○ Markdown (.md)
+○ Google Docs
+
+FORMAT DESCRIPTIONS
+-------------------
+Prototyping Prompt:
+A structured prompt optimized for Cursor, Claude, or GPT to continue implementation.
+
+Kiteframe PRD:
+A structured JSON file preserving sections, metadata, and workflow mappings.
+
+Markdown:
+A clean, portable Markdown document.
+
+Google Docs:
+Creates a new Google Doc in your Drive. One-time export only.
+
+ACTIONS
+-------
+[ Cancel ]    [ Export ]
+
+LOADING STATE
+-------------
+Exporting PRD…
+
+ERROR STATES
+------------
+• No workflows selected
+• Google authentication required
+• Export failed — try again
+
+====================================================
+SECTION 3 — DATA ASSEMBLY (CORE LOGIC)
+====================================================
+
+Create new utility:
+client/src/lib/prd/assembleProjectPRD.ts
+
+Function:
+assembleProjectPRD(
+  projectId: string,
+  workflowIds: string[]
+): AssembledProjectPRD
+
+AssembledProjectPRD structure:
+{
+  project: {
+    id,
+    name,
+    description,
+    createdAt,
+    updatedAt
+  },
+  workflows: [
+    {
+      workflowId,
+      workflowName,
+      prdSections: WorkflowPRDSection[],
+      semanticSummary
+    }
+  ],
+  generatedAt,
+  version
+}
+
+RULES
+-----
+• Use existing prdStorage.ts as source of truth
+• Do NOT regenerate PRDs during export
+• Respect manual edits
+• Preserve section ordering
+
+====================================================
+SECTION 4 — EXPORT FORMAT IMPLEMENTATIONS
+====================================================
+
+----------------------------------------------------
+4.1 PROTOTYPING PROMPT EXPORT (FIRST)
+----------------------------------------------------
+
+File:
+client/src/lib/prd/exporters/exportToPrototypingPrompt.ts
+
+Output:
+Plain text string
+
+Structure:
+1. Project overview
+2. Included workflows (one section per workflow)
+3. For each workflow:
+   • Purpose
+   • User flow summary
+   • Inputs / outputs
+   • Edge cases
+   • Acceptance criteria
+
+Prompt header:
+"You are an expert product engineer. Implement the following system."
+
+DO NOT:
+• Mention Kiteframe
+• Include UI commentary
+• Include markdown headings beyond H2
+
+----------------------------------------------------
+4.2 KITEFRAME PRD EXPORT (.json)
+----------------------------------------------------
+
+File:
+client/src/lib/prd/exporters/exportToKiteframeJSON.ts
+
+Output:
+Downloadable .json
+
+Rules:
+• Export AssembledProjectPRD verbatim
+• Include version, timestamps
+• No transformation
+
+----------------------------------------------------
+4.3 MARKDOWN EXPORT (.md)
+----------------------------------------------------
+
+File:
+client/src/lib/prd/exporters/exportToMarkdown.ts
+
+Rules:
+• Project title as H1
+• Each workflow as H2
+• Each PRD section as H3
+• Clean markdown only
+• No HTML
+
+----------------------------------------------------
+4.4 GOOGLE DOCS EXPORT (MVP)
+----------------------------------------------------
+
+REQUIREMENTS
+------------
+• Uses Google OAuth already configured
+• Scope: https://www.googleapis.com/auth/documents
+
+IMPLEMENTATION
+--------------
+Client-side only.
+
+Steps:
+1. Ensure Google auth session
+2. Call Google Docs API: documents.create
+3. Insert content using batchUpdate
+4. Title doc: "<Project Name> – PRD"
+
+STRUCTURE
+---------
+Title
+Project overview
+———
+Workflow 1
+  Section
+  Section
+Workflow 2
+  Section
+  Section
+
+LIMITATIONS (INTENTIONAL)
+------------------------
+• No updates after creation
+• No formatting beyond headings + paragraphs
+• No images
+• No tables
+
+====================================================
+SECTION 5 — SOURCE TRACKING
+====================================================
+
+On successful export:
+• Add entry to Sources tab
+
+Source types:
+• prototyping-prompt
+• kiteframe-prd
+• markdown
+• google-doc
+
+Metadata:
+{
+  type,
+  createdAt,
+  workflowIdsIncluded,
+  destination (url if Google Doc)
+}
+
+====================================================
+SECTION 6 — FILES TO CREATE / MODIFY
+====================================================
+
+NEW FILES
+---------
+• assembleProjectPRD.ts
+• exportToPrototypingPrompt.ts
+• exportToKiteframeJSON.ts
+• exportToMarkdown.ts
+• exportToGoogleDocs.ts
+• ExportPRDModal.tsx
+
+MODIFIED FILES
+--------------
+• SpecsTab.tsx (add Export button)
+• prdStorage.ts (read-only usage)
+• Sources store (append export entry)
+
+====================================================
+SECTION 7 — TESTING REQUIREMENTS
+====================================================
+
+Manual tests:
+• Export with all workflows
+• Export with single workflow
+• Export with no workflows (blocked)
+• Google Docs auth success
+• Google Docs auth denied
+• Markdown correctness
+• JSON validity
+
+Regression rules:
+• Export must not mutate PRD data
+• Export must not trigger AI
+• Export must not create workflows
+
+====================================================
+SECTION 8 — WHAT COMES NEXT (OUT OF SCOPE)
+====================================================
+
+• PDF export
+• Live Google Docs sync
+• Jira / Linear export
+• Node-level PRD text linking
+• AI-driven PRD rewriting
+
+====================================================
+END OF EXECUTION BUNDLE
+====================================================
