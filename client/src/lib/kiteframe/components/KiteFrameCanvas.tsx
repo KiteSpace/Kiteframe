@@ -3613,9 +3613,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             .filter((n) => !n.hidden)
             .map((n) => {
               // Determine if status tracking is enabled for this node's flow
-              // Status tracking only applies to default 'input' (Step) nodes
+              // Status tracking applies to all default workflow nodes (input, process, condition, output)
               const nodeFlowId = nodeToFlowIdMap.get(n.id);
-              const isStatusEnabled = nodeFlowId && n.type === 'input'
+              const defaultNodeTypes = ['input', 'process', 'condition', 'output'];
+              const isDefaultNode = defaultNodeTypes.includes(n.type || '');
+              const isStatusEnabled = nodeFlowId && isDefaultNode
                 ? props.flowSettings?.[nodeFlowId]?.statusTrackingEnabled ?? false 
                 : false;
               
