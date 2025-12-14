@@ -53,6 +53,14 @@ export interface GenerationState {
   clarificationComplete: boolean;
 }
 
+export type IntentMaturity = 'draft' | 'reviewed' | 'stable';
+
+export interface MaturityGatingResult extends GuardResult {
+  maturity: IntentMaturity;
+  canAutoExecute: boolean;
+  canFastAction: boolean;
+}
+
 const CONFIDENCE_THRESHOLD_BLOCK = 0.70;
 
 const DECISION_NODE_TYPES = ['condition', 'decision', 'branch', 'switch', 'gateway'];
@@ -246,6 +254,64 @@ export function assertUserConfirmedGeneration(state: GenerationState): GuardResu
     reason: userConfirmed 
       ? 'User explicitly confirmed readiness'
       : 'User accepted proposed assumptions',
+  };
+}
+
+/**
+ * Guard 4: Assert Workflow Maturity Level
+ * 
+ * Checks if the workflow's intent maturity allows the requested action:
+ * - Draft: AI suggestions only, no auto-execute
+ * - Reviewed: Intent confirmed, still requires user confirmation
+ * - Stable: Fast actions allowed, no confirmation needed
+ */
+export function assertWorkflowMaturity(
+  maturity: IntentMaturity,
+  action: 'auto-execute' | 'fast-action' | 'suggest-only'
+): MaturityGatingResult {
+  const gatingRules = {
+    draft: { canAutoExecute: false, canFastAction: false },
+    reviewed: { canAutoExecute: false, canFastAction: false },
+    stable: { canAutoExecute: true, canFastAction: true },
+  };
+
+  const rules = gatingRules[maturity];
+  
+  if (action === 'auto-execute' && !rules.canAutoExecute) {
+    console.log(`[KiteAI Guard] BLOCKED: Cannot auto-execute on ${maturity} workflow`);
+    return {
+      passed: false,
+      reason: `Auto-execution not allowed for ${maturity} workflows`,
+      details: [
+        maturity === 'draft' 
+          ? 'Confirm the workflow intent and add failure paths to enable execution'
+          : 'Promote workflow to Stable status to enable auto-execution',
+      ],
+      maturity,
+      canAutoExecute: rules.canAutoExecute,
+      canFastAction: rules.canFastAction,
+    };
+  }
+
+  if (action === 'fast-action' && !rules.canFastAction) {
+    console.log(`[KiteAI Guard] BLOCKED: Cannot fast-action on ${maturity} workflow`);
+    return {
+      passed: false,
+      reason: `Fast actions not allowed for ${maturity} workflows`,
+      details: ['Promote workflow to Stable status to enable fast actions'],
+      maturity,
+      canAutoExecute: rules.canAutoExecute,
+      canFastAction: rules.canFastAction,
+    };
+  }
+
+  console.log(`[KiteAI Guard] PASSED: Maturity ${maturity} allows ${action}`);
+  return {
+    passed: true,
+    reason: `${maturity} workflow allows ${action}`,
+    maturity,
+    canAutoExecute: rules.canAutoExecute,
+    canFastAction: rules.canFastAction,
   };
 }
 

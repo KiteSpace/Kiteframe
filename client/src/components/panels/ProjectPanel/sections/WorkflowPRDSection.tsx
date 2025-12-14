@@ -13,6 +13,14 @@ import type { Node, Edge } from '@/lib/kiteframe/types';
 import { extractSemanticWorkflowModel } from '@/lib/kiteframe/utils/extractSemanticWorkflowModel';
 import { isWorkflowStale, storeHash, computeWorkflowHash } from '@/lib/kiteframe/utils/semanticHash';
 import { 
+  computeAllSectionHashes, 
+  detectStaleSections, 
+  loadSectionHashes, 
+  saveSectionHashes,
+  type SectionHashMap,
+  type StaleSectionInfo
+} from '@/lib/kiteframe/utils/sectionDependencies';
+import { 
   loadWorkflowPRD, saveWorkflowPRD, saveWorkflowPRDBackup, 
   updatePRDSection, clearManualEdit,
   saveWorkflowPRDVersion, loadWorkflowPRDHistory, restoreWorkflowPRDVersion,
@@ -26,7 +34,7 @@ import {
 } from '@/lib/kiteframe/utils/prdExport';
 import { type WorkflowPRD } from '@/ai/prdEngine';
 import { useAi } from '@/ai/AiProvider';
-import { generateWorkflowPRD } from '@/ai/prdEngine';
+import { generateWorkflowPRD, generateSingleSection } from '@/ai/prdEngine';
 import { reviewPRD, type PRDReviewResult, type PRDSuggestion } from '@/ai/prdSteward';
 import { useToast } from '@/hooks/use-toast';
 import { DocSection, WorkflowDocument } from '@/components/docs';
@@ -34,8 +42,10 @@ import { usePRDNodeLinks } from '@/stores/prdNodeLinkStore';
 import { focusBus } from '@/stores/focusBus';
 import { ImportPRDModal } from '@/components/ImportPRDModal';
 import { addImportedDocumentSource } from '@/lib/kiteframe/utils/sourceTracking';
-import { getInsightsForTarget, dismissInsight } from '@/stores/aiInsightStore';
+import { getInsightsForTarget, dismissInsight, addInsight } from '@/stores/aiInsightStore';
 import { getInsightIcon, type AIInsight } from '@/ai/insights';
+import { analyzeWorkflowForFailures } from '@/ai/failureFirstHeuristics';
+import { WorkflowIntentSection } from './WorkflowIntentSection';
 
 interface WorkflowPRDSectionProps {
   projectId: string;
@@ -176,6 +186,8 @@ export function WorkflowPRDSection({
   const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [sectionInsights, setSectionInsights] = useState<Record<string, AIInsight[]>>({});
+  const [staleSections, setStaleSections] = useState<Record<string, boolean>>({});
+  const [isRegeneratingSectionId, setIsRegeneratingSectionId] = useState<string | null>(null);
   const ai = useAi();
   const { toast } = useToast();
   const prdLinks = usePRDNodeLinks(projectId);
@@ -205,9 +217,19 @@ export function WorkflowPRDSection({
         setPrd(loaded);
         const stale = isWorkflowStale(projectId, workflowId, nodes, edges);
         setIsStale(stale);
+        
+        const storedHashes = loaded.sectionHashes || loadSectionHashes(projectId, workflowId) || undefined;
+        const currentHashes = computeAllSectionHashes(nodes, edges);
+        const staleInfo = detectStaleSections(storedHashes, currentHashes);
+        const staleMap: Record<string, boolean> = {};
+        staleInfo.forEach(info => {
+          staleMap[info.sectionId] = info.isStale;
+        });
+        setStaleSections(staleMap);
       } else {
         setPrd(null);
         setIsStale(false);
+        setStaleSections({});
       }
       const loadedHistory = loadWorkflowPRDHistory(projectId, workflowId);
       setHistory(loadedHistory);
@@ -245,13 +267,22 @@ export function WorkflowPRDSection({
       const hash = computeWorkflowHash(nodes, edges);
       storeHash(projectId, workflowId, hash);
       
-      saveWorkflowPRD(projectId, workflowId, { ...newPrd, hash });
-      setPrd({ ...newPrd, hash });
+      const sectionHashes = computeAllSectionHashes(nodes, edges);
+      saveWorkflowPRD(projectId, workflowId, { ...newPrd, hash, sectionHashes });
+      saveSectionHashes(projectId, workflowId, sectionHashes);
+      setPrd({ ...newPrd, hash, sectionHashes });
       setIsStale(false);
+      setStaleSections({});
       
       saveWorkflowPRDVersion(projectId, workflowId, { ...newPrd, hash }, 'ai-generate');
       const updatedHistory = loadWorkflowPRDHistory(projectId, workflowId);
       setHistory(updatedHistory);
+
+      const failureAnalysis = analyzeWorkflowForFailures(workflowId, nodes, edges);
+      failureAnalysis.insights.forEach(insight => {
+        addInsight(projectId, insight);
+      });
+      loadSectionInsights();
 
       toast({ title: 'Spec generated', description: 'Workflow spec has been created.' });
     } catch (error) {
@@ -411,6 +442,56 @@ export function WorkflowPRDSection({
     );
   }, [projectId, workflowId, workflowName, prd]);
 
+  const handleRegenerateSection = useCallback(async (sectionId: string) => {
+    if (!prd || !projectId || !workflowId) return;
+    
+    if (prd.manualEditedAt[sectionId]) {
+      const confirmed = window.confirm(
+        'This section has manual edits. Regenerating will overwrite them. Continue?'
+      );
+      if (!confirmed) return;
+    }
+    
+    setIsRegeneratingSectionId(sectionId);
+    
+    try {
+      const model = extractSemanticWorkflowModel(workflowId, workflowName, nodes, edges);
+      const newSection = await generateSingleSection(ai, model, sectionId, prd);
+      
+      if (newSection) {
+        const updatedSections = prd.sections.map(s => 
+          s.id === sectionId ? newSection : s
+        );
+        
+        const currentHashes = computeAllSectionHashes(nodes, edges);
+        const updatedManualEdits = { ...prd.manualEditedAt };
+        delete updatedManualEdits[sectionId];
+        
+        const updatedPrd: WorkflowPRD = {
+          ...prd,
+          sections: updatedSections,
+          manualEditedAt: updatedManualEdits,
+          sectionHashes: currentHashes
+        };
+        
+        saveWorkflowPRD(projectId, workflowId, updatedPrd);
+        saveSectionHashes(projectId, workflowId, currentHashes);
+        setPrd(updatedPrd);
+        setStaleSections(prev => ({ ...prev, [sectionId]: false }));
+        
+        toast({ title: 'Section regenerated', description: `Updated ${newSection.title}.` });
+      }
+    } catch (error) {
+      toast({
+        title: 'Regeneration failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRegeneratingSectionId(null);
+    }
+  }, [prd, projectId, workflowId, workflowName, nodes, edges, ai, toast]);
+
   return (
     <div data-testid="workflow-prd-section">
       {isStale && prd && (
@@ -455,6 +536,13 @@ export function WorkflowPRDSection({
 
       {prd && !isGenerating && (
         <WorkflowDocument>
+          <WorkflowIntentSection
+            projectId={projectId}
+            workflowId={workflowId}
+            workflowName={workflowName}
+            nodes={nodes}
+            edges={edges}
+          />
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold">{workflowName} Spec</h2>
             <div className="flex items-center gap-1">
@@ -570,42 +658,22 @@ export function WorkflowPRDSection({
 
           {prd.sections.map((section) => {
             const insights = sectionInsights[section.id] || [];
+            const contentLength = section.content?.length || 0;
+            const confidence = contentLength > 200 ? 'high' : contentLength > 50 ? 'medium' : 'low';
             return (
               <div key={section.id}>
-                {insights.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {insights.map((insight) => (
-                      <div
-                        key={insight.id}
-                        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs ${
-                          insight.level === 'risk' 
-                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' 
-                            : insight.level === 'warning'
-                            ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
-                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                        }`}
-                        data-testid={`insight-chip-${insight.id}`}
-                      >
-                        <span>{getInsightIcon(insight.level)}</span>
-                        <span className="max-w-[200px] truncate">{insight.message}</span>
-                        <button
-                          onClick={() => handleDismissInsight(insight.id)}
-                          className="ml-1 hover:opacity-70"
-                          data-testid={`dismiss-insight-${insight.id}`}
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
                 <DocSection
                   title={section.title}
                   content={section.content}
                   sectionKey={section.id}
                   manuallyEdited={!!prd.manualEditedAt[section.id]}
+                  isStale={staleSections[section.id] || false}
+                  confidence={confidence as 'high' | 'medium' | 'low'}
+                  insights={insights}
                   onSave={handleSectionSave}
                   onResetToAI={handleResetSection}
+                  onRegenerateSection={handleRegenerateSection}
+                  onDismissInsight={handleDismissInsight}
                   linkedNodes={prdLinks.getLinksForSection(workflowId, section.id)}
                   onLinkNode={() => handleLinkNode(section.id)}
                   onUnlinkNode={(nodeId) => handleUnlinkNode(nodeId, section.id)}

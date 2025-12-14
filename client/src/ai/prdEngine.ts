@@ -15,6 +15,7 @@ export interface WorkflowPRD {
   version: number;
   generatedAt: number;
   hash?: string;
+  sectionHashes?: Record<string, string>;
 }
 
 export interface ProjectPRD {
@@ -31,6 +32,9 @@ const DEFAULT_WORKFLOW_SECTIONS = [
   { id: 'requirements', title: 'Requirements' },
   { id: 'user-flow', title: 'User Flow' },
   { id: 'inputs-outputs', title: 'Inputs & Outputs' },
+  { id: 'failure-scenarios', title: 'Failure Scenarios' },
+  { id: 'recovery-fallback', title: 'Recovery & Fallback Paths' },
+  { id: 'operational-risks', title: 'Operational Risks' },
   { id: 'acceptance-criteria', title: 'Acceptance Criteria' },
 ];
 
@@ -72,12 +76,17 @@ Screens: ${model.screens.length > 0 ? model.screens.map(s => s.name).join(', ') 
 Primary Actions: ${model.primaryActions.join(', ') || 'None identified'}
 Error Paths: ${model.errorPaths.join(', ') || 'None identified'}
 
+IMPORTANT: Reason about failure modes BEFORE happy paths. Every workflow can fail - identify how.
+
 Return ONLY valid JSON in this exact format:
 {
   "overview": "markdown content",
   "requirements": "markdown content", 
   "user-flow": "markdown content",
   "inputs-outputs": "markdown content",
+  "failure-scenarios": "markdown content describing what can go wrong, edge cases, and error states",
+  "recovery-fallback": "markdown content describing how the system recovers from failures, retry logic, fallback paths",
+  "operational-risks": "markdown content about runtime risks, monitoring needs, and operational concerns",
   "acceptance-criteria": "markdown content"
 }
 `;
@@ -260,5 +269,69 @@ export function createEmptyProjectPRD(projectId: string, projectName: string): P
     manualEditedAt: {},
     version: 0,
     generatedAt: 0
+  };
+}
+
+export async function generateSingleSection(
+  aiClient: AiClient,
+  model: SemanticWorkflowModel,
+  sectionId: string,
+  existingPRD: WorkflowPRD
+): Promise<PRDSection | null> {
+  const sectionMeta = DEFAULT_WORKFLOW_SECTIONS.find(s => s.id === sectionId);
+  if (!sectionMeta) return null;
+  
+  const nodesDesc = model.nodes.map(n => 
+    `- ${n.label || n.type} (${n.type})${n.description ? `: ${n.description}` : ''}`
+  ).join('\n');
+  
+  const edgesDesc = model.edges.map(e => {
+    const sourceNode = model.nodes.find(n => n.id === e.source);
+    const targetNode = model.nodes.find(n => n.id === e.target);
+    return `- ${sourceNode?.label || 'Node'} → ${targetNode?.label || 'Node'}${e.label ? ` (${e.label})` : ''}`;
+  }).join('\n');
+  
+  const existingSection = existingPRD.sections.find(s => s.id === sectionId);
+  
+  const prompt = `
+Regenerate ONLY the "${sectionMeta.title}" section for this workflow PRD:
+
+Workflow: ${model.name}
+Nodes:
+${nodesDesc}
+
+Connections:
+${edgesDesc}
+
+Entry Points: ${model.entryPoints.join(', ') || 'None identified'}
+Exit Points: ${model.exitPoints.join(', ') || 'None identified'}
+Primary Actions: ${model.primaryActions.join(', ') || 'None identified'}
+Error Paths: ${model.errorPaths.join(', ') || 'None identified'}
+
+${existingSection?.content ? `Previous content for reference:\n${existingSection.content}\n\n` : ''}
+Return ONLY valid JSON in this format:
+{"${sectionId}": "markdown content for ${sectionMeta.title}"}
+`;
+
+  const messages: AiMessage[] = [
+    { role: 'system', content: 'You are a technical writer updating a specific PRD section. Be concise and specific. Output only valid JSON.' },
+    { role: 'user', content: prompt }
+  ];
+  
+  const response = await aiClient.chat({
+    messages,
+    temperature: 0.3,
+    maxTokens: 800
+  });
+  
+  const parsedSections = parseAIResponse(response.text, [sectionId]);
+  const content = parsedSections[sectionId];
+  
+  if (!content) return null;
+  
+  return {
+    id: sectionId,
+    title: sectionMeta.title,
+    content
   };
 }

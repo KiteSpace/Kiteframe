@@ -10,7 +10,8 @@ import {
   ProjectNotesSection, 
   ProjectSourcesSection,
   WorkflowPRDSection,
-  ProjectPRDSection
+  ProjectPRDSection,
+  ProjectInsightsSection
 } from './sections';
 import { loadProjectPRD } from '@/lib/kiteframe/utils/prdStorage';
 import type { PRDSection } from '@/ai/prdEngine';
@@ -370,6 +371,11 @@ export function ProjectDocTab({
                 </section>
               )}
 
+              <ProjectInsightsSection 
+                projectId={projectId || 'default'}
+                nodes={nodes}
+                edges={edges}
+              />
               <ProjectNotesSection projectId={projectId} />
               <ProjectSourcesSection projectId={projectId} />
             </>
