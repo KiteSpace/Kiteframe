@@ -258,13 +258,13 @@ export function WorkflowPRDSection({
 
   const handleNodeSelected = useCallback((nodeId: string) => {
     if (!linkingSectionId) return;
-    prdLinks.addLink(nodeId, workflowId, linkingSectionId);
+    prdLinks.addLink(nodeId, 'node', workflowId, linkingSectionId);
     setLinkingSectionId(null);
     toast({ title: 'Node linked', description: 'Node connected to this section.' });
   }, [linkingSectionId, workflowId, prdLinks, toast]);
 
   const handleUnlinkNode = useCallback((nodeId: string, sectionId: string) => {
-    prdLinks.removeLink(nodeId, workflowId, sectionId);
+    prdLinks.removeLink(nodeId, 'node', workflowId, sectionId);
     toast({ title: 'Node unlinked', description: 'Link removed.' });
   }, [workflowId, prdLinks, toast]);
 

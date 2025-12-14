@@ -64,13 +64,13 @@ export function ProjectPanel({
     return saved === 'true';
   });
   const [panelWidth, setPanelWidth] = useState(() => {
-    if (typeof window === 'undefined') return 440;
+    if (typeof window === 'undefined') return 600;
     try {
       const saved = localStorage.getItem('kiteframe-project-panel-width');
-      const width = saved ? parseInt(saved) : 440;
-      return Math.max(300, Math.min(600, width));
+      const width = saved ? parseInt(saved) : 600;
+      return Math.max(400, Math.min(800, width));
     } catch {
-      return 440;
+      return 600;
     }
   });
   const [isResizing, setIsResizing] = useState(false);
@@ -94,7 +94,7 @@ export function ProjectPanel({
       if (!panelRef.current) return;
       const rect = panelRef.current.getBoundingClientRect();
       const newWidth = rect.left + rect.width - e.clientX;
-      const clampedWidth = Math.max(300, Math.min(600, newWidth));
+      const clampedWidth = Math.max(400, Math.min(800, newWidth));
       setPanelWidth(clampedWidth);
       if (typeof window !== 'undefined') {
         localStorage.setItem('kiteframe-project-panel-width', String(clampedWidth));

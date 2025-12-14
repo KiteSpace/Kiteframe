@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 import type { PRDRef } from '@/lib/kiteframe/types';
 
+export type PRDLinkTargetType = 'node' | 'edge';
+
 export interface PRDNodeLink {
-  nodeId: string;
+  nodeId: string; // Legacy field, kept for backwards compatibility
+  targetId: string; // The node or edge ID
+  targetType: PRDLinkTargetType;
   workflowId: string;
   sectionId: string;
   projectId?: string;
@@ -12,8 +16,10 @@ export interface PRDNodeLink {
 interface PRDNodeLinkStore {
   getLinksForSection(projectId: string, workflowId: string, sectionId: string): PRDNodeLink[];
   getLinksForNode(projectId: string, nodeId: string): PRDNodeLink[];
-  addLink(projectId: string, nodeId: string, workflowId: string, sectionId: string): void;
-  removeLink(projectId: string, nodeId: string, workflowId: string, sectionId: string): void;
+  getLinksForEdge(projectId: string, edgeId: string): PRDNodeLink[];
+  getLinksForTarget(projectId: string, targetId: string, targetType: PRDLinkTargetType): PRDNodeLink[];
+  addLink(projectId: string, targetId: string, targetType: PRDLinkTargetType, workflowId: string, sectionId: string): void;
+  removeLink(projectId: string, targetId: string, targetType: PRDLinkTargetType, workflowId: string, sectionId: string): void;
   getAllLinks(projectId: string): PRDNodeLink[];
   subscribe(callback: () => void): () => void;
 }
@@ -37,7 +43,14 @@ class PRDNodeLinkStoreImpl implements PRDNodeLinkStore {
     }
     try {
       const stored = localStorage.getItem(this.getStorageKey(projectId));
-      return stored ? JSON.parse(stored) : [];
+      const links: PRDNodeLink[] = stored ? JSON.parse(stored) : [];
+      // Migrate legacy links that don't have targetType/targetId
+      return links.map(link => ({
+        ...link,
+        targetId: link.targetId || link.nodeId,
+        targetType: link.targetType || 'node',
+        nodeId: link.nodeId || link.targetId // Keep nodeId for backwards compatibility
+      }));
     } catch {
       return [];
     }
@@ -63,21 +76,33 @@ class PRDNodeLinkStoreImpl implements PRDNodeLinkStore {
 
   getLinksForNode(projectId: string, nodeId: string): PRDNodeLink[] {
     const links = this.getData(projectId);
-    return links.filter(l => l.nodeId === nodeId);
+    return links.filter(l => l.targetId === nodeId && l.targetType === 'node');
   }
 
-  addLink(projectId: string, nodeId: string, workflowId: string, sectionId: string): void {
+  getLinksForEdge(projectId: string, edgeId: string): PRDNodeLink[] {
+    const links = this.getData(projectId);
+    return links.filter(l => l.targetId === edgeId && l.targetType === 'edge');
+  }
+
+  getLinksForTarget(projectId: string, targetId: string, targetType: PRDLinkTargetType): PRDNodeLink[] {
+    const links = this.getData(projectId);
+    return links.filter(l => l.targetId === targetId && l.targetType === targetType);
+  }
+
+  addLink(projectId: string, targetId: string, targetType: PRDLinkTargetType, workflowId: string, sectionId: string): void {
     if (!this.isValidProjectId(projectId)) {
       console.warn('Cannot add PRD-node link: invalid projectId');
       return;
     }
     const links = this.getData(projectId);
     const exists = links.some(l => 
-      l.nodeId === nodeId && l.workflowId === workflowId && l.sectionId === sectionId
+      l.targetId === targetId && l.targetType === targetType && l.workflowId === workflowId && l.sectionId === sectionId
     );
     if (!exists) {
       links.push({
-        nodeId,
+        nodeId: targetType === 'node' ? targetId : '', // Legacy field
+        targetId,
+        targetType,
         workflowId,
         sectionId,
         projectId,
@@ -87,13 +112,13 @@ class PRDNodeLinkStoreImpl implements PRDNodeLinkStore {
     }
   }
 
-  removeLink(projectId: string, nodeId: string, workflowId: string, sectionId: string): void {
+  removeLink(projectId: string, targetId: string, targetType: PRDLinkTargetType, workflowId: string, sectionId: string): void {
     if (!this.isValidProjectId(projectId)) {
       return;
     }
     const links = this.getData(projectId);
     const filtered = links.filter(l => 
-      !(l.nodeId === nodeId && l.workflowId === workflowId && l.sectionId === sectionId)
+      !(l.targetId === targetId && l.targetType === targetType && l.workflowId === workflowId && l.sectionId === sectionId)
     );
     this.saveData(projectId, filtered);
   }
@@ -125,10 +150,14 @@ export function usePRDNodeLinks(projectId?: string) {
       projectId ? prdNodeLinkStore.getLinksForSection(projectId, workflowId, sectionId) : [],
     getLinksForNode: (nodeId: string) => 
       projectId ? prdNodeLinkStore.getLinksForNode(projectId, nodeId) : [],
-    addLink: (nodeId: string, workflowId: string, sectionId: string) => 
-      projectId && prdNodeLinkStore.addLink(projectId, nodeId, workflowId, sectionId),
-    removeLink: (nodeId: string, workflowId: string, sectionId: string) => 
-      projectId && prdNodeLinkStore.removeLink(projectId, nodeId, workflowId, sectionId),
+    getLinksForEdge: (edgeId: string) => 
+      projectId ? prdNodeLinkStore.getLinksForEdge(projectId, edgeId) : [],
+    getLinksForTarget: (targetId: string, targetType: PRDLinkTargetType) => 
+      projectId ? prdNodeLinkStore.getLinksForTarget(projectId, targetId, targetType) : [],
+    addLink: (targetId: string, targetType: PRDLinkTargetType, workflowId: string, sectionId: string) => 
+      projectId && prdNodeLinkStore.addLink(projectId, targetId, targetType, workflowId, sectionId),
+    removeLink: (targetId: string, targetType: PRDLinkTargetType, workflowId: string, sectionId: string) => 
+      projectId && prdNodeLinkStore.removeLink(projectId, targetId, targetType, workflowId, sectionId),
     getAllLinks: () => projectId ? prdNodeLinkStore.getAllLinks(projectId) : []
   };
 }
