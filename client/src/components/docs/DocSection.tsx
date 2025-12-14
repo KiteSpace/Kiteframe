@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useCallback, KeyboardEvent, useMemo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Edit3, RotateCcw, Sparkles, Loader2, Check, X, Link2, Unlink, RefreshCw, AlertCircle, Shield } from 'lucide-react';
+import { Edit3, RotateCcw, Sparkles, Loader2, Check, X, Link2, Unlink, RefreshCw, AlertCircle, Shield, Lightbulb, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAi } from '@/ai/AiProvider';
 import { useToast } from '@/hooks/use-toast';
 import type { PRDNodeLink } from '@/stores/prdNodeLinkStore';
 import { type AIInsight, getChipTypeColor, type InsightChipType } from '@/ai/insights';
+import type { PRDSuggestion } from '@/ai/prdSteward';
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
@@ -18,6 +19,10 @@ interface DocSectionProps {
   isStale?: boolean;
   confidence?: ConfidenceLevel;
   insights?: AIInsight[];
+  reviewSuggestions?: PRDSuggestion[];
+  onApplyReviewSuggestion?: (suggestion: PRDSuggestion) => void;
+  onDismissReviewSuggestion?: (suggestion: PRDSuggestion) => void;
+  isApplyingReviewSuggestion?: boolean;
   onSave: (sectionKey: string, value: string) => void;
   onResetToAI?: (sectionKey: string) => void;
   onRegenerateSection?: (sectionKey: string) => void;
@@ -109,6 +114,84 @@ function InsightChip({
         </button>
       )}
     </span>
+  );
+}
+
+function ReviewSuggestionCard({ 
+  suggestion, 
+  onApply,
+  onDismiss,
+  isApplying
+}: { 
+  suggestion: PRDSuggestion; 
+  onApply: () => void;
+  onDismiss: () => void;
+  isApplying?: boolean;
+}) {
+  const typeIcons = {
+    improvement: <Lightbulb size={14} className="text-blue-500" />,
+    missing: <AlertCircle size={14} className="text-orange-500" />,
+    stale: <Clock size={14} className="text-yellow-500" />
+  };
+
+  const typeBorders = {
+    improvement: 'border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10',
+    missing: 'border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/10',
+    stale: 'border-yellow-200 dark:border-yellow-800 bg-yellow-50/50 dark:bg-yellow-900/10'
+  };
+
+  return (
+    <div 
+      className={`border rounded-md p-3 mt-3 ${typeBorders[suggestion.type]}`}
+      data-testid={`review-suggestion-${suggestion.sectionId}-${suggestion.type}`}
+    >
+      <div className="flex items-start gap-2">
+        {typeIcons[suggestion.type]}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-medium">{suggestion.title}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase">
+              {suggestion.type}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{suggestion.description}</p>
+          {suggestion.suggestedContent && (
+            <div className="mt-2 p-2 bg-white dark:bg-gray-900 rounded text-xs font-mono max-h-24 overflow-y-auto border border-gray-200 dark:border-gray-700">
+              {suggestion.suggestedContent.substring(0, 200)}
+              {suggestion.suggestedContent.length > 200 && '...'}
+            </div>
+          )}
+          <div className="flex gap-2 mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-xs"
+              onClick={onApply}
+              disabled={isApplying}
+              data-testid={`apply-review-suggestion-${suggestion.sectionId}`}
+            >
+              {isApplying ? (
+                <Loader2 size={12} className="mr-1 animate-spin" />
+              ) : (
+                <Check size={12} className="mr-1" />
+              )}
+              {isApplying ? 'Applying...' : 'Apply'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs text-muted-foreground"
+              onClick={onDismiss}
+              disabled={isApplying}
+              data-testid={`dismiss-review-suggestion-${suggestion.sectionId}`}
+            >
+              <X size={12} className="mr-1" />
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -236,6 +319,10 @@ export function DocSection({
   isStale = false,
   confidence,
   insights = [],
+  reviewSuggestions = [],
+  onApplyReviewSuggestion,
+  onDismissReviewSuggestion,
+  isApplyingReviewSuggestion = false,
   onSave,
   onResetToAI,
   onRegenerateSection,
@@ -557,6 +644,20 @@ export function DocSection({
               <div className="text-muted-foreground text-sm">
                 {formattedSuggestion}
               </div>
+            </div>
+          )}
+
+          {reviewSuggestions.length > 0 && (
+            <div data-testid={`review-suggestions-${sectionKey}`}>
+              {reviewSuggestions.map((reviewSuggestion, idx) => (
+                <ReviewSuggestionCard
+                  key={`${reviewSuggestion.sectionId}-${reviewSuggestion.type}-${idx}`}
+                  suggestion={reviewSuggestion}
+                  onApply={() => onApplyReviewSuggestion?.(reviewSuggestion)}
+                  onDismiss={() => onDismissReviewSuggestion?.(reviewSuggestion)}
+                  isApplying={isApplyingReviewSuggestion}
+                />
+              ))}
             </div>
           )}
         </>

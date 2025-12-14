@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sparkles, RefreshCw, Loader2, AlertTriangle, X, Eye, Check, Lightbulb, AlertCircle, Clock, MoreHorizontal, Copy, Download, Upload, History, RotateCw } from 'lucide-react';
+import { Sparkles, RefreshCw, Loader2, AlertTriangle, X, MoreHorizontal, Copy, Download, Upload, History, RotateCw } from 'lucide-react';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { extractSemanticWorkflowModel } from '@/lib/kiteframe/utils/extractSemanticWorkflowModel';
 import { isWorkflowStale, storeHash, computeWorkflowHash } from '@/lib/kiteframe/utils/semanticHash';
@@ -98,78 +98,6 @@ function NodePickerModal({
   );
 }
 
-function SuggestionCard({ 
-  suggestion, 
-  onApply,
-  onDismiss 
-}: { 
-  suggestion: PRDSuggestion; 
-  onApply: () => void;
-  onDismiss: () => void;
-}) {
-  const typeIcons = {
-    improvement: <Lightbulb size={14} className="text-blue-500" />,
-    missing: <AlertCircle size={14} className="text-orange-500" />,
-    stale: <Clock size={14} className="text-yellow-500" />
-  };
-
-  const typeBorders = {
-    improvement: 'border-blue-200 dark:border-blue-800',
-    missing: 'border-orange-200 dark:border-orange-800',
-    stale: 'border-yellow-200 dark:border-yellow-800'
-  };
-
-  return (
-    <div 
-      className={`border rounded-md p-3 mb-2 bg-white dark:bg-gray-800 ${typeBorders[suggestion.type]}`}
-      data-testid={`suggestion-${suggestion.sectionId}-${suggestion.type}`}
-    >
-      <div className="flex items-start gap-2">
-        {typeIcons[suggestion.type]}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-medium">{suggestion.title}</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase">
-              {suggestion.type}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">{suggestion.description}</p>
-          {suggestion.suggestedContent && (
-            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-900 rounded text-xs font-mono max-h-24 overflow-y-auto">
-              {suggestion.suggestedContent.substring(0, 200)}
-              {suggestion.suggestedContent.length > 200 && '...'}
-            </div>
-          )}
-          <div className="flex gap-2 mt-2">
-            {suggestion.suggestedContent && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 text-xs"
-                onClick={onApply}
-                data-testid={`apply-suggestion-${suggestion.sectionId}`}
-              >
-                <Check size={12} className="mr-1" />
-                Apply
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 text-xs text-muted-foreground"
-              onClick={onDismiss}
-              data-testid={`dismiss-suggestion-${suggestion.sectionId}`}
-            >
-              <X size={12} className="mr-1" />
-              Dismiss
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function WorkflowPRDSection({ 
   projectId, 
   workflowId, 
@@ -188,9 +116,21 @@ export function WorkflowPRDSection({
   const [sectionInsights, setSectionInsights] = useState<Record<string, AIInsight[]>>({});
   const [staleSections, setStaleSections] = useState<Record<string, boolean>>({});
   const [isRegeneratingSectionId, setIsRegeneratingSectionId] = useState<string | null>(null);
+  const [applyingSuggestionSectionId, setApplyingSuggestionSectionId] = useState<string | null>(null);
   const ai = useAi();
   const { toast } = useToast();
   const prdLinks = usePRDNodeLinks(projectId);
+
+  const suggestionsBySectionId = useMemo(() => {
+    if (!reviewResult?.suggestions) return {};
+    return reviewResult.suggestions.reduce((acc, suggestion) => {
+      if (!acc[suggestion.sectionId]) {
+        acc[suggestion.sectionId] = [];
+      }
+      acc[suggestion.sectionId].push(suggestion);
+      return acc;
+    }, {} as Record<string, PRDSuggestion[]>);
+  }, [reviewResult]);
   
   const loadSectionInsights = useCallback(() => {
     if (!prd) return;
@@ -378,22 +318,72 @@ export function WorkflowPRDSection({
     }
   }, [projectId, workflowId, toast]);
 
-  const handleApplySuggestion = useCallback((suggestion: PRDSuggestion) => {
-    if (!prd || !projectId || !workflowId || !suggestion.suggestedContent) return;
+  const handleApplySuggestion = useCallback(async (suggestion: PRDSuggestion) => {
+    if (!prd || !projectId || !workflowId) return;
 
-    const updated = updatePRDSection(prd, suggestion.sectionId, suggestion.suggestedContent, true) as WorkflowPRD;
-    setPrd(updated);
-    saveWorkflowPRD(projectId, workflowId, updated);
+    const section = prd.sections.find(s => s.id === suggestion.sectionId);
+    if (!section) return;
 
-    setReviewResult(prev => prev ? {
-      ...prev,
-      suggestions: prev.suggestions.filter(s => 
-        !(s.sectionId === suggestion.sectionId && s.type === suggestion.type)
-      )
-    } : null);
+    setApplyingSuggestionSectionId(suggestion.sectionId);
 
-    toast({ title: 'Applied', description: `Updated ${suggestion.sectionId} section.` });
-  }, [prd, projectId, workflowId, toast]);
+    try {
+      let newContent = suggestion.suggestedContent || '';
+
+      const response = await ai.chat({
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a technical writer improving PRD content. Return ONLY the improved text, no explanations or markdown code blocks.'
+          },
+          {
+            role: 'user',
+            content: `Improve this PRD section based on the suggestion below.\n\nOriginal section:\n${section.content}\n\nSuggestion type: ${suggestion.type}\nSuggestion: ${suggestion.description}\n\n${suggestion.suggestedContent ? `Suggested improvement:\n${suggestion.suggestedContent}\n\n` : ''}Rewrite the section incorporating this improvement. Keep a similar format and length.`
+          }
+        ],
+        temperature: 0.4,
+        maxTokens: 1000
+      });
+
+      if (response.text?.trim()) {
+        newContent = response.text.trim();
+      }
+
+      if (!newContent) {
+        toast({ title: 'Apply failed', description: 'Could not generate improved content.', variant: 'destructive' });
+        return;
+      }
+
+      const updated = updatePRDSection(prd, suggestion.sectionId, newContent, true) as WorkflowPRD;
+      setPrd(updated);
+      saveWorkflowPRD(projectId, workflowId, updated);
+
+      setReviewResult(prev => prev ? {
+        ...prev,
+        suggestions: prev.suggestions.filter(s => 
+          !(s.sectionId === suggestion.sectionId && s.type === suggestion.type)
+        )
+      } : null);
+
+      toast({ title: 'Applied', description: `Updated ${suggestion.sectionId} section with AI improvements.` });
+    } catch (error) {
+      if (suggestion.suggestedContent) {
+        const updated = updatePRDSection(prd, suggestion.sectionId, suggestion.suggestedContent, true) as WorkflowPRD;
+        setPrd(updated);
+        saveWorkflowPRD(projectId, workflowId, updated);
+        setReviewResult(prev => prev ? {
+          ...prev,
+          suggestions: prev.suggestions.filter(s => 
+            !(s.sectionId === suggestion.sectionId && s.type === suggestion.type)
+          )
+        } : null);
+        toast({ title: 'Applied', description: `Updated ${suggestion.sectionId} section (used suggestion directly).` });
+      } else {
+        toast({ title: 'Apply failed', description: 'Could not apply suggestion.', variant: 'destructive' });
+      }
+    } finally {
+      setApplyingSuggestionSectionId(null);
+    }
+  }, [prd, projectId, workflowId, ai, toast]);
 
   const handleDismissSuggestion = useCallback((suggestion: PRDSuggestion) => {
     setReviewResult(prev => prev ? {
@@ -626,36 +616,6 @@ export function WorkflowPRDSection({
             </div>
           </div>
 
-          {reviewResult && reviewResult.suggestions.length > 0 && (
-            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Eye size={14} className="text-blue-600" />
-                  <span className="text-sm font-medium">AI Review Suggestions</span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 text-xs"
-                  onClick={() => setReviewResult(null)}
-                  data-testid="dismiss-all-suggestions"
-                >
-                  <X size={12} className="mr-1" />
-                  Dismiss All
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground mb-3">{reviewResult.summary}</p>
-              {reviewResult.suggestions.map((suggestion, idx) => (
-                <SuggestionCard
-                  key={`${suggestion.sectionId}-${suggestion.type}-${idx}`}
-                  suggestion={suggestion}
-                  onApply={() => handleApplySuggestion(suggestion)}
-                  onDismiss={() => handleDismissSuggestion(suggestion)}
-                />
-              ))}
-            </div>
-          )}
-
           {prd.sections.map((section) => {
             const insights = sectionInsights[section.id] || [];
             const contentLength = section.content?.length || 0;
@@ -670,6 +630,10 @@ export function WorkflowPRDSection({
                   isStale={staleSections[section.id] || false}
                   confidence={confidence as 'high' | 'medium' | 'low'}
                   insights={insights}
+                  reviewSuggestions={suggestionsBySectionId[section.id] || []}
+                  onApplyReviewSuggestion={handleApplySuggestion}
+                  onDismissReviewSuggestion={handleDismissSuggestion}
+                  isApplyingReviewSuggestion={applyingSuggestionSectionId === section.id}
                   onSave={handleSectionSave}
                   onResetToAI={handleResetSection}
                   onRegenerateSection={handleRegenerateSection}
