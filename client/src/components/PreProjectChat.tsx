@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Send, Sparkles, Loader2, Rocket, MessageCircle, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ChatSendButton } from '@/components/chat';
+import { ArrowLeft, Sparkles, Loader2, Rocket, MessageCircle, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAi } from '../ai/AiProvider';
 import { buildKiteAIContext, inferRoleFromIntent, type KiteAIRole } from '../lib/ai/buildKiteAIContext';
@@ -468,15 +469,13 @@ export function PreProjectChat({
                 disabled={isLoading}
                 data-testid="input-chat-message"
               />
-              <Button
+              <ChatSendButton
                 onClick={() => handleSendMessage(inputValue)}
-                disabled={!inputValue.trim() || isLoading}
-                size="icon"
+                disabled={!inputValue.trim()}
+                isLoading={isLoading}
                 className="h-[50px] w-[50px] shrink-0"
                 data-testid="button-send-message"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
+              />
             </div>
             <p className="text-xs text-muted-foreground mt-2 text-center">
               Press Enter to send, Shift+Enter for new line, ESC to go back

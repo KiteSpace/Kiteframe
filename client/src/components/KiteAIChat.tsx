@@ -19,9 +19,9 @@ import {
   type KiteAIRole 
 } from '../lib/ai/buildKiteAIContext';
 import { inferKiteAIRole } from '../lib/ai/inferKiteAIRole';
+import { ChatSendButton } from '@/components/chat';
 import { 
   MessageCircle, 
-  Send, 
   Paperclip, 
   X, 
   Loader2, 
@@ -959,15 +959,13 @@ function ChatView({
                 disabled={isLoading}
                 data-testid="input-kiteai-message"
               />
-              <Button
-                size="icon"
+              <ChatSendButton
                 onClick={handleSend}
-                disabled={isLoading || (!inputValue.trim() && pendingFiles.length === 0)}
-                className="flex-shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                disabled={!inputValue.trim() && pendingFiles.length === 0}
+                isLoading={isLoading}
+                className="flex-shrink-0"
                 data-testid="button-kiteai-send"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
+              />
             </div>
             
             {pendingFiles.some(f => f.type.startsWith('image/')) && (
