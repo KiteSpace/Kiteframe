@@ -295,22 +295,24 @@ Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, 
     onGenerateWorkflow(summary);
   }, [onGenerateWorkflow]);
 
-  const handleUploadImageWithGate = useCallback((files: FileList) => {
+  const handleUploadImageWithGate = useCallback((files: FileList): boolean => {
     if (tier !== 'pro') {
       setFeatureUpsellType('image');
       setShowFeatureUpsell(true);
-    } else {
-      // Images are now added as attachments in HomeHero, no need to open chat immediately
-      // The user will click Send when ready
+      return false; // Block the action
     }
+    // Images are now added as attachments in HomeHero
+    return true; // Allow the action
   }, [tier]);
 
-  const handleImportFigmaWithGate = useCallback(() => {
+  const handleImportFigmaWithGate = useCallback((): boolean => {
     if (tier !== 'pro') {
       setFeatureUpsellType('figma');
       setShowFeatureUpsell(true);
+      return false; // Block the action
     }
-    // Figma is now handled inline in HomeHero, no need to call onImportFigma
+    // Figma is now handled inline in HomeHero
+    return true; // Allow the action
   }, [tier]);
 
   const handleConfirmDelete = useCallback(() => {

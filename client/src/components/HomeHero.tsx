@@ -17,8 +17,8 @@ import {
 
 interface HomeHeroProps {
   onStartDesigning: (prompt: string, context: PromptContext) => void;
-  onImportFigma?: () => void;
-  onUploadImage: (files: FileList) => void;
+  onImportFigma?: () => boolean; // Returns true if allowed, false if blocked by gate
+  onUploadImage: (files: FileList) => boolean; // Returns true if allowed, false if blocked by gate
   onUploadDocument?: () => void;
   isGenerating?: boolean;
   isDisabled?: boolean;
@@ -59,9 +59,13 @@ export function HomeHero({
 
   const handleFigmaToggle = useCallback(() => {
     if (!hasFigmaAttachment) {
+      // Call the gating callback first - if it returns false, user is blocked
+      if (onImportFigma && !onImportFigma()) {
+        return;
+      }
       setShowFigmaPanel(prev => !prev);
     }
-  }, [hasFigmaAttachment]);
+  }, [hasFigmaAttachment, onImportFigma]);
 
   const handleFigmaAttachmentAdd = useCallback((attachment: PromptAttachment) => {
     setPromptContext(prev => ({
@@ -73,9 +77,16 @@ export function HomeHero({
 
   const handleImageClick = useCallback(() => {
     if (canAddMoreImages) {
+      // Create empty FileList to check gate before opening file picker
+      const emptyInput = document.createElement('input');
+      emptyInput.type = 'file';
+      // Call the gating callback - if it returns false, user is blocked
+      if (!onUploadImage(emptyInput.files as FileList)) {
+        return;
+      }
       fileInputRef.current?.click();
     }
-  }, [canAddMoreImages]);
+  }, [canAddMoreImages, onUploadImage]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

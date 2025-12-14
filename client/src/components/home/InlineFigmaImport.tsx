@@ -7,6 +7,8 @@ import { parseFigmaUrl } from '@/lib/integration/figmaUrl';
 import { fetchFigmaFile, fetchFigmaNode, fetchFigmaThumbnails } from '@/lib/integration/figmaApi';
 import type { PromptAttachment } from '@/types/promptContext';
 
+const PENDING_FIGMA_URL_KEY = 'kiteframe_pending_figma_url';
+
 interface FigmaStatus {
   connected: boolean;
   oauthAvailable: boolean;
@@ -51,6 +53,12 @@ export function InlineFigmaImport({
   useEffect(() => {
     if (isExpanded) {
       queryFigmaStatus();
+      // Restore pending URL after OAuth redirect
+      const pendingUrl = localStorage.getItem(PENDING_FIGMA_URL_KEY);
+      if (pendingUrl) {
+        setUrl(pendingUrl);
+        localStorage.removeItem(PENDING_FIGMA_URL_KEY);
+      }
     }
   }, [isExpanded, queryFigmaStatus]);
 
@@ -69,6 +77,11 @@ export function InlineFigmaImport({
   const handleOAuthConnect = useCallback(() => {
     if (figmaStatus?.connected) return;
     
+    // Save pending URL before OAuth redirect so we can restore it
+    if (url.trim()) {
+      localStorage.setItem(PENDING_FIGMA_URL_KEY, url.trim());
+    }
+    
     setOauthPending(true);
     
     const width = 600;
@@ -85,6 +98,7 @@ export function InlineFigmaImport({
     if (!popup) {
       setOauthPending(false);
       setError('Popup was blocked. Please allow popups for this site.');
+      localStorage.removeItem(PENDING_FIGMA_URL_KEY);
       return;
     }
 
@@ -99,7 +113,7 @@ export function InlineFigmaImport({
         }, 500);
       }
     }, 500);
-  }, [figmaStatus, oauthPending, queryFigmaStatus]);
+  }, [figmaStatus, oauthPending, queryFigmaStatus, url]);
 
   const handleAddFigma = useCallback(async () => {
     const trimmedUrl = url.trim();
