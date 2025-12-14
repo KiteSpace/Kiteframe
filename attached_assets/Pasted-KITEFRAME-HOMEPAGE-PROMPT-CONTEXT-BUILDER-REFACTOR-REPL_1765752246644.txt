@@ -1,0 +1,206 @@
+KITEFRAME — HOMEPAGE PROMPT CONTEXT BUILDER REFACTOR
+REPLIT EXECUTION INSTRUCTIONS
+==================================================
+
+GOAL
+----
+Refactor the homepage prompt behavior so that:
+• Importing Figma designs, images, or future documents does NOT start AI chat
+• Users can assemble all context first (text + uploads)
+• AI reasoning only begins after the user explicitly clicks Send
+• Modal interruptions are removed wherever possible
+• The homepage behaves like ChatGPT’s pre-chat context assembly flow
+
+This change applies ONLY to the homepage / pre-project experience.
+
+--------------------------------------------------
+SECTION 1 — CORE BEHAVIOR CHANGE
+--------------------------------------------------
+
+1. REMOVE ALL BACKGROUND CHAT STARTS
+-----------------------------------
+Currently:
+• Clicking "Import Figma Design" or "Upload Image" starts a chat session in the background
+
+REQUIRED:
+• NO AI chat, AI hook, or conversation state may initialize until the user clicks Send
+• Import actions must ONLY update local prompt context state
+
+This is a hard rule.
+
+--------------------------------------------------
+SECTION 2 — NEW CONCEPT: PROMPT CONTEXT BUILDER
+--------------------------------------------------
+
+Introduce a new internal concept for the homepage:
+
+PromptContext (local state)
+----------------------------
+Tracks all pre-chat inputs before AI is invoked.
+
+Required fields:
+• textInput: string
+• attachments: array of PromptAttachment
+• hasAttachments: boolean
+• isReadyToSend: boolean
+
+PromptAttachment types:
+• figma
+• image
+• (future) document / prd
+
+Each attachment must include:
+• id
+• type
+• displayName
+• thumbnailUrl (if available)
+• removable: true
+
+--------------------------------------------------
+SECTION 3 — HOMEPAGE PROMPT UI STRUCTURE
+--------------------------------------------------
+
+The homepage prompt is a SINGLE unified surface with:
+
+1. Main Prompt Text Area
+2. Inline Attachment Area (below prompt text)
+3. Send Button (explicit commit action)
+
+DO NOT introduce modals unless absolutely required.
+
+--------------------------------------------------
+SECTION 4 — FIGMA IMPORT FLOW (INLINE, NO MODAL)
+--------------------------------------------------
+
+Current behavior:
+• Clicking "Import Figma Design" opens a modal
+• Chat starts in the background
+
+REPLACE WITH:
+
+1. User clicks "Import Figma Design" quick action
+2. Inline Figma Import Panel appears INSIDE the prompt area:
+   • URL input field
+   • OAuth connection status indicator
+3. User pastes URL and confirms import
+4. System fetches:
+   • File name
+   • Thumbnail (if available)
+   • Node metadata (no semantic analysis yet)
+5. Add a PromptAttachment of type "figma" to PromptContext.attachments
+6. Inline panel collapses automatically after successful import
+7. NO chat starts
+
+--------------------------------------------------
+SECTION 5 — IMAGE UPLOAD FLOW (SYSTEM DIALOG ONLY)
+--------------------------------------------------
+
+1. User clicks "Upload Image" quick action
+2. Native file picker opens (system dialog)
+3. After file selection:
+   • Generate thumbnail
+   • Create PromptAttachment of type "image"
+4. Render attachment card below the prompt
+5. NO modal
+6. NO chat
+
+--------------------------------------------------
+SECTION 6 — ATTACHMENT RENDERING (INLINE)
+--------------------------------------------------
+
+Below the prompt textarea, render attachment cards:
+
+• Horizontal or stacked layout
+• Shows:
+  - Icon (Figma / Image)
+  - Name
+  - Thumbnail (if applicable)
+• Each attachment has a remove (✕) action
+• Removing attachment updates PromptContext
+
+--------------------------------------------------
+SECTION 7 — PROMPT COPY RULES
+--------------------------------------------------
+
+Default placeholder (no attachments):
+-------------------------------------
+"Describe what you want to build, import a design, or start brainstorming with KiteAI…"
+
+Once ANY attachment exists:
+---------------------------
+Replace helper text with:
+
+"Do you have any additional details to add before we get started?"
+
+This text must appear INSIDE the prompt area (not above it).
+
+--------------------------------------------------
+SECTION 8 — SEND BUTTON BEHAVIOR (CRITICAL)
+--------------------------------------------------
+
+The Send button is the ONLY trigger that:
+• Initializes AI
+• Starts conversation state
+• Transitions into chat / project creation
+
+Rules:
+• Send is enabled when:
+  - textInput is non-empty OR
+  - attachments.length > 0
+• Send is disabled otherwise
+• Clicking Send:
+  1. Freezes PromptContext
+  2. Initializes PreProjectChat / KiteAI
+  3. Passes full PromptContext as initial input
+  4. Clears homepage UI noise and transitions to chat view
+
+--------------------------------------------------
+SECTION 9 — CHAT TRANSITION (VISUAL)
+--------------------------------------------------
+
+On Send:
+• Expand the prompt area into chat-style layout
+• Remove homepage hero noise
+• Render first AI response ONLY AFTER Send
+
+This mirrors ChatGPT’s "single input → conversation" transition.
+
+--------------------------------------------------
+SECTION 10 — IMPORTANT NON-GOALS
+--------------------------------------------------
+
+DO NOT:
+• Start AI on attachment add
+• Ask AI follow-up questions before Send
+• Show modals for uploads unless required
+• Auto-create projects before Send
+• Auto-analyze images or Figma before Send
+
+--------------------------------------------------
+SECTION 11 — FUTURE-PROOFING (DO NOT IMPLEMENT YET)
+--------------------------------------------------
+
+This design must support future additions without refactor:
+• PRD upload
+• Document upload
+• Multiple Figma frames
+• Multiple images
+
+The PromptContext model must be generic.
+
+--------------------------------------------------
+SECTION 12 — ACCEPTANCE CHECKLIST
+--------------------------------------------------
+
+Implementation is correct if:
+
+☑ Importing Figma adds an inline attachment and does NOT start chat  
+☑ Uploading an image adds an inline attachment and does NOT start chat  
+☑ Prompt copy changes when attachments exist  
+☑ AI does nothing until Send is clicked  
+☑ Send transitions cleanly into chat/project creation  
+☑ No modals interrupt the flow  
+
+--------------------------------------------------
+END OF SPEC
+--------------------------------------------------
