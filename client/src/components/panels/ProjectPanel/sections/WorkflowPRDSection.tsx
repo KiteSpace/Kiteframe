@@ -61,15 +61,32 @@ interface WorkflowPRDSectionProps {
   edges: Edge[];
 }
 
-function NodePickerModal({ 
-  nodes, 
-  onSelect, 
+type LinkPickerTab = 'nodes' | 'edges';
+
+function LinkPickerModal({ 
+  nodes,
+  edges,
+  onSelectNode,
+  onSelectEdge, 
   onClose 
 }: { 
-  nodes: Node[]; 
-  onSelect: (nodeId: string) => void; 
+  nodes: Node[];
+  edges: Edge[];
+  onSelectNode: (nodeId: string) => void;
+  onSelectEdge: (edgeId: string) => void;
   onClose: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState<LinkPickerTab>('nodes');
+
+  const getEdgeLabel = (edge: Edge) => {
+    if (edge.label) return edge.label;
+    const sourceNode = nodes.find(n => n.id === edge.source);
+    const targetNode = nodes.find(n => n.id === edge.target);
+    const sourceName = sourceNode?.data?.label || edge.source;
+    const targetName = targetNode?.data?.label || edge.target;
+    return `${sourceName} → ${targetName}`;
+  };
+
   return (
     <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={onClose}>
       <div 
@@ -77,26 +94,68 @@ function NodePickerModal({
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-sm font-semibold">Select Node to Link</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <h3 className="text-sm font-semibold">Link to Section</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700" data-testid="close-link-picker">
             <X size={16} />
           </button>
         </div>
+        <div className="flex border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setActiveTab('nodes')}
+            className={`flex-1 px-4 py-2 text-xs font-medium transition-colors ${
+              activeTab === 'nodes' 
+                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-b-2 border-blue-500' 
+                : 'text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+            data-testid="link-picker-tab-nodes"
+          >
+            Nodes ({nodes.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('edges')}
+            className={`flex-1 px-4 py-2 text-xs font-medium transition-colors ${
+              activeTab === 'edges' 
+                ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-b-2 border-purple-500' 
+                : 'text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+            data-testid="link-picker-tab-edges"
+          >
+            Edges ({edges.length})
+          </button>
+        </div>
         <div className="overflow-y-auto max-h-72 p-2">
-          {nodes.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No nodes available</p>
+          {activeTab === 'nodes' ? (
+            nodes.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No nodes available</p>
+            ) : (
+              nodes.map(node => (
+                <button
+                  key={node.id}
+                  onClick={() => onSelectNode(node.id)}
+                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center gap-2"
+                  data-testid={`pick-node-${node.id}`}
+                >
+                  <span className="text-xs text-blue-600 dark:text-blue-400">{node.type || 'node'}</span>
+                  <span>{node.data?.label || node.id}</span>
+                </button>
+              ))
+            )
           ) : (
-            nodes.map(node => (
-              <button
-                key={node.id}
-                onClick={() => onSelect(node.id)}
-                className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                data-testid={`pick-node-${node.id}`}
-              >
-                <span className="text-xs text-muted-foreground">{node.type || 'node'}</span>
-                <span>{node.data?.label || node.id}</span>
-              </button>
-            ))
+            edges.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No edges available</p>
+            ) : (
+              edges.map(edge => (
+                <button
+                  key={edge.id}
+                  onClick={() => onSelectEdge(edge.id)}
+                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 flex items-center gap-2"
+                  data-testid={`pick-edge-${edge.id}`}
+                >
+                  <span className="text-xs text-purple-600 dark:text-purple-400">edge</span>
+                  <span className="truncate">{getEdgeLabel(edge)}</span>
+                </button>
+              ))
+            )
           )}
         </div>
       </div>
@@ -269,13 +328,29 @@ export function WorkflowPRDSection({
     toast({ title: 'Node linked', description: 'Node connected to this section.' });
   }, [linkingSectionId, workflowId, prdLinks, toast]);
 
+  const handleEdgeSelected = useCallback((edgeId: string) => {
+    if (!linkingSectionId) return;
+    prdLinks.addLink(edgeId, 'edge', workflowId, linkingSectionId);
+    setLinkingSectionId(null);
+    toast({ title: 'Edge linked', description: 'Edge connected to this section.' });
+  }, [linkingSectionId, workflowId, prdLinks, toast]);
+
   const handleUnlinkNode = useCallback((nodeId: string, sectionId: string) => {
     prdLinks.removeLink(nodeId, 'node', workflowId, sectionId);
     toast({ title: 'Node unlinked', description: 'Link removed.' });
   }, [workflowId, prdLinks, toast]);
 
+  const handleUnlinkItem = useCallback((targetId: string, targetType: 'node' | 'edge', sectionId: string) => {
+    prdLinks.removeLink(targetId, targetType, workflowId, sectionId);
+    toast({ title: targetType === 'edge' ? 'Edge unlinked' : 'Node unlinked', description: 'Link removed.' });
+  }, [workflowId, prdLinks, toast]);
+
   const handleFocusNode = useCallback((nodeId: string) => {
     focusBus.focusNodes([nodeId], { select: true });
+  }, []);
+
+  const handleFocusEdge = useCallback((edgeId: string) => {
+    focusBus.focusEdges([edgeId], { select: true });
   }, []);
 
   const handleReview = useCallback(async () => {
@@ -695,7 +770,9 @@ export function WorkflowPRDSection({
                   linkedNodes={prdLinks.getLinksForSection(workflowId, section.id)}
                   onLinkNode={() => handleLinkNode(section.id)}
                   onUnlinkNode={(nodeId) => handleUnlinkNode(nodeId, section.id)}
+                  onUnlinkItem={(targetId, targetType) => handleUnlinkItem(targetId, targetType, section.id)}
                   onFocusNode={handleFocusNode}
+                  onFocusEdge={handleFocusEdge}
                 />
               </div>
             );
@@ -704,9 +781,11 @@ export function WorkflowPRDSection({
       )}
 
       {linkingSectionId && (
-        <NodePickerModal
+        <LinkPickerModal
           nodes={nodes}
-          onSelect={handleNodeSelected}
+          edges={edges}
+          onSelectNode={handleNodeSelected}
+          onSelectEdge={handleEdgeSelected}
           onClose={() => setLinkingSectionId(null)}
         />
       )}

@@ -169,9 +169,12 @@ export function ProjectPanel({
       <div
         ref={resizeRef}
         onMouseDown={() => setIsResizing(true)}
-        className="absolute left-0 top-0 bottom-0 w-1 hover:bg-primary/50 cursor-col-resize transition-colors"
+        className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize transition-colors group z-10"
         title="Drag to resize"
-      />
+        data-testid="panel-resize-handle"
+      >
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-full bg-border group-hover:bg-primary transition-colors" />
+      </div>
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ProjectPanelTab)} className="flex flex-col h-full">
         <div className="border-b border-border flex items-center">
           <Button 
