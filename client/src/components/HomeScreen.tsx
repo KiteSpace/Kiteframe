@@ -42,6 +42,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { FeatureUpsellDialog } from './FeatureUpsellDialog';
 import { HomeHero } from './HomeHero';
 import { PreProjectChat } from './PreProjectChat';
+import type { PromptContext } from '@/types/promptContext';
 
 interface RecentProject {
   id: string;
@@ -260,13 +261,26 @@ Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, 
     }
   }, [onGenerateWorkflow]);
 
-  const handleStartDesigning = useCallback((prompt: string) => {
+  const handleStartDesigning = useCallback((prompt: string, context: PromptContext) => {
     if (isOutOfCredits) {
       if (ctaAction === 'signup') openSignup();
       else if (ctaAction === 'upgrade') openPricing();
       else openCreditsDialog();
       return;
     }
+    
+    // If there are attachments, open pre-project chat for context refinement
+    if (context.attachments.length > 0) {
+      setPreProjectContext({
+        prompt,
+        uploadedFiles: context.attachments.filter(a => a.file).map(a => a.file!),
+        isHighConfidence: false,
+      });
+      setPreProjectChatPrompt(prompt || 'Analyze my attached context');
+      setIsPreProjectChatOpen(true);
+      return;
+    }
+    
     classifyIntent(prompt);
   }, [isOutOfCredits, ctaAction, openSignup, openPricing, openCreditsDialog, classifyIntent]);
 
@@ -281,29 +295,23 @@ Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, 
     onGenerateWorkflow(summary);
   }, [onGenerateWorkflow]);
 
-  const handleUploadImageWithGate = useCallback(() => {
+  const handleUploadImageWithGate = useCallback((files: FileList) => {
     if (tier !== 'pro') {
       setFeatureUpsellType('image');
       setShowFeatureUpsell(true);
     } else {
-      setPreProjectContext({ prompt: 'Image upload', uploadedFiles: [] });
-      setPreProjectChatPrompt('I uploaded an image for analysis');
-      setIsPreProjectChatOpen(true);
-      onUploadImage();
+      // Images are now added as attachments in HomeHero, no need to open chat immediately
+      // The user will click Send when ready
     }
-  }, [tier, onUploadImage]);
+  }, [tier]);
 
   const handleImportFigmaWithGate = useCallback(() => {
     if (tier !== 'pro') {
       setFeatureUpsellType('figma');
       setShowFeatureUpsell(true);
-    } else if (onImportFigma) {
-      setPreProjectContext({ prompt: 'Figma import', uploadedFiles: [] });
-      setPreProjectChatPrompt('I imported a Figma design');
-      setIsPreProjectChatOpen(true);
-      onImportFigma();
     }
-  }, [tier, onImportFigma]);
+    // Figma is now handled inline in HomeHero, no need to call onImportFigma
+  }, [tier]);
 
   const handleConfirmDelete = useCallback(() => {
     if (deleteProjectId && onDeleteProject) {
