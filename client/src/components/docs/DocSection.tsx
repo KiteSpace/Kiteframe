@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useCallback, KeyboardEvent, useMemo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Edit3, RotateCcw, Sparkles, Loader2, Check, X, Link2, Unlink, RefreshCw, AlertCircle, Shield, Lightbulb, Clock } from 'lucide-react';
+import { Edit3, RotateCcw, Sparkles, Loader2, Check, X, Link2, Unlink, RefreshCw, AlertCircle, Shield, Lightbulb, Clock, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAi } from '@/ai/AiProvider';
 import { useToast } from '@/hooks/use-toast';
-import type { PRDNodeLink } from '@/stores/prdNodeLinkStore';
+import type { PRDNodeLink, PRDLinkTargetType } from '@/stores/prdNodeLinkStore';
 import { type AIInsight, getChipTypeColor, type InsightChipType } from '@/ai/insights';
 import type { PRDSuggestion } from '@/ai/prdSteward';
 
@@ -30,8 +30,11 @@ interface DocSectionProps {
   enableAISuggestions?: boolean;
   linkedNodes?: PRDNodeLink[];
   onLinkNode?: () => void;
+  onLinkEdge?: () => void;
   onUnlinkNode?: (nodeId: string) => void;
+  onUnlinkItem?: (targetId: string, targetType: PRDLinkTargetType) => void;
   onFocusNode?: (nodeId: string) => void;
+  onFocusEdge?: (edgeId: string) => void;
 }
 
 function ConfidenceBadge({ level }: { level: ConfidenceLevel }) {
@@ -330,8 +333,11 @@ export function DocSection({
   enableAISuggestions = true,
   linkedNodes = [],
   onLinkNode,
+  onLinkEdge,
   onUnlinkNode,
-  onFocusNode
+  onUnlinkItem,
+  onFocusNode,
+  onFocusEdge
 }: DocSectionProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(content);
@@ -541,29 +547,50 @@ export function DocSection({
 
       {linkedNodes.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2" data-testid={`linked-nodes-${sectionKey}`}>
-          {linkedNodes.map(link => (
-            <span
-              key={link.nodeId}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-              onClick={() => onFocusNode?.(link.nodeId)}
-              data-testid={`linked-node-${link.nodeId}`}
-            >
-              <Link2 size={8} />
-              Node
-              {onUnlinkNode && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onUnlinkNode(link.nodeId);
-                  }}
-                  className="ml-0.5 hover:text-red-500"
-                  data-testid={`unlink-${link.nodeId}`}
-                >
-                  <X size={8} />
-                </button>
-              )}
-            </span>
-          ))}
+          {linkedNodes.map(link => {
+            const isEdge = link.targetType === 'edge';
+            const targetId = link.targetId || link.nodeId;
+            const handleFocus = () => {
+              if (isEdge) {
+                onFocusEdge?.(targetId);
+              } else {
+                onFocusNode?.(targetId);
+              }
+            };
+            const handleUnlink = (e: React.MouseEvent) => {
+              e.stopPropagation();
+              if (onUnlinkItem) {
+                onUnlinkItem(targetId, link.targetType || 'node');
+              } else if (onUnlinkNode && !isEdge) {
+                onUnlinkNode(targetId);
+              }
+            };
+            return (
+              <span
+                key={`${link.targetType || 'node'}-${targetId}`}
+                className={cn(
+                  "inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded cursor-pointer transition-colors",
+                  isEdge 
+                    ? "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50"
+                    : "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                )}
+                onClick={handleFocus}
+                data-testid={`linked-${link.targetType || 'node'}-${targetId}`}
+              >
+                {isEdge ? <ArrowRight size={8} /> : <Link2 size={8} />}
+                {isEdge ? 'Edge' : 'Node'}
+                {(onUnlinkItem || onUnlinkNode) && (
+                  <button
+                    onClick={handleUnlink}
+                    className="ml-0.5 hover:text-red-500"
+                    data-testid={`unlink-${targetId}`}
+                  >
+                    <X size={8} />
+                  </button>
+                )}
+              </span>
+            );
+          })}
         </div>
       )}
 

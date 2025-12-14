@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sparkles, RefreshCw, Loader2, AlertTriangle, X, MoreHorizontal, Copy, Download, Upload, History, RotateCw } from 'lucide-react';
+import { Sparkles, RefreshCw, Loader2, AlertTriangle, X, MoreHorizontal, Copy, Download, Upload, History, RotateCw, FileJson, Code, Printer } from 'lucide-react';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { extractSemanticWorkflowModel } from '@/lib/kiteframe/utils/extractSemanticWorkflowModel';
 import { isWorkflowStale, storeHash, computeWorkflowHash } from '@/lib/kiteframe/utils/semanticHash';
@@ -46,6 +46,12 @@ import { getInsightsForTarget, dismissInsight, addInsight } from '@/stores/aiIns
 import { getInsightIcon, type AIInsight } from '@/ai/insights';
 import { analyzeWorkflowForFailures } from '@/ai/failureFirstHeuristics';
 import { WorkflowIntentSection } from './WorkflowIntentSection';
+import { 
+  generatePrototypingPrompt, 
+  copyPrototypingPromptToClipboard,
+  exportKiteframePRDJson,
+  downloadKiteframePRDJson
+} from '@/lib/export';
 
 interface WorkflowPRDSectionProps {
   projectId: string;
@@ -413,6 +419,41 @@ export function WorkflowPRDSection({
     toast({ title: 'Downloaded', description: `Saved as ${filename}` });
   }, [prd, workflowName, toast]);
 
+  const handleCopyPrototypingPrompt = useCallback(async () => {
+    if (!prd) return;
+    const prompt = generatePrototypingPrompt({
+      workflowName,
+      prd,
+      role: 'developer',
+      includeContext: true
+    });
+    const success = await copyPrototypingPromptToClipboard(prompt);
+    if (success) {
+      toast({ title: 'Copied', description: 'Prototyping prompt copied to clipboard.' });
+    } else {
+      toast({ title: 'Copy failed', description: 'Could not copy to clipboard.', variant: 'destructive' });
+    }
+  }, [prd, workflowName, toast]);
+
+  const handleDownloadKiteframePRD = useCallback(() => {
+    if (!prd) return;
+    const json = exportKiteframePRDJson({
+      workflowId,
+      workflowName,
+      prd,
+      nodes,
+      edges,
+      projectId,
+      includeWorkflow: true
+    });
+    downloadKiteframePRDJson(json, workflowName);
+    toast({ title: 'Downloaded', description: 'Kiteframe PRD exported as JSON.' });
+  }, [prd, workflowId, workflowName, nodes, edges, projectId, toast]);
+
+  const handlePrintPRD = useCallback(() => {
+    window.print();
+  }, []);
+
   const handleImportPRD = useCallback((importedPrd: WorkflowPRD) => {
     if (!projectId || !workflowId) return;
     
@@ -602,9 +643,22 @@ export function WorkflowPRDSection({
                     <Copy size={14} className="mr-2" />
                     Copy as Markdown
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleCopyPrototypingPrompt} data-testid="copy-prototyping-prompt">
+                    <Code size={14} className="mr-2" />
+                    Copy Prototyping Prompt
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleDownloadMarkdown} data-testid="download-prd-markdown">
                     <Download size={14} className="mr-2" />
                     Download .md
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDownloadKiteframePRD} data-testid="download-kiteframe-prd">
+                    <FileJson size={14} className="mr-2" />
+                    Download .kiteframe-prd.json
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handlePrintPRD} data-testid="print-prd">
+                    <Printer size={14} className="mr-2" />
+                    Print to PDF
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setIsImportModalOpen(true)} data-testid="import-prd">
