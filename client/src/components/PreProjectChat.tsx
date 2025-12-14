@@ -161,7 +161,6 @@ export function PreProjectChat({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const aiClient = useAi();
-  const [imageDataUrls, setImageDataUrls] = useState<string[]>([]);
 
   const { 
     state: conversationState, 
@@ -175,24 +174,16 @@ export function PreProjectChat({
     return (context?.uploadedFiles?.length ?? 0) > 0;
   }, [context?.uploadedFiles]);
 
-  useEffect(() => {
-    if (!context?.uploadedFiles || context.uploadedFiles.length === 0) {
-      setImageDataUrls([]);
-      return;
-    }
-    const loadImages = async () => {
-      const urls = await Promise.all(
-        context.uploadedFiles!.map(file => new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => reject(new Error('Failed to read file'));
-          reader.readAsDataURL(file);
-        }))
-      );
-      setImageDataUrls(urls);
-    };
-    loadImages().catch(err => console.error('Error loading images:', err));
-  }, [context?.uploadedFiles]);
+  const convertFilesToBase64 = useCallback(async (files: File[]): Promise<string[]> => {
+    return Promise.all(
+      files.map(file => new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      }))
+    );
+  }, []);
 
   const aiTurnCount = useMemo(() => {
     return messages.filter(m => m.role === 'assistant').length;
@@ -291,13 +282,19 @@ export function PreProjectChat({
         enhancedSystemPrompt += `\n\nThe user has provided sufficient information (score=${processResult.actionability.score}/5, confidence=${Math.round(processResult.actionability.confidence * 100)}%). Confirm that you're ready to create their workflow and summarize what you understood.`;
       }
 
-      const userContent: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = 
-        imageDataUrls.length > 0 && messages.length === 0
-          ? [
-              { type: 'text', text: content.trim() },
-              ...imageDataUrls.map(url => ({ type: 'image_url' as const, image_url: { url } }))
-            ]
-          : content.trim();
+      let userContent: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = content.trim();
+      
+      if (context?.uploadedFiles && context.uploadedFiles.length > 0 && messages.length === 0) {
+        try {
+          const imageDataUrls = await convertFilesToBase64(context.uploadedFiles);
+          userContent = [
+            { type: 'text', text: content.trim() },
+            ...imageDataUrls.map(url => ({ type: 'image_url' as const, image_url: { url } }))
+          ];
+        } catch (err) {
+          console.error('Error converting images to base64:', err);
+        }
+      }
 
       const response = await aiClient.chat({
         messages: [
@@ -335,7 +332,7 @@ export function PreProjectChat({
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, processUserInput, addAssistantMessage, imageDataUrls]);
+  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, processUserInput, addAssistantMessage, context, convertFilesToBase64]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
