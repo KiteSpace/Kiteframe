@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Key, Shield, Ban, RotateCcw, BarChart3, Users, FolderTree, Upload, Search, Plus, Trash2, Edit, UserPlus, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Copy, Key, Shield, Ban, RotateCcw, BarChart3, Users, FolderTree, Upload, Search, Plus, Trash2, Edit, UserPlus, Download, ChevronLeft, ChevronRight, Star, UserMinus } from 'lucide-react';
 import AdminAnalytics from './AdminAnalytics';
 
 interface UnlockCode {
@@ -738,6 +738,308 @@ function GroupsTab({ authHeader }: { authHeader: string }) {
   );
 }
 
+const BETA_GROUP_NAME = 'Beta';
+const BETA_GROUP_DESCRIPTION = 'Beta testers with Pro-tier access';
+const BETA_GROUP_ACCESS_CONTROLS: GroupAccessControls = {
+  subscriptionTierOverride: 'pro',
+  unlimitedCredits: false,
+  bypassCreditCheck: false,
+};
+
+function BetaUsersTab({ authHeader }: { authHeader: string }) {
+  const { toast } = useToast();
+  const [searchEmail, setSearchEmail] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const { data: groupsData, isLoading: groupsLoading } = useQuery({
+    queryKey: ['/internal/groups'],
+    queryFn: async () => {
+      const response = await fetch('/internal/groups', {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch groups');
+      return response.json();
+    },
+  });
+
+  const betaGroup = groupsData?.groups?.find((g: UserGroup) => g.name === BETA_GROUP_NAME);
+
+  const { data: betaGroupDetails, isLoading: membersLoading, refetch: refetchMembers } = useQuery({
+    queryKey: ['/internal/groups', betaGroup?.id, 'details'],
+    queryFn: async () => {
+      if (!betaGroup?.id) return null;
+      const response = await fetch(`/internal/groups/${betaGroup.id}`, {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch group details');
+      return response.json();
+    },
+    enabled: !!betaGroup?.id,
+  });
+
+  const createBetaGroupMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/internal/groups', {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: BETA_GROUP_NAME,
+          description: BETA_GROUP_DESCRIPTION,
+          accessControls: BETA_GROUP_ACCESS_CONTROLS,
+        }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Failed to create Beta group' }));
+        throw new Error(err.error);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/internal/groups'] });
+      toast({ title: 'Beta Group Created', description: 'Beta group with Pro-tier access has been created' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const addMemberMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      if (!betaGroup?.id) throw new Error('Beta group not found');
+      const response = await fetch(`/internal/groups/${betaGroup.id}/members`, {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Failed to add member' }));
+        throw new Error(err.error);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/internal/groups'] });
+      refetchMembers();
+      setSearchEmail('');
+      setSearchResults([]);
+      toast({ title: 'User Added', description: 'User added to Beta group successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      if (!betaGroup?.id) throw new Error('Beta group not found');
+      const response = await fetch(`/internal/groups/${betaGroup.id}/members/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Failed to remove member' }));
+        throw new Error(err.error);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/internal/groups'] });
+      refetchMembers();
+      toast({ title: 'User Removed', description: 'User removed from Beta group' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const handleSearch = async () => {
+    if (!searchEmail.trim()) return;
+    setIsSearching(true);
+    try {
+      const response = await fetch(`/internal/users?search=${encodeURIComponent(searchEmail)}&limit=10`, {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Search failed');
+      const data = await response.json();
+      setSearchResults(data.users || []);
+    } catch (error) {
+      toast({ title: 'Search Failed', description: 'Could not search for users', variant: 'destructive' });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const members = betaGroupDetails?.group?.members || [];
+  const memberIds = new Set(members.map((m: any) => m.id));
+
+  if (groupsLoading) {
+    return <p className="text-muted-foreground p-4">Loading...</p>;
+  }
+
+  if (!betaGroup) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Star className="w-5 h-5 text-yellow-500" />
+            Beta Users
+          </CardTitle>
+          <CardDescription>
+            The Beta group doesn't exist yet. Create it to start managing beta users.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="p-6 border-2 border-dashed rounded-lg text-center space-y-4">
+            <Star className="w-12 h-12 mx-auto text-yellow-500" />
+            <div>
+              <p className="font-medium mb-2">Create Beta Group</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                This will create a "Beta" group with Pro-tier subscription access for all members.
+              </p>
+            </div>
+            <Button
+              onClick={() => createBetaGroupMutation.mutate()}
+              disabled={createBetaGroupMutation.isPending}
+              data-testid="button-create-beta-group"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              {createBetaGroupMutation.isPending ? 'Creating...' : 'Create Beta Group'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Star className="w-5 h-5 text-yellow-500" />
+            Add Users to Beta
+          </CardTitle>
+          <CardDescription>
+            Search for users by email and add them to the Beta group
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by email..."
+                value={searchEmail}
+                onChange={(e) => setSearchEmail(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                className="pl-10"
+                data-testid="input-beta-user-search"
+              />
+            </div>
+            <Button onClick={handleSearch} disabled={isSearching} data-testid="button-search-beta-users">
+              {isSearching ? 'Searching...' : 'Search'}
+            </Button>
+          </div>
+
+          {searchResults.length > 0 && (
+            <div className="space-y-2 border rounded-lg p-4">
+              <p className="text-sm font-medium mb-2">Search Results</p>
+              {searchResults.map((user) => {
+                const isAlreadyMember = memberIds.has(user.id);
+                return (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50"
+                    data-testid={`search-result-${user.id}`}
+                  >
+                    <div>
+                      <p className="font-medium">{user.email || 'No email'}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {user.firstName} {user.lastName} • {user.subscriptionTier || 'free'}
+                      </p>
+                    </div>
+                    {isAlreadyMember ? (
+                      <Badge variant="secondary">Already in Beta</Badge>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => addMemberMutation.mutate(user.id)}
+                        disabled={addMemberMutation.isPending}
+                        data-testid={`button-add-to-beta-${user.id}`}
+                      >
+                        <UserPlus className="w-4 h-4 mr-1" />
+                        Add to Beta
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Beta Group Members ({members.length})
+          </CardTitle>
+          <CardDescription>
+            Users in the Beta group have Pro-tier access
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {membersLoading ? (
+            <p className="text-muted-foreground">Loading members...</p>
+          ) : members.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              No users in the Beta group yet. Use the search above to add users.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {members.map((member: any) => (
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50"
+                  data-testid={`beta-member-${member.id}`}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{member.email || 'No email'}</span>
+                      <Badge variant="default" className="bg-yellow-500/80 hover:bg-yellow-500">
+                        Beta
+                      </Badge>
+                      <Badge variant="outline">
+                        {member.subscriptionTier || 'free'} → Pro
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {member.firstName} {member.lastName}
+                      {member.addedAt && ` • Added ${new Date(member.addedAt).toLocaleDateString()}`}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => removeMemberMutation.mutate(member.id)}
+                    disabled={removeMemberMutation.isPending}
+                    data-testid={`button-remove-from-beta-${member.id}`}
+                  >
+                    <UserMinus className="w-4 h-4 mr-1" />
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function CSVImportTab({ authHeader }: { authHeader: string }) {
   const { toast } = useToast();
   const [csvContent, setCsvContent] = useState('');
@@ -1155,7 +1457,7 @@ export default function AdminCodes() {
         </div>
 
         <Tabs defaultValue="codes" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="codes" data-testid="tab-codes-management">
               <Key className="w-4 h-4 mr-2" />
               Codes
@@ -1163,6 +1465,10 @@ export default function AdminCodes() {
             <TabsTrigger value="users" data-testid="tab-users-management">
               <Users className="w-4 h-4 mr-2" />
               Users
+            </TabsTrigger>
+            <TabsTrigger value="beta" data-testid="tab-beta-users">
+              <Star className="w-4 h-4 mr-2 text-yellow-500" />
+              Beta
             </TabsTrigger>
             <TabsTrigger value="groups" data-testid="tab-groups-management">
               <FolderTree className="w-4 h-4 mr-2" />
@@ -1375,6 +1681,10 @@ export default function AdminCodes() {
 
           <TabsContent value="users" className="mt-6">
             <UsersTab authHeader={authHeader} />
+          </TabsContent>
+
+          <TabsContent value="beta" className="mt-6">
+            <BetaUsersTab authHeader={authHeader} />
           </TabsContent>
 
           <TabsContent value="groups" className="mt-6">

@@ -22,7 +22,7 @@ import {
 import { eq, desc } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
-import { requireCredits } from "./middleware/creditCheck";
+import { requireCredits, getUserGroupAccessControls } from "./middleware/creditCheck";
 import { creditService } from "./creditService";
 import { requireAdminAuth } from "./middleware/adminAuth";
 import { unlockCodes } from "@shared/schema";
@@ -47,10 +47,19 @@ function isAdminUser(email: string | undefined | null): boolean {
   return adminEmails.includes(email.toLowerCase());
 }
 
-// Check if user has cloud project access (Pro tier OR Admin)
-function hasCloudProjectAccess(user: { subscriptionTier?: string | null; email?: string | null } | undefined): boolean {
+// Check if user has cloud project access (Pro tier, Admin, or group-based override)
+async function hasCloudProjectAccess(user: { id?: string; subscriptionTier?: string | null; email?: string | null } | undefined): Promise<boolean> {
   if (!user) return false;
-  return user.subscriptionTier === 'pro' || isAdminUser(user.email);
+  if (user.subscriptionTier === 'pro' || isAdminUser(user.email)) return true;
+  
+  // Check group-based subscription tier override
+  if (user.id) {
+    const groupControls = await getUserGroupAccessControls(user.id);
+    if (groupControls.subscriptionTierOverride === 'pro') {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Workflow validation utility
@@ -575,7 +584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
 
-      if (!hasCloudProjectAccess(user)) {
+      if (!(await hasCloudProjectAccess(user))) {
         return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
       }
 
@@ -592,7 +601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
 
-      if (!hasCloudProjectAccess(user)) {
+      if (!(await hasCloudProjectAccess(user))) {
         return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
       }
 
@@ -643,7 +652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
 
-      if (!hasCloudProjectAccess(user)) {
+      if (!(await hasCloudProjectAccess(user))) {
         return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
       }
 
@@ -704,7 +713,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
 
-      if (!hasCloudProjectAccess(user)) {
+      if (!(await hasCloudProjectAccess(user))) {
         return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
       }
 
