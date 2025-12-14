@@ -1,0 +1,175 @@
+KITEFRAME — PHASE 3.7 SOPHISTICATION IMPLEMENTATION BUNDLE
+=================================================
+
+PURPOSE
+-------
+This document defines the next-level sophistication upgrades for Kiteframe’s
+Workflow Builder + PRD Generator. These changes build on the existing system
+without destabilizing current functionality.
+
+This file is authoritative. Do not hallucinate beyond these instructions.
+
+-------------------------------------------------
+SECTION 1 — WORKFLOW INTENT METADATA (FOUNDATIONAL)
+-------------------------------------------------
+
+GOAL:
+Make every workflow explicitly intent-driven rather than implicitly inferred.
+
+DATA MODEL:
+Add to workflow metadata:
+
+interface WorkflowIntent {
+  primaryGoal: string
+  userType: string
+  successSignal: string
+  failureModes: string[]
+  confirmed: boolean
+  lastReviewedAt?: number
+}
+
+STORAGE:
+- Store intent keyed by projectId + workflowId
+- LocalStorage key:
+  kiteframe-workflow-intent-${projectId}-${workflowId}
+
+AI BEHAVIOR:
+- After workflow creation or major edits:
+  - KiteAI proposes intent object
+  - User must confirm or edit before workflow reaches “stable”
+
+UI:
+- Show Intent summary at top of Workflow PRD
+- Editable inline, Notion-style
+- Status badge: Draft / Reviewed / Stable
+
+-------------------------------------------------
+SECTION 2 — FAILURE-FIRST WORKFLOW REASONING
+-------------------------------------------------
+
+RULE:
+AI must reason about failure modes BEFORE happy paths.
+
+ENFORCEMENT:
+- If workflow has no failure path:
+  - AI emits warning
+  - Suggests at least one recovery node
+
+HEURISTICS:
+- Condition node with only one outgoing edge → warning
+- Terminal output with no error alternative → warning
+
+PRD IMPACT:
+Add new required PRD sections:
+- Failure Scenarios
+- Recovery & Fallback Paths
+- Operational Risks
+
+-------------------------------------------------
+SECTION 3 — REACTIVE PRD SECTIONS
+-------------------------------------------------
+
+GOAL:
+PRDs should update intelligently when workflows change.
+
+MECHANISM:
+- Add dependency map per PRD section:
+
+section.dependsOn = [
+  'decisions',
+  'failurePaths',
+  'entryPoints',
+  'outputs'
+]
+
+ON WORKFLOW CHANGE:
+- Recompute semantic hash per dependency group
+- Mark affected sections as “stale”
+- Preserve manually edited content
+
+UI:
+- Yellow “Needs Review” badge on affected sections
+- One-click regenerate per section
+
+-------------------------------------------------
+SECTION 4 — PROJECT-LEVEL CROSS-WORKFLOW REASONING
+-------------------------------------------------
+
+NEW MODEL:
+ProjectSemanticModel {
+  workflows: SemanticWorkflowModel[]
+  sharedEntities: string[]
+  assumptions: string[]
+}
+
+AI ANALYSIS TASKS:
+- Detect overlapping responsibilities
+- Detect missing dependencies
+- Detect contradictory assumptions
+
+OUTPUT:
+- Project-level insights panel
+- Insight types:
+  - Assumption
+  - Risk
+  - Conflict
+  - Opportunity
+
+-------------------------------------------------
+SECTION 5 — WORKFLOW MATURITY SYSTEM
+-------------------------------------------------
+
+STATES:
+- Draft
+- Reviewed
+- Stable
+
+RULES:
+- Draft: default
+- Reviewed: intent confirmed + ≥1 failure path
+- Stable: no stale PRD sections + user confirmation
+
+AI BEHAVIOR:
+- AI must not auto-execute on Draft workflows
+- Stable workflows allow fast actions
+
+-------------------------------------------------
+SECTION 6 — SOPHISTICATION VISIBILITY (UX)
+-------------------------------------------------
+
+ADD:
+- Confidence badges on PRD sections
+- Inline AI insight chips:
+  - Assumption
+  - Risk
+  - Question
+  - Suggestion
+
+CHIP BEHAVIOR:
+- Non-blocking
+- Click to expand explanation
+- Can be dismissed
+
+-------------------------------------------------
+SECTION 7 — NON-GOALS (DO NOT IMPLEMENT)
+-------------------------------------------------
+
+- No collaboration
+- No Jira/Linear export
+- No live multi-user sync
+- No new node types
+
+-------------------------------------------------
+SECTION 8 — ACCEPTANCE CRITERIA
+-------------------------------------------------
+
+A workflow is considered “sophisticated” when:
+- Intent is explicit and confirmed
+- At least one failure path exists
+- PRD reacts to workflow changes
+- AI explains risks and assumptions
+- User can trust the output without rework
+
+-------------------------------------------------
+END OF DOCUMENT
+-------------------------------------------------
