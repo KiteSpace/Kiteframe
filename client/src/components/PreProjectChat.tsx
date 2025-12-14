@@ -447,7 +447,9 @@ export function PreProjectChat({
                     }`}
                     data-testid={`message-${message.role}-${index}`}
                   >
-                    <div className="text-sm whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1">
+                    <div className={`text-sm whitespace-pre-wrap prose prose-sm max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1 ${
+                      message.role === 'user' ? 'prose-invert' : 'dark:prose-invert'
+                    }`}>
                       <ReactMarkdown
                         components={{
                           p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
