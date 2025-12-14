@@ -219,6 +219,7 @@ export function ProjectPanel({
         
         <TabsContent value="kite-ai" className="flex-1 m-0 overflow-hidden">
           <KiteAITab
+            key={projectId || 'default'}
             projectId={projectId || 'default'}
             nodes={nodes}
             edges={edges}
@@ -230,6 +231,7 @@ export function ProjectPanel({
         
         <TabsContent value="project" className="flex-1 m-0 overflow-hidden">
           <ProjectDocTab
+            key={projectId || 'default'}
             projectId={projectId}
             projectName={projectName}
             nodes={nodes}
@@ -240,7 +242,8 @@ export function ProjectPanel({
         </TabsContent>
         
         <TabsContent value="layers" className="flex-1 m-0 overflow-hidden">
-          <LayersTab 
+          <LayersTab
+            key={projectId || 'default'}
             nodes={nodes} 
             edges={edges} 
             frames={frames}
