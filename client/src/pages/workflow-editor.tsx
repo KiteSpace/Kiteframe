@@ -2431,8 +2431,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // History management with debouncing to prevent excessive saves
   const saveToHistoryTimeoutRef = useRef<NodeJS.Timeout>();
-  const saveToHistory = useCallback(() => {
+  const saveToHistory = useCallback((label?: string) => {
     if (!activeTab) return;
+    
+    // Debug logging for undo tracking
+    if (process.env.NODE_ENV === 'development' && label) {
+      console.log(`[UNDO] Snapshot saved: ${label}`);
+    }
     
     // Clear any existing timeout to debounce the save operation
     if (saveToHistoryTimeoutRef.current) {
@@ -2463,6 +2468,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           lastState.edges.length === currentEdges.length &&
           lastState.canvasObjects.length === currentCanvasObjects.length) {
         // Skip saving if nothing substantial has changed
+        if (process.env.NODE_ENV === 'development' && label) {
+          console.log(`[UNDO] Skipped duplicate: ${label}`);
+        }
         return;
       }
       
@@ -2480,12 +2488,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         history: trimmedHistory,
         historyIndex: newHistoryIndex
       });
+      
+      if (process.env.NODE_ENV === 'development' && label) {
+        console.log(`[UNDO] Committed: ${label} (index: ${newHistoryIndex})`);
+      }
     }, 200); // Debounce for 200ms to prevent excessive calls
   }, [activeTab, updateActiveTab, nodes, edges, canvasObjects, viewport]);
 
   // Quick-add functionality
   const handleQuickAdd = useCallback((sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => {
-    saveToHistory(); // Save current state before adding node
+    saveToHistory('Add node (quick-add)'); // Save current state before adding node
     
     const spacing = proFeaturesConfig.quickAdd?.defaultSpacing ?? 250;
     const nodeType = proFeaturesConfig.quickAdd?.defaultNodeType ?? 'process';
@@ -2563,7 +2575,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         : edge
     ));
     
-    saveToHistory();
+    saveToHistory('Reconnect edge');
   }, [setEdges, saveToHistory]);
 
   // Helper function to calculate offset position for appending workflows
@@ -2695,7 +2707,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     setEdges(prev => [...prev, ...offsetEdges]);
     
     // Save to history for undo/redo
-    saveToHistory();
+    saveToHistory('Add template');
     
     // Toast notification for template creation
     toast({
@@ -3006,31 +3018,41 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       // Delete key handler (Delete or Backspace)
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const selectedNodesList = nodes.filter(n => n.selected);
+        const selectedEdgesList = edges.filter(edge => edge.selected);
+        const hasSelectedObjects = selectedCanvasObjects.length > 0;
+        
+        // Track what was deleted for the label
+        const deletedItems: string[] = [];
+        
         if (selectedNodesList.length > 0) {
           e.preventDefault();
           setNodes(prev => prev.filter(n => !n.selected));
           setSelectedNodeId('');
           setLinearToolbar(null);
-          saveToHistory();
+          deletedItems.push(`${selectedNodesList.length} node(s)`);
         }
         
-        const selectedEdgesList = edges.filter(edge => edge.selected);
         if (selectedEdgesList.length > 0) {
           e.preventDefault();
           setEdges(prev => prev.filter(edge => !edge.selected));
           setSelectedEdgeId('');
           setLinearToolbar(null);
-          saveToHistory();
+          deletedItems.push(`${selectedEdgesList.length} edge(s)`);
         }
         
         // Delete selected canvas objects
-        if (selectedCanvasObjects.length > 0) {
+        if (hasSelectedObjects) {
           e.preventDefault();
           updateActiveTab({
             canvasObjects: canvasObjects.filter(obj => !obj.selected)
           });
           setLinearToolbar(null);
-          saveToHistory();
+          deletedItems.push(`${selectedCanvasObjects.length} object(s)`);
+        }
+        
+        // Single saveToHistory call for all deletions
+        if (deletedItems.length > 0) {
+          saveToHistory(`Delete ${deletedItems.join(', ')}`);
         }
         return;
       }
@@ -3445,7 +3467,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const handleAutoLayout = useCallback((eventData: string | { eventId: string; spacing: number }) => {
     if (nodes.length === 0) return;
     
-    saveToHistory();
+    const label = typeof eventData === 'string' ? eventData : eventData.eventId;
+    saveToHistory(`Auto layout: ${label}`);
     
     let eventName: string;
     let payload: any = undefined;
@@ -4007,7 +4030,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     // Add nodes to canvas
     setNodes(prev => [...prev, ...newNodes]);
     incrementTemplateUsage(template.id);
-    saveToHistory();
+    saveToHistory('Add nodes from template');
     
     toast({ 
       title: "Nodes Generated", 
