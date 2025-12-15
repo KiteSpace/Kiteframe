@@ -334,3 +334,43 @@ export const shareLinks = pgTable("share_links", {
 
 export type ShareLink = typeof shareLinks.$inferSelect;
 export type InsertShareLink = typeof shareLinks.$inferInsert;
+
+// AI feature types for usage tracking
+export const aiFeatureEnum = ['chat', 'workflow_generation', 'prd_generation', 'vision_analysis', 'image_upload', 'project_summary'] as const;
+export type AiFeature = typeof aiFeatureEnum[number];
+
+// AI model types
+export const aiModelEnum = ['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'] as const;
+export type AiModel = typeof aiModelEnum[number];
+
+// AI usage events for metrics tracking
+export const aiUsageEvents = pgTable("ai_usage_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  projectId: varchar("project_id"),
+  workflowId: varchar("workflow_id"),
+  feature: varchar("feature").notNull(), // chat, workflow_generation, prd_generation, vision_analysis, image_upload, project_summary
+  model: varchar("model").notNull(), // gpt-4o, gpt-4o-mini, etc.
+  promptTokens: integer("prompt_tokens").notNull().default(0),
+  completionTokens: integer("completion_tokens").notNull().default(0),
+  totalTokens: integer("total_tokens").notNull().default(0),
+  units: integer("units").notNull().default(0), // Base units (tokens / 500)
+  multiplier: integer("multiplier").notNull().default(100), // Stored as percentage (100 = 1.0x, 150 = 1.5x)
+  finalUnits: integer("final_units").notNull().default(0), // After multiplier
+  costEstimateUSD: integer("cost_estimate_usd").notNull().default(0), // Stored in microdollars (1 cent = 10000)
+  isVision: boolean("is_vision").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_ai_usage_user").on(table.userId),
+  index("IDX_ai_usage_created_at").on(table.createdAt),
+  index("IDX_ai_usage_feature").on(table.feature),
+  index("IDX_ai_usage_model").on(table.model),
+]);
+
+export const insertAiUsageEventSchema = createInsertSchema(aiUsageEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AiUsageEvent = typeof aiUsageEvents.$inferSelect;
+export type InsertAiUsageEvent = z.infer<typeof insertAiUsageEventSchema>;

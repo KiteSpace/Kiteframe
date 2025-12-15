@@ -32,6 +32,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter } from "./middleware/rateLimiter";
+import { logAiUsage, getUserUsageSummary, getUserUsageTimeSeries, getUserUsageEvents, type UsageLogParams } from "./aiUsageService";
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
 import { z } from "zod";
 import { registerFigmaRoutes } from "./figmaRoutes";
@@ -1315,6 +1316,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       analyticsService.trackAIRequest(userIdentifier, country, activeProvider).catch(console.error);
       
+      // Log AI usage metrics (for OpenAI responses with token counts)
+      const usage = json.usage;
+      if (usage && activeProvider === 'openai') {
+        const userId = (req as any).user?.claims?.sub || (req as any).user?.id;
+        logAiUsage({
+          userId: userId || undefined,
+          feature: 'chat',
+          model: model || 'gpt-4o',
+          promptTokens: usage.prompt_tokens || 0,
+          completionTokens: usage.completion_tokens || 0,
+        }).catch(console.error);
+      }
+      
       res.json({ text: responseText });
     } catch (error: any) {
       console.error('AI chat error:', error);
@@ -2512,6 +2526,20 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         nodeCount: analysisResult.nodes?.length || 0,
         edgeCount: analysisResult.edges?.length || 0
       });
+
+      // Log AI usage metrics for vision analysis
+      const visionUsage = aiResult.usage;
+      if (visionUsage) {
+        const userId = (req as any).user?.claims?.sub || (req as any).user?.id;
+        logAiUsage({
+          userId: userId || undefined,
+          feature: 'vision_analysis',
+          model: 'gpt-4o',
+          promptTokens: visionUsage.prompt_tokens || 0,
+          completionTokens: visionUsage.completion_tokens || 0,
+          isVision: true,
+        }).catch(console.error);
+      }
 
       res.json({
         success: true,
@@ -3859,6 +3887,147 @@ jane@example.com,Jane,Smith,pro,GroupC
       console.error('CSV template error:', error);
       res.status(500).json({ 
         error: 'Failed to generate CSV template',
+        details: error.message 
+      });
+    }
+  });
+
+  // =====================================
+  // AI Usage Metrics Endpoints
+  // =====================================
+
+  // Get usage summary for current user
+  app.get('/api/usage/summary', isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const userId = user?.claims?.sub || user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      // Parse optional date range from query params
+      const periodStart = req.query.periodStart 
+        ? new Date(req.query.periodStart as string) 
+        : undefined;
+      const periodEnd = req.query.periodEnd 
+        ? new Date(req.query.periodEnd as string) 
+        : undefined;
+
+      const summary = await getUserUsageSummary(userId, periodStart, periodEnd);
+      
+      res.json({
+        success: true,
+        summary,
+        isBeta: true,
+        isUnlimited: true,
+        message: 'Unlimited during Beta'
+      });
+    } catch (error: any) {
+      console.error('Usage summary error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch usage summary',
+        details: error.message 
+      });
+    }
+  });
+
+  // Get usage time series data for charts
+  app.get('/api/usage/timeseries', isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const userId = user?.claims?.sub || user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      const now = new Date();
+      const defaultStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      const periodStart = req.query.periodStart 
+        ? new Date(req.query.periodStart as string) 
+        : defaultStart;
+      const periodEnd = req.query.periodEnd 
+        ? new Date(req.query.periodEnd as string) 
+        : now;
+      
+      // Determine bucket size based on date range
+      const rangeMs = periodEnd.getTime() - periodStart.getTime();
+      const dayMs = 24 * 60 * 60 * 1000;
+      let bucket: 'hour' | 'day' | 'week' = 'day';
+      if (rangeMs < 2 * dayMs) {
+        bucket = 'hour';
+      } else if (rangeMs > 60 * dayMs) {
+        bucket = 'week';
+      }
+      
+      // Parse filter parameters
+      const features = req.query.features 
+        ? (req.query.features as string).split(',').filter(f => f) 
+        : undefined;
+      const models = req.query.models 
+        ? (req.query.models as string).split(',').filter(m => m) 
+        : undefined;
+      const visionOnly = req.query.visionOnly === 'true';
+
+      const timeSeries = await getUserUsageTimeSeries(
+        userId,
+        periodStart,
+        periodEnd,
+        bucket,
+        features,
+        models,
+        visionOnly
+      );
+      
+      res.json({
+        success: true,
+        bucket,
+        timeSeries
+      });
+    } catch (error: any) {
+      console.error('Usage timeseries error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch usage time series',
+        details: error.message 
+      });
+    }
+  });
+
+  // Get detailed usage events (paginated)
+  app.get('/api/usage/events', isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const userId = user?.claims?.sub || user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      const limit = Math.min(100, parseInt(req.query.limit as string) || 25);
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      const periodStart = req.query.periodStart 
+        ? new Date(req.query.periodStart as string) 
+        : undefined;
+      const periodEnd = req.query.periodEnd 
+        ? new Date(req.query.periodEnd as string) 
+        : undefined;
+
+      const result = await getUserUsageEvents(userId, limit, offset, periodStart, periodEnd);
+      
+      res.json({
+        success: true,
+        events: result.events,
+        total: result.total,
+        limit,
+        offset
+      });
+    } catch (error: any) {
+      console.error('Usage events error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch usage events',
         details: error.message 
       });
     }
