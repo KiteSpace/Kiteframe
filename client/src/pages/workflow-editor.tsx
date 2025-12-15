@@ -2766,7 +2766,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       setEdges(prev => [...prev, ...offsetEdges]);
       
       // Save to history after state updates
-      setTimeout(() => saveToHistory(), 0);
+      setTimeout(() => saveToHistory('Generate AI workflow'), 0);
       
       toast({
         title: "Workflow Added",
@@ -2901,7 +2901,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       }
       
       // Save to history after state updates
-      setTimeout(() => saveToHistory(), 0);
+      setTimeout(() => saveToHistory('Import workflow'), 0);
       
       toast({
         title: "Workflow Imported Successfully",
@@ -3162,7 +3162,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         // Deselect all other nodes first
         setNodes(prev => [...prev.map(n => ({ ...n, selected: false })), newNode]);
         setSelectedNodeId(newNode.id);
-        saveToHistory();
+        saveToHistory('Add node');
         
         toast({
           title: "Node Added",
@@ -3251,7 +3251,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         
         setNodes(prev => [...prev.map(n => ({ ...n, selected: false })), newNode]);
         setSelectedNodeId(newNode.id);
-        saveToHistory();
+        saveToHistory('Add node');
         
         toast({
           title: `${nodeLabels[e.key]} Node Added`,
@@ -3308,7 +3308,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           setNodes(prev => prev.map(n => 
             n.selected ? { ...n, position: { x: n.position.x + delta.x, y: n.position.y + delta.y } } : n
           ));
-          saveToHistory();
+          saveToHistory('Nudge node');
         }
         return;
       }
@@ -4202,7 +4202,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             };
             
             setEdges(prev => [...prev, newEdge]);
-            saveToHistory();
+            saveToHistory('Auto-connect edge');
           },
           // onEdgesChange callback
           (updatedEdges) => {
@@ -4298,7 +4298,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       setEdges(prev => [...prev, newEdge]);
       
       // Save to history
-      saveToHistory();
+      saveToHistory('Quick add node');
     };
 
     // Listen for quick-add events
@@ -4774,7 +4774,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   onCreateNode={(type: string) => {
                     // Handle creating canvas objects for text/sticky/shape types
                     if (['text', 'sticky', 'shape'].includes(type)) {
-                      saveToHistory();
+                      saveToHistory('Add canvas object');
                       
                       let newCanvasObject: CanvasObject;
                       
@@ -4884,7 +4884,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       };
 
                       setNodes(prev => [...prev, newNode]);
-                      saveToHistory();
+                      saveToHistory('Add node');
                       
                       toast({
                         title: "Node Added",
@@ -4896,7 +4896,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   onCreateNodeAtPosition={(type: string, position: { x: number; y: number }) => {
                     // Handle position-based creation from drag-and-drop for canvas objects
                     if (['text', 'sticky', 'shape'].includes(type)) {
-                      saveToHistory();
+                      saveToHistory('Add canvas object');
                       
                       let newCanvasObject: CanvasObject;
                       
@@ -5006,7 +5006,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       };
 
                       setNodes(prev => [...prev, newNode]);
-                      saveToHistory();
+                      saveToHistory('Add node');
                       
                       toast({
                         title: "Node Added",
@@ -5027,7 +5027,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       setNodes([]);
                       setEdges([]);
                       updateActiveTab({ canvasObjects: [] });
-                      saveToHistory();
+                      saveToHistory('Clear canvas');
                     }
                   }}
                   onExport={() => {
@@ -5130,7 +5130,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     // Apply theme to all edges using the enhanced helper function
                     setEdges(prev => prev.map(edge => applyThemeToEdge(edge, theme)));
                     
-                    saveToHistory();
+                    saveToHistory('Apply theme');
                   }}
                   activePopout={activePopout}
                   setActivePopout={setActivePopout}
@@ -5263,7 +5263,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     };
 
                     setNodes(prev => [...prev, newNode]);
-                    saveToHistory();
+                    saveToHistory('Add node');
                     
                     // Toast notification for node creation
                     toast({
@@ -5389,7 +5389,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     };
 
                     setNodes(prev => [...prev, newNode]);
-                    saveToHistory();
+                    saveToHistory('Add node');
                     
                     // Toast notification for node creation
                     toast({
@@ -5407,7 +5407,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   viewport={viewport}
                   isToolbarExpanded={isToolbarExpanded}
                   onCreateShape={(shapeType: string) => {
-                    saveToHistory();
+                    saveToHistory('Add shape');
                     
                     // Build shape data with polygon-specific initialization if needed
                     const shapeData = {
@@ -5442,7 +5442,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     });
                   }}
                   onCreateShapeAtPosition={(shapeType: string, position: { x: number; y: number }) => {
-                    saveToHistory();
+                    saveToHistory('Add shape');
                     
                     // Build shape data with polygon-specific initialization if needed
                     const shapeData = {
@@ -5586,14 +5586,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     };
 
                     setNodes([newNode]);
-                    saveToHistory();
+                    saveToHistory('Add node');
                   }, 0);
                   return;
                 }
 
                 // For types like 'text', 'sticky', 'shape', create canvas objects instead of nodes
                 if (['text', 'sticky', 'shape'].includes(type)) {
-                  saveToHistory(); // Save current state before adding canvas object
+                  saveToHistory('Add canvas object'); // Save current state before adding canvas object
                   
                   let newCanvasObject: CanvasObject;
                   
@@ -5650,7 +5650,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }
 
                 // Normal case - add to existing tab (for input, process, condition, output, ai, image, table, form, compound)
-                saveToHistory(); // Save current state before adding node
+                saveToHistory('Add node'); // Save current state before adding node
                 const icons = {
                   input: { icon: 'ArrowRight', color: 'text-blue-500' },
                   process: { icon: 'Cog', color: 'text-green-500' },
@@ -5769,7 +5769,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 
                 // For canvas objects (text, sticky, shape)
                 if (['text', 'sticky', 'shape'].includes(type)) {
-                  saveToHistory();
+                  saveToHistory('Add canvas object');
                   
                   let newCanvasObject: CanvasObject;
                   
@@ -5825,7 +5825,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }
 
                 // For regular nodes (input, process, condition, output, ai, image, table, form, compound)
-                saveToHistory();
+                saveToHistory('Add node');
                 
                 const icons = {
                   input: { icon: 'ArrowRight', color: 'text-blue-500' },
@@ -5986,7 +5986,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setViewport({ x, y, zoom });
               }}
               onClearCanvas={() => {
-                saveToHistory();
+                saveToHistory('Clear canvas');
                 setNodes([]);
                 setEdges([]);
                 setSelectedNodeId('');
@@ -6066,7 +6066,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }}
               onNodeUpdate={(nodeId: string, updates: Partial<Node>) => {
                 setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, ...updates } : n));
-                saveToHistory();
+                saveToHistory('Update node');
               }}
               onBulkNodeUpdate={(nodeIds: string[], updates: Partial<Node>) => {
                 setNodes(prev => prev.map(n => 
@@ -6078,11 +6078,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       } 
                     : n
                 ));
-                saveToHistory();
+                saveToHistory('Update nodes');
               }}
               onEdgeUpdate={(edgeId: string, updates: Partial<Edge>) => {
                 setEdges(prev => prev.map(e => e.id === edgeId ? { ...e, ...updates } : e));
-                saveToHistory();
+                saveToHistory('Update edge');
               }}
               onDeselectNode={() => {
                 setSelectedNodeId('');
@@ -6112,7 +6112,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     : obj
                 );
                 updateActiveTab({ canvasObjects: updatedObjects });
-                saveToHistory();
+                saveToHistory('Update canvas object');
               }}
               onDeselectCanvasObjects={() => {
                 const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
@@ -6149,7 +6149,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         }
                       : n
                   ));
-                  saveToHistory();
+                  saveToHistory('Upload image');
                 };
                 img.src = objectPath;
               }}
@@ -6183,7 +6183,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         }
                       : n
                   ));
-                  saveToHistory();
+                  saveToHistory('Set image URL');
                 };
                 img.src = url;
               }}
@@ -6207,12 +6207,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 // Apply theme to all edges using the enhanced helper function
                 setEdges(prev => prev.map(edge => applyThemeToEdge(edge, theme)));
 
-                saveToHistory();
+                saveToHistory('Apply theme');
               }}
               copiedProperties={copiedProperties}
               onApplyToWorkflow={(colors) => {
                 // Apply colors to all nodes in the current workflow
-                saveToHistory();
+                saveToHistory('Apply colors to workflow');
                 setNodes(prev => prev.map(node => ({
                   ...node,
                   data: {
@@ -6334,7 +6334,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 };
                 
                 setNodes(prev => [...prev, newNode]);
-                saveToHistory();
+                saveToHistory('Create from template');
               }}
               onDeleteSavedTemplate={deleteTemplate}
               onRenameSavedTemplate={(templateId: string, newName: string) => {
@@ -6366,7 +6366,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 onViewportChange={setViewport}
                 onCanvasObjectsChange={(newCanvasObjects) => {
                   updateActiveTab({ canvasObjects: newCanvasObjects });
-                  saveToHistory();
+                  saveToHistory('Update canvas objects');
                 }}
               proFeatures={proFeaturesConfig}
               onQuickAdd={handleQuickAdd}
@@ -6446,7 +6446,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       
                       // Only save to history for position changes (structural changes)
                       if (positionChanges.length > 0) {
-                        saveToHistory();
+                        saveToHistory('Move node');
                       }
                     }
 
@@ -6459,7 +6459,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         });
                         
                         // Save to history after each node removal
-                        setTimeout(() => saveToHistory(), 10 * (index + 1));
+                        setTimeout(() => saveToHistory('Delete node'), 10 * (index + 1));
                       });
                     }
 
@@ -6472,7 +6472,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         });
                         return newNodes;
                       });
-                      saveToHistory();
+                      saveToHistory('Update node');
                     }
                   }
                 }
@@ -6506,7 +6506,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     });
                     
                     // Save to history after each edge removal
-                    setTimeout(() => saveToHistory(), 10 * (index + 1)); // Stagger the saves slightly
+                    setTimeout(() => saveToHistory('Delete edge'), 10 * (index + 1)); // Stagger the saves slightly
                   });
                 }
 
@@ -6519,7 +6519,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     });
                     return newEdges;
                   });
-                  saveToHistory();
+                  saveToHistory('Update edge');
                 }
               }}
               onConnect={(connection) => {
@@ -6654,7 +6654,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   });
                 }
                 
-                saveToHistory();
+                saveToHistory('Add edge');
               }}
               onNodeClick={(e: React.MouseEvent, node: Node) => {
                 // Clear any existing click delay timer
@@ -7027,7 +7027,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }));
                 setInlineEditing(null);
                 setSelectedText('');
-                saveToHistory();
+                saveToHistory('Edit node text');
               }}
               onInlineEditingCancel={() => {
                 setInlineEditing(null);
@@ -7054,7 +7054,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }
               }}
               onHyperlinkDelete={(nodeId, hyperlinkId) => {
-                saveToHistory();
+                saveToHistory('Delete hyperlink');
                 setNodes(prev => prev.map(n => {
                   if (n.id !== nodeId) return n;
                   
@@ -7221,7 +7221,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   setEdges(prev => [...prev, newEdge]);
                 }
                 
-                saveToHistory();
+                saveToHistory('Create form from table row');
                 
                 toast({
                   title: "Form Created",
@@ -7277,7 +7277,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }
                   return n;
                 }));
-                saveToHistory();
+                saveToHistory('Unlink form from table');
                 toast({
                   title: "Table Unlinked",
                   description: "Form is no longer linked to a table.",
@@ -7385,10 +7385,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }
                   return n;
                 }));
-                saveToHistory();
+                saveToHistory('Change node status');
               }}
               onApplyTheme={(flowId, theme) => {
-                saveToHistory();
+                saveToHistory('Apply workflow theme');
                 setNodes(prev => prev.map(n => {
                   // Check if this node belongs to the flow
                   const flows = FlowDetection.detectFlows(prev, edges);
@@ -7414,7 +7414,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }));
               }}
               onDeleteWorkflow={(flowId, nodeIds) => {
-                saveToHistory();
+                saveToHistory('Delete workflow');
                 // Remove all nodes in the workflow
                 setNodes(prev => prev.filter(n => !nodeIds.includes(n.id)));
                 // Edges connected to deleted nodes are automatically cleaned up
@@ -7425,7 +7425,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onDragWorkflow={(flowId, nodeIds, deltaX, deltaY, isDragStart) => {
                 // Save to history only at drag start to create single undo entry
                 if (isDragStart) {
-                  saveToHistory();
+                  saveToHistory('Drag workflow');
                 }
                 setNodes(prev => prev.map(n => {
                   if (nodeIds.includes(n.id)) {
@@ -7462,7 +7462,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 if (workflowNodeData.length === 0) return;
                 
                 // Save to history only after validation
-                saveToHistory();
+                saveToHistory('Apply layout');
                 
                 // Calculate the workflow's current bounding box to preserve position
                 const minX = Math.min(...workflowNodeData.map(n => n.x));
@@ -7719,7 +7719,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   updateActiveTab({ canvasObjects: [...canvasObjects, ...offsetObjects] });
                 }
                 
-                setTimeout(() => saveToHistory(), 0);
+                setTimeout(() => saveToHistory('Apply workflow'), 0);
                 
                 toast({
                   title: "Workflow Applied",
@@ -7799,7 +7799,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 setEdges(prev => [...prev, ...offsetEdges]);
                 
                 // Save to history after state updates
-                setTimeout(() => saveToHistory(), 0);
+                setTimeout(() => saveToHistory('Generate AI workflow'), 0);
                 
                 toast({
                   title: "Workflow Generated",
@@ -7928,7 +7928,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 // Clear selections and save to history
                 setSelectedNodeId('');
                 setSelectedEdgeId('');
-                saveToHistory();
+                saveToHistory('Import workflow');
                 
               } catch (error) {
                 console.error('Import failed:', error);
@@ -7938,7 +7938,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   variant: "destructive"
                 });
               }
-              saveToHistory();
+              saveToHistory('Import workflow');
               setShowImportModal(false);
             }}
           />
@@ -8017,7 +8017,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           }
                           return n;
                         }));
-                        saveToHistory();
+                        saveToHistory('Link form to table');
                         setTableLinkPicker(null);
                         toast({
                           title: "Table Linked",
@@ -8163,7 +8163,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             } else {
               console.log('[WorkflowEditor] Inserting into existing project with', framesWithThumbnails.length, 'frames');
-              saveToHistory();
+              saveToHistory('Import Figma frames');
               const newNodes = insertFigmaFrames(nodes, framesWithThumbnails, 50, figmaInfo?.fileKey, { importMode });
               importedNodeIds = newNodes.map(n => n.id);
               console.log('[WorkflowEditor] Created new nodes:', newNodes.length);
@@ -8215,7 +8215,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 return;
               }
 
-              saveToHistory();
+              saveToHistory('Generate workflow from Figma');
               
               let generatedNodes: Node[] = [];
               let generatedEdges: Edge[] = [];
@@ -8353,7 +8353,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               };
               
               setNodes(prev => [...prev, newNode]);
-              saveToHistory();
+              saveToHistory('Create node from table row');
               
               toast({
                 title: "Data Node Created",
@@ -8415,7 +8415,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onPasteProperties={(contextMenu.node && copiedProperties) || (contextMenu.canvasObject && copiedCanvasObjectProperties) ? () => {
               if (contextMenu.node && copiedProperties) {
-                saveToHistory();
+                saveToHistory('Paste node properties');
                 updateActiveTab({
                   nodes: nodes.map(n => 
                     n.id === contextMenu.node!.id 
@@ -8432,7 +8432,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 });
                 setContextMenu(null);
               } else if (contextMenu.canvasObject && copiedCanvasObjectProperties) {
-                saveToHistory();
+                saveToHistory('Paste canvas object properties');
                 const updatedObjects = canvasObjects.map(obj => 
                   obj.id === contextMenu.canvasObject!.id 
                     ? {
@@ -8456,7 +8456,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onBringToFront={() => {
               if (contextMenu.node) {
                 const maxZIndex = Math.max(...nodes.map(n => n.zIndex || 0));
-                saveToHistory();
+                saveToHistory('Bring node to front');
                 const updatedNodes = nodes.map(n => 
                   n.id === contextMenu.node!.id 
                     ? { ...n, zIndex: maxZIndex + 1 }
@@ -8470,7 +8470,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 });
               } else if (contextMenu.canvasObject) {
                 const maxZIndex = Math.max(...canvasObjects.map(obj => obj.zIndex || 0));
-                saveToHistory();
+                saveToHistory('Bring canvas object to front');
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => 
                     obj.id === contextMenu.canvasObject!.id 
@@ -8484,7 +8484,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onBringForward={() => {
               if (contextMenu.node) {
                 const currentZIndex = contextMenu.node.zIndex || 0;
-                saveToHistory();
+                saveToHistory('Bring node forward');
                 const updatedNodes = nodes.map(n => 
                   n.id === contextMenu.node!.id 
                     ? { ...n, zIndex: currentZIndex + 1 }
@@ -8498,7 +8498,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 });
               } else if (contextMenu.canvasObject) {
                 const currentZIndex = contextMenu.canvasObject.zIndex || 0;
-                saveToHistory();
+                saveToHistory('Bring canvas object forward');
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => 
                     obj.id === contextMenu.canvasObject!.id 
@@ -8512,7 +8512,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onSendBackward={() => {
               if (contextMenu.node) {
                 const currentZIndex = contextMenu.node.zIndex || 0;
-                saveToHistory();
+                saveToHistory('Send node backward');
                 const updatedNodes = nodes.map(n => 
                   n.id === contextMenu.node!.id 
                     ? { ...n, zIndex: Math.max(0, currentZIndex - 1) }
@@ -8526,7 +8526,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 });
               } else if (contextMenu.canvasObject) {
                 const currentZIndex = contextMenu.canvasObject.zIndex || 0;
-                saveToHistory();
+                saveToHistory('Send canvas object backward');
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => 
                     obj.id === contextMenu.canvasObject!.id 
@@ -8539,7 +8539,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onSendToBack={() => {
               if (contextMenu.node) {
-                saveToHistory();
+                saveToHistory('Send node to back');
                 const updatedNodes = nodes.map(n => 
                   n.id === contextMenu.node!.id 
                     ? { ...n, zIndex: 0 }
@@ -8552,7 +8552,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   edges: updatedEdges
                 });
               } else if (contextMenu.canvasObject) {
-                saveToHistory();
+                saveToHistory('Send canvas object to back');
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => 
                     obj.id === contextMenu.canvasObject!.id 
@@ -8565,13 +8565,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onDelete={() => {
               if (contextMenu.node) {
-                saveToHistory();
+                saveToHistory('Delete node');
                 setNodes(prev => prev.filter(n => n.id !== contextMenu.node!.id));
                 setEdges(prev => prev.filter(e => e.source !== contextMenu.node!.id && e.target !== contextMenu.node!.id));
                 setLinearToolbar(null);
                 setContextMenu(null);
               } else if (contextMenu.canvasObject) {
-                saveToHistory();
+                saveToHistory('Delete canvas object');
                 const updatedObjects = canvasObjects.filter(obj => obj.id !== contextMenu.canvasObject!.id);
                 updateActiveTab({ canvasObjects: updatedObjects });
                 setLinearToolbar(null);
@@ -8589,7 +8589,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }
                 };
                 setNodes(prev => [...prev, newNode]);
-                saveToHistory();
+                saveToHistory('Duplicate node');
                 setContextMenu(null);
               } else if (contextMenu.canvasObject) {
                 const newObject = {
@@ -8603,7 +8603,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 };
                 const updatedObjects = [...canvasObjects, newObject];
                 updateActiveTab({ canvasObjects: updatedObjects });
-                saveToHistory();
+                saveToHistory('Duplicate canvas object');
                 setContextMenu(null);
               }
             }}
@@ -8631,7 +8631,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               const node = nodes.find(n => n.id === nodeId);
               if (node) {
                 const isNowReference = !node.data?.isReferenceFrame;
-                saveToHistory();
+                saveToHistory('Toggle reference frame');
                 updateActiveTab({
                   nodes: nodes.map(n => 
                     n.id === nodeId 
@@ -8696,7 +8696,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onColorChange={(colors) => {
               if (linearToolbar.node) {
-                saveToHistory();
+                saveToHistory('Change node color');
                 setNodes(prev => prev.map(n => 
                   n.id === linearToolbar.node!.id 
                     ? { ...n, data: { ...n.data, colors: { ...n.data?.colors, ...colors } } }
@@ -8706,7 +8706,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onEdgeColorChange={(color) => {
               if (linearToolbar.edge) {
-                saveToHistory();
+                saveToHistory('Change edge color');
                 setEdges(prev => prev.map(e => 
                   e.id === linearToolbar.edge!.id 
                     ? { ...e, style: { ...e.style, strokeColor: color, stroke: color } }
@@ -8722,7 +8722,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onStyleChange={(style) => {
               if (linearToolbar.node) {
-                saveToHistory();
+                saveToHistory('Change node style');
                 setNodes(prev => prev.map(n => 
                   n.id === linearToolbar.node!.id 
                     ? { 
@@ -8737,7 +8737,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     : n
                 ));
               } else if (linearToolbar.edge) {
-                saveToHistory();
+                saveToHistory('Change edge style');
                 setEdges(prev => prev.map(e => 
                   e.id === linearToolbar.edge!.id 
                     ? { ...e, style: { ...e.style, strokeWidth: style.strokeWidth } }
@@ -8747,7 +8747,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onTextStyleChange={(style, part) => {
               if (linearToolbar.node) {
-                saveToHistory();
+                saveToHistory('Change text style');
                 setNodes(prev => prev.map(n => {
                   if (n.id !== linearToolbar.node!.id) return n;
                   
@@ -8785,7 +8785,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onIconSelect={(iconData) => {
               if (linearToolbar.node) {
-                saveToHistory();
+                saveToHistory('Change node icon');
                 setNodes(prev => prev.map(n => 
                   n.id === linearToolbar.node!.id 
                     ? { 
@@ -8806,7 +8806,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onAddHyperlink={(hyperlink) => {
               const { id, text: linkText, url, showPreview, metadata } = hyperlink;
               if (linearToolbar.node) {
-                saveToHistory();
+                saveToHistory('Add hyperlink');
                 setNodes(prev => prev.map(n => {
                   if (n.id !== linearToolbar.node!.id) return n;
                   
@@ -8883,7 +8883,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onDeleteHyperlink={(hyperlinkId) => {
               if (linearToolbar.node) {
-                saveToHistory();
+                saveToHistory('Delete hyperlink');
                 setNodes(prev => prev.map(n => {
                   if (n.id !== linearToolbar.node!.id) return n;
                   
@@ -8927,7 +8927,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onEdgeStyleChange={(style) => {
               if (linearToolbar.edge) {
-                saveToHistory();
+                saveToHistory('Change edge style');
                 setEdges(prev => prev.map(e => {
                   if (e.id !== linearToolbar.edge!.id) return e;
                   
@@ -8980,7 +8980,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onEdgeDirectionSwap={() => {
               if (linearToolbar.edge) {
-                saveToHistory();
+                saveToHistory('Swap edge direction');
                 setEdges(prev => prev.map(e => {
                   if (e.id !== linearToolbar.edge!.id) return e;
                   // Swap source and target
@@ -9002,7 +9002,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 const deletedNode = linearToolbar.node;
                 const connectedEdges = edges.filter(e => e.source === nodeId || e.target === nodeId);
                 
-                saveToHistory();
+                saveToHistory('Delete node');
                 setNodes(prev => prev.filter(n => n.id !== nodeId));
                 setEdges(prev => prev.filter(e => e.source !== nodeId && e.target !== nodeId));
                 
@@ -9025,7 +9025,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 const edgeId = linearToolbar.edge.id;
                 const deletedEdge = linearToolbar.edge;
                 
-                saveToHistory();
+                saveToHistory('Delete edge');
                 setEdges(prev => prev.filter(e => e.id !== edgeId));
                 
                 toast({
@@ -9048,7 +9048,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 const deletedObj = linearToolbar.canvasObject;
                 const typeName = objType === 'sticky' ? 'Sticky note' : objType === 'text' ? 'Text' : 'Shape';
                 
-                saveToHistory();
+                saveToHistory('Delete canvas object');
                 updateActiveTab({
                   canvasObjects: canvasObjects.filter(obj => obj.id !== objId)
                 });
@@ -9078,7 +9078,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 const sourceNodeId = linearToolbar.edge.source;
                 const targetNodeId = linearToolbar.edge.target;
                 
-                saveToHistory();
+                saveToHistory('Break data link');
                 
                 // Delete the edge
                 setEdges(prev => prev.filter(e => e.id !== edgeId));
@@ -9140,7 +9140,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   const { nodes: generatedNodes, edges: generatedEdges, workflowName } = result;
                   
                   if (generatedNodes.length > 0) {
-                    saveToHistory();
+                    saveToHistory('Generate workflow from Figma');
                     setNodes(prev => [...prev, ...generatedNodes]);
                     if (generatedEdges.length > 0) {
                       setEdges(prev => [...prev, ...generatedEdges]);
@@ -9171,7 +9171,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onCanvasObjectColorChange={(color) => {
               if (linearToolbar.canvasObject) {
-                saveToHistory();
+                saveToHistory('Change canvas object color');
                 const objType = linearToolbar.canvasObject.type;
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => {
@@ -9201,7 +9201,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onCanvasObjectStyleChange={(style) => {
               if (linearToolbar.canvasObject) {
-                saveToHistory();
+                saveToHistory('Change canvas object style');
                 const objType = linearToolbar.canvasObject.type;
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => {
@@ -9233,7 +9233,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onCanvasObjectTextStyleChange={(style) => {
               if (linearToolbar.canvasObject) {
-                saveToHistory();
+                saveToHistory('Change canvas object text style');
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => {
                     if (obj.id !== linearToolbar.canvasObject!.id) return obj;
@@ -9291,7 +9291,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onCanvasObjectFillStyleChange={(fillStyle) => {
               if (linearToolbar.canvasObject && linearToolbar.canvasObject.type === 'shape') {
-                saveToHistory();
+                saveToHistory('Change shape fill style');
                 const fillOpacity = fillStyle === 'solid' ? 0.5 : fillStyle === 'transparent' ? 0.3 : 0;
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => {
@@ -9310,7 +9310,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }}
             onShapeTypeChange={(shapeType) => {
               if (linearToolbar.canvasObject && linearToolbar.canvasObject.type === 'shape') {
-                saveToHistory();
+                saveToHistory('Change shape type');
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => {
                     if (obj.id !== linearToolbar.canvasObject!.id) return obj;
@@ -9354,7 +9354,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             initialSubmenu={linearToolbar.initialSubmenu}
             onTextObjectHyperlinkChange={(hyperlink) => {
               if (linearToolbar.canvasObject && linearToolbar.canvasObject.type === 'text') {
-                saveToHistory();
+                saveToHistory('Change text object hyperlink');
                 updateActiveTab({
                   canvasObjects: canvasObjects.map(obj => {
                     if (obj.id !== linearToolbar.canvasObject!.id) return obj;
@@ -9397,7 +9397,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               };
               setNodes(prev => [...prev.map(n => ({ ...n, selected: false })), newNode]);
               setSelectedNodeId(newNode.id);
-              saveToHistory();
+              saveToHistory('Add node');
               toast({
                 title: "Node Added",
                 description: "Double-click to edit the label",
@@ -9425,7 +9425,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               };
               const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
               updateActiveTab({ canvasObjects: [...updatedObjects, newTextObject] });
-              saveToHistory();
+              saveToHistory('Add text object');
               toast({
                 title: "Text Object Added",
                 description: "Double-click to edit the text",
@@ -9468,7 +9468,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               };
               const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
               updateActiveTab({ canvasObjects: [...updatedObjects, newShapeObject] });
-              saveToHistory();
+              saveToHistory('Add shape');
               toast({
                 title: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} Added`,
                 description: shapeType === 'polygon' ? "Click to add points, double-click to close" : "Click to select and style",
@@ -9497,7 +9497,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               };
               const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
               updateActiveTab({ canvasObjects: [...updatedObjects, newStickyObject] });
-              saveToHistory();
+              saveToHistory('Add sticky note');
               toast({
                 title: "Sticky Note Added",
                 description: "Double-click to edit",
@@ -9518,7 +9518,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             metadata: activeTab?.metadata,
           }}
           onLoadProject={(workflowData) => {
-            saveToHistory();
+            saveToHistory('Load project');
             const newTab: WorkflowTab = {
               id: `tab-${Date.now()}`,
               name: workflowData.metadata?.name || 'Loaded Project',
