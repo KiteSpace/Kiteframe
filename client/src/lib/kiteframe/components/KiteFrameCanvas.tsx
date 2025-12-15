@@ -3600,15 +3600,6 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 onResetStatuses={(flowId) => {
                   props.onResetFlowStatuses?.(flowId);
                 }}
-                onSelectAll={(flowId) => {
-                  const nodeIds = flow.nodes.map(n => n.id);
-                  // Also select all edges that connect nodes within this flow
-                  const edgeIds = props.edges
-                    ?.filter(e => nodeIds.includes(e.source) && nodeIds.includes(e.target))
-                    .map(e => e.id) || [];
-                  // Pass selected nodes and edges together
-                  props.onSelectionChange?.(nodeIds.concat(edgeIds));
-                }}
                 onThemeChange={(flowId) => {
                   props.onThemeChangeRequested?.(flowId, flow.nodes.map(n => n.id));
                 }}

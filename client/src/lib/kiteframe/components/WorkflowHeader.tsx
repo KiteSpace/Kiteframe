@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronDown, GripVertical, MousePointer2, Palette, Trash2 } from 'lucide-react';
+import { ChevronDown, GripVertical, Palette, Trash2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { FlowSettings, Flow } from '../utils/FlowDetection';
 import { useWorkflowNames } from '../../../stores/workflowNameStore';
@@ -58,7 +58,6 @@ interface WorkflowHeaderProps {
   scale: number;
   onSettingsChange: (flowId: string, settings: FlowSettings) => void;
   onResetStatuses: (flowId: string) => void;
-  onSelectAll?: (flowId: string) => void;
   onThemeChange?: (flowId: string) => void;
   onApplyTheme?: (flowId: string, theme: WorkflowTheme) => void;
   onDeleteWorkflow?: (flowId: string) => void;
@@ -74,7 +73,6 @@ export function WorkflowHeader({
   scale,
   onSettingsChange,
   onResetStatuses,
-  onSelectAll,
   onThemeChange,
   onApplyTheme,
   onDeleteWorkflow,
@@ -289,19 +287,6 @@ export function WorkflowHeader({
             )}
 
             <div className="border-t border-gray-200 dark:border-gray-600 my-2" />
-
-            <button
-              onClick={() => {
-                onSelectAll?.(flowId);
-                setIsOpen(false);
-              }}
-              disabled={readOnly}
-              className="flex items-center gap-2 w-full text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1.5 transition-colors disabled:opacity-50"
-              data-testid={`workflow-select-all-${flowId}`}
-            >
-              <MousePointer2 size={14} />
-              Select All
-            </button>
 
             <Popover open={showThemePopover} onOpenChange={setShowThemePopover}>
               <PopoverTrigger asChild>
