@@ -313,3 +313,175 @@ export async function getUserUsageEvents(
     total: Number(countResult[0]?.count || 0),
   };
 }
+
+// ============= SYSTEM-WIDE AGGREGATIONS (ADMIN) =============
+
+export async function getSystemUsageSummary(
+  periodStart?: Date,
+  periodEnd?: Date
+): Promise<UsageSummary> {
+  const now = new Date();
+  const defaultPeriodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  
+  const start = periodStart || defaultPeriodStart;
+  const end = periodEnd || now;
+
+  // Get all events
+  const allEvents = await db.select()
+    .from(aiUsageEvents)
+    .orderBy(aiUsageEvents.createdAt);
+
+  // Get events for period
+  const periodEvents = await db.select()
+    .from(aiUsageEvents)
+    .where(
+      and(
+        gte(aiUsageEvents.createdAt, start),
+        lte(aiUsageEvents.createdAt, end)
+      )
+    );
+
+  // Calculate totals
+  const totalUnits = allEvents.reduce((sum, e) => sum + (e.units || 0), 0);
+  const totalFinalUnits = allEvents.reduce((sum, e) => sum + (e.finalUnits || 0), 0);
+  const periodUnits = periodEvents.reduce((sum, e) => sum + (e.finalUnits || 0), 0);
+
+  // Calculate feature breakdown
+  const featureBreakdown: Record<string, number> = {};
+  for (const event of allEvents) {
+    featureBreakdown[event.feature] = (featureBreakdown[event.feature] || 0) + (event.finalUnits || 0);
+  }
+
+  // Calculate model breakdown
+  const modelBreakdown: Record<string, number> = {};
+  for (const event of allEvents) {
+    modelBreakdown[event.model] = (modelBreakdown[event.model] || 0) + (event.finalUnits || 0);
+  }
+
+  // Find top feature
+  let topFeature: string | null = null;
+  let maxUsage = 0;
+  for (const [feature, usage] of Object.entries(featureBreakdown)) {
+    if (usage > maxUsage) {
+      maxUsage = usage;
+      topFeature = feature;
+    }
+  }
+
+  // Calculate avg daily units
+  const daysSinceFirst = allEvents.length > 0
+    ? Math.max(1, Math.ceil((now.getTime() - new Date(allEvents[0].createdAt!).getTime()) / (24 * 60 * 60 * 1000)))
+    : 1;
+  const avgDailyUnits = Math.round(totalFinalUnits / daysSinceFirst);
+
+  return {
+    totalUnits,
+    totalFinalUnits,
+    periodUnits,
+    avgDailyUnits,
+    topFeature,
+    firstUsage: allEvents.length > 0 ? new Date(allEvents[0].createdAt!) : null,
+    lastUsage: allEvents.length > 0 ? new Date(allEvents[allEvents.length - 1].createdAt!) : null,
+    featureBreakdown,
+    modelBreakdown,
+  };
+}
+
+export async function getSystemUsageTimeSeries(
+  periodStart: Date,
+  periodEnd: Date,
+  bucket: 'hour' | 'day' | 'week' = 'day',
+  visionOnly: boolean = false
+): Promise<TimeSeriesPoint[]> {
+  const events = await db.select()
+    .from(aiUsageEvents)
+    .where(
+      and(
+        gte(aiUsageEvents.createdAt, periodStart),
+        lte(aiUsageEvents.createdAt, periodEnd)
+      )
+    )
+    .orderBy(aiUsageEvents.createdAt);
+
+  // Filter for vision if requested
+  const filtered = visionOnly ? events.filter(e => e.isVision) : events;
+
+  // Aggregate by bucket
+  const buckets = new Map<string, { units: number; breakdown: Record<string, number> }>();
+
+  for (const event of filtered) {
+    const date = new Date(event.createdAt!);
+    let key: string;
+
+    if (bucket === 'hour') {
+      key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}T${String(date.getHours()).padStart(2, '0')}:00`;
+    } else if (bucket === 'week') {
+      const weekStart = new Date(date);
+      weekStart.setDate(date.getDate() - date.getDay());
+      key = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+    } else {
+      key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    if (!buckets.has(key)) {
+      buckets.set(key, { units: 0, breakdown: {} });
+    }
+
+    const bucketData = buckets.get(key)!;
+    bucketData.units += event.finalUnits || 0;
+    bucketData.breakdown[event.feature] = (bucketData.breakdown[event.feature] || 0) + (event.finalUnits || 0);
+  }
+
+  return Array.from(buckets.entries())
+    .map(([timestamp, data]) => ({
+      timestamp,
+      units: data.units,
+      breakdown: data.breakdown,
+    }))
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+}
+
+export async function getSystemUsageEvents(
+  limit: number = 25,
+  offset: number = 0,
+  periodStart?: Date,
+  periodEnd?: Date
+): Promise<{ events: UsageEvent[]; total: number }> {
+  const conditions: any[] = [];
+  
+  if (periodStart) {
+    conditions.push(gte(aiUsageEvents.createdAt, periodStart));
+  }
+  if (periodEnd) {
+    conditions.push(lte(aiUsageEvents.createdAt, periodEnd));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const events = await db.select()
+    .from(aiUsageEvents)
+    .where(whereClause)
+    .orderBy(desc(aiUsageEvents.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  const countResult = await db.select({ count: sql<number>`count(*)` })
+    .from(aiUsageEvents)
+    .where(whereClause);
+
+  return {
+    events: events.map(e => ({
+      id: e.id,
+      feature: e.feature,
+      model: e.model,
+      units: e.finalUnits || 0,
+      projectId: e.projectId,
+      workflowId: e.workflowId,
+      createdAt: new Date(e.createdAt!),
+      promptTokens: e.promptTokens || undefined,
+      completionTokens: e.completionTokens || undefined,
+      isVision: e.isVision || undefined,
+    })),
+    total: Number(countResult[0]?.count || 0),
+  };
+}

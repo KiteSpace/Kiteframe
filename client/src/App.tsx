@@ -11,7 +11,6 @@ import KitelineDocs from "@/pages/kiteline-docs";
 import AdminCodes from "@/pages/AdminCodes";
 import Pricing from "@/pages/Pricing";
 import Account from "@/pages/Account";
-import Usage from "@/pages/Usage";
 import MockupCodeDataReference from "@/pages/mockup-code-data-reference";
 import ViewOnlyViewer from "@/pages/ViewOnlyViewer";
 import NotFound from "@/pages/not-found";
@@ -44,7 +43,6 @@ function Router() {
       <Route path="/docs" component={KitelineDocs} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/account" component={Account} />
-      <Route path="/account/usage" component={Usage} />
       <Route path="/checkout/success" component={Account} />
       <Route path="/internal/x9k7m2p4" component={AdminCodes} />
       <Route path="/mockup/code-data" component={MockupCodeDataReference} />

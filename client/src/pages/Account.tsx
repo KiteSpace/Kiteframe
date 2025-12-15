@@ -11,9 +11,7 @@ import {
   Loader2,
   ExternalLink,
   AlertTriangle,
-  BarChart3,
 } from 'lucide-react';
-import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -236,41 +234,6 @@ export default function Account() {
                   </>
                 )}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* AI Usage */}
-          <Card data-testid="card-ai-usage">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                AI Usage
-              </CardTitle>
-              <CardDescription>
-                Track your KiteAI usage across workflows and features
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950">
-                    <Sparkles className="h-5 w-5 text-blue-500" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Beta: Unlimited</h3>
-                    <p className="text-sm text-slate-500">AI usage is unlimited during Beta</p>
-                  </div>
-                </div>
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                  Beta
-                </Badge>
-              </div>
-              <Link href="/account/usage">
-                <Button variant="outline" className="w-full" data-testid="button-view-usage">
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  View Usage Dashboard
-                </Button>
-              </Link>
             </CardContent>
           </Card>
 

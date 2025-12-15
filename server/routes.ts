@@ -2861,6 +2861,114 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
     }
   });
 
+  // Admin Analytics: AI Usage Summary (all users)
+  app.get('/internal/analytics/ai-usage/summary', requireAdminAuth, async (req, res) => {
+    try {
+      const { getSystemUsageSummary } = await import('./aiUsageService');
+      
+      const periodStart = req.query.periodStart 
+        ? new Date(req.query.periodStart as string) 
+        : undefined;
+      const periodEnd = req.query.periodEnd 
+        ? new Date(req.query.periodEnd as string) 
+        : undefined;
+
+      const summary = await getSystemUsageSummary(periodStart, periodEnd);
+      
+      res.json({
+        success: true,
+        summary,
+      });
+    } catch (error: any) {
+      console.error('AI usage summary analytics error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch AI usage summary',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin Analytics: AI Usage Time Series (all users)
+  app.get('/internal/analytics/ai-usage/timeseries', requireAdminAuth, async (req, res) => {
+    try {
+      const { getSystemUsageTimeSeries } = await import('./aiUsageService');
+      
+      const now = new Date();
+      const defaultStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      const periodStart = req.query.periodStart 
+        ? new Date(req.query.periodStart as string) 
+        : defaultStart;
+      const periodEnd = req.query.periodEnd 
+        ? new Date(req.query.periodEnd as string) 
+        : now;
+      
+      // Determine bucket size based on date range
+      const rangeMs = periodEnd.getTime() - periodStart.getTime();
+      const dayMs = 24 * 60 * 60 * 1000;
+      let bucket: 'hour' | 'day' | 'week' = 'day';
+      if (rangeMs < 2 * dayMs) {
+        bucket = 'hour';
+      } else if (rangeMs > 60 * dayMs) {
+        bucket = 'week';
+      }
+      
+      const visionOnly = req.query.visionOnly === 'true';
+
+      const timeSeries = await getSystemUsageTimeSeries(
+        periodStart,
+        periodEnd,
+        bucket,
+        visionOnly
+      );
+      
+      res.json({
+        success: true,
+        bucket,
+        timeSeries
+      });
+    } catch (error: any) {
+      console.error('AI usage timeseries analytics error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch AI usage time series',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin Analytics: AI Usage Events (all users)
+  app.get('/internal/analytics/ai-usage/events', requireAdminAuth, async (req, res) => {
+    try {
+      const { getSystemUsageEvents } = await import('./aiUsageService');
+      
+      const limit = Math.min(100, parseInt(req.query.limit as string) || 25);
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      const periodStart = req.query.periodStart 
+        ? new Date(req.query.periodStart as string) 
+        : undefined;
+      const periodEnd = req.query.periodEnd 
+        ? new Date(req.query.periodEnd as string) 
+        : undefined;
+
+      const result = await getSystemUsageEvents(limit, offset, periodStart, periodEnd);
+      
+      res.json({
+        success: true,
+        events: result.events,
+        total: result.total,
+        limit,
+        offset
+      });
+    } catch (error: any) {
+      console.error('AI usage events analytics error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch AI usage events',
+        details: error.message 
+      });
+    }
+  });
+
   // ============= SAMPLE API FOR TABLE TESTING =============
   // Returns sample product data for testing table API integration
   app.get("/api/sample/products", (req, res) => {

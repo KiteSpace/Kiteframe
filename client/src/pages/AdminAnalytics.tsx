@@ -4,8 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, Activity, Globe, Key, TrendingUp } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertCircle, Activity, Globe, Key, TrendingUp, Zap, Bot, BarChart3, Info, Sparkles } from 'lucide-react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
@@ -37,8 +42,208 @@ interface CreditAlert {
   createdAt: string;
 }
 
+// AI Usage constants
+const FEATURE_LABELS: Record<string, string> = {
+  chat: "Chat",
+  workflow_generation: "Workflow Generation",
+  prd_generation: "PRD Generation",
+  vision_analysis: "Vision Analysis",
+  image_upload: "Image Upload",
+  project_summary: "Project Summary",
+};
+
+const FEATURE_COLORS: Record<string, string> = {
+  chat: "#3b82f6",
+  workflow_generation: "#22c55e",
+  prd_generation: "#f59e0b",
+  vision_analysis: "#8b5cf6",
+  image_upload: "#ec4899",
+  project_summary: "#14b8a6",
+};
+
+const MODEL_COLORS: Record<string, string> = {
+  "gpt-4o": "#10b981",
+  "gpt-4o-mini": "#6366f1",
+  "gpt-3.5-turbo": "#f97316",
+};
+
+type TimeRange = "24h" | "7d" | "30d" | "90d";
+
+function getDateRange(range: TimeRange): { start: Date; end: Date } {
+  const end = new Date();
+  const start = new Date();
+  switch (range) {
+    case "24h": start.setTime(end.getTime() - 24 * 60 * 60 * 1000); break;
+    case "7d": start.setTime(end.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+    case "30d": start.setTime(end.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+    case "90d": start.setTime(end.getTime() - 90 * 24 * 60 * 60 * 1000); break;
+  }
+  return { start, end };
+}
+
+function formatDate(timestamp: string, bucket: string): string {
+  const date = new Date(timestamp);
+  if (bucket === "hour") return date.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric" });
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function UsageStatCard({ title, value, subtext, icon: Icon, tooltip }: { title: string; value: string | number; subtext?: string; icon: any; tooltip?: string }) {
+  return (
+    <Card data-testid={`stat-card-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+          {title}
+          {tooltip && (
+            <Tooltip>
+              <TooltipTrigger><Info className="h-3 w-3 text-muted-foreground/60" /></TooltipTrigger>
+              <TooltipContent><p className="max-w-xs text-xs">{tooltip}</p></TooltipContent>
+            </Tooltip>
+          )}
+        </CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{typeof value === 'number' ? value.toLocaleString() : value}</div>
+        {subtext && <p className="text-xs text-muted-foreground mt-1">{subtext}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function UsageLineChart({ data, bucket, showBreakdown }: { data: any[]; bucket: string; showBreakdown: boolean }) {
+  if (showBreakdown) {
+    const features = Object.keys(FEATURE_COLORS);
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+          <XAxis dataKey="timestamp" tickFormatter={(v) => formatDate(v, bucket)} className="text-xs" />
+          <YAxis className="text-xs" />
+          <RechartsTooltip content={({ active, payload, label }) => {
+            if (active && payload && payload.length) {
+              return (
+                <div className="bg-popover border rounded-lg p-3 shadow-lg">
+                  <p className="font-medium mb-2">{formatDate(label, bucket)}</p>
+                  {payload.map((entry: any) => (
+                    <p key={entry.name} className="text-sm" style={{ color: entry.color }}>
+                      {FEATURE_LABELS[entry.name] || entry.name}: {entry.value} units
+                    </p>
+                  ))}
+                </div>
+              );
+            }
+            return null;
+          }} />
+          {features.map((feature) => (
+            <Bar key={feature} dataKey={`breakdown.${feature}`} stackId="a" fill={FEATURE_COLORS[feature]} name={feature} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis dataKey="timestamp" tickFormatter={(v) => formatDate(v, bucket)} className="text-xs" />
+        <YAxis className="text-xs" />
+        <RechartsTooltip content={({ active, payload, label }) => {
+          if (active && payload && payload.length) {
+            return (
+              <div className="bg-popover border rounded-lg p-3 shadow-lg">
+                <p className="font-medium">{formatDate(label, bucket)}</p>
+                <p className="text-sm text-primary">Total: {payload[0]?.value} units</p>
+              </div>
+            );
+          }
+          return null;
+        }} />
+        <Line type="monotone" dataKey="units" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+function FeatureBreakdownChart({ data }: { data: Record<string, number> }) {
+  const chartData = Object.entries(data).map(([name, value]) => ({ name, value, label: FEATURE_LABELS[name] || name })).filter(d => d.value > 0).sort((a, b) => b.value - a.value);
+  if (chartData.length === 0) return <p className="text-muted-foreground text-sm text-center py-8">No usage data</p>;
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={chartData} layout="vertical">
+        <XAxis type="number" className="text-xs" />
+        <YAxis type="category" dataKey="label" width={120} className="text-xs" />
+        <RechartsTooltip content={({ active, payload }) => {
+          if (active && payload && payload.length) return <div className="bg-popover border rounded-lg p-2 shadow-lg"><p className="text-sm">{payload[0]?.payload.label}: {payload[0]?.value} units</p></div>;
+          return null;
+        }} />
+        <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function ModelMixChart({ data }: { data: Record<string, number> }) {
+  const chartData = Object.entries(data).map(([name, value]) => ({ name, value })).filter(d => d.value > 0);
+  const total = chartData.reduce((sum, d) => sum + d.value, 0);
+  if (chartData.length === 0) return <p className="text-muted-foreground text-sm text-center py-8">No usage data</p>;
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <PieChart>
+        <Pie data={chartData} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={2} dataKey="value" nameKey="name" label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`} labelLine={false}>
+          {chartData.map((entry) => <Cell key={entry.name} fill={MODEL_COLORS[entry.name] || "#6b7280"} />)}
+        </Pie>
+        <RechartsTooltip content={({ active, payload }) => {
+          if (active && payload && payload.length) {
+            const pct = ((payload[0]?.value as number) / total * 100).toFixed(1);
+            return <div className="bg-popover border rounded-lg p-2 shadow-lg"><p className="text-sm">{payload[0]?.name}: {payload[0]?.value} units ({pct}%)</p></div>;
+          }
+          return null;
+        }} />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
+
+function UsageEventsTable({ events, isLoading }: { events: any[]; isLoading: boolean }) {
+  if (isLoading) return <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>;
+  if (events.length === 0) return <p className="text-muted-foreground text-sm text-center py-8">No usage events yet</p>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm" data-testid="usage-events-table">
+        <thead>
+          <tr className="border-b">
+            <th className="text-left py-3 px-2 font-medium text-muted-foreground">Date</th>
+            <th className="text-left py-3 px-2 font-medium text-muted-foreground">Feature</th>
+            <th className="text-left py-3 px-2 font-medium text-muted-foreground">Model</th>
+            <th className="text-right py-3 px-2 font-medium text-muted-foreground">Units</th>
+          </tr>
+        </thead>
+        <tbody>
+          {events.map((event: any) => (
+            <tr key={event.id} className="border-b last:border-0 hover:bg-muted/50">
+              <td className="py-3 px-2">{new Date(event.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</td>
+              <td className="py-3 px-2">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: `${FEATURE_COLORS[event.feature]}20`, color: FEATURE_COLORS[event.feature] }}>
+                  {FEATURE_LABELS[event.feature] || event.feature}
+                </span>
+              </td>
+              <td className="py-3 px-2 font-mono text-xs">{event.model}</td>
+              <td className="py-3 px-2 text-right font-medium">{event.units}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
   const [activeTab, setActiveTab] = useState('overview');
+  const [usageTimeRange, setUsageTimeRange] = useState<TimeRange>("30d");
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [visionOnly, setVisionOnly] = useState(false);
+
+  const { start: usageStart, end: usageEnd } = getDateRange(usageTimeRange);
 
   const { data: overviewData } = useQuery({
     queryKey: ['/internal/analytics/overview'],
@@ -92,6 +297,62 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
     refetchInterval: 30000,
   });
 
+  // AI Usage queries (internal admin endpoints)
+  const { data: usageSummaryData, isLoading: usageSummaryLoading } = useQuery({
+    queryKey: ['/internal/analytics/ai-usage/summary', usageTimeRange],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        periodStart: usageStart.toISOString(),
+        periodEnd: usageEnd.toISOString(),
+      });
+      const response = await fetch(`/internal/analytics/ai-usage/summary?${params}`, {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch usage summary');
+      return response.json();
+    },
+    refetchInterval: 30000,
+  });
+
+  const { data: usageTimeSeriesData, isLoading: usageTimeSeriesLoading } = useQuery({
+    queryKey: ['/internal/analytics/ai-usage/timeseries', usageTimeRange, visionOnly],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        periodStart: usageStart.toISOString(),
+        periodEnd: usageEnd.toISOString(),
+      });
+      if (visionOnly) params.set("visionOnly", "true");
+      const response = await fetch(`/internal/analytics/ai-usage/timeseries?${params}`, {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch usage time series');
+      return response.json();
+    },
+    refetchInterval: 30000,
+  });
+
+  const { data: usageEventsData, isLoading: usageEventsLoading } = useQuery({
+    queryKey: ['/internal/analytics/ai-usage/events', usageTimeRange],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        periodStart: usageStart.toISOString(),
+        periodEnd: usageEnd.toISOString(),
+        limit: "25",
+      });
+      const response = await fetch(`/internal/analytics/ai-usage/events?${params}`, {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch usage events');
+      return response.json();
+    },
+    refetchInterval: 30000,
+  });
+
+  const usageSummary = usageSummaryData?.summary;
+  const usageTimeSeries = usageTimeSeriesData?.timeSeries || [];
+  const usageBucket = usageTimeSeriesData?.bucket || "day";
+  const usageEvents = usageEventsData?.events || [];
+
   const getCountryColor = (countryCode: string) => {
     const activity = geoData?.find(d => d.country === countryCode);
     if (!activity) return '#E5E7EB';
@@ -124,10 +385,14 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview" data-testid="tab-overview">
               <TrendingUp className="w-4 h-4 mr-2" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="ai-usage" data-testid="tab-ai-usage">
+              <Zap className="w-4 h-4 mr-2" />
+              AI Usage
             </TabsTrigger>
             <TabsTrigger value="map" data-testid="tab-map">
               <Globe className="w-4 h-4 mr-2" />
@@ -214,6 +479,108 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="ai-usage" className="space-y-4">
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                <Sparkles className="h-4 w-4" />
+                <span className="font-medium">Beta: Tracking Only</span>
+              </div>
+              <p className="text-sm text-blue-600 dark:text-blue-300 mt-1">
+                AI usage is unlimited during Beta. These metrics are for monitoring and optimization purposes.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {usageSummaryLoading ? (
+                [...Array(4)].map((_, i) => (
+                  <Card key={i}>
+                    <CardHeader className="pb-2"><Skeleton className="h-4 w-24" /></CardHeader>
+                    <CardContent><Skeleton className="h-8 w-20" /><Skeleton className="h-3 w-16 mt-2" /></CardContent>
+                  </Card>
+                ))
+              ) : (
+                <>
+                  <UsageStatCard title="Total AI Units" value={usageSummary?.totalFinalUnits || 0} subtext="All users combined" icon={Zap} tooltip="1 unit ≈ normalized token cost" />
+                  <UsageStatCard title="Period Usage" value={usageSummary?.periodUnits || 0} subtext={`Last ${usageTimeRange === "24h" ? "24 hours" : usageTimeRange === "7d" ? "7 days" : usageTimeRange === "30d" ? "30 days" : "90 days"}`} icon={TrendingUp} />
+                  <UsageStatCard title="Avg / Day" value={usageSummary?.avgDailyUnits || 0} subtext="System-wide" icon={BarChart3} />
+                  <UsageStatCard title="Top Feature" value={usageSummary?.topFeature ? (FEATURE_LABELS[usageSummary.topFeature] || usageSummary.topFeature) : "—"} subtext={usageSummary?.topFeature ? "Most used" : "No usage yet"} icon={Bot} />
+                </>
+              )}
+            </div>
+
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <CardTitle>AI Usage Over Time</CardTitle>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <Select value={usageTimeRange} onValueChange={(v) => setUsageTimeRange(v as TimeRange)}>
+                      <SelectTrigger className="w-[140px]" data-testid="usage-time-range-select">
+                        <SelectValue placeholder="Time range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="24h">Last 24 hours</SelectItem>
+                        <SelectItem value="7d">Last 7 days</SelectItem>
+                        <SelectItem value="30d">Last 30 days</SelectItem>
+                        <SelectItem value="90d">Last 90 days</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="admin-breakdown" checked={showBreakdown} onCheckedChange={(v) => setShowBreakdown(v as boolean)} data-testid="admin-breakdown-checkbox" />
+                      <label htmlFor="admin-breakdown" className="text-sm cursor-pointer">Breakdown</label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="admin-vision" checked={visionOnly} onCheckedChange={(v) => setVisionOnly(v as boolean)} data-testid="admin-vision-checkbox" />
+                      <label htmlFor="admin-vision" className="text-sm cursor-pointer">Vision only</label>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {usageTimeSeriesLoading ? (
+                  <Skeleton className="h-[300px] w-full" />
+                ) : usageTimeSeries.length === 0 ? (
+                  <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                    No usage data yet.
+                  </div>
+                ) : (
+                  <UsageLineChart data={usageTimeSeries} bucket={usageBucket} showBreakdown={showBreakdown} />
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Usage by Feature</CardTitle>
+                  <CardDescription>Total units consumed per feature</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {usageSummaryLoading ? <Skeleton className="h-[200px] w-full" /> : <FeatureBreakdownChart data={usageSummary?.featureBreakdown || {}} />}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Model Usage Mix</CardTitle>
+                  <CardDescription>Distribution across AI models</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {usageSummaryLoading ? <Skeleton className="h-[200px] w-full" /> : <ModelMixChart data={usageSummary?.modelBreakdown || {}} />}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Recent Usage Events</CardTitle>
+                <CardDescription>Latest AI requests across all users</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UsageEventsTable events={usageEvents} isLoading={usageEventsLoading} />
               </CardContent>
             </Card>
           </TabsContent>
