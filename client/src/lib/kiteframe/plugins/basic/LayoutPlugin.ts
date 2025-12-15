@@ -706,7 +706,7 @@ export class LayoutPlugin implements KiteFramePlugin {
    */
   distributeWorkflows(nodes: Node[], edges: Edge[], direction: string, customSpacing?: number): Node[] {
     const flows = FlowDetection.detectFlows(nodes, edges);
-    if (flows.length <= 2) return nodes;
+    if (flows.length <= 1) return nodes; // Need at least 2 workflows to distribute
 
     const workflowUnits = flows.map(flow => {
       const boundingBox = this.calculateFlowBoundingBox(flow.nodes);

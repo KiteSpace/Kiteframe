@@ -89,6 +89,7 @@ export function WorkflowHeader({
   const [showLayoutPopover, setShowLayoutPopover] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const justDraggedRef = useRef(false);
   
   const workflowNames = useWorkflowNames();
   const nodeToWorkflow = useNodeToWorkflow();
@@ -154,6 +155,12 @@ export function WorkflowHeader({
     const handleMouseUp = () => {
       setIsDragging(false);
       dragStartRef.current = null;
+      // Set flag to prevent dropdown toggle on drag end
+      justDraggedRef.current = true;
+      // Reset after a short delay to allow normal clicks
+      setTimeout(() => {
+        justDraggedRef.current = false;
+      }, 100);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -219,7 +226,11 @@ export function WorkflowHeader({
     >
       <div className="relative">
         <button
-          onClick={() => !readOnly && setIsOpen(!isOpen)}
+          onClick={() => {
+            // Don't toggle dropdown if we just finished dragging
+            if (justDraggedRef.current) return;
+            if (!readOnly) setIsOpen(!isOpen);
+          }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm hover:shadow-md transition-shadow text-sm font-medium"
           style={{ backgroundColor: '#2b313d', color: '#ffffff' }}
           data-testid={`workflow-header-toggle-${flowId}`}

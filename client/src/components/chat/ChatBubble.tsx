@@ -26,11 +26,11 @@ export function UserBubble({
         className="bg-primary text-primary-foreground rounded-2xl rounded-br-none px-4 py-3 max-w-[80%]"
         data-testid={testId}
       >
-        <p className="text-sm whitespace-pre-wrap">{content}</p>
+        <p className="text-sm whitespace-pre-wrap text-white">{content}</p>
       </div>
       {showAvatar && (
         <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
-          <User className="w-4 h-4 text-primary-foreground" />
+          <User className="w-4 h-4 text-white" />
         </div>
       )}
     </div>
