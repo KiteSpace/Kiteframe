@@ -1,0 +1,219 @@
+KITEFRAME — NEXT IMPLEMENTATION PLAN (POST-ARCHITECTURE REVIEW)
+Audience: Replit Agent / Engineering
+Goal: Improve workflow manipulation, undo reliability, and layout UX before further AI sophistication
+
+================================================================
+PHASE 0 — FOUNDATIONAL GUARANTEE (REQUIRED FIRST)
+================================================================
+
+0.1 Enforce Undo / Redo Consistency (NO REWRITE)
+
+Problem:
+Undo/redo currently works by convention. Some mutations bypass saveToHistory(), risking regressions as features expand.
+
+Do NOT rewrite UndoRedoManager.
+Do NOT replace snapshot-based history.
+
+Action:
+Introduce a small helper and enforce usage everywhere state mutates.
+
+Add helper (location flexible, e.g. workflow-editor utils):
+
+function withUndo(label: string, fn: () => void) {
+  saveToHistory(label);
+  fn();
+}
+
+Rules:
+- Any mutation of nodes, edges, canvasObjects, themes, layout, or bulk actions MUST be wrapped in withUndo().
+- Selection state is exempt (UI-only).
+
+Audit & update mutation sites:
+- WorkflowHeader actions
+- FloatingToolbar layout handlers
+- Theme changes
+- Bulk operations (select all, delete, drag-all)
+- Any direct setNodes / setEdges mapping
+
+Outcome:
+Undo becomes reliable and future-proof without architectural changes.
+
+================================================================
+PHASE 1 — WORKFLOW HEADER COMPLETION (HIGH UX ROI)
+================================================================
+
+Files:
+client/src/lib/kiteframe/components/WorkflowHeader.tsx
+workflow-editor.tsx (selection + mutation handlers)
+
+---------------------------------------------------------------
+1.1 Drag Entire Workflow ("Drag All")
+---------------------------------------------------------------
+
+Goal:
+Allow users to reposition an entire workflow group intuitively.
+
+Implementation:
+- Use the existing GripVertical icon as drag handle
+- On mousedown:
+  - Capture mouse origin
+  - Capture initial positions of all flowNodes
+- On mousemove:
+  - Apply delta to all nodes in the workflow
+- On mouseup:
+  - Call withUndo("Drag workflow", ...)
+
+Notes:
+- Node positions remain absolute (no group container)
+- Cursor states: grab → grabbing
+- Tooltip: "Drag workflow"
+
+---------------------------------------------------------------
+1.2 Select All (Workflow-Scoped)
+---------------------------------------------------------------
+
+Goal:
+Select all nodes + edges belonging to the workflow.
+
+Implementation:
+- On "Select All":
+  - Select all nodes in flowNodes
+  - Select all edges where source AND target are in flowNodes
+- Selection state already exists in workflow-editor.tsx
+
+---------------------------------------------------------------
+1.3 Delete Workflow (Explicit Action)
+---------------------------------------------------------------
+
+Goal:
+Make workflow deletion explicit and understandable.
+
+Add to WorkflowHeader dropdown:
+- Label: "Delete workflow"
+
+Behavior:
+- Confirm dialog:
+  "Delete this workflow and all its nodes?"
+- On confirm:
+  - Remove all flowNodes
+  - Edge cleanup already handled
+  - Wrap in withUndo("Delete workflow", ...)
+
+Undoable: YES
+
+================================================================
+PHASE 2 — THEME POPOVER (LOW RISK, HIGH POLISH)
+================================================================
+
+Files:
+WorkflowHeader.tsx
+themes.ts
+applyThemeToNode / applyThemeToEdge
+
+Constraints (DO NOT CHANGE):
+- No custom colors
+- One theme token controls header, border, and fill opacity
+
+Implementation:
+- Add Radix Popover to WorkflowHeader
+- Display available workflowThemes as swatches
+- On selection:
+  - Apply theme to all nodes in the workflow
+  - Respect multi-selection if active
+  - Wrap in withUndo("Change workflow theme", ...)
+
+================================================================
+PHASE 3 — AUTO-LAYOUT UX SIMPLIFICATION (NO ALGORITHM CHANGES)
+================================================================
+
+Files:
+FloatingToolbar.tsx
+LayoutPlugin.ts (NO changes needed)
+
+Goal:
+Reduce cognitive load while preserving power.
+
+---------------------------------------------------------------
+3.1 Rename / Reframe Layout Options
+---------------------------------------------------------------
+
+Workflow-level layout (FloatingToolbar):
+- "Tidy" → Alias for Hierarchical layout
+  - Automatically choose direction based on flow
+- "Horizontal Flow"
+- "Vertical Flow"
+
+Node-level layout (selection-based):
+- Align (Left / Center / Right / Top / Middle / Bottom)
+- Distribute (Horizontal / Vertical)
+
+Hide or de-emphasize:
+- Grid
+- Circular
+(Keep internally available, not removed)
+
+---------------------------------------------------------------
+3.2 Layout + Undo Rules
+---------------------------------------------------------------
+
+Rules:
+- All layout actions:
+  - Call withUndo("Auto layout", ...) BEFORE layout mutation
+- Layout always overrides manual positioning
+- Drag-all does NOT partially lock layouts
+
+================================================================
+PHASE 4 — DECISION TREE VISUALIZATION (NEXT, NOT BLOCKING)
+================================================================
+
+Status:
+NOT REQUIRED for this phase, but plan ahead.
+
+Constraints:
+- Do NOT render full graph trees in Layers
+- Data available:
+  - Node types
+  - Edge direction
+  - Outgoing edge counts
+
+Future approach:
+- Linear spine
+- Indented branches for decision nodes
+- No visual edges in Layers
+
+================================================================
+WHAT NOT TO DO (IMPORTANT)
+================================================================
+
+Do NOT:
+- Rewrite undo to pure command-based
+- Add async layout
+- Introduce custom colors
+- Replace workflow auto-detection
+- Move layout controls out of FloatingToolbar
+
+================================================================
+SUCCESS CRITERIA
+================================================================
+
+After this work:
+- Undo works for ALL meaningful mutations
+- Workflows can be dragged, selected, themed, deleted predictably
+- Layout feels simple and intentional ("Tidy")
+- No regressions to canvas, PRD, AI, or panels
+
+================================================================
+IMPLEMENTATION ORDER (STRICT)
+================================================================
+
+1. Undo enforcement helper + mutation audit
+2. WorkflowHeader: Drag All
+3. WorkflowHeader: Select All
+4. WorkflowHeader: Delete Workflow
+5. Theme popover
+6. Layout UX renaming ("Tidy")
+7. (Later) Decision-tree layer visualization
+
+================================================================
+END
+================================================================
