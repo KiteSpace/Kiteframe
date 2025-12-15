@@ -1,0 +1,200 @@
+KITEFRAME — AUTOMATIC PRD + PROJECT DETAILS GENERATION
+REPLIT EXECUTION SPEC (COMPREHENSIVE)
+
+GOAL
+Ensure that whenever KiteAI creates a workflow (via prompt chat, Figma import, image upload, etc.):
+1) Workflow PRDs are automatically generated and persisted
+2) Project-level details (title, overview, summary) are automatically generated
+3) Nothing overwrites user-edited content
+4) Behavior is consistent across all entry points
+
+This spec assumes the PRD storage bug (wrong key usage) has already been fixed.
+
+────────────────────────────────────────────────────────────
+SECTION 1 — DEFINITIONS & EXPECTED BEHAVIOR
+────────────────────────────────────────────────────────────
+
+AUTOMATIC means:
+- No manual “Generate PRD” click required
+- Runs immediately after workflow creation
+- Controlled by an explicit flag (generatePRDFlag)
+
+WHEN TO RUN:
+- KiteAI prompt → workflow creation
+- Figma import → workflow generation
+- Image upload → workflow generation
+- Any future AI-driven workflow creation path
+
+WHEN NOT TO RUN:
+- Manual canvas edits
+- Node drag / delete / rename
+- User explicitly disables “Generate first draft PRD”
+
+────────────────────────────────────────────────────────────
+SECTION 2 — SINGLE POST-CREATION HOOK (CRITICAL)
+────────────────────────────────────────────────────────────
+
+Create a unified hook that ALL AI creation paths must call:
+
+Function name (example):
+afterWorkflowCreation()
+
+Signature:
+afterWorkflowCreation({
+  projectId: string,
+  workflowIds: string[],
+  source: 'kiteai' | 'figma' | 'image' | 'import',
+  generatePRD: boolean
+})
+
+RULE:
+NO AI workflow creation path may bypass this hook.
+
+────────────────────────────────────────────────────────────
+SECTION 3 — WORKFLOW PRD AUTO-GENERATION
+────────────────────────────────────────────────────────────
+
+Inside afterWorkflowCreation():
+
+FOR EACH workflowId:
+
+1. Check if a workflow PRD already exists:
+   loadWorkflowPRD(projectId, workflowId)
+
+2. If PRD exists:
+   - DO NOTHING
+   - Never overwrite user or AI-generated content
+
+3. If PRD does NOT exist AND generatePRD === true:
+   - Build semantic workflow model:
+     extractSemanticWorkflowModel(nodes, edges)
+
+   - Call:
+     generateWorkflowPRD(semanticModel, aiClient)
+
+   - Persist using the CORRECT key:
+     saveWorkflowPRD(projectId, workflowId, prd)
+
+4. Mark metadata on PRD:
+   {
+     generatedBy: 'ai',
+     generatedAt: timestamp,
+     maturity: 'draft'
+   }
+
+IMPORTANT:
+- Never auto-regenerate on future edits
+- Regeneration must remain user-triggered only
+
+────────────────────────────────────────────────────────────
+SECTION 4 — PROJECT-LEVEL DETAILS AUTO-GENERATION
+────────────────────────────────────────────────────────────
+
+Create a new AI function:
+
+generateProjectDetailsFromWorkflows()
+
+Signature:
+generateProjectDetailsFromWorkflows({
+  projectId: string,
+  workflowPRDs: WorkflowPRD[],
+  workflowsSemanticModels: SemanticWorkflowModel[]
+})
+
+AI OUTPUT SHOULD INCLUDE:
+- Project title
+- One-paragraph overview
+- Primary user / customer
+- Core problem statement
+- Success criteria (high level)
+
+PROCESS:
+
+1. Check if project details already exist:
+   loadProjectDetails(projectId)
+
+2. If ANY user-edited fields exist:
+   - Do NOT overwrite them
+   - Only fill missing fields
+
+3. Save results using existing storage:
+   saveProjectDetails(projectId, details)
+
+4. Add metadata:
+   {
+     generatedBy: 'ai',
+     generatedAt: timestamp
+   }
+
+────────────────────────────────────────────────────────────
+SECTION 5 — UI WIRING REQUIREMENTS
+────────────────────────────────────────────────────────────
+
+1. Homepage / PreProjectChat:
+   - Add checkbox:
+     [x] Generate first draft PRD
+   - Default: checked
+
+2. Checkbox controls generatePRD flag
+   - Passed through:
+     PreProjectChat → HomeScreen → workflow-editor
+
+3. After project creation:
+   - Specs tab must show populated workflow PRDs
+   - Project Details tab must be populated immediately
+   - No empty states
+
+4. Label AI-generated content clearly:
+   “AI-generated draft — review before sharing”
+
+────────────────────────────────────────────────────────────
+SECTION 6 — ENTRY POINT AUDIT (MANDATORY)
+────────────────────────────────────────────────────────────
+
+Replit MUST verify that ALL of these paths call afterWorkflowCreation():
+
+- PreProjectChat (homepage prompt)
+- HomeScreen “Start Project”
+- FigmaImportModal → generate workflow
+- Image upload → generate workflow
+- Any future AI workflow generators
+
+If any path bypasses this hook, it is a BUG.
+
+────────────────────────────────────────────────────────────
+SECTION 7 — SAFETY & NON-GOALS
+────────────────────────────────────────────────────────────
+
+DO NOT:
+- Auto-regenerate PRDs after edits
+- Overwrite manually edited content
+- Trigger AI on canvas drag / delete / layout
+- Block project creation if AI fails
+
+IF AI FAILS:
+- Log error
+- Allow project to exist
+- Show non-blocking warning in Specs tab
+
+────────────────────────────────────────────────────────────
+SECTION 8 — ACCEPTANCE CHECKLIST
+────────────────────────────────────────────────────────────
+
+This feature is COMPLETE only when:
+
+[ ] Creating a project via KiteAI auto-generates workflow PRDs
+[ ] Project title & overview are auto-filled
+[ ] PRDs persist after refresh
+[ ] No duplicate PRDs are created
+[ ] Manual edits are preserved
+[ ] Figma/image paths behave identically
+[ ] No modal or manual click required
+
+────────────────────────────────────────────────────────────
+SECTION 9 — PRIORITY
+────────────────────────────────────────────────────────────
+
+This is a BETA-BLOCKING FEATURE.
+Do not proceed to AI sophistication work until this is stable.
+
+END OF SPEC
