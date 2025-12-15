@@ -246,9 +246,9 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
   const { start: usageStart, end: usageEnd } = getDateRange(usageTimeRange);
 
   const { data: overviewData } = useQuery({
-    queryKey: ['/internal/analytics/overview'],
+    queryKey: ['/internal/x9k7m2p4/analytics/overview'],
     queryFn: async () => {
-      const response = await fetch('/internal/analytics/overview', {
+      const response = await fetch('/internal/x9k7m2p4/analytics/overview', {
         headers: { 'Authorization': authHeader },
       });
       if (!response.ok) throw new Error('Failed to fetch overview');
@@ -259,9 +259,9 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
   });
 
   const { data: geoData } = useQuery({
-    queryKey: ['/internal/analytics/geographic'],
+    queryKey: ['/internal/x9k7m2p4/analytics/geographic'],
     queryFn: async () => {
-      const response = await fetch('/internal/analytics/geographic', {
+      const response = await fetch('/internal/x9k7m2p4/analytics/geographic', {
         headers: { 'Authorization': authHeader },
       });
       if (!response.ok) throw new Error('Failed to fetch geographic data');
@@ -272,9 +272,9 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
   });
 
   const { data: codeUsageData } = useQuery({
-    queryKey: ['/internal/analytics/code-usage'],
+    queryKey: ['/internal/x9k7m2p4/analytics/code-usage'],
     queryFn: async () => {
-      const response = await fetch('/internal/analytics/code-usage', {
+      const response = await fetch('/internal/x9k7m2p4/analytics/code-usage', {
         headers: { 'Authorization': authHeader },
       });
       if (!response.ok) throw new Error('Failed to fetch code usage');
@@ -285,9 +285,9 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
   });
 
   const { data: alertsData } = useQuery({
-    queryKey: ['/internal/analytics/alerts'],
+    queryKey: ['/internal/x9k7m2p4/analytics/alerts'],
     queryFn: async () => {
-      const response = await fetch('/internal/analytics/alerts', {
+      const response = await fetch('/internal/x9k7m2p4/analytics/alerts', {
         headers: { 'Authorization': authHeader },
       });
       if (!response.ok) throw new Error('Failed to fetch alerts');
@@ -299,13 +299,13 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
 
   // AI Usage queries (internal admin endpoints)
   const { data: usageSummaryData, isLoading: usageSummaryLoading } = useQuery({
-    queryKey: ['/internal/analytics/ai-usage/summary', usageTimeRange],
+    queryKey: ['/internal/x9k7m2p4/analytics/ai-usage/summary', usageTimeRange],
     queryFn: async () => {
       const params = new URLSearchParams({
         periodStart: usageStart.toISOString(),
         periodEnd: usageEnd.toISOString(),
       });
-      const response = await fetch(`/internal/analytics/ai-usage/summary?${params}`, {
+      const response = await fetch(`/internal/x9k7m2p4/analytics/ai-usage/summary?${params}`, {
         headers: { 'Authorization': authHeader },
       });
       if (!response.ok) throw new Error('Failed to fetch usage summary');
@@ -315,14 +315,14 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
   });
 
   const { data: usageTimeSeriesData, isLoading: usageTimeSeriesLoading } = useQuery({
-    queryKey: ['/internal/analytics/ai-usage/timeseries', usageTimeRange, visionOnly],
+    queryKey: ['/internal/x9k7m2p4/analytics/ai-usage/timeseries', usageTimeRange, visionOnly],
     queryFn: async () => {
       const params = new URLSearchParams({
         periodStart: usageStart.toISOString(),
         periodEnd: usageEnd.toISOString(),
       });
       if (visionOnly) params.set("visionOnly", "true");
-      const response = await fetch(`/internal/analytics/ai-usage/timeseries?${params}`, {
+      const response = await fetch(`/internal/x9k7m2p4/analytics/ai-usage/timeseries?${params}`, {
         headers: { 'Authorization': authHeader },
       });
       if (!response.ok) throw new Error('Failed to fetch usage time series');
@@ -332,14 +332,14 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
   });
 
   const { data: usageEventsData, isLoading: usageEventsLoading } = useQuery({
-    queryKey: ['/internal/analytics/ai-usage/events', usageTimeRange],
+    queryKey: ['/internal/x9k7m2p4/analytics/ai-usage/events', usageTimeRange],
     queryFn: async () => {
       const params = new URLSearchParams({
         periodStart: usageStart.toISOString(),
         periodEnd: usageEnd.toISOString(),
         limit: "25",
       });
-      const response = await fetch(`/internal/analytics/ai-usage/events?${params}`, {
+      const response = await fetch(`/internal/x9k7m2p4/analytics/ai-usage/events?${params}`, {
         headers: { 'Authorization': authHeader },
       });
       if (!response.ok) throw new Error('Failed to fetch usage events');
