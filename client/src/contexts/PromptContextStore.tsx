@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
 import { 
   type PromptContext, 
   type PromptAttachment,
@@ -14,11 +14,14 @@ type PromptOrigin = 'homepage' | 'editor' | null;
 interface PromptContextStoreState {
   context: PromptContext;
   origin: PromptOrigin;
+  generatePRD: boolean;
   setTextInput: (text: string) => void;
   addAttachment: (attachment: PromptAttachment) => void;
   removeAttachment: (id: string) => void;
   clearStore: () => void;
   setOrigin: (origin: PromptOrigin) => void;
+  setGeneratePRD: (value: boolean) => void;
+  getGeneratePRD: () => boolean;
   isReadyToSend: () => boolean;
   hasAttachments: () => boolean;
   canAddFigma: () => boolean;
@@ -30,6 +33,15 @@ const PromptContextStoreContext = createContext<PromptContextStoreState | null>(
 export function PromptContextStoreProvider({ children }: { children: ReactNode }) {
   const [context, setContext] = useState<PromptContext>(createEmptyContext);
   const [origin, setOrigin] = useState<PromptOrigin>(null);
+  const [generatePRD, setGeneratePRDState] = useState(true);
+  const generatePRDRef = useRef(true);
+
+  const setGeneratePRD = useCallback((value: boolean) => {
+    generatePRDRef.current = value;
+    setGeneratePRDState(value);
+  }, []);
+
+  const getGeneratePRD = useCallback(() => generatePRDRef.current, []);
 
   const setTextInput = useCallback((text: string) => {
     setContext(prev => ({ ...prev, textInput: text }));
@@ -65,6 +77,8 @@ export function PromptContextStoreProvider({ children }: { children: ReactNode }
       return createEmptyContext();
     });
     setOrigin(null);
+    generatePRDRef.current = true;
+    setGeneratePRDState(true);
   }, []);
 
   const checkIsReadyToSend = useCallback(() => isReadyToSend(context), [context]);
@@ -77,11 +91,14 @@ export function PromptContextStoreProvider({ children }: { children: ReactNode }
       value={{
         context,
         origin,
+        generatePRD,
         setTextInput,
         addAttachment,
         removeAttachment,
         clearStore,
         setOrigin,
+        setGeneratePRD,
+        getGeneratePRD,
         isReadyToSend: checkIsReadyToSend,
         hasAttachments: checkHasAttachments,
         canAddFigma: checkCanAddFigma,

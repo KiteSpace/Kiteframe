@@ -1,24 +1,17 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Upload, FileText, ArrowUp } from 'lucide-react';
 import { SiFigma } from 'react-icons/si';
 import { FullBleedSection } from '@/components/layout/FullBleedSection';
 import { InlineFigmaImport } from './home/InlineFigmaImport';
-import { AttachmentList } from './home/AttachmentCard';
-import { 
-  type PromptContext, 
-  type PromptAttachment,
-  createEmptyContext,
-  isReadyToSend,
-  hasAttachments,
-  canAddFigma,
-  canAddImage,
-} from '@/types/promptContext';
+import { AttachmentPreviewList } from './attachments/AttachmentPreview';
+import { usePromptContextStore } from '@/contexts/PromptContextStore';
+import type { PromptAttachment } from '@/types/promptContext';
 
 interface HomeHeroProps {
-  onStartDesigning: (prompt: string, context: PromptContext) => void;
-  onImportFigma?: () => boolean; // Returns true if allowed, false if blocked by gate
-  onUploadImage: (files: FileList) => boolean; // Returns true if allowed, false if blocked by gate
+  onStartDesigning: (prompt: string) => void;
+  onImportFigma?: () => boolean;
+  onUploadImage: (files: FileList) => boolean;
   onUploadDocument?: () => void;
   isGenerating?: boolean;
   isDisabled?: boolean;
@@ -32,55 +25,64 @@ export function HomeHero({
   isGenerating = false,
   isDisabled = false
 }: HomeHeroProps) {
-  const [promptContext, setPromptContext] = useState<PromptContext>(createEmptyContext);
-  const [showFigmaPanel, setShowFigmaPanel] = useState(false);
+  const {
+    context,
+    setTextInput,
+    addAttachment,
+    removeAttachment,
+    isReadyToSend,
+    hasAttachments,
+    canAddFigma,
+    canAddImage,
+    setOrigin,
+  } = usePromptContextStore();
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showFigmaPanel, setShowFigmaPanel] = useState(false);
 
-  const hasFigmaAttachment = !canAddFigma(promptContext.attachments);
-  const canAddMoreImages = canAddImage(promptContext.attachments);
-  const hasAnyAttachments = hasAttachments(promptContext);
+  useEffect(() => {
+    setOrigin('homepage');
+  }, [setOrigin]);
+
+  const hasFigmaAttachment = !canAddFigma();
+  const canAddMoreImages = canAddImage();
+  const hasAnyAttachments = hasAttachments();
 
   const handleTextChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setPromptContext(prev => ({ ...prev, textInput: e.target.value }));
-  }, []);
+    setTextInput(e.target.value);
+  }, [setTextInput]);
 
   const handleStartDesigning = useCallback(() => {
-    if (isReadyToSend(promptContext) && !isDisabled) {
-      onStartDesigning(promptContext.textInput.trim(), promptContext);
+    if (isReadyToSend() && !isDisabled) {
+      onStartDesigning(context.textInput.trim());
     }
-  }, [promptContext, onStartDesigning, isDisabled]);
+  }, [context.textInput, isReadyToSend, onStartDesigning, isDisabled]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && isReadyToSend(promptContext) && !isGenerating && !isDisabled) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && isReadyToSend() && !isGenerating && !isDisabled) {
       handleStartDesigning();
     }
-  }, [promptContext, isGenerating, isDisabled, handleStartDesigning]);
+  }, [isReadyToSend, isGenerating, isDisabled, handleStartDesigning]);
 
   const handleFigmaToggle = useCallback(() => {
     if (!hasFigmaAttachment) {
-      // Call the gating callback first - if it returns false, user is blocked
       if (onImportFigma && !onImportFigma()) {
         return;
       }
-      setShowFigmaPanel(prev => !prev);
+      setShowFigmaPanel(!showFigmaPanel);
     }
-  }, [hasFigmaAttachment, onImportFigma]);
+  }, [hasFigmaAttachment, onImportFigma, showFigmaPanel]);
 
   const handleFigmaAttachmentAdd = useCallback((attachment: PromptAttachment) => {
-    setPromptContext(prev => ({
-      ...prev,
-      attachments: [...prev.attachments, attachment],
-    }));
+    addAttachment(attachment);
     setShowFigmaPanel(false);
-  }, []);
+  }, [addAttachment]);
 
   const handleImageClick = useCallback(() => {
     if (canAddMoreImages) {
-      // Create empty FileList to check gate before opening file picker
       const emptyInput = document.createElement('input');
       emptyInput.type = 'file';
-      // Call the gating callback - if it returns false, user is blocked
       if (!onUploadImage(emptyInput.files as FileList)) {
         return;
       }
@@ -92,7 +94,8 @@ export function HomeHero({
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const remainingSlots = 3 - promptContext.attachments.filter(a => a.type === 'image').length;
+    const imageCount = context.attachments.filter(a => a.type === 'image').length;
+    const remainingSlots = 3 - imageCount;
     const filesToAdd = Array.from(files).slice(0, remainingSlots);
 
     filesToAdd.forEach(file => {
@@ -112,31 +115,15 @@ export function HomeHero({
         file,
       };
 
-      setPromptContext(prev => ({
-        ...prev,
-        attachments: [...prev.attachments, attachment],
-      }));
+      addAttachment(attachment);
     });
 
     if (e.target) {
       e.target.value = '';
     }
-  }, [promptContext.attachments]);
+  }, [context.attachments, addAttachment]);
 
-  const handleRemoveAttachment = useCallback((id: string) => {
-    setPromptContext(prev => {
-      const attachment = prev.attachments.find(a => a.id === id);
-      if (attachment?.thumbnailUrl && attachment.type === 'image') {
-        URL.revokeObjectURL(attachment.thumbnailUrl);
-      }
-      return {
-        ...prev,
-        attachments: prev.attachments.filter(a => a.id !== id),
-      };
-    });
-  }, []);
-
-  const canSubmit = isReadyToSend(promptContext) && !isGenerating && !isDisabled;
+  const canSubmit = isReadyToSend() && !isGenerating && !isDisabled;
 
   const placeholderText = hasAnyAttachments
     ? "Do you have any additional details to add before we get started?"
@@ -160,11 +147,13 @@ export function HomeHero({
               Describe your workflow, upload a photo, import from Figma, or start brainstorming with KiteAI
             </p>
 
-            {promptContext.attachments.length > 0 && (
+            {context.attachments.length > 0 && (
               <div className="mb-4">
-                <AttachmentList
-                  attachments={promptContext.attachments}
-                  onRemove={handleRemoveAttachment}
+                <AttachmentPreviewList
+                  attachments={context.attachments}
+                  onRemove={removeAttachment}
+                  size="compact"
+                  columns={2}
                 />
               </div>
             )}
@@ -184,7 +173,7 @@ export function HomeHero({
             <Textarea
               ref={textareaRef}
               placeholder={placeholderText}
-              value={promptContext.textInput}
+              value={context.textInput}
               onChange={handleTextChange}
               onKeyDown={handleKeyDown}
               className="min-h-[100px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base p-0 placeholder:text-muted-foreground/60"
@@ -231,7 +220,7 @@ export function HomeHero({
                   <div className="text-[10px] opacity-70">
                     {!canAddMoreImages 
                       ? '3/3 added' 
-                      : `${promptContext.attachments.filter(a => a.type === 'image').length}/3 added`
+                      : `${context.attachments.filter(a => a.type === 'image').length}/3 added`
                     }
                   </div>
                 </div>

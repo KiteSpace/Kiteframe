@@ -4,6 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PromptContextStoreProvider } from "@/contexts/PromptContextStore";
 import WorkflowEditor from "@/pages/workflow-editor";
 import KitelineDemo from "@/pages/kiteline-demo";
 import KitelineDocs from "@/pages/kiteline-docs";
@@ -56,10 +57,12 @@ function App() {
   
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <PromptContextStoreProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </PromptContextStoreProvider>
     </QueryClientProvider>
   );
 }

@@ -42,7 +42,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { FeatureUpsellDialog } from './FeatureUpsellDialog';
 import { HomeHero } from './HomeHero';
 import { PreProjectChat } from './PreProjectChat';
-import type { PromptContext } from '@/types/promptContext';
+import { usePromptContextStore } from '@/contexts/PromptContextStore';
 
 interface RecentProject {
   id: string;
@@ -185,6 +185,7 @@ export function HomeScreen({
   
   const { tier } = useSubscription();
   const projectToDelete = recentProjects.find(p => p.id === deleteProjectId);
+  const { context: promptContext, setGeneratePRD } = usePromptContextStore();
   
   const { 
     credits, 
@@ -261,7 +262,7 @@ Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, 
     }
   }, [onGenerateWorkflow]);
 
-  const handleStartDesigning = useCallback((prompt: string, context: PromptContext) => {
+  const handleStartDesigning = useCallback((prompt: string) => {
     if (isOutOfCredits) {
       if (ctaAction === 'signup') openSignup();
       else if (ctaAction === 'upgrade') openPricing();
@@ -270,10 +271,10 @@ Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, 
     }
     
     // If there are attachments, open pre-project chat for context refinement
-    if (context.attachments.length > 0) {
+    if (promptContext.attachments.length > 0) {
       setPreProjectContext({
         prompt,
-        uploadedFiles: context.attachments.filter(a => a.file).map(a => a.file!),
+        uploadedFiles: promptContext.attachments.filter(a => a.file).map(a => a.file!),
         isHighConfidence: false,
       });
       setPreProjectChatPrompt(prompt || 'Analyze my attached context');
@@ -282,18 +283,21 @@ Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, 
     }
     
     classifyIntent(prompt);
-  }, [isOutOfCredits, ctaAction, openSignup, openPricing, openCreditsDialog, classifyIntent]);
+  }, [isOutOfCredits, ctaAction, openSignup, openPricing, openCreditsDialog, classifyIntent, promptContext]);
 
   const handlePreProjectChatClose = useCallback(() => {
     setIsPreProjectChatOpen(false);
     setPreProjectChatPrompt('');
   }, []);
 
-  const handleCreateProjectFromChat = useCallback((summary: string) => {
+  const handleCreateProjectFromChat = useCallback((summary: string, generatePRD?: boolean) => {
     setIsPreProjectChatOpen(false);
     setPreProjectChatPrompt('');
+    if (generatePRD !== undefined) {
+      setGeneratePRD(generatePRD);
+    }
     onGenerateWorkflow(summary);
-  }, [onGenerateWorkflow]);
+  }, [onGenerateWorkflow, setGeneratePRD]);
 
   const handleUploadImageWithGate = useCallback((files: FileList): boolean => {
     if (tier !== 'pro') {

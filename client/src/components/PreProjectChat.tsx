@@ -3,14 +3,16 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ChatSendButton } from '@/components/chat';
-import { ArrowLeft, Sparkles, Loader2, Rocket, MessageCircle, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Loader2, Rocket, MessageCircle, AlertCircle, CheckCircle2, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAi } from '../ai/AiProvider';
 import { buildKiteAIContext, inferRoleFromIntent, type KiteAIRole } from '../lib/ai/buildKiteAIContext';
 import { useKiteAIConversation } from '@/hooks/useKiteAIConversation';
 import { getSystemPrompt, buildFollowUpEnforcement } from '@/ai/kiteaiPrompts';
+import { usePromptContextStore } from '@/contexts/PromptContextStore';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -28,7 +30,7 @@ interface PreProjectContext {
 interface PreProjectChatProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateProject: (summary: string) => void;
+  onCreateProject: (summary: string, generatePRD?: boolean) => void;
   initialPrompt?: string;
   context?: PreProjectContext | null;
 }
@@ -37,9 +39,11 @@ function ActionButtons({
   onStartProject, 
   onKeepBrainstorming 
 }: { 
-  onStartProject: () => void; 
+  onStartProject: (generatePRD: boolean) => void; 
   onKeepBrainstorming: () => void;
 }) {
+  const [generatePRD, setGeneratePRD] = useState(true);
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -51,9 +55,26 @@ function ActionButtons({
         <p className="text-sm text-muted-foreground mb-3">
           I have enough context to create your workflow now. You can refine it further inside the project.
         </p>
+        
+        <div className="flex items-center gap-2 mb-3">
+          <Checkbox
+            id="generate-prd"
+            checked={generatePRD}
+            onCheckedChange={(checked) => setGeneratePRD(checked === true)}
+            data-testid="checkbox-generate-prd"
+          />
+          <label 
+            htmlFor="generate-prd" 
+            className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1.5"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Generate first draft PRD automatically
+          </label>
+        </div>
+        
         <div className="flex gap-2 flex-wrap">
           <Button
-            onClick={onStartProject}
+            onClick={() => onStartProject(generatePRD)}
             className="bg-primary hover:bg-primary/90"
             data-testid="button-ready-to-start"
           >
@@ -162,6 +183,8 @@ export function PreProjectChat({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const aiClient = useAi();
 
+  const { context: promptContext, clearStore } = usePromptContextStore();
+
   const { 
     state: conversationState, 
     processUserInput, 
@@ -171,8 +194,10 @@ export function PreProjectChat({
   } = useKiteAIConversation('base');
 
   const hasUploadedFiles = useMemo(() => {
-    return (context?.uploadedFiles?.length ?? 0) > 0;
-  }, [context?.uploadedFiles]);
+    const filesFromStore = promptContext.attachments.filter(a => a.file).length;
+    const filesFromContext = context?.uploadedFiles?.length ?? 0;
+    return filesFromStore > 0 || filesFromContext > 0;
+  }, [promptContext.attachments, context?.uploadedFiles]);
 
   const convertFilesToBase64 = useCallback(async (files: File[]): Promise<string[]> => {
     return Promise.all(
@@ -225,8 +250,9 @@ export function PreProjectChat({
       setCurrentRole('brainstorm');
       setEscalationOptions([]);
       resetConversation();
+      clearStore();
     }
-  }, [isOpen, resetConversation]);
+  }, [isOpen, resetConversation, clearStore]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -284,9 +310,12 @@ export function PreProjectChat({
 
       let userContent: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = content.trim();
       
-      if (context?.uploadedFiles && context.uploadedFiles.length > 0 && messages.length === 0) {
+      const filesFromStore = promptContext.attachments.filter(a => a.file).map(a => a.file!);
+      const allFiles = [...filesFromStore, ...(context?.uploadedFiles ?? [])];
+      
+      if (allFiles.length > 0 && messages.length === 0) {
         try {
-          const imageDataUrls = await convertFilesToBase64(context.uploadedFiles);
+          const imageDataUrls = await convertFilesToBase64(allFiles);
           userContent = [
             { type: 'text', text: content.trim() },
             ...imageDataUrls.map(url => ({ type: 'image_url' as const, image_url: { url } }))
@@ -332,7 +361,7 @@ export function PreProjectChat({
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, processUserInput, addAssistantMessage, context, convertFilesToBase64]);
+  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, processUserInput, addAssistantMessage, context, convertFilesToBase64, promptContext.attachments]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -341,7 +370,7 @@ export function PreProjectChat({
     }
   }, [inputValue, handleSendMessage]);
 
-  const handleCreateProject = useCallback(() => {
+  const handleCreateProject = useCallback((generatePRD: boolean) => {
     const summary = getAccumulatedSummary();
     
     const userMessages = messages.filter(m => m.role === 'user');
@@ -353,8 +382,8 @@ export function PreProjectChat({
       ? `${summary}\n\nLatest request: ${lastUserIntent}`
       : lastUserIntent || 'Create a new workflow';
 
-    console.log('[KiteAI] Creating project with summary:', fullSummary);
-    onCreateProject(fullSummary);
+    console.log('[KiteAI] Creating project with summary:', fullSummary, 'generatePRD:', generatePRD);
+    onCreateProject(fullSummary, generatePRD);
   }, [messages, initialPrompt, onCreateProject, getAccumulatedSummary]);
 
   const handleKeepBrainstorming = useCallback(() => {
