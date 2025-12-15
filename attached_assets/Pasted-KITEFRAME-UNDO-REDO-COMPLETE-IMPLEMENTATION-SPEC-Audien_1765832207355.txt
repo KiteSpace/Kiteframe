@@ -1,0 +1,259 @@
+KITEFRAME — UNDO / REDO COMPLETE IMPLEMENTATION SPEC
+Audience: Replit agent
+Priority: BLOCKER (must be correct before further features)
+
+========================================
+GOAL
+========================================
+Ensure ALL mutating user actions in Kiteframe are undoable and redoable in a predictable, consistent, and enforced way.
+
+Undo/redo must:
+• Work for all canvas-affecting actions
+• Batch correctly for continuous actions
+• Never miss mutations due to developer omission
+• Use the EXISTING snapshot-based history system
+• NOT require rewriting to pure command-based undo
+
+========================================
+CURRENT REALITY (CONFIRMED)
+========================================
+• Snapshot-based undo is primary (workflow-editor.tsx)
+• saveToHistory() stores full canvas state
+• UndoRedoManager exists but is not consistently enforced
+• Some mutations bypass saveToHistory()
+• Selection changes are intentionally NOT undoable
+• Text edits are only partially undoable
+
+This spec fixes enforcement and coverage.
+
+========================================
+NON-GOALS
+========================================
+• Do NOT implement keystroke-level undo for text
+• Do NOT convert to full command-only undo
+• Do NOT undo selection-only UI state
+• Do NOT refactor layout algorithms
+
+========================================
+CORE PRINCIPLE (MANDATORY)
+========================================
+NO CANVAS-RELEVANT MUTATION MAY OCCUR WITHOUT
+AN EXPLICIT UNDO SNAPSHOT.
+
+This is enforced via a REQUIRED helper.
+
+========================================
+STEP 1 — CREATE A REQUIRED UNDO HELPER
+========================================
+Create a single helper and USE IT EVERYWHERE.
+
+File:
+client/src/lib/kiteframe/utils/withUndo.ts
+
+Implementation:
+
+export function withUndo(
+  label: string,
+  saveToHistory: (label?: string) => void,
+  fn: () => void
+) {
+  saveToHistory(label);
+  fn();
+}
+
+Rules:
+• saveToHistory() MUST be called BEFORE mutation
+• fn() MUST contain all mutations
+• label is required (used for debugging / analytics)
+
+========================================
+STEP 2 — BAN DIRECT MUTATIONS (ENFORCEMENT)
+========================================
+Search for ALL occurrences of:
+• setNodes(...)
+• setEdges(...)
+• setCanvasObjects(...)
+• applyThemeToNode(...)
+• applyThemeToEdge(...)
+• layout.apply(...)
+• deleteNode / deleteEdge logic
+• bulk operations
+
+RULE:
+If any of the above mutates state, it MUST be wrapped
+in withUndo() unless explicitly exempted.
+
+Example (REQUIRED PATTERN):
+
+withUndo("Delete node", saveToHistory, () => {
+  setNodes(...)
+  setEdges(...)
+})
+
+========================================
+STEP 3 — ACTION COVERAGE CHECKLIST (MANDATORY)
+========================================
+The following actions MUST be undoable.
+
+For EACH item below:
+• Confirm saveToHistory() is triggered ONCE
+• Confirm no intermediate snapshots occur
+
+----------------------------------------
+NODES
+----------------------------------------
+[ ] Add node
+[ ] Delete node
+[ ] Duplicate node
+[ ] Move node (on drag END only)
+[ ] Resize node (on resize END)
+[ ] Change node text (on blur / commit)
+[ ] Change node theme / color
+[ ] Change node type
+[ ] Multi-node move
+[ ] Multi-node delete
+
+----------------------------------------
+EDGES
+----------------------------------------
+[ ] Add edge
+[ ] Delete edge
+[ ] Reconnect edge source
+[ ] Reconnect edge target
+[ ] Bulk edge delete
+
+----------------------------------------
+WORKFLOWS
+----------------------------------------
+[ ] Delete workflow (all nodes + edges)
+[ ] Drag-all workflow
+[ ] Apply workflow theme
+[ ] Auto-layout workflow
+[ ] Rename workflow
+
+----------------------------------------
+CANVAS / VIEW
+----------------------------------------
+[ ] Change background theme
+[ ] Change grid / visual mode
+[ ] Fit to view (viewport change)
+[ ] Zoom / pan END state (optional but recommended)
+
+----------------------------------------
+LAYOUT
+----------------------------------------
+[ ] Horizontal flow
+[ ] Vertical flow
+[ ] Hierarchical
+[ ] Grid
+[ ] Tidy (alias)
+[ ] Align
+[ ] Distribute
+
+NOTE:
+Layout must create EXACTLY ONE undo step.
+
+========================================
+STEP 4 — DRAG & CONTINUOUS ACTION BATCHING
+========================================
+RULE:
+Continuous actions MUST NOT spam undo history.
+
+Correct behavior:
+• saveToHistory() at drag START or END
+• NOT on every mousemove
+
+Implementation guidance:
+• Node drag: snapshot on drag END
+• Resize: snapshot on resize END
+• Drag-all workflow: snapshot on mouseup
+• Text edits: snapshot on blur / commit only
+
+========================================
+STEP 5 — TEXT EDITS (EXPLICIT POLICY)
+========================================
+Text editing is undoable ONLY at commit points.
+
+Commit events:
+• onBlur
+• Enter key confirm
+• Explicit “Save” click (if any)
+
+DO NOT:
+• Save snapshot per keystroke
+• Save snapshot on cursor movement
+
+========================================
+STEP 6 — EXPLICITLY EXEMPT (DO NOT UNDO)
+========================================
+These states MUST NOT trigger undo:
+
+• Node selection
+• Edge selection
+• Hover state
+• Panel collapse / expand
+• Tab switching
+• Temporary preview / ghost nodes
+• AI suggestion previews (until committed)
+
+========================================
+STEP 7 — ADD DEBUG LOGGING (TEMPORARY)
+========================================
+During implementation, log all undo events.
+
+In saveToHistory():
+console.log("[UNDO] Snapshot saved:", label)
+
+Goal:
+• Verify every mutation produces a snapshot
+• Detect missing labels or duplicate snapshots
+
+Remove logs after validation.
+
+========================================
+STEP 8 — REGRESSION TESTING (MANDATORY)
+========================================
+Manual test checklist (must pass):
+
+1. Add node → Undo → node gone
+2. Move node → Undo → node returns
+3. Drag workflow → Undo → all nodes return
+4. Apply layout → Undo → layout reverted
+5. Change theme → Undo → theme reverted
+6. Delete workflow → Undo → restored
+7. Multi-select → delete → Undo → restored
+8. Rapid drag → ONE undo step only
+9. Redo stack clears on new action
+
+========================================
+STEP 9 — FAILURE CONDITIONS (BLOCK MERGE)
+========================================
+DO NOT consider this complete if:
+
+• Any canvas change is not undoable
+• Any action produces multiple undo steps unintentionally
+• Undo stack breaks after redo
+• saveToHistory is called AFTER mutation
+• Some actions rely on developer memory instead of withUndo()
+
+========================================
+EXPECTED OUTCOME
+========================================
+After this implementation:
+
+• Undo/redo is reliable and predictable
+• All future features inherit correctness
+• Regressions are hard to introduce
+• AI-driven actions can safely commit changes
+• WorkflowHeader, layout, theming are safe to extend
+
+========================================
+FINAL NOTE
+========================================
+This spec MUST be completed BEFORE:
+• AI auto-actions
+• PRD ↔ node linking
+• Export pipelines
+• Collaboration features
+
+Undo is the foundation.
