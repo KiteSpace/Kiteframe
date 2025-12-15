@@ -7417,6 +7417,193 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   return n;
                 }));
               }}
+              onLayoutWorkflow={(flowId, nodeIds, layoutType) => {
+                // Create position map for new positions (immutable approach)
+                const newPositions: Map<string, { x: number; y: number }> = new Map();
+                
+                // Get workflow nodes and edges (create copies for calculation only)
+                const workflowNodeData = nodes
+                  .filter(n => nodeIds.includes(n.id))
+                  .map(n => ({
+                    id: n.id,
+                    x: n.position.x,
+                    y: n.position.y,
+                    width: n.style?.width ?? n.width ?? 200,
+                    height: n.style?.height ?? n.height ?? 100
+                  }));
+                const workflowEdges = edges.filter(e => 
+                  nodeIds.includes(e.source) && nodeIds.includes(e.target)
+                );
+                
+                // Guard: no work to do if empty
+                if (workflowNodeData.length === 0) return;
+                
+                // Save to history only after validation
+                saveToHistory();
+                
+                // Calculate the workflow's current bounding box to preserve position
+                const minX = Math.min(...workflowNodeData.map(n => n.x));
+                const minY = Math.min(...workflowNodeData.map(n => n.y));
+                
+                // Apply layout based on type
+                const horizontalSpacing = 280;
+                const verticalSpacing = 180;
+                
+                // Helper: topological sort for consistent ordering
+                const topoSort = (): typeof workflowNodeData => {
+                  const inDegree: Map<string, number> = new Map();
+                  const adjacency: Map<string, string[]> = new Map();
+                  
+                  workflowNodeData.forEach(n => {
+                    inDegree.set(n.id, 0);
+                    adjacency.set(n.id, []);
+                  });
+                  
+                  workflowEdges.forEach(e => {
+                    const current = inDegree.get(e.target) ?? 0;
+                    inDegree.set(e.target, current + 1);
+                    adjacency.get(e.source)?.push(e.target);
+                  });
+                  
+                  // Start with nodes that have no incoming edges
+                  const queue = workflowNodeData.filter(n => (inDegree.get(n.id) ?? 0) === 0);
+                  const sorted: typeof workflowNodeData = [];
+                  
+                  while (queue.length > 0) {
+                    const node = queue.shift()!;
+                    sorted.push(node);
+                    
+                    const children = adjacency.get(node.id) ?? [];
+                    children.forEach(childId => {
+                      const degree = (inDegree.get(childId) ?? 1) - 1;
+                      inDegree.set(childId, degree);
+                      if (degree === 0) {
+                        const childNode = workflowNodeData.find(n => n.id === childId);
+                        if (childNode) queue.push(childNode);
+                      }
+                    });
+                  }
+                  
+                  // Add any remaining nodes (cycles) in original x/y order
+                  const remaining = workflowNodeData.filter(n => !sorted.find(s => s.id === n.id));
+                  remaining.sort((a, b) => a.x - b.x || a.y - b.y);
+                  return [...sorted, ...remaining];
+                };
+                
+                switch (layoutType) {
+                  case 'horizontal':
+                    const hSorted = topoSort();
+                    let currentX = minX;
+                    hSorted.forEach((node) => {
+                      newPositions.set(node.id, { x: currentX, y: minY });
+                      currentX += node.width + 80; // Gap between nodes
+                    });
+                    break;
+                    
+                  case 'vertical':
+                    const vSorted = topoSort();
+                    let currentY = minY;
+                    vSorted.forEach((node) => {
+                      newPositions.set(node.id, { x: minX, y: currentY });
+                      currentY += node.height + 50; // Gap between nodes
+                    });
+                    break;
+                    
+                  case 'hierarchical':
+                  default:
+                    // BFS to assign depth levels
+                    const targetNodeIds = new Set(workflowEdges.map(e => e.target));
+                    const rootNodeIds = workflowNodeData
+                      .filter(n => !targetNodeIds.has(n.id))
+                      .map(n => n.id);
+                    
+                    // If no roots found (cycle), use first node as root
+                    if (rootNodeIds.length === 0 && workflowNodeData.length > 0) {
+                      rootNodeIds.push(workflowNodeData[0].id);
+                    }
+                    
+                    // BFS to compute depth for each node
+                    const nodeDepth: Map<string, number> = new Map();
+                    const queue: string[] = [...rootNodeIds];
+                    rootNodeIds.forEach(id => nodeDepth.set(id, 0));
+                    
+                    while (queue.length > 0) {
+                      const currentId = queue.shift()!;
+                      const currentDepth = nodeDepth.get(currentId) ?? 0;
+                      
+                      // Find children (targets of outgoing edges)
+                      const outEdges = workflowEdges.filter(e => e.source === currentId);
+                      outEdges.forEach(edge => {
+                        const existingDepth = nodeDepth.get(edge.target);
+                        // Only update if not visited or if new depth is greater (handle multi-parent)
+                        if (existingDepth === undefined) {
+                          nodeDepth.set(edge.target, currentDepth + 1);
+                          queue.push(edge.target);
+                        } else if (currentDepth + 1 > existingDepth) {
+                          // Update to deepest path for multi-parent nodes
+                          nodeDepth.set(edge.target, currentDepth + 1);
+                          queue.push(edge.target);
+                        }
+                      });
+                    }
+                    
+                    // Handle any disconnected nodes
+                    workflowNodeData.forEach(n => {
+                      if (!nodeDepth.has(n.id)) {
+                        nodeDepth.set(n.id, 0);
+                      }
+                    });
+                    
+                    // Group nodes by depth
+                    const layers: Map<number, typeof workflowNodeData> = new Map();
+                    workflowNodeData.forEach(node => {
+                      const depth = nodeDepth.get(node.id) ?? 0;
+                      if (!layers.has(depth)) {
+                        layers.set(depth, []);
+                      }
+                      layers.get(depth)!.push(node);
+                    });
+                    
+                    // Calculate max layer width for centering
+                    let maxLayerWidth = 0;
+                    layers.forEach(layer => {
+                      const layerWidth = layer.reduce((sum, n) => sum + n.width, 0) + 
+                        (layer.length - 1) * 80;
+                      maxLayerWidth = Math.max(maxLayerWidth, layerWidth);
+                    });
+                    
+                    // Position nodes by layer with centering
+                    const sortedDepths = Array.from(layers.keys()).sort((a, b) => a - b);
+                    sortedDepths.forEach((depth, layerIndex) => {
+                      const layer = layers.get(depth)!;
+                      const layerWidth = layer.reduce((sum, n) => sum + n.width, 0) + 
+                        (layer.length - 1) * 80;
+                      const startX = minX + (maxLayerWidth - layerWidth) / 2;
+                      
+                      let xOffset = startX;
+                      layer.forEach((node) => {
+                        newPositions.set(node.id, {
+                          x: xOffset,
+                          y: minY + layerIndex * verticalSpacing
+                        });
+                        xOffset += node.width + 80;
+                      });
+                    });
+                    break;
+                }
+                
+                // Apply new positions immutably through setNodes
+                setNodes(prev => prev.map(n => {
+                  const newPos = newPositions.get(n.id);
+                  if (newPos) {
+                    return {
+                      ...n,
+                      position: { ...newPos }
+                    };
+                  }
+                  return n;
+                }));
+              }}
             />
                 
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronDown, GripVertical, Palette, Trash2 } from 'lucide-react';
+import { ChevronDown, GripVertical, Palette, Trash2, LayoutGrid, Shuffle, ArrowRight, ArrowDown } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { FlowSettings, Flow } from '../utils/FlowDetection';
 import { useWorkflowNames } from '../../../stores/workflowNameStore';
@@ -62,6 +62,7 @@ interface WorkflowHeaderProps {
   onApplyTheme?: (flowId: string, theme: WorkflowTheme) => void;
   onDeleteWorkflow?: (flowId: string) => void;
   onDragWorkflow?: (flowId: string, deltaX: number, deltaY: number, isDragStart?: boolean) => void;
+  onLayoutWorkflow?: (flowId: string, layoutType: 'hierarchical' | 'horizontal' | 'vertical') => void;
   readOnly?: boolean;
   flowNodes?: any[];
 }
@@ -77,6 +78,7 @@ export function WorkflowHeader({
   onApplyTheme,
   onDeleteWorkflow,
   onDragWorkflow,
+  onLayoutWorkflow,
   readOnly = false,
   flowNodes = [],
 }: WorkflowHeaderProps) {
@@ -84,6 +86,7 @@ export function WorkflowHeader({
   const [isEditingName, setIsEditingName] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showThemePopover, setShowThemePopover] = useState(false);
+  const [showLayoutPopover, setShowLayoutPopover] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   
@@ -337,6 +340,63 @@ export function WorkflowHeader({
                       data-testid={`workflow-theme-swatch-${color.replace('#', '')}`}
                     />
                   ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover open={showLayoutPopover} onOpenChange={setShowLayoutPopover}>
+              <PopoverTrigger asChild>
+                <button
+                  disabled={readOnly}
+                  className="flex items-center gap-2 w-full text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1.5 transition-colors disabled:opacity-50"
+                  data-testid={`workflow-layout-${flowId}`}
+                >
+                  <LayoutGrid size={14} />
+                  Layout
+                </button>
+              </PopoverTrigger>
+              <PopoverContent 
+                side="right" 
+                align="start"
+                className="w-auto p-2"
+              >
+                <div className="flex flex-col gap-1">
+                  <button
+                    onClick={() => {
+                      onLayoutWorkflow?.(flowId, 'hierarchical');
+                      setShowLayoutPopover(false);
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                    data-testid={`workflow-layout-tidy-${flowId}`}
+                  >
+                    <Shuffle size={14} />
+                    Tidy
+                  </button>
+                  <button
+                    onClick={() => {
+                      onLayoutWorkflow?.(flowId, 'horizontal');
+                      setShowLayoutPopover(false);
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                    data-testid={`workflow-layout-horizontal-${flowId}`}
+                  >
+                    <ArrowRight size={14} />
+                    Horizontal Flow
+                  </button>
+                  <button
+                    onClick={() => {
+                      onLayoutWorkflow?.(flowId, 'vertical');
+                      setShowLayoutPopover(false);
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                    data-testid={`workflow-layout-vertical-${flowId}`}
+                  >
+                    <ArrowDown size={14} />
+                    Vertical Flow
+                  </button>
                 </div>
               </PopoverContent>
             </Popover>

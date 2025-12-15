@@ -71,6 +71,7 @@ interface WorkflowCanvasProps {
   onApplyTheme?: (flowId: string, theme: WorkflowTheme) => void;
   onDeleteWorkflow?: (flowId: string, nodeIds: string[]) => void;
   onDragWorkflow?: (flowId: string, nodeIds: string[], deltaX: number, deltaY: number, isDragStart?: boolean) => void;
+  onLayoutWorkflow?: (flowId: string, nodeIds: string[], layoutType: 'hierarchical' | 'horizontal' | 'vertical') => void;
 }
 
 export function WorkflowCanvas({
@@ -133,7 +134,8 @@ export function WorkflowCanvas({
   onNodeStatusChange,
   onApplyTheme,
   onDeleteWorkflow,
-  onDragWorkflow
+  onDragWorkflow,
+  onLayoutWorkflow
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -449,6 +451,7 @@ export function WorkflowCanvas({
         onApplyTheme={onApplyTheme}
         onDeleteWorkflow={onDeleteWorkflow}
         onDragWorkflow={onDragWorkflow}
+        onLayoutWorkflow={onLayoutWorkflow}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

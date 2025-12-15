@@ -3,7 +3,7 @@ import {
   Undo2, Redo2, ZoomIn, LayoutGrid, GripVertical, Camera, History, Maximize2,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical, 
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
-  ArrowRight, ArrowDown, Grid2X2, Shuffle, AlignVerticalSpaceBetween, AlignHorizontalSpaceBetween
+  AlignVerticalSpaceBetween, AlignHorizontalSpaceBetween
 } from 'lucide-react';
 
 interface FloatingToolbarProps {
@@ -144,16 +144,6 @@ export function FloatingToolbar({
     }
   ];
 
-  const nodesOptions = [
-    {
-      title: 'Layout',
-      options: [
-        { id: 'layout-tidy', label: 'Tidy', icon: Shuffle, eventId: 'layout:nodes-hierarchical', primary: true },
-        { id: 'layout-horizontal', label: 'Horizontal Flow', icon: ArrowRight, eventId: 'layout:nodes-horizontal' },
-        { id: 'layout-vertical', label: 'Vertical Flow', icon: ArrowDown, eventId: 'layout:nodes-vertical' },
-      ]
-    }
-  ];
 
   return (
     <div
@@ -306,35 +296,6 @@ export function FloatingToolbar({
                 </div>
               </div>
 
-              {/* Nodes Section */}
-              <div>
-                <h3 className="text-lg font-semibold text-foreground mb-4">Nodes</h3>
-                <div className="space-y-4">
-                  {nodesOptions.map((section) => (
-                    <div key={section.title}>
-                      <div className="text-sm font-medium text-muted-foreground mb-2">{section.title}</div>
-                      <div className="grid grid-cols-4 gap-2">
-                        {section.options.map((option) => {
-                          const IconComponent = option.icon;
-                          return (
-                            <button
-                              key={option.id}
-                              className="flex flex-col items-center justify-center p-3 hover:bg-accent rounded-lg transition-colors group bg-muted/50"
-                              onClick={() => {
-                                onAutoLayout(option.eventId);
-                                setShowLayoutDropdown(false);
-                              }}
-                              title={option.label}
-                            >
-                              <IconComponent size={20} className="text-muted-foreground group-hover:text-foreground" />
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
         </div>

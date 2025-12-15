@@ -1289,6 +1289,7 @@ type Props = {
   onApplyTheme?: (flowId: string, theme: import('../../../lib/themes').WorkflowTheme) => void;
   onDeleteWorkflow?: (flowId: string, nodeIds: string[]) => void;
   onDragWorkflow?: (flowId: string, nodeIds: string[], deltaX: number, deltaY: number, isDragStart?: boolean) => void;
+  onLayoutWorkflow?: (flowId: string, nodeIds: string[], layoutType: 'hierarchical' | 'horizontal' | 'vertical') => void;
 
   // Node status change callback
   onNodeStatusChange?: (nodeId: string) => void;
@@ -3613,6 +3614,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 onDragWorkflow={(flowId, deltaX, deltaY, isDragStart) => {
                   const nodeIds = flow.nodes.map(n => n.id);
                   props.onDragWorkflow?.(flowId, nodeIds, deltaX, deltaY, isDragStart);
+                }}
+                onLayoutWorkflow={(flowId, layoutType) => {
+                  const nodeIds = flow.nodes.map(n => n.id);
+                  props.onLayoutWorkflow?.(flowId, nodeIds, layoutType);
                 }}
                 readOnly={false}
               />
