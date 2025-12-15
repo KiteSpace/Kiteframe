@@ -1214,7 +1214,8 @@ function WorkflowEditorContent({
   const [generatingWireframe, setGeneratingWireframe] = useState(false);
 
   // Direct AI workflow generation (for home screen prompt)
-  const generateWorkflowDirectly = useCallback(async (prompt: string, tabId: string) => {
+  const generateWorkflowDirectly = useCallback(async (prompt: string, tabId: string, generatePRDFlag?: boolean) => {
+    console.log('[KiteAI] generateWorkflowDirectly called with generatePRDFlag:', generatePRDFlag);
     if (isOutOfCredits) {
       toast({
         title: 'Out of credits',
@@ -1338,9 +1339,13 @@ Position nodes 250px apart horizontally.`;
           description: `Created ${processedNodes.length} nodes and ${processedEdges.length} connections.`,
         });
 
-        // Auto-generate PRD if flag is set (use getGeneratePRD() for sync access to ref)
-        const shouldGeneratePRD = promptContextStore?.getGeneratePRD?.() ?? false;
+        // Auto-generate PRD if flag is set
+        // Use the directly passed flag first, fallback to context store for backwards compatibility
+        const shouldGeneratePRD = generatePRDFlag ?? (promptContextStore?.getGeneratePRD?.() ?? false);
+        console.log('[KiteAI] PRD generation check - generatePRDFlag:', generatePRDFlag, 'shouldGeneratePRD:', shouldGeneratePRD, 'processedNodes.length:', processedNodes.length);
+        
         if (shouldGeneratePRD && processedNodes.length > 0) {
+          console.log('[KiteAI] Starting PRD generation...');
           try {
             const semanticModel = extractSemanticWorkflowModel(activeTabId, 'Generated Workflow', processedNodes, processedEdges);
             const prd = await generateWorkflowPRD(ai, semanticModel);
@@ -1348,6 +1353,7 @@ Position nodes 250px apart horizontally.`;
             prd.draft = true;
             saveWorkflowPRD(tabId, tabId, prd);
             saveWorkflowPRDVersion(tabId, tabId, prd, 'ai-generate');
+            console.log('[KiteAI] PRD generation completed successfully');
             toast({
               title: 'PRD Generated',
               description: 'A first draft PRD has been created for your workflow.',
@@ -1356,6 +1362,8 @@ Position nodes 250px apart horizontally.`;
             console.error('[KiteAI] Auto PRD generation failed:', prdError);
           }
           promptContextStore?.setGeneratePRD(false);
+        } else {
+          console.log('[KiteAI] PRD generation skipped - shouldGeneratePRD:', shouldGeneratePRD, 'nodes:', processedNodes.length);
         }
       }
     } catch (error) {
@@ -4630,12 +4638,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }
                 }
               }}
-              onGenerateWorkflow={(prompt) => {
+              onGenerateWorkflow={(prompt, generatePRD) => {
+                console.log('[KiteAI] onGenerateWorkflow received generatePRD:', generatePRD);
                 const newTab = createBlankTab();
                 setTabs(prev => [...prev, newTab]);
                 setActiveTabId(newTab.id);
                 // Directly generate workflow without opening modal
-                generateWorkflowDirectly(prompt, newTab.id);
+                // Pass generatePRD directly to avoid context store timing issues
+                generateWorkflowDirectly(prompt, newTab.id, generatePRD);
               }}
               onCreateBlankWorkflow={createNewTab}
               onLoadTemplate={(templateType) => {

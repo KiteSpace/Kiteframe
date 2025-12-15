@@ -74,7 +74,7 @@ interface PreProjectContext {
 interface HomeScreenProps {
   recentProjects: RecentProject[];
   onOpenProject: (projectId: string) => void;
-  onGenerateWorkflow: (prompt: string) => void;
+  onGenerateWorkflow: (prompt: string, generatePRD?: boolean) => void;
   onCreateBlankWorkflow: () => void;
   onLoadTemplate: (templateType: string) => void;
   onUploadImage: () => void;
@@ -293,10 +293,13 @@ Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, 
   const handleCreateProjectFromChat = useCallback((summary: string, generatePRD?: boolean) => {
     setIsPreProjectChatOpen(false);
     setPreProjectChatPrompt('');
+    // Also set in context store for backwards compatibility
     if (generatePRD !== undefined) {
       setGeneratePRD(generatePRD);
     }
-    onGenerateWorkflow(summary);
+    // Pass generatePRD directly through the callback to avoid timing issues
+    console.log('[KiteAI] handleCreateProjectFromChat - passing generatePRD:', generatePRD);
+    onGenerateWorkflow(summary, generatePRD);
   }, [onGenerateWorkflow, setGeneratePRD]);
 
   const handleUploadImageWithGate = useCallback((files: FileList): boolean => {
