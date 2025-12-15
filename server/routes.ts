@@ -2744,7 +2744,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: Overview stats
-  app.get('/internal/analytics/overview', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/overview', requireAdminAuth, async (req, res) => {
     try {
       const { analyticsEvents } = await import('@shared/schema');
       const { sql } = await import('drizzle-orm');
@@ -2779,7 +2779,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: Geographic activity
-  app.get('/internal/analytics/geographic', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/geographic', requireAdminAuth, async (req, res) => {
     try {
       const { analyticsEvents } = await import('@shared/schema');
       const { sql } = await import('drizzle-orm');
@@ -2809,7 +2809,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: Code usage stats
-  app.get('/internal/analytics/code-usage', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/code-usage', requireAdminAuth, async (req, res) => {
     try {
       const { analyticsEvents } = await import('@shared/schema');
       const { sql } = await import('drizzle-orm');
@@ -2838,7 +2838,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: Recent credit alerts
-  app.get('/internal/analytics/alerts', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/alerts', requireAdminAuth, async (req, res) => {
     try {
       const { analyticsEvents } = await import('@shared/schema');
       
@@ -2862,7 +2862,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: AI Usage Summary (all users)
-  app.get('/internal/analytics/ai-usage/summary', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/ai-usage/summary', requireAdminAuth, async (req, res) => {
     try {
       const { getSystemUsageSummary } = await import('./aiUsageService');
       
@@ -2889,7 +2889,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: AI Usage Time Series (all users)
-  app.get('/internal/analytics/ai-usage/timeseries', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/ai-usage/timeseries', requireAdminAuth, async (req, res) => {
     try {
       const { getSystemUsageTimeSeries } = await import('./aiUsageService');
       
@@ -2937,7 +2937,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: AI Usage Events (all users)
-  app.get('/internal/analytics/ai-usage/events', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/ai-usage/events', requireAdminAuth, async (req, res) => {
     try {
       const { getSystemUsageEvents } = await import('./aiUsageService');
       
