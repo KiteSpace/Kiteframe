@@ -21,6 +21,36 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 
+// Color palette and utilities from LinearToolbar
+const COLOR_PALETTE = [
+  '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
+  '#eab308', '#22c55e', '#10b981', '#06b6d4', '#6366f1',
+  '#64748b', '#1e293b', '#ffffff'
+];
+
+const getTintedBodyColor = (headerColor: string, intensity: number = 0.1): string => {
+  let r = 248, g = 250, b = 252;
+  
+  if (headerColor.startsWith('#')) {
+    const hex = headerColor.slice(1);
+    if (hex.length === 3) {
+      r = parseInt(hex[0] + hex[0], 16);
+      g = parseInt(hex[1] + hex[1], 16);
+      b = parseInt(hex[2] + hex[2], 16);
+    } else if (hex.length === 6) {
+      r = parseInt(hex.slice(0, 2), 16);
+      g = parseInt(hex.slice(2, 4), 16);
+      b = parseInt(hex.slice(4, 6), 16);
+    }
+  }
+  
+  const mixedR = Math.round(255 * (1 - intensity) + r * intensity);
+  const mixedG = Math.round(255 * (1 - intensity) + g * intensity);
+  const mixedB = Math.round(255 * (1 - intensity) + b * intensity);
+  
+  return `#${mixedR.toString(16).padStart(2, '0')}${mixedG.toString(16).padStart(2, '0')}${mixedB.toString(16).padStart(2, '0')}`;
+};
+
 interface WorkflowHeaderProps {
   flowId: string;
   settings: FlowSettings;
@@ -289,19 +319,37 @@ export function WorkflowHeader({
                 align="start"
                 className="w-auto p-2"
               >
-                <div className="grid grid-cols-4 gap-2">
-                  {workflowThemes.map((theme) => (
+                <div className="grid grid-cols-7 gap-1">
+                  {COLOR_PALETTE.map((color) => (
                     <button
-                      key={theme.id}
+                      key={color}
                       onClick={() => {
+                        // Create theme from color
+                        const headerTextColor = color === '#ffffff' ? '#0f172a' : '#ffffff';
+                        const theme = {
+                          id: color,
+                          name: color,
+                          description: '',
+                          nodeStyles: {
+                            headerBackground: color,
+                            headerText: headerTextColor,
+                            bodyBackground: color === '#ffffff' ? '#ffffff' : getTintedBodyColor(color),
+                            bodyText: color === '#ffffff' ? '#334155' : headerTextColor,
+                            border: color === '#ffffff' ? '#e2e8f0' : color,
+                          },
+                          edgeStyles: {
+                            stroke: color,
+                            strokeSelected: color,
+                          }
+                        };
                         onApplyTheme?.(flowId, theme);
                         setShowThemePopover(false);
                         setIsOpen(false);
                       }}
-                      className="w-8 h-8 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-400 transition-colors"
-                      style={{ backgroundColor: theme.nodeStyles.headerBackground }}
-                      title={theme.name}
-                      data-testid={`workflow-theme-swatch-${theme.id}`}
+                      className="w-6 h-6 rounded border-2 border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform hover:border-gray-400 dark:hover:border-gray-400"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                      data-testid={`workflow-theme-swatch-${color.replace('#', '')}`}
                     />
                   ))}
                 </div>
