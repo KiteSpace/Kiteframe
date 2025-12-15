@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LucideIcon, Menu, Share2 } from 'lucide-react';
+import { LucideIcon, Menu, Share2, Upload, Figma } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { clientToWorld } from '@/lib/kiteframe/utils/geometry';
 import { workflowThemes, type WorkflowTheme } from '@/lib/themes';
@@ -14,11 +14,13 @@ interface CollapsedSidebarProps {
   onImport: () => void;
   onShare?: () => void;
   onOpenAiGenerator?: () => void;
+  onUploadImage?: () => void;
+  onImportFigma?: () => void;
   onCreateTemplate?: (templateType: string) => void;
   onCreateTemplateAtPosition?: (templateType: string, position: { x: number; y: number }) => void;
   onApplyTheme?: (theme: WorkflowTheme) => void;
-  activePopout: 'node-types' | 'shapes' | 'templates' | 'themes' | null;
-  setActivePopout: (popout: 'node-types' | 'shapes' | 'templates' | 'themes' | null) => void;
+  activePopout: 'node-types' | 'shapes' | 'templates' | 'themes' | 'boosts' | null;
+  setActivePopout: (popout: 'node-types' | 'shapes' | 'templates' | 'themes' | 'boosts' | null) => void;
   sidebarIcons: Record<string, LucideIcon>;
   viewport: { x: number; y: number; zoom: number };
   isExpanded?: boolean;
@@ -37,6 +39,8 @@ export function CollapsedSidebar({
   onImport,
   onShare,
   onOpenAiGenerator,
+  onUploadImage,
+  onImportFigma,
   onCreateTemplate,
   onCreateTemplateAtPosition,
   onApplyTheme,
@@ -121,7 +125,8 @@ export function CollapsedSidebar({
         onShare?.();
         break;
       case 'rocket':
-        onOpenAiGenerator?.();
+        const newBoostsState = activePopout === 'boosts' ? null : 'boosts';
+        setActivePopout(newBoostsState);
         break;
       case 'download':
         onExport();
@@ -340,6 +345,7 @@ export function CollapsedSidebar({
     if (iconKey === 'shapes') return activePopout === 'shapes';
     if (iconKey === 'route') return activePopout === 'templates';
     if (iconKey === 'palette') return activePopout === 'themes';
+    if (iconKey === 'rocket') return activePopout === 'boosts';
     return false;
   };
 
@@ -553,6 +559,45 @@ export function CollapsedSidebar({
               </button>
             ))}
           </div>
+          </div>
+        </>
+      )}
+
+      {/* Boosts Popout */}
+      {activePopout === 'boosts' && (
+        <>
+          {/* Backdrop to close popout when clicking outside */}
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setActivePopout(null)}
+            data-testid="boosts-popout-backdrop"
+          />
+          <div className="fixed w-40 bg-card border border-border rounded-md shadow-lg p-3" style={{ zIndex: 60, left: isExpanded ? '200px' : '80px', top: '50%', transform: 'translateY(-50%)' }}>
+            <h3 className="text-sm font-semibold mb-3">Boosts</h3>
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                onClick={() => {
+                  setActivePopout(null);
+                  onUploadImage?.();
+                }}
+                className="p-3 border border-border rounded-md cursor-pointer hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+                data-testid="boost-upload-image"
+              >
+                <Upload className="w-4 h-4 text-blue-500" />
+                <span className="text-xs font-medium">Upload image</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActivePopout(null);
+                  onImportFigma?.();
+                }}
+                className="p-3 border border-border rounded-md cursor-pointer hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+                data-testid="boost-import-figma"
+              >
+                <Figma className="w-4 h-4 text-purple-500" />
+                <span className="text-xs font-medium">Import Figma</span>
+              </button>
+            </div>
           </div>
         </>
       )}

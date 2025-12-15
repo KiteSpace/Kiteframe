@@ -3710,7 +3710,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   });
 
   // Popout state for collapsed sidebar
-  const [activePopout, setActivePopout] = useState<'node-types' | 'shapes' | 'templates' | 'themes' | null>(null);
+  const [activePopout, setActivePopout] = useState<'node-types' | 'shapes' | 'templates' | 'themes' | 'boosts' | null>(null);
 
   // Toolbar expanded state (icons only vs icons + labels)
   const [isToolbarExpanded, setIsToolbarExpanded] = useState(false);
@@ -5059,6 +5059,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   onImport={() => setShowImportModal(true)}
                   onShare={() => setShowShareModal(true)}
                   onOpenAiGenerator={() => setShowAiGenerator(true)}
+                  onUploadImage={() => setShowImageUploadModal(true)}
+                  onImportFigma={() => setShowFigmaModal(true)}
                   onCreateTemplate={(templateType: string) => {
                     // Create a new tab if none are open
                     if (openTabs.length === 0) {
