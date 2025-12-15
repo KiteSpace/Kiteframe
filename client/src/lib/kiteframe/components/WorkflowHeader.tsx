@@ -1,9 +1,25 @@
-import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, GripVertical, MousePointer2, Palette } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { ChevronDown, GripVertical, MousePointer2, Palette, Trash2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { FlowSettings, Flow } from '../utils/FlowDetection';
 import { useWorkflowNames } from '../../../stores/workflowNameStore';
 import { useNodeToWorkflow } from '../../../stores/nodeToWorkflowStore';
+import { workflowThemes, type WorkflowTheme } from '../../../lib/themes';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 interface WorkflowHeaderProps {
   flowId: string;
@@ -14,6 +30,9 @@ interface WorkflowHeaderProps {
   onResetStatuses: (flowId: string) => void;
   onSelectAll?: (flowId: string) => void;
   onThemeChange?: (flowId: string) => void;
+  onApplyTheme?: (flowId: string, theme: WorkflowTheme) => void;
+  onDeleteWorkflow?: (flowId: string) => void;
+  onDragWorkflow?: (flowId: string, deltaX: number, deltaY: number, isDragStart?: boolean) => void;
   readOnly?: boolean;
   flowNodes?: any[];
 }
@@ -27,11 +46,19 @@ export function WorkflowHeader({
   onResetStatuses,
   onSelectAll,
   onThemeChange,
+  onApplyTheme,
+  onDeleteWorkflow,
+  onDragWorkflow,
   readOnly = false,
   flowNodes = [],
 }: WorkflowHeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showThemePopover, setShowThemePopover] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  
   const workflowNames = useWorkflowNames();
   const nodeToWorkflow = useNodeToWorkflow();
   
@@ -67,6 +94,44 @@ export function WorkflowHeader({
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isOpen]);
+
+  // Drag workflow handlers
+  const isFirstMoveRef = useRef(true);
+  
+  const handleGripMouseDown = useCallback((e: React.MouseEvent) => {
+    if (readOnly || !onDragWorkflow) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    isFirstMoveRef.current = true;
+  }, [readOnly, onDragWorkflow]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragStartRef.current || !onDragWorkflow) return;
+      const deltaX = (e.clientX - dragStartRef.current.x) / scale;
+      const deltaY = (e.clientY - dragStartRef.current.y) / scale;
+      dragStartRef.current = { x: e.clientX, y: e.clientY };
+      // Pass isDragStart=true on first move to trigger undo snapshot
+      onDragWorkflow(flowId, deltaX, deltaY, isFirstMoveRef.current);
+      isFirstMoveRef.current = false;
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      dragStartRef.current = null;
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, flowId, scale, onDragWorkflow]);
 
   const handleNameSubmit = () => {
     const trimmedName = nameValue.trim() || 'Workflow';
@@ -128,7 +193,16 @@ export function WorkflowHeader({
           style={{ backgroundColor: '#2b313d', color: '#ffffff' }}
           data-testid={`workflow-header-toggle-${flowId}`}
         >
-          <GripVertical size={14} className="opacity-60 cursor-grab" />
+          <span 
+            onMouseDown={handleGripMouseDown}
+            title="Drag workflow"
+            className={`${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          >
+            <GripVertical 
+              size={14} 
+              className="opacity-60"
+            />
+          </span>
           <ChevronDown
             size={14}
             className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -199,21 +273,81 @@ export function WorkflowHeader({
               Select All
             </button>
 
+            <Popover open={showThemePopover} onOpenChange={setShowThemePopover}>
+              <PopoverTrigger asChild>
+                <button
+                  disabled={readOnly}
+                  className="flex items-center gap-2 w-full text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1.5 transition-colors disabled:opacity-50"
+                  data-testid={`workflow-theme-${flowId}`}
+                >
+                  <Palette size={14} />
+                  Theme
+                </button>
+              </PopoverTrigger>
+              <PopoverContent 
+                side="right" 
+                align="start"
+                className="w-auto p-2"
+              >
+                <div className="grid grid-cols-4 gap-2">
+                  {workflowThemes.map((theme) => (
+                    <button
+                      key={theme.id}
+                      onClick={() => {
+                        onApplyTheme?.(flowId, theme);
+                        setShowThemePopover(false);
+                        setIsOpen(false);
+                      }}
+                      className="w-8 h-8 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-400 transition-colors"
+                      style={{ backgroundColor: theme.nodeStyles.headerBackground }}
+                      title={theme.name}
+                      data-testid={`workflow-theme-swatch-${theme.id}`}
+                    />
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <div className="border-t border-gray-200 dark:border-gray-600 my-2" />
+
             <button
               onClick={() => {
-                onThemeChange?.(flowId);
+                setShowDeleteDialog(true);
                 setIsOpen(false);
               }}
               disabled={readOnly}
-              className="flex items-center gap-2 w-full text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1.5 transition-colors disabled:opacity-50"
-              data-testid={`workflow-theme-${flowId}`}
+              className="flex items-center gap-2 w-full text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded px-2 py-1.5 transition-colors disabled:opacity-50"
+              data-testid={`workflow-delete-${flowId}`}
             >
-              <Palette size={14} />
-              Theme
+              <Trash2 size={14} />
+              Delete Workflow
             </button>
           </div>
         )}
       </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete workflow?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete "{workflowName}" and all {flowNodes.length} nodes in it. This action can be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                onDeleteWorkflow?.(flowId);
+                setShowDeleteDialog(false);
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

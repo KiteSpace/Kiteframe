@@ -3,6 +3,7 @@ import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
 import { FloatingToolbar } from './FloatingToolbar';
 import type { Node, Edge, CanvasObject, ProFeaturesConfig, TextNodeData, ShapeNodeData, StickyNoteData, DataTable, SavedCompoundTemplate } from '../lib/kiteframe/types';
 import type { FlowSettings, FlowSettingsMap } from '../lib/kiteframe/utils/FlowDetection';
+import type { WorkflowTheme } from '../lib/themes';
 import { VLStore } from '@/components/layers/visibilityLockStore';
 import { AncestorsStore } from '@/components/layers/ancestorsStore';
 import { isEffectivelyOn } from '@/components/layers/triStateUtils';
@@ -67,6 +68,9 @@ interface WorkflowCanvasProps {
   onFlowSettingsChange?: (flowId: string, settings: FlowSettings) => void;
   onResetFlowStatuses?: (flowId: string) => void;
   onNodeStatusChange?: (nodeId: string) => void;
+  onApplyTheme?: (flowId: string, theme: WorkflowTheme) => void;
+  onDeleteWorkflow?: (flowId: string, nodeIds: string[]) => void;
+  onDragWorkflow?: (flowId: string, nodeIds: string[], deltaX: number, deltaY: number, isDragStart?: boolean) => void;
 }
 
 export function WorkflowCanvas({
@@ -126,7 +130,10 @@ export function WorkflowCanvas({
   flowSettings,
   onFlowSettingsChange,
   onResetFlowStatuses,
-  onNodeStatusChange
+  onNodeStatusChange,
+  onApplyTheme,
+  onDeleteWorkflow,
+  onDragWorkflow
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -439,6 +446,9 @@ export function WorkflowCanvas({
         onFlowSettingsChange={onFlowSettingsChange}
         onResetFlowStatuses={onResetFlowStatuses}
         onNodeStatusChange={onNodeStatusChange}
+        onApplyTheme={onApplyTheme}
+        onDeleteWorkflow={onDeleteWorkflow}
+        onDragWorkflow={onDragWorkflow}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

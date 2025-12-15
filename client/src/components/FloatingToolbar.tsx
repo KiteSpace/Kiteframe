@@ -148,10 +148,9 @@ export function FloatingToolbar({
     {
       title: 'Layout',
       options: [
-        { id: 'layout-horizontal', label: 'Horizontal', icon: ArrowRight, eventId: 'layout:nodes-horizontal' },
-        { id: 'layout-vertical', label: 'Vertical', icon: ArrowDown, eventId: 'layout:nodes-vertical' },
-        { id: 'layout-grid', label: 'Grid', icon: Grid2X2, eventId: 'layout:nodes-grid' },
-        { id: 'layout-hierarchical', label: 'Hierarchical', icon: Shuffle, eventId: 'layout:nodes-hierarchical' },
+        { id: 'layout-tidy', label: 'Tidy', icon: Shuffle, eventId: 'layout:nodes-hierarchical', primary: true },
+        { id: 'layout-horizontal', label: 'Horizontal Flow', icon: ArrowRight, eventId: 'layout:nodes-horizontal' },
+        { id: 'layout-vertical', label: 'Vertical Flow', icon: ArrowDown, eventId: 'layout:nodes-vertical' },
       ]
     }
   ];

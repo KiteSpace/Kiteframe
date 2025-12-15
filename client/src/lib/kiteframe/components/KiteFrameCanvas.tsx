@@ -1187,6 +1187,7 @@ type Props = {
   core?: KiteFrameCore;
   enablePlugins?: boolean;
   selectedNodes?: string[];
+  onSelectionChange?: (nodeIds: string[]) => void;
   onNodeClick?: (e: React.MouseEvent, node: Node) => void;
   onCanvasClick?: () => void;
   onNodeDoubleClick?: (e: React.MouseEvent, node: Node, part?: 'header' | 'body') => void;
@@ -1285,6 +1286,9 @@ type Props = {
   onFlowSettingsChange?: (flowId: string, settings: import('../utils/FlowDetection').FlowSettings) => void;
   onResetFlowStatuses?: (flowId: string) => void;
   onThemeChangeRequested?: (flowId: string, nodeIds: string[]) => void;
+  onApplyTheme?: (flowId: string, theme: import('../../../lib/themes').WorkflowTheme) => void;
+  onDeleteWorkflow?: (flowId: string, nodeIds: string[]) => void;
+  onDragWorkflow?: (flowId: string, nodeIds: string[], deltaX: number, deltaY: number, isDragStart?: boolean) => void;
 
   // Node status change callback
   onNodeStatusChange?: (nodeId: string) => void;
@@ -3602,6 +3606,17 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 }}
                 onThemeChange={(flowId) => {
                   props.onThemeChangeRequested?.(flowId, flow.nodes.map(n => n.id));
+                }}
+                onApplyTheme={(flowId, theme) => {
+                  props.onApplyTheme?.(flowId, theme);
+                }}
+                onDeleteWorkflow={(flowId) => {
+                  const nodeIds = flow.nodes.map(n => n.id);
+                  props.onDeleteWorkflow?.(flowId, nodeIds);
+                }}
+                onDragWorkflow={(flowId, deltaX, deltaY, isDragStart) => {
+                  const nodeIds = flow.nodes.map(n => n.id);
+                  props.onDragWorkflow?.(flowId, nodeIds, deltaX, deltaY, isDragStart);
                 }}
                 readOnly={false}
               />
