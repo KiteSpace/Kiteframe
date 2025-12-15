@@ -47,7 +47,19 @@ export class FlowDetection {
         const flowEdges = this.getFlowEdges(flowNodes, edges);
         const boundingBox = this.calculateBoundingBox(flowNodes);
         
-        const flowId = `flow-${flows.length + 1}`;
+        // Use stable ID based on root node (topmost-left node by position sum)
+        // This ensures PRD associations persist even when canvas is modified
+        let rootNodeId = flowNodes[0]?.id || `flow-${flows.length + 1}`;
+        let minSum = Infinity;
+        flowNodes.forEach(n => {
+          const sum = (n.position?.x || 0) + (n.position?.y || 0);
+          if (sum < minSum) {
+            minSum = sum;
+            rootNodeId = n.id;
+          }
+        });
+        const flowId = `workflow-${rootNodeId}`;
+        
         flows.push({
           id: flowId,
           nodes: flowNodes,
