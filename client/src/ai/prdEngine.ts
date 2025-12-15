@@ -163,6 +163,7 @@ export async function generateWorkflowPRD(
   ];
   
   const response = await aiClient.chat({
+    model: 'gpt-4o',
     messages,
     temperature: 0.3,
     maxTokens: 2000
@@ -211,6 +212,7 @@ export async function generateProjectPRD(
   ];
   
   const response = await aiClient.chat({
+    model: 'gpt-4o',
     messages,
     temperature: 0.3,
     maxTokens: 2000
@@ -321,6 +323,7 @@ Return ONLY valid JSON in this format:
   ];
   
   const response = await aiClient.chat({
+    model: 'gpt-4o',
     messages,
     temperature: 0.3,
     maxTokens: 800
