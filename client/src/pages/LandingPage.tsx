@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Chrome, Github, Check, Loader2, ArrowRight, Zap, Shield, Download, Users, Palette, Code, Rocket } from 'lucide-react';
+import { Chrome, Github, Check, Loader2, ArrowRight, Zap, Shield, Download, Users, Palette, Code, Rocket, Terminal } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, getQueryFn } from '@/lib/queryClient';
 
@@ -418,6 +418,17 @@ export default function LandingPage() {
                           >
                             <Github className="h-4 w-4 mr-2" />
                             GitHub
+                          </Button>
+                        )}
+                        {availableProviders.includes('replit') && (
+                          <Button
+                            variant="outline"
+                            className="flex-1 h-11"
+                            onClick={() => handleOAuthLogin('replit')}
+                            data-testid="button-oauth-replit"
+                          >
+                            <Terminal className="h-4 w-4 mr-2" />
+                            Replit
                           </Button>
                         )}
                       </>
