@@ -57,6 +57,7 @@ Preferred communication style: Simple, everyday language.
 - **Workflow Generation**: AI-generated workflows from text prompts and image analysis.
 - **Image Analysis**: Upload and analyze workflow diagrams (PNG, JPG, GIF) to convert into interactive workflows.
 - **Figma Import**: Import Figma designs as interactive webview nodes.
+- **Touch Gestures**: The `enableTouchGestures` prop exists but touch pinch-zoom/pan is currently disabled due to conflicts with node drag interactions. Mobile users should use minimap or toolbar controls for zoom/pan.
 
 ### Project Panel
 - **Tabs**: KiteAI (AI assistant), Project (unified document), Layers (canvas hierarchy).

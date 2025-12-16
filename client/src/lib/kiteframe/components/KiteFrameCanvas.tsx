@@ -5,7 +5,6 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { useGesture } from "@use-gesture/react";
 import "../styles/kiteframe.css";
 import "../styles/enhanced-selection.css";
 import type {
@@ -2151,104 +2150,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     };
   }, [handleWheel]);
 
-  // Touch gesture handling for mobile pinch-zoom and two-finger pan
-  const enableTouchGestures = props.enableTouchGestures !== false; // Default to true
-  const touchPinchOrigin = useRef<{ x: number; y: number } | null>(null);
-  const touchPanStart = useRef<{ x: number; y: number } | null>(null);
-  const isTouchGesturing = useRef(false);
-
-  // Setup touch gesture bindings using @use-gesture/react
-  const gestureBindings = useGesture(
-    {
-      onPinchStart: ({ origin: [ox, oy] }) => {
-        if (!enableTouchGestures || props.disableWheelZoom) return;
-        isTouchGesturing.current = true;
-        touchPinchOrigin.current = { x: ox, y: oy };
-      },
-      onPinch: ({ offset: [scale], origin: [ox, oy], memo }) => {
-        if (!enableTouchGestures || props.disableWheelZoom || !containerRef.current) return memo;
-        
-        const rect = containerRef.current.getBoundingClientRect();
-        const initialZoom = memo?.initialZoom ?? viewport.zoom;
-        const initialViewport = memo?.initialViewport ?? { x: viewport.x, y: viewport.y };
-        
-        // Calculate new zoom clamped to min/max
-        const newZoom = Math.min(maxZoom, Math.max(minZoom, initialZoom * scale));
-        
-        // Zoom around the pinch center point
-        const pinchX = ox - rect.left;
-        const pinchY = oy - rect.top;
-        const worldX = (pinchX - initialViewport.x) / initialZoom;
-        const worldY = (pinchY - initialViewport.y) / initialZoom;
-        const newX = pinchX - worldX * newZoom;
-        const newY = pinchY - worldY * newZoom;
-        
-        setViewport({ x: newX, y: newY, zoom: newZoom });
-        
-        return { initialZoom, initialViewport };
-      },
-      onPinchEnd: () => {
-        isTouchGesturing.current = false;
-        touchPinchOrigin.current = null;
-        
-        // Track pinch zoom
-        telemetry.track(TelemetryEventType.VIEWPORT_UPDATE, {
-          category: "viewport",
-          action: "zoom",
-          value: viewport.zoom,
-          metadata: { zoom: viewport.zoom, method: "touch-pinch" },
-        });
-      },
-      onDrag: ({ touches, movement: [mx, my], first, memo, pinching, cancel }) => {
-        // Only handle two-finger drag for panning (single finger should still drag nodes)
-        if (!enableTouchGestures || props.disablePan || touches < 2 || pinching) {
-          return memo;
-        }
-        
-        if (first) {
-          isTouchGesturing.current = true;
-          touchPanStart.current = { x: viewport.x, y: viewport.y };
-          return { startX: viewport.x, startY: viewport.y };
-        }
-        
-        const startViewport = memo ?? { startX: viewport.x, startY: viewport.y };
-        setViewport({
-          ...viewport,
-          x: startViewport.startX + mx,
-          y: startViewport.startY + my,
-        });
-        
-        return startViewport;
-      },
-      onDragEnd: ({ touches }) => {
-        if (touches >= 2) {
-          isTouchGesturing.current = false;
-          touchPanStart.current = null;
-          
-          // Track touch pan
-          telemetry.track(TelemetryEventType.CANVAS_INTERACTION, {
-            category: "pan",
-            action: "end",
-            metadata: { method: "touch-pan" },
-          });
-        }
-      },
-    },
-    {
-      target: containerRef,
-      eventOptions: { passive: false },
-      drag: {
-        filterTaps: true,
-        pointer: { touch: true },
-      },
-      pinch: {
-        scaleBounds: { min: minZoom / viewport.zoom, max: maxZoom / viewport.zoom },
-        rubberband: true,
-      },
-    }
-  );
-
-  // Prevent Safari gesture events (required for iOS compatibility)
+  // Touch gesture handling - DISABLED due to conflicts with node drag interactions
+  // The enableTouchGestures prop is preserved for future implementation but currently non-functional
+  // Mobile users can use the minimap or toolbar controls for zoom/pan instead
+  const enableTouchGestures = props.enableTouchGestures !== false;
+  
+  // Prevent Safari gesture events (prevents browser zoom on iOS)
   useEffect(() => {
     if (!enableTouchGestures) return;
     
