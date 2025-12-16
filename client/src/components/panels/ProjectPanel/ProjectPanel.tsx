@@ -3,13 +3,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ListTree, ClipboardList, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { ListTree, ClipboardList, ChevronLeft, ChevronRight, Sparkles, StickyNote } from 'lucide-react';
 import { KiteAITab } from './KiteAITab';
 import { ProjectDocTab } from './ProjectDocTab';
 import { LayersTab } from './LayersTab';
+import { NotesTab } from './NotesTab';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 
-export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers';
+export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers' | 'notes';
 
 const PANEL_COLLAPSED_KEY = 'kiteframe-project-panel-collapsed';
 const PANEL_ACTIVE_TAB_KEY = 'kiteframe-project-panel-active-tab';
@@ -29,7 +30,8 @@ interface ProjectPanelProps {
 const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string }[] = [
   { id: 'kite-ai', icon: Sparkles, label: 'KiteAI' },
   { id: 'project', icon: ClipboardList, label: 'Project' },
-  { id: 'layers', icon: ListTree, label: 'Layers' }
+  { id: 'layers', icon: ListTree, label: 'Layers' },
+  { id: 'notes', icon: StickyNote, label: 'Notes' }
 ];
 
 export function ProjectPanel({ 
@@ -212,6 +214,14 @@ export function ProjectPanel({
                 <ListTree size={14} />
                 Layers
               </TabsTrigger>
+              <TabsTrigger 
+                value="notes" 
+                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
+                data-testid="tab-notes"
+              >
+                <StickyNote size={14} />
+                Notes
+              </TabsTrigger>
             </TabsList>
             <ScrollBar orientation="horizontal" className="h-1.5" />
           </ScrollArea>
@@ -248,6 +258,13 @@ export function ProjectPanel({
             edges={edges} 
             frames={frames}
             canvasObjects={canvasObjects}
+            projectId={projectId}
+          />
+        </TabsContent>
+        
+        <TabsContent value="notes" className="flex-1 m-0 overflow-hidden">
+          <NotesTab
+            key={projectId || 'default'}
             projectId={projectId}
           />
         </TabsContent>

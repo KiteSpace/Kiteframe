@@ -8,7 +8,6 @@ import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import { FlowDetection } from '@/lib/kiteframe/utils/FlowDetection';
 import { 
   ProjectOverviewSection, 
-  ProjectNotesSection, 
   ProjectSourcesSection,
   WorkflowPRDSection,
   ProjectPRDSection,
@@ -244,13 +243,13 @@ export function ProjectDocTab({
         <div className="flex-1" />
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={() => setIsExportModalOpen(true)}
-          className="h-7 px-2 text-xs"
+          className="h-7 w-7"
+          title="Export"
           data-testid="button-open-export-modal"
         >
-          <Download size={12} className="mr-1" />
-          Export
+          <Download size={14} />
         </Button>
       </div>
 
@@ -390,7 +389,6 @@ export function ProjectDocTab({
                 nodes={nodes}
                 edges={edges}
               />
-              <ProjectNotesSection projectId={projectId} />
               <ProjectSourcesSection projectId={projectId} />
             </>
           )}

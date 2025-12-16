@@ -31,25 +31,33 @@ export function FloatingToolbar({
   const toolbarRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const [hasBeenDragged, setHasBeenDragged] = useState(false);
+
   // Initialize position at bottom center
   useEffect(() => {
     const updatePosition = () => {
-      if (containerRef.current) {
+      if (containerRef.current && toolbarRef.current && !hasBeenDragged) {
         const container = containerRef.current.parentElement;
         if (container) {
           const containerRect = container.getBoundingClientRect();
+          const toolbarRect = toolbarRef.current.getBoundingClientRect();
+          const toolbarWidth = toolbarRect.width || 400;
           setPosition({
-            x: containerRect.width / 2 - 200, // Approximate half toolbar width
+            x: (containerRect.width - toolbarWidth) / 2,
             y: containerRect.height - 80, // 80px from bottom
           });
         }
       }
     };
 
-    updatePosition();
+    // Delay initial position to let toolbar render
+    const timer = setTimeout(updatePosition, 50);
     window.addEventListener('resize', updatePosition);
-    return () => window.removeEventListener('resize', updatePosition);
-  }, []);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [hasBeenDragged]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!toolbarRef.current) return;
@@ -60,6 +68,7 @@ export function FloatingToolbar({
       y: e.clientY - rect.top,
     });
     setIsDragging(true);
+    setHasBeenDragged(true);
   }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -93,12 +102,15 @@ export function FloatingToolbar({
 
   const handleDoubleClick = useCallback(() => {
     // Reset to default position (bottom center)
-    if (containerRef.current) {
+    setHasBeenDragged(false);
+    if (containerRef.current && toolbarRef.current) {
       const container = containerRef.current.parentElement;
       if (container) {
         const containerRect = container.getBoundingClientRect();
+        const toolbarRect = toolbarRef.current.getBoundingClientRect();
+        const toolbarWidth = toolbarRect.width || 400;
         setPosition({
-          x: containerRect.width / 2 - 200,
+          x: (containerRect.width - toolbarWidth) / 2,
           y: containerRect.height - 80,
         });
       }
