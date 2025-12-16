@@ -76,17 +76,17 @@ export function NotesTab({ projectId }: NotesTabProps) {
   };
 
   return (
-    <div className="h-full flex flex-col p-3" data-testid="notes-tab">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <FileText size={14} />
+    <div className="h-full flex flex-col p-4" data-testid="notes-tab">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          <FileText size={12} />
           <span>Project Notes</span>
         </div>
         <div className="flex items-center gap-2">
           {lastSaved && !hasUnsavedChanges && (
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <CheckCircle size={12} className="text-green-500" />
-              Saved {formatLastSaved(lastSaved)}
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <CheckCircle size={10} className="text-green-500" />
+              {formatLastSaved(lastSaved)}
             </span>
           )}
           {hasUnsavedChanges && (
@@ -95,10 +95,10 @@ export function NotesTab({ projectId }: NotesTabProps) {
               variant="ghost" 
               onClick={saveNotes}
               disabled={isSaving}
-              className="h-7 text-xs"
+              className="h-6 text-[10px]"
               data-testid="button-save-notes"
             >
-              <Save size={12} className="mr-1" />
+              <Save size={10} className="mr-1" />
               {isSaving ? 'Saving...' : 'Save'}
             </Button>
           )}
@@ -109,11 +109,11 @@ export function NotesTab({ projectId }: NotesTabProps) {
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Add notes about your project here...&#10;&#10;• Design decisions&#10;• TODO items&#10;• Meeting notes&#10;• Reference links"
-        className="flex-1 resize-none text-sm font-mono"
+        className="flex-1 resize-none text-sm border-primary/20 focus:border-primary/40"
         data-testid="input-notes"
       />
       
-      <div className="mt-2 text-xs text-muted-foreground">
+      <div className="mt-3 text-[10px] text-muted-foreground">
         {notes.length > 0 ? `${notes.length} characters` : 'No notes yet'}
       </div>
     </div>
