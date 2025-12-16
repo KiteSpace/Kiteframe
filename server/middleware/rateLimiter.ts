@@ -99,3 +99,41 @@ export const adminLoginRateLimiter = rateLimit({
   validate: { keyGeneratorIpFallback: false },
   skipSuccessfulRequests: false,
 });
+
+export const waitlistRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: {
+    error: 'Too many waitlist submissions. Please try again later.',
+    retryAfter: 3600
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { keyGeneratorIpFallback: false }
+});
+
+export const creditUnlockRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: {
+    error: 'Too many unlock code attempts. Please try again later.',
+    retryAfter: 3600
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getClientKey,
+  validate: { keyGeneratorIpFallback: false }
+});
+
+export const chatRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: {
+    error: 'Too many chat messages. Please slow down.',
+    retryAfter: 60
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getClientKey,
+  validate: { keyGeneratorIpFallback: false }
+});

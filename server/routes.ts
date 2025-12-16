@@ -34,7 +34,8 @@ import { geolocationService } from "./geolocation";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
-import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter } from "./middleware/rateLimiter";
+import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter, waitlistRateLimiter, creditUnlockRateLimiter, chatRateLimiter } from "./middleware/rateLimiter";
+import { csrfProtection } from "./middleware/csrf";
 import { logAiUsage, getUserUsageSummary, getUserUsageTimeSeries, getUserUsageEvents, type UsageLogParams } from "./aiUsageService";
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
 import { z } from "zod";
@@ -49,6 +50,29 @@ function isAdminUser(email: string | undefined | null): boolean {
   if (!email) return false;
   const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
   return adminEmails.includes(email.toLowerCase());
+}
+
+// Sanitize user data for API responses - removes sensitive internal fields
+function sanitizeUserForResponse(user: any, options?: { isAdmin?: boolean }) {
+  if (!user) return null;
+  
+  // Fields safe to expose to the client
+  return {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    profileImageUrl: user.profileImageUrl,
+    subscriptionTier: options?.isAdmin ? 'pro' : user.subscriptionTier,
+    subscriptionStatus: options?.isAdmin ? 'active' : user.subscriptionStatus,
+    billingPeriodEnd: user.billingPeriodEnd,
+    isBeta: options?.isAdmin ? true : user.isBeta,
+    betaGrantedAt: user.betaGrantedAt,
+    waitlistRequestedAt: user.waitlistRequestedAt,
+    waitlistRole: user.waitlistRole,
+    createdAt: user.createdAt,
+    ...(options?.isAdmin && { isAdmin: true, isUnlimited: true }),
+  };
 }
 
 // Check if user has cloud project access (Pro tier, Admin, or group-based override)
@@ -395,17 +419,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      // Check if user is admin and add isAdmin flag
+      // Check if user is admin and sanitize response
       const isAdmin = isAdminUser(user?.email);
-      
-      // For admins, override tier to 'pro', grant beta access, and show unlimited credits
-      const responseUser = user ? {
-        ...user,
-        isAdmin,
-        isBeta: isAdmin ? true : user.isBeta,
-        subscriptionTier: isAdmin ? 'pro' : user.subscriptionTier,
-        isUnlimited: isAdmin ? true : undefined,
-      } : null;
+      const responseUser = sanitizeUserForResponse(user, { isAdmin });
       
       res.json(responseUser);
     } catch (error) {
@@ -546,7 +562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Waitlist endpoint - public, allows both authenticated and unauthenticated users
-  app.post('/api/waitlist', authRateLimiter, async (req: any, res) => {
+  app.post('/api/waitlist', csrfProtection, waitlistRateLimiter, async (req: any, res) => {
     try {
       const { email, role, useCase, turnstileToken, hp } = req.body;
 
@@ -591,18 +607,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid role' });
       }
 
-      // Sanitize useCase - strip HTML tags and dangerous URI schemes
-      let sanitizedUseCase = useCase;
-      if (useCase && typeof useCase === 'string') {
-        sanitizedUseCase = useCase
-          .replace(/<[^>]*>/g, '')
-          .replace(/javascript:/gi, '')
-          .replace(/data:/gi, '')
-          .replace(/vbscript:/gi, '')
-          .replace(/on\w+\s*=/gi, '')
-          .substring(0, 1000)
-          .trim();
-      }
+      // Sanitize useCase using proper sanitization utility
+      const sanitizedUseCase = useCase ? sanitizeText(useCase).substring(0, 1000) : null;
 
       // Check if user already exists
       let user = await storage.getUserByEmail(email);
@@ -637,7 +643,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Authenticated waitlist update - for users who are logged in but want to update their waitlist info
-  app.post('/api/waitlist/update', isAuthenticated, async (req: any, res) => {
+  app.post('/api/waitlist/update', csrfProtection, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { role, useCase } = req.body;
@@ -648,18 +654,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid role' });
       }
 
-      // Sanitize useCase - strip HTML tags and dangerous URI schemes
-      let sanitizedUseCase = useCase;
-      if (useCase && typeof useCase === 'string') {
-        sanitizedUseCase = useCase
-          .replace(/<[^>]*>/g, '')
-          .replace(/javascript:/gi, '')
-          .replace(/data:/gi, '')
-          .replace(/vbscript:/gi, '')
-          .replace(/on\w+\s*=/gi, '')
-          .substring(0, 1000)
-          .trim();
-      }
+      // Sanitize useCase using proper sanitization utility
+      const sanitizedUseCase = useCase ? sanitizeText(useCase).substring(0, 1000) : null;
 
       const user = await storage.getUser(userId);
       if (!user) {
@@ -2206,13 +2202,22 @@ Respond with only the corrected JSON data:`;
   });
 
   // Chat Messages API (Collaboration Pro)
-  app.post('/api/chat/messages', async (req, res) => {
+  app.post('/api/chat/messages', csrfProtection, chatRateLimiter, async (req, res) => {
     try {
       const { roomId, message, messageType, metadata } = req.body;
       
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'Message is required' });
+      }
+      
+      const sanitizedMessage = sanitizeText(message).substring(0, 5000);
+      if (!sanitizedMessage) {
+        return res.status(400).json({ error: 'Message cannot be empty' });
+      }
+      
       const chatMessage = await db.insert(chatMessages).values({
         roomId,
-        message,
+        message: sanitizedMessage,
         messageType: messageType || 'text',
         metadata
       }).returning();
@@ -2244,9 +2249,18 @@ Respond with only the corrected JSON data:`;
   });
 
   // Workflow Comments API (Collaboration Pro)
-  app.post('/api/comments', async (req, res) => {
+  app.post('/api/comments', csrfProtection, chatRateLimiter, async (req, res) => {
     try {
       const { workflowId, roomId, nodeId, positionX, positionY, content } = req.body;
+      
+      if (!content || typeof content !== 'string') {
+        return res.status(400).json({ error: 'Comment content is required' });
+      }
+      
+      const sanitizedContent = sanitizeText(content).substring(0, 2000);
+      if (!sanitizedContent) {
+        return res.status(400).json({ error: 'Comment cannot be empty' });
+      }
       
       const comment = await db.insert(workflowComments).values({
         workflowId,
@@ -2254,7 +2268,7 @@ Respond with only the corrected JSON data:`;
         nodeId,
         positionX,
         positionY,
-        content
+        content: sanitizedContent
       }).returning();
 
       // In real implementation, broadcast via WebSocket
@@ -2772,7 +2786,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Redeem unlock code to get more AI credits
-  app.post('/api/credits/redeem', async (req, res) => {
+  app.post('/api/credits/redeem', csrfProtection, creditUnlockRateLimiter, async (req, res) => {
     try {
       const { code } = req.body;
       
