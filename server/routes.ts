@@ -546,10 +546,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { email, role, useCase, turnstileToken, hp } = req.body;
 
-      // Honeypot check - if filled, silently reject (bots fill hidden fields)
+      // Honeypot check - if filled, delay and reject (bots fill hidden fields)
       if (hp) {
         console.log('Honeypot triggered, rejecting submission');
-        return res.json({ success: true });
+        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+        return res.status(429).json({ error: 'Too many requests. Please try again later.' });
       }
 
       if (!email || typeof email !== 'string') {
@@ -567,10 +568,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Email too long' });
       }
 
-      // Verify Turnstile token if configured
+      // Verify Turnstile token if secret key is configured (strict enforcement)
       if (process.env.TURNSTILE_SECRET_KEY) {
         if (!turnstileToken) {
-          return res.status(400).json({ error: 'Please complete the CAPTCHA verification' });
+          console.warn('Turnstile token missing - possible bypass attempt or misconfigured frontend');
+          return res.status(400).json({ error: 'Security verification required. Please refresh the page and try again.' });
         }
         const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
         const isValid = await verifyTurnstileToken(turnstileToken, clientIp);
@@ -585,13 +587,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid role' });
       }
 
-      // Sanitize useCase - strip any HTML/script tags
+      // Sanitize useCase - strip HTML tags and dangerous URI schemes
       let sanitizedUseCase = useCase;
       if (useCase && typeof useCase === 'string') {
         sanitizedUseCase = useCase
           .replace(/<[^>]*>/g, '')
           .replace(/javascript:/gi, '')
-          .substring(0, 1000);
+          .replace(/data:/gi, '')
+          .replace(/vbscript:/gi, '')
+          .replace(/on\w+\s*=/gi, '')
+          .substring(0, 1000)
+          .trim();
       }
 
       // Check if user already exists
@@ -638,13 +644,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid role' });
       }
 
-      // Sanitize useCase - strip any HTML/script tags
+      // Sanitize useCase - strip HTML tags and dangerous URI schemes
       let sanitizedUseCase = useCase;
       if (useCase && typeof useCase === 'string') {
         sanitizedUseCase = useCase
           .replace(/<[^>]*>/g, '')
           .replace(/javascript:/gi, '')
-          .substring(0, 1000);
+          .replace(/data:/gi, '')
+          .replace(/vbscript:/gi, '')
+          .replace(/on\w+\s*=/gi, '')
+          .substring(0, 1000)
+          .trim();
       }
 
       const user = await storage.getUser(userId);

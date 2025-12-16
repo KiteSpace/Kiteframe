@@ -45,6 +45,7 @@ interface AuthUser {
 }
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+const TURNSTILE_ENABLED = !!TURNSTILE_SITE_KEY;
 
 export default function LandingPage() {
   const [email, setEmail] = useState('');
@@ -137,7 +138,7 @@ export default function LandingPage() {
     });
   };
 
-  const canSubmit = email && (!TURNSTILE_SITE_KEY || turnstileToken);
+  const canSubmit = email && (!TURNSTILE_ENABLED || turnstileToken);
 
   const isAuthenticated = !!user;
   const isOnWaitlist = user?.waitlistRequestedAt;
