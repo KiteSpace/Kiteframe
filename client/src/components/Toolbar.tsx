@@ -31,14 +31,14 @@ interface ToolbarProps {
   isReadOnly?: boolean;
 }
 
-export function Toolbar({ 
-  onOpenAiSettings, 
-  isDarkMode, 
-  onToggleDarkMode, 
+export function Toolbar({
+  onOpenAiSettings,
+  isDarkMode,
+  onToggleDarkMode,
   editorSettings,
   onEditorSettingsChange,
   onOpenBugReport,
-  isReadOnly
+  isReadOnly,
 }: ToolbarProps) {
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const settingsDropdownRef = useRef<HTMLDivElement>(null);
@@ -46,11 +46,11 @@ export function Toolbar({
 
   useEffect(() => {
     if (!showSettingsDropdown) return;
-    
+
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (
-        settingsDropdownRef.current && 
+        settingsDropdownRef.current &&
         !settingsDropdownRef.current.contains(target) &&
         settingsButtonRef.current &&
         !settingsButtonRef.current.contains(target)
@@ -59,26 +59,22 @@ export function Toolbar({
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showSettingsDropdown]);
 
   return (
     <header
-      className="h-14 px-4 py-2 flex items-center justify-between bg-card border-b border-border shadow-sm"
+      className="h-16 px-4 py-2 flex items-center justify-between bg-card border-border shadow-sm"
       data-testid="toolbar"
     >
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <img 
-            src={kiteframeIcon} 
-            alt="Kiteframe" 
-            className="w-6 h-6" 
-          />
-          <h1 className="text-lg font-semibold">Kiteframe</h1>
-          <span 
+          <img src={kiteframeIcon} alt="Kiteframe" className="w-6 h-6" />
+          <h1 className="text-2xl font-semibold">Kiteframe</h1>
+          <span
             className="px-2 py-0.5 text-xs font-medium text-white rounded"
-            style={{ backgroundColor: '#64bce3' }}
+            style={{ backgroundColor: "#2b313d" }}
           >
             Beta
           </span>
@@ -87,10 +83,10 @@ export function Toolbar({
       <div className="flex items-center gap-3">
         {/* Authentication */}
         <AuthButton />
-        
+
         {/* AI Credits */}
         <CreditsWidget />
-        
+
         <div className="relative">
           <button
             ref={settingsButtonRef}
@@ -101,7 +97,10 @@ export function Toolbar({
             <Settings size={16} />
           </button>
           {showSettingsDropdown && (
-            <div ref={settingsDropdownRef} className="absolute right-0 top-full mt-1 w-64 bg-card border border-border rounded-lg shadow-lg z-[100] p-3">
+            <div
+              ref={settingsDropdownRef}
+              className="absolute right-0 top-full mt-1 w-64 bg-card border border-border rounded-lg shadow-lg z-[100] p-3"
+            >
               {/* Theme Toggle */}
               {onToggleDarkMode && (
                 <button
@@ -112,11 +111,15 @@ export function Toolbar({
                   }}
                   data-testid="button-theme-toggle"
                 >
-                  {isDarkMode ? <Sun size={16} className="text-yellow-500" /> : <Moon size={16} className="text-blue-500" />}
+                  {isDarkMode ? (
+                    <Sun size={16} className="text-yellow-500" />
+                  ) : (
+                    <Moon size={16} className="text-blue-500" />
+                  )}
                   {isDarkMode ? "Light Mode" : "Dark Mode"}
                 </button>
               )}
-              
+
               {/* Bug Report Button */}
               {onOpenBugReport && (
                 <button
@@ -132,7 +135,7 @@ export function Toolbar({
                   Report Bug
                 </button>
               )}
-              
+
               {/* Divider */}
               <div className="border-b border-border my-2"></div>
 
@@ -142,7 +145,10 @@ export function Toolbar({
                   {/* Node Auto-Connect Toggle */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
-                      <Label htmlFor="auto-connect-toggle" className="text-sm font-medium cursor-pointer">
+                      <Label
+                        htmlFor="auto-connect-toggle"
+                        className="text-sm font-medium cursor-pointer"
+                      >
                         Node Auto-Connect
                       </Label>
                       <p className="text-xs text-muted-foreground mt-0.5">
@@ -152,8 +158,11 @@ export function Toolbar({
                     <Switch
                       id="auto-connect-toggle"
                       checked={editorSettings.nodeAutoConnect}
-                      onCheckedChange={(checked) => 
-                        onEditorSettingsChange({ ...editorSettings, nodeAutoConnect: checked })
+                      onCheckedChange={(checked) =>
+                        onEditorSettingsChange({
+                          ...editorSettings,
+                          nodeAutoConnect: checked,
+                        })
                       }
                       data-testid="toggle-auto-connect"
                     />
@@ -162,7 +171,10 @@ export function Toolbar({
                   {/* Snap to Guides Toggle */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
-                      <Label htmlFor="snap-guides-toggle" className="text-sm font-medium cursor-pointer">
+                      <Label
+                        htmlFor="snap-guides-toggle"
+                        className="text-sm font-medium cursor-pointer"
+                      >
                         Snap to Guides
                       </Label>
                       <p className="text-xs text-muted-foreground mt-0.5">
@@ -172,8 +184,11 @@ export function Toolbar({
                     <Switch
                       id="snap-guides-toggle"
                       checked={editorSettings.snapToGuides}
-                      onCheckedChange={(checked) => 
-                        onEditorSettingsChange({ ...editorSettings, snapToGuides: checked })
+                      onCheckedChange={(checked) =>
+                        onEditorSettingsChange({
+                          ...editorSettings,
+                          snapToGuides: checked,
+                        })
                       }
                       data-testid="toggle-snap-guides"
                     />

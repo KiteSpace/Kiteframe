@@ -1,59 +1,95 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useParams, useLocation } from 'wouter';
-import { usePluginSystem } from '@/lib/kiteframe/core/PluginProvider';
-import { WorkflowCanvas } from '@/components/WorkflowCanvas';
-import { ProjectPanel } from '@/components/panels/ProjectPanel';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { BlankCanvasState } from '@/components/BlankCanvasState';
-import { PluginProvider, layoutPlugin, consolePlugin, testPlugin, advancedInteractionsPlugin } from '@/lib/kiteframe';
-import { PluginTestButton } from '@/components/PluginTestButton';
-import { PluginTestPanel } from '@/components/PluginTestPanel';
-import { Sidebar } from '@/components/Sidebar';
-import { CollapsedSidebar } from '@/components/CollapsedSidebar';
-import { NodeTypesPopout } from '@/components/NodeTypesPopout';
-import { ShapesPopout } from '@/components/ShapesPopout';
-import { Toolbar } from '@/components/Toolbar';
-import { AiSettingsModal } from '@/components/AiSettingsModal';
-import { AiWorkflowGenerator } from '@/components/AiWorkflowGenerator';
-import { WorkflowImportModal } from '@/components/WorkflowImportModal';
-import { ShareModal } from '@/components/ShareModal';
-import { BugReportModal } from '@/components/BugReportModal';
-import { ContextMenu } from '@/components/ContextMenu';
-import { MissingImagesModal } from '@/components/MissingImagesModal';
-import { NewTabModal } from '@/components/NewTabModal';
-import { ImageUploadModal } from '@/lib/kiteframe/components/modals/ImageUploadModal';
-import { LinearToolbar } from '@/lib/kiteframe/components/LinearToolbar';
-import { QuickCreateRadialMenu, ShapeType } from '@/lib/kiteframe/components/QuickCreateRadialMenu';
-import { TablePanel } from '@/lib/kiteframe/components/TablePanel';
-import { NodeGalleryPanel } from '@/lib/kiteframe/components/NodeGalleryPanel';
-import { SavedProjectsDrawer } from '@/components/SavedProjectsDrawer';
-import { HomeScreen } from '@/components/HomeScreen';
-import { AiProvider, useAi } from '../ai/AiProvider';
-import { OpenAICompatClient } from '../ai/OpenAICompatClient';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
-import { ObjectUploader } from '@/components/ObjectUploader';
-import { useFirebaseWorkflows } from '../hooks/useFirebaseWorkflows';
-import { useAuth } from '../hooks/useAuth';
-import { useCreditsGate } from '../hooks/useCreditsGate';
-import { useCloudProjects } from '../hooks/useCloudProjects';
-import { useSubscription } from '../hooks/useSubscription';
-import type { Node, Edge, CanvasObject, ProFeaturesConfig, NodeType, TextNodeData, ShapeNodeData, StickyNoteData, DataTable, TableNodeData, SavedCompoundTemplate, TemplateStore } from '../lib/kiteframe/types';
-import { FlowDetection, type FlowSettings, type FlowSettingsMap } from '../lib/kiteframe/utils/FlowDetection';
-import { DEFAULT_SHAPE_NODE_DATA } from '../lib/kiteframe/constants/defaults';
-import { recalculateAllEdgeZIndexes } from '../lib/kiteframe/utils/edgeZIndex';
-import { applyThemeToNode, applyThemeToEdge, workflowThemes, getThemeById, type WorkflowTheme } from '../lib/themes';
-import { isPureBlack, isPureWhite, getOppositeTextColor } from '../lib/kiteframe/utils/colorUtils';
-import '../lib/kiteframe/styles/kiteframe.css';
-import { 
-  X, 
-  Plus, 
-  Brain, 
-  Workflow, 
-  Type, 
-  Shapes, 
-  StickyNote, 
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useParams, useLocation } from "wouter";
+import { usePluginSystem } from "@/lib/kiteframe/core/PluginProvider";
+import { WorkflowCanvas } from "@/components/WorkflowCanvas";
+import { ProjectPanel } from "@/components/panels/ProjectPanel";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { BlankCanvasState } from "@/components/BlankCanvasState";
+import {
+  PluginProvider,
+  layoutPlugin,
+  consolePlugin,
+  testPlugin,
+  advancedInteractionsPlugin,
+} from "@/lib/kiteframe";
+import { PluginTestButton } from "@/components/PluginTestButton";
+import { PluginTestPanel } from "@/components/PluginTestPanel";
+import { Sidebar } from "@/components/Sidebar";
+import { CollapsedSidebar } from "@/components/CollapsedSidebar";
+import { NodeTypesPopout } from "@/components/NodeTypesPopout";
+import { ShapesPopout } from "@/components/ShapesPopout";
+import { Toolbar } from "@/components/Toolbar";
+import { AiSettingsModal } from "@/components/AiSettingsModal";
+import { AiWorkflowGenerator } from "@/components/AiWorkflowGenerator";
+import { WorkflowImportModal } from "@/components/WorkflowImportModal";
+import { ShareModal } from "@/components/ShareModal";
+import { BugReportModal } from "@/components/BugReportModal";
+import { ContextMenu } from "@/components/ContextMenu";
+import { MissingImagesModal } from "@/components/MissingImagesModal";
+import { NewTabModal } from "@/components/NewTabModal";
+import { ImageUploadModal } from "@/lib/kiteframe/components/modals/ImageUploadModal";
+import { LinearToolbar } from "@/lib/kiteframe/components/LinearToolbar";
+import {
+  QuickCreateRadialMenu,
+  ShapeType,
+} from "@/lib/kiteframe/components/QuickCreateRadialMenu";
+import { TablePanel } from "@/lib/kiteframe/components/TablePanel";
+import { NodeGalleryPanel } from "@/lib/kiteframe/components/NodeGalleryPanel";
+import { SavedProjectsDrawer } from "@/components/SavedProjectsDrawer";
+import { HomeScreen } from "@/components/HomeScreen";
+import { AiProvider, useAi } from "../ai/AiProvider";
+import { OpenAICompatClient } from "../ai/OpenAICompatClient";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import { useFirebaseWorkflows } from "../hooks/useFirebaseWorkflows";
+import { useAuth } from "../hooks/useAuth";
+import { useCreditsGate } from "../hooks/useCreditsGate";
+import { useCloudProjects } from "../hooks/useCloudProjects";
+import { useSubscription } from "../hooks/useSubscription";
+import type {
+  Node,
+  Edge,
+  CanvasObject,
+  ProFeaturesConfig,
+  NodeType,
+  TextNodeData,
+  ShapeNodeData,
+  StickyNoteData,
+  DataTable,
+  TableNodeData,
+  SavedCompoundTemplate,
+  TemplateStore,
+} from "../lib/kiteframe/types";
+import {
+  FlowDetection,
+  type FlowSettings,
+  type FlowSettingsMap,
+} from "../lib/kiteframe/utils/FlowDetection";
+import { DEFAULT_SHAPE_NODE_DATA } from "../lib/kiteframe/constants/defaults";
+import { recalculateAllEdgeZIndexes } from "../lib/kiteframe/utils/edgeZIndex";
+import {
+  applyThemeToNode,
+  applyThemeToEdge,
+  workflowThemes,
+  getThemeById,
+  type WorkflowTheme,
+} from "../lib/themes";
+import {
+  isPureBlack,
+  isPureWhite,
+  getOppositeTextColor,
+} from "../lib/kiteframe/utils/colorUtils";
+import "../lib/kiteframe/styles/kiteframe.css";
+import {
+  X,
+  Plus,
+  Brain,
+  Workflow,
+  Type,
+  Shapes,
+  StickyNote,
   Table2,
   FileText,
   Route,
@@ -63,11 +99,11 @@ import {
   Layers,
   UserPlus,
   CircuitBoard,
-  Maximize2, 
-  Trash2, 
-  Download, 
-  Upload, 
-  Menu, 
+  Maximize2,
+  Trash2,
+  Download,
+  Upload,
+  Menu,
   ChevronLeft,
   ChevronRight,
   Home,
@@ -77,24 +113,41 @@ import {
   RotateCcw,
   Cloud,
   CloudOff,
-  Rocket
-} from 'lucide-react';
-import { SiFigma } from 'react-icons/si';
-import { FigmaImportModal } from '@/components/modals/FigmaImportModal';
-import { WorkflowGenerationPreviewModal } from '@/components/modals/WorkflowGenerationPreviewModal';
-import { parseFigmaUrl } from '@/lib/integration/figmaUrl';
-import { generateWorkflowFromFigmaSemantic, generateAIRefinedWorkflow, generateAIVisionWorkflow } from '@/lib/integration/semanticWorkflowGenerator';
-import type { WorkflowGenerationMode } from '@/lib/integration/figmaSemanticTypes';
-import { buildFigmaFrameWorkflow, insertFigmaFrames, type FigmaFrameWithThumbnail } from '@/utils/createFigmaProject';
-import { addFigmaSource } from '@/lib/kiteframe/utils/sourceTracking';
-import { sortFrameNodesForWorkflow, filterValidWorkflowFrames } from '@/lib/kiteframe/utils/workflowOrdering';
-import { resetLayersState } from '@/stores/layersStateManager';
-import { prdNodeLinkStore, type PRDNodeLink } from '@/stores/prdNodeLinkStore';
-import { usePromptContextStoreOptional } from '@/contexts/PromptContextStore';
-import { generateWorkflowPRD } from '@/ai/prdEngine';
-import { extractSemanticWorkflowModel } from '@/lib/kiteframe/utils/extractSemanticWorkflowModel';
-import { saveWorkflowPRD, saveWorkflowPRDVersion } from '@/lib/kiteframe/utils/prdStorage';
-import { afterWorkflowCreation, type ProjectDetails } from '@/lib/kiteframe/hooks/afterWorkflowCreation';
+  Rocket,
+} from "lucide-react";
+import { SiFigma } from "react-icons/si";
+import { FigmaImportModal } from "@/components/modals/FigmaImportModal";
+import { WorkflowGenerationPreviewModal } from "@/components/modals/WorkflowGenerationPreviewModal";
+import { parseFigmaUrl } from "@/lib/integration/figmaUrl";
+import {
+  generateWorkflowFromFigmaSemantic,
+  generateAIRefinedWorkflow,
+  generateAIVisionWorkflow,
+} from "@/lib/integration/semanticWorkflowGenerator";
+import type { WorkflowGenerationMode } from "@/lib/integration/figmaSemanticTypes";
+import {
+  buildFigmaFrameWorkflow,
+  insertFigmaFrames,
+  type FigmaFrameWithThumbnail,
+} from "@/utils/createFigmaProject";
+import { addFigmaSource } from "@/lib/kiteframe/utils/sourceTracking";
+import {
+  sortFrameNodesForWorkflow,
+  filterValidWorkflowFrames,
+} from "@/lib/kiteframe/utils/workflowOrdering";
+import { resetLayersState } from "@/stores/layersStateManager";
+import { prdNodeLinkStore, type PRDNodeLink } from "@/stores/prdNodeLinkStore";
+import { usePromptContextStoreOptional } from "@/contexts/PromptContextStore";
+import { generateWorkflowPRD } from "@/ai/prdEngine";
+import { extractSemanticWorkflowModel } from "@/lib/kiteframe/utils/extractSemanticWorkflowModel";
+import {
+  saveWorkflowPRD,
+  saveWorkflowPRDVersion,
+} from "@/lib/kiteframe/utils/prdStorage";
+import {
+  afterWorkflowCreation,
+  type ProjectDetails,
+} from "@/lib/kiteframe/hooks/afterWorkflowCreation";
 
 // Project metadata types
 interface ProjectLink {
@@ -107,7 +160,7 @@ interface ProjectMetadata {
   name: string;
   description: string;
   links: ProjectLink[];
-  linksFormat: 'bulleted' | 'text';
+  linksFormat: "bulleted" | "text";
   categories: string[];
 }
 
@@ -121,7 +174,12 @@ interface WorkflowTab {
   viewport: { x: number; y: number; zoom: number };
   selectedNodeId: string;
   selectedEdgeId: string;
-  history: Array<{ nodes: Node[]; edges: Edge[]; canvasObjects: CanvasObject[]; viewport: { x: number; y: number; zoom: number } }>;
+  history: Array<{
+    nodes: Node[];
+    edges: Edge[];
+    canvasObjects: CanvasObject[];
+    viewport: { x: number; y: number; zoom: number };
+  }>;
   historyIndex: number;
   showImageModal: string | null;
   metadata: ProjectMetadata;
@@ -134,7 +192,12 @@ interface WorkflowTab {
 }
 
 // Helper to get node position and dimensions (handles different node structures)
-function getNodeBounds(node: Node): { x: number; y: number; width: number; height: number } {
+function getNodeBounds(node: Node): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
   const x = node.position?.x ?? 0;
   const y = node.position?.y ?? 0;
   const width = node.width ?? node.style?.width ?? 200;
@@ -146,71 +209,75 @@ function getNodeBounds(node: Node): { x: number; y: number; width: number; heigh
 // btoa() fails on non-ASCII characters, this handles Unicode properly
 function utf8ToBase64(str: string): string {
   const bytes = new TextEncoder().encode(str);
-  let binary = '';
-  bytes.forEach(byte => binary += String.fromCharCode(byte));
+  let binary = "";
+  bytes.forEach((byte) => (binary += String.fromCharCode(byte)));
   return btoa(binary);
 }
 
 // Generate a simple SVG thumbnail preview of the workflow
 function generateWorkflowThumbnail(nodes: Node[], edges: Edge[]): string {
-  if (nodes.length === 0) return '';
-  
+  if (nodes.length === 0) return "";
+
   // Get bounds for all nodes
-  const nodeBounds = nodes.map(n => getNodeBounds(n));
-  
+  const nodeBounds = nodes.map((n) => getNodeBounds(n));
+
   // Find bounding box of all nodes
   const padding = 20;
-  const minX = Math.min(...nodeBounds.map(b => b.x)) - padding;
-  const minY = Math.min(...nodeBounds.map(b => b.y)) - padding;
-  const maxX = Math.max(...nodeBounds.map(b => b.x + b.width)) + padding;
-  const maxY = Math.max(...nodeBounds.map(b => b.y + b.height)) + padding;
-  
+  const minX = Math.min(...nodeBounds.map((b) => b.x)) - padding;
+  const minY = Math.min(...nodeBounds.map((b) => b.y)) - padding;
+  const maxX = Math.max(...nodeBounds.map((b) => b.x + b.width)) + padding;
+  const maxY = Math.max(...nodeBounds.map((b) => b.y + b.height)) + padding;
+
   const width = maxX - minX;
   const height = maxY - minY;
-  
+
   // Guard against invalid dimensions
   if (!isFinite(width) || !isFinite(height) || width <= 0 || height <= 0) {
-    return '';
+    return "";
   }
-  
+
   // Scale to fit in thumbnail size (300x200)
   const scale = Math.min(300 / width, 200 / height, 1);
   const scaledWidth = width * scale;
   const scaledHeight = height * scale;
-  
+
   // Node type colors
   const nodeColors: Record<string, string> = {
-    input: '#3b82f6',
-    process: '#8b5cf6',
-    condition: '#f59e0b',
-    output: '#22c55e',
-    ai: '#ec4899',
-    image: '#06b6d4'
+    input: "#3b82f6",
+    process: "#8b5cf6",
+    condition: "#f59e0b",
+    output: "#22c55e",
+    ai: "#ec4899",
+    image: "#06b6d4",
   };
-  
+
   // Generate SVG
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200">`;
   svg += `<rect width="300" height="200" fill="#f8fafc"/>`;
-  
+
   // Center the content
   const offsetX = (300 - scaledWidth) / 2;
   const offsetY = (200 - scaledHeight) / 2;
-  
+
   // Draw edges first (behind nodes)
-  edges.forEach(edge => {
-    const sourceIdx = nodes.findIndex(n => n.id === edge.source);
-    const targetIdx = nodes.findIndex(n => n.id === edge.target);
+  edges.forEach((edge) => {
+    const sourceIdx = nodes.findIndex((n) => n.id === edge.source);
+    const targetIdx = nodes.findIndex((n) => n.id === edge.target);
     if (sourceIdx >= 0 && targetIdx >= 0) {
       const sourceBounds = nodeBounds[sourceIdx];
       const targetBounds = nodeBounds[targetIdx];
-      const x1 = (sourceBounds.x + sourceBounds.width / 2 - minX) * scale + offsetX;
-      const y1 = (sourceBounds.y + sourceBounds.height / 2 - minY) * scale + offsetY;
-      const x2 = (targetBounds.x + targetBounds.width / 2 - minX) * scale + offsetX;
-      const y2 = (targetBounds.y + targetBounds.height / 2 - minY) * scale + offsetY;
+      const x1 =
+        (sourceBounds.x + sourceBounds.width / 2 - minX) * scale + offsetX;
+      const y1 =
+        (sourceBounds.y + sourceBounds.height / 2 - minY) * scale + offsetY;
+      const x2 =
+        (targetBounds.x + targetBounds.width / 2 - minX) * scale + offsetX;
+      const y2 =
+        (targetBounds.y + targetBounds.height / 2 - minY) * scale + offsetY;
       svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/>`;
     }
   });
-  
+
   // Draw nodes
   nodeBounds.forEach((bounds, idx) => {
     const node = nodes[idx];
@@ -218,9 +285,9 @@ function generateWorkflowThumbnail(nodes: Node[], edges: Edge[]): string {
     const y = (bounds.y - minY) * scale + offsetY;
     const w = bounds.width * scale;
     const h = bounds.height * scale;
-    const color = nodeColors[node.type || 'process'] || '#64748b';
-    
-    if (node.type === 'condition') {
+    const color = nodeColors[node.type || "process"] || "#64748b";
+
+    if (node.type === "condition") {
       // Diamond shape for conditions
       const cx = x + w / 2;
       const cy = y + h / 2;
@@ -230,16 +297,16 @@ function generateWorkflowThumbnail(nodes: Node[], edges: Edge[]): string {
       svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${color}" opacity="0.8"/>`;
     }
   });
-  
+
   svg += `</svg>`;
-  
+
   // Convert to data URL using Unicode-safe encoding
   return `data:image/svg+xml;base64,${utf8ToBase64(svg)}`;
 }
 
 interface WorkflowEditorContentProps {
   onAiSettingsChange?: () => void;
-  mode?: 'edit' | 'view';
+  mode?: "edit" | "view";
   initialNodes?: Node[];
   initialEdges?: Edge[];
   initialCanvasObjects?: CanvasObject[];
@@ -249,33 +316,41 @@ interface WorkflowEditorContentProps {
   onReset?: () => void;
 }
 
-function WorkflowEditorContent({ 
+function WorkflowEditorContent({
   onAiSettingsChange,
-  mode = 'edit',
+  mode = "edit",
   initialNodes,
   initialEdges,
   initialCanvasObjects,
   initialViewport,
   initialProjectName,
   initialProjectDescription,
-  onReset
+  onReset,
 }: WorkflowEditorContentProps) {
-  const isReadOnly = mode === 'view';
+  const isReadOnly = mode === "view";
   const ai = useAi();
   const { toast } = useToast();
   const promptContextStore = usePromptContextStoreOptional();
-  
+
   // URL routing for project UUID
   const { projectUuid } = useParams<{ projectUuid?: string }>();
   const [, setLocation] = useLocation();
   const [currentProjectId, setCurrentProjectId] = useState<number | null>(null);
   const projectLoadedRef = useRef(false);
-  const { isOutOfCredits, ctaMessage, ctaAction, ctaButtonText, openSignup, openPricing, openCreditsDialog } = useCreditsGate();
-  
+  const {
+    isOutOfCredits,
+    ctaMessage,
+    ctaAction,
+    ctaButtonText,
+    openSignup,
+    openPricing,
+    openCreditsDialog,
+  } = useCreditsGate();
+
   const { isPro, isAdmin } = useSubscription();
   const { isAuthenticated } = useAuth();
-  const { 
-    projects: cloudProjects, 
+  const {
+    projects: cloudProjects,
     isLoading: cloudProjectsLoading,
     hasCloudAccess,
     isCloudConnected,
@@ -289,117 +364,153 @@ function WorkflowEditorContent({
   // Editor Settings State with persistence
   const [editorSettings, setEditorSettings] = useState(() => {
     try {
-      const saved = localStorage.getItem('kiteframe-editor-settings');
-      return saved ? JSON.parse(saved) : {
-        nodeAutoConnect: false,
-        snapToGuides: false
-      };
+      const saved = localStorage.getItem("kiteframe-editor-settings");
+      return saved
+        ? JSON.parse(saved)
+        : {
+            nodeAutoConnect: false,
+            snapToGuides: false,
+          };
     } catch {
       return {
         nodeAutoConnect: false,
-        snapToGuides: false
+        snapToGuides: false,
       };
     }
   });
 
   // Save editor settings to localStorage
   useEffect(() => {
-    localStorage.setItem('kiteframe-editor-settings', JSON.stringify(editorSettings));
+    localStorage.setItem(
+      "kiteframe-editor-settings",
+      JSON.stringify(editorSettings),
+    );
   }, [editorSettings]);
 
   // Pro Features Configuration (now reactive to editor settings)
-  const proFeaturesConfig: ProFeaturesConfig = useMemo(() => ({
-    quickAdd: {
-      enabled: true,
-      showGhostPreview: true,
-      defaultSpacing: 250,
-      defaultNodeType: 'process',
-      defaultNodeTemplate: {
-        label: 'New Process',
-        description: 'Configure process settings',
-        icon: 'Cog',
-        iconColor: 'text-gray-500'
+  const proFeaturesConfig: ProFeaturesConfig = useMemo(
+    () => ({
+      quickAdd: {
+        enabled: true,
+        showGhostPreview: true,
+        defaultSpacing: 250,
+        defaultNodeType: "process",
+        defaultNodeTemplate: {
+          label: "New Process",
+          description: "Configure process settings",
+          icon: "Cog",
+          iconColor: "text-gray-500",
+        },
+        onQuickAdd: (sourceNode, position, newNode) => {
+          toast({
+            title: "Node Added",
+            description: `Added ${newNode.data?.label} to the ${position} of ${sourceNode.data?.label}`,
+          });
+        },
       },
-      onQuickAdd: (sourceNode, position, newNode) => {
-        toast({
-          title: "Node Added",
-          description: `Added ${newNode.data?.label} to the ${position} of ${sourceNode.data?.label}`,
-        });
-      }
-    },
-    copyPaste: {
-      enabled: true,
-      offsetDistance: 50,
-      onCopy: (node) => {
-        toast({
-          title: "Node Copied",
-          description: `${node.data?.label} copied to clipboard`,
-        });
+      copyPaste: {
+        enabled: true,
+        offsetDistance: 50,
+        onCopy: (node) => {
+          toast({
+            title: "Node Copied",
+            description: `${node.data?.label} copied to clipboard`,
+          });
+        },
+        onPaste: (originalNode, newNode) => {
+          toast({
+            title: "Node Pasted",
+            description: `${newNode.data?.label} pasted from ${originalNode.data?.label}`,
+          });
+        },
       },
-      onPaste: (originalNode, newNode) => {
-        toast({
-          title: "Node Pasted",
-          description: `${newNode.data?.label} pasted from ${originalNode.data?.label}`,
-        });
-      }
-    },
-    advancedSelection: {
-      enabled: true,
-      enableMultiSelect: true,
-      enableShiftDragSelection: true,
-      selectionRectStyle: {
-        border: '2px dashed #3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        borderRadius: '4px'
-      }
-    },
-    versionControl: {
-      enabled: true,
-      autoSaveInterval: 30000,
-      maxSnapshots: 50,
-      enableComparison: true,
-      onSnapshot: (snapshot) => {
-      }
-    },
-    edgeReconnection: {
-      enabled: true,
-      enableAllEdges: true, // Make all edges reconnectable by default
-      visualFeedback: {
-        handleColor: '#3b82f6',
-        previewColor: '#3b82f6',
-        validColor: '#22c55e',
-        invalidColor: '#ef4444'
-      }
-    },
-    smartGuides: {
-      enabled: editorSettings.snapToGuides,
-      threshold: 10,
-      showGuides: editorSettings.snapToGuides,
-      snapToNodes: editorSettings.snapToGuides,
-      snapToGrid: false,
-      gridSize: 20,
-      snapToCanvas: editorSettings.snapToGuides
-    },
-    smartConnect: {
-      enabled: editorSettings.nodeAutoConnect,
-      threshold: 50,
-      autoConnect: editorSettings.nodeAutoConnect,
-      showPreview: editorSettings.nodeAutoConnect
-    }
-  }), [editorSettings]);
+      advancedSelection: {
+        enabled: true,
+        enableMultiSelect: true,
+        enableShiftDragSelection: true,
+        selectionRectStyle: {
+          border: "2px dashed #3b82f6",
+          backgroundColor: "rgba(59, 130, 246, 0.1)",
+          borderRadius: "4px",
+        },
+      },
+      versionControl: {
+        enabled: true,
+        autoSaveInterval: 30000,
+        maxSnapshots: 50,
+        enableComparison: true,
+        onSnapshot: (snapshot) => {},
+      },
+      edgeReconnection: {
+        enabled: true,
+        enableAllEdges: true, // Make all edges reconnectable by default
+        visualFeedback: {
+          handleColor: "#3b82f6",
+          previewColor: "#3b82f6",
+          validColor: "#22c55e",
+          invalidColor: "#ef4444",
+        },
+      },
+      smartGuides: {
+        enabled: editorSettings.snapToGuides,
+        threshold: 10,
+        showGuides: editorSettings.snapToGuides,
+        snapToNodes: editorSettings.snapToGuides,
+        snapToGrid: false,
+        gridSize: 20,
+        snapToCanvas: editorSettings.snapToGuides,
+      },
+      smartConnect: {
+        enabled: editorSettings.nodeAutoConnect,
+        threshold: 50,
+        autoConnect: editorSettings.nodeAutoConnect,
+        showPreview: editorSettings.nodeAutoConnect,
+      },
+    }),
+    [editorSettings],
+  );
 
   // Generate unique ID for tabs
-  const generateTabId = useCallback(() => `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, []);
-  
+  const generateTabId = useCallback(
+    () => `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    [],
+  );
+
   // Generate cute workflow names
   const generateCuteName = useCallback(() => {
     const adjectives = [
-      'Sunny', 'Happy', 'Magic', 'Bright', 'Cozy', 'Sweet', 'Clever', 'Gentle', 
-      'Peaceful', 'Cheerful', 'Dreamy', 'Sparkly', 'Golden', 'Fresh', 'Lovely'
+      "Sunny",
+      "Happy",
+      "Magic",
+      "Bright",
+      "Cozy",
+      "Sweet",
+      "Clever",
+      "Gentle",
+      "Peaceful",
+      "Cheerful",
+      "Dreamy",
+      "Sparkly",
+      "Golden",
+      "Fresh",
+      "Lovely",
     ];
     const nouns = [
-      'Adventure', 'Journey', 'Flow', 'Quest', 'Path', 'Dream', 'Story', 'Project',
-      'Creation', 'Vision', 'Wonder', 'Discovery', 'Symphony', 'Garden', 'Blueprint'
+      "Adventure",
+      "Journey",
+      "Flow",
+      "Quest",
+      "Path",
+      "Dream",
+      "Story",
+      "Project",
+      "Creation",
+      "Vision",
+      "Wonder",
+      "Discovery",
+      "Symphony",
+      "Garden",
+      "Blueprint",
     ];
     const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
     const noun = nouns[Math.floor(Math.random() * nouns.length)];
@@ -409,111 +520,230 @@ function WorkflowEditorContent({
   // Generate random 3-node workflow
   const generateRandomWorkflow = useCallback(() => {
     const nodeTypes = [
-      { type: 'input', icon: 'ArrowRight', iconColor: 'text-blue-500', labels: ['Data Source', 'Input Stream', 'Raw Data', 'User Input'], descriptions: ['Data source configuration', 'Incoming data stream', 'Raw data collection', 'User input validation'] },
-      { type: 'process', icon: 'Cog', iconColor: 'text-gray-500', labels: ['Transform', 'Process', 'Filter', 'Validate'], descriptions: ['Data transformation', 'Process workflow step', 'Filter and clean data', 'Validate input data'] },
-      { type: 'condition', icon: 'HelpCircle', iconColor: 'text-yellow-500', labels: ['Decision', 'Check', 'Condition', 'Branch'], descriptions: ['Evaluate condition logic', 'Check data quality', 'Conditional branching', 'Decision point'] },
-      { type: 'output', icon: 'ArrowLeft', iconColor: 'text-red-500', labels: ['Result', 'Export', 'Save', 'Output'], descriptions: ['Final result destination', 'Export processed data', 'Save to database', 'Output data stream'] },
-      { type: 'ai', icon: 'Bot', iconColor: 'text-purple-500', labels: ['AI Model', 'ML Process', 'Neural Net', 'Analysis'], descriptions: ['Process data with AI\nModel: GPT-4o', 'Machine learning processing', 'Neural network analysis', 'AI-powered analysis'] },
-      { type: 'image', icon: 'Image', iconColor: 'text-green-500', labels: ['Visual', 'Chart', 'Diagram', 'Image'], descriptions: ['Visual representation', 'Generate chart or graph', 'Create diagram', 'Image processing'] }
+      {
+        type: "input",
+        icon: "ArrowRight",
+        iconColor: "text-blue-500",
+        labels: ["Data Source", "Input Stream", "Raw Data", "User Input"],
+        descriptions: [
+          "Data source configuration",
+          "Incoming data stream",
+          "Raw data collection",
+          "User input validation",
+        ],
+      },
+      {
+        type: "process",
+        icon: "Cog",
+        iconColor: "text-gray-500",
+        labels: ["Transform", "Process", "Filter", "Validate"],
+        descriptions: [
+          "Data transformation",
+          "Process workflow step",
+          "Filter and clean data",
+          "Validate input data",
+        ],
+      },
+      {
+        type: "condition",
+        icon: "HelpCircle",
+        iconColor: "text-yellow-500",
+        labels: ["Decision", "Check", "Condition", "Branch"],
+        descriptions: [
+          "Evaluate condition logic",
+          "Check data quality",
+          "Conditional branching",
+          "Decision point",
+        ],
+      },
+      {
+        type: "output",
+        icon: "ArrowLeft",
+        iconColor: "text-red-500",
+        labels: ["Result", "Export", "Save", "Output"],
+        descriptions: [
+          "Final result destination",
+          "Export processed data",
+          "Save to database",
+          "Output data stream",
+        ],
+      },
+      {
+        type: "ai",
+        icon: "Bot",
+        iconColor: "text-purple-500",
+        labels: ["AI Model", "ML Process", "Neural Net", "Analysis"],
+        descriptions: [
+          "Process data with AI\nModel: GPT-4o",
+          "Machine learning processing",
+          "Neural network analysis",
+          "AI-powered analysis",
+        ],
+      },
+      {
+        type: "image",
+        icon: "Image",
+        iconColor: "text-green-500",
+        labels: ["Visual", "Chart", "Diagram", "Image"],
+        descriptions: [
+          "Visual representation",
+          "Generate chart or graph",
+          "Create diagram",
+          "Image processing",
+        ],
+      },
     ];
 
     // Randomly select 3 different node types
     const shuffled = [...nodeTypes].sort(() => 0.5 - Math.random());
     const selectedTypes = shuffled.slice(0, 3);
-    
+
     // Generate random positions in a flowing layout
     const positions = [
       { x: 150 + Math.random() * 100, y: 80 + Math.random() * 40 },
       { x: 400 + Math.random() * 100, y: 80 + Math.random() * 40 },
-      { x: 275 + Math.random() * 100, y: 250 + Math.random() * 40 }
+      { x: 275 + Math.random() * 100, y: 250 + Math.random() * 40 },
     ];
-    
+
     // Create nodes
     const nodes = selectedTypes.map((nodeType, index) => {
-      const randomLabel = nodeType.labels[Math.floor(Math.random() * nodeType.labels.length)];
-      const randomDesc = nodeType.descriptions[Math.floor(Math.random() * nodeType.descriptions.length)];
+      const randomLabel =
+        nodeType.labels[Math.floor(Math.random() * nodeType.labels.length)];
+      const randomDesc =
+        nodeType.descriptions[
+          Math.floor(Math.random() * nodeType.descriptions.length)
+        ];
       return {
         id: `node-${index + 1}`,
         type: nodeType.type,
         position: positions[index],
-        data: { 
-          label: randomLabel, 
-          description: randomDesc, 
-          icon: nodeType.icon, 
-          iconColor: nodeType.iconColor 
+        data: {
+          label: randomLabel,
+          description: randomDesc,
+          icon: nodeType.icon,
+          iconColor: nodeType.iconColor,
         },
         width: 200,
-        height: nodeType.type === 'ai' ? 120 : 100
+        height: nodeType.type === "ai" ? 120 : 100,
       };
     });
 
     // Create edges between the nodes (linear flow: 1->2->3)
-    const edgeTypes = ['bezier', 'straight'] as const;
+    const edgeTypes = ["bezier", "straight"] as const;
     const colors = [
-      'hsl(221.2, 83.2%, 53.3%)', 
-      'hsl(142.1, 76.2%, 36.3%)',
-      'hsl(262.1, 83.3%, 57.8%)',
-      'hsl(346.8, 77.2%, 49.8%)'
+      "hsl(221.2, 83.2%, 53.3%)",
+      "hsl(142.1, 76.2%, 36.3%)",
+      "hsl(262.1, 83.3%, 57.8%)",
+      "hsl(346.8, 77.2%, 49.8%)",
     ];
-    
+
     const edges: Edge[] = [
       {
-        id: 'edge-1',
-        source: 'node-1',
-        target: 'node-2',
+        id: "edge-1",
+        source: "node-1",
+        target: "node-2",
         type: edgeTypes[Math.floor(Math.random() * edgeTypes.length)],
         animated: Math.random() > 0.5,
-        style: { strokeColor: colors[Math.floor(Math.random() * colors.length)], strokeWidth: 2 },
-        markers: { type: 'arrow' as const, position: 'end' as const }
+        style: {
+          strokeColor: colors[Math.floor(Math.random() * colors.length)],
+          strokeWidth: 2,
+        },
+        markers: { type: "arrow" as const, position: "end" as const },
       },
       {
-        id: 'edge-2',
-        source: 'node-2',
-        target: 'node-3',
+        id: "edge-2",
+        source: "node-2",
+        target: "node-3",
         type: edgeTypes[Math.floor(Math.random() * edgeTypes.length)],
         animated: Math.random() > 0.5,
-        style: { strokeColor: colors[Math.floor(Math.random() * colors.length)], strokeWidth: 2 },
-        markers: { type: 'arrow' as const, position: 'end' as const }
-      }
+        style: {
+          strokeColor: colors[Math.floor(Math.random() * colors.length)],
+          strokeWidth: 2,
+        },
+        markers: { type: "arrow" as const, position: "end" as const },
+      },
     ];
 
     return { nodes, edges };
   }, []);
 
   // Generate User Journey template
-  const generateUserJourneyTemplate = useCallback((): { nodes: Node[]; edges: Edge[] } => {
+  const generateUserJourneyTemplate = useCallback((): {
+    nodes: Node[];
+    edges: Edge[];
+  } => {
     const journeySteps = [
-      'Discovery', 'Awareness', 'Research', 'Consideration', 'Decision', 
-      'Purchase', 'Onboarding', 'Usage', 'Support', 'Advocacy'
-    ];
-    
-    const touchpoints = [
-      'Website Visit', 'Social Media', 'Email Campaign', 'Product Demo', 
-      'Customer Service', 'Mobile App', 'In-Store Experience', 'Review Platform'
-    ];
-    
-    const emotions = [
-      'Curious', 'Excited', 'Overwhelmed', 'Confident', 'Satisfied', 
-      'Frustrated', 'Delighted', 'Concerned', 'Hopeful', 'Loyal'
+      "Discovery",
+      "Awareness",
+      "Research",
+      "Consideration",
+      "Decision",
+      "Purchase",
+      "Onboarding",
+      "Usage",
+      "Support",
+      "Advocacy",
     ];
 
-    const selectedSteps = journeySteps.sort(() => 0.5 - Math.random()).slice(0, 5);
+    const touchpoints = [
+      "Website Visit",
+      "Social Media",
+      "Email Campaign",
+      "Product Demo",
+      "Customer Service",
+      "Mobile App",
+      "In-Store Experience",
+      "Review Platform",
+    ];
+
+    const emotions = [
+      "Curious",
+      "Excited",
+      "Overwhelmed",
+      "Confident",
+      "Satisfied",
+      "Frustrated",
+      "Delighted",
+      "Concerned",
+      "Hopeful",
+      "Loyal",
+    ];
+
+    const selectedSteps = journeySteps
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 5);
     const nodes = selectedSteps.map((step, index) => {
-      const touchpoint = touchpoints[Math.floor(Math.random() * touchpoints.length)];
+      const touchpoint =
+        touchpoints[Math.floor(Math.random() * touchpoints.length)];
       const emotion = emotions[Math.floor(Math.random() * emotions.length)];
-      
+
       return {
         id: `step-${index + 1}`,
-        type: index === 0 ? 'input' : index === selectedSteps.length - 1 ? 'output' : 'process',
+        type:
+          index === 0
+            ? "input"
+            : index === selectedSteps.length - 1
+              ? "output"
+              : "process",
         position: { x: 150 + index * 350, y: 200 + Math.random() * 80 },
         data: {
           label: step,
           description: `${touchpoint}\nFeeling: ${emotion}`,
-          icon: index === 0 ? 'ArrowRight' : index === selectedSteps.length - 1 ? 'ArrowLeft' : 'User',
-          iconColor: index === 0 ? 'text-blue-500' : index === selectedSteps.length - 1 ? 'text-red-500' : 'text-green-500'
+          icon:
+            index === 0
+              ? "ArrowRight"
+              : index === selectedSteps.length - 1
+                ? "ArrowLeft"
+                : "User",
+          iconColor:
+            index === 0
+              ? "text-blue-500"
+              : index === selectedSteps.length - 1
+                ? "text-red-500"
+                : "text-green-500",
         },
         width: 200,
-        height: 100
+        height: 100,
       };
     });
 
@@ -523,10 +753,10 @@ function WorkflowEditorContent({
         id: `journey-edge-${i + 1}`,
         source: nodes[i].id,
         target: nodes[i + 1].id,
-        type: 'bezier' as const,
+        type: "bezier" as const,
         animated: true,
-        style: { strokeColor: 'hsl(142.1, 76.2%, 36.3%)', strokeWidth: 2 },
-        markers: { type: 'arrow' as const, position: 'end' as const }
+        style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 },
+        markers: { type: "arrow" as const, position: "end" as const },
       });
     }
 
@@ -534,38 +764,67 @@ function WorkflowEditorContent({
   }, []);
 
   // Generate Mindmap template
-  const generateMindmapTemplate = useCallback((): { nodes: Node[]; edges: Edge[] } => {
+  const generateMindmapTemplate = useCallback((): {
+    nodes: Node[];
+    edges: Edge[];
+  } => {
     const centralTopics = [
-      'Product Strategy', 'Marketing Plan', 'Business Model', 'User Research',
-      'Project Goals', 'Innovation Ideas', 'Team Structure', 'Growth Strategy'
-    ];
-    
-    const subtopics = [
-      'Market Analysis', 'Customer Segments', 'Features', 'Pricing', 'Channels',
-      'Resources', 'Timeline', 'Metrics', 'Risks', 'Opportunities', 'Partnerships',
-      'Technology', 'Design', 'Operations', 'Finance', 'Legal', 'Quality'
+      "Product Strategy",
+      "Marketing Plan",
+      "Business Model",
+      "User Research",
+      "Project Goals",
+      "Innovation Ideas",
+      "Team Structure",
+      "Growth Strategy",
     ];
 
-    const centralTopic = centralTopics[Math.floor(Math.random() * centralTopics.length)];
-    const selectedSubtopics = subtopics.sort(() => 0.5 - Math.random()).slice(0, 6);
+    const subtopics = [
+      "Market Analysis",
+      "Customer Segments",
+      "Features",
+      "Pricing",
+      "Channels",
+      "Resources",
+      "Timeline",
+      "Metrics",
+      "Risks",
+      "Opportunities",
+      "Partnerships",
+      "Technology",
+      "Design",
+      "Operations",
+      "Finance",
+      "Legal",
+      "Quality",
+    ];
+
+    const centralTopic =
+      centralTopics[Math.floor(Math.random() * centralTopics.length)];
+    const selectedSubtopics = subtopics
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 6);
 
     const nodes = [
       {
-        id: 'central',
-        type: 'process',
+        id: "central",
+        type: "process",
         position: { x: 600, y: 300 },
         data: {
           label: centralTopic,
-          description: 'Central topic',
-          icon: 'Target',
-          iconColor: 'text-purple-500'
+          description: "Central topic",
+          icon: "Target",
+          iconColor: "text-purple-500",
         },
         width: 200,
-        height: 100
-      }
+        height: 100,
+      },
     ];
 
-    const angles = [0, 60, 120, 180, 240, 300].slice(0, selectedSubtopics.length);
+    const angles = [0, 60, 120, 180, 240, 300].slice(
+      0,
+      selectedSubtopics.length,
+    );
     selectedSubtopics.forEach((topic, index) => {
       const angle = (angles[index] * Math.PI) / 180;
       const radius = 350;
@@ -574,16 +833,16 @@ function WorkflowEditorContent({
 
       nodes.push({
         id: `branch-${index + 1}`,
-        type: 'condition',
+        type: "condition",
         position: { x, y },
         data: {
           label: topic,
           description: `Branch: ${topic}`,
-          icon: 'GitBranch',
-          iconColor: 'text-blue-500'
+          icon: "GitBranch",
+          iconColor: "text-blue-500",
         },
         width: 180,
-        height: 90
+        height: 90,
       });
     });
 
@@ -591,12 +850,12 @@ function WorkflowEditorContent({
     for (let i = 1; i < nodes.length; i++) {
       edges.push({
         id: `mind-edge-${i}`,
-        source: 'central',
+        source: "central",
         target: nodes[i].id,
-        type: 'straight' as const,
+        type: "straight" as const,
         animated: false,
-        style: { strokeColor: 'hsl(262.1, 83.3%, 57.8%)', strokeWidth: 2 },
-        markers: { type: 'arrow' as const, position: 'end' as const }
+        style: { strokeColor: "hsl(262.1, 83.3%, 57.8%)", strokeWidth: 2 },
+        markers: { type: "arrow" as const, position: "end" as const },
       });
     }
 
@@ -604,19 +863,32 @@ function WorkflowEditorContent({
   }, []);
 
   // Generate System Architecture template
-  const generateSystemArchitectureTemplate = useCallback((): { nodes: Node[]; edges: Edge[] } => {
+  const generateSystemArchitectureTemplate = useCallback((): {
+    nodes: Node[];
+    edges: Edge[];
+  } => {
     const systems = [
-      'Load Balancer', 'API Gateway', 'Web Server', 'Application Server',
-      'Database', 'Cache Layer', 'Message Queue', 'File Storage', 'CDN',
-      'Authentication Service', 'Monitoring', 'Analytics', 'Backup System'
+      "Load Balancer",
+      "API Gateway",
+      "Web Server",
+      "Application Server",
+      "Database",
+      "Cache Layer",
+      "Message Queue",
+      "File Storage",
+      "CDN",
+      "Authentication Service",
+      "Monitoring",
+      "Analytics",
+      "Backup System",
     ];
 
     const selectedSystems = systems.sort(() => 0.5 - Math.random()).slice(0, 6);
     const layers = [
-      { y: 100, label: 'Presentation Layer' },
-      { y: 200, label: 'API Layer' },
-      { y: 300, label: 'Business Logic' },
-      { y: 400, label: 'Data Layer' }
+      { y: 100, label: "Presentation Layer" },
+      { y: 200, label: "API Layer" },
+      { y: 300, label: "Business Logic" },
+      { y: 400, label: "Data Layer" },
     ];
 
     const nodes = selectedSystems.map((system, index) => {
@@ -625,45 +897,46 @@ function WorkflowEditorContent({
 
       return {
         id: `sys-${index + 1}`,
-        type: 'process',
+        type: "process",
         position: { x: xOffset, y: layer.y + Math.random() * 50 },
         data: {
           label: system,
           description: `${layer.label}\nComponent: ${system}`,
-          icon: 'Server',
-          iconColor: 'text-orange-500'
+          icon: "Server",
+          iconColor: "text-orange-500",
         },
         width: 200,
-        height: 100
+        height: 100,
       };
     });
 
     const edges: Edge[] = [];
-    
+
     // Guarantee base chain of connections
     for (let i = 0; i < nodes.length - 1; i++) {
       edges.push({
         id: `sys-edge-${edges.length + 1}`,
         source: nodes[i].id,
         target: nodes[i + 1].id,
-        type: 'bezier' as const,
+        type: "bezier" as const,
         animated: false,
-        style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
-        markers: { type: 'arrow' as const, position: 'end' as const }
+        style: { strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2 },
+        markers: { type: "arrow" as const, position: "end" as const },
       });
     }
 
     // Add optional extra connections for complexity
     for (let i = 0; i < nodes.length - 2; i++) {
-      if (Math.random() > 0.6) { // 40% chance of skip connections
+      if (Math.random() > 0.6) {
+        // 40% chance of skip connections
         edges.push({
           id: `sys-edge-${edges.length + 1}`,
           source: nodes[i].id,
           target: nodes[i + 2].id,
-          type: 'bezier' as const,
+          type: "bezier" as const,
           animated: false,
-          style: { strokeColor: 'hsl(262.1, 83.3%, 57.8%)', strokeWidth: 1 },
-          markers: { type: 'arrow' as const, position: 'end' as const }
+          style: { strokeColor: "hsl(262.1, 83.3%, 57.8%)", strokeWidth: 1 },
+          markers: { type: "arrow" as const, position: "end" as const },
         });
       }
     }
@@ -672,22 +945,44 @@ function WorkflowEditorContent({
   }, []);
 
   // Generate Swim Lanes template
-  const generateSwimLanesTemplate = useCallback((): { nodes: Node[]; edges: Edge[] } => {
+  const generateSwimLanesTemplate = useCallback((): {
+    nodes: Node[];
+    edges: Edge[];
+  } => {
     const lanes = [
-      'Customer', 'Sales Team', 'Marketing', 'Support', 'Development',
-      'Management', 'Finance', 'Operations', 'Legal', 'Design'
+      "Customer",
+      "Sales Team",
+      "Marketing",
+      "Support",
+      "Development",
+      "Management",
+      "Finance",
+      "Operations",
+      "Legal",
+      "Design",
     ];
 
     const activities = [
-      'Submit Request', 'Review Application', 'Approve Process', 'Create Account',
-      'Send Notification', 'Generate Report', 'Schedule Meeting', 'Update Status',
-      'Verify Information', 'Complete Task', 'Archive Records', 'Follow Up'
+      "Submit Request",
+      "Review Application",
+      "Approve Process",
+      "Create Account",
+      "Send Notification",
+      "Generate Report",
+      "Schedule Meeting",
+      "Update Status",
+      "Verify Information",
+      "Complete Task",
+      "Archive Records",
+      "Follow Up",
     ];
 
     // Generate 4-7 total nodes across 3 lanes
     const selectedLanes = lanes.sort(() => 0.5 - Math.random()).slice(0, 3);
     const totalNodes = 4 + Math.floor(Math.random() * 4); // 4-7 nodes
-    const selectedActivities = activities.sort(() => 0.5 - Math.random()).slice(0, totalNodes);
+    const selectedActivities = activities
+      .sort(() => 0.5 - Math.random())
+      .slice(0, totalNodes);
 
     const nodes: Node[] = [];
     const laneNodes: { [laneIndex: number]: string[] } = {};
@@ -699,45 +994,52 @@ function WorkflowEditorContent({
     });
 
     selectedActivities.forEach((activity, actIndex) => {
-      const laneIndex = actIndex < selectedLanes.length 
-        ? actIndex // First activities go to different lanes
-        : Math.floor(Math.random() * selectedLanes.length); // Rest distributed randomly
-      
+      const laneIndex =
+        actIndex < selectedLanes.length
+          ? actIndex // First activities go to different lanes
+          : Math.floor(Math.random() * selectedLanes.length); // Rest distributed randomly
+
       const activityIndexInLane = laneNodes[laneIndex].length;
       const nodeId = `lane-${laneIndex}-act-${activityIndexInLane}`;
       laneNodes[laneIndex].push(nodeId);
 
       nodes.push({
         id: nodeId,
-        type: activityIndexInLane === 0 ? 'input' : 'process',
-        position: { x: 250 + activityIndexInLane * 350, y: 150 + laneIndex * laneHeight },
+        type: activityIndexInLane === 0 ? "input" : "process",
+        position: {
+          x: 250 + activityIndexInLane * 350,
+          y: 150 + laneIndex * laneHeight,
+        },
         data: {
           label: activity,
           description: `Lane: ${selectedLanes[laneIndex]}\nActivity: ${activity}`,
-          icon: activityIndexInLane === 0 ? 'ArrowRight' : 'Activity',
-          iconColor: `hsl(${laneIndex * 120}, 70%, 50%)`
+          icon: activityIndexInLane === 0 ? "ArrowRight" : "Activity",
+          iconColor: `hsl(${laneIndex * 120}, 70%, 50%)`,
         },
         width: 200,
-        height: 90
+        height: 90,
       });
     });
 
     const edges: Edge[] = [];
-    
+
     // Connect nodes within each lane
-    Object.keys(laneNodes).forEach(laneIndexStr => {
+    Object.keys(laneNodes).forEach((laneIndexStr) => {
       const laneIndex = parseInt(laneIndexStr);
       const nodesInLane = laneNodes[laneIndex];
-      
+
       for (let i = 0; i < nodesInLane.length - 1; i++) {
         edges.push({
           id: `swim-edge-lane-${laneIndex}-${i}`,
           source: nodesInLane[i],
           target: nodesInLane[i + 1],
-          type: 'bezier' as const,
+          type: "bezier" as const,
           animated: true,
-          style: { strokeColor: `hsl(${laneIndex * 120}, 70%, 50%)`, strokeWidth: 2 },
-          markers: { type: 'arrow' as const, position: 'end' as const }
+          style: {
+            strokeColor: `hsl(${laneIndex * 120}, 70%, 50%)`,
+            strokeWidth: 2,
+          },
+          markers: { type: "arrow" as const, position: "end" as const },
         });
       }
     });
@@ -746,16 +1048,20 @@ function WorkflowEditorContent({
     if (selectedLanes.length >= 2 && Math.random() > 0.4) {
       const lane1Nodes = laneNodes[0];
       const lane2Nodes = laneNodes[1];
-      
+
       if (lane1Nodes.length > 0 && lane2Nodes.length > 0) {
         edges.push({
-          id: 'swim-edge-handoff-1',
+          id: "swim-edge-handoff-1",
           source: lane1Nodes[lane1Nodes.length - 1], // Last node in first lane
           target: lane2Nodes[0], // First node in second lane
-          type: 'bezier' as const,
+          type: "bezier" as const,
           animated: false,
-          style: { strokeColor: 'hsl(346.8, 77.2%, 49.8%)', strokeWidth: 2, strokeDasharray: '5,5' },
-          markers: { type: 'arrow' as const, position: 'end' as const }
+          style: {
+            strokeColor: "hsl(346.8, 77.2%, 49.8%)",
+            strokeWidth: 2,
+            strokeDasharray: "5,5",
+          },
+          markers: { type: "arrow" as const, position: "end" as const },
         });
       }
     }
@@ -764,53 +1070,87 @@ function WorkflowEditorContent({
   }, []);
 
   // Generate User Account Creation template
-  const generateUserAccountTemplate = useCallback((): { nodes: Node[]; edges: Edge[] } => {
+  const generateUserAccountTemplate = useCallback((): {
+    nodes: Node[];
+    edges: Edge[];
+  } => {
     const steps = [
-      'Registration Form', 'Email Verification', 'Profile Setup', 'Preferences',
-      'Welcome Tour', 'First Login', 'Account Activation', 'Security Setup'
+      "Registration Form",
+      "Email Verification",
+      "Profile Setup",
+      "Preferences",
+      "Welcome Tour",
+      "First Login",
+      "Account Activation",
+      "Security Setup",
     ];
 
     const validationSteps = [
-      'Validate Email', 'Check Password Strength', 'Verify Phone', 'Duplicate Check',
-      'Terms Acceptance', 'Age Verification', 'Captcha Check', 'Fraud Detection'
+      "Validate Email",
+      "Check Password Strength",
+      "Verify Phone",
+      "Duplicate Check",
+      "Terms Acceptance",
+      "Age Verification",
+      "Captcha Check",
+      "Fraud Detection",
     ];
 
     // Generate 4-7 total nodes (main steps + validations)
     const totalNodes = 4 + Math.floor(Math.random() * 4); // 4-7 nodes
     const mainStepsCount = Math.max(3, Math.ceil(totalNodes * 0.6)); // 60% main steps, min 3
     const validationsCount = totalNodes - mainStepsCount;
-    
-    const selectedSteps = steps.sort(() => 0.5 - Math.random()).slice(0, mainStepsCount);
-    const selectedValidations = validationSteps.sort(() => 0.5 - Math.random()).slice(0, validationsCount);
+
+    const selectedSteps = steps
+      .sort(() => 0.5 - Math.random())
+      .slice(0, mainStepsCount);
+    const selectedValidations = validationSteps
+      .sort(() => 0.5 - Math.random())
+      .slice(0, validationsCount);
 
     const nodes = selectedSteps.map((step, index) => ({
       id: `account-${index + 1}`,
-      type: index === 0 ? 'input' : index === selectedSteps.length - 1 ? 'output' : 'process',
+      type:
+        index === 0
+          ? "input"
+          : index === selectedSteps.length - 1
+            ? "output"
+            : "process",
       position: { x: 200 + index * 300, y: 200 },
       data: {
         label: step,
         description: `User account creation step: ${step}`,
-        icon: index === 0 ? 'UserPlus' : index === selectedSteps.length - 1 ? 'CheckCircle' : 'User',
-        iconColor: index === 0 ? 'text-green-500' : index === selectedSteps.length - 1 ? 'text-blue-500' : 'text-purple-500'
+        icon:
+          index === 0
+            ? "UserPlus"
+            : index === selectedSteps.length - 1
+              ? "CheckCircle"
+              : "User",
+        iconColor:
+          index === 0
+            ? "text-green-500"
+            : index === selectedSteps.length - 1
+              ? "text-blue-500"
+              : "text-purple-500",
       },
       width: 180,
-      height: 100
+      height: 100,
     }));
 
     // Add validation nodes
     selectedValidations.forEach((validation, index) => {
       nodes.push({
         id: `validation-${index + 1}`,
-        type: 'condition',
+        type: "condition",
         position: { x: 250 + index * 200, y: 300 },
         data: {
           label: validation,
           description: `Validation: ${validation}`,
-          icon: 'Shield',
-          iconColor: 'text-yellow-500'
+          icon: "Shield",
+          iconColor: "text-yellow-500",
         },
         width: 160,
-        height: 80
+        height: 80,
       });
     });
 
@@ -821,10 +1161,10 @@ function WorkflowEditorContent({
         id: `account-edge-${i + 1}`,
         source: `account-${i + 1}`,
         target: `account-${i + 2}`,
-        type: 'bezier' as const,
+        type: "bezier" as const,
         animated: true,
-        style: { strokeColor: 'hsl(142.1, 76.2%, 36.3%)', strokeWidth: 2 },
-        markers: { type: 'arrow' as const, position: 'end' as const }
+        style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 },
+        markers: { type: "arrow" as const, position: "end" as const },
       });
     }
 
@@ -835,10 +1175,10 @@ function WorkflowEditorContent({
           id: `val-edge-${index + 1}`,
           source: `account-${index + 1}`,
           target: `validation-${index + 1}`,
-          type: 'straight' as const,
+          type: "straight" as const,
           animated: false,
-          style: { strokeColor: 'hsl(45, 93%, 47%)', strokeWidth: 2 },
-          markers: { type: 'arrow' as const, position: 'end' as const }
+          style: { strokeColor: "hsl(45, 93%, 47%)", strokeWidth: 2 },
+          markers: { type: "arrow" as const, position: "end" as const },
         });
       }
     });
@@ -847,25 +1187,52 @@ function WorkflowEditorContent({
   }, []);
 
   // Generate I/O Logic template
-  const generateIOLogicTemplate = useCallback((): { nodes: Node[]; edges: Edge[] } => {
+  const generateIOLogicTemplate = useCallback((): {
+    nodes: Node[];
+    edges: Edge[];
+  } => {
     const inputSources = [
-      'File Upload', 'API Request', 'Database Query', 'User Input',
-      'Sensor Data', 'External Service', 'Message Queue', 'Webhook'
+      "File Upload",
+      "API Request",
+      "Database Query",
+      "User Input",
+      "Sensor Data",
+      "External Service",
+      "Message Queue",
+      "Webhook",
     ];
 
     const processes = [
-      'Data Validation', 'Transform Format', 'Apply Rules', 'Filter Data',
-      'Calculate Values', 'Merge Datasets', 'Aggregate Results', 'Clean Data'
+      "Data Validation",
+      "Transform Format",
+      "Apply Rules",
+      "Filter Data",
+      "Calculate Values",
+      "Merge Datasets",
+      "Aggregate Results",
+      "Clean Data",
     ];
 
     const outputDestinations = [
-      'Database Write', 'File Export', 'API Response', 'Email Notification',
-      'Dashboard Update', 'Report Generation', 'Alert System', 'Cache Update'
+      "Database Write",
+      "File Export",
+      "API Response",
+      "Email Notification",
+      "Dashboard Update",
+      "Report Generation",
+      "Alert System",
+      "Cache Update",
     ];
 
-    const selectedInputs = inputSources.sort(() => 0.5 - Math.random()).slice(0, 2);
-    const selectedProcesses = processes.sort(() => 0.5 - Math.random()).slice(0, 3);
-    const selectedOutputs = outputDestinations.sort(() => 0.5 - Math.random()).slice(0, 2);
+    const selectedInputs = inputSources
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 2);
+    const selectedProcesses = processes
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 3);
+    const selectedOutputs = outputDestinations
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 2);
 
     const nodes: Node[] = [];
 
@@ -873,16 +1240,16 @@ function WorkflowEditorContent({
     selectedInputs.forEach((input, index) => {
       nodes.push({
         id: `input-${index + 1}`,
-        type: 'input',
+        type: "input",
         position: { x: 150 + index * 250, y: 150 },
         data: {
           label: input,
           description: `Input source: ${input}`,
-          icon: 'ArrowRight',
-          iconColor: 'text-blue-500'
+          icon: "ArrowRight",
+          iconColor: "text-blue-500",
         },
         width: 160,
-        height: 80
+        height: 80,
       });
     });
 
@@ -890,16 +1257,25 @@ function WorkflowEditorContent({
     selectedProcesses.forEach((process, index) => {
       nodes.push({
         id: `process-${index + 1}`,
-        type: index === Math.floor(selectedProcesses.length / 2) ? 'condition' : 'process',
+        type:
+          index === Math.floor(selectedProcesses.length / 2)
+            ? "condition"
+            : "process",
         position: { x: 200 + index * 300, y: 300 },
         data: {
           label: process,
           description: `Processing: ${process}`,
-          icon: index === Math.floor(selectedProcesses.length / 2) ? 'HelpCircle' : 'Cog',
-          iconColor: index === Math.floor(selectedProcesses.length / 2) ? 'text-yellow-500' : 'text-green-500'
+          icon:
+            index === Math.floor(selectedProcesses.length / 2)
+              ? "HelpCircle"
+              : "Cog",
+          iconColor:
+            index === Math.floor(selectedProcesses.length / 2)
+              ? "text-yellow-500"
+              : "text-green-500",
         },
         width: 180,
-        height: 90
+        height: 90,
       });
     });
 
@@ -907,31 +1283,31 @@ function WorkflowEditorContent({
     selectedOutputs.forEach((output, index) => {
       nodes.push({
         id: `output-${index + 1}`,
-        type: 'output',
+        type: "output",
         position: { x: 250 + index * 250, y: 450 },
         data: {
           label: output,
           description: `Output destination: ${output}`,
-          icon: 'ArrowLeft',
-          iconColor: 'text-red-500'
+          icon: "ArrowLeft",
+          iconColor: "text-red-500",
         },
         width: 160,
-        height: 80
+        height: 80,
       });
     });
 
     const edges: Edge[] = [];
-    
+
     // Connect inputs to first process
     selectedInputs.forEach((_, index) => {
       edges.push({
         id: `io-edge-input-${index + 1}`,
         source: `input-${index + 1}`,
-        target: 'process-1',
-        type: 'bezier' as const,
+        target: "process-1",
+        type: "bezier" as const,
         animated: true,
-        style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
-        markers: { type: 'arrow' as const, position: 'end' as const }
+        style: { strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2 },
+        markers: { type: "arrow" as const, position: "end" as const },
       });
     });
 
@@ -941,10 +1317,10 @@ function WorkflowEditorContent({
         id: `io-edge-process-${i + 1}`,
         source: `process-${i + 1}`,
         target: `process-${i + 2}`,
-        type: 'bezier' as const,
+        type: "bezier" as const,
         animated: false,
-        style: { strokeColor: 'hsl(142.1, 76.2%, 36.3%)', strokeWidth: 2 },
-        markers: { type: 'arrow' as const, position: 'end' as const }
+        style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 },
+        markers: { type: "arrow" as const, position: "end" as const },
       });
     }
 
@@ -954,10 +1330,10 @@ function WorkflowEditorContent({
         id: `io-edge-output-${index + 1}`,
         source: `process-${selectedProcesses.length}`,
         target: `output-${index + 1}`,
-        type: 'bezier' as const,
+        type: "bezier" as const,
         animated: true,
-        style: { strokeColor: 'hsl(346.8, 77.2%, 49.8%)', strokeWidth: 2 },
-        markers: { type: 'arrow' as const, position: 'end' as const }
+        style: { strokeColor: "hsl(346.8, 77.2%, 49.8%)", strokeWidth: 2 },
+        markers: { type: "arrow" as const, position: "end" as const },
       });
     });
 
@@ -967,71 +1343,71 @@ function WorkflowEditorContent({
   // Create default tab with random workflow
   const createDefaultTab = useCallback((): WorkflowTab => {
     const { nodes, edges } = generateRandomWorkflow();
-    const name = 'Untitled';
+    const name = "Untitled";
     const initialState = {
       nodes,
       edges,
       canvasObjects: [],
-      viewport: { x: 0, y: 0, zoom: 1 }
+      viewport: { x: 0, y: 0, zoom: 1 },
     };
-    
+
     // Generate unique project UUID for this local project
     const projectUuid = `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     return {
       id: generateTabId(),
       name,
       ...initialState,
-      selectedNodeId: '',
-      selectedEdgeId: '',
+      selectedNodeId: "",
+      selectedEdgeId: "",
       history: [initialState], // Initialize with current state
       historyIndex: 0, // Start at index 0, not -1
       showImageModal: null,
       metadata: {
         name,
-        description: '',
+        description: "",
         links: [],
-        linksFormat: 'text',
-        categories: []
+        linksFormat: "text",
+        categories: [],
       },
       flowSettings: {},
       projectUuid, // Unique identifier for layers state scoping
-      isOpen: true // Show in tab bar by default
+      isOpen: true, // Show in tab bar by default
     };
   }, [generateTabId, generateCuteName, generateRandomWorkflow]);
 
   // Create blank tab
   const createBlankTab = useCallback((): WorkflowTab => {
-    const name = 'Untitled';
+    const name = "Untitled";
     const initialState = {
       nodes: [],
       edges: [],
       canvasObjects: [],
-      viewport: { x: 0, y: 0, zoom: 1 }
+      viewport: { x: 0, y: 0, zoom: 1 },
     };
-    
+
     // Generate unique project UUID for this local project
     const projectUuid = `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     return {
       id: generateTabId(),
       name,
       ...initialState,
-      selectedNodeId: '',
-      selectedEdgeId: '',
+      selectedNodeId: "",
+      selectedEdgeId: "",
       history: [initialState], // Initialize with current state
       historyIndex: 0, // Start at index 0, not -1
       showImageModal: null,
       metadata: {
         name,
-        description: '',
+        description: "",
         links: [],
-        linksFormat: 'text',
-        categories: []
+        linksFormat: "text",
+        categories: [],
       },
       flowSettings: {},
       projectUuid, // Unique identifier for layers state scoping
-      isOpen: true // Show in tab bar by default
+      isOpen: true, // Show in tab bar by default
     };
   }, [generateTabId, generateCuteName]);
 
@@ -1039,31 +1415,33 @@ function WorkflowEditorContent({
   const [tabs, setTabs] = useState<WorkflowTab[]>(() => {
     if (isReadOnly && initialNodes) {
       const viewTab: WorkflowTab = {
-        id: 'view-tab',
-        name: initialProjectName || 'Shared Workflow',
+        id: "view-tab",
+        name: initialProjectName || "Shared Workflow",
         nodes: initialNodes,
         edges: initialEdges || [],
         canvasObjects: initialCanvasObjects || [],
         viewport: initialViewport || { x: 0, y: 0, zoom: 1 },
-        selectedNodeId: '',
-        selectedEdgeId: '',
-        history: [{
-          nodes: initialNodes,
-          edges: initialEdges || [],
-          canvasObjects: initialCanvasObjects || [],
-          viewport: initialViewport || { x: 0, y: 0, zoom: 1 }
-        }],
+        selectedNodeId: "",
+        selectedEdgeId: "",
+        history: [
+          {
+            nodes: initialNodes,
+            edges: initialEdges || [],
+            canvasObjects: initialCanvasObjects || [],
+            viewport: initialViewport || { x: 0, y: 0, zoom: 1 },
+          },
+        ],
         historyIndex: 0,
         showImageModal: null,
         metadata: {
-          name: initialProjectName || 'Shared Workflow',
-          description: initialProjectDescription || '',
+          name: initialProjectName || "Shared Workflow",
+          description: initialProjectDescription || "",
           links: [],
-          linksFormat: 'text',
-          categories: []
+          linksFormat: "text",
+          categories: [],
         },
         flowSettings: {},
-        projectUuid: `view-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        projectUuid: `view-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       };
       return [viewTab];
     }
@@ -1071,34 +1449,40 @@ function WorkflowEditorContent({
   });
   const [activeTabId, setActiveTabId] = useState<string>(() => {
     if (isReadOnly && initialNodes) {
-      return 'view-tab';
+      return "view-tab";
     }
-    return 'home';
+    return "home";
   });
-  
+
   // Check if we're on the home screen
-  const isOnHomeTab = activeTabId === 'home' && !isReadOnly;
-  
+  const isOnHomeTab = activeTabId === "home" && !isReadOnly;
+
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('dark-mode');
+    const saved = localStorage.getItem("dark-mode");
     return saved ? JSON.parse(saved) : false;
   });
 
   // Animation configuration state
-  const [connectionAnimationConfig, setConnectionAnimationConfig] = useState<any>(() => {
-    const saved = localStorage.getItem('connection-animation-config');
-    return saved ? JSON.parse(saved) : {
-      duration: 600,
-      easing: 'ease-out',
-      pulseOnConnection: true,
-      showParticles: false,
-      glowOnHover: true
-    };
-  });
-  
+  const [connectionAnimationConfig, setConnectionAnimationConfig] =
+    useState<any>(() => {
+      const saved = localStorage.getItem("connection-animation-config");
+      return saved
+        ? JSON.parse(saved)
+        : {
+            duration: 600,
+            easing: "ease-out",
+            pulseOnConnection: true,
+            showParticles: false,
+            glowOnHover: true,
+          };
+    });
+
   // SmartConnect preview state
-  const [connectionPreview, setConnectionPreview] = useState<{ source: string; target: string } | null>(null);
+  const [connectionPreview, setConnectionPreview] = useState<{
+    source: string;
+    target: string;
+  } | null>(null);
 
   // Table data management state
   const [tableData, setTableData] = useState<Record<string, DataTable>>({});
@@ -1106,38 +1490,48 @@ function WorkflowEditorContent({
 
   // Save animation config to localStorage
   useEffect(() => {
-    localStorage.setItem('connection-animation-config', JSON.stringify(connectionAnimationConfig));
+    localStorage.setItem(
+      "connection-animation-config",
+      JSON.stringify(connectionAnimationConfig),
+    );
   }, [connectionAnimationConfig]);
 
   // Initialize tabs on first render - removed auto-create to show new creation experience
 
   // Migration effect: Fix existing tabs with invalid history state
   useEffect(() => {
-    const hasInvalidTabs = tabs.some(tab => 
-      tab.historyIndex === -1 || 
-      tab.history.length === 0 || 
-      (tab.history.length > 0 && tab.historyIndex >= tab.history.length)
+    const hasInvalidTabs = tabs.some(
+      (tab) =>
+        tab.historyIndex === -1 ||
+        tab.history.length === 0 ||
+        (tab.history.length > 0 && tab.historyIndex >= tab.history.length),
     );
 
     if (hasInvalidTabs) {
-      setTabs(prev => prev.map(tab => {
-        // If tab has invalid history state, fix it
-        if (tab.historyIndex === -1 || tab.history.length === 0 || tab.historyIndex >= tab.history.length) {
-          const currentState = {
-            nodes: tab.nodes,
-            edges: tab.edges,
-            canvasObjects: tab.canvasObjects || [],
-            viewport: tab.viewport
-          };
-          
-          return {
-            ...tab,
-            history: [currentState],
-            historyIndex: 0
-          };
-        }
-        return tab;
-      }));
+      setTabs((prev) =>
+        prev.map((tab) => {
+          // If tab has invalid history state, fix it
+          if (
+            tab.historyIndex === -1 ||
+            tab.history.length === 0 ||
+            tab.historyIndex >= tab.history.length
+          ) {
+            const currentState = {
+              nodes: tab.nodes,
+              edges: tab.edges,
+              canvasObjects: tab.canvasObjects || [],
+              viewport: tab.viewport,
+            };
+
+            return {
+              ...tab,
+              history: [currentState],
+              historyIndex: 0,
+            };
+          }
+          return tab;
+        }),
+      );
     }
   }, [tabs]);
 
@@ -1145,28 +1539,30 @@ function WorkflowEditorContent({
   useEffect(() => {
     // Apply/remove dark class to document element
     if (isDarkMode) {
-      document.documentElement.classList.add('dark');
+      document.documentElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove("dark");
     }
-    
-    // Save to localStorage
-    localStorage.setItem('dark-mode', JSON.stringify(isDarkMode));
-  }, [isDarkMode]);
 
+    // Save to localStorage
+    localStorage.setItem("dark-mode", JSON.stringify(isDarkMode));
+  }, [isDarkMode]);
 
   // Dark mode toggle function
   const toggleDarkMode = useCallback(() => {
-    setIsDarkMode(prev => !prev);
+    setIsDarkMode((prev) => !prev);
   }, []);
 
   // Compute open tabs (shown in tab bar) - closed tabs still exist for gallery but aren't active
-  const openTabs = useMemo(() => tabs.filter(tab => tab.isOpen !== false), [tabs]);
+  const openTabs = useMemo(
+    () => tabs.filter((tab) => tab.isOpen !== false),
+    [tabs],
+  );
 
   // Get current active tab - only returns an open tab, undefined when on home or no open tabs
   const activeTab = useMemo(() => {
-    if (activeTabId === 'home') return undefined;
-    const tab = openTabs.find(tab => tab.id === activeTabId);
+    if (activeTabId === "home") return undefined;
+    const tab = openTabs.find((tab) => tab.id === activeTabId);
     if (tab) return tab;
     // If activeTabId doesn't match any open tab, return first open tab or undefined
     return openTabs[0];
@@ -1176,7 +1572,8 @@ function WorkflowEditorContent({
   // Use projectUuid or cloudProjectId as the true project identifier
   useEffect(() => {
     // Only reset if we have a valid project identifier to prevent premature state clearing
-    const projectIdentifier = activeTab?.projectUuid || activeTab?.cloudProjectId?.toString();
+    const projectIdentifier =
+      activeTab?.projectUuid || activeTab?.cloudProjectId?.toString();
     if (projectIdentifier) {
       resetLayersState(projectIdentifier);
     }
@@ -1187,64 +1584,76 @@ function WorkflowEditorContent({
   const edges = activeTab?.edges || [];
   const canvasObjects = activeTab?.canvasObjects || [];
   const viewport = activeTab?.viewport || { x: 0, y: 0, zoom: 1 };
-  const selectedNodeId = activeTab?.selectedNodeId || '';
-  const selectedEdgeId = activeTab?.selectedEdgeId || '';
-  
+  const selectedNodeId = activeTab?.selectedNodeId || "";
+  const selectedEdgeId = activeTab?.selectedEdgeId || "";
+
   // Derive selected canvas objects from active tab state
-  const selectedCanvasObjects = useMemo(() => canvasObjects.filter(obj => obj.selected), [canvasObjects]);
-  
+  const selectedCanvasObjects = useMemo(
+    () => canvasObjects.filter((obj) => obj.selected),
+    [canvasObjects],
+  );
+
   const history = activeTab?.history || [];
   const historyIndex = activeTab?.historyIndex ?? 0;
   const showImageModal = activeTab?.showImageModal || null;
   const metadata = activeTab?.metadata || {
-    name: activeTab?.name || 'Untitled Workflow',
-    description: '',
+    name: activeTab?.name || "Untitled Workflow",
+    description: "",
     links: [],
-    linksFormat: 'text' as const,
-    categories: []
+    linksFormat: "text" as const,
+    categories: [],
   };
 
   // Update current tab
-  const updateActiveTab = useCallback((updates: Partial<WorkflowTab>) => {
-    setTabs(prev => prev.map(tab => 
-      tab.id === activeTabId ? { ...tab, ...updates } : tab
-    ));
-  }, [activeTabId]);
+  const updateActiveTab = useCallback(
+    (updates: Partial<WorkflowTab>) => {
+      setTabs((prev) =>
+        prev.map((tab) =>
+          tab.id === activeTabId ? { ...tab, ...updates } : tab,
+        ),
+      );
+    },
+    [activeTabId],
+  );
 
   // Track wireframe generation loading state
   const [generatingWireframe, setGeneratingWireframe] = useState(false);
 
   // Direct AI workflow generation (for home screen prompt)
-  const generateWorkflowDirectly = useCallback(async (prompt: string, tabId: string, generatePRDFlag?: boolean) => {
-    console.log('[KiteAI] generateWorkflowDirectly called with generatePRDFlag:', generatePRDFlag);
-    if (isOutOfCredits) {
-      toast({
-        title: 'Out of credits',
-        description: ctaMessage,
-        variant: 'destructive',
-      });
-      if (ctaAction === 'signup') openSignup();
-      else if (ctaAction === 'upgrade') openPricing();
-      else openCreditsDialog();
-      return;
-    }
-    
-    if (generatingWireframe) {
-      toast({
-        title: 'Please wait',
-        description: 'Generation in progress...',
-      });
-      return;
-    }
+  const generateWorkflowDirectly = useCallback(
+    async (prompt: string, tabId: string, generatePRDFlag?: boolean) => {
+      console.log(
+        "[KiteAI] generateWorkflowDirectly called with generatePRDFlag:",
+        generatePRDFlag,
+      );
+      if (isOutOfCredits) {
+        toast({
+          title: "Out of credits",
+          description: ctaMessage,
+          variant: "destructive",
+        });
+        if (ctaAction === "signup") openSignup();
+        else if (ctaAction === "upgrade") openPricing();
+        else openCreditsDialog();
+        return;
+      }
 
-    setGeneratingWireframe(true);
-    toast({
-      title: 'Generating workflow...',
-      description: 'Creating your workflow from the prompt.',
-    });
+      if (generatingWireframe) {
+        toast({
+          title: "Please wait",
+          description: "Generation in progress...",
+        });
+        return;
+      }
 
-    try {
-      const systemPrompt = `ONLY return JSON. No text before or after. Just JSON.
+      setGeneratingWireframe(true);
+      toast({
+        title: "Generating workflow...",
+        description: "Creating your workflow from the prompt.",
+      });
+
+      try {
+        const systemPrompt = `ONLY return JSON. No text before or after. Just JSON.
 
 Format:
 {"nodes":[{"id":"node-1","type":"input","position":{"x":300,"y":250},"data":{"label":"Start","description":"Begin","icon":"ArrowRight","iconColor":"text-blue-500"},"width":200,"height":100}],"edges":[]}
@@ -1254,206 +1663,258 @@ Icons: input=ArrowRight, process=Cog, output=ArrowLeft, condition=HelpCircle
 Colors: input=text-blue-500, process=text-green-500, output=text-red-500, condition=text-yellow-500
 Position nodes 250px apart horizontally.`;
 
-      const response = await ai.chat({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Create workflow: ${prompt}` }
-        ],
-        temperature: 0.1,
-        maxTokens: 3000
-      });
-
-      // Parse the AI response with JSON cleaning
-      let cleanedResponse = response.text
-        .replace(/^JSON:\s*/i, '')
-        .replace(/```json\s?|```/g, '')
-        .replace(/^[^{]*/, '')
-        .trim();
-      
-      const lastBraceIndex = cleanedResponse.lastIndexOf('}');
-      if (lastBraceIndex !== -1) {
-        cleanedResponse = cleanedResponse.substring(0, lastBraceIndex + 1);
-      }
-      
-      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        cleanedResponse = jsonMatch[0];
-      }
-      
-      let workflowData;
-      try {
-        workflowData = JSON.parse(cleanedResponse);
-      } catch {
-        // Fix common JSON issues
-        let fixedResponse = cleanedResponse
-          .replace(/,(\s*[}\]])/g, '$1')
-          .replace(/([}\]])\s*([{"])/g, '$1,$2')
-          .replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
-        
-        const openBraces = (fixedResponse.match(/\{/g) || []).length;
-        const closeBraces = (fixedResponse.match(/\}/g) || []).length;
-        const openBrackets = (fixedResponse.match(/\[/g) || []).length;
-        const closeBrackets = (fixedResponse.match(/\]/g) || []).length;
-        
-        for (let i = 0; i < openBraces - closeBraces; i++) fixedResponse += '}';
-        for (let i = 0; i < openBrackets - closeBrackets; i++) fixedResponse += ']';
-        
-        workflowData = JSON.parse(fixedResponse);
-      }
-
-      if (workflowData.nodes && workflowData.edges) {
-        // Add unique IDs with timestamp prefix
-        const timestamp = Date.now();
-        const processedNodes = workflowData.nodes.map((node: any, index: number) => ({
-          ...node,
-          id: `${index + 1}-kiteai-${timestamp}-${index}`,
-          width: node.width || 200,
-          height: node.height || 100
-        }));
-        
-        const nodeIdMap: Record<string, string> = {};
-        workflowData.nodes.forEach((node: any, index: number) => {
-          nodeIdMap[node.id] = `${index + 1}-kiteai-${timestamp}-${index}`;
-        });
-        
-        const processedEdges = workflowData.edges.map((edge: any, index: number) => ({
-          ...edge,
-          id: `edge-kiteai-${timestamp}-${index}`,
-          source: nodeIdMap[edge.source] || edge.source,
-          target: nodeIdMap[edge.target] || edge.target,
-          type: edge.type || 'bezier',
-          style: edge.style || { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
-          markers: edge.markers || { type: 'arrow', position: 'end' }
-        }));
-
-        // Generate a stable projectUuid for the tab if it doesn't have one
-        const projectUuid = `project-${timestamp}`;
-        
-        // Compute the workflow group ID from the root node (matches how SpecsTab will look it up)
-        // groupWorkflows uses the topmost-left node as root, and creates id as `workflow-${rootNodeId}`
-        let rootNodeId = processedNodes[0]?.id || '';
-        let minSum = Infinity;
-        processedNodes.forEach((node: Node) => {
-          const sum = (node.position?.x || 0) + (node.position?.y || 0);
-          if (sum < minSum) {
-            minSum = sum;
-            rootNodeId = node.id;
-          }
-        });
-        const workflowGroupId = `workflow-${rootNodeId}`;
-        const workflowName = processedNodes[0]?.data?.label || 'Generated Workflow';
-
-        // Update the tab with the generated workflow and projectUuid
-        setTabs(prev => prev.map(tab => 
-          tab.id === tabId ? { 
-            ...tab, 
-            nodes: processedNodes, 
-            edges: processedEdges,
-            projectUuid: tab.projectUuid || projectUuid,
-            metadata: {
-              ...tab.metadata,
-              name: tab.metadata?.name || workflowName
-            }
-          } : tab
-        ));
-
-        toast({
-          title: 'Workflow Generated',
-          description: `Created ${processedNodes.length} nodes and ${processedEdges.length} connections.`,
+        const response = await ai.chat({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `Create workflow: ${prompt}` },
+          ],
+          temperature: 0.1,
+          maxTokens: 3000,
         });
 
-        // Use the unified afterWorkflowCreation hook for PRD generation
-        const shouldGeneratePRD = generatePRDFlag ?? (promptContextStore?.getGeneratePRD?.() ?? false);
-        console.log('[KiteAI] PRD generation check - generatePRDFlag:', generatePRDFlag, 'shouldGeneratePRD:', shouldGeneratePRD, 'processedNodes.length:', processedNodes.length);
-        
-        // Get the effective projectId - must match what gets stored in the tab
-        // The tab will use: tab.projectUuid || projectUuid (line above)
-        // So we need to check if the current tab already has a projectUuid
-        // Note: tabs state may not have the new tab yet if this was called right after createBlankTab
-        const currentTabData = tabs.find(t => t.id === tabId);
-        const effectiveProjectId = currentTabData?.projectUuid || projectUuid;
-        // Use the workflowGroupId for PRD storage to match how SpecsTab loads PRDs
-        console.log('[KiteAI] Using projectId:', effectiveProjectId, 'workflowId:', workflowGroupId, '(currentTabData:', !!currentTabData, 'rootNodeId:', rootNodeId, ')');
-        
-        const result = await afterWorkflowCreation({
-          projectId: effectiveProjectId,
-          workflows: [{
-            workflowId: workflowGroupId,
-            workflowName: workflowName,
-            nodes: processedNodes,
-            edges: processedEdges
-          }],
-          source: 'kiteai',
-          generatePRD: shouldGeneratePRD,
-          aiClient: ai,
-          onPRDGenerated: (workflowId, prd) => {
-            console.log('[KiteAI] PRD generated for workflow:', workflowId);
-            toast({
-              title: 'PRD Generated',
-              description: 'A first draft PRD has been created for your workflow.',
-            });
-          },
-          onProjectDetailsGenerated: (details) => {
-            console.log('[KiteAI] Project details generated:', details.title);
-            // Update tab metadata with generated project details
-            setTabs(prev => prev.map(tab => 
-              tab.id === tabId ? {
-                ...tab,
-                metadata: {
-                  ...tab.metadata,
-                  name: details.title || tab.metadata?.name,
-                  description: details.overview || tab.metadata?.description
-                }
-              } : tab
-            ));
-          },
-          onError: (error, context) => {
-            console.error('[KiteAI] Error in afterWorkflowCreation:', context, error);
-          }
-        });
+        // Parse the AI response with JSON cleaning
+        let cleanedResponse = response.text
+          .replace(/^JSON:\s*/i, "")
+          .replace(/```json\s?|```/g, "")
+          .replace(/^[^{]*/, "")
+          .trim();
 
-        promptContextStore?.setGeneratePRD(false);
-        
-        if (result.errors.length > 0) {
-          console.warn('[KiteAI] afterWorkflowCreation completed with errors:', result.errors);
+        const lastBraceIndex = cleanedResponse.lastIndexOf("}");
+        if (lastBraceIndex !== -1) {
+          cleanedResponse = cleanedResponse.substring(0, lastBraceIndex + 1);
         }
+
+        const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          cleanedResponse = jsonMatch[0];
+        }
+
+        let workflowData;
+        try {
+          workflowData = JSON.parse(cleanedResponse);
+        } catch {
+          // Fix common JSON issues
+          let fixedResponse = cleanedResponse
+            .replace(/,(\s*[}\]])/g, "$1")
+            .replace(/([}\]])\s*([{"])/g, "$1,$2")
+            .replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+
+          const openBraces = (fixedResponse.match(/\{/g) || []).length;
+          const closeBraces = (fixedResponse.match(/\}/g) || []).length;
+          const openBrackets = (fixedResponse.match(/\[/g) || []).length;
+          const closeBrackets = (fixedResponse.match(/\]/g) || []).length;
+
+          for (let i = 0; i < openBraces - closeBraces; i++)
+            fixedResponse += "}";
+          for (let i = 0; i < openBrackets - closeBrackets; i++)
+            fixedResponse += "]";
+
+          workflowData = JSON.parse(fixedResponse);
+        }
+
+        if (workflowData.nodes && workflowData.edges) {
+          // Add unique IDs with timestamp prefix
+          const timestamp = Date.now();
+          const processedNodes = workflowData.nodes.map(
+            (node: any, index: number) => ({
+              ...node,
+              id: `${index + 1}-kiteai-${timestamp}-${index}`,
+              width: node.width || 200,
+              height: node.height || 100,
+            }),
+          );
+
+          const nodeIdMap: Record<string, string> = {};
+          workflowData.nodes.forEach((node: any, index: number) => {
+            nodeIdMap[node.id] = `${index + 1}-kiteai-${timestamp}-${index}`;
+          });
+
+          const processedEdges = workflowData.edges.map(
+            (edge: any, index: number) => ({
+              ...edge,
+              id: `edge-kiteai-${timestamp}-${index}`,
+              source: nodeIdMap[edge.source] || edge.source,
+              target: nodeIdMap[edge.target] || edge.target,
+              type: edge.type || "bezier",
+              style: edge.style || {
+                strokeColor: "hsl(221.2, 83.2%, 53.3%)",
+                strokeWidth: 2,
+              },
+              markers: edge.markers || { type: "arrow", position: "end" },
+            }),
+          );
+
+          // Generate a stable projectUuid for the tab if it doesn't have one
+          const projectUuid = `project-${timestamp}`;
+
+          // Compute the workflow group ID from the root node (matches how SpecsTab will look it up)
+          // groupWorkflows uses the topmost-left node as root, and creates id as `workflow-${rootNodeId}`
+          let rootNodeId = processedNodes[0]?.id || "";
+          let minSum = Infinity;
+          processedNodes.forEach((node: Node) => {
+            const sum = (node.position?.x || 0) + (node.position?.y || 0);
+            if (sum < minSum) {
+              minSum = sum;
+              rootNodeId = node.id;
+            }
+          });
+          const workflowGroupId = `workflow-${rootNodeId}`;
+          const workflowName =
+            processedNodes[0]?.data?.label || "Generated Workflow";
+
+          // Update the tab with the generated workflow and projectUuid
+          setTabs((prev) =>
+            prev.map((tab) =>
+              tab.id === tabId
+                ? {
+                    ...tab,
+                    nodes: processedNodes,
+                    edges: processedEdges,
+                    projectUuid: tab.projectUuid || projectUuid,
+                    metadata: {
+                      ...tab.metadata,
+                      name: tab.metadata?.name || workflowName,
+                    },
+                  }
+                : tab,
+            ),
+          );
+
+          toast({
+            title: "Workflow Generated",
+            description: `Created ${processedNodes.length} nodes and ${processedEdges.length} connections.`,
+          });
+
+          // Use the unified afterWorkflowCreation hook for PRD generation
+          const shouldGeneratePRD =
+            generatePRDFlag ?? promptContextStore?.getGeneratePRD?.() ?? false;
+          console.log(
+            "[KiteAI] PRD generation check - generatePRDFlag:",
+            generatePRDFlag,
+            "shouldGeneratePRD:",
+            shouldGeneratePRD,
+            "processedNodes.length:",
+            processedNodes.length,
+          );
+
+          // Get the effective projectId - must match what gets stored in the tab
+          // The tab will use: tab.projectUuid || projectUuid (line above)
+          // So we need to check if the current tab already has a projectUuid
+          // Note: tabs state may not have the new tab yet if this was called right after createBlankTab
+          const currentTabData = tabs.find((t) => t.id === tabId);
+          const effectiveProjectId = currentTabData?.projectUuid || projectUuid;
+          // Use the workflowGroupId for PRD storage to match how SpecsTab loads PRDs
+          console.log(
+            "[KiteAI] Using projectId:",
+            effectiveProjectId,
+            "workflowId:",
+            workflowGroupId,
+            "(currentTabData:",
+            !!currentTabData,
+            "rootNodeId:",
+            rootNodeId,
+            ")",
+          );
+
+          const result = await afterWorkflowCreation({
+            projectId: effectiveProjectId,
+            workflows: [
+              {
+                workflowId: workflowGroupId,
+                workflowName: workflowName,
+                nodes: processedNodes,
+                edges: processedEdges,
+              },
+            ],
+            source: "kiteai",
+            generatePRD: shouldGeneratePRD,
+            aiClient: ai,
+            onPRDGenerated: (workflowId, prd) => {
+              console.log("[KiteAI] PRD generated for workflow:", workflowId);
+              toast({
+                title: "PRD Generated",
+                description:
+                  "A first draft PRD has been created for your workflow.",
+              });
+            },
+            onProjectDetailsGenerated: (details) => {
+              console.log("[KiteAI] Project details generated:", details.title);
+              // Update tab metadata with generated project details
+              setTabs((prev) =>
+                prev.map((tab) =>
+                  tab.id === tabId
+                    ? {
+                        ...tab,
+                        metadata: {
+                          ...tab.metadata,
+                          name: details.title || tab.metadata?.name,
+                          description:
+                            details.overview || tab.metadata?.description,
+                        },
+                      }
+                    : tab,
+                ),
+              );
+            },
+            onError: (error, context) => {
+              console.error(
+                "[KiteAI] Error in afterWorkflowCreation:",
+                context,
+                error,
+              );
+            },
+          });
+
+          promptContextStore?.setGeneratePRD(false);
+
+          if (result.errors.length > 0) {
+            console.warn(
+              "[KiteAI] afterWorkflowCreation completed with errors:",
+              result.errors,
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Workflow generation error:", error);
+        toast({
+          title: "Generation Failed",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to generate workflow. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setGeneratingWireframe(false);
       }
-    } catch (error) {
-      console.error('Workflow generation error:', error);
-      toast({
-        title: 'Generation Failed',
-        description: error instanceof Error ? error.message : 'Failed to generate workflow. Please try again.',
-        variant: 'destructive'
-      });
-    } finally {
-      setGeneratingWireframe(false);
-    }
-  }, [ai, generatingWireframe, toast, promptContextStore]);
+    },
+    [ai, generatingWireframe, toast, promptContextStore],
+  );
 
   // Wireframe generation handler
   useEffect(() => {
     const handleGenerateWireframe = async (event: any) => {
       const { nodeId, node } = event.detail;
-      
+
       // Check credits before AI operation
       if (isOutOfCredits) {
         toast({
-          title: 'Out of credits',
+          title: "Out of credits",
           description: ctaMessage,
-          variant: 'destructive',
+          variant: "destructive",
         });
-        if (ctaAction === 'signup') openSignup();
-        else if (ctaAction === 'upgrade') openPricing();
+        if (ctaAction === "signup") openSignup();
+        else if (ctaAction === "upgrade") openPricing();
         else openCreditsDialog();
         return;
       }
-      
+
       if (!node || generatingWireframe) {
         // Ignore if already generating or no node provided
         if (generatingWireframe) {
           toast({
-            title: 'Please wait',
-            description: 'Wireframe generation in progress...',
+            title: "Please wait",
+            description: "Wireframe generation in progress...",
           });
         }
         return;
@@ -1461,29 +1922,31 @@ Position nodes 250px apart horizontally.`;
 
       try {
         setGeneratingWireframe(true);
-        
+
         // Show loading toast
         toast({
-          title: 'Generating wireframe...',
-          description: `Creating mockup for "${node.data?.label || 'node'}"`,
+          title: "Generating wireframe...",
+          description: `Creating mockup for "${node.data?.label || "node"}"`,
         });
 
         // Call the wireframe generation API
-        const response = await fetch('/api/generate-wireframe', {
-          method: 'POST',
+        const response = await fetch("/api/generate-wireframe", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            label: node.data?.label || 'Untitled',
-            description: node.data?.description || '',
-            nodeType: node.type || 'process',
+            label: node.data?.label || "Untitled",
+            description: node.data?.description || "",
+            nodeType: node.type || "process",
           }),
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Failed to generate wireframe' }));
-          throw new Error(errorData.error || 'Failed to generate wireframe');
+          const errorData = await response
+            .json()
+            .catch(() => ({ error: "Failed to generate wireframe" }));
+          throw new Error(errorData.error || "Failed to generate wireframe");
         }
 
         const { svg } = await response.json();
@@ -1494,18 +1957,18 @@ Position nodes 250px apart horizontally.`;
         // Create a new image node next to the source node
         const newImageNode: Node = {
           id: `image-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          type: 'image',
+          type: "image",
           position: {
             x: node.position.x + (node.width || 200) + 50, // Position to the right with some spacing
             y: node.position.y,
           },
           data: {
-            label: `${node.data?.label || 'Node'} Mockup`,
-            description: 'AI-generated wireframe',
+            label: `${node.data?.label || "Node"} Mockup`,
+            description: "AI-generated wireframe",
             src: svgDataUrl,
-            filename: `${node.data?.label || 'wireframe'}.svg`,
-            sourceType: 'data',
-            imageSize: 'contain',
+            filename: `${node.data?.label || "wireframe"}.svg`,
+            sourceType: "data",
+            imageSize: "contain",
           },
           width: 400,
           height: 300,
@@ -1516,39 +1979,42 @@ Position nodes 250px apart horizontally.`;
           id: `edge-wireframe-${Date.now()}`,
           source: node.id,
           target: newImageNode.id,
-          type: 'straight',
+          type: "straight",
           style: {
-            strokeColor: '#9333ea', // Purple color for mockup connections
+            strokeColor: "#9333ea", // Purple color for mockup connections
             strokeWidth: 2,
-            strokeDasharray: '5,5', // Dashed line
+            strokeDasharray: "5,5", // Dashed line
           },
           markers: {
-            type: 'circle',
-            position: 'end',
+            type: "circle",
+            position: "end",
           },
-          label: 'mockup',
+          label: "mockup",
           reconnectable: true,
           interactable: true,
         };
 
         // Add the new image node and edge to the canvas
-        const currentTab = tabs.find(tab => tab.id === activeTabId);
+        const currentTab = tabs.find((tab) => tab.id === activeTabId);
         if (currentTab) {
           const currentNodes = currentTab.nodes;
           const currentEdges = currentTab.edges;
-          
+
           // Save to history first
           const currentState = {
             nodes: currentNodes,
             edges: currentEdges,
             canvasObjects: currentTab.canvasObjects || [],
-            viewport: currentTab.viewport
+            viewport: currentTab.viewport,
           };
-          
+
           // Add to history
-          const newHistory = currentTab.history.slice(0, currentTab.historyIndex + 1);
+          const newHistory = currentTab.history.slice(
+            0,
+            currentTab.historyIndex + 1,
+          );
           newHistory.push(currentState);
-          
+
           // Update with new node and edge
           updateActiveTab({
             nodes: [...currentNodes, newImageNode],
@@ -1558,25 +2024,26 @@ Position nodes 250px apart horizontally.`;
           });
 
           toast({
-            title: 'Wireframe generated!',
-            description: 'AI-generated mockup added to canvas',
+            title: "Wireframe generated!",
+            description: "AI-generated mockup added to canvas",
           });
         }
       } catch (error: any) {
-        console.error('Wireframe generation error:', error);
+        console.error("Wireframe generation error:", error);
         toast({
-          title: 'Generation failed',
-          description: error.message || 'Failed to generate wireframe. Please try again.',
-          variant: 'destructive',
+          title: "Generation failed",
+          description:
+            error.message || "Failed to generate wireframe. Please try again.",
+          variant: "destructive",
         });
       } finally {
         setGeneratingWireframe(false);
       }
     };
 
-    window.addEventListener('generateWireframe', handleGenerateWireframe);
+    window.addEventListener("generateWireframe", handleGenerateWireframe);
     return () => {
-      window.removeEventListener('generateWireframe', handleGenerateWireframe);
+      window.removeEventListener("generateWireframe", handleGenerateWireframe);
     };
   }, [tabs, activeTabId, toast, updateActiveTab, generatingWireframe]);
 
@@ -1584,26 +2051,29 @@ Position nodes 250px apart horizontally.`;
   useEffect(() => {
     const handleEditHyperlink = (event: CustomEvent<{ nodeId: string }>) => {
       const { nodeId } = event.detail;
-      
+
       // Find the node and open the toolbar with link submenu
-      const node = nodes.find(n => n.id === nodeId);
+      const node = nodes.find((n) => n.id === nodeId);
       if (node) {
         // Set this node as selected
         setSelectedNodeId(nodeId);
-        setSelectedEdgeId('');
-        
+        setSelectedEdgeId("");
+
         // Calculate toolbar position for this node
-        const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+        const containerRect =
+          canvasContainerRef.current?.getBoundingClientRect();
         const containerLeft = containerRect?.left ?? 0;
         const containerTop = containerRect?.top ?? 0;
-        
+
         const nodeWidth = node.width ?? 200;
         const nodeHeight = node.height ?? 100;
-        const screenX = node.position.x * viewport.zoom + viewport.x + containerLeft;
-        const screenY = node.position.y * viewport.zoom + viewport.y + containerTop;
+        const screenX =
+          node.position.x * viewport.zoom + viewport.x + containerLeft;
+        const screenY =
+          node.position.y * viewport.zoom + viewport.y + containerTop;
         const screenWidth = nodeWidth * viewport.zoom;
         const screenHeight = nodeHeight * viewport.zoom;
-        
+
         // Open the linear toolbar with link submenu active
         setLinearToolbar({
           x: screenX + screenWidth / 2,
@@ -1613,17 +2083,23 @@ Position nodes 250px apart horizontally.`;
             bottom: screenY + screenHeight,
             left: screenX,
             right: screenX + screenWidth,
-            width: screenWidth
+            width: screenWidth,
           },
           node,
-          initialSubmenu: 'link'
+          initialSubmenu: "link",
         });
       }
     };
-    
-    window.addEventListener('editNodeHyperlink', handleEditHyperlink as EventListener);
+
+    window.addEventListener(
+      "editNodeHyperlink",
+      handleEditHyperlink as EventListener,
+    );
     return () => {
-      window.removeEventListener('editNodeHyperlink', handleEditHyperlink as EventListener);
+      window.removeEventListener(
+        "editNodeHyperlink",
+        handleEditHyperlink as EventListener,
+      );
     };
   }, [nodes, viewport]);
 
@@ -1637,23 +2113,23 @@ Position nodes 250px apart horizontally.`;
 
       const currentCanvasObjects = currentTab.canvasObjects || [];
       let hasChanges = false;
-      
-      const updatedCanvasObjects = currentCanvasObjects.map(obj => {
-        if (obj.type === 'text') {
+
+      const updatedCanvasObjects = currentCanvasObjects.map((obj) => {
+        if (obj.type === "text") {
           const textData = obj.data as TextNodeData;
           const currentTextColor = textData.textColor;
-          
+
           // Only update pure black/white colors
           if (isPureBlack(currentTextColor) || isPureWhite(currentTextColor)) {
             const newTextColor = getOppositeTextColor(currentTextColor);
             hasChanges = true;
-            
+
             return {
               ...obj,
               data: {
                 ...textData,
-                textColor: newTextColor
-              }
+                textColor: newTextColor,
+              },
             };
           }
         }
@@ -1669,18 +2145,21 @@ Position nodes 250px apart horizontally.`;
     // Create MutationObserver to watch for theme class changes
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          const isDarkNow = document.documentElement.classList.contains('dark');
-          
+        if (
+          mutation.type === "attributes" &&
+          mutation.attributeName === "class"
+        ) {
+          const isDarkNow = document.documentElement.classList.contains("dark");
+
           // Only trigger if theme actually changed
           if (isDarkNow !== lastThemeIsDarkRef.current) {
             lastThemeIsDarkRef.current = isDarkNow;
-            
+
             // Clear any existing timeout
             if (debounceTimeoutRef.current) {
               clearTimeout(debounceTimeoutRef.current);
             }
-            
+
             // Debounce the theme change handling
             debounceTimeoutRef.current = setTimeout(handleThemeChange, 10);
           }
@@ -1691,7 +2170,7 @@ Position nodes 250px apart horizontally.`;
     // Start observing the document element for class changes
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['class']
+      attributeFilter: ["class"],
     });
 
     // Cleanup observer and timeout on unmount or activeTab change
@@ -1704,45 +2183,77 @@ Position nodes 250px apart horizontally.`;
   }, [activeTab?.id, updateActiveTab]);
 
   // Setters that update the active tab
-  const setNodes = useCallback((newNodes: Node[] | ((prev: Node[]) => Node[])) => {
-    setTabs(prev => prev.map(tab => {
-      if (tab.id === activeTabId) {
-        const currentNodes = tab.nodes || [];
-        const resolvedNodes = typeof newNodes === 'function' ? newNodes(currentNodes) : newNodes;
-        return { ...tab, nodes: resolvedNodes };
-      }
-      return tab;
-    }));
-  }, [activeTabId, setTabs]);
+  const setNodes = useCallback(
+    (newNodes: Node[] | ((prev: Node[]) => Node[])) => {
+      setTabs((prev) =>
+        prev.map((tab) => {
+          if (tab.id === activeTabId) {
+            const currentNodes = tab.nodes || [];
+            const resolvedNodes =
+              typeof newNodes === "function"
+                ? newNodes(currentNodes)
+                : newNodes;
+            return { ...tab, nodes: resolvedNodes };
+          }
+          return tab;
+        }),
+      );
+    },
+    [activeTabId, setTabs],
+  );
 
-  const setEdges = useCallback((newEdges: Edge[] | ((prev: Edge[]) => Edge[])) => {
-    setTabs(prev => prev.map(tab => {
-      if (tab.id === activeTabId) {
-        const currentEdges = tab.edges || [];
-        const resolvedEdges = typeof newEdges === 'function' ? newEdges(currentEdges) : newEdges;
-        return { ...tab, edges: resolvedEdges };
-      }
-      return tab;
-    }));
-  }, [activeTabId, setTabs]);
+  const setEdges = useCallback(
+    (newEdges: Edge[] | ((prev: Edge[]) => Edge[])) => {
+      setTabs((prev) =>
+        prev.map((tab) => {
+          if (tab.id === activeTabId) {
+            const currentEdges = tab.edges || [];
+            const resolvedEdges =
+              typeof newEdges === "function"
+                ? newEdges(currentEdges)
+                : newEdges;
+            return { ...tab, edges: resolvedEdges };
+          }
+          return tab;
+        }),
+      );
+    },
+    [activeTabId, setTabs],
+  );
 
-  const setViewport = useCallback((newViewport: { x: number; y: number; zoom: number } | ((prev: { x: number; y: number; zoom: number }) => { x: number; y: number; zoom: number })) => {
-    setTabs(prev => prev.map(tab => {
-      if (tab.id === activeTabId) {
-        const currentViewport = tab.viewport || { x: 0, y: 0, zoom: 1 };
-        const resolvedViewport = typeof newViewport === 'function' ? newViewport(currentViewport) : newViewport;
-        return { ...tab, viewport: resolvedViewport };
-      }
-      return tab;
-    }));
-  }, [activeTabId, setTabs]);
+  const setViewport = useCallback(
+    (
+      newViewport:
+        | { x: number; y: number; zoom: number }
+        | ((prev: { x: number; y: number; zoom: number }) => {
+            x: number;
+            y: number;
+            zoom: number;
+          }),
+    ) => {
+      setTabs((prev) =>
+        prev.map((tab) => {
+          if (tab.id === activeTabId) {
+            const currentViewport = tab.viewport || { x: 0, y: 0, zoom: 1 };
+            const resolvedViewport =
+              typeof newViewport === "function"
+                ? newViewport(currentViewport)
+                : newViewport;
+            return { ...tab, viewport: resolvedViewport };
+          }
+          return tab;
+        }),
+      );
+    },
+    [activeTabId, setTabs],
+  );
 
   // Symmetric selection exclusivity: deselect nodes/edges when canvas objects are selected
   useEffect(() => {
     if (selectedCanvasObjects.length > 0) {
-      setNodes(prev => prev.map(n => ({ ...n, selected: false })));
-      setEdges(prev => prev.map(e => ({ ...e, selected: false })));
-      updateActiveTab({ selectedNodeId: '', selectedEdgeId: '' });
+      setNodes((prev) => prev.map((n) => ({ ...n, selected: false })));
+      setEdges((prev) => prev.map((e) => ({ ...e, selected: false })));
+      updateActiveTab({ selectedNodeId: "", selectedEdgeId: "" });
     }
   }, [selectedCanvasObjects.length, updateActiveTab]);
 
@@ -1751,210 +2262,239 @@ Position nodes 250px apart horizontally.`;
     // Use common canvas dimensions (matching WorkflowCanvas)
     const canvasWidth = 800;
     const canvasHeight = 600;
-    
+
     // Calculate viewport center in world coordinates
     // CSS transform: translate(viewport.x, viewport.y) scale(zoom)
     // So: screen = world * zoom + viewport
     // Inverting: world = (screen - viewport) / zoom
     const viewportCenterX = (canvasWidth / 2 - viewport.x) / viewport.zoom;
     const viewportCenterY = (canvasHeight / 2 - viewport.y) / viewport.zoom;
-    
+
     // Count existing nodes and canvas objects for offset
     const existingCount = (nodes?.length || 0) + (canvasObjects?.length || 0);
-    
+
     // Improved spiral pattern that extends beyond 9 items
     const offsetDistance = 50; // World space units (not affected by zoom)
     let offsetX = 0;
     let offsetY = 0;
-    
+
     if (existingCount > 0) {
       // Create expanding spiral pattern
       const ringSize = 3; // 3x3 grid per ring
       const ring = Math.floor((existingCount - 1) / (ringSize * ringSize));
       const posInRing = (existingCount - 1) % (ringSize * ringSize);
-      
+
       // Calculate position within the current ring
       const col = posInRing % ringSize;
       const row = Math.floor(posInRing / ringSize);
-      
+
       // Apply ring multiplier and center the grid
       const ringMultiplier = ring + 1;
-      offsetX = (col - Math.floor(ringSize / 2)) * offsetDistance * ringMultiplier;
-      offsetY = (row - Math.floor(ringSize / 2)) * offsetDistance * ringMultiplier;
+      offsetX =
+        (col - Math.floor(ringSize / 2)) * offsetDistance * ringMultiplier;
+      offsetY =
+        (row - Math.floor(ringSize / 2)) * offsetDistance * ringMultiplier;
     }
-    
+
     // Default node dimensions for centering (nodes are typically 200x100)
     const nodeWidth = 200;
     const nodeHeight = 100;
-    
+
     // Center the node by subtracting half its dimensions
     const centeredX = viewportCenterX + offsetX - nodeWidth / 2;
     const centeredY = viewportCenterY + offsetY - nodeHeight / 2;
-    
+
     return {
       x: Math.round(centeredX),
-      y: Math.round(centeredY)
+      y: Math.round(centeredY),
     };
   }, [viewport, nodes, canvasObjects]);
 
   // Focus on a specific node by panning the viewport to center it
-  const focusOnNode = useCallback((nodeId: string) => {
-    const targetNode = nodes.find(n => n.id === nodeId);
-    if (!targetNode) {
-      console.warn(`Cannot focus on node ${nodeId}: node not found`);
-      return;
-    }
-    
-    // Get canvas container dimensions
-    const canvasWidth = canvasContainerRef.current?.clientWidth || 800;
-    const canvasHeight = canvasContainerRef.current?.clientHeight || 600;
-    
-    // Calculate node center in world coordinates
-    const nodeWidth = targetNode.width || targetNode.style?.width || 200;
-    const nodeHeight = targetNode.height || targetNode.style?.height || 100;
-    const nodeCenterX = targetNode.position.x + nodeWidth / 2;
-    const nodeCenterY = targetNode.position.y + nodeHeight / 2;
-    
-    // Calculate new viewport position to center the node
-    // screen = world * zoom + viewport
-    // viewport = screen - world * zoom
-    // For centering: screenCenter = canvasWidth/2, canvasHeight/2
-    // Use half the current zoom for a less zoomed-in view
-    const focusZoom = viewport.zoom * 0.5;
-    const newX = canvasWidth / 2 - nodeCenterX * focusZoom;
-    const newY = canvasHeight / 2 - nodeCenterY * focusZoom;
-    
-    // Animate viewport with smooth transition
-    setViewport({ x: newX, y: newY, zoom: focusZoom });
-    
-    // Also select the node for visibility
-    setNodes(prev => prev.map(n => ({
-      ...n,
-      selected: n.id === nodeId
-    })));
-  }, [nodes, viewport.zoom, setViewport, setNodes]);
+  const focusOnNode = useCallback(
+    (nodeId: string) => {
+      const targetNode = nodes.find((n) => n.id === nodeId);
+      if (!targetNode) {
+        console.warn(`Cannot focus on node ${nodeId}: node not found`);
+        return;
+      }
 
-  const setSelectedNodeId = useCallback((id: string) => {
-    updateActiveTab({ selectedNodeId: id });
-  }, [updateActiveTab]);
+      // Get canvas container dimensions
+      const canvasWidth = canvasContainerRef.current?.clientWidth || 800;
+      const canvasHeight = canvasContainerRef.current?.clientHeight || 600;
 
-  const setSelectedEdgeId = useCallback((id: string) => {
-    updateActiveTab({ selectedEdgeId: id });
-  }, [updateActiveTab]);
+      // Calculate node center in world coordinates
+      const nodeWidth = targetNode.width || targetNode.style?.width || 200;
+      const nodeHeight = targetNode.height || targetNode.style?.height || 100;
+      const nodeCenterX = targetNode.position.x + nodeWidth / 2;
+      const nodeCenterY = targetNode.position.y + nodeHeight / 2;
 
-  const setShowImageModal = useCallback((nodeId: string | null) => {
-    updateActiveTab({ showImageModal: nodeId });
-  }, [updateActiveTab]);
+      // Calculate new viewport position to center the node
+      // screen = world * zoom + viewport
+      // viewport = screen - world * zoom
+      // For centering: screenCenter = canvasWidth/2, canvasHeight/2
+      // Use half the current zoom for a less zoomed-in view
+      const focusZoom = viewport.zoom * 0.5;
+      const newX = canvasWidth / 2 - nodeCenterX * focusZoom;
+      const newY = canvasHeight / 2 - nodeCenterY * focusZoom;
 
-  const setWorkflowName = useCallback((name: string) => {
-    updateActiveTab({ 
-      name,
-      metadata: { ...metadata, name }
-    });
-  }, [updateActiveTab, metadata]);
+      // Animate viewport with smooth transition
+      setViewport({ x: newX, y: newY, zoom: focusZoom });
 
-  const setProjectMetadata = useCallback((newMetadata: ProjectMetadata) => {
-    updateActiveTab({ 
-      name: newMetadata.name,
-      metadata: newMetadata 
-    });
-  }, [updateActiveTab]);
+      // Also select the node for visibility
+      setNodes((prev) =>
+        prev.map((n) => ({
+          ...n,
+          selected: n.id === nodeId,
+        })),
+      );
+    },
+    [nodes, viewport.zoom, setViewport, setNodes],
+  );
+
+  const setSelectedNodeId = useCallback(
+    (id: string) => {
+      updateActiveTab({ selectedNodeId: id });
+    },
+    [updateActiveTab],
+  );
+
+  const setSelectedEdgeId = useCallback(
+    (id: string) => {
+      updateActiveTab({ selectedEdgeId: id });
+    },
+    [updateActiveTab],
+  );
+
+  const setShowImageModal = useCallback(
+    (nodeId: string | null) => {
+      updateActiveTab({ showImageModal: nodeId });
+    },
+    [updateActiveTab],
+  );
+
+  const setWorkflowName = useCallback(
+    (name: string) => {
+      updateActiveTab({
+        name,
+        metadata: { ...metadata, name },
+      });
+    },
+    [updateActiveTab, metadata],
+  );
+
+  const setProjectMetadata = useCallback(
+    (newMetadata: ProjectMetadata) => {
+      updateActiveTab({
+        name: newMetadata.name,
+        metadata: newMetadata,
+      });
+    },
+    [updateActiveTab],
+  );
 
   // Tab operations
   const createNewTab = useCallback(() => {
     const newTab = createBlankTab();
-    setTabs(prev => [...prev, newTab]);
+    setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
   }, [createBlankTab]);
 
-  const closeTab = useCallback((tabId: string) => {
-    // Closing a tab marks it as not open - does NOT delete the project
-    // Projects remain in the gallery until explicitly deleted via onDeleteProject
-    
-    // Calculate remaining open tabs BEFORE mutation for correct tab switching
-    const remainingOpenTabs = tabs.filter(tab => tab.id !== tabId && tab.isOpen !== false);
-    
-    // Determine new active tab ID first
-    let newActiveTabId: string | null = null;
-    if (tabId === activeTabId) {
-      if (remainingOpenTabs.length > 0) {
-        const closingIndex = tabs.findIndex(tab => tab.id === tabId);
-        const newActiveTab = remainingOpenTabs[Math.max(0, closingIndex - 1)] || remainingOpenTabs[0];
-        newActiveTabId = newActiveTab.id;
-      } else {
-        // No open tabs remaining, go to home
-        newActiveTabId = 'home';
+  const closeTab = useCallback(
+    (tabId: string) => {
+      // Closing a tab marks it as not open - does NOT delete the project
+      // Projects remain in the gallery until explicitly deleted via onDeleteProject
+
+      // Calculate remaining open tabs BEFORE mutation for correct tab switching
+      const remainingOpenTabs = tabs.filter(
+        (tab) => tab.id !== tabId && tab.isOpen !== false,
+      );
+
+      // Determine new active tab ID first
+      let newActiveTabId: string | null = null;
+      if (tabId === activeTabId) {
+        if (remainingOpenTabs.length > 0) {
+          const closingIndex = tabs.findIndex((tab) => tab.id === tabId);
+          const newActiveTab =
+            remainingOpenTabs[Math.max(0, closingIndex - 1)] ||
+            remainingOpenTabs[0];
+          newActiveTabId = newActiveTab.id;
+        } else {
+          // No open tabs remaining, go to home
+          newActiveTabId = "home";
+        }
       }
-    }
-    
-    // Update both states atomically - set activeTabId first to avoid stale state reads
-    if (newActiveTabId !== null) {
-      setActiveTabId(newActiveTabId);
-    }
-    
-    setTabs(prev => prev.map(tab => 
-      tab.id === tabId ? { ...tab, isOpen: false } : tab
-    ));
-  }, [tabs, activeTabId]);
+
+      // Update both states atomically - set activeTabId first to avoid stale state reads
+      if (newActiveTabId !== null) {
+        setActiveTabId(newActiveTabId);
+      }
+
+      setTabs((prev) =>
+        prev.map((tab) => (tab.id === tabId ? { ...tab, isOpen: false } : tab)),
+      );
+    },
+    [tabs, activeTabId],
+  );
 
   const renameTab = useCallback((tabId: string, newName: string) => {
-    setTabs(prev => prev.map(tab => 
-      tab.id === tabId ? { ...tab, name: newName } : tab
-    ));
+    setTabs((prev) =>
+      prev.map((tab) => (tab.id === tabId ? { ...tab, name: newName } : tab)),
+    );
   }, []);
 
   // Blank canvas state handlers
   const handleCreateBlankFromCanvas = useCallback(() => {
     const newTab = createBlankTab();
-    setTabs(prev => [...prev, newTab]);
+    setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
-    
+
     // Toast notification for new workflow creation
     toast({
       title: "New Workflow Created",
-      description: `Created blank workflow "${newTab.name}"`
+      description: `Created blank workflow "${newTab.name}"`,
     });
   }, [createBlankTab, toast]);
 
   const handleCreateWithTemplate = useCallback(() => {
     const newTab = createDefaultTab();
-    setTabs(prev => [...prev, newTab]);
+    setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
-    
+
     // Toast notification for template workflow creation
     toast({
       title: "Template Workflow Created",
-      description: `Created workflow "${newTab.name}" with template`
+      description: `Created workflow "${newTab.name}" with template`,
     });
   }, [createDefaultTab, toast]);
 
   const handleCreateWithAI = useCallback(() => {
     // Create blank tab first, then open AI generator
     const newTab = createBlankTab();
-    setTabs(prev => [...prev, newTab]);
+    setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
     setShowAiGenerator(true);
-    
+
     // Toast notification for new workflow creation
     toast({
       title: "New Workflow Created",
-      description: `Created workflow "${newTab.name}" for AI generation`
+      description: `Created workflow "${newTab.name}" for AI generation`,
     });
   }, [createBlankTab, toast]);
 
   const handleImportFromCanvas = useCallback(() => {
     // Create blank tab first, then trigger import
     const newTab = createBlankTab();
-    setTabs(prev => [...prev, newTab]);
+    setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
     // Create hidden file input for importing
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      
+
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
@@ -1963,29 +2503,31 @@ Position nodes 250px apart horizontally.`;
             const importedNodes = data.nodes;
             const importedEdges = data.edges;
             const importedViewport = data.viewport || { x: 0, y: 0, zoom: 1 };
-            
+
             // Create new history state for the imported workflow
             const newHistoryState = {
               nodes: [...importedNodes],
               edges: [...importedEdges],
               canvasObjects: data.canvasObjects || [],
-              viewport: { ...importedViewport }
+              viewport: { ...importedViewport },
             };
-            
+
             // Directly update the specific tab that was just created
-            setTabs(prev => prev.map(tab => 
-              tab.id === newTab.id 
-                ? {
-                    ...tab,
-                    nodes: importedNodes,
-                    edges: importedEdges,
-                    viewport: importedViewport,
-                    history: [...tab.history, newHistoryState],
-                    historyIndex: tab.history.length // New index after adding the state
-                  }
-                : tab
-            ));
-            
+            setTabs((prev) =>
+              prev.map((tab) =>
+                tab.id === newTab.id
+                  ? {
+                      ...tab,
+                      nodes: importedNodes,
+                      edges: importedEdges,
+                      viewport: importedViewport,
+                      history: [...tab.history, newHistoryState],
+                      historyIndex: tab.history.length, // New index after adding the state
+                    }
+                  : tab,
+              ),
+            );
+
             toast({
               title: "Workflow Imported",
               description: `Successfully imported ${importedNodes.length} nodes and ${importedEdges.length} connections.`,
@@ -1994,8 +2536,9 @@ Position nodes 250px apart horizontally.`;
         } catch (error) {
           toast({
             title: "Import Failed",
-            description: "Invalid JSON file. Please select a valid workflow file.",
-            variant: "destructive"
+            description:
+              "Invalid JSON file. Please select a valid workflow file.",
+            variant: "destructive",
           });
         }
       };
@@ -2005,83 +2548,96 @@ Position nodes 250px apart horizontally.`;
   }, [createBlankTab, toast]);
 
   // Handle template creation from canvas
-  const handleCreateTemplateFromCanvas = useCallback((templateType: string) => {
-    let templateData;
-    const name = 'Untitled';
+  const handleCreateTemplateFromCanvas = useCallback(
+    (templateType: string) => {
+      let templateData;
+      const name = "Untitled";
 
-    // Generate appropriate template based on type
-    switch (templateType) {
-      case 'user-journey':
-        templateData = generateUserJourneyTemplate();
-        break;
-      case 'mindmap':
-        templateData = generateMindmapTemplate();
-        break;
-      case 'system-architecture':
-        templateData = generateSystemArchitectureTemplate();
-        break;
-      case 'swim-lanes':
-        templateData = generateSwimLanesTemplate();
-        break;
-      case 'user-account-creation':
-        templateData = generateUserAccountTemplate();
-        break;
-      case 'io-logic':
-        templateData = generateIOLogicTemplate();
-        break;
-      default:
-        // Fallback to blank if template type is not recognized
-        handleCreateBlankFromCanvas();
-        return;
-    }
+      // Generate appropriate template based on type
+      switch (templateType) {
+        case "user-journey":
+          templateData = generateUserJourneyTemplate();
+          break;
+        case "mindmap":
+          templateData = generateMindmapTemplate();
+          break;
+        case "system-architecture":
+          templateData = generateSystemArchitectureTemplate();
+          break;
+        case "swim-lanes":
+          templateData = generateSwimLanesTemplate();
+          break;
+        case "user-account-creation":
+          templateData = generateUserAccountTemplate();
+          break;
+        case "io-logic":
+          templateData = generateIOLogicTemplate();
+          break;
+        default:
+          // Fallback to blank if template type is not recognized
+          handleCreateBlankFromCanvas();
+          return;
+      }
 
-    const initialState = {
-      nodes: templateData.nodes,
-      edges: templateData.edges,
-      canvasObjects: [],
-      viewport: { x: 0, y: 0, zoom: 1 }
-    };
-    
-    const newTab: WorkflowTab = {
-      id: generateTabId(),
-      name,
-      ...initialState,
-      selectedNodeId: '',
-      selectedEdgeId: '',
-      history: [initialState],
-      historyIndex: 0,
-      showImageModal: null,
-      metadata: {
+      const initialState = {
+        nodes: templateData.nodes,
+        edges: templateData.edges,
+        canvasObjects: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+      };
+
+      const newTab: WorkflowTab = {
+        id: generateTabId(),
         name,
-        description: '',
-        links: [],
-        linksFormat: 'text',
-        categories: []
-      },
-      projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    };
+        ...initialState,
+        selectedNodeId: "",
+        selectedEdgeId: "",
+        history: [initialState],
+        historyIndex: 0,
+        showImageModal: null,
+        metadata: {
+          name,
+          description: "",
+          links: [],
+          linksFormat: "text",
+          categories: [],
+        },
+        projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      };
 
-    setTabs(prev => [...prev, newTab]);
-    setActiveTabId(newTab.id);
-  }, [generateTabId, generateCuteName, generateUserJourneyTemplate, generateMindmapTemplate, generateSystemArchitectureTemplate, generateSwimLanesTemplate, generateUserAccountTemplate, generateIOLogicTemplate, handleCreateBlankFromCanvas]);
-
+      setTabs((prev) => [...prev, newTab]);
+      setActiveTabId(newTab.id);
+    },
+    [
+      generateTabId,
+      generateCuteName,
+      generateUserJourneyTemplate,
+      generateMindmapTemplate,
+      generateSystemArchitectureTemplate,
+      generateSwimLanesTemplate,
+      generateUserAccountTemplate,
+      generateIOLogicTemplate,
+      handleCreateBlankFromCanvas,
+    ],
+  );
 
   // Direct AI generation function
-  const generateWorkflowFromPrompt = useCallback(async (prompt: string): Promise<{ nodes: Node[]; edges: Edge[] }> => {
-    // Check credits before AI operation
-    if (isOutOfCredits) {
-      toast({
-        title: 'Out of credits',
-        description: ctaMessage,
-        variant: 'destructive',
-      });
-      if (ctaAction === 'signup') openSignup();
-      else if (ctaAction === 'upgrade') openPricing();
-      else openCreditsDialog();
-      throw new Error('Out of credits');
-    }
-    
-    const systemPrompt = `You are a workflow generator. Create a visual workflow based on the user's description. 
+  const generateWorkflowFromPrompt = useCallback(
+    async (prompt: string): Promise<{ nodes: Node[]; edges: Edge[] }> => {
+      // Check credits before AI operation
+      if (isOutOfCredits) {
+        toast({
+          title: "Out of credits",
+          description: ctaMessage,
+          variant: "destructive",
+        });
+        if (ctaAction === "signup") openSignup();
+        else if (ctaAction === "upgrade") openPricing();
+        else openCreditsDialog();
+        throw new Error("Out of credits");
+      }
+
+      const systemPrompt = `You are a workflow generator. Create a visual workflow based on the user's description. 
 
 Return ONLY a valid JSON object with "nodes" and "edges" arrays. Keep descriptions short and concise.
 
@@ -2112,872 +2668,996 @@ Icon mapping:
 
 Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
-    const response = await ai.chat({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt }
-      ],
-      temperature: 0.7,
-      maxTokens: 4000
-    });
+      const response = await ai.chat({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.7,
+        maxTokens: 4000,
+      });
 
-    // Parse the AI response with better JSON cleaning
-    let cleanedResponse = response.text.trim();
-    
-    // Remove markdown code blocks if present
-    if (cleanedResponse.startsWith('```json')) {
-      cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/```\s*$/, '');
-    } else if (cleanedResponse.startsWith('```')) {
-      cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/```\s*$/, '');
-    }
-    
-    cleanedResponse = cleanedResponse.trim();
-    
-    let workflowData;
-    try {
-      workflowData = JSON.parse(cleanedResponse);
-    } catch (firstError) {
-      const errorMsg = firstError instanceof Error ? firstError.message : String(firstError);
-      
-      // Try additional cleaning if first parse fails
-      let fixedResponse = cleanedResponse;
-      
-      // Remove any trailing commas before closing brackets/braces
-      fixedResponse = fixedResponse.replace(/,(\s*[}\]])/g, '$1');
-      
-      // Fix unquoted keys (but be careful not to break quoted strings)
-      fixedResponse = fixedResponse.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
-      
-      // Convert single quotes to double quotes (but avoid breaking contractions in strings)
-      fixedResponse = fixedResponse.replace(/:\s*'([^']*)'/g, ': "$1"');
-      
-      try {
-        workflowData = JSON.parse(fixedResponse);
-      } catch (secondError) {
-        const secondErrorMsg = secondError instanceof Error ? secondError.message : String(secondError);
-        console.error('❌ BOTH PARSE ATTEMPTS FAILED:', { 
-          original: errorMsg,
-          afterFix: secondErrorMsg,
-          responseLength: response.text.length,
-          cleanedLength: cleanedResponse.length,
-          rawStart: response.text.substring(0, 100),
-          cleanedStart: cleanedResponse.substring(0, 100)
-        });
-        throw new Error(`Failed to parse AI response: ${secondErrorMsg}. Raw response length: ${response.text.length}`);
+      // Parse the AI response with better JSON cleaning
+      let cleanedResponse = response.text.trim();
+
+      // Remove markdown code blocks if present
+      if (cleanedResponse.startsWith("```json")) {
+        cleanedResponse = cleanedResponse
+          .replace(/^```json\s*/, "")
+          .replace(/```\s*$/, "");
+      } else if (cleanedResponse.startsWith("```")) {
+        cleanedResponse = cleanedResponse
+          .replace(/^```\s*/, "")
+          .replace(/```\s*$/, "");
       }
-    }
 
-    if (workflowData.nodes && workflowData.edges) {
-      // Apply minimum spacing between nodes
-      const spacedNodes = enforceMinimumNodeSpacing(workflowData.nodes, 16);
-      
-      return {
-        ...workflowData,
-        nodes: spacedNodes
-      };
-    } else {
-      throw new Error('Invalid workflow structure returned');
-    }
-  }, [ai]);
+      cleanedResponse = cleanedResponse.trim();
+
+      let workflowData;
+      try {
+        workflowData = JSON.parse(cleanedResponse);
+      } catch (firstError) {
+        const errorMsg =
+          firstError instanceof Error ? firstError.message : String(firstError);
+
+        // Try additional cleaning if first parse fails
+        let fixedResponse = cleanedResponse;
+
+        // Remove any trailing commas before closing brackets/braces
+        fixedResponse = fixedResponse.replace(/,(\s*[}\]])/g, "$1");
+
+        // Fix unquoted keys (but be careful not to break quoted strings)
+        fixedResponse = fixedResponse.replace(
+          /([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g,
+          '$1"$2":',
+        );
+
+        // Convert single quotes to double quotes (but avoid breaking contractions in strings)
+        fixedResponse = fixedResponse.replace(/:\s*'([^']*)'/g, ': "$1"');
+
+        try {
+          workflowData = JSON.parse(fixedResponse);
+        } catch (secondError) {
+          const secondErrorMsg =
+            secondError instanceof Error
+              ? secondError.message
+              : String(secondError);
+          console.error("❌ BOTH PARSE ATTEMPTS FAILED:", {
+            original: errorMsg,
+            afterFix: secondErrorMsg,
+            responseLength: response.text.length,
+            cleanedLength: cleanedResponse.length,
+            rawStart: response.text.substring(0, 100),
+            cleanedStart: cleanedResponse.substring(0, 100),
+          });
+          throw new Error(
+            `Failed to parse AI response: ${secondErrorMsg}. Raw response length: ${response.text.length}`,
+          );
+        }
+      }
+
+      if (workflowData.nodes && workflowData.edges) {
+        // Apply minimum spacing between nodes
+        const spacedNodes = enforceMinimumNodeSpacing(workflowData.nodes, 16);
+
+        return {
+          ...workflowData,
+          nodes: spacedNodes,
+        };
+      } else {
+        throw new Error("Invalid workflow structure returned");
+      }
+    },
+    [ai],
+  );
 
   // Function to enforce minimum spacing between nodes
-  const enforceMinimumNodeSpacing = useCallback((nodes: Node[], minGap: number = 16, existingNodes: Node[] = []): Node[] => {
-    if (nodes.length === 0) return nodes;
-    
-    const adjustedNodes = [...nodes];
-    const maxIterations = 10; // Prevent infinite loops
-    const allNodes = [...existingNodes, ...adjustedNodes]; // Combined set for collision checking
-    
-    // Helper function to get actual node dimensions
-    const getNodeDimensions = (node: Node) => ({
-      width: node.width || 200, // Fallback to 200 if width not specified
-      height: node.height || 100  // Fallback to 100 if height not specified
-    });
-    
-    // Helper function to check if two nodes are too close
-    const areNodesTooClose = (nodeA: Node, nodeB: Node) => {
-      const dimA = getNodeDimensions(nodeA);
-      const dimB = getNodeDimensions(nodeB);
-      
-      const aLeft = nodeA.position.x;
-      const aRight = nodeA.position.x + dimA.width;
-      const aTop = nodeA.position.y;
-      const aBottom = nodeA.position.y + dimA.height;
-      
-      const bLeft = nodeB.position.x;
-      const bRight = nodeB.position.x + dimB.width;
-      const bTop = nodeB.position.y;
-      const bBottom = nodeB.position.y + dimB.height;
-      
-      // Check if bounding boxes overlap or are too close
-      const horizontalOverlap = !(aRight + minGap < bLeft || bRight + minGap < aLeft);
-      const verticalOverlap = !(aBottom + minGap < bTop || bBottom + minGap < aTop);
-      
-      return horizontalOverlap && verticalOverlap;
-    };
-    
-    // Iteratively resolve collisions until stable or max iterations reached
-    for (let iteration = 0; iteration < maxIterations; iteration++) {
-      let hasCollisions = false;
-      
-      // Check all pairs for collisions
-      for (let i = 0; i < adjustedNodes.length; i++) {
-        const nodeA = adjustedNodes[i];
+  const enforceMinimumNodeSpacing = useCallback(
+    (
+      nodes: Node[],
+      minGap: number = 16,
+      existingNodes: Node[] = [],
+    ): Node[] => {
+      if (nodes.length === 0) return nodes;
+
+      const adjustedNodes = [...nodes];
+      const maxIterations = 10; // Prevent infinite loops
+      const allNodes = [...existingNodes, ...adjustedNodes]; // Combined set for collision checking
+
+      // Helper function to get actual node dimensions
+      const getNodeDimensions = (node: Node) => ({
+        width: node.width || 200, // Fallback to 200 if width not specified
+        height: node.height || 100, // Fallback to 100 if height not specified
+      });
+
+      // Helper function to check if two nodes are too close
+      const areNodesTooClose = (nodeA: Node, nodeB: Node) => {
         const dimA = getNodeDimensions(nodeA);
-        
-        // Check against existing nodes (we can't move these)
-        for (let k = 0; k < existingNodes.length; k++) {
-          const existingNode = existingNodes[k];
-          if (areNodesTooClose(nodeA, existingNode)) {
-            hasCollisions = true;
-            
-            // Move the new node away from existing node
-            const dimExisting = getNodeDimensions(existingNode);
-            const centerAX = nodeA.position.x + dimA.width / 2;
-            const centerAY = nodeA.position.y + dimA.height / 2;
-            const centerExistingX = existingNode.position.x + dimExisting.width / 2;
-            const centerExistingY = existingNode.position.y + dimExisting.height / 2;
-            
-            const deltaX = centerAX - centerExistingX;
-            const deltaY = centerAY - centerExistingY;
-            
-            if (Math.abs(deltaX) > Math.abs(deltaY)) {
-              // Adjust horizontally
-              if (deltaX > 0) {
-                // Move nodeA to the right
-                adjustedNodes[i] = {
-                  ...nodeA,
-                  position: {
-                    ...nodeA.position,
-                    x: existingNode.position.x + dimExisting.width + minGap
-                  }
-                };
+        const dimB = getNodeDimensions(nodeB);
+
+        const aLeft = nodeA.position.x;
+        const aRight = nodeA.position.x + dimA.width;
+        const aTop = nodeA.position.y;
+        const aBottom = nodeA.position.y + dimA.height;
+
+        const bLeft = nodeB.position.x;
+        const bRight = nodeB.position.x + dimB.width;
+        const bTop = nodeB.position.y;
+        const bBottom = nodeB.position.y + dimB.height;
+
+        // Check if bounding boxes overlap or are too close
+        const horizontalOverlap = !(
+          aRight + minGap < bLeft || bRight + minGap < aLeft
+        );
+        const verticalOverlap = !(
+          aBottom + minGap < bTop || bBottom + minGap < aTop
+        );
+
+        return horizontalOverlap && verticalOverlap;
+      };
+
+      // Iteratively resolve collisions until stable or max iterations reached
+      for (let iteration = 0; iteration < maxIterations; iteration++) {
+        let hasCollisions = false;
+
+        // Check all pairs for collisions
+        for (let i = 0; i < adjustedNodes.length; i++) {
+          const nodeA = adjustedNodes[i];
+          const dimA = getNodeDimensions(nodeA);
+
+          // Check against existing nodes (we can't move these)
+          for (let k = 0; k < existingNodes.length; k++) {
+            const existingNode = existingNodes[k];
+            if (areNodesTooClose(nodeA, existingNode)) {
+              hasCollisions = true;
+
+              // Move the new node away from existing node
+              const dimExisting = getNodeDimensions(existingNode);
+              const centerAX = nodeA.position.x + dimA.width / 2;
+              const centerAY = nodeA.position.y + dimA.height / 2;
+              const centerExistingX =
+                existingNode.position.x + dimExisting.width / 2;
+              const centerExistingY =
+                existingNode.position.y + dimExisting.height / 2;
+
+              const deltaX = centerAX - centerExistingX;
+              const deltaY = centerAY - centerExistingY;
+
+              if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // Adjust horizontally
+                if (deltaX > 0) {
+                  // Move nodeA to the right
+                  adjustedNodes[i] = {
+                    ...nodeA,
+                    position: {
+                      ...nodeA.position,
+                      x: existingNode.position.x + dimExisting.width + minGap,
+                    },
+                  };
+                } else {
+                  // Move nodeA to the left
+                  adjustedNodes[i] = {
+                    ...nodeA,
+                    position: {
+                      ...nodeA.position,
+                      x: existingNode.position.x - dimA.width - minGap,
+                    },
+                  };
+                }
               } else {
-                // Move nodeA to the left
-                adjustedNodes[i] = {
-                  ...nodeA,
-                  position: {
-                    ...nodeA.position,
-                    x: existingNode.position.x - dimA.width - minGap
-                  }
-                };
+                // Adjust vertically
+                if (deltaY > 0) {
+                  // Move nodeA down
+                  adjustedNodes[i] = {
+                    ...nodeA,
+                    position: {
+                      ...nodeA.position,
+                      y: existingNode.position.y + dimExisting.height + minGap,
+                    },
+                  };
+                } else {
+                  // Move nodeA up
+                  adjustedNodes[i] = {
+                    ...nodeA,
+                    position: {
+                      ...nodeA.position,
+                      y: existingNode.position.y - dimA.height - minGap,
+                    },
+                  };
+                }
               }
-            } else {
-              // Adjust vertically
-              if (deltaY > 0) {
-                // Move nodeA down
-                adjustedNodes[i] = {
-                  ...nodeA,
-                  position: {
-                    ...nodeA.position,
-                    y: existingNode.position.y + dimExisting.height + minGap
-                  }
-                };
+            }
+          }
+
+          // Check against other new nodes
+          for (let j = i + 1; j < adjustedNodes.length; j++) {
+            const nodeB = adjustedNodes[j];
+            if (areNodesTooClose(adjustedNodes[i], nodeB)) {
+              hasCollisions = true;
+
+              // Move the later node (nodeB) away from the earlier one
+              const dimB = getNodeDimensions(nodeB);
+              const centerAX = adjustedNodes[i].position.x + dimA.width / 2;
+              const centerAY = adjustedNodes[i].position.y + dimA.height / 2;
+              const centerBX = nodeB.position.x + dimB.width / 2;
+              const centerBY = nodeB.position.y + dimB.height / 2;
+
+              const deltaX = centerBX - centerAX;
+              const deltaY = centerBY - centerAY;
+
+              // Add small random jitter to prevent oscillation
+              const jitter = (Math.random() - 0.5) * 4;
+
+              if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // Adjust horizontally
+                if (deltaX > 0) {
+                  // Move nodeB to the right
+                  adjustedNodes[j] = {
+                    ...nodeB,
+                    position: {
+                      ...nodeB.position,
+                      x:
+                        adjustedNodes[i].position.x +
+                        dimA.width +
+                        minGap +
+                        jitter,
+                    },
+                  };
+                } else {
+                  // Move nodeB to the left
+                  adjustedNodes[j] = {
+                    ...nodeB,
+                    position: {
+                      ...nodeB.position,
+                      x:
+                        adjustedNodes[i].position.x -
+                        dimB.width -
+                        minGap +
+                        jitter,
+                    },
+                  };
+                }
               } else {
-                // Move nodeA up
-                adjustedNodes[i] = {
-                  ...nodeA,
-                  position: {
-                    ...nodeA.position,
-                    y: existingNode.position.y - dimA.height - minGap
-                  }
-                };
+                // Adjust vertically
+                if (deltaY > 0) {
+                  // Move nodeB down
+                  adjustedNodes[j] = {
+                    ...nodeB,
+                    position: {
+                      ...nodeB.position,
+                      y:
+                        adjustedNodes[i].position.y +
+                        dimA.height +
+                        minGap +
+                        jitter,
+                    },
+                  };
+                } else {
+                  // Move nodeB up
+                  adjustedNodes[j] = {
+                    ...nodeB,
+                    position: {
+                      ...nodeB.position,
+                      y:
+                        adjustedNodes[i].position.y -
+                        dimB.height -
+                        minGap +
+                        jitter,
+                    },
+                  };
+                }
               }
             }
           }
         }
-        
-        // Check against other new nodes
-        for (let j = i + 1; j < adjustedNodes.length; j++) {
-          const nodeB = adjustedNodes[j];
-          if (areNodesTooClose(adjustedNodes[i], nodeB)) {
-            hasCollisions = true;
-            
-            // Move the later node (nodeB) away from the earlier one
-            const dimB = getNodeDimensions(nodeB);
-            const centerAX = adjustedNodes[i].position.x + dimA.width / 2;
-            const centerAY = adjustedNodes[i].position.y + dimA.height / 2;
-            const centerBX = nodeB.position.x + dimB.width / 2;
-            const centerBY = nodeB.position.y + dimB.height / 2;
-            
-            const deltaX = centerBX - centerAX;
-            const deltaY = centerBY - centerAY;
-            
-            // Add small random jitter to prevent oscillation
-            const jitter = (Math.random() - 0.5) * 4;
-            
-            if (Math.abs(deltaX) > Math.abs(deltaY)) {
-              // Adjust horizontally
-              if (deltaX > 0) {
-                // Move nodeB to the right
-                adjustedNodes[j] = {
-                  ...nodeB,
-                  position: {
-                    ...nodeB.position,
-                    x: adjustedNodes[i].position.x + dimA.width + minGap + jitter
-                  }
-                };
-              } else {
-                // Move nodeB to the left
-                adjustedNodes[j] = {
-                  ...nodeB,
-                  position: {
-                    ...nodeB.position,
-                    x: adjustedNodes[i].position.x - dimB.width - minGap + jitter
-                  }
-                };
-              }
-            } else {
-              // Adjust vertically
-              if (deltaY > 0) {
-                // Move nodeB down
-                adjustedNodes[j] = {
-                  ...nodeB,
-                  position: {
-                    ...nodeB.position,
-                    y: adjustedNodes[i].position.y + dimA.height + minGap + jitter
-                  }
-                };
-              } else {
-                // Move nodeB up
-                adjustedNodes[j] = {
-                  ...nodeB,
-                  position: {
-                    ...nodeB.position,
-                    y: adjustedNodes[i].position.y - dimB.height - minGap + jitter
-                  }
-                };
-              }
-            }
+
+        // If no collisions found, we're done
+        if (!hasCollisions) {
+          break;
+        }
+
+        // Log progress for debugging
+        if (iteration === maxIterations - 1) {
+          console.warn(
+            `⚠️ Node spacing hit max iterations (${maxIterations}), some overlaps may remain`,
+          );
+        }
+      }
+
+      return adjustedNodes;
+    },
+    [],
+  );
+
+  const handleCreateFromPrompt = useCallback(
+    async (prompt: string) => {
+      try {
+        // Create a new blank tab first
+        const newTab = createBlankTab();
+        setTabs((prev) => [...prev, newTab]);
+        setActiveTabId(newTab.id);
+
+        // Generate workflow directly using AI
+        const generatedWorkflow = await generateWorkflowFromPrompt(prompt);
+
+        // Update the new tab with generated nodes and edges
+        setTabs((prev) =>
+          prev.map((tab) =>
+            tab.id === newTab.id
+              ? {
+                  ...tab,
+                  nodes: generatedWorkflow.nodes.map((node) => ({
+                    ...node,
+                    selected: false,
+                  })),
+                  edges: generatedWorkflow.edges.map((edge) => ({
+                    ...edge,
+                    selected: false,
+                  })),
+                }
+              : tab,
+          ),
+        );
+
+        toast({
+          title: "Workflow Generated",
+          description: `Created ${generatedWorkflow.nodes.length} nodes and ${generatedWorkflow.edges.length} connections.`,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Workflow generation error:", error);
+
+        // Skip showing toast for credit errors - already handled by generateWorkflowFromPrompt
+        if (error instanceof Error && error.message === "Out of credits") {
+          return;
+        }
+
+        let title = "Generation Failed";
+        let description = "Failed to generate workflow. Please try again.";
+
+        if (error instanceof Error) {
+          if (error.message.includes("401")) {
+            title = "Authentication Error";
+            description =
+              "Invalid API key. Please check your OpenAI API key in AI Settings.";
+          } else if (error.message.includes("429")) {
+            title = "Rate Limit Exceeded";
+            description =
+              "Too many requests. Please wait a moment and try again.";
+          } else if (error.message.includes("500")) {
+            title = "Server Error";
+            description =
+              "OpenAI service is temporarily unavailable. Please try again later.";
+          } else {
+            description = error.message;
           }
         }
-      }
-      
-      // If no collisions found, we're done
-      if (!hasCollisions) {
-        break;
-      }
-      
-      // Log progress for debugging
-      if (iteration === maxIterations - 1) {
-        console.warn(`⚠️ Node spacing hit max iterations (${maxIterations}), some overlaps may remain`);
-      }
-    }
-    
-    return adjustedNodes;
-  }, []);
 
-  const handleCreateFromPrompt = useCallback(async (prompt: string) => {
-    try {
-      // Create a new blank tab first
-      const newTab = createBlankTab();
-      setTabs(prev => [...prev, newTab]);
-      setActiveTabId(newTab.id);
-      
-      // Generate workflow directly using AI
-      const generatedWorkflow = await generateWorkflowFromPrompt(prompt);
-      
-      // Update the new tab with generated nodes and edges
-      setTabs(prev => prev.map(tab => 
-        tab.id === newTab.id 
-          ? { 
-              ...tab, 
-              nodes: generatedWorkflow.nodes.map(node => ({ ...node, selected: false })),
-              edges: generatedWorkflow.edges.map(edge => ({ ...edge, selected: false }))
-            }
-          : tab
-      ));
-      
-      toast({
-        title: "Workflow Generated",
-        description: `Created ${generatedWorkflow.nodes.length} nodes and ${generatedWorkflow.edges.length} connections.`,
-        variant: "default"
-      });
-      
-    } catch (error) {
-      console.error('Workflow generation error:', error);
-      
-      // Skip showing toast for credit errors - already handled by generateWorkflowFromPrompt
-      if (error instanceof Error && error.message === 'Out of credits') {
-        return;
+        toast({
+          title,
+          description,
+          variant: "destructive",
+        });
       }
-      
-      let title = "Generation Failed";
-      let description = "Failed to generate workflow. Please try again.";
-      
-      if (error instanceof Error) {
-        if (error.message.includes('401')) {
-          title = "Authentication Error";
-          description = "Invalid API key. Please check your OpenAI API key in AI Settings.";
-        } else if (error.message.includes('429')) {
-          title = "Rate Limit Exceeded";
-          description = "Too many requests. Please wait a moment and try again.";
-        } else if (error.message.includes('500')) {
-          title = "Server Error";
-          description = "OpenAI service is temporarily unavailable. Please try again later.";
-        } else {
-          description = error.message;
-        }
-      }
-      
-      toast({
-        title,
-        description,
-        variant: "destructive"
-      });
-    }
-  }, [createBlankTab, generateWorkflowFromPrompt, toast]);
+    },
+    [createBlankTab, generateWorkflowFromPrompt, toast],
+  );
 
-  const handleCreateFromFile = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
-    const name = generateCuteName();
-    const initialState = {
-      nodes: data.nodes.map(node => ({ ...node, selected: false })),
-      edges: data.edges.map(edge => ({ ...edge, selected: false })),
-      canvasObjects: [],
-      viewport: { x: 0, y: 0, zoom: 1 }
-    };
-    
-    const newTab: WorkflowTab = {
-      id: generateTabId(),
-      name,
-      ...initialState,
-      selectedNodeId: '',
-      selectedEdgeId: '',
-      history: [initialState], // Initialize with current state
-      historyIndex: 0, // Start at index 0, not -1
-      showImageModal: null,
-      metadata: {
+  const handleCreateFromFile = useCallback(
+    (data: { nodes: Node[]; edges: Edge[] }) => {
+      const name = generateCuteName();
+      const initialState = {
+        nodes: data.nodes.map((node) => ({ ...node, selected: false })),
+        edges: data.edges.map((edge) => ({ ...edge, selected: false })),
+        canvasObjects: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+      };
+
+      const newTab: WorkflowTab = {
+        id: generateTabId(),
         name,
-        description: '',
-        links: [],
-        linksFormat: 'text',
-        categories: []
-      },
-      projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    };
-    setTabs(prev => [...prev, newTab]);
-    setActiveTabId(newTab.id);
-  }, [generateTabId, generateCuteName]);
+        ...initialState,
+        selectedNodeId: "",
+        selectedEdgeId: "",
+        history: [initialState], // Initialize with current state
+        historyIndex: 0, // Start at index 0, not -1
+        showImageModal: null,
+        metadata: {
+          name,
+          description: "",
+          links: [],
+          linksFormat: "text",
+          categories: [],
+        },
+        projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      };
+      setTabs((prev) => [...prev, newTab]);
+      setActiveTabId(newTab.id);
+    },
+    [generateTabId, generateCuteName],
+  );
 
-  const handleCreateFromTemplate = useCallback((template: { name: string; nodes: Node[]; edges: Edge[] }) => {
-    const initialState = {
-      nodes: template.nodes.map(node => ({ ...node, selected: false })),
-      edges: template.edges.map(edge => ({ ...edge, selected: false })),
-      canvasObjects: [],
-      viewport: { x: 0, y: 0, zoom: 1 }
-    };
-    
-    const newTab: WorkflowTab = {
-      id: generateTabId(),
-      name: template.name,
-      ...initialState,
-      selectedNodeId: '',
-      selectedEdgeId: '',
-      history: [initialState], // Initialize with current state
-      historyIndex: 0, // Start at index 0, not -1
-      showImageModal: null,
-      metadata: {
+  const handleCreateFromTemplate = useCallback(
+    (template: { name: string; nodes: Node[]; edges: Edge[] }) => {
+      const initialState = {
+        nodes: template.nodes.map((node) => ({ ...node, selected: false })),
+        edges: template.edges.map((edge) => ({ ...edge, selected: false })),
+        canvasObjects: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+      };
+
+      const newTab: WorkflowTab = {
+        id: generateTabId(),
         name: template.name,
-        description: '',
-        links: [],
-        linksFormat: 'text',
-        categories: []
-      },
-      projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    };
-    setTabs(prev => [...prev, newTab]);
-    setActiveTabId(newTab.id);
-  }, [generateTabId, generateCuteName]);
+        ...initialState,
+        selectedNodeId: "",
+        selectedEdgeId: "",
+        history: [initialState], // Initialize with current state
+        historyIndex: 0, // Start at index 0, not -1
+        showImageModal: null,
+        metadata: {
+          name: template.name,
+          description: "",
+          links: [],
+          linksFormat: "text",
+          categories: [],
+        },
+        projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      };
+      setTabs((prev) => [...prev, newTab]);
+      setActiveTabId(newTab.id);
+    },
+    [generateTabId, generateCuteName],
+  );
 
   // History management with debouncing to prevent excessive saves
   const saveToHistoryTimeoutRef = useRef<NodeJS.Timeout>();
-  const saveToHistory = useCallback((label?: string) => {
-    if (!activeTab) return;
-    
-    // Debug logging for undo tracking
-    if (process.env.NODE_ENV === 'development' && label) {
-      console.log(`[UNDO] Snapshot saved: ${label}`);
-    }
-    
-    // Clear any existing timeout to debounce the save operation
-    if (saveToHistoryTimeoutRef.current) {
-      clearTimeout(saveToHistoryTimeoutRef.current);
-    }
-    
-    saveToHistoryTimeoutRef.current = setTimeout(() => {
-      // Use current state variables instead of stale activeTab references
-      const currentNodes = nodes;
-      const currentEdges = edges;
-      const currentCanvasObjects = canvasObjects;
-      const currentViewport = viewport;
-      
-      const newHistoryState = {
-        nodes: [...currentNodes],
-        edges: [...currentEdges],
-        canvasObjects: [...currentCanvasObjects],
-        viewport: { ...currentViewport }
-      };
-      
-      const currentHistory = activeTab.history;
-      const currentHistoryIndex = activeTab.historyIndex;
-      
-      // Check if this state is actually different from the last saved state
-      const lastState = currentHistory[currentHistoryIndex];
-      if (lastState && 
+  const saveToHistory = useCallback(
+    (label?: string) => {
+      if (!activeTab) return;
+
+      // Debug logging for undo tracking
+      if (process.env.NODE_ENV === "development" && label) {
+        console.log(`[UNDO] Snapshot saved: ${label}`);
+      }
+
+      // Clear any existing timeout to debounce the save operation
+      if (saveToHistoryTimeoutRef.current) {
+        clearTimeout(saveToHistoryTimeoutRef.current);
+      }
+
+      saveToHistoryTimeoutRef.current = setTimeout(() => {
+        // Use current state variables instead of stale activeTab references
+        const currentNodes = nodes;
+        const currentEdges = edges;
+        const currentCanvasObjects = canvasObjects;
+        const currentViewport = viewport;
+
+        const newHistoryState = {
+          nodes: [...currentNodes],
+          edges: [...currentEdges],
+          canvasObjects: [...currentCanvasObjects],
+          viewport: { ...currentViewport },
+        };
+
+        const currentHistory = activeTab.history;
+        const currentHistoryIndex = activeTab.historyIndex;
+
+        // Check if this state is actually different from the last saved state
+        const lastState = currentHistory[currentHistoryIndex];
+        if (
+          lastState &&
           lastState.nodes.length === currentNodes.length &&
           lastState.edges.length === currentEdges.length &&
-          lastState.canvasObjects.length === currentCanvasObjects.length) {
-        // Skip saving if nothing substantial has changed
-        if (process.env.NODE_ENV === 'development' && label) {
-          console.log(`[UNDO] Skipped duplicate: ${label}`);
+          lastState.canvasObjects.length === currentCanvasObjects.length
+        ) {
+          // Skip saving if nothing substantial has changed
+          if (process.env.NODE_ENV === "development" && label) {
+            console.log(`[UNDO] Skipped duplicate: ${label}`);
+          }
+          return;
         }
-        return;
-      }
-      
-      // Remove any future history states if we're in the middle of history
-      const newHistory = [...currentHistory.slice(0, currentHistoryIndex + 1), newHistoryState];
-      
-      // Limit history size to prevent memory issues (keep last 20 states)
-      const maxHistorySize = 20;
-      const trimmedHistory = newHistory.length > maxHistorySize 
-        ? newHistory.slice(-maxHistorySize) 
-        : newHistory;
-      const newHistoryIndex = trimmedHistory.length - 1;
-      
-      updateActiveTab({ 
-        history: trimmedHistory,
-        historyIndex: newHistoryIndex
-      });
-      
-      if (process.env.NODE_ENV === 'development' && label) {
-        console.log(`[UNDO] Committed: ${label} (index: ${newHistoryIndex})`);
-      }
-    }, 200); // Debounce for 200ms to prevent excessive calls
-  }, [activeTab, updateActiveTab, nodes, edges, canvasObjects, viewport]);
+
+        // Remove any future history states if we're in the middle of history
+        const newHistory = [
+          ...currentHistory.slice(0, currentHistoryIndex + 1),
+          newHistoryState,
+        ];
+
+        // Limit history size to prevent memory issues (keep last 20 states)
+        const maxHistorySize = 20;
+        const trimmedHistory =
+          newHistory.length > maxHistorySize
+            ? newHistory.slice(-maxHistorySize)
+            : newHistory;
+        const newHistoryIndex = trimmedHistory.length - 1;
+
+        updateActiveTab({
+          history: trimmedHistory,
+          historyIndex: newHistoryIndex,
+        });
+
+        if (process.env.NODE_ENV === "development" && label) {
+          console.log(`[UNDO] Committed: ${label} (index: ${newHistoryIndex})`);
+        }
+      }, 200); // Debounce for 200ms to prevent excessive calls
+    },
+    [activeTab, updateActiveTab, nodes, edges, canvasObjects, viewport],
+  );
 
   // Quick-add functionality
-  const handleQuickAdd = useCallback((sourceNode: Node, position: 'top' | 'right' | 'bottom' | 'left') => {
-    saveToHistory('Add node (quick-add)'); // Save current state before adding node
-    
-    const spacing = proFeaturesConfig.quickAdd?.defaultSpacing ?? 250;
-    const nodeType = proFeaturesConfig.quickAdd?.defaultNodeType ?? 'process';
-    const template = proFeaturesConfig.quickAdd?.defaultNodeTemplate ?? {};
-    
-    let newPosition = { x: 0, y: 0 };
-    switch (position) {
-      case 'top':
-        newPosition = { x: sourceNode.position.x, y: sourceNode.position.y - spacing };
-        break;
-      case 'right':
-        newPosition = { x: sourceNode.position.x + spacing, y: sourceNode.position.y };
-        break;
-      case 'bottom':
-        newPosition = { x: sourceNode.position.x, y: sourceNode.position.y + spacing };
-        break;
-      case 'left':
-        newPosition = { x: sourceNode.position.x - spacing, y: sourceNode.position.y };
-        break;
-    }
+  const handleQuickAdd = useCallback(
+    (sourceNode: Node, position: "top" | "right" | "bottom" | "left") => {
+      saveToHistory("Add node (quick-add)"); // Save current state before adding node
 
-    const isImageNode = nodeType === 'image';
-    const defaultWidth = isImageNode ? 240 : 200;
-    const defaultHeight = isImageNode ? 240 : 100;
-    
-    const newNode: Node = {
-      id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type: nodeType,
-      position: newPosition,
-      data: {
-        label: isImageNode ? 'Image' : 'New Process',
-        description: isImageNode ? 'Configure image' : 'Configure process settings',
-        icon: isImageNode ? 'Image' : 'Cog',
-        iconColor: isImageNode ? 'text-pink-500' : 'text-gray-500',
-        ...template
-      },
-      width: defaultWidth,
-      height: defaultHeight
-    };
+      const spacing = proFeaturesConfig.quickAdd?.defaultSpacing ?? 250;
+      const nodeType = proFeaturesConfig.quickAdd?.defaultNodeType ?? "process";
+      const template = proFeaturesConfig.quickAdd?.defaultNodeTemplate ?? {};
 
-    // Add the new node
-    setNodes(prev => [...prev, newNode]);
-    
-    // Create connecting edge
-    const newEdge: Edge = {
-      id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      source: sourceNode.id,
-      target: newNode.id,
-      type: 'bezier',
-      style: {
-        strokeColor: '#3b82f6',
-        strokeWidth: 2
-      },
-      markers: {
-        type: 'arrow',
-        position: 'end'
-      },
-      reconnectable: true,
-      interactable: true
-    };
-    
-    setEdges(prev => [...prev, newEdge]);
-    
-    // Call custom handler if provided
-    if (proFeaturesConfig.quickAdd?.onQuickAdd) {
-      proFeaturesConfig.quickAdd.onQuickAdd(sourceNode, position, newNode);
-    }
-  }, [proFeaturesConfig.quickAdd, saveToHistory]);
+      let newPosition = { x: 0, y: 0 };
+      switch (position) {
+        case "top":
+          newPosition = {
+            x: sourceNode.position.x,
+            y: sourceNode.position.y - spacing,
+          };
+          break;
+        case "right":
+          newPosition = {
+            x: sourceNode.position.x + spacing,
+            y: sourceNode.position.y,
+          };
+          break;
+        case "bottom":
+          newPosition = {
+            x: sourceNode.position.x,
+            y: sourceNode.position.y + spacing,
+          };
+          break;
+        case "left":
+          newPosition = {
+            x: sourceNode.position.x - spacing,
+            y: sourceNode.position.y,
+          };
+          break;
+      }
 
-  // Handle edge reconnection from pro features
-  const handleEdgeReconnect = useCallback((edgeId: string, newSource: string, newTarget: string) => {
-    setEdges(prev => prev.map(edge => 
-      edge.id === edgeId 
-        ? { ...edge, source: newSource, target: newTarget, selected: false }
-        : edge
-    ));
-    
-    saveToHistory('Reconnect edge');
-  }, [setEdges, saveToHistory]);
-
-  // Helper function to calculate offset position for appending workflows
-  const calculateWorkflowOffset = useCallback((newNodes: Node[]): { x: number; y: number } => {
-    if (nodes.length === 0) {
-      return { x: 0, y: 0 }; // No offset needed if canvas is empty
-    }
-
-    // Find the bottommost position of existing nodes
-    let maxY = -Infinity;
-    
-    nodes.forEach(node => {
-      const nodeBottom = node.position.y + (node.height || 100);
-      if (nodeBottom > maxY) maxY = nodeBottom;
-    });
-
-    // Find the topmost position of new nodes
-    let minNewY = Infinity;
-    
-    newNodes.forEach(node => {
-      if (node.position.y < minNewY) minNewY = node.position.y;
-    });
-
-    // Calculate offset to place new workflow underneath with some spacing
-    const verticalSpacing = 150;
-    
-    const offsetX = 0; // Keep horizontal alignment with existing workflow
-    const offsetY = maxY + verticalSpacing - minNewY;
-
-    return { x: offsetX, y: offsetY };
-  }, [nodes]);
-
-  // Handle template creation to current active tab
-  const handleAddTemplateToCurrentTab = useCallback((templateType: string, anchorPosition?: { x: number; y: number }) => {
-    let templateData;
-
-    // Generate appropriate template based on type
-    switch (templateType) {
-      case 'user-journey':
-        templateData = generateUserJourneyTemplate();
-        break;
-      case 'mindmap':
-        templateData = generateMindmapTemplate();
-        break;
-      case 'system-architecture':
-        templateData = generateSystemArchitectureTemplate();
-        break;
-      case 'swim-lanes':
-        templateData = generateSwimLanesTemplate();
-        break;
-      case 'user-account-creation':
-        templateData = generateUserAccountTemplate();
-        break;
-      case 'io-logic':
-        templateData = generateIOLogicTemplate();
-        break;
-      default:
-        console.warn('Unknown template type:', templateType);
-        return;
-    }
-
-    let offset: { x: number; y: number };
-    
-    if (anchorPosition) {
-      // When a specific position is provided (from drag-and-drop), place template there
-      // Calculate the bounding box of the template
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      
-      templateData.nodes.forEach(node => {
-        if (node.position.x < minX) minX = node.position.x;
-        if (node.position.y < minY) minY = node.position.y;
-        const nodeRight = node.position.x + (node.width || 200);
-        const nodeBottom = node.position.y + (node.height || 100);
-        if (nodeRight > maxX) maxX = nodeRight;
-        if (nodeBottom > maxY) maxY = nodeBottom;
-      });
-      
-      // Calculate center of template bounding box
-      const templateCenterX = (minX + maxX) / 2;
-      const templateCenterY = (minY + maxY) / 2;
-      
-      // Offset to center template at the drop position
-      offset = {
-        x: anchorPosition.x - templateCenterX,
-        y: anchorPosition.y - templateCenterY
-      };
-    } else {
-      // Use the existing offset calculation for appending workflows
-      offset = calculateWorkflowOffset(templateData.nodes);
-    }
-    
-    const timestamp = Date.now();
-    
-    // Apply offset to new nodes and ensure unique IDs
-    const offsetNodes = templateData.nodes.map(node => {
-      const isImageNode = node.type === 'image';
+      const isImageNode = nodeType === "image";
       const defaultWidth = isImageNode ? 240 : 200;
       const defaultHeight = isImageNode ? 240 : 100;
-      return {
-        ...node,
-        id: `${node.id}-${timestamp}`, // Ensure unique IDs
-        position: {
-          x: node.position.x + offset.x,
-          y: node.position.y + offset.y
+
+      const newNode: Node = {
+        id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: nodeType,
+        position: newPosition,
+        data: {
+          label: isImageNode ? "Image" : "New Process",
+          description: isImageNode
+            ? "Configure image"
+            : "Configure process settings",
+          icon: isImageNode ? "Image" : "Cog",
+          iconColor: isImageNode ? "text-pink-500" : "text-gray-500",
+          ...template,
         },
-        selected: false,
-        // Ensure proper width/height for handle alignment
-        width: node.width || defaultWidth,
-        height: node.height || defaultHeight,
-        // Ensure handles are properly aligned
-        draggable: true,
-        selectable: true
+        width: defaultWidth,
+        height: defaultHeight,
       };
-    });
 
-    // Apply offset to new edges and update IDs
-    const offsetEdges = templateData.edges.map(edge => ({
-      ...edge,
-      id: `${edge.id}-${timestamp}`, // Ensure unique IDs
-      source: `${edge.source}-${timestamp}`,
-      target: `${edge.target}-${timestamp}`,
-      selected: false,
-      reconnectable: true, // Enable reconnection for template edges
-      interactable: true // Make edges clickable
-    }));
+      // Add the new node
+      setNodes((prev) => [...prev, newNode]);
 
-    // Append to existing nodes and edges
-    setNodes(prev => [...prev, ...offsetNodes]);
-    setEdges(prev => [...prev, ...offsetEdges]);
-    
-    // Save to history for undo/redo
-    saveToHistory('Add template');
-    
-    // Toast notification for template creation
-    toast({
-      title: "Template Added",
-      description: `${templateType.replace(/([A-Z])/g, ' $1').trim()} template added to canvas`,
-      variant: "default"
-    });
-  }, [generateUserJourneyTemplate, generateMindmapTemplate, generateSystemArchitectureTemplate, generateSwimLanesTemplate, generateUserAccountTemplate, generateIOLogicTemplate, calculateWorkflowOffset, setNodes, setEdges, saveToHistory]);
-
-  // Function to append AI-generated workflow to existing canvas
-  const appendAiWorkflowToCanvas = useCallback(async (prompt: string) => {
-    try {
-      // Generate workflow using AI
-      const generatedWorkflow = await generateWorkflowFromPrompt(prompt);
-      
-      // Apply minimum spacing between nodes in the generated workflow AND relative to existing nodes
-      const spacedWorkflow = {
-        ...generatedWorkflow,
-        nodes: enforceMinimumNodeSpacing(generatedWorkflow.nodes, 16, nodes)
+      // Create connecting edge
+      const newEdge: Edge = {
+        id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        source: sourceNode.id,
+        target: newNode.id,
+        type: "bezier",
+        style: {
+          strokeColor: "#3b82f6",
+          strokeWidth: 2,
+        },
+        markers: {
+          type: "arrow",
+          position: "end",
+        },
+        reconnectable: true,
+        interactable: true,
       };
-      
-      // Calculate offset for new nodes
-      const offset = calculateWorkflowOffset(spacedWorkflow.nodes);
-      
-      // Apply offset to new nodes
-      const offsetNodes = spacedWorkflow.nodes.map(node => {
-        const isImageNode = node.type === 'image';
+
+      setEdges((prev) => [...prev, newEdge]);
+
+      // Call custom handler if provided
+      if (proFeaturesConfig.quickAdd?.onQuickAdd) {
+        proFeaturesConfig.quickAdd.onQuickAdd(sourceNode, position, newNode);
+      }
+    },
+    [proFeaturesConfig.quickAdd, saveToHistory],
+  );
+
+  // Handle edge reconnection from pro features
+  const handleEdgeReconnect = useCallback(
+    (edgeId: string, newSource: string, newTarget: string) => {
+      setEdges((prev) =>
+        prev.map((edge) =>
+          edge.id === edgeId
+            ? { ...edge, source: newSource, target: newTarget, selected: false }
+            : edge,
+        ),
+      );
+
+      saveToHistory("Reconnect edge");
+    },
+    [setEdges, saveToHistory],
+  );
+
+  // Helper function to calculate offset position for appending workflows
+  const calculateWorkflowOffset = useCallback(
+    (newNodes: Node[]): { x: number; y: number } => {
+      if (nodes.length === 0) {
+        return { x: 0, y: 0 }; // No offset needed if canvas is empty
+      }
+
+      // Find the bottommost position of existing nodes
+      let maxY = -Infinity;
+
+      nodes.forEach((node) => {
+        const nodeBottom = node.position.y + (node.height || 100);
+        if (nodeBottom > maxY) maxY = nodeBottom;
+      });
+
+      // Find the topmost position of new nodes
+      let minNewY = Infinity;
+
+      newNodes.forEach((node) => {
+        if (node.position.y < minNewY) minNewY = node.position.y;
+      });
+
+      // Calculate offset to place new workflow underneath with some spacing
+      const verticalSpacing = 150;
+
+      const offsetX = 0; // Keep horizontal alignment with existing workflow
+      const offsetY = maxY + verticalSpacing - minNewY;
+
+      return { x: offsetX, y: offsetY };
+    },
+    [nodes],
+  );
+
+  // Handle template creation to current active tab
+  const handleAddTemplateToCurrentTab = useCallback(
+    (templateType: string, anchorPosition?: { x: number; y: number }) => {
+      let templateData;
+
+      // Generate appropriate template based on type
+      switch (templateType) {
+        case "user-journey":
+          templateData = generateUserJourneyTemplate();
+          break;
+        case "mindmap":
+          templateData = generateMindmapTemplate();
+          break;
+        case "system-architecture":
+          templateData = generateSystemArchitectureTemplate();
+          break;
+        case "swim-lanes":
+          templateData = generateSwimLanesTemplate();
+          break;
+        case "user-account-creation":
+          templateData = generateUserAccountTemplate();
+          break;
+        case "io-logic":
+          templateData = generateIOLogicTemplate();
+          break;
+        default:
+          console.warn("Unknown template type:", templateType);
+          return;
+      }
+
+      let offset: { x: number; y: number };
+
+      if (anchorPosition) {
+        // When a specific position is provided (from drag-and-drop), place template there
+        // Calculate the bounding box of the template
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+
+        templateData.nodes.forEach((node) => {
+          if (node.position.x < minX) minX = node.position.x;
+          if (node.position.y < minY) minY = node.position.y;
+          const nodeRight = node.position.x + (node.width || 200);
+          const nodeBottom = node.position.y + (node.height || 100);
+          if (nodeRight > maxX) maxX = nodeRight;
+          if (nodeBottom > maxY) maxY = nodeBottom;
+        });
+
+        // Calculate center of template bounding box
+        const templateCenterX = (minX + maxX) / 2;
+        const templateCenterY = (minY + maxY) / 2;
+
+        // Offset to center template at the drop position
+        offset = {
+          x: anchorPosition.x - templateCenterX,
+          y: anchorPosition.y - templateCenterY,
+        };
+      } else {
+        // Use the existing offset calculation for appending workflows
+        offset = calculateWorkflowOffset(templateData.nodes);
+      }
+
+      const timestamp = Date.now();
+
+      // Apply offset to new nodes and ensure unique IDs
+      const offsetNodes = templateData.nodes.map((node) => {
+        const isImageNode = node.type === "image";
         const defaultWidth = isImageNode ? 240 : 200;
         const defaultHeight = isImageNode ? 240 : 100;
         return {
           ...node,
-          id: `${node.id}-${Date.now()}`, // Ensure unique IDs
+          id: `${node.id}-${timestamp}`, // Ensure unique IDs
           position: {
             x: node.position.x + offset.x,
-            y: node.position.y + offset.y
+            y: node.position.y + offset.y,
           },
+          selected: false,
+          // Ensure proper width/height for handle alignment
           width: node.width || defaultWidth,
           height: node.height || defaultHeight,
-          selected: false
+          // Ensure handles are properly aligned
+          draggable: true,
+          selectable: true,
         };
       });
 
       // Apply offset to new edges and update IDs
-      const offsetEdges = spacedWorkflow.edges.map(edge => ({
+      const offsetEdges = templateData.edges.map((edge) => ({
         ...edge,
-        id: `${edge.id}-${Date.now()}`, // Ensure unique IDs
-        source: `${edge.source}-${Date.now()}`,
-        target: `${edge.target}-${Date.now()}`,
+        id: `${edge.id}-${timestamp}`, // Ensure unique IDs
+        source: `${edge.source}-${timestamp}`,
+        target: `${edge.target}-${timestamp}`,
         selected: false,
-        reconnectable: true, // Enable reconnection for AI-generated edges
-        interactable: true // Make edges clickable
+        reconnectable: true, // Enable reconnection for template edges
+        interactable: true, // Make edges clickable
       }));
 
       // Append to existing nodes and edges
-      setNodes(prev => [...prev, ...offsetNodes]);
-      setEdges(prev => [...prev, ...offsetEdges]);
-      
-      // Save to history after state updates
-      setTimeout(() => saveToHistory('Generate AI workflow'), 0);
-      
+      setNodes((prev) => [...prev, ...offsetNodes]);
+      setEdges((prev) => [...prev, ...offsetEdges]);
+
+      // Save to history for undo/redo
+      saveToHistory("Add template");
+
+      // Toast notification for template creation
       toast({
-        title: "Workflow Added",
-        description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections to canvas.`,
-        variant: "default"
+        title: "Template Added",
+        description: `${templateType.replace(/([A-Z])/g, " $1").trim()} template added to canvas`,
+        variant: "default",
       });
-      
-    } catch (error) {
-      console.error('Workflow generation error:', error);
-      
-      // Skip showing toast for credit errors - already handled by generateWorkflowFromPrompt
-      if (error instanceof Error && error.message === 'Out of credits') {
-        return;
-      }
-      
-      let title = "Generation Failed";
-      let description = "Failed to generate workflow. Please try again.";
-      
-      if (error instanceof Error) {
-        if (error.message.includes('401')) {
-          title = "Authentication Error";
-          description = "Invalid API key. Please check your OpenAI API key in AI Settings.";
-        } else if (error.message.includes('429')) {
-          title = "Rate Limit Exceeded";
-          description = "Too many requests. Please wait a moment and try again.";
-        } else if (error.message.includes('500')) {
-          title = "Server Error";
-          description = "OpenAI service is temporarily unavailable. Please try again later.";
-        } else {
-          description = error.message;
+    },
+    [
+      generateUserJourneyTemplate,
+      generateMindmapTemplate,
+      generateSystemArchitectureTemplate,
+      generateSwimLanesTemplate,
+      generateUserAccountTemplate,
+      generateIOLogicTemplate,
+      calculateWorkflowOffset,
+      setNodes,
+      setEdges,
+      saveToHistory,
+    ],
+  );
+
+  // Function to append AI-generated workflow to existing canvas
+  const appendAiWorkflowToCanvas = useCallback(
+    async (prompt: string) => {
+      try {
+        // Generate workflow using AI
+        const generatedWorkflow = await generateWorkflowFromPrompt(prompt);
+
+        // Apply minimum spacing between nodes in the generated workflow AND relative to existing nodes
+        const spacedWorkflow = {
+          ...generatedWorkflow,
+          nodes: enforceMinimumNodeSpacing(generatedWorkflow.nodes, 16, nodes),
+        };
+
+        // Calculate offset for new nodes
+        const offset = calculateWorkflowOffset(spacedWorkflow.nodes);
+
+        // Apply offset to new nodes
+        const offsetNodes = spacedWorkflow.nodes.map((node) => {
+          const isImageNode = node.type === "image";
+          const defaultWidth = isImageNode ? 240 : 200;
+          const defaultHeight = isImageNode ? 240 : 100;
+          return {
+            ...node,
+            id: `${node.id}-${Date.now()}`, // Ensure unique IDs
+            position: {
+              x: node.position.x + offset.x,
+              y: node.position.y + offset.y,
+            },
+            width: node.width || defaultWidth,
+            height: node.height || defaultHeight,
+            selected: false,
+          };
+        });
+
+        // Apply offset to new edges and update IDs
+        const offsetEdges = spacedWorkflow.edges.map((edge) => ({
+          ...edge,
+          id: `${edge.id}-${Date.now()}`, // Ensure unique IDs
+          source: `${edge.source}-${Date.now()}`,
+          target: `${edge.target}-${Date.now()}`,
+          selected: false,
+          reconnectable: true, // Enable reconnection for AI-generated edges
+          interactable: true, // Make edges clickable
+        }));
+
+        // Append to existing nodes and edges
+        setNodes((prev) => [...prev, ...offsetNodes]);
+        setEdges((prev) => [...prev, ...offsetEdges]);
+
+        // Save to history after state updates
+        setTimeout(() => saveToHistory("Generate AI workflow"), 0);
+
+        toast({
+          title: "Workflow Added",
+          description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections to canvas.`,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Workflow generation error:", error);
+
+        // Skip showing toast for credit errors - already handled by generateWorkflowFromPrompt
+        if (error instanceof Error && error.message === "Out of credits") {
+          return;
         }
+
+        let title = "Generation Failed";
+        let description = "Failed to generate workflow. Please try again.";
+
+        if (error instanceof Error) {
+          if (error.message.includes("401")) {
+            title = "Authentication Error";
+            description =
+              "Invalid API key. Please check your OpenAI API key in AI Settings.";
+          } else if (error.message.includes("429")) {
+            title = "Rate Limit Exceeded";
+            description =
+              "Too many requests. Please wait a moment and try again.";
+          } else if (error.message.includes("500")) {
+            title = "Server Error";
+            description =
+              "OpenAI service is temporarily unavailable. Please try again later.";
+          } else {
+            description = error.message;
+          }
+        }
+
+        toast({
+          title,
+          description,
+          variant: "destructive",
+        });
       }
-      
-      toast({
-        title,
-        description,
-        variant: "destructive"
-      });
-    }
-  }, [generateWorkflowFromPrompt, calculateWorkflowOffset, saveToHistory, toast]);
+    },
+    [generateWorkflowFromPrompt, calculateWorkflowOffset, saveToHistory, toast],
+  );
 
   // Function to append imported workflow to existing canvas
-  const appendImportedWorkflowToCanvas = useCallback((importedData: any) => {
-    try {
-      let nodes: Node[] = [];
-      let edges: Edge[] = [];
-      let canvasObjectsToImport: CanvasObject[] = [];
-      
-      // Handle comprehensive format
-      if (importedData.version && importedData.canvas) {
-        const { canvas } = importedData;
-        nodes = canvas.nodes || [];
-        edges = canvas.edges || [];
-        canvasObjectsToImport = canvas.canvasObjects || [];
-        
-        toast({
-          title: "Importing Comprehensive Workflow",
-          description: `Importing "${importedData.workflow?.name || 'workflow'}" with all content and styling`,
-        });
-      } else {
-        // Legacy format fallback
-        nodes = importedData.nodes || [];
-        edges = importedData.edges || [];
-        canvasObjectsToImport = importedData.canvasObjects || [];
-        
-        toast({
-          title: "Importing Legacy Workflow",
-          description: "Importing workflow with legacy format",
-        });
-      }
+  const appendImportedWorkflowToCanvas = useCallback(
+    (importedData: any) => {
+      try {
+        let nodes: Node[] = [];
+        let edges: Edge[] = [];
+        let canvasObjectsToImport: CanvasObject[] = [];
 
-      if (!nodes.length && !edges.length && !canvasObjectsToImport.length) {
+        // Handle comprehensive format
+        if (importedData.version && importedData.canvas) {
+          const { canvas } = importedData;
+          nodes = canvas.nodes || [];
+          edges = canvas.edges || [];
+          canvasObjectsToImport = canvas.canvasObjects || [];
+
+          toast({
+            title: "Importing Comprehensive Workflow",
+            description: `Importing "${importedData.workflow?.name || "workflow"}" with all content and styling`,
+          });
+        } else {
+          // Legacy format fallback
+          nodes = importedData.nodes || [];
+          edges = importedData.edges || [];
+          canvasObjectsToImport = importedData.canvasObjects || [];
+
+          toast({
+            title: "Importing Legacy Workflow",
+            description: "Importing workflow with legacy format",
+          });
+        }
+
+        if (!nodes.length && !edges.length && !canvasObjectsToImport.length) {
+          toast({
+            title: "Import Failed",
+            description: "No valid content found in the workflow file.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Calculate offset for new content
+        const offset = calculateWorkflowOffset(nodes);
+
+        // Apply offset to imported nodes with unique IDs
+        const offsetNodes = nodes.map((node) => ({
+          ...node,
+          id: `${node.id}-imported-${Date.now()}`, // Ensure unique IDs
+          position: {
+            x: node.position.x + offset.x,
+            y: node.position.y + offset.y,
+          },
+          selected: false,
+          // Preserve all styling and data
+          data: { ...node.data },
+          style: node.style || {},
+        }));
+
+        // Apply offset to imported edges and update IDs
+        const offsetEdges = edges.map((edge) => ({
+          ...edge,
+          id: `${edge.id}-imported-${Date.now()}`, // Ensure unique IDs
+          source: `${edge.source}-imported-${Date.now()}`,
+          target: `${edge.target}-imported-${Date.now()}`,
+          selected: false,
+          // Preserve all styling and data
+          style: edge.style || {},
+          data: edge.data || {},
+        }));
+
+        // Apply offset to imported canvas objects
+        const offsetCanvasObjects = canvasObjectsToImport.map((obj) => ({
+          ...obj,
+          id: `${obj.id}-imported-${Date.now()}`,
+          position: {
+            x: obj.position.x + offset.x,
+            y: obj.position.y + offset.y,
+          },
+          selected: false,
+          // Preserve all styling and data
+          data: { ...obj.data },
+          style: obj.style || {},
+        }));
+
+        // Append to existing content
+        setNodes((prev) => [...prev, ...offsetNodes]);
+        setEdges((prev) => [...prev, ...offsetEdges]);
+
+        if (offsetCanvasObjects.length > 0) {
+          updateActiveTab({
+            canvasObjects: [...canvasObjects, ...offsetCanvasObjects],
+          });
+        }
+
+        // Save to history after state updates
+        setTimeout(() => saveToHistory("Import workflow"), 0);
+
+        toast({
+          title: "Workflow Imported Successfully",
+          description: `Added ${offsetNodes.length} nodes, ${offsetEdges.length} connections, and ${offsetCanvasObjects.length} canvas objects.`,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Import failed:", error);
         toast({
           title: "Import Failed",
-          description: "No valid content found in the workflow file.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Calculate offset for new content
-      const offset = calculateWorkflowOffset(nodes);
-      
-      // Apply offset to imported nodes with unique IDs
-      const offsetNodes = nodes.map(node => ({
-        ...node,
-        id: `${node.id}-imported-${Date.now()}`, // Ensure unique IDs
-        position: {
-          x: node.position.x + offset.x,
-          y: node.position.y + offset.y
-        },
-        selected: false,
-        // Preserve all styling and data
-        data: { ...node.data },
-        style: node.style || {}
-      }));
-
-      // Apply offset to imported edges and update IDs
-      const offsetEdges = edges.map(edge => ({
-        ...edge,
-        id: `${edge.id}-imported-${Date.now()}`, // Ensure unique IDs
-        source: `${edge.source}-imported-${Date.now()}`,
-        target: `${edge.target}-imported-${Date.now()}`,
-        selected: false,
-        // Preserve all styling and data
-        style: edge.style || {},
-        data: edge.data || {}
-      }));
-
-      // Apply offset to imported canvas objects
-      const offsetCanvasObjects = canvasObjectsToImport.map(obj => ({
-        ...obj,
-        id: `${obj.id}-imported-${Date.now()}`,
-        position: {
-          x: obj.position.x + offset.x,
-          y: obj.position.y + offset.y
-        },
-        selected: false,
-        // Preserve all styling and data
-        data: { ...obj.data },
-        style: obj.style || {}
-      }));
-
-      // Append to existing content
-      setNodes(prev => [...prev, ...offsetNodes]);
-      setEdges(prev => [...prev, ...offsetEdges]);
-      
-      if (offsetCanvasObjects.length > 0) {
-        updateActiveTab({
-          canvasObjects: [...canvasObjects, ...offsetCanvasObjects]
+          description:
+            "An error occurred while importing the workflow. Please check the file format.",
+          variant: "destructive",
         });
       }
-      
-      // Save to history after state updates
-      setTimeout(() => saveToHistory('Import workflow'), 0);
-      
-      toast({
-        title: "Workflow Imported Successfully",
-        description: `Added ${offsetNodes.length} nodes, ${offsetEdges.length} connections, and ${offsetCanvasObjects.length} canvas objects.`,
-        variant: "default"
-      });
-      
-    } catch (error) {
-      console.error('Import failed:', error);
-      toast({
-        title: "Import Failed",
-        description: "An error occurred while importing the workflow. Please check the file format.",
-        variant: "destructive"
-      });
-    }
-  }, [calculateWorkflowOffset, saveToHistory, toast]);
+    },
+    [calculateWorkflowOffset, saveToHistory, toast],
+  );
 
   const handleUndo = useCallback(() => {
     const canUndo = historyIndex > 0 && history.length > 1;
@@ -2991,7 +3671,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         edges: [...targetState.edges],
         canvasObjects: [...(targetState.canvasObjects || [])],
         viewport: { ...targetState.viewport },
-        historyIndex: newIndex
+        historyIndex: newIndex,
       });
     }
   }, [historyIndex, history, updateActiveTab, nodes, edges, activeTab]);
@@ -3008,7 +3688,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         edges: [...targetState.edges],
         canvasObjects: [...(targetState.canvasObjects || [])],
         viewport: { ...targetState.viewport },
-        historyIndex: newIndex
+        historyIndex: newIndex,
       });
     }
   }, [historyIndex, history, updateActiveTab, nodes, edges, activeTab]);
@@ -3023,13 +3703,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       toast({
         title: "Snapshot Created",
         description: "Workflow state saved successfully.",
-        variant: "default"
+        variant: "default",
       });
     }
   }, [toast]);
 
   const handleVersionHistory = useCallback(() => {
-    // Access version control plugin through global registry  
+    // Access version control plugin through global registry
     const versionPlugin = (window as any).kiteframeVersionControlPlugin;
     if (versionPlugin) {
       versionPlugin.handleVersionHistory();
@@ -3037,7 +3717,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       toast({
         title: "Version History",
         description: "Access version history and snapshots.",
-        variant: "default"
+        variant: "default",
       });
     }
   }, [toast]);
@@ -3050,15 +3730,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if we're in an input field
       const target = e.target as HTMLElement;
-      const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
-      
+      const isInputFocused =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+
       // Allow Escape to work even in input fields
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         // Deselect all nodes and edges
-        setNodes(prev => prev.map(n => ({ ...n, selected: false })));
-        setEdges(prev => prev.map(edge => ({ ...edge, selected: false })));
-        setSelectedNodeId('');
-        setSelectedEdgeId('');
+        setNodes((prev) => prev.map((n) => ({ ...n, selected: false })));
+        setEdges((prev) => prev.map((edge) => ({ ...edge, selected: false })));
+        setSelectedNodeId("");
+        setSelectedEdgeId("");
         setLinearToolbar(null);
         // Also blur any focused input
         if (isInputFocused) {
@@ -3066,84 +3749,87 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         }
         return;
       }
-      
+
       // Skip other shortcuts if in input field
       if (isInputFocused) {
         return;
       }
-      
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const isCtrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
-      
+
       // Delete key handler (Delete or Backspace)
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        const selectedNodesList = nodes.filter(n => n.selected);
-        const selectedEdgesList = edges.filter(edge => edge.selected);
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const selectedNodesList = nodes.filter((n) => n.selected);
+        const selectedEdgesList = edges.filter((edge) => edge.selected);
         const hasSelectedObjects = selectedCanvasObjects.length > 0;
-        
+
         // Track what was deleted for the label
         const deletedItems: string[] = [];
-        
+
         if (selectedNodesList.length > 0) {
           e.preventDefault();
-          setNodes(prev => prev.filter(n => !n.selected));
-          setSelectedNodeId('');
+          setNodes((prev) => prev.filter((n) => !n.selected));
+          setSelectedNodeId("");
           setLinearToolbar(null);
           deletedItems.push(`${selectedNodesList.length} node(s)`);
         }
-        
+
         if (selectedEdgesList.length > 0) {
           e.preventDefault();
-          setEdges(prev => prev.filter(edge => !edge.selected));
-          setSelectedEdgeId('');
+          setEdges((prev) => prev.filter((edge) => !edge.selected));
+          setSelectedEdgeId("");
           setLinearToolbar(null);
           deletedItems.push(`${selectedEdgesList.length} edge(s)`);
         }
-        
+
         // Delete selected canvas objects
         if (hasSelectedObjects) {
           e.preventDefault();
           updateActiveTab({
-            canvasObjects: canvasObjects.filter(obj => !obj.selected)
+            canvasObjects: canvasObjects.filter((obj) => !obj.selected),
           });
           setLinearToolbar(null);
           deletedItems.push(`${selectedCanvasObjects.length} object(s)`);
         }
-        
+
         // Single saveToHistory call for all deletions
         if (deletedItems.length > 0) {
-          saveToHistory(`Delete ${deletedItems.join(', ')}`);
+          saveToHistory(`Delete ${deletedItems.join(", ")}`);
         }
         return;
       }
-      
+
       // Ctrl/Cmd + Z - Undo
-      if (isCtrlOrCmd && e.key === 'z' && !e.shiftKey) {
+      if (isCtrlOrCmd && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
         return;
       }
-      
+
       // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y - Redo
-      if ((isCtrlOrCmd && e.key === 'z' && e.shiftKey) || (isCtrlOrCmd && e.key === 'y')) {
+      if (
+        (isCtrlOrCmd && e.key === "z" && e.shiftKey) ||
+        (isCtrlOrCmd && e.key === "y")
+      ) {
         e.preventDefault();
         handleRedo();
         return;
       }
-      
+
       // Ctrl/Cmd + A - Select all nodes
-      if (isCtrlOrCmd && e.key === 'a') {
+      if (isCtrlOrCmd && e.key === "a") {
         e.preventDefault();
-        setNodes(prev => prev.map(n => ({ ...n, selected: true })));
+        setNodes((prev) => prev.map((n) => ({ ...n, selected: true })));
         toast({
           title: "Selected All",
           description: `${nodes.length} nodes selected`,
         });
         return;
       }
-      
+
       // Ctrl/Cmd + S - Save (download) workflow
-      if (isCtrlOrCmd && e.key === 's' && !e.shiftKey) {
+      if (isCtrlOrCmd && e.key === "s" && !e.shiftKey) {
         e.preventDefault();
         if (activeTab) {
           const workflowData = {
@@ -3152,13 +3838,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             edges: activeTab.edges,
             canvasObjects: activeTab.canvasObjects,
             metadata: activeTab.metadata,
-            exportedAt: new Date().toISOString()
+            exportedAt: new Date().toISOString(),
           };
-          const blob = new Blob([JSON.stringify(workflowData, null, 2)], { type: 'application/json' });
+          const blob = new Blob([JSON.stringify(workflowData, null, 2)], {
+            type: "application/json",
+          });
           const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
+          const a = document.createElement("a");
           a.href = url;
-          a.download = `${activeTab.name.replace(/\s+/g, '-').toLowerCase()}.json`;
+          a.download = `${activeTab.name.replace(/\s+/g, "-").toLowerCase()}.json`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -3170,23 +3858,29 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         }
         return;
       }
-      
+
       // Ctrl/Cmd + + or = - Zoom in
-      if (isCtrlOrCmd && (e.key === '+' || e.key === '=')) {
+      if (isCtrlOrCmd && (e.key === "+" || e.key === "=")) {
         e.preventDefault();
-        setViewport(prev => ({ ...prev, zoom: Math.min(prev.zoom * 1.2, 3) }));
+        setViewport((prev) => ({
+          ...prev,
+          zoom: Math.min(prev.zoom * 1.2, 3),
+        }));
         return;
       }
-      
+
       // Ctrl/Cmd + - - Zoom out
-      if (isCtrlOrCmd && e.key === '-') {
+      if (isCtrlOrCmd && e.key === "-") {
         e.preventDefault();
-        setViewport(prev => ({ ...prev, zoom: Math.max(prev.zoom / 1.2, 0.1) }));
+        setViewport((prev) => ({
+          ...prev,
+          zoom: Math.max(prev.zoom / 1.2, 0.1),
+        }));
         return;
       }
-      
+
       // Ctrl/Cmd + 0 - Reset zoom
-      if (isCtrlOrCmd && e.key === '0') {
+      if (isCtrlOrCmd && e.key === "0") {
         e.preventDefault();
         setViewport({ x: 0, y: 0, zoom: 1 });
         toast({
@@ -3195,140 +3889,160 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         });
         return;
       }
-      
+
       // N - Add new node at center of viewport
-      if (e.key === 'n' && !isCtrlOrCmd) {
+      if (e.key === "n" && !isCtrlOrCmd) {
         e.preventDefault();
         setLinearToolbar(null);
         const canvasWidth = window.innerWidth - 300;
         const canvasHeight = window.innerHeight - 100;
         const centerX = (-viewport.x + canvasWidth / 2) / viewport.zoom;
         const centerY = (-viewport.y + canvasHeight / 2) / viewport.zoom;
-        
+
         const newNode: Node = {
           id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          type: 'process',
+          type: "process",
           position: { x: centerX - 100, y: centerY - 50 },
           data: {
-            label: 'New Process',
-            description: 'Click to edit',
-            icon: 'Cog',
+            label: "New Process",
+            description: "Click to edit",
+            icon: "Cog",
           },
           width: 200,
           height: 100,
-          selected: true
+          selected: true,
         };
-        
+
         // Deselect all other nodes first
-        setNodes(prev => [...prev.map(n => ({ ...n, selected: false })), newNode]);
+        setNodes((prev) => [
+          ...prev.map((n) => ({ ...n, selected: false })),
+          newNode,
+        ]);
         setSelectedNodeId(newNode.id);
-        saveToHistory('Add node');
-        
+        saveToHistory("Add node");
+
         toast({
           title: "Node Added",
           description: "Press N again to add more nodes",
         });
         return;
       }
-      
+
       // + - Show quick create radial menu at mouse position
-      if ((e.key === '+' || (e.key === '=' && e.shiftKey)) && !isCtrlOrCmd) {
+      if ((e.key === "+" || (e.key === "=" && e.shiftKey)) && !isCtrlOrCmd) {
         e.preventDefault();
-        
+
         // Dismiss any open toolbar
         setLinearToolbar(null);
-        
+
         // Get canvas element bounds to check if mouse is inside
-        const canvasEl = document.querySelector('[data-testid="workflow-canvas"]');
+        const canvasEl = document.querySelector(
+          '[data-testid="workflow-canvas"]',
+        );
         const canvasBounds = canvasEl?.getBoundingClientRect();
-        
+
         let screenX = mousePositionRef.current.x;
         let screenY = mousePositionRef.current.y;
-        
+
         // Check if mouse is inside canvas bounds
-        const isInsideCanvas = canvasBounds && 
-          screenX >= canvasBounds.left && 
-          screenX <= canvasBounds.right && 
-          screenY >= canvasBounds.top && 
+        const isInsideCanvas =
+          canvasBounds &&
+          screenX >= canvasBounds.left &&
+          screenX <= canvasBounds.right &&
+          screenY >= canvasBounds.top &&
           screenY <= canvasBounds.bottom;
-        
+
         if (!isInsideCanvas || !canvasBounds) {
           // Position at lower middle of screen, above any action toolbar
           screenX = window.innerWidth / 2;
           screenY = window.innerHeight - 150;
         }
-        
+
         // Convert screen position to canvas position
-        const canvasX = (screenX - (canvasBounds?.left || 0) - viewport.x) / viewport.zoom;
-        const canvasY = (screenY - (canvasBounds?.top || 0) - viewport.y) / viewport.zoom;
-        
+        const canvasX =
+          (screenX - (canvasBounds?.left || 0) - viewport.x) / viewport.zoom;
+        const canvasY =
+          (screenY - (canvasBounds?.top || 0) - viewport.y) / viewport.zoom;
+
         setQuickCreateMenu({
           screenPosition: { x: screenX, y: screenY },
-          canvasPosition: { x: canvasX, y: canvasY }
+          canvasPosition: { x: canvasX, y: canvasY },
         });
         return;
       }
-      
+
       // 1-6 - Quick add node types
-      if (['1', '2', '3', '4', '5', '6'].includes(e.key) && !isCtrlOrCmd) {
+      if (["1", "2", "3", "4", "5", "6"].includes(e.key) && !isCtrlOrCmd) {
         e.preventDefault();
         setLinearToolbar(null);
         const nodeTypes: { [key: string]: NodeType } = {
-          '1': 'input',
-          '2': 'process',
-          '3': 'condition',
-          '4': 'output',
-          '5': 'ai',
-          '6': 'image'
+          "1": "input",
+          "2": "process",
+          "3": "condition",
+          "4": "output",
+          "5": "ai",
+          "6": "image",
         };
         const nodeLabels: { [key: string]: string } = {
-          '1': 'Input',
-          '2': 'Process',
-          '3': 'Condition',
-          '4': 'Output',
-          '5': 'AI Task',
-          '6': 'Image'
+          "1": "Input",
+          "2": "Process",
+          "3": "Condition",
+          "4": "Output",
+          "5": "AI Task",
+          "6": "Image",
         };
         const nodeType = nodeTypes[e.key];
         const canvasWidth = window.innerWidth - 300;
         const canvasHeight = window.innerHeight - 100;
         const centerX = (-viewport.x + canvasWidth / 2) / viewport.zoom;
         const centerY = (-viewport.y + canvasHeight / 2) / viewport.zoom;
-        
+
         const newNode: Node = {
           id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           type: nodeType,
           position: { x: centerX - 100, y: centerY - 50 },
           data: {
             label: nodeLabels[e.key],
-            description: 'Click to edit',
-            icon: nodeType === 'input' ? 'ArrowRight' : nodeType === 'output' ? 'ArrowLeft' : nodeType === 'condition' ? 'GitBranch' : nodeType === 'ai' ? 'Bot' : 'Cog',
+            description: "Click to edit",
+            icon:
+              nodeType === "input"
+                ? "ArrowRight"
+                : nodeType === "output"
+                  ? "ArrowLeft"
+                  : nodeType === "condition"
+                    ? "GitBranch"
+                    : nodeType === "ai"
+                      ? "Bot"
+                      : "Cog",
           },
           width: 200,
           height: 100,
-          selected: true
+          selected: true,
         };
-        
-        setNodes(prev => [...prev.map(n => ({ ...n, selected: false })), newNode]);
+
+        setNodes((prev) => [
+          ...prev.map((n) => ({ ...n, selected: false })),
+          newNode,
+        ]);
         setSelectedNodeId(newNode.id);
-        saveToHistory('Add node');
-        
+        saveToHistory("Add node");
+
         toast({
           title: `${nodeLabels[e.key]} Node Added`,
           description: `Press ${e.key} again to add more`,
         });
         return;
       }
-      
+
       // T - Add new tab
-      if (e.key === 't' && !isCtrlOrCmd) {
+      if (e.key === "t" && !isCtrlOrCmd) {
         e.preventDefault();
         createNewTab();
         return;
       }
-      
+
       // G - Open AI Generator (KiteAI)
-      if (e.key === 'g' && !isCtrlOrCmd) {
+      if (e.key === "g" && !isCtrlOrCmd) {
         e.preventDefault();
         if (!isOnHomeTab && openTabs.length > 0) {
           setShowAiGenerator(true);
@@ -3339,65 +4053,108 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         }
         return;
       }
-      
+
       // H - Go to Home tab
-      if (e.key === 'h' && !isCtrlOrCmd) {
+      if (e.key === "h" && !isCtrlOrCmd) {
         e.preventDefault();
-        setActiveTabId('home');
+        setActiveTabId("home");
         return;
       }
-      
+
       // ? or Shift + / - Show keyboard shortcuts help
-      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
         e.preventDefault();
-        setShowKeyboardShortcuts(prev => !prev);
+        setShowKeyboardShortcuts((prev) => !prev);
         return;
       }
-      
+
       // Arrow keys - Nudge selected nodes
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        const selectedNodesList = nodes.filter(n => n.selected);
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        const selectedNodesList = nodes.filter((n) => n.selected);
         if (selectedNodesList.length > 0) {
           e.preventDefault();
           const nudgeAmount = e.shiftKey ? 10 : 1;
           const delta = {
-            x: e.key === 'ArrowLeft' ? -nudgeAmount : e.key === 'ArrowRight' ? nudgeAmount : 0,
-            y: e.key === 'ArrowUp' ? -nudgeAmount : e.key === 'ArrowDown' ? nudgeAmount : 0
+            x:
+              e.key === "ArrowLeft"
+                ? -nudgeAmount
+                : e.key === "ArrowRight"
+                  ? nudgeAmount
+                  : 0,
+            y:
+              e.key === "ArrowUp"
+                ? -nudgeAmount
+                : e.key === "ArrowDown"
+                  ? nudgeAmount
+                  : 0,
           };
-          
-          setNodes(prev => prev.map(n => 
-            n.selected ? { ...n, position: { x: n.position.x + delta.x, y: n.position.y + delta.y } } : n
-          ));
-          saveToHistory('Nudge node');
+
+          setNodes((prev) =>
+            prev.map((n) =>
+              n.selected
+                ? {
+                    ...n,
+                    position: {
+                      x: n.position.x + delta.x,
+                      y: n.position.y + delta.y,
+                    },
+                  }
+                : n,
+            ),
+          );
+          saveToHistory("Nudge node");
         }
         return;
       }
-      
+
       // Tab - Cycle through nodes (with wrapping)
-      if (e.key === 'Tab' && !isCtrlOrCmd && nodes.length > 0) {
+      if (e.key === "Tab" && !isCtrlOrCmd && nodes.length > 0) {
         e.preventDefault();
-        const currentIndex = nodes.findIndex(n => n.selected);
-        const nextIndex = e.shiftKey 
-          ? (currentIndex <= 0 ? nodes.length - 1 : currentIndex - 1)
-          : (currentIndex >= nodes.length - 1 ? 0 : currentIndex + 1);
-        
-        setNodes(prev => prev.map((n, i) => ({ ...n, selected: i === nextIndex })));
+        const currentIndex = nodes.findIndex((n) => n.selected);
+        const nextIndex = e.shiftKey
+          ? currentIndex <= 0
+            ? nodes.length - 1
+            : currentIndex - 1
+          : currentIndex >= nodes.length - 1
+            ? 0
+            : currentIndex + 1;
+
+        setNodes((prev) =>
+          prev.map((n, i) => ({ ...n, selected: i === nextIndex })),
+        );
         setSelectedNodeId(nodes[nextIndex].id);
         return;
       }
     };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nodes, edges, setNodes, setEdges, setSelectedNodeId, setSelectedEdgeId, saveToHistory, handleUndo, handleRedo, viewport, setViewport, activeTab, createNewTab, isOnHomeTab, openTabs.length, toast]);
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    nodes,
+    edges,
+    setNodes,
+    setEdges,
+    setSelectedNodeId,
+    setSelectedEdgeId,
+    saveToHistory,
+    handleUndo,
+    handleRedo,
+    viewport,
+    setViewport,
+    activeTab,
+    createNewTab,
+    isOnHomeTab,
+    openTabs.length,
+    toast,
+  ]);
 
   // Track mouse position for quick create menu
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       mousePositionRef.current = { x: e.clientX, y: e.clientY };
     };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
   // Listen for edge drag events to cancel click timers
@@ -3438,16 +4195,25 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       }, 100);
     };
 
-    window.addEventListener('edgeHandleDragStart', handleEdgeDragStart);
-    window.addEventListener('edgeHandleDragEnd', handleEdgeDragEnd);
-    window.addEventListener('canvasObjectDragStart', handleCanvasObjectDragStart);
-    window.addEventListener('canvasObjectDragEnd', handleCanvasObjectDragEnd);
+    window.addEventListener("edgeHandleDragStart", handleEdgeDragStart);
+    window.addEventListener("edgeHandleDragEnd", handleEdgeDragEnd);
+    window.addEventListener(
+      "canvasObjectDragStart",
+      handleCanvasObjectDragStart,
+    );
+    window.addEventListener("canvasObjectDragEnd", handleCanvasObjectDragEnd);
 
     return () => {
-      window.removeEventListener('edgeHandleDragStart', handleEdgeDragStart);
-      window.removeEventListener('edgeHandleDragEnd', handleEdgeDragEnd);
-      window.removeEventListener('canvasObjectDragStart', handleCanvasObjectDragStart);
-      window.removeEventListener('canvasObjectDragEnd', handleCanvasObjectDragEnd);
+      window.removeEventListener("edgeHandleDragStart", handleEdgeDragStart);
+      window.removeEventListener("edgeHandleDragEnd", handleEdgeDragEnd);
+      window.removeEventListener(
+        "canvasObjectDragStart",
+        handleCanvasObjectDragStart,
+      );
+      window.removeEventListener(
+        "canvasObjectDragEnd",
+        handleCanvasObjectDragEnd,
+      );
     };
   }, []);
 
@@ -3468,20 +4234,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // Get access to KiteFrame core system
   const { core } = usePluginSystem();
-  
+
   // Register required plugins in useEffect to avoid registration during render
   useEffect(() => {
     if (core) {
-      if (!core.getPlugin?.('layout')) {
+      if (!core.getPlugin?.("layout")) {
         core.use(layoutPlugin);
       }
-      if (!core.getPlugin?.('console-demo')) {
+      if (!core.getPlugin?.("console-demo")) {
         core.use(consolePlugin);
       }
-      if (!core.getPlugin?.('test-demo')) {
+      if (!core.getPlugin?.("test-demo")) {
         core.use(testPlugin);
       }
-      if (!core.getPlugin?.('advanced-interactions-pro')) {
+      if (!core.getPlugin?.("advanced-interactions-pro")) {
         core.use(advancedInteractionsPlugin);
       }
     }
@@ -3490,74 +4256,83 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Connect plugin system to workflow editor state
   useEffect(() => {
     if (core && tabs && activeTabId) {
-      const activeTab = tabs.find(tab => tab.id === activeTabId);
+      const activeTab = tabs.find((tab) => tab.id === activeTabId);
       if (activeTab) {
         core.updateContext({
           getNodes: () => activeTab.nodes,
           getEdges: () => activeTab.edges,
           updateNodes: (newNodes) => {
             updateActiveTab({
-              nodes: newNodes
+              nodes: newNodes,
             });
           },
           updateEdges: (newEdges) => {
             updateActiveTab({
-              edges: newEdges
+              edges: newEdges,
             });
           },
           getViewport: () => activeTab.viewport,
           setViewport: (viewport) => {
             updateActiveTab({
-              viewport
+              viewport,
             });
           },
-          getSelectedNodes: () => activeTab.selectedNodeId ? [activeTab.selectedNodeId] : [],
+          getSelectedNodes: () =>
+            activeTab.selectedNodeId ? [activeTab.selectedNodeId] : [],
           setSelectedNodes: (nodeIds) => {
             updateActiveTab({
-              selectedNodeId: nodeIds[0] || ''
+              selectedNodeId: nodeIds[0] || "",
             });
-          }
+          },
         });
       }
     }
   }, [core, tabs, activeTabId, updateActiveTab]);
 
-  // Auto Layout Handler - delegates to LayoutPlugin via KiteFrame  
+  // Auto Layout Handler - delegates to LayoutPlugin via KiteFrame
   // Accepts string events or objects with eventId and spacing for distribute operations
-  const handleAutoLayout = useCallback((eventData: string | { eventId: string; spacing: number }) => {
-    if (nodes.length === 0) return;
-    
-    const label = typeof eventData === 'string' ? eventData : eventData.eventId;
-    saveToHistory(`Auto layout: ${label}`);
-    
-    let eventName: string;
-    let payload: any = undefined;
-    
-    if (typeof eventData === 'string') {
-      // Handle string events (align, layout operations)
-      eventName = /^(align:|distribute:|layout:)/.test(eventData) ? eventData : `layout:${eventData}`;
-    } else {
-      // Handle object with spacing payload (distribute operations)
-      eventName = eventData.eventId;
-      payload = { spacing: eventData.spacing };
-    }
-    
-    if (core) {
-      try {
-        // Emit event to the LayoutPlugin with optional payload
-        core.emit(eventName, payload);
-      } catch (error) {
-        console.error(`❌ Failed to emit layout event: ${eventName}`, error);
+  const handleAutoLayout = useCallback(
+    (eventData: string | { eventId: string; spacing: number }) => {
+      if (nodes.length === 0) return;
+
+      const label =
+        typeof eventData === "string" ? eventData : eventData.eventId;
+      saveToHistory(`Auto layout: ${label}`);
+
+      let eventName: string;
+      let payload: any = undefined;
+
+      if (typeof eventData === "string") {
+        // Handle string events (align, layout operations)
+        eventName = /^(align:|distribute:|layout:)/.test(eventData)
+          ? eventData
+          : `layout:${eventData}`;
+      } else {
+        // Handle object with spacing payload (distribute operations)
+        eventName = eventData.eventId;
+        payload = { spacing: eventData.spacing };
       }
-    } else {
-      console.warn(`⚠️ KiteFrame core not available for layout: ${typeof eventData === 'string' ? eventData : eventData.eventId}`);
-    }
-  }, [nodes, saveToHistory, core]);
+
+      if (core) {
+        try {
+          // Emit event to the LayoutPlugin with optional payload
+          core.emit(eventName, payload);
+        } catch (error) {
+          console.error(`❌ Failed to emit layout event: ${eventName}`, error);
+        }
+      } else {
+        console.warn(
+          `⚠️ KiteFrame core not available for layout: ${typeof eventData === "string" ? eventData : eventData.eventId}`,
+        );
+      }
+    },
+    [nodes, saveToHistory, core],
+  );
 
   // Other UI state
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
-  const [generatorPrompt, setGeneratorPrompt] = useState('');
+  const [generatorPrompt, setGeneratorPrompt] = useState("");
   const [showImportModal, setShowImportModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [activeShareId, setActiveShareId] = useState<string | null>(null);
@@ -3566,17 +4341,33 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showCloudProjects, setShowCloudProjects] = useState(false);
   const [showPluginTest, setShowPluginTest] = useState(false);
   const [showFigmaModal, setShowFigmaModal] = useState(false);
-  const [figmaImportMode, setFigmaImportMode] = useState<'new-project' | 'insert-into-project'>('new-project');
+  const [figmaImportMode, setFigmaImportMode] = useState<
+    "new-project" | "insert-into-project"
+  >("new-project");
   const [showPowerFeaturesMenu, setShowPowerFeaturesMenu] = useState(false);
-  const [showWorkflowPreviewModal, setShowWorkflowPreviewModal] = useState(false);
-  const [workflowPreviewFrameIds, setWorkflowPreviewFrameIds] = useState<string[]>([]);
+  const [showWorkflowPreviewModal, setShowWorkflowPreviewModal] =
+    useState(false);
+  const [workflowPreviewFrameIds, setWorkflowPreviewFrameIds] = useState<
+    string[]
+  >([]);
   const [isGeneratingWorkflow, setIsGeneratingWorkflow] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node?: Node; canvasObject?: CanvasObject } | null>(null);
-  const [linearToolbar, setLinearToolbar] = useState<{ 
-    x: number; 
-    y: number; 
-    nodeRect?: { top: number; bottom: number; left: number; right: number; width: number }; 
-    node?: Node; 
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    node?: Node;
+    canvasObject?: CanvasObject;
+  } | null>(null);
+  const [linearToolbar, setLinearToolbar] = useState<{
+    x: number;
+    y: number;
+    nodeRect?: {
+      top: number;
+      bottom: number;
+      left: number;
+      right: number;
+      width: number;
+    };
+    node?: Node;
     edge?: Edge;
     canvasObject?: CanvasObject;
     initialSubmenu?: string | null;
@@ -3587,27 +4378,37 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     canvasPosition: { x: number; y: number };
   } | null>(null);
   const mousePositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [inlineEditing, setInlineEditing] = useState<{ 
-    nodeId?: string; 
-    edgeId?: string; 
-    part: 'header' | 'body' | 'edgeLabel';
+  const [inlineEditing, setInlineEditing] = useState<{
+    nodeId?: string;
+    edgeId?: string;
+    part: "header" | "body" | "edgeLabel";
   } | null>(null);
-  const [selectedText, setSelectedText] = useState('');
+  const [selectedText, setSelectedText] = useState("");
   const [isEditingWorkflowName, setIsEditingWorkflowName] = useState(false);
-  const [workflowNameInput, setWorkflowNameInput] = useState('');
-  const [copiedProperties, setCopiedProperties] = useState<{ colors?: any; data?: Partial<Node['data']> } | null>(null);
-  const [copiedCanvasObjectProperties, setCopiedCanvasObjectProperties] = useState<{ data?: any; style?: any } | null>(null);
+  const [workflowNameInput, setWorkflowNameInput] = useState("");
+  const [copiedProperties, setCopiedProperties] = useState<{
+    colors?: any;
+    data?: Partial<Node["data"]>;
+  } | null>(null);
+  const [copiedCanvasObjectProperties, setCopiedCanvasObjectProperties] =
+    useState<{ data?: any; style?: any } | null>(null);
 
   // Click vs drag detection for properties panel
-  const clickDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clickDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const isDraggingRef = useRef(false);
-  const dragResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // Theme change detection refs
   const activeTabRef = useRef<WorkflowTab | undefined>(undefined);
-  const lastThemeIsDarkRef = useRef(document.documentElement.classList.contains('dark'));
+  const lastThemeIsDarkRef = useRef(
+    document.documentElement.classList.contains("dark"),
+  );
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Canvas container ref for toolbar positioning
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
@@ -3618,46 +4419,53 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // Ref to track share update debounce timer
   const shareUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Effect to update shared project when nodes/edges change
   useEffect(() => {
     if (!activeShareId) return;
-    
+
     // Debounce updates to avoid spamming the server
     if (shareUpdateTimeoutRef.current) {
       clearTimeout(shareUpdateTimeoutRef.current);
     }
-    
+
     shareUpdateTimeoutRef.current = setTimeout(async () => {
       try {
-        await apiRequest('PUT', `/api/share-project/${activeShareId}`, {
+        await apiRequest("PUT", `/api/share-project/${activeShareId}`, {
           nodes,
           edges,
           canvasObjects: canvasObjects || [],
           viewport: viewport || { x: 0, y: 0, zoom: 1 },
-          projectMetadata: activeTab?.metadata
+          projectMetadata: activeTab?.metadata,
         });
       } catch (error) {
-        console.error('Failed to update shared project:', error);
+        console.error("Failed to update shared project:", error);
       }
     }, 1000); // 1 second debounce
-    
+
     return () => {
       if (shareUpdateTimeoutRef.current) {
         clearTimeout(shareUpdateTimeoutRef.current);
       }
     };
-  }, [activeShareId, nodes, edges, canvasObjects, viewport, activeTab?.metadata]);
+  }, [
+    activeShareId,
+    nodes,
+    edges,
+    canvasObjects,
+    viewport,
+    activeTab?.metadata,
+  ]);
 
   // Load project from URL parameter (projectUuid)
   useEffect(() => {
     if (!projectUuid || projectLoadedRef.current) return;
-    
+
     projectLoadedRef.current = true;
-    
-    fetch(`/api/project/${projectUuid}`, { credentials: 'include' })
-      .then(res => res.json())
-      .then(data => {
+
+    fetch(`/api/project/${projectUuid}`, { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
         if (data.redirect) {
           // Non-owner trying to access edit URL - redirect to view URL
           setLocation(data.redirect);
@@ -3666,43 +4474,54 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           const workflowData = data.project.workflowData;
           if (workflowData && activeTabId && openTabs.length > 0) {
             // Update the active tab with project data
-            setTabs(prev => prev.map(tab => 
-              tab.id === activeTabId ? {
-                ...tab,
-                name: data.project.name || tab.name,
-                nodes: workflowData.nodes || [],
-                edges: workflowData.edges || [],
-                canvasObjects: workflowData.canvasObjects || [],
-                viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
-                metadata: {
-                  ...tab.metadata,
-                  name: data.project.name || '',
-                  description: data.project.description || ''
-                },
-                projectUuid: tab.projectUuid || data.project.projectUuid || `cloud-${data.project.id}`,
-                cloudProjectId: data.project.id
-              } : tab
-            ));
+            setTabs((prev) =>
+              prev.map((tab) =>
+                tab.id === activeTabId
+                  ? {
+                      ...tab,
+                      name: data.project.name || tab.name,
+                      nodes: workflowData.nodes || [],
+                      edges: workflowData.edges || [],
+                      canvasObjects: workflowData.canvasObjects || [],
+                      viewport: workflowData.viewport || {
+                        x: 0,
+                        y: 0,
+                        zoom: 1,
+                      },
+                      metadata: {
+                        ...tab.metadata,
+                        name: data.project.name || "",
+                        description: data.project.description || "",
+                      },
+                      projectUuid:
+                        tab.projectUuid ||
+                        data.project.projectUuid ||
+                        `cloud-${data.project.id}`,
+                      cloudProjectId: data.project.id,
+                    }
+                  : tab,
+              ),
+            );
           }
           setCurrentProjectId(data.project.id);
-          
+
           // Set activeShareId if project has sharing enabled
           if (data.isShareEnabled && data.shareUuid) {
             setActiveShareId(data.shareUuid);
           }
-          
+
           toast({
-            title: 'Project Loaded',
-            description: `Loaded "${data.project.name || 'Untitled Project'}"`,
+            title: "Project Loaded",
+            description: `Loaded "${data.project.name || "Untitled Project"}"`,
           });
         }
       })
-      .catch(error => {
-        console.error('Failed to load project:', error);
+      .catch((error) => {
+        console.error("Failed to load project:", error);
         toast({
-          title: 'Error',
-          description: 'Failed to load project',
-          variant: 'destructive'
+          title: "Error",
+          description: "Failed to load project",
+          variant: "destructive",
         });
       });
   }, [projectUuid, setLocation, activeTabId, openTabs.length, toast]);
@@ -3710,82 +4529,108 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Track toolbar position when node/canvas object is being dragged
   useEffect(() => {
     if (!linearToolbar) return;
-    
+
     const containerRect = canvasContainerRef.current?.getBoundingClientRect();
     const containerLeft = containerRect?.left ?? 0;
     const containerTop = containerRect?.top ?? 0;
-    
+
     if (linearToolbar.node) {
       // Find the current position of the node
-      const currentNode = nodes.find(n => n.id === linearToolbar.node!.id);
+      const currentNode = nodes.find((n) => n.id === linearToolbar.node!.id);
       if (!currentNode) {
         // Node was deleted, clear toolbar
         setLinearToolbar(null);
         return;
       }
-      
+
       const nodeWidth = currentNode.width ?? 200;
       const nodeHeight = currentNode.height ?? 100;
-      const screenX = currentNode.position.x * viewport.zoom + viewport.x + containerLeft;
-      const screenY = currentNode.position.y * viewport.zoom + viewport.y + containerTop;
+      const screenX =
+        currentNode.position.x * viewport.zoom + viewport.x + containerLeft;
+      const screenY =
+        currentNode.position.y * viewport.zoom + viewport.y + containerTop;
       const screenWidth = nodeWidth * viewport.zoom;
       const screenHeight = nodeHeight * viewport.zoom;
-      
+
       // Only update if position changed
-      if (linearToolbar.x !== screenX + screenWidth / 2 || linearToolbar.y !== screenY) {
-        setLinearToolbar(prev => prev ? {
-          ...prev,
-          x: screenX + screenWidth / 2,
-          y: screenY,
-          nodeRect: {
-            top: screenY,
-            bottom: screenY + screenHeight,
-            left: screenX,
-            right: screenX + screenWidth,
-            width: screenWidth
-          },
-          node: currentNode
-        } : null);
+      if (
+        linearToolbar.x !== screenX + screenWidth / 2 ||
+        linearToolbar.y !== screenY
+      ) {
+        setLinearToolbar((prev) =>
+          prev
+            ? {
+                ...prev,
+                x: screenX + screenWidth / 2,
+                y: screenY,
+                nodeRect: {
+                  top: screenY,
+                  bottom: screenY + screenHeight,
+                  left: screenX,
+                  right: screenX + screenWidth,
+                  width: screenWidth,
+                },
+                node: currentNode,
+              }
+            : null,
+        );
       }
     } else if (linearToolbar.canvasObject) {
       // Find the current position of the canvas object
-      const currentObject = canvasObjects.find(obj => obj.id === linearToolbar.canvasObject!.id);
+      const currentObject = canvasObjects.find(
+        (obj) => obj.id === linearToolbar.canvasObject!.id,
+      );
       if (!currentObject) {
         // Object was deleted, clear toolbar
         setLinearToolbar(null);
         return;
       }
-      
+
       const objWidth = currentObject.width ?? 150;
       const objHeight = currentObject.height ?? 100;
-      const screenX = currentObject.position.x * viewport.zoom + viewport.x + containerLeft;
-      const screenY = currentObject.position.y * viewport.zoom + viewport.y + containerTop;
+      const screenX =
+        currentObject.position.x * viewport.zoom + viewport.x + containerLeft;
+      const screenY =
+        currentObject.position.y * viewport.zoom + viewport.y + containerTop;
       const screenWidth = objWidth * viewport.zoom;
       const screenHeight = objHeight * viewport.zoom;
-      
+
       // Only update if position changed
-      if (linearToolbar.x !== screenX + screenWidth / 2 || linearToolbar.y !== screenY) {
-        setLinearToolbar(prev => prev ? {
-          ...prev,
-          x: screenX + screenWidth / 2,
-          y: screenY,
-          nodeRect: {
-            top: screenY,
-            bottom: screenY + screenHeight,
-            left: screenX,
-            right: screenX + screenWidth,
-            width: screenWidth
-          },
-          canvasObject: currentObject
-        } : null);
+      if (
+        linearToolbar.x !== screenX + screenWidth / 2 ||
+        linearToolbar.y !== screenY
+      ) {
+        setLinearToolbar((prev) =>
+          prev
+            ? {
+                ...prev,
+                x: screenX + screenWidth / 2,
+                y: screenY,
+                nodeRect: {
+                  top: screenY,
+                  bottom: screenY + screenHeight,
+                  left: screenX,
+                  right: screenX + screenWidth,
+                  width: screenWidth,
+                },
+                canvasObject: currentObject,
+              }
+            : null,
+        );
       }
     }
-  }, [linearToolbar?.node?.id, linearToolbar?.canvasObject?.id, nodes, canvasObjects, viewport]);
+  }, [
+    linearToolbar?.node?.id,
+    linearToolbar?.canvasObject?.id,
+    nodes,
+    canvasObjects,
+    viewport,
+  ]);
 
   // Sidebar collapse state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     try {
-      const saved = localStorage.getItem('sidebar-collapsed');
+      const saved = localStorage.getItem("sidebar-collapsed");
       return saved ? JSON.parse(saved) : true;
     } catch {
       return true;
@@ -3793,7 +4638,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   });
 
   // Popout state for collapsed sidebar
-  const [activePopout, setActivePopout] = useState<'node-types' | 'shapes' | 'templates' | 'themes' | 'boosts' | null>(null);
+  const [activePopout, setActivePopout] = useState<
+    "node-types" | "shapes" | "templates" | "themes" | "boosts" | null
+  >(null);
 
   // Toolbar expanded state (icons only vs icons + labels)
   const [isToolbarExpanded, setIsToolbarExpanded] = useState(false);
@@ -3801,7 +4648,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Current workflow theme state
   const [currentTheme, setCurrentTheme] = useState<WorkflowTheme>(() => {
     try {
-      const savedThemeId = localStorage.getItem('workflow-theme') || 'default';
+      const savedThemeId = localStorage.getItem("workflow-theme") || "default";
       return getThemeById(savedThemeId) || workflowThemes[0];
     } catch {
       return workflowThemes[0]; // Default theme
@@ -3809,355 +4656,427 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   });
 
   // Image upload modal state
-  const [selectedImageNodeId, setSelectedImageNodeId] = useState<string | null>(null);
+  const [selectedImageNodeId, setSelectedImageNodeId] = useState<string | null>(
+    null,
+  );
   const [showImageUploadModal, setShowImageUploadModal] = useState(false);
 
   // Table link picker state for FormNode
-  const [tableLinkPicker, setTableLinkPicker] = useState<{ formNodeId: string } | null>(null);
+  const [tableLinkPicker, setTableLinkPicker] = useState<{
+    formNodeId: string;
+  } | null>(null);
 
   // Node Gallery Panel state
   const [showGalleryPanel, setShowGalleryPanel] = useState(false);
 
   // ============= COMPOUND TEMPLATE STORE =============
   // Project-level template storage for saved compound node templates
-  const TEMPLATE_STORE_KEY = 'kiteframe-compound-templates';
+  const TEMPLATE_STORE_KEY = "kiteframe-compound-templates";
   const TEMPLATE_STORE_VERSION = 1;
 
-  const [savedTemplates, setSavedTemplates] = useState<SavedCompoundTemplate[]>(() => {
-    try {
-      const saved = localStorage.getItem(TEMPLATE_STORE_KEY);
-      if (saved) {
-        const store: TemplateStore = JSON.parse(saved);
-        if (store.version === TEMPLATE_STORE_VERSION) {
-          return store.templates;
+  const [savedTemplates, setSavedTemplates] = useState<SavedCompoundTemplate[]>(
+    () => {
+      try {
+        const saved = localStorage.getItem(TEMPLATE_STORE_KEY);
+        if (saved) {
+          const store: TemplateStore = JSON.parse(saved);
+          if (store.version === TEMPLATE_STORE_VERSION) {
+            return store.templates;
+          }
         }
+        return [];
+      } catch {
+        return [];
       }
-      return [];
-    } catch {
-      return [];
-    }
-  });
+    },
+  );
 
   // Persist templates to localStorage whenever they change
   useEffect(() => {
     try {
       const store: TemplateStore = {
         templates: savedTemplates,
-        version: TEMPLATE_STORE_VERSION
+        version: TEMPLATE_STORE_VERSION,
       };
       localStorage.setItem(TEMPLATE_STORE_KEY, JSON.stringify(store));
     } catch (error) {
-      console.error('Failed to save templates to localStorage:', error);
+      console.error("Failed to save templates to localStorage:", error);
     }
   }, [savedTemplates]);
 
   // CRUD operations for templates
   const addTemplate = useCallback((template: SavedCompoundTemplate) => {
-    setSavedTemplates(prev => [...prev, template]);
+    setSavedTemplates((prev) => [...prev, template]);
   }, []);
 
-  const updateTemplate = useCallback((templateId: string, updates: Partial<SavedCompoundTemplate>) => {
-    setSavedTemplates(prev => prev.map(t => 
-      t.id === templateId 
-        ? { 
-            ...t, 
-            ...updates, 
-            metadata: { 
-              ...t.metadata, 
-              ...updates.metadata, 
-              updatedAt: new Date().toISOString() 
-            } 
-          }
-        : t
-    ));
-  }, []);
+  const updateTemplate = useCallback(
+    (templateId: string, updates: Partial<SavedCompoundTemplate>) => {
+      setSavedTemplates((prev) =>
+        prev.map((t) =>
+          t.id === templateId
+            ? {
+                ...t,
+                ...updates,
+                metadata: {
+                  ...t.metadata,
+                  ...updates.metadata,
+                  updatedAt: new Date().toISOString(),
+                },
+              }
+            : t,
+        ),
+      );
+    },
+    [],
+  );
 
   const deleteTemplate = useCallback((templateId: string) => {
-    setSavedTemplates(prev => prev.filter(t => t.id !== templateId));
+    setSavedTemplates((prev) => prev.filter((t) => t.id !== templateId));
   }, []);
 
-  const getTemplateById = useCallback((templateId: string): SavedCompoundTemplate | undefined => {
-    return savedTemplates.find(t => t.id === templateId);
-  }, [savedTemplates]);
+  const getTemplateById = useCallback(
+    (templateId: string): SavedCompoundTemplate | undefined => {
+      return savedTemplates.find((t) => t.id === templateId);
+    },
+    [savedTemplates],
+  );
 
   const incrementTemplateUsage = useCallback((templateId: string) => {
-    setSavedTemplates(prev => prev.map(t => 
-      t.id === templateId 
-        ? { ...t, metadata: { ...t.metadata, usageCount: (t.metadata.usageCount || 0) + 1 } }
-        : t
-    ));
+    setSavedTemplates((prev) =>
+      prev.map((t) =>
+        t.id === templateId
+          ? {
+              ...t,
+              metadata: {
+                ...t.metadata,
+                usageCount: (t.metadata.usageCount || 0) + 1,
+              },
+            }
+          : t,
+      ),
+    );
   }, []);
 
-  const handleSaveAsTemplate = useCallback((nodeId: string, templateName: string, description?: string) => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node || node.type !== 'compound') return;
-    
-    const compoundData = node.data as any;
-    const templateSubcomponents = (compoundData.subcomponents || []).map((sub: any) => {
-      const baseSub = {
-        id: sub.id,
-        type: sub.type,
-        order: sub.order,
+  const handleSaveAsTemplate = useCallback(
+    (nodeId: string, templateName: string, description?: string) => {
+      const node = nodes.find((n) => n.id === nodeId);
+      if (!node || node.type !== "compound") return;
+
+      const compoundData = node.data as any;
+      const templateSubcomponents = (compoundData.subcomponents || []).map(
+        (sub: any) => {
+          const baseSub = {
+            id: sub.id,
+            type: sub.type,
+            order: sub.order,
+          };
+
+          if (sub.type === "text") {
+            return {
+              ...baseSub,
+              data: {
+                content: sub.data?.content || "",
+                fontSize: sub.data?.fontSize,
+                fontWeight: sub.data?.fontWeight,
+                fontStyle: sub.data?.fontStyle,
+                textDecoration: sub.data?.textDecoration,
+                textAlign: sub.data?.textAlign,
+                textColor: sub.data?.textColor,
+                columnBinding: sub.data?.columnBinding,
+              },
+            };
+          } else if (sub.type === "image") {
+            return {
+              ...baseSub,
+              data: {
+                src: sub.data?.src,
+                alt: sub.data?.alt,
+                height: sub.data?.height,
+                columnBinding: sub.data?.columnBinding,
+              },
+            };
+          } else if (sub.type === "link") {
+            return {
+              ...baseSub,
+              data: {
+                text: sub.data?.text || "",
+                url: sub.data?.url || "",
+                textColor: sub.data?.textColor,
+                showPreview: sub.data?.showPreview,
+                textColumnBinding: sub.data?.textColumnBinding,
+                urlColumnBinding: sub.data?.urlColumnBinding,
+              },
+            };
+          } else if (sub.type === "input") {
+            return {
+              ...baseSub,
+              data: {
+                label: sub.data?.label,
+                value: sub.data?.value || "",
+                placeholder: sub.data?.placeholder,
+                inputType: sub.data?.inputType,
+                columnBinding: sub.data?.columnBinding,
+              },
+            };
+          }
+          return sub;
+        },
+      );
+
+      const newTemplate: SavedCompoundTemplate = {
+        id: `template-${Date.now()}`,
+        name: templateName,
+        description,
+        subcomponents: templateSubcomponents,
+        containerPadding: compoundData.containerPadding,
+        gap: compoundData.gap,
+        defaultWidth:
+          typeof node.style?.width === "number" ? node.style.width : 320,
+        defaultHeight:
+          typeof node.style?.height === "number" ? node.style.height : 280,
+        colors: compoundData.colors,
+        metadata: {
+          createdAt: new Date().toISOString(),
+          usageCount: 0,
+        },
       };
-      
-      if (sub.type === 'text') {
-        return {
-          ...baseSub,
-          data: {
-            content: sub.data?.content || '',
-            fontSize: sub.data?.fontSize,
-            fontWeight: sub.data?.fontWeight,
-            fontStyle: sub.data?.fontStyle,
-            textDecoration: sub.data?.textDecoration,
-            textAlign: sub.data?.textAlign,
-            textColor: sub.data?.textColor,
-            columnBinding: sub.data?.columnBinding,
-          }
-        };
-      } else if (sub.type === 'image') {
-        return {
-          ...baseSub,
-          data: {
-            src: sub.data?.src,
-            alt: sub.data?.alt,
-            height: sub.data?.height,
-            columnBinding: sub.data?.columnBinding,
-          }
-        };
-      } else if (sub.type === 'link') {
-        return {
-          ...baseSub,
-          data: {
-            text: sub.data?.text || '',
-            url: sub.data?.url || '',
-            textColor: sub.data?.textColor,
-            showPreview: sub.data?.showPreview,
-            textColumnBinding: sub.data?.textColumnBinding,
-            urlColumnBinding: sub.data?.urlColumnBinding,
-          }
-        };
-      } else if (sub.type === 'input') {
-        return {
-          ...baseSub,
-          data: {
-            label: sub.data?.label,
-            value: sub.data?.value || '',
-            placeholder: sub.data?.placeholder,
-            inputType: sub.data?.inputType,
-            columnBinding: sub.data?.columnBinding,
-          }
-        };
-      }
-      return sub;
-    });
-    
-    const newTemplate: SavedCompoundTemplate = {
-      id: `template-${Date.now()}`,
-      name: templateName,
-      description,
-      subcomponents: templateSubcomponents,
-      containerPadding: compoundData.containerPadding,
-      gap: compoundData.gap,
-      defaultWidth: typeof node.style?.width === 'number' ? node.style.width : 320,
-      defaultHeight: typeof node.style?.height === 'number' ? node.style.height : 280,
-      colors: compoundData.colors,
-      metadata: {
-        createdAt: new Date().toISOString(),
-        usageCount: 0,
-      }
-    };
-    
-    addTemplate(newTemplate);
-    toast({ title: "Template Saved", description: `"${templateName}" saved to templates` });
-  }, [nodes, addTemplate, toast]);
+
+      addTemplate(newTemplate);
+      toast({
+        title: "Template Saved",
+        description: `"${templateName}" saved to templates`,
+      });
+    },
+    [nodes, addTemplate, toast],
+  );
 
   // Handler for generating CompoundNodes from a template using table rows
-  const handleGenerateFromTemplate = useCallback((tableId: string, template: SavedCompoundTemplate, selectedRowIds?: string[]) => {
-    // Find the table node and get table data
-    const tableNode = nodes.find(n => n.type === 'table' && (n.data as any)?.tableId === tableId);
-    if (!tableNode) {
-      toast({ title: "Error", description: "Table not found", variant: "destructive" });
-      return;
-    }
-    
-    const tableNodeData = tableNode.data as TableNodeData;
-    const table = tableNodeData.table;
-    if (!table || !table.rows || table.rows.length === 0) {
-      toast({ title: "No Data", description: "Table has no rows to generate from", variant: "destructive" });
-      return;
-    }
-    
-    // Get the rows to process (selected or all, up to limit)
-    const MAX_ROW_TO_NODE = 50;
-    let rowsToProcess = table.rows;
-    if (selectedRowIds && selectedRowIds.length > 0) {
-      rowsToProcess = table.rows.filter((row: any) => selectedRowIds.includes(row.id));
-    }
-    rowsToProcess = rowsToProcess.slice(0, MAX_ROW_TO_NODE);
-    
-    if (rowsToProcess.length === 0) {
-      toast({ title: "No Rows", description: "No rows selected for generation", variant: "destructive" });
-      return;
-    }
-    
-    // Grid layout configuration
-    const GRID_COLUMNS = 3;
-    const SPACING_X = 350;
-    const SPACING_Y = 320;
-    const START_X = (tableNode.position?.x || 0) + (tableNode.width || 400) + 100;
-    const START_Y = tableNode.position?.y || 0;
-    
-    // Create column map for quick lookup
-    const columnMap = new Map<string, number>();
-    (table.columns || []).forEach((col: any, index: number) => {
-      columnMap.set(col.id, index);
-    });
-    
-    // Generate new nodes from rows
-    const newNodes: Node[] = rowsToProcess.map((row: any, index: number) => {
-      const gridX = index % GRID_COLUMNS;
-      const gridY = Math.floor(index / GRID_COLUMNS);
-      
-      // Clone template subcomponents with column bindings resolved
-      const resolvedSubcomponents = (template.subcomponents || []).map((sub: any) => {
-        const clonedSub = {
-          ...sub,
-          id: `${sub.id}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          data: { ...sub.data }
-        };
-        
-        // Resolve column bindings based on subcomponent type
-        // columnBinding is { columnId, columnName }, row.values is Record<string, value>
-        if (sub.type === 'text' && sub.data?.columnBinding?.columnId) {
-          const colId = sub.data.columnBinding.columnId;
-          if (row.values && row.values[colId] !== undefined) {
-            clonedSub.data.content = String(row.values[colId] ?? '');
-          }
-        } else if (sub.type === 'image' && sub.data?.columnBinding?.columnId) {
-          const colId = sub.data.columnBinding.columnId;
-          if (row.values && row.values[colId] !== undefined) {
-            clonedSub.data.src = String(row.values[colId] ?? '');
-          }
-        } else if (sub.type === 'link') {
-          if (sub.data?.textColumnBinding?.columnId) {
-            const colId = sub.data.textColumnBinding.columnId;
-            if (row.values && row.values[colId] !== undefined) {
-              clonedSub.data.text = String(row.values[colId] ?? '');
-            }
-          }
-          if (sub.data?.urlColumnBinding?.columnId) {
-            const colId = sub.data.urlColumnBinding.columnId;
-            if (row.values && row.values[colId] !== undefined) {
-              clonedSub.data.url = String(row.values[colId] ?? '');
-            }
-          }
-        } else if (sub.type === 'input' && sub.data?.columnBinding?.columnId) {
-          const colId = sub.data.columnBinding.columnId;
-          if (row.values && row.values[colId] !== undefined) {
-            clonedSub.data.value = String(row.values[colId] ?? '');
-          }
-        }
-        
-        return clonedSub;
+  const handleGenerateFromTemplate = useCallback(
+    (
+      tableId: string,
+      template: SavedCompoundTemplate,
+      selectedRowIds?: string[],
+    ) => {
+      // Find the table node and get table data
+      const tableNode = nodes.find(
+        (n) => n.type === "table" && (n.data as any)?.tableId === tableId,
+      );
+      if (!tableNode) {
+        toast({
+          title: "Error",
+          description: "Table not found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const tableNodeData = tableNode.data as TableNodeData;
+      const table = tableNodeData.table;
+      if (!table || !table.rows || table.rows.length === 0) {
+        toast({
+          title: "No Data",
+          description: "Table has no rows to generate from",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get the rows to process (selected or all, up to limit)
+      const MAX_ROW_TO_NODE = 50;
+      let rowsToProcess = table.rows;
+      if (selectedRowIds && selectedRowIds.length > 0) {
+        rowsToProcess = table.rows.filter((row: any) =>
+          selectedRowIds.includes(row.id),
+        );
+      }
+      rowsToProcess = rowsToProcess.slice(0, MAX_ROW_TO_NODE);
+
+      if (rowsToProcess.length === 0) {
+        toast({
+          title: "No Rows",
+          description: "No rows selected for generation",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Grid layout configuration
+      const GRID_COLUMNS = 3;
+      const SPACING_X = 350;
+      const SPACING_Y = 320;
+      const START_X =
+        (tableNode.position?.x || 0) + (tableNode.width || 400) + 100;
+      const START_Y = tableNode.position?.y || 0;
+
+      // Create column map for quick lookup
+      const columnMap = new Map<string, number>();
+      (table.columns || []).forEach((col: any, index: number) => {
+        columnMap.set(col.id, index);
       });
-      
-      return {
-        id: `compound-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 5)}`,
-        type: 'compound' as const,
-        position: {
-          x: START_X + gridX * SPACING_X,
-          y: START_Y + gridY * SPACING_Y
-        },
-        data: {
-          label: template.name,
-          subcomponents: resolvedSubcomponents,
-          containerPadding: template.containerPadding || 16,
-          gap: template.gap || 12,
-          colors: template.colors,
-          sourceRowId: row.id,
-          sourceTableId: tableId,
-          sourceTemplateId: template.id,
-        },
-        width: template.defaultWidth || 320,
-        height: template.defaultHeight || 280,
-        style: {
+
+      // Generate new nodes from rows
+      const newNodes: Node[] = rowsToProcess.map((row: any, index: number) => {
+        const gridX = index % GRID_COLUMNS;
+        const gridY = Math.floor(index / GRID_COLUMNS);
+
+        // Clone template subcomponents with column bindings resolved
+        const resolvedSubcomponents = (template.subcomponents || []).map(
+          (sub: any) => {
+            const clonedSub = {
+              ...sub,
+              id: `${sub.id}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+              data: { ...sub.data },
+            };
+
+            // Resolve column bindings based on subcomponent type
+            // columnBinding is { columnId, columnName }, row.values is Record<string, value>
+            if (sub.type === "text" && sub.data?.columnBinding?.columnId) {
+              const colId = sub.data.columnBinding.columnId;
+              if (row.values && row.values[colId] !== undefined) {
+                clonedSub.data.content = String(row.values[colId] ?? "");
+              }
+            } else if (
+              sub.type === "image" &&
+              sub.data?.columnBinding?.columnId
+            ) {
+              const colId = sub.data.columnBinding.columnId;
+              if (row.values && row.values[colId] !== undefined) {
+                clonedSub.data.src = String(row.values[colId] ?? "");
+              }
+            } else if (sub.type === "link") {
+              if (sub.data?.textColumnBinding?.columnId) {
+                const colId = sub.data.textColumnBinding.columnId;
+                if (row.values && row.values[colId] !== undefined) {
+                  clonedSub.data.text = String(row.values[colId] ?? "");
+                }
+              }
+              if (sub.data?.urlColumnBinding?.columnId) {
+                const colId = sub.data.urlColumnBinding.columnId;
+                if (row.values && row.values[colId] !== undefined) {
+                  clonedSub.data.url = String(row.values[colId] ?? "");
+                }
+              }
+            } else if (
+              sub.type === "input" &&
+              sub.data?.columnBinding?.columnId
+            ) {
+              const colId = sub.data.columnBinding.columnId;
+              if (row.values && row.values[colId] !== undefined) {
+                clonedSub.data.value = String(row.values[colId] ?? "");
+              }
+            }
+
+            return clonedSub;
+          },
+        );
+
+        return {
+          id: `compound-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 5)}`,
+          type: "compound" as const,
+          position: {
+            x: START_X + gridX * SPACING_X,
+            y: START_Y + gridY * SPACING_Y,
+          },
+          data: {
+            label: template.name,
+            subcomponents: resolvedSubcomponents,
+            containerPadding: template.containerPadding || 16,
+            gap: template.gap || 12,
+            colors: template.colors,
+            sourceRowId: row.id,
+            sourceTableId: tableId,
+            sourceTemplateId: template.id,
+          },
           width: template.defaultWidth || 320,
-          height: template.defaultHeight || 280
-        }
-      } as Node;
-    });
-    
-    // Add nodes to canvas
-    setNodes(prev => [...prev, ...newNodes]);
-    incrementTemplateUsage(template.id);
-    saveToHistory('Add nodes from template');
-    
-    toast({ 
-      title: "Nodes Generated", 
-      description: `Created ${newNodes.length} node${newNodes.length > 1 ? 's' : ''} from "${template.name}". Open Gallery to view all.`,
-      action: (
-        <button
-          onClick={() => setShowGalleryPanel(true)}
-          className="ml-2 px-3 py-1 text-xs font-medium bg-indigo-500 hover:bg-indigo-600 text-white rounded-md transition-colors"
-          data-testid="open-gallery-from-toast"
-        >
-          Open Gallery
-        </button>
-      )
-    });
-  }, [nodes, toast, setNodes, incrementTemplateUsage, saveToHistory]);
+          height: template.defaultHeight || 280,
+          style: {
+            width: template.defaultWidth || 320,
+            height: template.defaultHeight || 280,
+          },
+        } as Node;
+      });
+
+      // Add nodes to canvas
+      setNodes((prev) => [...prev, ...newNodes]);
+      incrementTemplateUsage(template.id);
+      saveToHistory("Add nodes from template");
+
+      toast({
+        title: "Nodes Generated",
+        description: `Created ${newNodes.length} node${newNodes.length > 1 ? "s" : ""} from "${template.name}". Open Gallery to view all.`,
+        action: (
+          <button
+            onClick={() => setShowGalleryPanel(true)}
+            className="ml-2 px-3 py-1 text-xs font-medium bg-indigo-500 hover:bg-indigo-600 text-white rounded-md transition-colors"
+            data-testid="open-gallery-from-toast"
+          >
+            Open Gallery
+          </button>
+        ),
+      });
+    },
+    [nodes, toast, setNodes, incrementTemplateUsage, saveToHistory],
+  );
 
   // Save sidebar collapse state to localStorage
   useEffect(() => {
-    localStorage.setItem('sidebar-collapsed', JSON.stringify(isSidebarCollapsed));
+    localStorage.setItem(
+      "sidebar-collapsed",
+      JSON.stringify(isSidebarCollapsed),
+    );
   }, [isSidebarCollapsed]);
 
   // Watch for openImageModal flag in node data
   useEffect(() => {
-    const nodeWithModalFlag = nodes.find(n => n.data?.openImageModal);
+    const nodeWithModalFlag = nodes.find((n) => n.data?.openImageModal);
     if (nodeWithModalFlag) {
       setSelectedImageNodeId(nodeWithModalFlag.id);
       setShowImageUploadModal(true);
       // Clear the flag
-      setNodes(prev => prev.map(n => 
-        n.id === nodeWithModalFlag.id 
-          ? { ...n, data: { ...n.data, openImageModal: undefined } }
-          : n
-      ));
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === nodeWithModalFlag.id
+            ? { ...n, data: { ...n.data, openImageModal: undefined } }
+            : n,
+        ),
+      );
     }
   }, [nodes, setNodes]);
 
   // Icon mapping for collapsed sidebar
-  const sidebarIcons = useMemo(() => ({
-    'brain': Brain,
-    'workflow': Workflow, 
-    'type': Type,
-    'shapes': Shapes,
-    'sticky-note': StickyNote,
-    'table': Table2,
-    'form': FileText,
-    'route': Route,
-    'palette': Palette,
-    'map-pin': MapPin,
-    'network': Network,
-    'layers': Layers,
-    'user-plus': UserPlus,
-    'circuit-board': CircuitBoard,
-    'fit-view': Maximize2,
-    'clear': Trash2,
-    'export': Download,
-    'import': Upload,
-    'share': Share2,
-    'chevron-right': ChevronRight,
-    'rocket': Rocket,
-    'download': Download,
-    'upload': Upload,
-    'delete': Trash2
-  }), []);
+  const sidebarIcons = useMemo(
+    () => ({
+      brain: Brain,
+      workflow: Workflow,
+      type: Type,
+      shapes: Shapes,
+      "sticky-note": StickyNote,
+      table: Table2,
+      form: FileText,
+      route: Route,
+      palette: Palette,
+      "map-pin": MapPin,
+      network: Network,
+      layers: Layers,
+      "user-plus": UserPlus,
+      "circuit-board": CircuitBoard,
+      "fit-view": Maximize2,
+      clear: Trash2,
+      export: Download,
+      import: Upload,
+      share: Share2,
+      "chevron-right": ChevronRight,
+      rocket: Rocket,
+      download: Download,
+      upload: Upload,
+      delete: Trash2,
+    }),
+    [],
+  );
 
   // Collapse/expand sidebar toggle
   const toggleSidebar = useCallback(() => {
-    setIsSidebarCollapsed(prev => !prev);
+    setIsSidebarCollapsed((prev) => !prev);
     setActivePopout(null); // Close any open popouts when toggling
   }, []);
 
@@ -4168,36 +5087,42 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       tabs: tabs,
       setTabs: setTabs,
       setActiveTabId: setActiveTabId,
-      updateTab: updateActiveTab
+      updateTab: updateActiveTab,
     };
   }, [activeTab, tabs, setTabs, setActiveTabId, updateActiveTab]);
-
 
   // Reset form editing state when switching tabs
   useEffect(() => {
     setIsEditingWorkflowName(false);
-    setWorkflowNameInput('');
+    setWorkflowNameInput("");
   }, [activeTabId]);
 
   // Auto-register demo plugins when component mounts
   useEffect(() => {
     const registerPlugins = async () => {
       try {
-        const { kiteFrameCore, consolePlugin, testPlugin, advancedInteractionsPlugin, versionControlPlugin, smartConnectPlugin } = await import('@/lib/kiteframe');
+        const {
+          kiteFrameCore,
+          consolePlugin,
+          testPlugin,
+          advancedInteractionsPlugin,
+          versionControlPlugin,
+          smartConnectPlugin,
+        } = await import("@/lib/kiteframe");
         kiteFrameCore.use(consolePlugin);
         kiteFrameCore.use(testPlugin);
         kiteFrameCore.use(advancedInteractionsPlugin);
         kiteFrameCore.use(versionControlPlugin);
         // Re-enabled SmartConnect plugin for auto-connect functionality
         kiteFrameCore.use(smartConnectPlugin);
-        
+
         // Configure SmartConnect plugin with auto-connect
         smartConnectPlugin.configure(
           {
             enabled: true,
             autoConnect: true,
             threshold: 25, // Slightly increased to reduce performance impact
-            showPreview: true
+            showPreview: true,
           },
           nodes,
           edges,
@@ -4207,12 +5132,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
               source: connection.source,
               target: connection.target,
-              type: 'bezier' as const,
+              type: "bezier" as const,
               animated: false,
               strokeWidth: 2,
-              color: '#94a3b8'
+              color: "#94a3b8",
             };
-            
+
             const updatedEdges = [...edges, newEdge];
             updateActiveTab({ edges: updatedEdges });
           },
@@ -4223,10 +5148,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           // connectionPreviewCallback - handles ghost preview during drag
           (preview) => {
             setConnectionPreview(preview);
-          }
+          },
         );
       } catch (error) {
-        console.error('❌ Plugin registration error:', error);
+        console.error("❌ Plugin registration error:", error);
       }
     };
     registerPlugins();
@@ -4237,15 +5162,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   useEffect(() => {
     const reconfigureSmartConnect = async () => {
       try {
-        const { smartConnectPlugin } = await import('@/lib/kiteframe');
-        
+        const { smartConnectPlugin } = await import("@/lib/kiteframe");
+
         // Configure SmartConnect plugin with current nodes and edges
         smartConnectPlugin.configure(
           proFeaturesConfig.smartConnect || {
             enabled: true,
             autoConnect: true,
             threshold: 50,
-            showPreview: true
+            showPreview: true,
           },
           nodes,
           edges,
@@ -4255,14 +5180,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
               source: connection.source,
               target: connection.target,
-              type: 'bezier' as const,
+              type: "bezier" as const,
               animated: false,
               strokeWidth: 2,
-              color: '#94a3b8'
+              color: "#94a3b8",
             };
-            
-            setEdges(prev => [...prev, newEdge]);
-            saveToHistory('Auto-connect edge');
+
+            setEdges((prev) => [...prev, newEdge]);
+            saveToHistory("Auto-connect edge");
           },
           // onEdgesChange callback
           (updatedEdges) => {
@@ -4271,13 +5196,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           // connectionPreviewCallback - handles ghost preview during drag
           (preview) => {
             setConnectionPreview(preview);
-          }
+          },
         );
       } catch (error) {
-        console.error('❌ SmartConnect reconfiguration error:', error);
+        console.error("❌ SmartConnect reconfiguration error:", error);
       }
     };
-    
+
     // Only reconfigure if we have nodes (avoid configuring on empty initial state)
     if (nodes.length > 0) {
       reconfigureSmartConnect();
@@ -4287,15 +5212,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Handle keyboard shortcut for workflow name editing
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F2') {
+      if (e.key === "F2") {
         e.preventDefault();
-        setWorkflowNameInput(activeTab?.name || '');
+        setWorkflowNameInput(activeTab?.name || "");
         setIsEditingWorkflowName(true);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeTab?.name]);
 
   // Handle quick-add node events from Advanced Interactions plugin
@@ -4304,83 +5229,101 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       const { sourceNodeId, position, direction } = event.detail;
 
       // Find the source node to calculate new position
-      const sourceNode = nodes.find(n => n.id === sourceNodeId);
+      const sourceNode = nodes.find((n) => n.id === sourceNodeId);
       if (!sourceNode) return;
 
       // Calculate new node position based on direction
       const spacing = 250;
       let newPosition = { x: 0, y: 0 };
-      
+
       switch (direction) {
-        case 'top':
-          newPosition = { x: sourceNode.position.x, y: sourceNode.position.y - spacing };
+        case "top":
+          newPosition = {
+            x: sourceNode.position.x,
+            y: sourceNode.position.y - spacing,
+          };
           break;
-        case 'right':
-          newPosition = { x: sourceNode.position.x + spacing, y: sourceNode.position.y };
+        case "right":
+          newPosition = {
+            x: sourceNode.position.x + spacing,
+            y: sourceNode.position.y,
+          };
           break;
-        case 'bottom':
-          newPosition = { x: sourceNode.position.x, y: sourceNode.position.y + spacing };
+        case "bottom":
+          newPosition = {
+            x: sourceNode.position.x,
+            y: sourceNode.position.y + spacing,
+          };
           break;
-        case 'left':
-          newPosition = { x: sourceNode.position.x - spacing, y: sourceNode.position.y };
+        case "left":
+          newPosition = {
+            x: sourceNode.position.x - spacing,
+            y: sourceNode.position.y,
+          };
           break;
       }
 
       // Create new node
       const newNode: Node = {
         id: `node-${Date.now()}`,
-        type: 'process',
+        type: "process",
         position: newPosition,
         data: {
-          label: 'New Process',
-          description: 'Configure process settings',
-          icon: 'Cog',
-          iconColor: 'text-gray-500'
+          label: "New Process",
+          description: "Configure process settings",
+          icon: "Cog",
+          iconColor: "text-gray-500",
         },
         width: 200,
-        height: 100
+        height: 100,
       };
 
       // Add the new node
-      setNodes(prev => [...prev, newNode]);
+      setNodes((prev) => [...prev, newNode]);
 
       // Create edge from source to new node
       const newEdge: Edge = {
         id: `edge-${Date.now()}`,
         source: sourceNodeId,
         target: newNode.id,
-        type: 'bezier' as const,
+        type: "bezier" as const,
         animated: false,
-        style: { strokeColor: '#3b82f6', strokeWidth: 2 },
-        markers: { type: 'arrow' as const, position: 'end' as const }
+        style: { strokeColor: "#3b82f6", strokeWidth: 2 },
+        markers: { type: "arrow" as const, position: "end" as const },
       };
 
-      setEdges(prev => [...prev, newEdge]);
-      
+      setEdges((prev) => [...prev, newEdge]);
+
       // Save to history
-      saveToHistory('Quick add node');
+      saveToHistory("Quick add node");
     };
 
     // Listen for quick-add events
-    window.addEventListener('kiteframe:quick-add-node', handleQuickAddNode as EventListener);
-    
+    window.addEventListener(
+      "kiteframe:quick-add-node",
+      handleQuickAddNode as EventListener,
+    );
+
     return () => {
-      window.removeEventListener('kiteframe:quick-add-node', handleQuickAddNode as EventListener);
+      window.removeEventListener(
+        "kiteframe:quick-add-node",
+        handleQuickAddNode as EventListener,
+      );
     };
   }, [nodes, setNodes, setEdges, saveToHistory]);
 
   // Local storage persistence for workflows
   const saveToLocalStorage = useCallback((tabsToSave: WorkflowTab[]) => {
     try {
-      localStorage.setItem('kiteframe_workflows', JSON.stringify(tabsToSave));
+      localStorage.setItem("kiteframe_workflows", JSON.stringify(tabsToSave));
     } catch (error) {
-      console.error('❌ Failed to save workflows to local storage:', error);
+      console.error("❌ Failed to save workflows to local storage:", error);
     }
   }, []);
 
   const loadFromLocalStorage = useCallback((): WorkflowTab[] => {
     try {
-      const saved = localStorage.getItem('kiteframe_workflows');
+      const saved = localStorage.getItem("kiteframe_workflows");
       if (saved) {
         const parsed = JSON.parse(saved);
         // Backfill projectUuid and isOpen for legacy tabs
@@ -4388,11 +5331,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           ...tab,
           projectUuid: tab.projectUuid || `legacy-${tab.id}-${Date.now()}`,
           // Legacy tabs default to closed (not shown in tab bar, but still in gallery)
-          isOpen: tab.isOpen ?? false
+          isOpen: tab.isOpen ?? false,
         }));
       }
     } catch (error) {
-      console.error('❌ Failed to load workflows from local storage:', error);
+      console.error("❌ Failed to load workflows from local storage:", error);
     }
     return [];
   }, []);
@@ -4404,14 +5347,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     if (tabs.length > 0) {
       const timer = setTimeout(() => {
         // Generate thumbnails and update lastModified for each tab before saving
-        const tabsWithThumbnails = tabs.map(tab => ({
+        const tabsWithThumbnails = tabs.map((tab) => ({
           ...tab,
           thumbnail: generateWorkflowThumbnail(tab.nodes, tab.edges),
-          lastModified: tab.lastModified || Date.now()
+          lastModified: tab.lastModified || Date.now(),
         }));
         saveToLocalStorage(tabsWithThumbnails);
       }, 1000); // Debounce saves by 1 second
-      
+
       return () => clearTimeout(timer);
     }
   }, [tabs, saveToLocalStorage, isReadOnly]);
@@ -4429,507 +5372,1025 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Handle reset in view mode: restore original data
   const handleViewReset = useCallback(() => {
     if (!isReadOnly || !initialNodes) return;
-    
+
     // Restore original data to the view tab
-    setTabs([{
-      id: 'view-tab',
-      name: initialProjectName || 'Shared Workflow',
-      nodes: initialNodes,
-      edges: initialEdges || [],
-      canvasObjects: initialCanvasObjects || [],
-      viewport: initialViewport || { x: 0, y: 0, zoom: 1 },
-      selectedNodeId: '',
-      selectedEdgeId: '',
-      history: [{
+    setTabs([
+      {
+        id: "view-tab",
+        name: initialProjectName || "Shared Workflow",
         nodes: initialNodes,
         edges: initialEdges || [],
         canvasObjects: initialCanvasObjects || [],
-        viewport: initialViewport || { x: 0, y: 0, zoom: 1 }
-      }],
-      historyIndex: 0,
-      showImageModal: null,
-      metadata: {
-        name: initialProjectName || 'Shared Workflow',
-        description: initialProjectDescription || '',
-        links: [],
-        linksFormat: 'text',
-        categories: []
+        viewport: initialViewport || { x: 0, y: 0, zoom: 1 },
+        selectedNodeId: "",
+        selectedEdgeId: "",
+        history: [
+          {
+            nodes: initialNodes,
+            edges: initialEdges || [],
+            canvasObjects: initialCanvasObjects || [],
+            viewport: initialViewport || { x: 0, y: 0, zoom: 1 },
+          },
+        ],
+        historyIndex: 0,
+        showImageModal: null,
+        metadata: {
+          name: initialProjectName || "Shared Workflow",
+          description: initialProjectDescription || "",
+          links: [],
+          linksFormat: "text",
+          categories: [],
+        },
+        flowSettings: {},
+        projectUuid: `view-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       },
-      flowSettings: {},
-      projectUuid: `view-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    }]);
-    setActiveTabId('view-tab');
-    
+    ]);
+    setActiveTabId("view-tab");
+
     // Also call the external onReset if provided
     if (onReset) {
       onReset();
     }
-  }, [isReadOnly, initialNodes, initialEdges, initialCanvasObjects, initialViewport, initialProjectName, initialProjectDescription, onReset]);
+  }, [
+    isReadOnly,
+    initialNodes,
+    initialEdges,
+    initialCanvasObjects,
+    initialViewport,
+    initialProjectName,
+    initialProjectDescription,
+    onReset,
+  ]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
-        {/* Header */}
-        <Toolbar
-          onOpenAiSettings={() => setShowAiModal(true)}
-          isDarkMode={isDarkMode}
-          onToggleDarkMode={toggleDarkMode}
-          editorSettings={editorSettings}
-          onEditorSettingsChange={setEditorSettings}
-          onOpenBugReport={() => setShowBugReportModal(true)}
-          isReadOnly={isReadOnly}
-        />
-        
-        {/* Tab Bar */}
-        <div className="flex items-center bg-card border-b border-border px-4 py-2 h-12">
-          <ScrollArea className="flex-1 min-w-0">
-            <div className="flex items-center space-x-1 w-max">
-              {/* Read Only Badge */}
-              {isReadOnly && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-md text-sm font-medium mr-2" data-testid="badge-read-only">
-                  <Eye size={14} />
-                  <span>Read Only</span>
-                </div>
-              )}
-              {/* Home Tab Icon */}
-              {!isReadOnly && (
+      {/* Header */}
+      <Toolbar
+        onOpenAiSettings={() => setShowAiModal(true)}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={toggleDarkMode}
+        editorSettings={editorSettings}
+        onEditorSettingsChange={setEditorSettings}
+        onOpenBugReport={() => setShowBugReportModal(true)}
+        isReadOnly={isReadOnly}
+      />
+
+      {/* Tab Bar */}
+      <div className="flex items-center bg-card border-b border-border px-4 py-2 h-12">
+        <ScrollArea className="flex-1 min-w-0">
+          <div className="flex items-center space-x-1 w-max">
+            {/* Read Only Badge */}
+            {isReadOnly && (
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-md text-sm font-medium mr-2"
+                data-testid="badge-read-only"
+              >
+                <Eye size={14} />
+                <span>Read Only</span>
+              </div>
+            )}
+            {/* Home Tab Icon */}
+            {!isReadOnly && (
               <button
                 className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors flex-shrink-0 ${
                   isOnHomeTab
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
                 }`}
-                onClick={() => setActiveTabId('home')}
+                onClick={() => setActiveTabId("home")}
                 data-testid="tab-home"
                 title="Home"
               >
                 <Home size={16} />
               </button>
-              )}
-              
-              {/* Workflow Tabs - hidden in view mode, only show open tabs */}
-              {!isReadOnly && tabs.filter(tab => tab.isOpen !== false).map((tab) => (
-              <div
-                key={tab.id}
-                className={`flex items-center space-x-2 px-3 py-1.5 rounded-md cursor-pointer flex-shrink-0 ${
-                  tab.id === activeTabId
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-                onClick={() => setActiveTabId(tab.id)}
-                data-testid={`tab-${tab.id}`}
-              >
-                {isEditingWorkflowName && tab.id === activeTabId ? (
-                  <input
-                    type="text"
-                    value={workflowNameInput}
-                    onChange={(e) => setWorkflowNameInput(e.target.value)}
-                    onBlur={() => {
-                      if (workflowNameInput.trim()) {
-                        updateActiveTab({ name: workflowNameInput.trim() });
-                      }
-                      setIsEditingWorkflowName(false);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        if (workflowNameInput.trim()) {
-                          updateActiveTab({ name: workflowNameInput.trim() });
-                        }
-                        setIsEditingWorkflowName(false);
-                      } else if (e.key === 'Escape') {
-                        setIsEditingWorkflowName(false);
-                        setWorkflowNameInput(tab.name);
-                      }
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="bg-transparent border-none outline-none text-sm font-medium text-inherit px-0 py-0 w-full max-w-32"
-                    autoFocus
-                    data-testid="input-workflow-name"
-                  />
-                ) : (
-                  <div className="flex items-center gap-1.5">
-                    {tab.cloudProjectId && (
-                      isCloudConnected ? (
-                        <span title="Synced to cloud">
-                          <Cloud 
-                            size={12} 
-                            className="text-green-500 flex-shrink-0" 
-                            data-testid={`icon-cloud-connected-${tab.id}`}
-                          />
-                        </span>
-                      ) : (
-                        <span title={lastSyncError || "Not connected to cloud"}>
-                          <CloudOff 
-                            size={12} 
-                            className="text-amber-500 flex-shrink-0" 
-                            data-testid={`icon-cloud-disconnected-${tab.id}`}
-                          />
-                        </span>
-                      )
-                    )}
-                    <span 
-                      className="truncate text-sm font-medium max-w-[60px]"
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setWorkflowNameInput(tab.name);
-                        setIsEditingWorkflowName(true);
-                      }}
-                      data-testid="text-workflow-name"
-                      title={`${tab.name} - Double-click to rename`}
-                    >
-                      {tab.name.length > 10 ? `${tab.name.substring(0, 10)}...` : tab.name}
-                    </span>
-                  </div>
-                )}
-                <button
-                  className="ml-1 hover:bg-background/20 rounded p-0.5"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeTab(tab.id);
-                  }}
-                  data-testid={`close-tab-${tab.id}`}
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
-              {/* New Tab button - hidden in view mode */}
-              {!isReadOnly && (
-                <button
-                  className="flex items-center justify-center w-8 h-8 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground flex-shrink-0"
-                  onClick={createNewTab}
-                  data-testid="button-new-tab"
-                  title="New Workflow Tab"
-                >
-                  <Plus size={16} />
-                </button>
-              )}
-              {/* View mode: show project name */}
-              {isReadOnly && initialProjectName && (
-                <span className="text-sm font-medium text-foreground px-2">
-                  {initialProjectName}
-                </span>
-              )}
-            </div>
-            <ScrollBar orientation="horizontal" className="h-1" />
-          </ScrollArea>
-        </div>
+            )}
 
-        {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Home Screen */}
-          {isOnHomeTab ? (
-            <HomeScreen
-              recentProjects={[
-                // Local projects from tabs (stored in browser)
-                ...tabs.filter(tab => tab.nodes.length > 0).map(tab => ({
+            {/* Workflow Tabs - hidden in view mode, only show open tabs */}
+            {!isReadOnly &&
+              tabs
+                .filter((tab) => tab.isOpen !== false)
+                .map((tab) => (
+                  <div
+                    key={tab.id}
+                    className={`flex items-center space-x-2 px-3 py-1.5 rounded-md cursor-pointer flex-shrink-0 ${
+                      tab.id === activeTabId
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
+                    }`}
+                    onClick={() => setActiveTabId(tab.id)}
+                    data-testid={`tab-${tab.id}`}
+                  >
+                    {isEditingWorkflowName && tab.id === activeTabId ? (
+                      <input
+                        type="text"
+                        value={workflowNameInput}
+                        onChange={(e) => setWorkflowNameInput(e.target.value)}
+                        onBlur={() => {
+                          if (workflowNameInput.trim()) {
+                            updateActiveTab({ name: workflowNameInput.trim() });
+                          }
+                          setIsEditingWorkflowName(false);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            if (workflowNameInput.trim()) {
+                              updateActiveTab({
+                                name: workflowNameInput.trim(),
+                              });
+                            }
+                            setIsEditingWorkflowName(false);
+                          } else if (e.key === "Escape") {
+                            setIsEditingWorkflowName(false);
+                            setWorkflowNameInput(tab.name);
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-transparent border-none outline-none text-sm font-medium text-inherit px-0 py-0 w-full max-w-32"
+                        autoFocus
+                        data-testid="input-workflow-name"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        {tab.cloudProjectId &&
+                          (isCloudConnected ? (
+                            <span title="Synced to cloud">
+                              <Cloud
+                                size={12}
+                                className="text-green-500 flex-shrink-0"
+                                data-testid={`icon-cloud-connected-${tab.id}`}
+                              />
+                            </span>
+                          ) : (
+                            <span
+                              title={lastSyncError || "Not connected to cloud"}
+                            >
+                              <CloudOff
+                                size={12}
+                                className="text-amber-500 flex-shrink-0"
+                                data-testid={`icon-cloud-disconnected-${tab.id}`}
+                              />
+                            </span>
+                          ))}
+                        <span
+                          className="truncate text-sm font-medium max-w-[240px]"
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            setWorkflowNameInput(tab.name);
+                            setIsEditingWorkflowName(true);
+                          }}
+                          data-testid="text-workflow-name"
+                          title={`${tab.name} - Double-click to rename`}
+                        >
+                          {tab.name.length > 10
+                            ? `${tab.name.substring(0, 10)}...`
+                            : tab.name}
+                        </span>
+                      </div>
+                    )}
+                    <button
+                      className="ml-1 hover:bg-background/20 rounded p-0.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closeTab(tab.id);
+                      }}
+                      data-testid={`close-tab-${tab.id}`}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+            {/* New Tab button - hidden in view mode */}
+            {!isReadOnly && (
+              <button
+                className="flex items-center justify-center w-8 h-8 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground flex-shrink-0"
+                onClick={createNewTab}
+                data-testid="button-new-tab"
+                title="New Workflow Tab"
+              >
+                <Plus size={16} />
+              </button>
+            )}
+            {/* View mode: show project name */}
+            {isReadOnly && initialProjectName && (
+              <span className="text-sm font-medium text-foreground px-2">
+                {initialProjectName}
+              </span>
+            )}
+          </div>
+          <ScrollBar orientation="horizontal" className="h-1" />
+        </ScrollArea>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Home Screen */}
+        {isOnHomeTab ? (
+          <HomeScreen
+            recentProjects={[
+              // Local projects from tabs (stored in browser)
+              ...tabs
+                .filter((tab) => tab.nodes.length > 0)
+                .map((tab) => ({
                   id: tab.id,
                   name: tab.name,
                   lastModified: new Date(tab.lastModified || Date.now()),
-                  status: 'private' as const,
+                  status: "private" as const,
                   thumbnail: tab.thumbnail,
-                  isLocal: true
+                  isLocal: true,
                 })),
-                // Cloud projects for Pro/Admin users
-                ...(hasCloudAccess ? cloudProjects.map(project => ({
-                  id: project.id,
-                  name: project.name,
-                  lastModified: new Date(project.updatedAt || project.createdAt || Date.now()),
-                  status: project.isPublic ? 'published' as const : 'private' as const,
-                  thumbnail: project.thumbnail || undefined,
-                  isLocal: false
-                })) : [])
-              ].sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime())}
-              onOpenProject={(projectId) => {
-                // Check if this is a local tab first
-                const localTab = tabs.find(t => t.id === projectId);
-                if (localTab) {
-                  // Mark the tab as open (show in tab bar)
-                  setTabs(prev => prev.map(tab => 
-                    tab.id === projectId ? { ...tab, isOpen: true } : tab
-                  ));
-                  setActiveTabId(projectId);
-                  return;
-                }
-                // Otherwise, try to open as a cloud project
-                if (hasCloudAccess) {
-                  const project = cloudProjects.find(p => p.id === projectId);
-                  if (project && project.workflowData) {
-                    const workflowData = project.workflowData as any;
-                    const name = project.name || generateCuteName();
-                    const newTab: WorkflowTab = {
-                      id: generateTabId(),
-                      name,
-                      nodes: workflowData.nodes || [],
-                      edges: workflowData.edges || [],
-                      canvasObjects: workflowData.canvasObjects || [],
-                      viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
-                      selectedNodeId: '',
-                      selectedEdgeId: '',
-                      history: [{ 
-                        nodes: workflowData.nodes || [], 
-                        edges: workflowData.edges || [], 
-                        canvasObjects: workflowData.canvasObjects || [], 
-                        viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 } 
-                      }],
-                      historyIndex: 0,
-                      showImageModal: null,
-                      metadata: {
-                        name,
-                        description: project.description || '',
-                        links: [],
-                        linksFormat: 'text',
-                        categories: []
-                      },
-                      flowSettings: workflowData.flowSettings || {},
-                      cloudProjectId: project.id,
-                      projectUuid: project.projectUuid || `cloud-${project.id}`,
-                      isOpen: true
-                    };
-                    setTabs(prev => [...prev, newTab]);
-                    setActiveTabId(newTab.id);
-                  }
-                }
-              }}
-              onGenerateWorkflow={(prompt, generatePRD) => {
-                console.log('[KiteAI] onGenerateWorkflow received generatePRD:', generatePRD);
-                const newTab = createBlankTab();
-                setTabs(prev => [...prev, newTab]);
-                setActiveTabId(newTab.id);
-                // Directly generate workflow without opening modal
-                // Pass generatePRD directly to avoid context store timing issues
-                generateWorkflowDirectly(prompt, newTab.id, generatePRD);
-              }}
-              onCreateBlankWorkflow={createNewTab}
-              onLoadTemplate={(templateType) => {
-                // Generate template data based on type
-                let templateData: { nodes: Node[]; edges: Edge[] } | undefined;
-                switch (templateType) {
-                  case 'user-journey':
-                    templateData = generateUserJourneyTemplate();
-                    break;
-                  case 'mindmap':
-                    templateData = generateMindmapTemplate();
-                    break;
-                  case 'system-architecture':
-                    templateData = generateSystemArchitectureTemplate();
-                    break;
-                  case 'swim-lanes':
-                    templateData = generateSwimLanesTemplate();
-                    break;
-                  case 'user-account-creation':
-                    templateData = generateUserAccountTemplate();
-                    break;
-                  case 'io-logic':
-                    templateData = generateIOLogicTemplate();
-                    break;
-                }
-                
-                if (!templateData) {
-                  console.warn('Unknown template type:', templateType);
-                  return;
-                }
-                
-                // Create a new tab with the template data pre-populated
-                const name = generateCuteName();
-                const newTab: WorkflowTab = {
-                  id: generateTabId(),
-                  name,
-                  nodes: templateData.nodes,
-                  edges: templateData.edges,
-                  canvasObjects: [],
-                  viewport: { x: 0, y: 0, zoom: 1 },
-                  selectedNodeId: '',
-                  selectedEdgeId: '',
-                  history: [{ nodes: templateData.nodes, edges: templateData.edges, canvasObjects: [], viewport: { x: 0, y: 0, zoom: 1 } }],
-                  historyIndex: 0,
-                  showImageModal: null,
-                  metadata: {
+              // Cloud projects for Pro/Admin users
+              ...(hasCloudAccess
+                ? cloudProjects.map((project) => ({
+                    id: project.id,
+                    name: project.name,
+                    lastModified: new Date(
+                      project.updatedAt || project.createdAt || Date.now(),
+                    ),
+                    status: project.isPublic
+                      ? ("published" as const)
+                      : ("private" as const),
+                    thumbnail: project.thumbnail || undefined,
+                    isLocal: false,
+                  }))
+                : []),
+            ].sort(
+              (a, b) => b.lastModified.getTime() - a.lastModified.getTime(),
+            )}
+            onOpenProject={(projectId) => {
+              // Check if this is a local tab first
+              const localTab = tabs.find((t) => t.id === projectId);
+              if (localTab) {
+                // Mark the tab as open (show in tab bar)
+                setTabs((prev) =>
+                  prev.map((tab) =>
+                    tab.id === projectId ? { ...tab, isOpen: true } : tab,
+                  ),
+                );
+                setActiveTabId(projectId);
+                return;
+              }
+              // Otherwise, try to open as a cloud project
+              if (hasCloudAccess) {
+                const project = cloudProjects.find((p) => p.id === projectId);
+                if (project && project.workflowData) {
+                  const workflowData = project.workflowData as any;
+                  const name = project.name || generateCuteName();
+                  const newTab: WorkflowTab = {
+                    id: generateTabId(),
                     name,
-                    description: '',
-                    links: [],
-                    linksFormat: 'text',
-                    categories: []
-                  },
-                  projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-                };
-                
-                setTabs(prev => [...prev, newTab]);
-                setActiveTabId(newTab.id);
-                
-                toast({
-                  title: "Template Loaded",
-                  description: `Created "${name}" with ${templateType.replace(/-/g, ' ')} template`,
-                });
-              }}
-              onUploadImage={() => {
-                const newTab = createBlankTab();
-                setTabs(prev => [...prev, newTab]);
-                setActiveTabId(newTab.id);
-                setShowAiGenerator(true);
-              }}
-              onImportFigma={() => {
-                setFigmaImportMode('new-project');
-                setShowFigmaModal(true);
-              }}
-              onShareProject={(projectId) => {
-                const tab = tabs.find(t => t.id === projectId);
-                if (tab) {
-                  toast({
-                    title: "Share",
-                    description: `Sharing "${tab.name}" - This feature is coming soon!`,
-                  });
-                }
-              }}
-              onDownloadProject={(projectId) => {
-                const tab = tabs.find(t => t.id === projectId);
-                if (tab) {
-                  const workflowData = {
-                    name: tab.name,
-                    nodes: tab.nodes,
-                    edges: tab.edges,
-                    canvasObjects: tab.canvasObjects,
-                    metadata: tab.metadata,
-                    exportedAt: new Date().toISOString()
+                    nodes: workflowData.nodes || [],
+                    edges: workflowData.edges || [],
+                    canvasObjects: workflowData.canvasObjects || [],
+                    viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
+                    selectedNodeId: "",
+                    selectedEdgeId: "",
+                    history: [
+                      {
+                        nodes: workflowData.nodes || [],
+                        edges: workflowData.edges || [],
+                        canvasObjects: workflowData.canvasObjects || [],
+                        viewport: workflowData.viewport || {
+                          x: 0,
+                          y: 0,
+                          zoom: 1,
+                        },
+                      },
+                    ],
+                    historyIndex: 0,
+                    showImageModal: null,
+                    metadata: {
+                      name,
+                      description: project.description || "",
+                      links: [],
+                      linksFormat: "text",
+                      categories: [],
+                    },
+                    flowSettings: workflowData.flowSettings || {},
+                    cloudProjectId: project.id,
+                    projectUuid: project.projectUuid || `cloud-${project.id}`,
+                    isOpen: true,
                   };
-                  const blob = new Blob([JSON.stringify(workflowData, null, 2)], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `${tab.name.replace(/\s+/g, '-').toLowerCase()}.json`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                  toast({
-                    title: "Downloaded",
-                    description: `"${tab.name}" has been downloaded as JSON.`,
-                  });
+                  setTabs((prev) => [...prev, newTab]);
+                  setActiveTabId(newTab.id);
                 }
-              }}
-              onDeleteProject={(projectId) => {
-                const tab = tabs.find(t => t.id === projectId);
-                if (tab) {
-                  setTabs(prev => prev.filter(t => t.id !== projectId));
-                  if (activeTabId === projectId) {
-                    const remainingTabs = tabs.filter(t => t.id !== projectId);
-                    if (remainingTabs.length > 0) {
-                      setActiveTabId(remainingTabs[0].id);
-                    }
+              }
+            }}
+            onGenerateWorkflow={(prompt, generatePRD) => {
+              console.log(
+                "[KiteAI] onGenerateWorkflow received generatePRD:",
+                generatePRD,
+              );
+              const newTab = createBlankTab();
+              setTabs((prev) => [...prev, newTab]);
+              setActiveTabId(newTab.id);
+              // Directly generate workflow without opening modal
+              // Pass generatePRD directly to avoid context store timing issues
+              generateWorkflowDirectly(prompt, newTab.id, generatePRD);
+            }}
+            onCreateBlankWorkflow={createNewTab}
+            onLoadTemplate={(templateType) => {
+              // Generate template data based on type
+              let templateData: { nodes: Node[]; edges: Edge[] } | undefined;
+              switch (templateType) {
+                case "user-journey":
+                  templateData = generateUserJourneyTemplate();
+                  break;
+                case "mindmap":
+                  templateData = generateMindmapTemplate();
+                  break;
+                case "system-architecture":
+                  templateData = generateSystemArchitectureTemplate();
+                  break;
+                case "swim-lanes":
+                  templateData = generateSwimLanesTemplate();
+                  break;
+                case "user-account-creation":
+                  templateData = generateUserAccountTemplate();
+                  break;
+                case "io-logic":
+                  templateData = generateIOLogicTemplate();
+                  break;
+              }
+
+              if (!templateData) {
+                console.warn("Unknown template type:", templateType);
+                return;
+              }
+
+              // Create a new tab with the template data pre-populated
+              const name = generateCuteName();
+              const newTab: WorkflowTab = {
+                id: generateTabId(),
+                name,
+                nodes: templateData.nodes,
+                edges: templateData.edges,
+                canvasObjects: [],
+                viewport: { x: 0, y: 0, zoom: 1 },
+                selectedNodeId: "",
+                selectedEdgeId: "",
+                history: [
+                  {
+                    nodes: templateData.nodes,
+                    edges: templateData.edges,
+                    canvasObjects: [],
+                    viewport: { x: 0, y: 0, zoom: 1 },
+                  },
+                ],
+                historyIndex: 0,
+                showImageModal: null,
+                metadata: {
+                  name,
+                  description: "",
+                  links: [],
+                  linksFormat: "text",
+                  categories: [],
+                },
+                projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              };
+
+              setTabs((prev) => [...prev, newTab]);
+              setActiveTabId(newTab.id);
+
+              toast({
+                title: "Template Loaded",
+                description: `Created "${name}" with ${templateType.replace(/-/g, " ")} template`,
+              });
+            }}
+            onUploadImage={() => {
+              const newTab = createBlankTab();
+              setTabs((prev) => [...prev, newTab]);
+              setActiveTabId(newTab.id);
+              setShowAiGenerator(true);
+            }}
+            onImportFigma={() => {
+              setFigmaImportMode("new-project");
+              setShowFigmaModal(true);
+            }}
+            onShareProject={(projectId) => {
+              const tab = tabs.find((t) => t.id === projectId);
+              if (tab) {
+                toast({
+                  title: "Share",
+                  description: `Sharing "${tab.name}" - This feature is coming soon!`,
+                });
+              }
+            }}
+            onDownloadProject={(projectId) => {
+              const tab = tabs.find((t) => t.id === projectId);
+              if (tab) {
+                const workflowData = {
+                  name: tab.name,
+                  nodes: tab.nodes,
+                  edges: tab.edges,
+                  canvasObjects: tab.canvasObjects,
+                  metadata: tab.metadata,
+                  exportedAt: new Date().toISOString(),
+                };
+                const blob = new Blob([JSON.stringify(workflowData, null, 2)], {
+                  type: "application/json",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${tab.name.replace(/\s+/g, "-").toLowerCase()}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                toast({
+                  title: "Downloaded",
+                  description: `"${tab.name}" has been downloaded as JSON.`,
+                });
+              }
+            }}
+            onDeleteProject={(projectId) => {
+              const tab = tabs.find((t) => t.id === projectId);
+              if (tab) {
+                setTabs((prev) => prev.filter((t) => t.id !== projectId));
+                if (activeTabId === projectId) {
+                  const remainingTabs = tabs.filter((t) => t.id !== projectId);
+                  if (remainingTabs.length > 0) {
+                    setActiveTabId(remainingTabs[0].id);
                   }
-                  toast({
-                    title: "Deleted",
-                    description: `"${tab.name}" has been deleted.`,
-                  });
                 }
-              }}
-              isGenerating={generatingWireframe}
-              hasCloudAccess={hasCloudAccess}
-            />
-          ) : (
+                toast({
+                  title: "Deleted",
+                  description: `"${tab.name}" has been deleted.`,
+                });
+              }
+            }}
+            isGenerating={generatingWireframe}
+            hasCloudAccess={hasCloudAccess}
+          />
+        ) : (
           <>
-          {/* Sidebar - takes no space when collapsed, toolbar floats over canvas */}
-          <div className={`${isSidebarCollapsed ? 'w-0' : 'w-64'} border-r border-border flex flex-col transition-all duration-200 ${isSidebarCollapsed ? 'overflow-visible' : 'overflow-hidden'}`}>
-            {isSidebarCollapsed ? (
-              <>
-                <CollapsedSidebar
-                  toggleSidebar={toggleSidebar}
-                  onCreateNode={(type: string) => {
-                    // Handle creating canvas objects for text/sticky/shape types
-                    if (['text', 'sticky', 'shape'].includes(type)) {
-                      saveToHistory('Add canvas object');
-                      
-                      let newCanvasObject: CanvasObject;
-                      
-                      if (type === 'text') {
-                        newCanvasObject = {
-                          id: `object-${Date.now()}`,
-                          type: 'text',
-                          position: getViewportCenteredPosition(),
-                          data: { text: 'Click to edit text', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', textColor: '#000000' } as any,
-                          width: 200,
-                          height: 50,
-                          selected: false
-                        };
-                      } else if (type === 'sticky') {
-                        newCanvasObject = {
-                          id: `object-${Date.now()}`,
-                          type: 'sticky',
-                          position: getViewportCenteredPosition(),
-                          data: { text: 'Sticky note...', backgroundColor: '#fef3c7', textColor: '#92400e' } as any,
-                          width: 200,
-                          height: 150,
-                          selected: false
-                        };
-                      } else { // shape
-                        newCanvasObject = {
-                          id: `object-${Date.now()}`,
-                          type: 'shape',
-                          position: getViewportCenteredPosition(),
-                          data: { shapeType: 'rectangle', fillColor: '#3b82f6', fillOpacity: 0.5, fillStyle: 'solid', strokeColor: '#3b82f6', strokeOpacity: 1.0, strokeWidth: 2, strokeStyle: 'solid', opacity: 1 } as any,
-                          width: 150,
-                          height: 100,
-                          selected: false
-                        };
+            {/* Sidebar - takes no space when collapsed, toolbar floats over canvas */}
+            <div
+              className={`${isSidebarCollapsed ? "w-0" : "w-64"} border-r border-border flex flex-col transition-all duration-200 ${isSidebarCollapsed ? "overflow-visible" : "overflow-hidden"}`}
+            >
+              {isSidebarCollapsed ? (
+                <>
+                  <CollapsedSidebar
+                    toggleSidebar={toggleSidebar}
+                    onCreateNode={(type: string) => {
+                      // Handle creating canvas objects for text/sticky/shape types
+                      if (["text", "sticky", "shape"].includes(type)) {
+                        saveToHistory("Add canvas object");
+
+                        let newCanvasObject: CanvasObject;
+
+                        if (type === "text") {
+                          newCanvasObject = {
+                            id: `object-${Date.now()}`,
+                            type: "text",
+                            position: getViewportCenteredPosition(),
+                            data: {
+                              text: "Click to edit text",
+                              fontSize: 16,
+                              fontFamily: "Inter, system-ui, sans-serif",
+                              textColor: "#000000",
+                            } as any,
+                            width: 200,
+                            height: 50,
+                            selected: false,
+                          };
+                        } else if (type === "sticky") {
+                          newCanvasObject = {
+                            id: `object-${Date.now()}`,
+                            type: "sticky",
+                            position: getViewportCenteredPosition(),
+                            data: {
+                              text: "Sticky note...",
+                              backgroundColor: "#fef3c7",
+                              textColor: "#92400e",
+                            } as any,
+                            width: 200,
+                            height: 150,
+                            selected: false,
+                          };
+                        } else {
+                          // shape
+                          newCanvasObject = {
+                            id: `object-${Date.now()}`,
+                            type: "shape",
+                            position: getViewportCenteredPosition(),
+                            data: {
+                              shapeType: "rectangle",
+                              fillColor: "#3b82f6",
+                              fillOpacity: 0.5,
+                              fillStyle: "solid",
+                              strokeColor: "#3b82f6",
+                              strokeOpacity: 1.0,
+                              strokeWidth: 2,
+                              strokeStyle: "solid",
+                              opacity: 1,
+                            } as any,
+                            width: 150,
+                            height: 100,
+                            selected: false,
+                          };
+                        }
+
+                        updateActiveTab({
+                          canvasObjects: [...canvasObjects, newCanvasObject],
+                        });
+                        return;
                       }
-                      
-                      updateActiveTab({ 
-                        canvasObjects: [...canvasObjects, newCanvasObject] 
+
+                      // Handle actual node creation for table/form types
+                      if (["table", "form"].includes(type)) {
+                        if (openTabs.length === 0) {
+                          const newTab = createBlankTab();
+                          setTabs((prev) => [...prev, newTab]);
+                          setActiveTabId(newTab.id);
+                        }
+
+                        const nodeId = `node-${Date.now()}`;
+                        const isTableNode = type === "table";
+                        const isFormNode = type === "form";
+                        const tableId = isTableNode
+                          ? `table-${nodeId}`
+                          : undefined;
+
+                        const getNodeData = () => {
+                          if (isTableNode) {
+                            return {
+                              label: "Table",
+                              tableId,
+                              previewRowCount: 3,
+                              previewColumnCount: 4,
+                              showRowNumbers: true,
+                              colors: {
+                                headerBackground: "#4f46e5",
+                                bodyBackground: "#ffffff",
+                                headerTextColor: "#ffffff",
+                                bodyTextColor: "#374151",
+                              },
+                            };
+                          }
+                          if (isFormNode) {
+                            return {
+                              label: "Form",
+                              formTitle: "Form",
+                              fields: [],
+                              showLabels: true,
+                              layout: "vertical",
+                              colors: {
+                                headerBackground: "#6366f1",
+                                bodyBackground: "#ffffff",
+                                borderColor: "#818cf8",
+                                headerTextColor: "#ffffff",
+                              },
+                            };
+                          }
+                          return {};
+                        };
+
+                        const isImageNode = type === "image";
+                        const getNodeDimensions = () => {
+                          if (isTableNode) return { width: 560, height: 400 };
+                          if (isFormNode) return { width: 320, height: 200 };
+                          if (isImageNode) return { width: 240, height: 240 };
+                          return { width: 200, height: 100 };
+                        };
+
+                        const dimensions = getNodeDimensions();
+                        const newNode: Node = {
+                          id: nodeId,
+                          type,
+                          position: getViewportCenteredPosition(),
+                          data: getNodeData(),
+                          width: dimensions.width,
+                          height: dimensions.height,
+                          style: dimensions,
+                          resizable: true,
+                        };
+
+                        setNodes((prev) => [...prev, newNode]);
+                        saveToHistory("Add node");
+
+                        toast({
+                          title: "Node Added",
+                          description: `${newNode.data.label} added to canvas`,
+                          variant: "default",
+                        });
+                      }
+                    }}
+                    onCreateNodeAtPosition={(
+                      type: string,
+                      position: { x: number; y: number },
+                    ) => {
+                      // Handle position-based creation from drag-and-drop for canvas objects
+                      if (["text", "sticky", "shape"].includes(type)) {
+                        saveToHistory("Add canvas object");
+
+                        let newCanvasObject: CanvasObject;
+
+                        if (type === "text") {
+                          newCanvasObject = {
+                            id: `object-${Date.now()}`,
+                            type: "text",
+                            position,
+                            data: {
+                              text: "Click to edit text",
+                              fontSize: 16,
+                              fontFamily: "Inter, system-ui, sans-serif",
+                              textColor: "#000000",
+                            } as any,
+                            width: 200,
+                            height: 50,
+                            selected: false,
+                          };
+                        } else if (type === "sticky") {
+                          newCanvasObject = {
+                            id: `object-${Date.now()}`,
+                            type: "sticky",
+                            position,
+                            data: {
+                              text: "Sticky note...",
+                              backgroundColor: "#fef3c7",
+                              textColor: "#92400e",
+                            } as any,
+                            width: 200,
+                            height: 150,
+                            selected: false,
+                          };
+                        } else {
+                          // shape
+                          newCanvasObject = {
+                            id: `object-${Date.now()}`,
+                            type: "shape",
+                            position,
+                            data: {
+                              shapeType: "rectangle",
+                              fillColor: "#3b82f6",
+                              fillOpacity: 0.5,
+                              fillStyle: "solid",
+                              strokeColor: "#3b82f6",
+                              strokeOpacity: 1.0,
+                              strokeWidth: 2,
+                              strokeStyle: "solid",
+                              opacity: 1,
+                            } as any,
+                            width: 150,
+                            height: 100,
+                            selected: false,
+                          };
+                        }
+
+                        updateActiveTab({
+                          canvasObjects: [...canvasObjects, newCanvasObject],
+                        });
+                        return;
+                      }
+
+                      // Handle actual node creation for table/form types at position
+                      if (["table", "form"].includes(type)) {
+                        if (openTabs.length === 0) {
+                          const newTab = createBlankTab();
+                          setTabs((prev) => [...prev, newTab]);
+                          setActiveTabId(newTab.id);
+                        }
+
+                        const nodeId = `node-${Date.now()}`;
+                        const isTableNode = type === "table";
+                        const isFormNode = type === "form";
+                        const tableId = isTableNode
+                          ? `table-${nodeId}`
+                          : undefined;
+
+                        const getNodeData = () => {
+                          if (isTableNode) {
+                            return {
+                              label: "Table",
+                              tableId,
+                              previewRowCount: 3,
+                              previewColumnCount: 4,
+                              showRowNumbers: true,
+                              colors: {
+                                headerBackground: "#4f46e5",
+                                bodyBackground: "#ffffff",
+                                headerTextColor: "#ffffff",
+                                bodyTextColor: "#374151",
+                              },
+                            };
+                          }
+                          if (isFormNode) {
+                            return {
+                              label: "Form",
+                              formTitle: "Form",
+                              fields: [],
+                              showLabels: true,
+                              layout: "vertical",
+                              colors: {
+                                headerBackground: "#6366f1",
+                                bodyBackground: "#ffffff",
+                                borderColor: "#818cf8",
+                                headerTextColor: "#ffffff",
+                              },
+                            };
+                          }
+                          return {};
+                        };
+
+                        const isImageNode = type === "image";
+                        const getNodeDimensions = () => {
+                          if (isTableNode) return { width: 560, height: 400 };
+                          if (isFormNode) return { width: 320, height: 200 };
+                          if (isImageNode) return { width: 240, height: 240 };
+                          return { width: 200, height: 100 };
+                        };
+
+                        const dimensions = getNodeDimensions();
+                        const newNode: Node = {
+                          id: nodeId,
+                          type,
+                          position,
+                          data: getNodeData(),
+                          width: dimensions.width,
+                          height: dimensions.height,
+                          style: dimensions,
+                          resizable: true,
+                        };
+
+                        setNodes((prev) => [...prev, newNode]);
+                        saveToHistory("Add node");
+
+                        toast({
+                          title: "Node Added",
+                          description: `${newNode.data.label} added to canvas`,
+                          variant: "default",
+                        });
+                      }
+                    }}
+                    onFitView={() => {
+                      if (nodes.length === 0) {
+                        setViewport({ x: 0, y: 0, zoom: 1 });
+                        return;
+                      }
+                      // Implement fit view logic here or use existing implementation
+                    }}
+                    onClearCanvas={() => {
+                      if (
+                        window.confirm(
+                          "Are you sure you want to clear the canvas? This will remove all nodes and edges.",
+                        )
+                      ) {
+                        setNodes([]);
+                        setEdges([]);
+                        updateActiveTab({ canvasObjects: [] });
+                        saveToHistory("Clear canvas");
+                      }
+                    }}
+                    onExport={() => {
+                      const comprehensiveWorkflow = {
+                        version: "1.0",
+                        timestamp: new Date().toISOString(),
+                        workflow: {
+                          id: activeTab?.id || `workflow-${Date.now()}`,
+                          name: activeTab?.name || "My Workflow",
+                          description: activeTab?.metadata?.description || "",
+                          links: activeTab?.metadata?.links || [],
+                          categories: activeTab?.metadata?.categories || [],
+                        },
+                        canvas: {
+                          nodes: nodes.map((node) => ({
+                            ...node,
+                            // Preserve all styling and data
+                            data: { ...node.data },
+                            style: node.style || {},
+                          })),
+                          edges: edges.map((edge) => ({
+                            ...edge,
+                            // Preserve all styling and data
+                            style: edge.style || {},
+                            data: edge.data || {},
+                          })),
+                          canvasObjects: canvasObjects.map((obj) => ({
+                            ...obj,
+                            // Preserve all styling and data
+                            data: { ...obj.data },
+                            style: obj.style || {},
+                          })),
+                          viewport: { ...viewport },
+                        },
+                      };
+
+                      const dataStr = JSON.stringify(
+                        comprehensiveWorkflow,
+                        null,
+                        2,
+                      );
+                      const dataUri =
+                        "data:application/json;charset=utf-8," +
+                        encodeURIComponent(dataStr);
+                      const safeFileName = comprehensiveWorkflow.workflow.name
+                        .replace(/[^a-z0-9]/gi, "_")
+                        .toLowerCase();
+                      const exportFileDefaultName = `${safeFileName}_complete_workflow.json`;
+
+                      const linkElement = document.createElement("a");
+                      linkElement.setAttribute("href", dataUri);
+                      linkElement.setAttribute(
+                        "download",
+                        exportFileDefaultName,
+                      );
+                      linkElement.click();
+
+                      toast({
+                        title: "Workflow Exported",
+                        description: `"${comprehensiveWorkflow.workflow.name}" exported with all content and styling`,
                       });
-                      return;
-                    }
-                    
-                    // Handle actual node creation for table/form types
-                    if (['table', 'form'].includes(type)) {
+                    }}
+                    onImport={() => setShowImportModal(true)}
+                    onShare={() => setShowShareModal(true)}
+                    onOpenAiGenerator={() => setShowAiGenerator(true)}
+                    onUploadImage={() => setShowImageUploadModal(true)}
+                    onImportFigma={() => setShowFigmaModal(true)}
+                    onCreateTemplate={(templateType: string) => {
+                      // Create a new tab if none are open
                       if (openTabs.length === 0) {
                         const newTab = createBlankTab();
-                        setTabs(prev => [...prev, newTab]);
+                        setTabs((prev) => [...prev, newTab]);
+                        setActiveTabId(newTab.id);
+                        // Wait for the tab to be created before adding the template
+                        setTimeout(() => {
+                          handleAddTemplateToCurrentTab(templateType);
+                        }, 50);
+                        return;
+                      }
+
+                      // Template generation at center (same logic as expanded sidebar)
+                      handleAddTemplateToCurrentTab(templateType);
+                    }}
+                    onCreateTemplateAtPosition={(
+                      templateType: string,
+                      position: { x: number; y: number },
+                    ) => {
+                      // Create a new tab if none are open
+                      if (openTabs.length === 0) {
+                        const newTab = createBlankTab();
+                        setTabs((prev) => [...prev, newTab]);
+                        setActiveTabId(newTab.id);
+                        // Wait for the tab to be created before adding the template
+                        setTimeout(() => {
+                          handleAddTemplateToCurrentTab(templateType, position);
+                        }, 50);
+                        return;
+                      }
+
+                      // Template generation at specific position from drag-and-drop
+                      handleAddTemplateToCurrentTab(templateType, position);
+                    }}
+                    onApplyTheme={(theme) => {
+                      // Update current theme state
+                      setCurrentTheme(theme);
+                      localStorage.setItem("workflow-theme", theme.id);
+
+                      // Apply theme to all nodes using the enhanced helper function
+                      setNodes((prev) =>
+                        prev.map((node) => ({
+                          ...node,
+                          data: applyThemeToNode(node.data, theme),
+                        })),
+                      );
+
+                      // Apply theme to all edges using the enhanced helper function
+                      setEdges((prev) =>
+                        prev.map((edge) => applyThemeToEdge(edge, theme)),
+                      );
+
+                      saveToHistory("Apply theme");
+                    }}
+                    activePopout={activePopout}
+                    setActivePopout={setActivePopout}
+                    sidebarIcons={sidebarIcons}
+                    viewport={viewport}
+                    isExpanded={isToolbarExpanded}
+                    onToggleExpanded={() =>
+                      setIsToolbarExpanded((prev) => !prev)
+                    }
+                  />
+
+                  {/* Node Types Popout */}
+                  <NodeTypesPopout
+                    isOpen={activePopout === "node-types"}
+                    onClose={() => setActivePopout(null)}
+                    viewport={viewport}
+                    isToolbarExpanded={isToolbarExpanded}
+                    onCreateNode={(type: string) => {
+                      // Handle regular node creation from popout
+                      if (openTabs.length === 0) {
+                        const newTab = createBlankTab();
+                        setTabs((prev) => [...prev, newTab]);
                         setActiveTabId(newTab.id);
                       }
 
+                      const icons = {
+                        input: { icon: "ArrowRight", color: "text-blue-500" },
+                        process: { icon: "Cog", color: "text-green-500" },
+                        condition: {
+                          icon: "HelpCircle",
+                          color: "text-yellow-500",
+                        },
+                        output: { icon: "ArrowLeft", color: "text-red-500" },
+                        ai: { icon: "Bot", color: "text-purple-500" },
+                        image: { icon: "Image", color: "text-indigo-500" },
+                        table: { icon: "Table2", color: "text-indigo-500" },
+                        compound: { icon: "Layers", color: "text-emerald-500" },
+                      };
+
                       const nodeId = `node-${Date.now()}`;
-                      const isTableNode = type === 'table';
-                      const isFormNode = type === 'form';
-                      const tableId = isTableNode ? `table-${nodeId}` : undefined;
+                      const isTableNode = type === "table";
+                      const isFormNode = type === "form";
+                      const isCompoundNode = type === "compound";
+                      const isImageNode = type === "image";
+                      const isCodeNode = type === "code";
+                      const tableId = isTableNode
+                        ? `table-${nodeId}`
+                        : undefined;
 
                       const getNodeData = () => {
                         if (isTableNode) {
                           return {
-                            label: 'Table',
+                            label: "Table",
                             tableId,
                             previewRowCount: 3,
                             previewColumnCount: 4,
                             showRowNumbers: true,
                             colors: {
-                              headerBackground: '#4f46e5',
-                              bodyBackground: '#ffffff',
-                              headerTextColor: '#ffffff',
-                              bodyTextColor: '#374151',
-                            }
+                              headerBackground: "#4f46e5",
+                              bodyBackground: "#ffffff",
+                              headerTextColor: "#ffffff",
+                              bodyTextColor: "#374151",
+                            },
                           };
                         }
                         if (isFormNode) {
                           return {
-                            label: 'Form',
-                            formTitle: 'Form',
+                            label: "Form",
+                            formTitle: "Form",
                             fields: [],
                             showLabels: true,
-                            layout: 'vertical',
+                            layout: "vertical",
                             colors: {
-                              headerBackground: '#6366f1',
-                              bodyBackground: '#ffffff',
-                              borderColor: '#818cf8',
-                              headerTextColor: '#ffffff',
-                            }
+                              headerBackground: "#6366f1",
+                              bodyBackground: "#ffffff",
+                              borderColor: "#818cf8",
+                              headerTextColor: "#ffffff",
+                            },
                           };
                         }
-                        return {};
+                        if (isCompoundNode) {
+                          return {
+                            label: "Compound",
+                            description: "",
+                            subcomponents: [],
+                            containerPadding: 12,
+                            gap: 8,
+                            colors: {
+                              headerBackground: "#059669",
+                              bodyBackground: "#ffffff",
+                              borderColor: "#10b981",
+                              headerTextColor: "#ffffff",
+                            },
+                          };
+                        }
+                        if (isCodeNode) {
+                          return {
+                            label: "Code",
+                            code: "",
+                            language: "javascript",
+                            showOutput: true,
+                            outputHeight: 120,
+                            colors: {
+                              headerBackground: "#1e1e1e",
+                              bodyBackground: "#252526",
+                              headerTextColor: "#d4d4d4",
+                            },
+                          };
+                        }
+                        return {
+                          label:
+                            type === "image"
+                              ? "Image"
+                              : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+                          description: `Configure ${type} settings`,
+                          icon:
+                            icons[type as keyof typeof icons]?.icon ||
+                            "fas fa-cube",
+                          iconColor:
+                            icons[type as keyof typeof icons]?.color ||
+                            "text-gray-500",
+                        };
                       };
 
-                      const isImageNode = type === 'image';
                       const getNodeDimensions = () => {
                         if (isTableNode) return { width: 560, height: 400 };
                         if (isFormNode) return { width: 320, height: 200 };
+                        if (isCompoundNode) return { width: 320, height: 280 };
                         if (isImageNode) return { width: 240, height: 240 };
+                        if (isCodeNode) return { width: 400, height: 350 };
                         return { width: 200, height: 100 };
                       };
 
@@ -4941,117 +6402,150 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         data: getNodeData(),
                         width: dimensions.width,
                         height: dimensions.height,
-                        style: dimensions,
-                        resizable: true
+                        style:
+                          isTableNode ||
+                          isFormNode ||
+                          isCompoundNode ||
+                          isImageNode ||
+                          isCodeNode
+                            ? dimensions
+                            : undefined,
+                        resizable:
+                          isTableNode ||
+                          isFormNode ||
+                          isCompoundNode ||
+                          isImageNode ||
+                          isCodeNode
+                            ? true
+                            : undefined,
                       };
 
-                      setNodes(prev => [...prev, newNode]);
-                      saveToHistory('Add node');
-                      
+                      setNodes((prev) => [...prev, newNode]);
+                      saveToHistory("Add node");
+
+                      // Toast notification for node creation
                       toast({
                         title: "Node Added",
                         description: `${newNode.data.label} added to canvas`,
-                        variant: "default"
+                        variant: "default",
                       });
-                    }
-                  }}
-                  onCreateNodeAtPosition={(type: string, position: { x: number; y: number }) => {
-                    // Handle position-based creation from drag-and-drop for canvas objects
-                    if (['text', 'sticky', 'shape'].includes(type)) {
-                      saveToHistory('Add canvas object');
-                      
-                      let newCanvasObject: CanvasObject;
-                      
-                      if (type === 'text') {
-                        newCanvasObject = {
-                          id: `object-${Date.now()}`,
-                          type: 'text',
-                          position,
-                          data: { text: 'Click to edit text', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', textColor: '#000000' } as any,
-                          width: 200,
-                          height: 50,
-                          selected: false
-                        };
-                      } else if (type === 'sticky') {
-                        newCanvasObject = {
-                          id: `object-${Date.now()}`,
-                          type: 'sticky',
-                          position,
-                          data: { text: 'Sticky note...', backgroundColor: '#fef3c7', textColor: '#92400e' } as any,
-                          width: 200,
-                          height: 150,
-                          selected: false
-                        };
-                      } else { // shape
-                        newCanvasObject = {
-                          id: `object-${Date.now()}`,
-                          type: 'shape',
-                          position,
-                          data: { shapeType: 'rectangle', fillColor: '#3b82f6', fillOpacity: 0.5, fillStyle: 'solid', strokeColor: '#3b82f6', strokeOpacity: 1.0, strokeWidth: 2, strokeStyle: 'solid', opacity: 1 } as any,
-                          width: 150,
-                          height: 100,
-                          selected: false
-                        };
-                      }
-                      
-                      updateActiveTab({ 
-                        canvasObjects: [...canvasObjects, newCanvasObject] 
-                      });
-                      return;
-                    }
-                    
-                    // Handle actual node creation for table/form types at position
-                    if (['table', 'form'].includes(type)) {
+                    }}
+                    onCreateNodeAtPosition={(
+                      type: string,
+                      position: { x: number; y: number },
+                    ) => {
+                      // Handle drag-and-drop node creation from popout
                       if (openTabs.length === 0) {
                         const newTab = createBlankTab();
-                        setTabs(prev => [...prev, newTab]);
+                        setTabs((prev) => [...prev, newTab]);
                         setActiveTabId(newTab.id);
                       }
 
+                      const icons = {
+                        input: { icon: "ArrowRight", color: "text-blue-500" },
+                        process: { icon: "Cog", color: "text-green-500" },
+                        condition: {
+                          icon: "HelpCircle",
+                          color: "text-yellow-500",
+                        },
+                        output: { icon: "ArrowLeft", color: "text-red-500" },
+                        ai: { icon: "Bot", color: "text-purple-500" },
+                        image: { icon: "Image", color: "text-indigo-500" },
+                        table: { icon: "Table2", color: "text-indigo-500" },
+                        compound: { icon: "Layers", color: "text-emerald-500" },
+                      };
+
                       const nodeId = `node-${Date.now()}`;
-                      const isTableNode = type === 'table';
-                      const isFormNode = type === 'form';
-                      const tableId = isTableNode ? `table-${nodeId}` : undefined;
+                      const isTableNode = type === "table";
+                      const isFormNode = type === "form";
+                      const isCompoundNode = type === "compound";
+                      const isImageNode = type === "image";
+                      const isCodeNode = type === "code";
+                      const tableId = isTableNode
+                        ? `table-${nodeId}`
+                        : undefined;
 
                       const getNodeData = () => {
                         if (isTableNode) {
                           return {
-                            label: 'Table',
+                            label: "Table",
                             tableId,
                             previewRowCount: 3,
                             previewColumnCount: 4,
                             showRowNumbers: true,
                             colors: {
-                              headerBackground: '#4f46e5',
-                              bodyBackground: '#ffffff',
-                              headerTextColor: '#ffffff',
-                              bodyTextColor: '#374151',
-                            }
+                              headerBackground: "#4f46e5",
+                              bodyBackground: "#ffffff",
+                              headerTextColor: "#ffffff",
+                              bodyTextColor: "#374151",
+                            },
                           };
                         }
                         if (isFormNode) {
                           return {
-                            label: 'Form',
-                            formTitle: 'Form',
+                            label: "Form",
+                            formTitle: "Form",
                             fields: [],
                             showLabels: true,
-                            layout: 'vertical',
+                            layout: "vertical",
                             colors: {
-                              headerBackground: '#6366f1',
-                              bodyBackground: '#ffffff',
-                              borderColor: '#818cf8',
-                              headerTextColor: '#ffffff',
-                            }
+                              headerBackground: "#6366f1",
+                              bodyBackground: "#ffffff",
+                              borderColor: "#818cf8",
+                              headerTextColor: "#ffffff",
+                            },
                           };
                         }
-                        return {};
+                        if (isCompoundNode) {
+                          return {
+                            label: "Compound",
+                            description: "",
+                            subcomponents: [],
+                            containerPadding: 12,
+                            gap: 8,
+                            colors: {
+                              headerBackground: "#059669",
+                              bodyBackground: "#ffffff",
+                              borderColor: "#10b981",
+                              headerTextColor: "#ffffff",
+                            },
+                          };
+                        }
+                        if (isCodeNode) {
+                          return {
+                            label: "Code",
+                            code: "",
+                            language: "javascript",
+                            showOutput: true,
+                            outputHeight: 120,
+                            colors: {
+                              headerBackground: "#1e1e1e",
+                              bodyBackground: "#252526",
+                              headerTextColor: "#d4d4d4",
+                            },
+                          };
+                        }
+                        return {
+                          label:
+                            type === "image"
+                              ? "Image"
+                              : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+                          description: `Configure ${type} settings`,
+                          icon:
+                            icons[type as keyof typeof icons]?.icon ||
+                            "fas fa-cube",
+                          iconColor:
+                            icons[type as keyof typeof icons]?.color ||
+                            "text-gray-500",
+                        };
                       };
 
-                      const isImageNode = type === 'image';
                       const getNodeDimensions = () => {
                         if (isTableNode) return { width: 560, height: 400 };
                         if (isFormNode) return { width: 320, height: 200 };
+                        if (isCompoundNode) return { width: 320, height: 280 };
                         if (isImageNode) return { width: 240, height: 240 };
+                        if (isCodeNode) return { width: 400, height: 350 };
                         return { width: 200, height: 100 };
                       };
 
@@ -5063,34 +6557,837 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         data: getNodeData(),
                         width: dimensions.width,
                         height: dimensions.height,
-                        style: dimensions,
-                        resizable: true
+                        style:
+                          isTableNode ||
+                          isFormNode ||
+                          isCompoundNode ||
+                          isImageNode ||
+                          isCodeNode
+                            ? dimensions
+                            : undefined,
+                        resizable:
+                          isTableNode ||
+                          isFormNode ||
+                          isCompoundNode ||
+                          isImageNode ||
+                          isCodeNode
+                            ? true
+                            : undefined,
                       };
 
-                      setNodes(prev => [...prev, newNode]);
-                      saveToHistory('Add node');
-                      
+                      setNodes((prev) => [...prev, newNode]);
+                      saveToHistory("Add node");
+
+                      // Toast notification for node creation
                       toast({
                         title: "Node Added",
                         description: `${newNode.data.label} added to canvas`,
-                        variant: "default"
+                        variant: "default",
                       });
+                    }}
+                  />
+
+                  {/* Shapes Popout */}
+                  <ShapesPopout
+                    isOpen={activePopout === "shapes"}
+                    onClose={() => setActivePopout(null)}
+                    viewport={viewport}
+                    isToolbarExpanded={isToolbarExpanded}
+                    onCreateShape={(shapeType: string) => {
+                      saveToHistory("Add shape");
+
+                      // Build shape data with polygon-specific initialization if needed
+                      const shapeData = {
+                        ...DEFAULT_SHAPE_NODE_DATA,
+                        shapeType,
+                        ...(shapeType === "polygon"
+                          ? {
+                              points: [],
+                              isClosed: false,
+                              isCreating: true,
+                            }
+                          : {}),
+                      };
+
+                      const newCanvasObject: CanvasObject = {
+                        id: `object-${Date.now()}`,
+                        type: "shape",
+                        position: getViewportCenteredPosition(),
+                        data: shapeData as any,
+                        width: shapeType === "polygon" ? 300 : 200, // Larger size for polygon creation
+                        height:
+                          shapeType === "polygon"
+                            ? 300
+                            : shapeType === "rectangle"
+                              ? 200
+                              : 100,
+                        selected: shapeType === "polygon", // Auto-select polygon for immediate creation mode
+                      };
+
+                      updateActiveTab({
+                        canvasObjects: [...canvasObjects, newCanvasObject],
+                      });
+
+                      // Toast notification for shape creation
+                      toast({
+                        title: "Shape Added",
+                        description: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} shape added to canvas`,
+                        variant: "default",
+                      });
+                    }}
+                    onCreateShapeAtPosition={(
+                      shapeType: string,
+                      position: { x: number; y: number },
+                    ) => {
+                      saveToHistory("Add shape");
+
+                      // Build shape data with polygon-specific initialization if needed
+                      const shapeData = {
+                        ...DEFAULT_SHAPE_NODE_DATA,
+                        shapeType,
+                        ...(shapeType === "polygon"
+                          ? {
+                              points: [],
+                              isClosed: false,
+                              isCreating: true,
+                            }
+                          : {}),
+                      };
+
+                      const newCanvasObject: CanvasObject = {
+                        id: `object-${Date.now()}`,
+                        type: "shape",
+                        position, // Use the provided position instead of center
+                        data: shapeData as any,
+                        width: shapeType === "polygon" ? 300 : 200, // Larger size for polygon creation
+                        height:
+                          shapeType === "polygon"
+                            ? 300
+                            : shapeType === "rectangle"
+                              ? 200
+                              : 100,
+                        selected: shapeType === "polygon", // Auto-select polygon for immediate creation mode
+                      };
+
+                      updateActiveTab({
+                        canvasObjects: [...canvasObjects, newCanvasObject],
+                      });
+
+                      // Toast notification for shape creation
+                      toast({
+                        title: "Shape Added",
+                        description: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} shape added to canvas`,
+                        variant: "default",
+                      });
+                    }}
+                  />
+                </>
+              ) : (
+                <Sidebar
+                  selectedNode={nodes.find((n) => n.id === selectedNodeId)}
+                  selectedNodes={nodes.filter((n) => n.selected)}
+                  selectedEdge={edges.find((e) => e.id === selectedEdgeId)}
+                  nodes={nodes}
+                  onToggleSidebar={toggleSidebar}
+                  onCreateNode={(type: string) => {
+                    // Create a new tab if none are open (Sidebar handler)
+                    if (openTabs.length === 0) {
+                      const newTab = createBlankTab();
+                      setTabs((prev) => [...prev, newTab]);
+                      setActiveTabId(newTab.id);
+                      // Wait for the tab to be created before adding the node
+                      setTimeout(() => {
+                        const icons = {
+                          input: { icon: "ArrowRight", color: "text-blue-500" },
+                          process: { icon: "Cog", color: "text-green-500" },
+                          condition: {
+                            icon: "HelpCircle",
+                            color: "text-yellow-500",
+                          },
+                          output: { icon: "ArrowLeft", color: "text-red-500" },
+                          ai: { icon: "Bot", color: "text-purple-500" },
+                          image: { icon: "Image", color: "text-indigo-500" },
+                          table: { icon: "Table2", color: "text-indigo-500" },
+                          compound: {
+                            icon: "Layers",
+                            color: "text-emerald-500",
+                          },
+                        };
+
+                        const nodeId = `node-${Date.now()}`;
+                        const isTableNode = type === "table";
+                        const isFormNode = type === "form";
+                        const isCompoundNode = type === "compound";
+                        const tableId = isTableNode
+                          ? `table-${nodeId}`
+                          : undefined;
+
+                        const getNodeData = () => {
+                          if (isTableNode) {
+                            return {
+                              label: "Table",
+                              tableId,
+                              previewRowCount: 3,
+                              previewColumnCount: 4,
+                              showRowNumbers: true,
+                              colors: {
+                                headerBackground: "#4f46e5",
+                                bodyBackground: "#ffffff",
+                                headerTextColor: "#ffffff",
+                                bodyTextColor: "#374151",
+                              },
+                            };
+                          }
+                          if (isFormNode) {
+                            return {
+                              label: "Form",
+                              formTitle: "Form",
+                              fields: [],
+                              showLabels: true,
+                              layout: "vertical",
+                              colors: {
+                                headerBackground: "#6366f1",
+                                bodyBackground: "#ffffff",
+                                borderColor: "#818cf8",
+                                headerTextColor: "#ffffff",
+                              },
+                            };
+                          }
+                          if (isCompoundNode) {
+                            return {
+                              label: "Compound",
+                              description: "",
+                              subcomponents: [],
+                              containerPadding: 12,
+                              gap: 8,
+                              colors: {
+                                headerBackground: "#059669",
+                                bodyBackground: "#ffffff",
+                                borderColor: "#10b981",
+                                headerTextColor: "#ffffff",
+                              },
+                            };
+                          }
+                          return {
+                            label:
+                              type === "image"
+                                ? "Image"
+                                : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+                            description: `Configure ${type} settings`,
+                            icon:
+                              icons[type as keyof typeof icons]?.icon ||
+                              "fas fa-cube",
+                            iconColor:
+                              icons[type as keyof typeof icons]?.color ||
+                              "text-gray-500",
+                          };
+                        };
+
+                        const isImageNode = type === "image";
+                        const getNodeDimensions = () => {
+                          if (isTableNode) return { width: 560, height: 400 };
+                          if (isFormNode) return { width: 320, height: 200 };
+                          if (isCompoundNode)
+                            return { width: 320, height: 280 };
+                          if (isImageNode) return { width: 240, height: 240 };
+                          return { width: 200, height: 100 };
+                        };
+
+                        const dimensions = getNodeDimensions();
+                        const newNode: Node = {
+                          id: nodeId,
+                          type,
+                          position: getViewportCenteredPosition(),
+                          data: getNodeData(),
+                          width: dimensions.width,
+                          height: dimensions.height,
+                          style:
+                            isTableNode ||
+                            isFormNode ||
+                            isCompoundNode ||
+                            isImageNode
+                              ? dimensions
+                              : undefined,
+                          resizable:
+                            isTableNode ||
+                            isFormNode ||
+                            isCompoundNode ||
+                            isImageNode
+                              ? true
+                              : undefined,
+                        };
+
+                        setNodes([newNode]);
+                        saveToHistory("Add node");
+                      }, 0);
+                      return;
                     }
+
+                    // For types like 'text', 'sticky', 'shape', create canvas objects instead of nodes
+                    if (["text", "sticky", "shape"].includes(type)) {
+                      saveToHistory("Add canvas object"); // Save current state before adding canvas object
+
+                      let newCanvasObject: CanvasObject;
+
+                      if (type === "text") {
+                        newCanvasObject = {
+                          id: `object-${Date.now()}`,
+                          type: "text",
+                          position: getViewportCenteredPosition(),
+                          data: {
+                            text: "Click to edit text",
+                            fontSize: 16,
+                            fontFamily: "Inter, system-ui, sans-serif",
+                            textColor: "#000000",
+                          } as any,
+                          style: { width: 200, height: 100 },
+                          width: 200,
+                          height: 100,
+                          draggable: true,
+                          resizable: true,
+                        };
+                      } else if (type === "sticky") {
+                        newCanvasObject = {
+                          id: `object-${Date.now()}`,
+                          type: "sticky",
+                          position: getViewportCenteredPosition(),
+                          data: {
+                            text: "Your note here...",
+                            backgroundColor: "#fef3c7",
+                            textColor: "#92400e",
+                            fontSize: 14,
+                            fontFamily: "Inter, system-ui, sans-serif",
+                          } as any,
+                          style: { width: 180, height: 180 },
+                          width: 180,
+                          height: 180,
+                          draggable: true,
+                          resizable: true,
+                        };
+                      } else {
+                        newCanvasObject = {
+                          id: `object-${Date.now()}`,
+                          type: "shape",
+                          position: getViewportCenteredPosition(),
+                          data: {
+                            shapeType: "rectangle",
+                            fillColor: "#3b82f6",
+                            fillOpacity: 0.5,
+                            fillStyle: "solid",
+                            strokeColor: "#3b82f6",
+                            strokeOpacity: 1.0,
+                            strokeWidth: 2,
+                            strokeStyle: "solid",
+                            opacity: 1,
+                          } as any,
+                          style: { width: 200, height: 100 },
+                          width: 200,
+                          height: 100,
+                          draggable: true,
+                          resizable: true,
+                        };
+                      }
+
+                      // Add to canvas objects instead of regular nodes
+                      const currentCanvasObjects =
+                        activeTab?.canvasObjects || [];
+                      updateActiveTab({
+                        canvasObjects: [
+                          ...currentCanvasObjects,
+                          newCanvasObject,
+                        ],
+                      });
+
+                      // Toast notification for canvas object creation
+                      const objectTypeLabel =
+                        type === "text"
+                          ? "Text object"
+                          : type === "sticky"
+                            ? "Sticky note"
+                            : "Shape";
+                      toast({
+                        title: `${objectTypeLabel} Added`,
+                        description: `${objectTypeLabel} added to canvas`,
+                        variant: "default",
+                      });
+                      return;
+                    }
+
+                    // Normal case - add to existing tab (for input, process, condition, output, ai, image, table, form, compound)
+                    saveToHistory("Add node"); // Save current state before adding node
+                    const icons = {
+                      input: { icon: "ArrowRight", color: "text-blue-500" },
+                      process: { icon: "Cog", color: "text-green-500" },
+                      condition: {
+                        icon: "HelpCircle",
+                        color: "text-yellow-500",
+                      },
+                      output: { icon: "ArrowLeft", color: "text-red-500" },
+                      ai: { icon: "Bot", color: "text-purple-500" },
+                      image: { icon: "Image", color: "text-indigo-500" },
+                      table: { icon: "Table2", color: "text-indigo-500" },
+                      compound: { icon: "Layers", color: "text-emerald-500" },
+                    };
+
+                    const nodeId = `node-${Date.now()}`;
+                    const isTableNode = type === "table";
+                    const isFormNode = type === "form";
+                    const isCompoundNode = type === "compound";
+                    const tableId = isTableNode ? `table-${nodeId}` : undefined;
+
+                    const getNodeData = () => {
+                      if (isTableNode) {
+                        return {
+                          label: "Table",
+                          tableId,
+                          previewRowCount: 3,
+                          previewColumnCount: 4,
+                          showRowNumbers: true,
+                          colors: {
+                            headerBackground: "#4f46e5",
+                            bodyBackground: "#ffffff",
+                            headerTextColor: "#ffffff",
+                            bodyTextColor: "#374151",
+                          },
+                        };
+                      }
+                      if (isFormNode) {
+                        return {
+                          label: "Form",
+                          formTitle: "Form",
+                          fields: [],
+                          showLabels: true,
+                          layout: "vertical",
+                          colors: {
+                            headerBackground: "#6366f1",
+                            bodyBackground: "#ffffff",
+                            borderColor: "#818cf8",
+                            headerTextColor: "#ffffff",
+                          },
+                        };
+                      }
+                      if (isCompoundNode) {
+                        return {
+                          label: "Compound",
+                          description: "",
+                          subcomponents: [],
+                          containerPadding: 12,
+                          gap: 8,
+                          colors: {
+                            headerBackground: "#059669",
+                            bodyBackground: "#ffffff",
+                            borderColor: "#10b981",
+                            headerTextColor: "#ffffff",
+                          },
+                        };
+                      }
+                      return {
+                        label:
+                          type === "image"
+                            ? "Image"
+                            : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+                        description: `Configure ${type} settings`,
+                        icon:
+                          icons[type as keyof typeof icons]?.icon ||
+                          "fas fa-cube",
+                        iconColor:
+                          icons[type as keyof typeof icons]?.color ||
+                          "text-gray-500",
+                      };
+                    };
+
+                    const isImageNode = type === "image";
+                    const getNodeDimensions = () => {
+                      if (isTableNode) return { width: 560, height: 400 };
+                      if (isFormNode) return { width: 320, height: 200 };
+                      if (isCompoundNode) return { width: 320, height: 280 };
+                      if (isImageNode) return { width: 240, height: 240 };
+                      return { width: 200, height: 100 };
+                    };
+
+                    const dimensions = getNodeDimensions();
+                    const newNode: Node = {
+                      id: nodeId,
+                      type,
+                      position: getViewportCenteredPosition(),
+                      data: getNodeData(),
+                      width: dimensions.width,
+                      height: dimensions.height,
+                      style:
+                        isTableNode ||
+                        isFormNode ||
+                        isCompoundNode ||
+                        isImageNode
+                          ? dimensions
+                          : undefined,
+                      resizable:
+                        isTableNode ||
+                        isFormNode ||
+                        isCompoundNode ||
+                        isImageNode
+                          ? true
+                          : undefined,
+                    };
+
+                    setNodes((prev) => [...prev, newNode]);
+
+                    // Toast notification for node creation
+                    toast({
+                      title: "Node Added",
+                      description: `${newNode.data.label} added to canvas`,
+                      variant: "default",
+                    });
+                  }}
+                  onCreateNodeAtPosition={(
+                    type: string,
+                    position: { x: number; y: number },
+                  ) => {
+                    // Create a new tab if none are open
+                    if (openTabs.length === 0) {
+                      const newTab = createBlankTab();
+                      setTabs((prev) => [...prev, newTab]);
+                      setActiveTabId(newTab.id);
+                      return;
+                    }
+
+                    // Convert screen position to world position (using same logic as getViewportCenteredPosition)
+                    const worldPosition = {
+                      x: Math.round((position.x - viewport.x) / viewport.zoom),
+                      y: Math.round((position.y - viewport.y) / viewport.zoom),
+                    };
+
+                    // For canvas objects (text, sticky, shape)
+                    if (["text", "sticky", "shape"].includes(type)) {
+                      saveToHistory("Add canvas object");
+
+                      let newCanvasObject: CanvasObject;
+
+                      if (type === "text") {
+                        newCanvasObject = {
+                          id: `object-${Date.now()}`,
+                          type: "text",
+                          position: worldPosition,
+                          data: {
+                            text: "Click to edit text",
+                            fontSize: 16,
+                            fontFamily: "Inter, system-ui, sans-serif",
+                            textColor: "#000000",
+                          } as any,
+                          style: { width: 200, height: 100 },
+                          width: 200,
+                          height: 100,
+                          draggable: true,
+                          resizable: true,
+                        };
+                      } else if (type === "sticky") {
+                        newCanvasObject = {
+                          id: `object-${Date.now()}`,
+                          type: "sticky",
+                          position: worldPosition,
+                          data: {
+                            text: "Your note here...",
+                            backgroundColor: "#fef3c7",
+                            textColor: "#92400e",
+                            fontSize: 14,
+                            fontFamily: "Inter, system-ui, sans-serif",
+                          } as any,
+                          style: { width: 180, height: 180 },
+                          width: 180,
+                          height: 180,
+                          draggable: true,
+                          resizable: true,
+                        };
+                      } else {
+                        newCanvasObject = {
+                          id: `object-${Date.now()}`,
+                          type: "shape",
+                          position: worldPosition,
+                          data: {
+                            shapeType: "rectangle",
+                            fillColor: "#3b82f6",
+                            fillOpacity: 0.5,
+                            fillStyle: "solid",
+                            strokeColor: "#3b82f6",
+                            strokeOpacity: 1.0,
+                            strokeWidth: 2,
+                            strokeStyle: "solid",
+                            opacity: 1,
+                          } as any,
+                          style: { width: 200, height: 100 },
+                          width: 200,
+                          height: 100,
+                          draggable: true,
+                          resizable: true,
+                        };
+                      }
+
+                      const currentCanvasObjects =
+                        activeTab?.canvasObjects || [];
+                      updateActiveTab({
+                        canvasObjects: [
+                          ...currentCanvasObjects,
+                          newCanvasObject,
+                        ],
+                      });
+
+                      // Toast notification for canvas object creation
+                      const objectTypeLabel =
+                        type === "text"
+                          ? "Text object"
+                          : type === "sticky"
+                            ? "Sticky note"
+                            : "Shape";
+                      toast({
+                        title: `${objectTypeLabel} Added`,
+                        description: `${objectTypeLabel} added to canvas`,
+                        variant: "default",
+                      });
+                      return;
+                    }
+
+                    // For regular nodes (input, process, condition, output, ai, image, table, form, compound)
+                    saveToHistory("Add node");
+
+                    const icons = {
+                      input: { icon: "ArrowRight", color: "text-blue-500" },
+                      process: { icon: "Cog", color: "text-green-500" },
+                      condition: {
+                        icon: "HelpCircle",
+                        color: "text-yellow-500",
+                      },
+                      output: { icon: "ArrowLeft", color: "text-red-500" },
+                      ai: { icon: "Bot", color: "text-purple-500" },
+                      image: { icon: "Image", color: "text-indigo-500" },
+                      table: { icon: "Table2", color: "text-teal-500" },
+                      form: { icon: "FormInput", color: "text-pink-500" },
+                      compound: {
+                        icon: "LayoutGrid",
+                        color: "text-emerald-500",
+                      },
+                    };
+
+                    const nodeId = `node-${Date.now()}`;
+                    const isTableNode = type === "table";
+                    const isFormNode = type === "form";
+                    const isCompoundNode = type === "compound";
+                    const isImageNode = type === "image";
+                    const isCodeNode = type === "code";
+                    const tableId = isTableNode ? `table-${nodeId}` : undefined;
+
+                    const getNodeData = () => {
+                      if (isTableNode) {
+                        return {
+                          label: "Table",
+                          tableId,
+                          previewRowCount: 3,
+                          previewColumnCount: 4,
+                          showRowNumbers: true,
+                          colors: {
+                            headerBackground: "#4f46e5",
+                            bodyBackground: "#ffffff",
+                            headerTextColor: "#ffffff",
+                            bodyTextColor: "#374151",
+                          },
+                        };
+                      }
+                      if (isFormNode) {
+                        return {
+                          label: "Form",
+                          formTitle: "Form",
+                          fields: [],
+                          showLabels: true,
+                          layout: "vertical",
+                          colors: {
+                            headerBackground: "#6366f1",
+                            bodyBackground: "#ffffff",
+                            borderColor: "#818cf8",
+                            headerTextColor: "#ffffff",
+                          },
+                        };
+                      }
+                      if (isCompoundNode) {
+                        return {
+                          label: "Compound",
+                          description: "",
+                          subcomponents: [],
+                          containerPadding: 12,
+                          gap: 8,
+                          colors: {
+                            headerBackground: "#059669",
+                            bodyBackground: "#ffffff",
+                            borderColor: "#10b981",
+                            headerTextColor: "#ffffff",
+                          },
+                        };
+                      }
+                      if (isCodeNode) {
+                        return {
+                          label: "Code",
+                          code: "",
+                          language: "javascript",
+                          showOutput: true,
+                          outputHeight: 120,
+                          colors: {
+                            headerBackground: "#1e1e1e",
+                            bodyBackground: "#252526",
+                            headerTextColor: "#d4d4d4",
+                          },
+                        };
+                      }
+                      return {
+                        label:
+                          type === "image"
+                            ? "Image"
+                            : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+                        description: `Configure ${type} settings`,
+                        icon:
+                          icons[type as keyof typeof icons]?.icon ||
+                          "fas fa-cube",
+                        iconColor:
+                          icons[type as keyof typeof icons]?.color ||
+                          "text-gray-500",
+                      };
+                    };
+
+                    // Calculate position offset based on node type for centering
+                    const halfWidth = isTableNode
+                      ? 280
+                      : isFormNode
+                        ? 160
+                        : isCompoundNode
+                          ? 160
+                          : isCodeNode
+                            ? 200
+                            : isImageNode
+                              ? 120
+                              : 100;
+                    const halfHeight = isTableNode
+                      ? 200
+                      : isFormNode
+                        ? 100
+                        : isCompoundNode
+                          ? 140
+                          : isCodeNode
+                            ? 175
+                            : isImageNode
+                              ? 120
+                              : 50;
+
+                    const newNode: Node = {
+                      id: nodeId,
+                      type,
+                      position: {
+                        x: worldPosition.x - halfWidth,
+                        y: worldPosition.y - halfHeight,
+                      },
+                      data: getNodeData(),
+                      width: isTableNode
+                        ? 560
+                        : isFormNode
+                          ? 320
+                          : isCompoundNode
+                            ? 320
+                            : isCodeNode
+                              ? 400
+                              : isImageNode
+                                ? 240
+                                : 200,
+                      height: isTableNode
+                        ? 400
+                        : isFormNode
+                          ? 200
+                          : isCompoundNode
+                            ? 280
+                            : isCodeNode
+                              ? 350
+                              : isImageNode
+                                ? 240
+                                : 100,
+                      style: isTableNode
+                        ? { width: 560, height: 400 }
+                        : isFormNode
+                          ? { width: 320, height: 200 }
+                          : isCompoundNode
+                            ? { width: 320, height: 280 }
+                            : isCodeNode
+                              ? { width: 400, height: 350 }
+                              : isImageNode
+                                ? { width: 240, height: 240 }
+                                : undefined,
+                      resizable:
+                        isTableNode ||
+                        isFormNode ||
+                        isCompoundNode ||
+                        isCodeNode ||
+                        isImageNode
+                          ? true
+                          : undefined,
+                    };
+
+                    setNodes((prev) => [...prev, newNode]);
+
+                    // Toast notification for node creation
+                    toast({
+                      title: "Node Added",
+                      description: `${newNode.data.label} added to canvas`,
+                      variant: "default",
+                    });
                   }}
                   onFitView={() => {
                     if (nodes.length === 0) {
                       setViewport({ x: 0, y: 0, zoom: 1 });
                       return;
                     }
-                    // Implement fit view logic here or use existing implementation
+
+                    // Calculate bounding box of all nodes
+                    let minX = Infinity;
+                    let minY = Infinity;
+                    let maxX = -Infinity;
+                    let maxY = -Infinity;
+
+                    nodes.forEach((node) => {
+                      const w = node.style?.width ?? node.width ?? 200;
+                      const h = node.style?.height ?? node.height ?? 100;
+
+                      minX = Math.min(minX, node.position.x);
+                      minY = Math.min(minY, node.position.y);
+                      maxX = Math.max(maxX, node.position.x + w);
+                      maxY = Math.max(maxY, node.position.y + h);
+                    });
+
+                    // Add padding around the content
+                    const padding = 100;
+                    const contentWidth = maxX - minX + padding * 2;
+                    const contentHeight = maxY - minY + padding * 2;
+
+                    // Canvas dimensions (approximate viewport size)
+                    const canvasWidth = 800;
+                    const canvasHeight = 600;
+
+                    // Calculate zoom to fit content with margin
+                    const zoomX = (canvasWidth * 0.9) / contentWidth;
+                    const zoomY = (canvasHeight * 0.9) / contentHeight;
+                    const zoom = Math.max(
+                      0.1,
+                      Math.min(1.2, Math.min(zoomX, zoomY)),
+                    );
+
+                    // Calculate content center
+                    const contentCenterX = (minX + maxX) / 2;
+                    const contentCenterY = (minY + maxY) / 2;
+
+                    // Calculate viewport translation to center content
+                    const x = canvasWidth / 2 - contentCenterX * zoom;
+                    const y = canvasHeight / 2 - contentCenterY * zoom;
+
+                    setViewport({ x, y, zoom });
                   }}
                   onClearCanvas={() => {
-                    if (window.confirm('Are you sure you want to clear the canvas? This will remove all nodes and edges.')) {
-                      setNodes([]);
-                      setEdges([]);
-                      updateActiveTab({ canvasObjects: [] });
-                      saveToHistory('Clear canvas');
-                    }
+                    saveToHistory("Clear canvas");
+                    setNodes([]);
+                    setEdges([]);
+                    setSelectedNodeId("");
+                    setSelectedEdgeId("");
                   }}
                   onExport={() => {
                     const comprehensiveWorkflow = {
@@ -5098,59 +7395,338 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       timestamp: new Date().toISOString(),
                       workflow: {
                         id: activeTab?.id || `workflow-${Date.now()}`,
-                        name: activeTab?.name || 'My Workflow',
-                        description: activeTab?.metadata?.description || '',
+                        name: activeTab?.name || "My Workflow",
+                        description: activeTab?.metadata?.description || "",
                         links: activeTab?.metadata?.links || [],
-                        categories: activeTab?.metadata?.categories || []
+                        categories: activeTab?.metadata?.categories || [],
                       },
                       canvas: {
-                        nodes: nodes.map(node => ({
+                        nodes: nodes.map((node) => ({
                           ...node,
-                          // Preserve all styling and data
                           data: { ...node.data },
-                          style: node.style || {}
+                          style: node.style || {},
                         })),
-                        edges: edges.map(edge => ({
+                        edges: edges.map((edge) => ({
                           ...edge,
-                          // Preserve all styling and data
                           style: edge.style || {},
-                          data: edge.data || {}
+                          data: edge.data || {},
                         })),
-                        canvasObjects: canvasObjects.map(obj => ({
+                        canvasObjects: canvasObjects.map((obj) => ({
                           ...obj,
-                          // Preserve all styling and data
                           data: { ...obj.data },
-                          style: obj.style || {}
+                          style: obj.style || {},
                         })),
-                        viewport: { ...viewport }
-                      }
+                        viewport: { ...viewport },
+                      },
                     };
-                    
-                    const dataStr = JSON.stringify(comprehensiveWorkflow, null, 2);
-                    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                    const safeFileName = comprehensiveWorkflow.workflow.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+                    const dataStr = JSON.stringify(
+                      comprehensiveWorkflow,
+                      null,
+                      2,
+                    );
+                    const dataUri =
+                      "data:application/json;charset=utf-8," +
+                      encodeURIComponent(dataStr);
+                    const safeFileName = comprehensiveWorkflow.workflow.name
+                      .replace(/[^a-z0-9]/gi, "_")
+                      .toLowerCase();
                     const exportFileDefaultName = `${safeFileName}_complete_workflow.json`;
-                    
-                    const linkElement = document.createElement('a');
-                    linkElement.setAttribute('href', dataUri);
-                    linkElement.setAttribute('download', exportFileDefaultName);
+
+                    const linkElement = document.createElement("a");
+                    linkElement.setAttribute("href", dataUri);
+                    linkElement.setAttribute("download", exportFileDefaultName);
                     linkElement.click();
-                    
+
                     toast({
                       title: "Workflow Exported",
                       description: `"${comprehensiveWorkflow.workflow.name}" exported with all content and styling`,
                     });
                   }}
-                  onImport={() => setShowImportModal(true)}
-                  onShare={() => setShowShareModal(true)}
+                  onImport={() => {
+                    // Create hidden file input for importing and appending to existing workflow
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".json";
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (!file) return;
+
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        try {
+                          const data = JSON.parse(
+                            event.target?.result as string,
+                          );
+                          appendImportedWorkflowToCanvas(data);
+                        } catch (error) {
+                          toast({
+                            title: "Import Failed",
+                            description:
+                              "Invalid JSON file. Please select a valid workflow file.",
+                            variant: "destructive",
+                          });
+                        }
+                      };
+                      reader.readAsText(file);
+                    };
+                    input.click();
+                  }}
+                  onNodeUpdate={(nodeId: string, updates: Partial<Node>) => {
+                    setNodes((prev) =>
+                      prev.map((n) =>
+                        n.id === nodeId ? { ...n, ...updates } : n,
+                      ),
+                    );
+                    saveToHistory("Update node");
+                  }}
+                  onBulkNodeUpdate={(
+                    nodeIds: string[],
+                    updates: Partial<Node>,
+                  ) => {
+                    setNodes((prev) =>
+                      prev.map((n) =>
+                        nodeIds.includes(n.id)
+                          ? {
+                              ...n,
+                              ...updates,
+                              data: updates.data
+                                ? { ...n.data, ...updates.data }
+                                : n.data,
+                            }
+                          : n,
+                      ),
+                    );
+                    saveToHistory("Update nodes");
+                  }}
+                  onEdgeUpdate={(edgeId: string, updates: Partial<Edge>) => {
+                    setEdges((prev) =>
+                      prev.map((e) =>
+                        e.id === edgeId ? { ...e, ...updates } : e,
+                      ),
+                    );
+                    saveToHistory("Update edge");
+                  }}
+                  onDeselectNode={() => {
+                    setSelectedNodeId("");
+                    setNodes((prev) =>
+                      prev.map((n) => ({ ...n, selected: false })),
+                    );
+                  }}
+                  onCanvasObjectUpdate={(
+                    objectId: string,
+                    updates: Partial<
+                      TextNodeData | ShapeNodeData | StickyNoteData
+                    >,
+                  ) => {
+                    const targetObj = canvasObjects.find(
+                      (obj) => obj.id === objectId,
+                    );
+                    if (!targetObj) return;
+
+                    const nextData = { ...targetObj.data, ...updates };
+
+                    // Shallow equality check to prevent unnecessary updates
+                    const shallowEqual = (obj1: any, obj2: any) => {
+                      const keys1 = Object.keys(obj1);
+                      const keys2 = Object.keys(obj2);
+                      if (keys1.length !== keys2.length) return false;
+                      return keys1.every((key) => obj1[key] === obj2[key]);
+                    };
+
+                    if (shallowEqual(targetObj.data, nextData)) {
+                      return; // No change, skip update
+                    }
+
+                    const updatedObjects = canvasObjects.map((obj) =>
+                      obj.id === objectId ? { ...obj, data: nextData } : obj,
+                    );
+                    updateActiveTab({ canvasObjects: updatedObjects });
+                    saveToHistory("Update canvas object");
+                  }}
+                  onDeselectCanvasObjects={() => {
+                    const updatedObjects = canvasObjects.map((obj) => ({
+                      ...obj,
+                      selected: false,
+                    }));
+                    updateActiveTab({ canvasObjects: updatedObjects });
+                  }}
+                  selectedCanvasObjects={selectedCanvasObjects}
+                  onImageUpload={(
+                    nodeId: string,
+                    objectPath: string,
+                    filename?: string,
+                  ) => {
+                    // Update the node with the image data and auto-size
+                    const img = new Image();
+                    img.onload = () => {
+                      const maxWidth = 300;
+                      const maxHeight = 250;
+                      const headerHeight = 30;
+
+                      const aspectRatio = img.naturalWidth / img.naturalHeight;
+                      let imageWidth = img.naturalWidth;
+                      let imageHeight = img.naturalHeight;
+
+                      // Scale down if needed to fit constraints
+                      const scaleX =
+                        imageWidth > maxWidth ? maxWidth / imageWidth : 1;
+                      const scaleY =
+                        imageHeight > maxHeight ? maxHeight / imageHeight : 1;
+                      const scale = Math.min(scaleX, scaleY, 1); // Don't scale up
+
+                      imageWidth = Math.round(imageWidth * scale);
+                      imageHeight = Math.round(imageHeight * scale);
+
+                      setNodes((prev) =>
+                        prev.map((n) =>
+                          n.id === nodeId
+                            ? {
+                                ...n,
+                                width: Math.max(200, imageWidth + 20), // Add padding
+                                height: imageHeight + headerHeight + 20, // Add header and padding
+                                data: { ...n.data, src: objectPath, filename },
+                              }
+                            : n,
+                        ),
+                      );
+                      saveToHistory("Upload image");
+                    };
+                    img.src = objectPath;
+                  }}
+                  onImageUrl={(nodeId: string, url: string) => {
+                    // Update the node with the image URL and auto-size
+                    const img = new Image();
+                    img.onload = () => {
+                      const maxWidth = 300;
+                      const maxHeight = 250;
+                      const headerHeight = 30;
+
+                      const aspectRatio = img.naturalWidth / img.naturalHeight;
+                      let imageWidth = img.naturalWidth;
+                      let imageHeight = img.naturalHeight;
+
+                      // Scale down if needed to fit constraints
+                      const scaleX =
+                        imageWidth > maxWidth ? maxWidth / imageWidth : 1;
+                      const scaleY =
+                        imageHeight > maxHeight ? maxHeight / imageHeight : 1;
+                      const scale = Math.min(scaleX, scaleY, 1); // Don't scale up
+
+                      imageWidth = Math.round(imageWidth * scale);
+                      imageHeight = Math.round(imageHeight * scale);
+
+                      setNodes((prev) =>
+                        prev.map((n) =>
+                          n.id === nodeId
+                            ? {
+                                ...n,
+                                width: Math.max(200, imageWidth + 20), // Add padding
+                                height: imageHeight + headerHeight + 20, // Add header and padding
+                                data: { ...n.data, src: url, sourceUrl: url },
+                              }
+                            : n,
+                        ),
+                      );
+                      saveToHistory("Set image URL");
+                    };
+                    img.src = url;
+                  }}
+                  showImageModal={showImageModal}
+                  onOpenImageModal={setShowImageModal}
+                  onCloseImageModal={() => setShowImageModal(null)}
                   onOpenAiGenerator={() => setShowAiGenerator(true)}
-                  onUploadImage={() => setShowImageUploadModal(true)}
-                  onImportFigma={() => setShowFigmaModal(true)}
+                  onSnapshot={handleSnapshot}
+                  onVersionHistory={handleVersionHistory}
+                  onApplyTheme={(theme) => {
+                    // Update current theme state
+                    setCurrentTheme(theme);
+                    localStorage.setItem("workflow-theme", theme.id);
+
+                    // Apply theme to all nodes using the enhanced helper function
+                    setNodes((prev) =>
+                      prev.map((node) => ({
+                        ...node,
+                        data: applyThemeToNode(node.data, theme),
+                      })),
+                    );
+
+                    // Apply theme to all edges using the enhanced helper function
+                    setEdges((prev) =>
+                      prev.map((edge) => applyThemeToEdge(edge, theme)),
+                    );
+
+                    saveToHistory("Apply theme");
+                  }}
+                  copiedProperties={copiedProperties}
+                  onApplyToWorkflow={(colors) => {
+                    // Apply colors to all nodes in the current workflow
+                    saveToHistory("Apply colors to workflow");
+                    setNodes((prev) =>
+                      prev.map((node) => ({
+                        ...node,
+                        data: {
+                          ...node.data,
+                          colors: {
+                            ...node.data?.colors,
+                            headerBackground: colors.headerBackground,
+                            bodyBackground: colors.bodyBackground,
+                            headerTextColor: colors.headerTextColor,
+                            bodyTextColor: colors.bodyTextColor,
+                          },
+                        },
+                      })),
+                    );
+                  }}
+                  currentWorkflow={
+                    activeTab
+                      ? {
+                          id: activeTab.id,
+                          name: activeTab.name,
+                          nodes: activeTab.nodes,
+                          edges: activeTab.edges,
+                        }
+                      : undefined
+                  }
+                  onLoadWorkflow={(workflow) => {
+                    // Create a new tab with the loaded workflow
+                    const newTab: WorkflowTab = {
+                      id: workflow.id,
+                      name: workflow.name,
+                      nodes: workflow.nodes,
+                      edges: workflow.edges,
+                      canvasObjects: [],
+                      viewport: { x: 0, y: 0, zoom: 1 },
+                      selectedNodeId: "",
+                      selectedEdgeId: "",
+                      history: [
+                        {
+                          nodes: workflow.nodes,
+                          edges: workflow.edges,
+                          canvasObjects: [],
+                          viewport: { x: 0, y: 0, zoom: 1 },
+                        },
+                      ],
+                      historyIndex: 0,
+                      showImageModal: null,
+                      metadata: {
+                        name: workflow.name,
+                        description: "",
+                        links: [],
+                        linksFormat: "bulleted",
+                        categories: [],
+                      },
+                      projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    };
+
+                    setTabs((prev) => [...prev, newTab]);
+                    setActiveTabId(newTab.id);
+                  }}
                   onCreateTemplate={(templateType: string) => {
                     // Create a new tab if none are open
                     if (openTabs.length === 0) {
                       const newTab = createBlankTab();
-                      setTabs(prev => [...prev, newTab]);
+                      setTabs((prev) => [...prev, newTab]);
                       setActiveTabId(newTab.id);
                       // Wait for the tab to be created before adding the template
                       setTimeout(() => {
@@ -5158,15 +7734,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }, 50);
                       return;
                     }
-                    
-                    // Template generation at center (same logic as expanded sidebar)
+
+                    // Normal case - add template to current active tab
                     handleAddTemplateToCurrentTab(templateType);
                   }}
-                  onCreateTemplateAtPosition={(templateType: string, position: { x: number; y: number }) => {
+                  onCreateTemplateAtPosition={(
+                    templateType: string,
+                    position: { x: number; y: number },
+                  ) => {
                     // Create a new tab if none are open
                     if (openTabs.length === 0) {
                       const newTab = createBlankTab();
-                      setTabs(prev => [...prev, newTab]);
+                      setTabs((prev) => [...prev, newTab]);
                       setActiveTabId(newTab.id);
                       // Wait for the tab to be created before adding the template
                       setTimeout(() => {
@@ -5174,1606 +7753,658 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }, 50);
                       return;
                     }
-                    
-                    // Template generation at specific position from drag-and-drop
+
+                    // Normal case - add template to current active tab with position
                     handleAddTemplateToCurrentTab(templateType, position);
                   }}
-                  onApplyTheme={(theme) => {
-                    // Update current theme state
-                    setCurrentTheme(theme);
-                    localStorage.setItem('workflow-theme', theme.id);
-                    
-                    // Apply theme to all nodes using the enhanced helper function
-                    setNodes(prev => prev.map(node => ({
-                      ...node,
-                      data: applyThemeToNode(node.data, theme)
-                    })));
-                    
-                    // Apply theme to all edges using the enhanced helper function
-                    setEdges(prev => prev.map(edge => applyThemeToEdge(edge, theme)));
-                    
-                    saveToHistory('Apply theme');
-                  }}
-                  activePopout={activePopout}
-                  setActivePopout={setActivePopout}
-                  sidebarIcons={sidebarIcons}
                   viewport={viewport}
-                  isExpanded={isToolbarExpanded}
-                  onToggleExpanded={() => setIsToolbarExpanded(prev => !prev)}
-                />
-                
-                {/* Node Types Popout */}
-                <NodeTypesPopout
-                  isOpen={activePopout === 'node-types'}
-                  onClose={() => setActivePopout(null)}
-                  viewport={viewport}
-                  isToolbarExpanded={isToolbarExpanded}
-                  onCreateNode={(type: string) => {
-                    // Handle regular node creation from popout
-                    if (openTabs.length === 0) {
-                      const newTab = createBlankTab();
-                      setTabs(prev => [...prev, newTab]);
-                      setActiveTabId(newTab.id);
-                    }
+                  connectionAnimationConfig={connectionAnimationConfig}
+                  onConnectionAnimationConfigChange={
+                    setConnectionAnimationConfig
+                  }
+                  savedTemplates={savedTemplates}
+                  tables={nodes
+                    .filter((n) => n.type === "table" && n.data?.tableId)
+                    .map(
+                      (n) =>
+                        n.data?.table || {
+                          id: n.data?.tableId || "",
+                          name: n.data?.label || "Table",
+                          columns: [],
+                          rows: [],
+                        },
+                    )
+                    .filter((t): t is DataTable => !!t)}
+                  onCreateFromSavedTemplate={(
+                    templateId: string,
+                    position: { x: number; y: number },
+                  ) => {
+                    const template = savedTemplates.find(
+                      (t) => t.id === templateId,
+                    );
+                    if (!template) return;
 
-                    const icons = {
-                      input: { icon: 'ArrowRight', color: 'text-blue-500' },
-                      process: { icon: 'Cog', color: 'text-green-500' },
-                      condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
-                      output: { icon: 'ArrowLeft', color: 'text-red-500' },
-                      ai: { icon: 'Bot', color: 'text-purple-500' },
-                      image: { icon: 'Image', color: 'text-indigo-500' },
-                      table: { icon: 'Table2', color: 'text-indigo-500' },
-                      compound: { icon: 'Layers', color: 'text-emerald-500' }
-                    };
-
-                    const nodeId = `node-${Date.now()}`;
-                    const isTableNode = type === 'table';
-                    const isFormNode = type === 'form';
-                    const isCompoundNode = type === 'compound';
-                    const isImageNode = type === 'image';
-                    const isCodeNode = type === 'code';
-                    const tableId = isTableNode ? `table-${nodeId}` : undefined;
-
-                    const getNodeData = () => {
-                      if (isTableNode) {
-                        return {
-                          label: 'Table',
-                          tableId,
-                          previewRowCount: 3,
-                          previewColumnCount: 4,
-                          showRowNumbers: true,
-                          colors: {
-                            headerBackground: '#4f46e5',
-                            bodyBackground: '#ffffff',
-                            headerTextColor: '#ffffff',
-                            bodyTextColor: '#374151',
-                          }
-                        };
-                      }
-                      if (isFormNode) {
-                        return {
-                          label: 'Form',
-                          formTitle: 'Form',
-                          fields: [],
-                          showLabels: true,
-                          layout: 'vertical',
-                          colors: {
-                            headerBackground: '#6366f1',
-                            bodyBackground: '#ffffff',
-                            borderColor: '#818cf8',
-                            headerTextColor: '#ffffff',
-                          }
-                        };
-                      }
-                      if (isCompoundNode) {
-                        return {
-                          label: 'Compound',
-                          description: '',
-                          subcomponents: [],
-                          containerPadding: 12,
-                          gap: 8,
-                          colors: {
-                            headerBackground: '#059669',
-                            bodyBackground: '#ffffff',
-                            borderColor: '#10b981',
-                            headerTextColor: '#ffffff',
-                          }
-                        };
-                      }
-                      if (isCodeNode) {
-                        return {
-                          label: 'Code',
-                          code: '',
-                          language: 'javascript',
-                          showOutput: true,
-                          outputHeight: 120,
-                          colors: {
-                            headerBackground: '#1e1e1e',
-                            bodyBackground: '#252526',
-                            headerTextColor: '#d4d4d4',
-                          }
-                        };
-                      }
-                      return {
-                        label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
-                        description: `Configure ${type} settings`,
-                        icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
-                        iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
-                      };
-                    };
-
-                    const getNodeDimensions = () => {
-                      if (isTableNode) return { width: 560, height: 400 };
-                      if (isFormNode) return { width: 320, height: 200 };
-                      if (isCompoundNode) return { width: 320, height: 280 };
-                      if (isImageNode) return { width: 240, height: 240 };
-                      if (isCodeNode) return { width: 400, height: 350 };
-                      return { width: 200, height: 100 };
-                    };
-
-                    const dimensions = getNodeDimensions();
+                    const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                    const nodeId = `node-${uniqueId}`;
                     const newNode: Node = {
                       id: nodeId,
-                      type,
-                      position: getViewportCenteredPosition(),
-                      data: getNodeData(),
-                      width: dimensions.width,
-                      height: dimensions.height,
-                      style: (isTableNode || isFormNode || isCompoundNode || isImageNode || isCodeNode) ? dimensions : undefined,
-                      resizable: (isTableNode || isFormNode || isCompoundNode || isImageNode || isCodeNode) ? true : undefined
-                    };
-
-                    setNodes(prev => [...prev, newNode]);
-                    saveToHistory('Add node');
-                    
-                    // Toast notification for node creation
-                    toast({
-                      title: "Node Added",
-                      description: `${newNode.data.label} added to canvas`,
-                      variant: "default"
-                    });
-                  }}
-                  onCreateNodeAtPosition={(type: string, position: { x: number; y: number }) => {
-                    // Handle drag-and-drop node creation from popout
-                    if (openTabs.length === 0) {
-                      const newTab = createBlankTab();
-                      setTabs(prev => [...prev, newTab]);
-                      setActiveTabId(newTab.id);
-                    }
-
-                    const icons = {
-                      input: { icon: 'ArrowRight', color: 'text-blue-500' },
-                      process: { icon: 'Cog', color: 'text-green-500' },
-                      condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
-                      output: { icon: 'ArrowLeft', color: 'text-red-500' },
-                      ai: { icon: 'Bot', color: 'text-purple-500' },
-                      image: { icon: 'Image', color: 'text-indigo-500' },
-                      table: { icon: 'Table2', color: 'text-indigo-500' },
-                      compound: { icon: 'Layers', color: 'text-emerald-500' }
-                    };
-
-                    const nodeId = `node-${Date.now()}`;
-                    const isTableNode = type === 'table';
-                    const isFormNode = type === 'form';
-                    const isCompoundNode = type === 'compound';
-                    const isImageNode = type === 'image';
-                    const isCodeNode = type === 'code';
-                    const tableId = isTableNode ? `table-${nodeId}` : undefined;
-
-                    const getNodeData = () => {
-                      if (isTableNode) {
-                        return {
-                          label: 'Table',
-                          tableId,
-                          previewRowCount: 3,
-                          previewColumnCount: 4,
-                          showRowNumbers: true,
-                          colors: {
-                            headerBackground: '#4f46e5',
-                            bodyBackground: '#ffffff',
-                            headerTextColor: '#ffffff',
-                            bodyTextColor: '#374151',
-                          }
-                        };
-                      }
-                      if (isFormNode) {
-                        return {
-                          label: 'Form',
-                          formTitle: 'Form',
-                          fields: [],
-                          showLabels: true,
-                          layout: 'vertical',
-                          colors: {
-                            headerBackground: '#6366f1',
-                            bodyBackground: '#ffffff',
-                            borderColor: '#818cf8',
-                            headerTextColor: '#ffffff',
-                          }
-                        };
-                      }
-                      if (isCompoundNode) {
-                        return {
-                          label: 'Compound',
-                          description: '',
-                          subcomponents: [],
-                          containerPadding: 12,
-                          gap: 8,
-                          colors: {
-                            headerBackground: '#059669',
-                            bodyBackground: '#ffffff',
-                            borderColor: '#10b981',
-                            headerTextColor: '#ffffff',
-                          }
-                        };
-                      }
-                      if (isCodeNode) {
-                        return {
-                          label: 'Code',
-                          code: '',
-                          language: 'javascript',
-                          showOutput: true,
-                          outputHeight: 120,
-                          colors: {
-                            headerBackground: '#1e1e1e',
-                            bodyBackground: '#252526',
-                            headerTextColor: '#d4d4d4',
-                          }
-                        };
-                      }
-                      return {
-                        label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
-                        description: `Configure ${type} settings`,
-                        icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
-                        iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
-                      };
-                    };
-
-                    const getNodeDimensions = () => {
-                      if (isTableNode) return { width: 560, height: 400 };
-                      if (isFormNode) return { width: 320, height: 200 };
-                      if (isCompoundNode) return { width: 320, height: 280 };
-                      if (isImageNode) return { width: 240, height: 240 };
-                      if (isCodeNode) return { width: 400, height: 350 };
-                      return { width: 200, height: 100 };
-                    };
-
-                    const dimensions = getNodeDimensions();
-                    const newNode: Node = {
-                      id: nodeId,
-                      type,
+                      type: "compound",
                       position,
-                      data: getNodeData(),
-                      width: dimensions.width,
-                      height: dimensions.height,
-                      style: (isTableNode || isFormNode || isCompoundNode || isImageNode || isCodeNode) ? dimensions : undefined,
-                      resizable: (isTableNode || isFormNode || isCompoundNode || isImageNode || isCodeNode) ? true : undefined
+                      data: {
+                        label: template.name,
+                        description: template.description || "",
+                        subcomponents:
+                          template.subcomponents?.map((s, i) => ({
+                            ...s,
+                            id: `${nodeId}-sub-${i}-${Math.random().toString(36).slice(2, 6)}`,
+                          })) || [],
+                        containerPadding: template.containerPadding || 12,
+                        gap: template.gap || 8,
+                        colors: template.colors || {
+                          headerBackground: "#059669",
+                          bodyBackground: "#ffffff",
+                          borderColor: "#10b981",
+                          headerTextColor: "#ffffff",
+                        },
+                        sourceTemplateId: template.id,
+                      },
+                      width: template.defaultWidth || 320,
+                      height: template.defaultHeight || 280,
+                      style: {
+                        width: template.defaultWidth || 320,
+                        height: template.defaultHeight || 280,
+                      },
+                      resizable: true,
                     };
 
-                    setNodes(prev => [...prev, newNode]);
-                    saveToHistory('Add node');
-                    
-                    // Toast notification for node creation
-                    toast({
-                      title: "Node Added",
-                      description: `${newNode.data.label} added to canvas`,
-                      variant: "default"
-                    });
+                    setNodes((prev) => [...prev, newNode]);
+                    saveToHistory("Create from template");
+                  }}
+                  onDeleteSavedTemplate={deleteTemplate}
+                  onRenameSavedTemplate={(
+                    templateId: string,
+                    newName: string,
+                  ) => {
+                    updateTemplate(templateId, { name: newName });
+                  }}
+                  onLinkTemplateToTable={(
+                    templateId: string,
+                    tableId: string,
+                  ) => {
+                    const template = savedTemplates.find(
+                      (t) => t.id === templateId,
+                    );
+                    if (!template) return;
+                    handleGenerateFromTemplate(tableId, template);
                   }}
                 />
-                
-                {/* Shapes Popout */}
-                <ShapesPopout
-                  isOpen={activePopout === 'shapes'}
-                  onClose={() => setActivePopout(null)}
-                  viewport={viewport}
-                  isToolbarExpanded={isToolbarExpanded}
-                  onCreateShape={(shapeType: string) => {
-                    saveToHistory('Add shape');
-                    
-                    // Build shape data with polygon-specific initialization if needed
-                    const shapeData = {
-                      ...DEFAULT_SHAPE_NODE_DATA,
-                      shapeType,
-                      ...(shapeType === 'polygon' ? {
-                        points: [],
-                        isClosed: false,
-                        isCreating: true
-                      } : {})
-                    };
-                    
-                    const newCanvasObject: CanvasObject = {
-                      id: `object-${Date.now()}`,
-                      type: 'shape',
-                      position: getViewportCenteredPosition(),
-                      data: shapeData as any,
-                      width: shapeType === 'polygon' ? 300 : 200,  // Larger size for polygon creation
-                      height: shapeType === 'polygon' ? 300 : (shapeType === 'rectangle' ? 200 : 100),
-                      selected: shapeType === 'polygon' // Auto-select polygon for immediate creation mode
-                    };
-                    
-                    updateActiveTab({ 
-                      canvasObjects: [...canvasObjects, newCanvasObject] 
-                    });
-                    
-                    // Toast notification for shape creation
-                    toast({
-                      title: "Shape Added",
-                      description: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} shape added to canvas`,
-                      variant: "default"
-                    });
-                  }}
-                  onCreateShapeAtPosition={(shapeType: string, position: { x: number; y: number }) => {
-                    saveToHistory('Add shape');
-                    
-                    // Build shape data with polygon-specific initialization if needed
-                    const shapeData = {
-                      ...DEFAULT_SHAPE_NODE_DATA,
-                      shapeType,
-                      ...(shapeType === 'polygon' ? {
-                        points: [],
-                        isClosed: false,
-                        isCreating: true
-                      } : {})
-                    };
-                    
-                    const newCanvasObject: CanvasObject = {
-                      id: `object-${Date.now()}`,
-                      type: 'shape',
-                      position, // Use the provided position instead of center
-                      data: shapeData as any,
-                      width: shapeType === 'polygon' ? 300 : 200,  // Larger size for polygon creation
-                      height: shapeType === 'polygon' ? 300 : (shapeType === 'rectangle' ? 200 : 100),
-                      selected: shapeType === 'polygon' // Auto-select polygon for immediate creation mode
-                    };
-                    
-                    updateActiveTab({ 
-                      canvasObjects: [...canvasObjects, newCanvasObject] 
-                    });
-                    
-                    // Toast notification for shape creation
-                    toast({
-                      title: "Shape Added",
-                      description: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} shape added to canvas`,
-                      variant: "default"
-                    });
-                  }}
-                />
-              </>
-            ) : (
-              <Sidebar
-                selectedNode={nodes.find(n => n.id === selectedNodeId)}
-                selectedNodes={nodes.filter(n => n.selected)}
-                selectedEdge={edges.find(e => e.id === selectedEdgeId)}
-                nodes={nodes}
-                onToggleSidebar={toggleSidebar}
-                onCreateNode={(type: string) => {
-                // Create a new tab if none are open (Sidebar handler)
-                if (openTabs.length === 0) {
-                  const newTab = createBlankTab();
-                  setTabs(prev => [...prev, newTab]);
-                  setActiveTabId(newTab.id);
-                  // Wait for the tab to be created before adding the node
-                  setTimeout(() => {
-                    const icons = {
-                      input: { icon: 'ArrowRight', color: 'text-blue-500' },
-                      process: { icon: 'Cog', color: 'text-green-500' },
-                      condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
-                      output: { icon: 'ArrowLeft', color: 'text-red-500' },
-                      ai: { icon: 'Bot', color: 'text-purple-500' },
-                      image: { icon: 'Image', color: 'text-indigo-500' },
-                      table: { icon: 'Table2', color: 'text-indigo-500' },
-                      compound: { icon: 'Layers', color: 'text-emerald-500' }
-                    };
+              )}
+            </div>
 
-                    const nodeId = `node-${Date.now()}`;
-                    const isTableNode = type === 'table';
-                    const isFormNode = type === 'form';
-                    const isCompoundNode = type === 'compound';
-                    const tableId = isTableNode ? `table-${nodeId}` : undefined;
+            {/* Canvas Area */}
+            <div
+              ref={canvasContainerRef}
+              className={`flex-1 relative ${openTabs.length > 0 ? "overflow-hidden" : "overflow-y-auto"}`}
+            >
+              {openTabs.length > 0 ? (
+                <>
+                  <WorkflowCanvas
+                    data-testid="workflow-canvas"
+                    nodes={nodes}
+                    edges={edges}
+                    canvasObjects={canvasObjects}
+                    viewport={viewport}
+                    onViewportChange={setViewport}
+                    onCanvasObjectsChange={(newCanvasObjects) => {
+                      updateActiveTab({ canvasObjects: newCanvasObjects });
+                      saveToHistory("Update canvas objects");
+                    }}
+                    proFeatures={proFeaturesConfig}
+                    onQuickAdd={handleQuickAdd}
+                    workflowName={activeTab?.name}
+                    onWorkflowNameChange={setWorkflowName}
+                    workflowMetadata={metadata}
+                    onWorkflowMetadataChange={setProjectMetadata}
+                    onEdgeReconnect={handleEdgeReconnect}
+                    connectionAnimationConfig={connectionAnimationConfig}
+                    connectionPreview={connectionPreview}
+                    onNodesChange={(changes) => {
+                      // Handle both array of changes and direct node array updates
+                      if (Array.isArray(changes) && changes.length > 0) {
+                        // Check if it's a direct nodes array update (from drag operations or node updates)
+                        // Nodes have a 'type' property that is the node type ('input', 'ai', etc.)
+                        // Changes have a 'type' property that is the change type ('position', 'select', etc.)
+                        const isNodeArray =
+                          changes[0].id &&
+                          changes[0].position &&
+                          (changes[0].type === "input" ||
+                            changes[0].type === "ai" ||
+                            changes[0].type === "condition" ||
+                            changes[0].type === "output" ||
+                            changes[0].type === "process" ||
+                            changes[0].type === "image" ||
+                            changes[0].type === "form" ||
+                            changes[0].type === "compound" ||
+                            changes[0].type === "table" ||
+                            changes[0].type === "shape");
 
-                    const getNodeData = () => {
-                      if (isTableNode) {
-                        return {
-                          label: 'Table',
-                          tableId,
-                          previewRowCount: 3,
-                          previewColumnCount: 4,
-                          showRowNumbers: true,
-                          colors: {
-                            headerBackground: '#4f46e5',
-                            bodyBackground: '#ffffff',
-                            headerTextColor: '#ffffff',
-                            bodyTextColor: '#374151',
+                        if (isNodeArray) {
+                          // Direct nodes array from KiteFrameCanvas drag operations
+
+                          // Mark as dragging to prevent properties panel from opening
+                          isDraggingRef.current = true;
+
+                          // Hide linear toolbar during drag for performance
+                          setLinearToolbar(null);
+
+                          // Cancel any pending click delay timer since we're now dragging
+                          if (clickDelayTimeoutRef.current) {
+                            clearTimeout(clickDelayTimeoutRef.current);
+                            clickDelayTimeoutRef.current = null;
                           }
-                        };
-                      }
-                      if (isFormNode) {
-                        return {
-                          label: 'Form',
-                          formTitle: 'Form',
-                          fields: [],
-                          showLabels: true,
-                          layout: 'vertical',
-                          colors: {
-                            headerBackground: '#6366f1',
-                            bodyBackground: '#ffffff',
-                            borderColor: '#818cf8',
-                            headerTextColor: '#ffffff',
+
+                          // Reset drag state after a delay (when user stops dragging)
+                          if (dragResetTimeoutRef.current) {
+                            clearTimeout(dragResetTimeoutRef.current);
                           }
-                        };
-                      }
-                      if (isCompoundNode) {
-                        return {
-                          label: 'Compound',
-                          description: '',
-                          subcomponents: [],
-                          containerPadding: 12,
-                          gap: 8,
-                          colors: {
-                            headerBackground: '#059669',
-                            bodyBackground: '#ffffff',
-                            borderColor: '#10b981',
-                            headerTextColor: '#ffffff',
-                          }
-                        };
-                      }
-                      return {
-                        label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
-                        description: `Configure ${type} settings`,
-                        icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
-                        iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
-                      };
-                    };
+                          dragResetTimeoutRef.current = setTimeout(() => {
+                            isDraggingRef.current = false;
+                          }, 200); // Reset after 200ms of no drag activity
 
-                    const isImageNode = type === 'image';
-                    const getNodeDimensions = () => {
-                      if (isTableNode) return { width: 560, height: 400 };
-                      if (isFormNode) return { width: 320, height: 200 };
-                      if (isCompoundNode) return { width: 320, height: 280 };
-                      if (isImageNode) return { width: 240, height: 240 };
-                      return { width: 200, height: 100 };
-                    };
+                          setNodes(changes as Node[]);
+                          // Don't save to history on every drag move, only on drag end
+                        } else {
+                          // Change-based updates
 
-                    const dimensions = getNodeDimensions();
-                    const newNode: Node = {
-                      id: nodeId,
-                      type,
-                      position: getViewportCenteredPosition(),
-                      data: getNodeData(),
-                      width: dimensions.width,
-                      height: dimensions.height,
-                      style: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? dimensions : undefined,
-                      resizable: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? true : undefined
-                    };
+                          // Separate node changes by type for better history tracking
+                          const selectionChanges = changes.filter(
+                            (c) => c.type === "select",
+                          );
+                          const positionChanges = changes.filter(
+                            (c) => c.type === "position",
+                          );
+                          const removalChanges = changes.filter(
+                            (c) => c.type === "remove",
+                          );
+                          const otherChanges = changes.filter(
+                            (c) =>
+                              c.type &&
+                              !["select", "position", "remove"].includes(
+                                c.type,
+                              ),
+                          );
 
-                    setNodes([newNode]);
-                    saveToHistory('Add node');
-                  }, 0);
-                  return;
-                }
+                          // Process selection and position changes in batch (they don't change structure)
+                          if (
+                            selectionChanges.length > 0 ||
+                            positionChanges.length > 0
+                          ) {
+                            setNodes((prev) => {
+                              let newNodes = [...prev];
+                              [...selectionChanges, ...positionChanges].forEach(
+                                (change) => {
+                                  if (
+                                    change.type === "position" &&
+                                    change.position
+                                  ) {
+                                    const nodeIndex = newNodes.findIndex(
+                                      (n) => n.id === change.id,
+                                    );
+                                    if (nodeIndex >= 0) {
+                                      newNodes[nodeIndex] = {
+                                        ...newNodes[nodeIndex],
+                                        position: change.position,
+                                      };
+                                    }
+                                  } else if (change.type === "select") {
+                                    const nodeIndex = newNodes.findIndex(
+                                      (n) => n.id === change.id,
+                                    );
+                                    if (nodeIndex >= 0) {
+                                      newNodes[nodeIndex] = {
+                                        ...newNodes[nodeIndex],
+                                        selected: change.selected,
+                                      };
+                                    }
+                                  }
+                                },
+                              );
+                              return newNodes;
+                            });
 
-                // For types like 'text', 'sticky', 'shape', create canvas objects instead of nodes
-                if (['text', 'sticky', 'shape'].includes(type)) {
-                  saveToHistory('Add canvas object'); // Save current state before adding canvas object
-                  
-                  let newCanvasObject: CanvasObject;
-                  
-                  if (type === 'text') {
-                    newCanvasObject = {
-                      id: `object-${Date.now()}`,
-                      type: 'text',
-                      position: getViewportCenteredPosition(),
-                      data: { text: 'Click to edit text', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', textColor: '#000000' } as any,
-                      style: { width: 200, height: 100 },
-                      width: 200,
-                      height: 100,
-                      draggable: true,
-                      resizable: true
-                    };
-                  } else if (type === 'sticky') {
-                    newCanvasObject = {
-                      id: `object-${Date.now()}`,
-                      type: 'sticky',
-                      position: getViewportCenteredPosition(),
-                      data: { text: 'Your note here...', backgroundColor: '#fef3c7', textColor: '#92400e', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' } as any,
-                      style: { width: 180, height: 180 },
-                      width: 180,
-                      height: 180,
-                      draggable: true,
-                      resizable: true
-                    };
-                  } else {
-                    newCanvasObject = {
-                      id: `object-${Date.now()}`,
-                      type: 'shape',
-                      position: getViewportCenteredPosition(),
-                      data: { shapeType: 'rectangle', fillColor: '#3b82f6', fillOpacity: 0.5, fillStyle: 'solid', strokeColor: '#3b82f6', strokeOpacity: 1.0, strokeWidth: 2, strokeStyle: 'solid', opacity: 1 } as any,
-                      style: { width: 200, height: 100 },
-                      width: 200,
-                      height: 100,
-                      draggable: true,
-                      resizable: true
-                    };
-                  }
-                  
-                  // Add to canvas objects instead of regular nodes
-                  const currentCanvasObjects = activeTab?.canvasObjects || [];
-                  updateActiveTab({ canvasObjects: [...currentCanvasObjects, newCanvasObject] });
-                  
-                  // Toast notification for canvas object creation
-                  const objectTypeLabel = type === 'text' ? 'Text object' : type === 'sticky' ? 'Sticky note' : 'Shape';
-                  toast({
-                    title: `${objectTypeLabel} Added`,
-                    description: `${objectTypeLabel} added to canvas`,
-                    variant: "default"
-                  });
-                  return;
-                }
-
-                // Normal case - add to existing tab (for input, process, condition, output, ai, image, table, form, compound)
-                saveToHistory('Add node'); // Save current state before adding node
-                const icons = {
-                  input: { icon: 'ArrowRight', color: 'text-blue-500' },
-                  process: { icon: 'Cog', color: 'text-green-500' },
-                  condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
-                  output: { icon: 'ArrowLeft', color: 'text-red-500' },
-                  ai: { icon: 'Bot', color: 'text-purple-500' },
-                  image: { icon: 'Image', color: 'text-indigo-500' },
-                  table: { icon: 'Table2', color: 'text-indigo-500' },
-                  compound: { icon: 'Layers', color: 'text-emerald-500' }
-                };
-
-                const nodeId = `node-${Date.now()}`;
-                const isTableNode = type === 'table';
-                const isFormNode = type === 'form';
-                const isCompoundNode = type === 'compound';
-                const tableId = isTableNode ? `table-${nodeId}` : undefined;
-
-                const getNodeData = () => {
-                  if (isTableNode) {
-                    return {
-                      label: 'Table',
-                      tableId,
-                      previewRowCount: 3,
-                      previewColumnCount: 4,
-                      showRowNumbers: true,
-                      colors: {
-                        headerBackground: '#4f46e5',
-                        bodyBackground: '#ffffff',
-                        headerTextColor: '#ffffff',
-                        bodyTextColor: '#374151',
-                      }
-                    };
-                  }
-                  if (isFormNode) {
-                    return {
-                      label: 'Form',
-                      formTitle: 'Form',
-                      fields: [],
-                      showLabels: true,
-                      layout: 'vertical',
-                      colors: {
-                        headerBackground: '#6366f1',
-                        bodyBackground: '#ffffff',
-                        borderColor: '#818cf8',
-                        headerTextColor: '#ffffff',
-                      }
-                    };
-                  }
-                  if (isCompoundNode) {
-                    return {
-                      label: 'Compound',
-                      description: '',
-                      subcomponents: [],
-                      containerPadding: 12,
-                      gap: 8,
-                      colors: {
-                        headerBackground: '#059669',
-                        bodyBackground: '#ffffff',
-                        borderColor: '#10b981',
-                        headerTextColor: '#ffffff',
-                      }
-                    };
-                  }
-                  return {
-                    label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
-                    description: `Configure ${type} settings`,
-                    icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
-                    iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
-                  };
-                };
-
-                const isImageNode = type === 'image';
-                const getNodeDimensions = () => {
-                  if (isTableNode) return { width: 560, height: 400 };
-                  if (isFormNode) return { width: 320, height: 200 };
-                  if (isCompoundNode) return { width: 320, height: 280 };
-                  if (isImageNode) return { width: 240, height: 240 };
-                  return { width: 200, height: 100 };
-                };
-
-                const dimensions = getNodeDimensions();
-                const newNode: Node = {
-                  id: nodeId,
-                  type,
-                  position: getViewportCenteredPosition(),
-                  data: getNodeData(),
-                  width: dimensions.width,
-                  height: dimensions.height,
-                  style: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? dimensions : undefined,
-                  resizable: (isTableNode || isFormNode || isCompoundNode || isImageNode) ? true : undefined
-                };
-
-                setNodes(prev => [...prev, newNode]);
-                
-                // Toast notification for node creation
-                toast({
-                  title: "Node Added",
-                  description: `${newNode.data.label} added to canvas`,
-                  variant: "default"
-                });
-              }}
-              onCreateNodeAtPosition={(type: string, position: { x: number; y: number }) => {
-                // Create a new tab if none are open
-                if (openTabs.length === 0) {
-                  const newTab = createBlankTab();
-                  setTabs(prev => [...prev, newTab]);
-                  setActiveTabId(newTab.id);
-                  return;
-                }
-
-                // Convert screen position to world position (using same logic as getViewportCenteredPosition)
-                const worldPosition = {
-                  x: Math.round((position.x - viewport.x) / viewport.zoom),
-                  y: Math.round((position.y - viewport.y) / viewport.zoom)
-                };
-                
-                // For canvas objects (text, sticky, shape)
-                if (['text', 'sticky', 'shape'].includes(type)) {
-                  saveToHistory('Add canvas object');
-                  
-                  let newCanvasObject: CanvasObject;
-                  
-                  if (type === 'text') {
-                    newCanvasObject = {
-                      id: `object-${Date.now()}`,
-                      type: 'text',
-                      position: worldPosition,
-                      data: { text: 'Click to edit text', fontSize: 16, fontFamily: 'Inter, system-ui, sans-serif', textColor: '#000000' } as any,
-                      style: { width: 200, height: 100 },
-                      width: 200,
-                      height: 100,
-                      draggable: true,
-                      resizable: true
-                    };
-                  } else if (type === 'sticky') {
-                    newCanvasObject = {
-                      id: `object-${Date.now()}`,
-                      type: 'sticky',
-                      position: worldPosition,
-                      data: { text: 'Your note here...', backgroundColor: '#fef3c7', textColor: '#92400e', fontSize: 14, fontFamily: 'Inter, system-ui, sans-serif' } as any,
-                      style: { width: 180, height: 180 },
-                      width: 180,
-                      height: 180,
-                      draggable: true,
-                      resizable: true
-                    };
-                  } else {
-                    newCanvasObject = {
-                      id: `object-${Date.now()}`,
-                      type: 'shape',
-                      position: worldPosition,
-                      data: { shapeType: 'rectangle', fillColor: '#3b82f6', fillOpacity: 0.5, fillStyle: 'solid', strokeColor: '#3b82f6', strokeOpacity: 1.0, strokeWidth: 2, strokeStyle: 'solid', opacity: 1 } as any,
-                      style: { width: 200, height: 100 },
-                      width: 200,
-                      height: 100,
-                      draggable: true,
-                      resizable: true
-                    };
-                  }
-                  
-                  const currentCanvasObjects = activeTab?.canvasObjects || [];
-                  updateActiveTab({ canvasObjects: [...currentCanvasObjects, newCanvasObject] });
-                  
-                  // Toast notification for canvas object creation
-                  const objectTypeLabel = type === 'text' ? 'Text object' : type === 'sticky' ? 'Sticky note' : 'Shape';
-                  toast({
-                    title: `${objectTypeLabel} Added`,
-                    description: `${objectTypeLabel} added to canvas`,
-                    variant: "default"
-                  });
-                  return;
-                }
-
-                // For regular nodes (input, process, condition, output, ai, image, table, form, compound)
-                saveToHistory('Add node');
-                
-                const icons = {
-                  input: { icon: 'ArrowRight', color: 'text-blue-500' },
-                  process: { icon: 'Cog', color: 'text-green-500' },
-                  condition: { icon: 'HelpCircle', color: 'text-yellow-500' },
-                  output: { icon: 'ArrowLeft', color: 'text-red-500' },
-                  ai: { icon: 'Bot', color: 'text-purple-500' },
-                  image: { icon: 'Image', color: 'text-indigo-500' },
-                  table: { icon: 'Table2', color: 'text-teal-500' },
-                  form: { icon: 'FormInput', color: 'text-pink-500' },
-                  compound: { icon: 'LayoutGrid', color: 'text-emerald-500' }
-                };
-
-                const nodeId = `node-${Date.now()}`;
-                const isTableNode = type === 'table';
-                const isFormNode = type === 'form';
-                const isCompoundNode = type === 'compound';
-                const isImageNode = type === 'image';
-                const isCodeNode = type === 'code';
-                const tableId = isTableNode ? `table-${nodeId}` : undefined;
-
-                const getNodeData = () => {
-                  if (isTableNode) {
-                    return {
-                      label: 'Table',
-                      tableId,
-                      previewRowCount: 3,
-                      previewColumnCount: 4,
-                      showRowNumbers: true,
-                      colors: {
-                        headerBackground: '#4f46e5',
-                        bodyBackground: '#ffffff',
-                        headerTextColor: '#ffffff',
-                        bodyTextColor: '#374151',
-                      }
-                    };
-                  }
-                  if (isFormNode) {
-                    return {
-                      label: 'Form',
-                      formTitle: 'Form',
-                      fields: [],
-                      showLabels: true,
-                      layout: 'vertical',
-                      colors: {
-                        headerBackground: '#6366f1',
-                        bodyBackground: '#ffffff',
-                        borderColor: '#818cf8',
-                        headerTextColor: '#ffffff',
-                      }
-                    };
-                  }
-                  if (isCompoundNode) {
-                    return {
-                      label: 'Compound',
-                      description: '',
-                      subcomponents: [],
-                      containerPadding: 12,
-                      gap: 8,
-                      colors: {
-                        headerBackground: '#059669',
-                        bodyBackground: '#ffffff',
-                        borderColor: '#10b981',
-                        headerTextColor: '#ffffff',
-                      }
-                    };
-                  }
-                  if (isCodeNode) {
-                    return {
-                      label: 'Code',
-                      code: '',
-                      language: 'javascript',
-                      showOutput: true,
-                      outputHeight: 120,
-                      colors: {
-                        headerBackground: '#1e1e1e',
-                        bodyBackground: '#252526',
-                        headerTextColor: '#d4d4d4',
-                      }
-                    };
-                  }
-                  return {
-                    label: type === 'image' ? 'Image' : `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
-                    description: `Configure ${type} settings`,
-                    icon: icons[type as keyof typeof icons]?.icon || 'fas fa-cube',
-                    iconColor: icons[type as keyof typeof icons]?.color || 'text-gray-500'
-                  };
-                };
-
-                // Calculate position offset based on node type for centering
-                const halfWidth = isTableNode ? 280 : isFormNode ? 160 : isCompoundNode ? 160 : isCodeNode ? 200 : isImageNode ? 120 : 100;
-                const halfHeight = isTableNode ? 200 : isFormNode ? 100 : isCompoundNode ? 140 : isCodeNode ? 175 : isImageNode ? 120 : 50;
-
-                const newNode: Node = {
-                  id: nodeId,
-                  type,
-                  position: { x: worldPosition.x - halfWidth, y: worldPosition.y - halfHeight },
-                  data: getNodeData(),
-                  width: isTableNode ? 560 : isFormNode ? 320 : isCompoundNode ? 320 : isCodeNode ? 400 : isImageNode ? 240 : 200,
-                  height: isTableNode ? 400 : isFormNode ? 200 : isCompoundNode ? 280 : isCodeNode ? 350 : isImageNode ? 240 : 100,
-                  style: isTableNode ? { width: 560, height: 400 } : isFormNode ? { width: 320, height: 200 } : isCompoundNode ? { width: 320, height: 280 } : isCodeNode ? { width: 400, height: 350 } : isImageNode ? { width: 240, height: 240 } : undefined,
-                  resizable: isTableNode || isFormNode || isCompoundNode || isCodeNode || isImageNode ? true : undefined
-                };
-
-                setNodes(prev => [...prev, newNode]);
-                
-                // Toast notification for node creation
-                toast({
-                  title: "Node Added",
-                  description: `${newNode.data.label} added to canvas`,
-                  variant: "default"
-                });
-              }}
-              onFitView={() => {
-                if (nodes.length === 0) {
-                  setViewport({ x: 0, y: 0, zoom: 1 });
-                  return;
-                }
-
-                // Calculate bounding box of all nodes
-                let minX = Infinity;
-                let minY = Infinity;
-                let maxX = -Infinity;
-                let maxY = -Infinity;
-
-                nodes.forEach(node => {
-                  const w = node.style?.width ?? node.width ?? 200;
-                  const h = node.style?.height ?? node.height ?? 100;
-                  
-                  minX = Math.min(minX, node.position.x);
-                  minY = Math.min(minY, node.position.y);
-                  maxX = Math.max(maxX, node.position.x + w);
-                  maxY = Math.max(maxY, node.position.y + h);
-                });
-
-                // Add padding around the content
-                const padding = 100;
-                const contentWidth = maxX - minX + (padding * 2);
-                const contentHeight = maxY - minY + (padding * 2);
-
-                // Canvas dimensions (approximate viewport size)
-                const canvasWidth = 800;
-                const canvasHeight = 600;
-
-                // Calculate zoom to fit content with margin
-                const zoomX = (canvasWidth * 0.9) / contentWidth;
-                const zoomY = (canvasHeight * 0.9) / contentHeight;
-                const zoom = Math.max(0.1, Math.min(1.2, Math.min(zoomX, zoomY)));
-
-                // Calculate content center
-                const contentCenterX = (minX + maxX) / 2;
-                const contentCenterY = (minY + maxY) / 2;
-
-                // Calculate viewport translation to center content
-                const x = (canvasWidth / 2) - (contentCenterX * zoom);
-                const y = (canvasHeight / 2) - (contentCenterY * zoom);
-
-                setViewport({ x, y, zoom });
-              }}
-              onClearCanvas={() => {
-                saveToHistory('Clear canvas');
-                setNodes([]);
-                setEdges([]);
-                setSelectedNodeId('');
-                setSelectedEdgeId('');
-              }}
-              onExport={() => {
-                const comprehensiveWorkflow = {
-                  version: "1.0",
-                  timestamp: new Date().toISOString(),
-                  workflow: {
-                    id: activeTab?.id || `workflow-${Date.now()}`,
-                    name: activeTab?.name || 'My Workflow',
-                    description: activeTab?.metadata?.description || '',
-                    links: activeTab?.metadata?.links || [],
-                    categories: activeTab?.metadata?.categories || []
-                  },
-                  canvas: {
-                    nodes: nodes.map(node => ({
-                      ...node,
-                      data: { ...node.data },
-                      style: node.style || {}
-                    })),
-                    edges: edges.map(edge => ({
-                      ...edge,
-                      style: edge.style || {},
-                      data: edge.data || {}
-                    })),
-                    canvasObjects: canvasObjects.map(obj => ({
-                      ...obj,
-                      data: { ...obj.data },
-                      style: obj.style || {}
-                    })),
-                    viewport: { ...viewport }
-                  }
-                };
-                
-                const dataStr = JSON.stringify(comprehensiveWorkflow, null, 2);
-                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                const safeFileName = comprehensiveWorkflow.workflow.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                const exportFileDefaultName = `${safeFileName}_complete_workflow.json`;
-                
-                const linkElement = document.createElement('a');
-                linkElement.setAttribute('href', dataUri);
-                linkElement.setAttribute('download', exportFileDefaultName);
-                linkElement.click();
-                
-                toast({
-                  title: "Workflow Exported",
-                  description: `"${comprehensiveWorkflow.workflow.name}" exported with all content and styling`,
-                });
-              }}
-              onImport={() => {
-                // Create hidden file input for importing and appending to existing workflow
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = '.json';
-                input.onchange = (e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0];
-                  if (!file) return;
-                  
-                  const reader = new FileReader();
-                  reader.onload = (event) => {
-                    try {
-                      const data = JSON.parse(event.target?.result as string);
-                      appendImportedWorkflowToCanvas(data);
-                    } catch (error) {
-                      toast({
-                        title: "Import Failed",
-                        description: "Invalid JSON file. Please select a valid workflow file.",
-                        variant: "destructive"
-                      });
-                    }
-                  };
-                  reader.readAsText(file);
-                };
-                input.click();
-              }}
-              onNodeUpdate={(nodeId: string, updates: Partial<Node>) => {
-                setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, ...updates } : n));
-                saveToHistory('Update node');
-              }}
-              onBulkNodeUpdate={(nodeIds: string[], updates: Partial<Node>) => {
-                setNodes(prev => prev.map(n => 
-                  nodeIds.includes(n.id) 
-                    ? { 
-                        ...n, 
-                        ...updates,
-                        data: updates.data ? { ...n.data, ...updates.data } : n.data
-                      } 
-                    : n
-                ));
-                saveToHistory('Update nodes');
-              }}
-              onEdgeUpdate={(edgeId: string, updates: Partial<Edge>) => {
-                setEdges(prev => prev.map(e => e.id === edgeId ? { ...e, ...updates } : e));
-                saveToHistory('Update edge');
-              }}
-              onDeselectNode={() => {
-                setSelectedNodeId('');
-                setNodes(prev => prev.map(n => ({ ...n, selected: false })));
-              }}
-              onCanvasObjectUpdate={(objectId: string, updates: Partial<TextNodeData | ShapeNodeData | StickyNoteData>) => {
-                const targetObj = canvasObjects.find(obj => obj.id === objectId);
-                if (!targetObj) return;
-                
-                const nextData = { ...targetObj.data, ...updates };
-                
-                // Shallow equality check to prevent unnecessary updates
-                const shallowEqual = (obj1: any, obj2: any) => {
-                  const keys1 = Object.keys(obj1);
-                  const keys2 = Object.keys(obj2);
-                  if (keys1.length !== keys2.length) return false;
-                  return keys1.every(key => obj1[key] === obj2[key]);
-                };
-                
-                if (shallowEqual(targetObj.data, nextData)) {
-                  return; // No change, skip update
-                }
-                
-                const updatedObjects = canvasObjects.map(obj =>
-                  obj.id === objectId
-                    ? { ...obj, data: nextData }
-                    : obj
-                );
-                updateActiveTab({ canvasObjects: updatedObjects });
-                saveToHistory('Update canvas object');
-              }}
-              onDeselectCanvasObjects={() => {
-                const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
-                updateActiveTab({ canvasObjects: updatedObjects });
-              }}
-              selectedCanvasObjects={selectedCanvasObjects}
-              onImageUpload={(nodeId: string, objectPath: string, filename?: string) => {
-                // Update the node with the image data and auto-size
-                const img = new Image();
-                img.onload = () => {
-                  const maxWidth = 300;
-                  const maxHeight = 250;
-                  const headerHeight = 30;
-                  
-                  const aspectRatio = img.naturalWidth / img.naturalHeight;
-                  let imageWidth = img.naturalWidth;
-                  let imageHeight = img.naturalHeight;
-                  
-                  // Scale down if needed to fit constraints
-                  const scaleX = imageWidth > maxWidth ? maxWidth / imageWidth : 1;
-                  const scaleY = imageHeight > maxHeight ? maxHeight / imageHeight : 1;
-                  const scale = Math.min(scaleX, scaleY, 1); // Don't scale up
-                  
-                  imageWidth = Math.round(imageWidth * scale);
-                  imageHeight = Math.round(imageHeight * scale);
-                  
-                  setNodes(prev => prev.map(n => 
-                    n.id === nodeId 
-                      ? { 
-                          ...n, 
-                          width: Math.max(200, imageWidth + 20), // Add padding
-                          height: imageHeight + headerHeight + 20, // Add header and padding
-                          data: { ...n.data, src: objectPath, filename }
-                        }
-                      : n
-                  ));
-                  saveToHistory('Upload image');
-                };
-                img.src = objectPath;
-              }}
-              onImageUrl={(nodeId: string, url: string) => {
-                // Update the node with the image URL and auto-size
-                const img = new Image();
-                img.onload = () => {
-                  const maxWidth = 300;
-                  const maxHeight = 250;
-                  const headerHeight = 30;
-                  
-                  const aspectRatio = img.naturalWidth / img.naturalHeight;
-                  let imageWidth = img.naturalWidth;
-                  let imageHeight = img.naturalHeight;
-                  
-                  // Scale down if needed to fit constraints
-                  const scaleX = imageWidth > maxWidth ? maxWidth / imageWidth : 1;
-                  const scaleY = imageHeight > maxHeight ? maxHeight / imageHeight : 1;
-                  const scale = Math.min(scaleX, scaleY, 1); // Don't scale up
-                  
-                  imageWidth = Math.round(imageWidth * scale);
-                  imageHeight = Math.round(imageHeight * scale);
-                  
-                  setNodes(prev => prev.map(n => 
-                    n.id === nodeId 
-                      ? { 
-                          ...n, 
-                          width: Math.max(200, imageWidth + 20), // Add padding
-                          height: imageHeight + headerHeight + 20, // Add header and padding
-                          data: { ...n.data, src: url, sourceUrl: url }
-                        }
-                      : n
-                  ));
-                  saveToHistory('Set image URL');
-                };
-                img.src = url;
-              }}
-              showImageModal={showImageModal}
-              onOpenImageModal={setShowImageModal}
-              onCloseImageModal={() => setShowImageModal(null)}
-              onOpenAiGenerator={() => setShowAiGenerator(true)}
-              onSnapshot={handleSnapshot}
-              onVersionHistory={handleVersionHistory}
-              onApplyTheme={(theme) => {
-                // Update current theme state
-                setCurrentTheme(theme);
-                localStorage.setItem('workflow-theme', theme.id);
-                
-                // Apply theme to all nodes using the enhanced helper function
-                setNodes(prev => prev.map(node => ({
-                  ...node,
-                  data: applyThemeToNode(node.data, theme)
-                })));
-
-                // Apply theme to all edges using the enhanced helper function
-                setEdges(prev => prev.map(edge => applyThemeToEdge(edge, theme)));
-
-                saveToHistory('Apply theme');
-              }}
-              copiedProperties={copiedProperties}
-              onApplyToWorkflow={(colors) => {
-                // Apply colors to all nodes in the current workflow
-                saveToHistory('Apply colors to workflow');
-                setNodes(prev => prev.map(node => ({
-                  ...node,
-                  data: {
-                    ...node.data,
-                    colors: {
-                      ...node.data?.colors,
-                      headerBackground: colors.headerBackground,
-                      bodyBackground: colors.bodyBackground,
-                      headerTextColor: colors.headerTextColor,
-                      bodyTextColor: colors.bodyTextColor
-                    }
-                  }
-                })));
-              }}
-              currentWorkflow={activeTab ? {
-                id: activeTab.id,
-                name: activeTab.name,
-                nodes: activeTab.nodes,
-                edges: activeTab.edges
-              } : undefined}
-              onLoadWorkflow={(workflow) => {
-                // Create a new tab with the loaded workflow
-                const newTab: WorkflowTab = {
-                  id: workflow.id,
-                  name: workflow.name,
-                  nodes: workflow.nodes,
-                  edges: workflow.edges,
-                  canvasObjects: [],
-                  viewport: { x: 0, y: 0, zoom: 1 },
-                  selectedNodeId: '',
-                  selectedEdgeId: '',
-                  history: [{ nodes: workflow.nodes, edges: workflow.edges, canvasObjects: [], viewport: { x: 0, y: 0, zoom: 1 } }],
-                  historyIndex: 0,
-                  showImageModal: null,
-                  metadata: {
-                    name: workflow.name,
-                    description: '',
-                    links: [],
-                    linksFormat: 'bulleted',
-                    categories: []
-                  },
-                  projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-                };
-                
-                setTabs(prev => [...prev, newTab]);
-                setActiveTabId(newTab.id);
-              }}
-              onCreateTemplate={(templateType: string) => {
-                // Create a new tab if none are open
-                if (openTabs.length === 0) {
-                  const newTab = createBlankTab();
-                  setTabs(prev => [...prev, newTab]);
-                  setActiveTabId(newTab.id);
-                  // Wait for the tab to be created before adding the template
-                  setTimeout(() => {
-                    handleAddTemplateToCurrentTab(templateType);
-                  }, 50);
-                  return;
-                }
-
-                // Normal case - add template to current active tab
-                handleAddTemplateToCurrentTab(templateType);
-              }}
-              onCreateTemplateAtPosition={(templateType: string, position: { x: number; y: number }) => {
-                // Create a new tab if none are open
-                if (openTabs.length === 0) {
-                  const newTab = createBlankTab();
-                  setTabs(prev => [...prev, newTab]);
-                  setActiveTabId(newTab.id);
-                  // Wait for the tab to be created before adding the template
-                  setTimeout(() => {
-                    handleAddTemplateToCurrentTab(templateType, position);
-                  }, 50);
-                  return;
-                }
-
-                // Normal case - add template to current active tab with position
-                handleAddTemplateToCurrentTab(templateType, position);
-              }}
-              viewport={viewport}
-              connectionAnimationConfig={connectionAnimationConfig}
-              onConnectionAnimationConfigChange={setConnectionAnimationConfig}
-              savedTemplates={savedTemplates}
-              tables={nodes
-                .filter(n => n.type === 'table' && n.data?.tableId)
-                .map(n => n.data?.table || { id: n.data?.tableId || '', name: n.data?.label || 'Table', columns: [], rows: [] })
-                .filter((t): t is DataTable => !!t)}
-              onCreateFromSavedTemplate={(templateId: string, position: { x: number; y: number }) => {
-                const template = savedTemplates.find(t => t.id === templateId);
-                if (!template) return;
-                
-                const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-                const nodeId = `node-${uniqueId}`;
-                const newNode: Node = {
-                  id: nodeId,
-                  type: 'compound',
-                  position,
-                  data: {
-                    label: template.name,
-                    description: template.description || '',
-                    subcomponents: template.subcomponents?.map((s, i) => ({
-                      ...s,
-                      id: `${nodeId}-sub-${i}-${Math.random().toString(36).slice(2, 6)}`
-                    })) || [],
-                    containerPadding: template.containerPadding || 12,
-                    gap: template.gap || 8,
-                    colors: template.colors || {
-                      headerBackground: '#059669',
-                      bodyBackground: '#ffffff',
-                      borderColor: '#10b981',
-                      headerTextColor: '#ffffff',
-                    },
-                    sourceTemplateId: template.id,
-                  },
-                  width: template.defaultWidth || 320,
-                  height: template.defaultHeight || 280,
-                  style: { width: template.defaultWidth || 320, height: template.defaultHeight || 280 },
-                  resizable: true
-                };
-                
-                setNodes(prev => [...prev, newNode]);
-                saveToHistory('Create from template');
-              }}
-              onDeleteSavedTemplate={deleteTemplate}
-              onRenameSavedTemplate={(templateId: string, newName: string) => {
-                updateTemplate(templateId, { name: newName });
-              }}
-              onLinkTemplateToTable={(templateId: string, tableId: string) => {
-                const template = savedTemplates.find(t => t.id === templateId);
-                if (!template) return;
-                handleGenerateFromTemplate(tableId, template);
-              }}
-              />
-            )}
-          </div>
-
-          {/* Canvas Area */}
-          <div 
-            ref={canvasContainerRef}
-            className={`flex-1 relative ${openTabs.length > 0 ? 'overflow-hidden' : 'overflow-y-auto'}`}
-          >
-            
-            {openTabs.length > 0 ? (
-              <>
-                <WorkflowCanvas
-                data-testid="workflow-canvas"
-                nodes={nodes}
-                edges={edges}
-                canvasObjects={canvasObjects}
-                viewport={viewport}
-                onViewportChange={setViewport}
-                onCanvasObjectsChange={(newCanvasObjects) => {
-                  updateActiveTab({ canvasObjects: newCanvasObjects });
-                  saveToHistory('Update canvas objects');
-                }}
-              proFeatures={proFeaturesConfig}
-              onQuickAdd={handleQuickAdd}
-              workflowName={activeTab?.name}
-              onWorkflowNameChange={setWorkflowName}
-              workflowMetadata={metadata}
-              onWorkflowMetadataChange={setProjectMetadata}
-              onEdgeReconnect={handleEdgeReconnect}
-              connectionAnimationConfig={connectionAnimationConfig}
-              connectionPreview={connectionPreview}
-              onNodesChange={(changes) => {
-                // Handle both array of changes and direct node array updates
-                if (Array.isArray(changes) && changes.length > 0) {
-                  // Check if it's a direct nodes array update (from drag operations or node updates)
-                  // Nodes have a 'type' property that is the node type ('input', 'ai', etc.)
-                  // Changes have a 'type' property that is the change type ('position', 'select', etc.)
-                  const isNodeArray = changes[0].id && changes[0].position && 
-                    (changes[0].type === 'input' || changes[0].type === 'ai' || 
-                     changes[0].type === 'condition' || changes[0].type === 'output' || 
-                     changes[0].type === 'process' || changes[0].type === 'image' ||
-                     changes[0].type === 'form' || changes[0].type === 'compound' || 
-                     changes[0].type === 'table' || changes[0].type === 'shape');
-                  
-                  if (isNodeArray) {
-                    // Direct nodes array from KiteFrameCanvas drag operations
-                    
-                    // Mark as dragging to prevent properties panel from opening
-                    isDraggingRef.current = true;
-                    
-                    // Hide linear toolbar during drag for performance
-                    setLinearToolbar(null);
-                    
-                    // Cancel any pending click delay timer since we're now dragging
-                    if (clickDelayTimeoutRef.current) {
-                      clearTimeout(clickDelayTimeoutRef.current);
-                      clickDelayTimeoutRef.current = null;
-                    }
-                    
-                    // Reset drag state after a delay (when user stops dragging)
-                    if (dragResetTimeoutRef.current) {
-                      clearTimeout(dragResetTimeoutRef.current);
-                    }
-                    dragResetTimeoutRef.current = setTimeout(() => {
-                      isDraggingRef.current = false;
-                    }, 200); // Reset after 200ms of no drag activity
-                    
-                    setNodes(changes as Node[]);
-                    // Don't save to history on every drag move, only on drag end
-                  } else {
-                    // Change-based updates
-
-                    // Separate node changes by type for better history tracking
-                    const selectionChanges = changes.filter(c => c.type === 'select');
-                    const positionChanges = changes.filter(c => c.type === 'position');
-                    const removalChanges = changes.filter(c => c.type === 'remove');
-                    const otherChanges = changes.filter(c => c.type && !['select', 'position', 'remove'].includes(c.type));
-
-                    // Process selection and position changes in batch (they don't change structure)
-                    if (selectionChanges.length > 0 || positionChanges.length > 0) {
-                      setNodes(prev => {
-                        let newNodes = [...prev];
-                        [...selectionChanges, ...positionChanges].forEach(change => {
-                          if (change.type === 'position' && change.position) {
-                            const nodeIndex = newNodes.findIndex(n => n.id === change.id);
-                            if (nodeIndex >= 0) {
-                              newNodes[nodeIndex] = { ...newNodes[nodeIndex], position: change.position };
-                            }
-                          } else if (change.type === 'select') {
-                            const nodeIndex = newNodes.findIndex(n => n.id === change.id);
-                            if (nodeIndex >= 0) {
-                              newNodes[nodeIndex] = { ...newNodes[nodeIndex], selected: change.selected };
+                            // Only save to history for position changes (structural changes)
+                            if (positionChanges.length > 0) {
+                              saveToHistory("Move node");
                             }
                           }
-                        });
-                        return newNodes;
-                      });
-                      
-                      // Only save to history for position changes (structural changes)
-                      if (positionChanges.length > 0) {
-                        saveToHistory('Move node');
-                      }
-                    }
 
-                    // Process removal changes individually
-                    if (removalChanges.length > 0) {
-                      removalChanges.forEach((change, index) => {
-                        setNodes(prev => {
-                          const newNodes = prev.filter(n => n.id !== change.id);
-                          return newNodes;
-                        });
-                        
-                        // Save to history after each node removal
-                        setTimeout(() => saveToHistory('Delete node'), 10 * (index + 1));
-                      });
-                    }
+                          // Process removal changes individually
+                          if (removalChanges.length > 0) {
+                            removalChanges.forEach((change, index) => {
+                              setNodes((prev) => {
+                                const newNodes = prev.filter(
+                                  (n) => n.id !== change.id,
+                                );
+                                return newNodes;
+                              });
 
-                    // Process other changes
-                    if (otherChanges.length > 0) {
-                      setNodes(prev => {
-                        let newNodes = [...prev];
-                        otherChanges.forEach(change => {
-                          // Handle any other change types here
-                        });
-                        return newNodes;
-                      });
-                      saveToHistory('Update node');
-                    }
-                  }
-                }
-              }}
-              onEdgesChange={(changes: any[]) => {
-                // Separate changes by type for individual history tracking
-                const selectionChanges = changes.filter(c => c.type === 'select');
-                const removalChanges = changes.filter(c => c.type === 'remove');
-                const otherChanges = changes.filter(c => c.type !== 'select' && c.type !== 'remove');
+                              // Save to history after each node removal
+                              setTimeout(
+                                () => saveToHistory("Delete node"),
+                                10 * (index + 1),
+                              );
+                            });
+                          }
 
-                // Process selection changes in batch (don't save to history)
-                if (selectionChanges.length > 0) {
-                  setEdges(prev => {
-                    let newEdges = [...prev];
-                    selectionChanges.forEach(change => {
-                      const edgeIndex = newEdges.findIndex(e => e.id === change.id);
-                      if (edgeIndex >= 0) {
-                        newEdges[edgeIndex] = { ...newEdges[edgeIndex], selected: change.selected };
-                      }
-                    });
-                    return newEdges;
-                  });
-                }
-
-                // Process removal changes individually (save to history for each)
-                if (removalChanges.length > 0) {
-                  removalChanges.forEach((change, index) => {
-                    setEdges(prev => {
-                      const newEdges = prev.filter(e => e.id !== change.id);
-                      return newEdges;
-                    });
-                    
-                    // Save to history after each edge removal
-                    setTimeout(() => saveToHistory('Delete edge'), 10 * (index + 1)); // Stagger the saves slightly
-                  });
-                }
-
-                // Process other changes in batch
-                if (otherChanges.length > 0) {
-                  setEdges(prev => {
-                    let newEdges = [...prev];
-                    otherChanges.forEach(change => {
-                      // Handle any other change types here
-                    });
-                    return newEdges;
-                  });
-                  saveToHistory('Update edge');
-                }
-              }}
-              onConnect={(connection) => {
-                // Check if this is a TableNode→FormNode edge
-                const sourceNode = nodes.find(n => n.id === connection.source);
-                const targetNode = nodes.find(n => n.id === connection.target);
-                
-                // Handle table→form data linking
-                if (sourceNode?.type === 'table' && targetNode?.type === 'form') {
-                  const formData = targetNode.data as any;
-                  const hasExistingInputs = formData?.fields?.some((field: any) => 
-                    (field.value && field.value.trim() !== '') || field.dataLink
-                  );
-                  
-                  // Prevent linking to forms with existing input values or existing links
-                  if (hasExistingInputs) {
-                    toast({
-                      title: 'Cannot link to this form',
-                      description: 'This form already has input values. Clear the inputs first or use an empty form.',
-                      variant: 'destructive',
-                      duration: 4000,
-                    });
-                    return; // Don't create the edge
-                  }
-                  
-                  // Check if form is already linked to another table
-                  if (formData?.linkedTableId && formData.linkedTableId !== (sourceNode.data as TableNodeData).tableId) {
-                    toast({
-                      title: 'Form already linked',
-                      description: 'This form is already linked to another table. Break the existing link first.',
-                      variant: 'destructive',
-                      duration: 4000,
-                    });
-                    return; // Don't create the edge
-                  }
-                }
-                
-                // Create the edge
-                const isTableToFormLink = sourceNode?.type === 'table' && targetNode?.type === 'form';
-                const isDataToCodeLink = (sourceNode?.type === 'table' || sourceNode?.type === 'form') && targetNode?.type === 'code';
-                
-                // Build edge data based on connection type
-                let edgeData: Record<string, any> | undefined = undefined;
-                if (isTableToFormLink) {
-                  edgeData = { isDataLink: true };
-                } else if (isDataToCodeLink) {
-                  edgeData = { 
-                    isDataLink: true
-                  };
-                }
-                
-                const newEdge: Edge = {
-                  id: `edge-${Date.now()}`,
-                  source: connection.source,
-                  target: connection.target,
-                  type: 'bezier' as const,
-                  style: { strokeColor: '#3b82f6', strokeWidth: 2 },
-                  markers: { type: 'arrow' as const, position: 'end' as const },
-                  reconnectable: true, // Enable reconnection for new edges
-                  interactable: true, // Make edge clickable
-                  label: isTableToFormLink ? '🔗' : (isDataToCodeLink ? '🔗' : undefined),
-                  data: edgeData
-                };
-                setEdges(prev => [...prev, newEdge]);
-                
-                // Set linked table context for table→form connections
-                if (sourceNode?.type === 'table' && targetNode?.type === 'form') {
-                  const tableData = sourceNode.data as TableNodeData;
-                  // Resolve the table name from multiple sources with sensible fallbacks:
-                  // 1. DataTable.name (populated table)
-                  // 2. Source file name from metadata
-                  // 3. Node label (BasicNodeData)
-                  // 4. Generic fallback
-                  const tableName = tableData.table?.name 
-                    || tableData.table?.meta?.sourceFileName 
-                    || tableData.label 
-                    || 'Table';
-                  
-                  // Update the FormNode with linked table context
-                  setNodes(prev => prev.map(n => {
-                    if (n.id === targetNode.id) {
-                      return {
-                        ...n,
-                        data: {
-                          ...n.data,
-                          linkedTableId: tableData.tableId,
-                          linkedTableNodeId: sourceNode.id,
-                          linkedTableName: tableName
+                          // Process other changes
+                          if (otherChanges.length > 0) {
+                            setNodes((prev) => {
+                              let newNodes = [...prev];
+                              otherChanges.forEach((change) => {
+                                // Handle any other change types here
+                              });
+                              return newNodes;
+                            });
+                            saveToHistory("Update node");
+                          }
                         }
-                      };
-                    }
-                    return n;
-                  }));
-                  
-                  toast({
-                    title: 'Form linked to table',
-                    description: 'You can now link form inputs to table columns using the link icon.',
-                    duration: 3000,
-                  });
-                }
-                
-                // Toast notification for code and render node connections
-                const sourceType = sourceNode?.type;
-                const targetType = targetNode?.type;
-                
-                // Table/Form → Code connection
-                if ((sourceType === 'table' || sourceType === 'form') && targetType === 'code') {
-                  const sourceLabel = sourceType === 'table' ? 'Table' : 'Form';
-                  toast({
-                    title: `Now linked to ${sourceLabel}`,
-                    description: 'You can now access its data via the inputs object in your code.',
-                    duration: 3000,
-                  });
-                }
-                
-                // Code → Render connection
-                if (sourceType === 'code' && targetType === 'render') {
-                  toast({
-                    title: 'Now linked to Code',
-                    description: 'The render node will display HTML output from the code node.',
-                    duration: 3000,
-                  });
-                }
-                
-                // Any node → Code connection (for other data sources)
-                if (sourceType && targetType === 'code' && sourceType !== 'table' && sourceType !== 'form' && sourceType !== 'code') {
-                  const sourceLabel = sourceNode?.data?.label || sourceType.charAt(0).toUpperCase() + sourceType.slice(1);
-                  toast({
-                    title: `Now linked to ${sourceLabel}`,
-                    description: 'You can now access its data via the inputs object.',
-                    duration: 3000,
-                  });
-                }
-                
-                saveToHistory('Add edge');
-              }}
-              onNodeClick={(e: React.MouseEvent, node: Node) => {
-                // Clear any existing click delay timer
-                if (clickDelayTimeoutRef.current) {
-                  clearTimeout(clickDelayTimeoutRef.current);
-                  clickDelayTimeoutRef.current = null;
-                }
-                
-                if (e.shiftKey) {
-                  // Shift+click for multi-select - immediate action
-                  setNodes(prev => {
-                    const updated = prev.map(n => {
-                      if (n.id === node.id) {
-                        return { ...n, selected: !n.selected };
                       }
-                      return n;
-                    });
-                    return updated;
-                  });
-                  
-                  // Hide toolbar during multi-select
-                  setLinearToolbar(null);
-                  
-                  // Don't change selectedNodeId during multi-select to preserve the selection
-                } else {
-                  // Regular click - update selection immediately but delay properties panel
-                  setNodes(prev => {
-                    const updated = prev.map(n => ({ ...n, selected: n.id === node.id }));
-                    return updated;
-                  });
-                  
-                  // Reset drag detection
-                  isDraggingRef.current = false;
-                  
-                  // Delay opening properties panel and toolbar to detect if this becomes a drag
-                  clickDelayTimeoutRef.current = setTimeout(() => {
-                    if (!isDraggingRef.current) {
-                      setSelectedNodeId(node.id);
-                      
+                    }}
+                    onEdgesChange={(changes: any[]) => {
+                      // Separate changes by type for individual history tracking
+                      const selectionChanges = changes.filter(
+                        (c) => c.type === "select",
+                      );
+                      const removalChanges = changes.filter(
+                        (c) => c.type === "remove",
+                      );
+                      const otherChanges = changes.filter(
+                        (c) => c.type !== "select" && c.type !== "remove",
+                      );
+
+                      // Process selection changes in batch (don't save to history)
+                      if (selectionChanges.length > 0) {
+                        setEdges((prev) => {
+                          let newEdges = [...prev];
+                          selectionChanges.forEach((change) => {
+                            const edgeIndex = newEdges.findIndex(
+                              (e) => e.id === change.id,
+                            );
+                            if (edgeIndex >= 0) {
+                              newEdges[edgeIndex] = {
+                                ...newEdges[edgeIndex],
+                                selected: change.selected,
+                              };
+                            }
+                          });
+                          return newEdges;
+                        });
+                      }
+
+                      // Process removal changes individually (save to history for each)
+                      if (removalChanges.length > 0) {
+                        removalChanges.forEach((change, index) => {
+                          setEdges((prev) => {
+                            const newEdges = prev.filter(
+                              (e) => e.id !== change.id,
+                            );
+                            return newEdges;
+                          });
+
+                          // Save to history after each edge removal
+                          setTimeout(
+                            () => saveToHistory("Delete edge"),
+                            10 * (index + 1),
+                          ); // Stagger the saves slightly
+                        });
+                      }
+
+                      // Process other changes in batch
+                      if (otherChanges.length > 0) {
+                        setEdges((prev) => {
+                          let newEdges = [...prev];
+                          otherChanges.forEach((change) => {
+                            // Handle any other change types here
+                          });
+                          return newEdges;
+                        });
+                        saveToHistory("Update edge");
+                      }
+                    }}
+                    onConnect={(connection) => {
+                      // Check if this is a TableNode→FormNode edge
+                      const sourceNode = nodes.find(
+                        (n) => n.id === connection.source,
+                      );
+                      const targetNode = nodes.find(
+                        (n) => n.id === connection.target,
+                      );
+
+                      // Handle table→form data linking
+                      if (
+                        sourceNode?.type === "table" &&
+                        targetNode?.type === "form"
+                      ) {
+                        const formData = targetNode.data as any;
+                        const hasExistingInputs = formData?.fields?.some(
+                          (field: any) =>
+                            (field.value && field.value.trim() !== "") ||
+                            field.dataLink,
+                        );
+
+                        // Prevent linking to forms with existing input values or existing links
+                        if (hasExistingInputs) {
+                          toast({
+                            title: "Cannot link to this form",
+                            description:
+                              "This form already has input values. Clear the inputs first or use an empty form.",
+                            variant: "destructive",
+                            duration: 4000,
+                          });
+                          return; // Don't create the edge
+                        }
+
+                        // Check if form is already linked to another table
+                        if (
+                          formData?.linkedTableId &&
+                          formData.linkedTableId !==
+                            (sourceNode.data as TableNodeData).tableId
+                        ) {
+                          toast({
+                            title: "Form already linked",
+                            description:
+                              "This form is already linked to another table. Break the existing link first.",
+                            variant: "destructive",
+                            duration: 4000,
+                          });
+                          return; // Don't create the edge
+                        }
+                      }
+
+                      // Create the edge
+                      const isTableToFormLink =
+                        sourceNode?.type === "table" &&
+                        targetNode?.type === "form";
+                      const isDataToCodeLink =
+                        (sourceNode?.type === "table" ||
+                          sourceNode?.type === "form") &&
+                        targetNode?.type === "code";
+
+                      // Build edge data based on connection type
+                      let edgeData: Record<string, any> | undefined = undefined;
+                      if (isTableToFormLink) {
+                        edgeData = { isDataLink: true };
+                      } else if (isDataToCodeLink) {
+                        edgeData = {
+                          isDataLink: true,
+                        };
+                      }
+
+                      const newEdge: Edge = {
+                        id: `edge-${Date.now()}`,
+                        source: connection.source,
+                        target: connection.target,
+                        type: "bezier" as const,
+                        style: { strokeColor: "#3b82f6", strokeWidth: 2 },
+                        markers: {
+                          type: "arrow" as const,
+                          position: "end" as const,
+                        },
+                        reconnectable: true, // Enable reconnection for new edges
+                        interactable: true, // Make edge clickable
+                        label: isTableToFormLink
+                          ? "🔗"
+                          : isDataToCodeLink
+                            ? "🔗"
+                            : undefined,
+                        data: edgeData,
+                      };
+                      setEdges((prev) => [...prev, newEdge]);
+
+                      // Set linked table context for table→form connections
+                      if (
+                        sourceNode?.type === "table" &&
+                        targetNode?.type === "form"
+                      ) {
+                        const tableData = sourceNode.data as TableNodeData;
+                        // Resolve the table name from multiple sources with sensible fallbacks:
+                        // 1. DataTable.name (populated table)
+                        // 2. Source file name from metadata
+                        // 3. Node label (BasicNodeData)
+                        // 4. Generic fallback
+                        const tableName =
+                          tableData.table?.name ||
+                          tableData.table?.meta?.sourceFileName ||
+                          tableData.label ||
+                          "Table";
+
+                        // Update the FormNode with linked table context
+                        setNodes((prev) =>
+                          prev.map((n) => {
+                            if (n.id === targetNode.id) {
+                              return {
+                                ...n,
+                                data: {
+                                  ...n.data,
+                                  linkedTableId: tableData.tableId,
+                                  linkedTableNodeId: sourceNode.id,
+                                  linkedTableName: tableName,
+                                },
+                              };
+                            }
+                            return n;
+                          }),
+                        );
+
+                        toast({
+                          title: "Form linked to table",
+                          description:
+                            "You can now link form inputs to table columns using the link icon.",
+                          duration: 3000,
+                        });
+                      }
+
+                      // Toast notification for code and render node connections
+                      const sourceType = sourceNode?.type;
+                      const targetType = targetNode?.type;
+
+                      // Table/Form → Code connection
+                      if (
+                        (sourceType === "table" || sourceType === "form") &&
+                        targetType === "code"
+                      ) {
+                        const sourceLabel =
+                          sourceType === "table" ? "Table" : "Form";
+                        toast({
+                          title: `Now linked to ${sourceLabel}`,
+                          description:
+                            "You can now access its data via the inputs object in your code.",
+                          duration: 3000,
+                        });
+                      }
+
+                      // Code → Render connection
+                      if (sourceType === "code" && targetType === "render") {
+                        toast({
+                          title: "Now linked to Code",
+                          description:
+                            "The render node will display HTML output from the code node.",
+                          duration: 3000,
+                        });
+                      }
+
+                      // Any node → Code connection (for other data sources)
+                      if (
+                        sourceType &&
+                        targetType === "code" &&
+                        sourceType !== "table" &&
+                        sourceType !== "form" &&
+                        sourceType !== "code"
+                      ) {
+                        const sourceLabel =
+                          sourceNode?.data?.label ||
+                          sourceType.charAt(0).toUpperCase() +
+                            sourceType.slice(1);
+                        toast({
+                          title: `Now linked to ${sourceLabel}`,
+                          description:
+                            "You can now access its data via the inputs object.",
+                          duration: 3000,
+                        });
+                      }
+
+                      saveToHistory("Add edge");
+                    }}
+                    onNodeClick={(e: React.MouseEvent, node: Node) => {
+                      // Clear any existing click delay timer
+                      if (clickDelayTimeoutRef.current) {
+                        clearTimeout(clickDelayTimeoutRef.current);
+                        clickDelayTimeoutRef.current = null;
+                      }
+
+                      if (e.shiftKey) {
+                        // Shift+click for multi-select - immediate action
+                        setNodes((prev) => {
+                          const updated = prev.map((n) => {
+                            if (n.id === node.id) {
+                              return { ...n, selected: !n.selected };
+                            }
+                            return n;
+                          });
+                          return updated;
+                        });
+
+                        // Hide toolbar during multi-select
+                        setLinearToolbar(null);
+
+                        // Don't change selectedNodeId during multi-select to preserve the selection
+                      } else {
+                        // Regular click - update selection immediately but delay properties panel
+                        setNodes((prev) => {
+                          const updated = prev.map((n) => ({
+                            ...n,
+                            selected: n.id === node.id,
+                          }));
+                          return updated;
+                        });
+
+                        // Reset drag detection
+                        isDraggingRef.current = false;
+
+                        // Delay opening properties panel and toolbar to detect if this becomes a drag
+                        clickDelayTimeoutRef.current = setTimeout(() => {
+                          if (!isDraggingRef.current) {
+                            setSelectedNodeId(node.id);
+
+                            // Don't overwrite toolbar if we're editing a hyperlink or in link submenu
+                            setLinearToolbar((prev) => {
+                              if (
+                                prev?.editingHyperlinkId ||
+                                prev?.initialSubmenu === "link"
+                              )
+                                return prev;
+
+                              // Calculate node rect for toolbar positioning
+                              // Include canvas container offset for proper fixed positioning
+                              const containerRect =
+                                canvasContainerRef.current?.getBoundingClientRect();
+                              const containerLeft = containerRect?.left ?? 0;
+                              const containerTop = containerRect?.top ?? 0;
+
+                              const nodeWidth =
+                                node.style?.width ?? node.width ?? 200;
+                              const nodeHeight =
+                                node.style?.height ?? node.height ?? 100;
+                              // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
+                              const screenX =
+                                node.position.x * viewport.zoom +
+                                viewport.x +
+                                containerLeft;
+                              const screenY =
+                                node.position.y * viewport.zoom +
+                                viewport.y +
+                                containerTop;
+                              const screenWidth = nodeWidth * viewport.zoom;
+                              const screenHeight = nodeHeight * viewport.zoom;
+
+                              return {
+                                x: screenX + screenWidth / 2,
+                                y: screenY,
+                                nodeRect: {
+                                  top: screenY,
+                                  bottom: screenY + screenHeight,
+                                  left: screenX,
+                                  right: screenX + screenWidth,
+                                  width: screenWidth,
+                                },
+                                node,
+                              };
+                            });
+                          }
+                          clickDelayTimeoutRef.current = null;
+                        }, 150); // 150ms delay to detect drag
+                      }
+
+                      setEdges((prev) =>
+                        prev.map((e) => ({ ...e, selected: false })),
+                      );
+                      const updatedObjects = canvasObjects.map((obj) => ({
+                        ...obj,
+                        selected: false,
+                      }));
+                      updateActiveTab({ canvasObjects: updatedObjects });
+                      setSelectedEdgeId("");
+                      setContextMenu(null);
+                      // Only clear inline editing if clicking a different node
+                      if (inlineEditing?.nodeId !== node.id) {
+                        setInlineEditing(null);
+                      }
+                    }}
+                    onNodeDoubleClick={(
+                      e: React.MouseEvent,
+                      node: Node,
+                      part?: "header" | "body",
+                    ) => {
+                      // Skip inline text editing for code nodes (they have their own CodeMirror editor)
+                      if (node.type === "code") {
+                        return;
+                      }
+                      // Double-click triggers inline text editing for specific part
+                      setInlineEditing({
+                        nodeId: node.id,
+                        part: part || "header",
+                      });
+                      // Also show the linear toolbar with text style options
                       // Don't overwrite toolbar if we're editing a hyperlink or in link submenu
-                      setLinearToolbar(prev => {
-                        if (prev?.editingHyperlinkId || prev?.initialSubmenu === 'link') return prev;
-                        
-                        // Calculate node rect for toolbar positioning
+                      setLinearToolbar((prev) => {
+                        if (
+                          prev?.editingHyperlinkId ||
+                          prev?.initialSubmenu === "link"
+                        )
+                          return prev;
+
                         // Include canvas container offset for proper fixed positioning
-                        const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+                        const containerRect =
+                          canvasContainerRef.current?.getBoundingClientRect();
                         const containerLeft = containerRect?.left ?? 0;
                         const containerTop = containerRect?.top ?? 0;
-                        
-                        const nodeWidth = node.style?.width ?? node.width ?? 200;
-                        const nodeHeight = node.style?.height ?? node.height ?? 100;
+
+                        const nodeWidth =
+                          node.style?.width ?? node.width ?? 200;
+                        const nodeHeight =
+                          node.style?.height ?? node.height ?? 100;
                         // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
-                        const screenX = node.position.x * viewport.zoom + viewport.x + containerLeft;
-                        const screenY = node.position.y * viewport.zoom + viewport.y + containerTop;
+                        const screenX =
+                          node.position.x * viewport.zoom +
+                          viewport.x +
+                          containerLeft;
+                        const screenY =
+                          node.position.y * viewport.zoom +
+                          viewport.y +
+                          containerTop;
                         const screenWidth = nodeWidth * viewport.zoom;
                         const screenHeight = nodeHeight * viewport.zoom;
-                        
+
                         return {
                           x: screenX + screenWidth / 2,
                           y: screenY,
@@ -6782,1309 +8413,1556 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             bottom: screenY + screenHeight,
                             left: screenX,
                             right: screenX + screenWidth,
-                            width: screenWidth
+                            width: screenWidth,
                           },
-                          node
+                          node,
                         };
                       });
-                    }
-                    clickDelayTimeoutRef.current = null;
-                  }, 150); // 150ms delay to detect drag
-                }
-                
-                setEdges(prev => prev.map(e => ({ ...e, selected: false })));
-                const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
-                updateActiveTab({ canvasObjects: updatedObjects });
-                setSelectedEdgeId('');
-                setContextMenu(null);
-                // Only clear inline editing if clicking a different node
-                if (inlineEditing?.nodeId !== node.id) {
-                  setInlineEditing(null);
-                }
-                
-              }}
-              onNodeDoubleClick={(e: React.MouseEvent, node: Node, part?: 'header' | 'body') => {
-                // Skip inline text editing for code nodes (they have their own CodeMirror editor)
-                if (node.type === 'code') {
-                  return;
-                }
-                // Double-click triggers inline text editing for specific part
-                setInlineEditing({ nodeId: node.id, part: part || 'header' });
-                // Also show the linear toolbar with text style options
-                // Don't overwrite toolbar if we're editing a hyperlink or in link submenu
-                setLinearToolbar(prev => {
-                  if (prev?.editingHyperlinkId || prev?.initialSubmenu === 'link') return prev;
-                  
-                  // Include canvas container offset for proper fixed positioning
-                  const containerRect = canvasContainerRef.current?.getBoundingClientRect();
-                  const containerLeft = containerRect?.left ?? 0;
-                  const containerTop = containerRect?.top ?? 0;
-                  
-                  const nodeWidth = node.style?.width ?? node.width ?? 200;
-                  const nodeHeight = node.style?.height ?? node.height ?? 100;
-                  // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
-                  const screenX = node.position.x * viewport.zoom + viewport.x + containerLeft;
-                  const screenY = node.position.y * viewport.zoom + viewport.y + containerTop;
-                  const screenWidth = nodeWidth * viewport.zoom;
-                  const screenHeight = nodeHeight * viewport.zoom;
-                  
-                  return {
-                    x: screenX + screenWidth / 2,
-                    y: screenY,
-                    nodeRect: {
-                      top: screenY,
-                      bottom: screenY + screenHeight,
-                      left: screenX,
-                      right: screenX + screenWidth,
-                      width: screenWidth
-                    },
-                    node
-                  };
-                });
-                setContextMenu(null);
-              }}
-              onEdgeClick={(edge: Edge) => {
-                // Clear any existing click delay timer
-                if (clickDelayTimeoutRef.current) {
-                  clearTimeout(clickDelayTimeoutRef.current);
-                  clickDelayTimeoutRef.current = null;
-                }
-                
-                setNodes(prev => prev.map(n => ({ ...n, selected: false })));
-                setEdges(prev => {
-                  const updated = prev.map(e => ({ ...e, selected: e.id === edge.id }));
-                  return updated;
-                });
-                setSelectedNodeId('');
-                setContextMenu(null);
-                
-                // Reset drag detection
-                isDraggingRef.current = false;
-                
-                // Delay opening properties panel for edges too
-                clickDelayTimeoutRef.current = setTimeout(() => {
-                  if (!isDraggingRef.current) {
-                    setSelectedEdgeId(edge.id);
-                    
-                    // Calculate edge midpoint for toolbar positioning
-                    // Include canvas container offset for proper fixed positioning
-                    const containerRect = canvasContainerRef.current?.getBoundingClientRect();
-                    const containerLeft = containerRect?.left ?? 0;
-                    const containerTop = containerRect?.top ?? 0;
-                    
-                    const sourceNode = nodes.find(n => n.id === edge.source);
-                    const targetNode = nodes.find(n => n.id === edge.target);
-                    if (sourceNode && targetNode) {
-                      const sourceX = sourceNode.position.x + (sourceNode.width ?? 200) / 2;
-                      const sourceY = sourceNode.position.y + (sourceNode.height ?? 100) / 2;
-                      const targetX = targetNode.position.x + (targetNode.width ?? 200) / 2;
-                      const targetY = targetNode.position.y + (targetNode.height ?? 100) / 2;
-                      
-                      const midX = (sourceX + targetX) / 2;
-                      const midY = (sourceY + targetY) / 2;
-                      
-                      // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
-                      const screenX = midX * viewport.zoom + viewport.x + containerLeft;
-                      const screenY = midY * viewport.zoom + viewport.y + containerTop;
-                      
-                      setLinearToolbar({
-                        x: screenX,
-                        y: screenY - 40,
-                        nodeRect: {
-                          top: screenY - 20,
-                          bottom: screenY + 20,
-                          left: screenX - 50,
-                          right: screenX + 50,
-                          width: 100
-                        },
-                        edge
-                      });
-                    }
-                  }
-                  clickDelayTimeoutRef.current = null;
-                }, 150); // 150ms delay
-              }}
-              onCanvasClick={(e?: React.MouseEvent) => {
-                // Don't deselect during drag operations to keep properties card open
-                if (e && (e.target as HTMLElement)?.closest?.('.dragging')) {
-                  return;
-                }
-                setNodes(prev => prev.map(n => ({ ...n, selected: false })));
-                setEdges(prev => prev.map(e => ({ ...e, selected: false })));
-                setSelectedNodeId('');
-                setSelectedEdgeId('');
-                setContextMenu(null);
-                setLinearToolbar(null);
-                setInlineEditing(null);
-                // Clear canvas objects selection too
-                updateActiveTab({
-                  canvasObjects: canvasObjects.map(obj => ({ ...obj, selected: false }))
-                });
-              }}
-              onNodeRightClick={(e: React.MouseEvent, node: Node) => {
-                setContextMenu({ x: e.clientX, y: e.clientY, node });
-              }}
-              onCanvasObjectClick={(e: React.MouseEvent, canvasObject: CanvasObject) => {
-                // Clear any existing click delay timer
-                if (clickDelayTimeoutRef.current) {
-                  clearTimeout(clickDelayTimeoutRef.current);
-                  clickDelayTimeoutRef.current = null;
-                }
-                
-                if (e.shiftKey) {
-                  // Shift+click for multi-select - immediate action, handled by KiteFrameCanvas
-                } else {
-                  // Regular click - selection already handled by KiteFrameCanvas
-                  // Reset drag detection
-                  isDraggingRef.current = false;
-                  
-                  // Delay opening toolbar to detect if this becomes a drag
-                  clickDelayTimeoutRef.current = setTimeout(() => {
-                    if (!isDraggingRef.current) {
-                      // Don't overwrite toolbar if we're editing a hyperlink or in a submenu
-                      setLinearToolbar(prev => {
-                        if (prev?.editingHyperlinkId || prev?.initialSubmenu === 'textLink') return prev;
-                        
-                        // Calculate object rect for toolbar positioning
-                        // Include canvas container offset for proper fixed positioning
-                        const containerRect = canvasContainerRef.current?.getBoundingClientRect();
-                        const containerLeft = containerRect?.left ?? 0;
-                        const containerTop = containerRect?.top ?? 0;
-                        
-                        const objWidth = canvasObject.width ?? 150;
-                        const objHeight = canvasObject.height ?? 100;
-                        // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
-                        const screenX = canvasObject.position.x * viewport.zoom + viewport.x + containerLeft;
-                        const screenY = canvasObject.position.y * viewport.zoom + viewport.y + containerTop;
-                        const screenWidth = objWidth * viewport.zoom;
-                        const screenHeight = objHeight * viewport.zoom;
-                        
-                        return {
-                          x: screenX + screenWidth / 2,
-                          y: screenY,
-                          nodeRect: {
-                            top: screenY,
-                            bottom: screenY + screenHeight,
-                            left: screenX,
-                            right: screenX + screenWidth,
-                            width: screenWidth
-                          },
-                          canvasObject
-                        };
-                      });
-                    }
-                    clickDelayTimeoutRef.current = null;
-                  }, 150); // 150ms delay to detect drag
-                }
-                
-                // Deselect nodes and edges
-                setNodes(prev => prev.map(n => ({ ...n, selected: false })));
-                setEdges(prev => prev.map(e => ({ ...e, selected: false })));
-                setSelectedNodeId('');
-                setSelectedEdgeId('');
-                setContextMenu(null);
-                setInlineEditing(null);
-              }}
-              onCanvasObjectRightClick={(e: React.MouseEvent, canvasObject: CanvasObject) => {
-                setContextMenu({ x: e.clientX, y: e.clientY, canvasObject });
-              }}
-              onImageButtonClick={setShowImageModal}
-              onUndo={isReadOnly ? handleViewReset : handleUndo}
-              onRedo={isReadOnly ? () => {} : handleRedo}
-              onFitView={() => {
-                if (nodes.length === 0) {
-                  setViewport({ x: 0, y: 0, zoom: 1 });
-                  return;
-                }
-
-                // Calculate bounding box of all nodes
-                let minX = Infinity;
-                let minY = Infinity;
-                let maxX = -Infinity;
-                let maxY = -Infinity;
-
-                nodes.forEach(node => {
-                  const w = node.style?.width ?? node.width ?? 200;
-                  const h = node.style?.height ?? node.height ?? 100;
-                  
-                  minX = Math.min(minX, node.position.x);
-                  minY = Math.min(minY, node.position.y);
-                  maxX = Math.max(maxX, node.position.x + w);
-                  maxY = Math.max(maxY, node.position.y + h);
-                });
-
-                // Add padding around the content
-                const padding = 100;
-                const contentWidth = maxX - minX + (padding * 2);
-                const contentHeight = maxY - minY + (padding * 2);
-
-                // Canvas dimensions (approximate viewport size)
-                const canvasWidth = 800;
-                const canvasHeight = 600;
-
-                // Calculate zoom to fit content with margin
-                const zoomX = (canvasWidth * 0.9) / contentWidth;
-                const zoomY = (canvasHeight * 0.9) / contentHeight;
-                const zoom = Math.max(0.1, Math.min(1.2, Math.min(zoomX, zoomY)));
-
-                // Calculate content center
-                const contentCenterX = (minX + maxX) / 2;
-                const contentCenterY = (minY + maxY) / 2;
-
-                // Calculate viewport translation to center content
-                const x = (canvasWidth / 2) - (contentCenterX * zoom);
-                const y = (canvasHeight / 2) - (contentCenterY * zoom);
-
-                setViewport({ x, y, zoom });
-              }}
-              canUndo={isReadOnly ? true : canUndo}
-              canRedo={isReadOnly ? false : canRedo}
-              onAutoLayout={handleAutoLayout}
-              onSelectionChange={(nodeIds: string[], edgeIds: string[]) => {
-                // Update nodes selection
-                if (nodeIds.length > 0) {
-                  setNodes(prev => prev.map(node => ({
-                    ...node,
-                    selected: nodeIds.includes(node.id)
-                  })));
-                  setSelectedNodeId(nodeIds[0] || '');
-                } else {
-                  setNodes(prev => prev.map(node => ({
-                    ...node,
-                    selected: false
-                  })));
-                  setSelectedNodeId('');
-                }
-                
-                // Update edges selection
-                if (edgeIds.length > 0) {
-                  setEdges(prev => prev.map(edge => ({
-                    ...edge,
-                    selected: edgeIds.includes(edge.id)
-                  })));
-                  setSelectedEdgeId(edgeIds[0] || '');
-                } else {
-                  setEdges(prev => prev.map(edge => ({
-                    ...edge,
-                    selected: false
-                  })));
-                  setSelectedEdgeId('');
-                }
-              }}
-              inlineEditing={inlineEditing}
-              onInlineEditingSave={(nodeId: string, part: 'header' | 'body', value: string) => {
-                setNodes(prev => prev.map(node => {
-                  if (node.id === nodeId) {
-                    // Clear measuredHeight when inline editing ends to restore autoHeight behavior
-                    const updatedNode = {
-                      ...node,
-                      measuredHeight: undefined,
-                      data: part === 'header' 
-                        ? { ...node.data, label: value }
-                        : { ...node.data, description: value }
-                    };
-                    return updatedNode;
-                  }
-                  return node;
-                }));
-                setInlineEditing(null);
-                setSelectedText('');
-                saveToHistory('Edit node text');
-              }}
-              onInlineEditingCancel={() => {
-                setInlineEditing(null);
-                setSelectedText('');
-              }}
-              onTextSelectionChange={(text) => {
-                setSelectedText(text);
-              }}
-              onHyperlinkEdit={(nodeId, hyperlinkId) => {
-                const node = nodes.find(n => n.id === nodeId);
-                if (node) {
-                  // Find the node's screen position for the toolbar
-                  const rect = document.querySelector(`[data-testid="node-${node.type}-${node.id}"]`)?.getBoundingClientRect();
-                  if (rect) {
-                    setLinearToolbar({
-                      x: rect.left + rect.width / 2,
-                      y: rect.top,
-                      nodeRect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width },
-                      node,
-                      initialSubmenu: 'link',
-                      editingHyperlinkId: hyperlinkId,
-                    });
-                  }
-                }
-              }}
-              onHyperlinkDelete={(nodeId, hyperlinkId) => {
-                saveToHistory('Delete hyperlink');
-                setNodes(prev => prev.map(n => {
-                  if (n.id !== nodeId) return n;
-                  
-                  let existingLinks = n.data?.hyperlinks || [];
-                  if (existingLinks.length === 0 && n.data?.hyperlink?.url) {
-                    if (hyperlinkId === 'legacy-0') {
-                      // Clear measuredHeight to allow node to shrink, clear style.height to restore autoHeight
-                      return { 
-                        ...n, 
-                        measuredHeight: undefined,
-                        style: n.style ? { ...n.style, height: undefined } : undefined,
-                        data: { ...n.data, hyperlink: undefined, hyperlinks: [] } 
-                      };
-                    }
-                    existingLinks = [{
-                      id: 'legacy-0',
-                      text: n.data.hyperlink.text,
-                      url: n.data.hyperlink.url,
-                    }];
-                  }
-                  
-                  const filteredLinks = existingLinks.filter((h: any, index: number) => {
-                    if (h.id === hyperlinkId) return false;
-                    if (hyperlinkId.startsWith('link-idx-')) {
-                      const idx = parseInt(hyperlinkId.replace('link-idx-', ''), 10);
-                      if (index === idx && !h.id) return false;
-                    }
-                    return true;
-                  });
-                  
-                  // Clear measuredHeight to allow node to shrink, clear style.height to restore autoHeight
-                  return { 
-                    ...n, 
-                    measuredHeight: undefined,
-                    style: n.style ? { ...n.style, height: undefined } : undefined,
-                    data: { 
-                      ...n.data, 
-                      hyperlinks: filteredLinks,
-                      hyperlink: undefined,
-                    } 
-                  };
-                }));
-              }}
-              onTextObjectHyperlinkEdit={(canvasObjectId) => {
-                const textObject = canvasObjects.find(obj => obj.id === canvasObjectId);
-                if (textObject) {
-                  const rect = document.querySelector(`[data-testid="text-object-${textObject.id}"]`)?.getBoundingClientRect();
-                  if (rect) {
-                    setLinearToolbar({
-                      x: rect.left + rect.width / 2,
-                      y: rect.top,
-                      nodeRect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width },
-                      canvasObject: textObject,
-                      initialSubmenu: 'textLink',
-                    });
-                  }
-                }
-              }}
-              tableData={tableData}
-              onOpenTable={(tableId) => {
-                setOpenTablePanel(tableId);
-              }}
-              onTableDataChange={(tableId, table) => {
-                setTableData(prev => ({
-                  ...prev,
-                  [tableId]: table
-                }));
-              }}
-              onCreateNodeFromRow={(tableId, row, rowIndex) => {
-                // Find the table node to get its position and metadata
-                const tableNode = nodes.find(n => n.type === 'table' && n.data?.tableId === tableId);
-                const table = tableNode?.data?.table || tableData[tableId];
-                const basePosition = tableNode ? {
-                  x: tableNode.position.x + (tableNode.width || 560) + 50,
-                  y: tableNode.position.y + (rowIndex * 140)
-                } : getViewportCenteredPosition();
-                
-                // Get column info for display config
-                const columns = table?.columns || [];
-                const primaryColumnId = table?.meta?.primaryColumnId || columns[0]?.id;
-                
-                // Create row ID based on table row or generate one
-                const tableRow = table?.rows?.[rowIndex];
-                const rowId = tableRow?.id || `row-${rowIndex}`;
-                
-                // Get primary value for label
-                const primaryValue = primaryColumnId && row[primaryColumnId] !== undefined
-                  ? String(row[primaryColumnId])
-                  : Object.values(row).slice(0, 1).filter(Boolean).join('') || `Row ${rowIndex + 1}`;
-                
-                // Create FormNode with fields bound to each table column
-                const nodeId = `node-${Date.now()}`;
-                const timestamp = Date.now();
-                
-                // Generate form fields from table columns with data links
-                const formFields: import('../lib/kiteframe/types').FormNodeField[] = columns.map(
-                  (col: { id: string; name: string }, idx: number) => {
-                    const cellValue = row[col.id];
-                    return {
-                      id: `field-${timestamp}-${idx}`,
-                      label: col.name,
-                      value: cellValue !== null && cellValue !== undefined ? String(cellValue) : '',
-                      type: 'text' as import('../lib/kiteframe/types').FormFieldType,
-                      placeholder: `Enter ${col.name}...`,
-                      dataLink: {
-                        tableId: tableId,
-                        columnId: col.id,
-                        rowId: rowId,
-                        displayValue: cellValue !== null && cellValue !== undefined ? String(cellValue) : '',
-                      },
-                    };
-                  }
-                );
-                
-                const newNode: Node = {
-                  id: nodeId,
-                  type: 'form',
-                  position: basePosition,
-                  data: {
-                    formTitle: `Row ${rowIndex + 1}`,
-                    fields: formFields,
-                    showLabels: true,
-                    layout: 'vertical',
-                    linkedTableId: tableId,
-                    linkedTableNodeId: tableNode?.id,
-                    linkedTableName: tableNode?.data?.label || table?.name || 'Table',
-                    linkedRowIndex: rowIndex + 1,
-                    colors: {
-                      headerBackground: '#6366f1',
-                      bodyBackground: '#ffffff',
-                      headerTextColor: '#ffffff',
-                    },
-                  },
-                  width: 320,
-                  height: Math.min(Math.max(200, 80 + columns.length * 60), 600),
-                };
-                
-                setNodes(prev => [...prev, newNode]);
-                
-                // Create edge between table and form with link emoji
-                if (tableNode) {
-                  const newEdge: import('../lib/kiteframe/types').Edge = {
-                    id: `edge-${Date.now()}`,
-                    source: tableNode.id,
-                    target: nodeId,
-                    type: 'bezier',
-                    label: '🔗',
-                    labelStyle: {
-                      fontSize: 14,
-                      backgroundColor: '#ffffff',
-                      padding: 4,
-                      borderRadius: 8,
-                    },
-                    style: {
-                      strokeWidth: 2,
-                      stroke: '#6366f1',
-                    },
-                    data: {
-                      isDataLink: true,
-                      linkedTableId: tableId,
-                      linkedRowIndex: rowIndex + 1,
-                    },
-                  };
-                  setEdges(prev => [...prev, newEdge]);
-                }
-                
-                saveToHistory('Create form from table row');
-                
-                toast({
-                  title: "Form Created",
-                  description: `Created form with ${columns.length} linked fields from row ${rowIndex + 1}`,
-                  variant: "default"
-                });
-              }}
-              onFocusNode={focusOnNode}
-              onFormLinkTable={(nodeId) => {
-                const tableNodes = nodes.filter(n => n.type === 'table');
-                if (tableNodes.length === 0) {
-                  toast({
-                    title: "No Tables Available",
-                    description: "Create a table node first to link it to this form.",
-                    variant: "default"
-                  });
-                  return;
-                }
-                setTableLinkPicker({ formNodeId: nodeId });
-              }}
-              onFormUnlinkTable={(nodeId) => {
-                // Get the linked table node ID before clearing
-                const formNode = nodes.find(n => n.id === nodeId);
-                const linkedTableNodeId = (formNode?.data as any)?.linkedTableNodeId;
-                
-                // Delete the edge between form and table
-                if (linkedTableNodeId) {
-                  setEdges(prev => prev.filter(e => 
-                    !((e.source === nodeId && e.target === linkedTableNodeId) || 
-                      (e.source === linkedTableNodeId && e.target === nodeId))
-                  ));
-                }
-                
-                // Clear the form data links
-                setNodes(prev => prev.map(n => {
-                  if (n.id === nodeId) {
-                    const formData = n.data as import('../lib/kiteframe/types').FormNodeData;
-                    const clearedFields = formData.fields?.map(field => ({
-                      ...field,
-                      dataLink: undefined
-                    })) || [];
-                    return {
-                      ...n,
-                      data: {
-                        ...n.data,
-                        fields: clearedFields,
-                        linkedTableId: undefined,
-                        linkedTableNodeId: undefined,
-                        linkedTableName: undefined,
-                        linkedRowIndex: undefined
+                      setContextMenu(null);
+                    }}
+                    onEdgeClick={(edge: Edge) => {
+                      // Clear any existing click delay timer
+                      if (clickDelayTimeoutRef.current) {
+                        clearTimeout(clickDelayTimeoutRef.current);
+                        clickDelayTimeoutRef.current = null;
                       }
-                    };
-                  }
-                  return n;
-                }));
-                saveToHistory('Unlink form from table');
-                toast({
-                  title: "Table Unlinked",
-                  description: "Form is no longer linked to a table.",
-                  variant: "default"
-                });
-              }}
-              onUpdateTableCell={(tableId, rowId, columnId, value) => {
-                setTableData(prev => {
-                  const table = prev[tableId];
-                  if (!table) return prev;
-                  
-                  const updatedRows = table.rows.map(row => {
-                    if (row.id === rowId) {
-                      return {
-                        ...row,
-                        values: {
-                          ...row.values,
-                          [columnId]: value
-                        }
-                      };
-                    }
-                    return row;
-                  });
-                  
-                  return {
-                    ...prev,
-                    [tableId]: {
-                      ...table,
-                      rows: updatedRows
-                    }
-                  };
-                });
-                
-                setNodes(prev => prev.map(n => {
-                  if (n.type === 'table' && n.data?.tableId === tableId) {
-                    const tableNodeData = n.data as TableNodeData;
-                    if (tableNodeData.table) {
-                      const updatedRows = tableNodeData.table.rows.map(row => {
-                        if (row.id === rowId) {
-                          return {
-                            ...row,
-                            values: {
-                              ...row.values,
-                              [columnId]: value
-                            }
-                          };
-                        }
-                        return row;
+
+                      setNodes((prev) =>
+                        prev.map((n) => ({ ...n, selected: false })),
+                      );
+                      setEdges((prev) => {
+                        const updated = prev.map((e) => ({
+                          ...e,
+                          selected: e.id === edge.id,
+                        }));
+                        return updated;
                       });
-                      return {
-                        ...n,
-                        data: {
-                          ...n.data,
-                          table: {
-                            ...tableNodeData.table,
-                            rows: updatedRows
+                      setSelectedNodeId("");
+                      setContextMenu(null);
+
+                      // Reset drag detection
+                      isDraggingRef.current = false;
+
+                      // Delay opening properties panel for edges too
+                      clickDelayTimeoutRef.current = setTimeout(() => {
+                        if (!isDraggingRef.current) {
+                          setSelectedEdgeId(edge.id);
+
+                          // Calculate edge midpoint for toolbar positioning
+                          // Include canvas container offset for proper fixed positioning
+                          const containerRect =
+                            canvasContainerRef.current?.getBoundingClientRect();
+                          const containerLeft = containerRect?.left ?? 0;
+                          const containerTop = containerRect?.top ?? 0;
+
+                          const sourceNode = nodes.find(
+                            (n) => n.id === edge.source,
+                          );
+                          const targetNode = nodes.find(
+                            (n) => n.id === edge.target,
+                          );
+                          if (sourceNode && targetNode) {
+                            const sourceX =
+                              sourceNode.position.x +
+                              (sourceNode.width ?? 200) / 2;
+                            const sourceY =
+                              sourceNode.position.y +
+                              (sourceNode.height ?? 100) / 2;
+                            const targetX =
+                              targetNode.position.x +
+                              (targetNode.width ?? 200) / 2;
+                            const targetY =
+                              targetNode.position.y +
+                              (targetNode.height ?? 100) / 2;
+
+                            const midX = (sourceX + targetX) / 2;
+                            const midY = (sourceY + targetY) / 2;
+
+                            // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
+                            const screenX =
+                              midX * viewport.zoom + viewport.x + containerLeft;
+                            const screenY =
+                              midY * viewport.zoom + viewport.y + containerTop;
+
+                            setLinearToolbar({
+                              x: screenX,
+                              y: screenY - 40,
+                              nodeRect: {
+                                top: screenY - 20,
+                                bottom: screenY + 20,
+                                left: screenX - 50,
+                                right: screenX + 50,
+                                width: 100,
+                              },
+                              edge,
+                            });
                           }
                         }
-                      };
-                    }
-                  }
-                  return n;
-                }));
-              }}
-              onSaveAsTemplate={handleSaveAsTemplate}
-              savedTemplates={savedTemplates}
-              onGenerateFromTemplate={handleGenerateFromTemplate}
-              flowSettings={activeTab?.flowSettings}
-              onFlowSettingsChange={(flowId, settings) => {
-                updateActiveTab({
-                  flowSettings: {
-                    ...activeTab?.flowSettings,
-                    [flowId]: settings
-                  }
-                });
-              }}
-              onResetFlowStatuses={(flowId) => {
-                // Reset all node statuses in the flow
-                const flowNodes = nodes.filter(n => {
-                  // Find nodes that belong to this flow by checking connectivity
-                  return true; // For now, just reset all - flow detection handles this
-                });
-                setNodes(nodes.map(n => ({
-                  ...n,
-                  data: { ...n.data, status: undefined }
-                })));
-              }}
-              onNodeStatusChange={(nodeId) => {
-                // Cycle status: undefined/todo -> inprogress -> done -> undefined
-                setNodes(prev => prev.map(n => {
-                  if (n.id === nodeId) {
-                    const currentStatus = n.data?.status;
-                    let nextStatus: string | undefined;
-                    if (!currentStatus || currentStatus === 'todo') {
-                      nextStatus = 'inprogress';
-                    } else if (currentStatus === 'inprogress') {
-                      nextStatus = 'done';
-                    } else {
-                      nextStatus = undefined; // Cycle back to todo/undefined
-                    }
-                    return {
-                      ...n,
-                      data: { ...n.data, status: nextStatus }
-                    };
-                  }
-                  return n;
-                }));
-                saveToHistory('Change node status');
-              }}
-              onApplyTheme={(flowId, theme) => {
-                saveToHistory('Apply workflow theme');
-                setNodes(prev => prev.map(n => {
-                  // Check if this node belongs to the flow
-                  const flows = FlowDetection.detectFlows(prev, edges);
-                  const flow = flows.find(f => f.id === flowId);
-                  if (flow && flow.nodes.some(fn => fn.id === n.id)) {
-                    return {
-                      ...n,
-                      data: applyThemeToNode(n.data || {}, theme)
-                    };
-                  }
-                  return n;
-                }));
-                setEdges(prev => prev.map(e => {
-                  const flows = FlowDetection.detectFlows(nodes, prev);
-                  const flow = flows.find(f => f.id === flowId);
-                  if (flow) {
-                    const nodeIds = flow.nodes.map(n => n.id);
-                    if (nodeIds.includes(e.source) && nodeIds.includes(e.target)) {
-                      return applyThemeToEdge(e, theme);
-                    }
-                  }
-                  return e;
-                }));
-              }}
-              onDeleteWorkflow={(flowId, nodeIds) => {
-                saveToHistory('Delete workflow');
-                // Remove all nodes in the workflow
-                setNodes(prev => prev.filter(n => !nodeIds.includes(n.id)));
-                // Edges connected to deleted nodes are automatically cleaned up
-                setEdges(prev => prev.filter(e => 
-                  !nodeIds.includes(e.source) && !nodeIds.includes(e.target)
-                ));
-              }}
-              onDragWorkflow={(flowId, nodeIds, deltaX, deltaY, isDragStart) => {
-                // Save to history only at drag start to create single undo entry
-                if (isDragStart) {
-                  saveToHistory('Drag workflow');
-                }
-                setNodes(prev => prev.map(n => {
-                  if (nodeIds.includes(n.id)) {
-                    return {
-                      ...n,
-                      position: {
-                        x: n.position.x + deltaX,
-                        y: n.position.y + deltaY
+                        clickDelayTimeoutRef.current = null;
+                      }, 150); // 150ms delay
+                    }}
+                    onCanvasClick={(e?: React.MouseEvent) => {
+                      // Don't deselect during drag operations to keep properties card open
+                      if (
+                        e &&
+                        (e.target as HTMLElement)?.closest?.(".dragging")
+                      ) {
+                        return;
                       }
-                    };
-                  }
-                  return n;
-                }));
-              }}
-              onLayoutWorkflow={(flowId, nodeIds, layoutType) => {
-                // Create position map for new positions (immutable approach)
-                const newPositions: Map<string, { x: number; y: number }> = new Map();
-                
-                // Get workflow nodes and edges (create copies for calculation only)
-                const workflowNodeData = nodes
-                  .filter(n => nodeIds.includes(n.id))
-                  .map(n => ({
-                    id: n.id,
-                    x: n.position.x,
-                    y: n.position.y,
-                    width: n.style?.width ?? n.width ?? 200,
-                    height: n.style?.height ?? n.height ?? 100
-                  }));
-                const workflowEdges = edges.filter(e => 
-                  nodeIds.includes(e.source) && nodeIds.includes(e.target)
-                );
-                
-                // Guard: no work to do if empty
-                if (workflowNodeData.length === 0) return;
-                
-                // Save to history only after validation
-                saveToHistory('Apply layout');
-                
-                // Calculate the workflow's current bounding box to preserve position
-                const minX = Math.min(...workflowNodeData.map(n => n.x));
-                const minY = Math.min(...workflowNodeData.map(n => n.y));
-                
-                // Apply layout based on type
-                const horizontalSpacing = 280;
-                const verticalSpacing = 180;
-                
-                // Helper: topological sort for consistent ordering
-                const topoSort = (): typeof workflowNodeData => {
-                  const inDegree: Map<string, number> = new Map();
-                  const adjacency: Map<string, string[]> = new Map();
-                  
-                  workflowNodeData.forEach(n => {
-                    inDegree.set(n.id, 0);
-                    adjacency.set(n.id, []);
-                  });
-                  
-                  workflowEdges.forEach(e => {
-                    const current = inDegree.get(e.target) ?? 0;
-                    inDegree.set(e.target, current + 1);
-                    adjacency.get(e.source)?.push(e.target);
-                  });
-                  
-                  // Start with nodes that have no incoming edges
-                  const queue = workflowNodeData.filter(n => (inDegree.get(n.id) ?? 0) === 0);
-                  const sorted: typeof workflowNodeData = [];
-                  
-                  while (queue.length > 0) {
-                    const node = queue.shift()!;
-                    sorted.push(node);
-                    
-                    const children = adjacency.get(node.id) ?? [];
-                    children.forEach(childId => {
-                      const degree = (inDegree.get(childId) ?? 1) - 1;
-                      inDegree.set(childId, degree);
-                      if (degree === 0) {
-                        const childNode = workflowNodeData.find(n => n.id === childId);
-                        if (childNode) queue.push(childNode);
-                      }
-                    });
-                  }
-                  
-                  // Add any remaining nodes (cycles) in original x/y order
-                  const remaining = workflowNodeData.filter(n => !sorted.find(s => s.id === n.id));
-                  remaining.sort((a, b) => a.x - b.x || a.y - b.y);
-                  return [...sorted, ...remaining];
-                };
-                
-                switch (layoutType) {
-                  case 'horizontal':
-                    const hSorted = topoSort();
-                    let currentX = minX;
-                    hSorted.forEach((node) => {
-                      newPositions.set(node.id, { x: currentX, y: minY });
-                      currentX += node.width + 80; // Gap between nodes
-                    });
-                    break;
-                    
-                  case 'vertical':
-                    const vSorted = topoSort();
-                    let currentY = minY;
-                    vSorted.forEach((node) => {
-                      newPositions.set(node.id, { x: minX, y: currentY });
-                      currentY += node.height + 50; // Gap between nodes
-                    });
-                    break;
-                    
-                  case 'hierarchical':
-                  default:
-                    // BFS to assign depth levels
-                    const targetNodeIds = new Set(workflowEdges.map(e => e.target));
-                    const rootNodeIds = workflowNodeData
-                      .filter(n => !targetNodeIds.has(n.id))
-                      .map(n => n.id);
-                    
-                    // If no roots found (cycle), use first node as root
-                    if (rootNodeIds.length === 0 && workflowNodeData.length > 0) {
-                      rootNodeIds.push(workflowNodeData[0].id);
-                    }
-                    
-                    // BFS to compute depth for each node
-                    const nodeDepth: Map<string, number> = new Map();
-                    const queue: string[] = [...rootNodeIds];
-                    rootNodeIds.forEach(id => nodeDepth.set(id, 0));
-                    
-                    while (queue.length > 0) {
-                      const currentId = queue.shift()!;
-                      const currentDepth = nodeDepth.get(currentId) ?? 0;
-                      
-                      // Find children (targets of outgoing edges)
-                      const outEdges = workflowEdges.filter(e => e.source === currentId);
-                      outEdges.forEach(edge => {
-                        const existingDepth = nodeDepth.get(edge.target);
-                        // Only update if not visited or if new depth is greater (handle multi-parent)
-                        if (existingDepth === undefined) {
-                          nodeDepth.set(edge.target, currentDepth + 1);
-                          queue.push(edge.target);
-                        } else if (currentDepth + 1 > existingDepth) {
-                          // Update to deepest path for multi-parent nodes
-                          nodeDepth.set(edge.target, currentDepth + 1);
-                          queue.push(edge.target);
-                        }
+                      setNodes((prev) =>
+                        prev.map((n) => ({ ...n, selected: false })),
+                      );
+                      setEdges((prev) =>
+                        prev.map((e) => ({ ...e, selected: false })),
+                      );
+                      setSelectedNodeId("");
+                      setSelectedEdgeId("");
+                      setContextMenu(null);
+                      setLinearToolbar(null);
+                      setInlineEditing(null);
+                      // Clear canvas objects selection too
+                      updateActiveTab({
+                        canvasObjects: canvasObjects.map((obj) => ({
+                          ...obj,
+                          selected: false,
+                        })),
                       });
-                    }
-                    
-                    // Handle any disconnected nodes
-                    workflowNodeData.forEach(n => {
-                      if (!nodeDepth.has(n.id)) {
-                        nodeDepth.set(n.id, 0);
+                    }}
+                    onNodeRightClick={(e: React.MouseEvent, node: Node) => {
+                      setContextMenu({ x: e.clientX, y: e.clientY, node });
+                    }}
+                    onCanvasObjectClick={(
+                      e: React.MouseEvent,
+                      canvasObject: CanvasObject,
+                    ) => {
+                      // Clear any existing click delay timer
+                      if (clickDelayTimeoutRef.current) {
+                        clearTimeout(clickDelayTimeoutRef.current);
+                        clickDelayTimeoutRef.current = null;
                       }
-                    });
-                    
-                    // Group nodes by depth
-                    const layers: Map<number, typeof workflowNodeData> = new Map();
-                    workflowNodeData.forEach(node => {
-                      const depth = nodeDepth.get(node.id) ?? 0;
-                      if (!layers.has(depth)) {
-                        layers.set(depth, []);
-                      }
-                      layers.get(depth)!.push(node);
-                    });
-                    
-                    // Calculate max layer width for centering
-                    let maxLayerWidth = 0;
-                    layers.forEach(layer => {
-                      const layerWidth = layer.reduce((sum, n) => sum + n.width, 0) + 
-                        (layer.length - 1) * 80;
-                      maxLayerWidth = Math.max(maxLayerWidth, layerWidth);
-                    });
-                    
-                    // Position nodes by layer with centering
-                    const sortedDepths = Array.from(layers.keys()).sort((a, b) => a - b);
-                    sortedDepths.forEach((depth, layerIndex) => {
-                      const layer = layers.get(depth)!;
-                      const layerWidth = layer.reduce((sum, n) => sum + n.width, 0) + 
-                        (layer.length - 1) * 80;
-                      const startX = minX + (maxLayerWidth - layerWidth) / 2;
-                      
-                      let xOffset = startX;
-                      layer.forEach((node) => {
-                        newPositions.set(node.id, {
-                          x: xOffset,
-                          y: minY + layerIndex * verticalSpacing
-                        });
-                        xOffset += node.width + 80;
-                      });
-                    });
-                    break;
-                }
-                
-                // Apply new positions immutably through setNodes
-                setNodes(prev => prev.map(n => {
-                  const newPos = newPositions.get(n.id);
-                  if (newPos) {
-                    return {
-                      ...n,
-                      position: { ...newPos }
-                    };
-                  }
-                  return n;
-                }));
-              }}
-            />
-                
 
-                
-              </>
-            ) : (
-              <BlankCanvasState
-                onCreateBlank={handleCreateBlankFromCanvas}
-                onCreateWithTemplate={handleCreateWithTemplate}
-                onCreateWithAI={handleCreateWithAI}
-                onImportWorkflow={handleImportFromCanvas}
-                onCreateTemplate={handleCreateTemplateFromCanvas}
+                      if (e.shiftKey) {
+                        // Shift+click for multi-select - immediate action, handled by KiteFrameCanvas
+                      } else {
+                        // Regular click - selection already handled by KiteFrameCanvas
+                        // Reset drag detection
+                        isDraggingRef.current = false;
+
+                        // Delay opening toolbar to detect if this becomes a drag
+                        clickDelayTimeoutRef.current = setTimeout(() => {
+                          if (!isDraggingRef.current) {
+                            // Don't overwrite toolbar if we're editing a hyperlink or in a submenu
+                            setLinearToolbar((prev) => {
+                              if (
+                                prev?.editingHyperlinkId ||
+                                prev?.initialSubmenu === "textLink"
+                              )
+                                return prev;
+
+                              // Calculate object rect for toolbar positioning
+                              // Include canvas container offset for proper fixed positioning
+                              const containerRect =
+                                canvasContainerRef.current?.getBoundingClientRect();
+                              const containerLeft = containerRect?.left ?? 0;
+                              const containerTop = containerRect?.top ?? 0;
+
+                              const objWidth = canvasObject.width ?? 150;
+                              const objHeight = canvasObject.height ?? 100;
+                              // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
+                              const screenX =
+                                canvasObject.position.x * viewport.zoom +
+                                viewport.x +
+                                containerLeft;
+                              const screenY =
+                                canvasObject.position.y * viewport.zoom +
+                                viewport.y +
+                                containerTop;
+                              const screenWidth = objWidth * viewport.zoom;
+                              const screenHeight = objHeight * viewport.zoom;
+
+                              return {
+                                x: screenX + screenWidth / 2,
+                                y: screenY,
+                                nodeRect: {
+                                  top: screenY,
+                                  bottom: screenY + screenHeight,
+                                  left: screenX,
+                                  right: screenX + screenWidth,
+                                  width: screenWidth,
+                                },
+                                canvasObject,
+                              };
+                            });
+                          }
+                          clickDelayTimeoutRef.current = null;
+                        }, 150); // 150ms delay to detect drag
+                      }
+
+                      // Deselect nodes and edges
+                      setNodes((prev) =>
+                        prev.map((n) => ({ ...n, selected: false })),
+                      );
+                      setEdges((prev) =>
+                        prev.map((e) => ({ ...e, selected: false })),
+                      );
+                      setSelectedNodeId("");
+                      setSelectedEdgeId("");
+                      setContextMenu(null);
+                      setInlineEditing(null);
+                    }}
+                    onCanvasObjectRightClick={(
+                      e: React.MouseEvent,
+                      canvasObject: CanvasObject,
+                    ) => {
+                      setContextMenu({
+                        x: e.clientX,
+                        y: e.clientY,
+                        canvasObject,
+                      });
+                    }}
+                    onImageButtonClick={setShowImageModal}
+                    onUndo={isReadOnly ? handleViewReset : handleUndo}
+                    onRedo={isReadOnly ? () => {} : handleRedo}
+                    onFitView={() => {
+                      if (nodes.length === 0) {
+                        setViewport({ x: 0, y: 0, zoom: 1 });
+                        return;
+                      }
+
+                      // Calculate bounding box of all nodes
+                      let minX = Infinity;
+                      let minY = Infinity;
+                      let maxX = -Infinity;
+                      let maxY = -Infinity;
+
+                      nodes.forEach((node) => {
+                        const w = node.style?.width ?? node.width ?? 200;
+                        const h = node.style?.height ?? node.height ?? 100;
+
+                        minX = Math.min(minX, node.position.x);
+                        minY = Math.min(minY, node.position.y);
+                        maxX = Math.max(maxX, node.position.x + w);
+                        maxY = Math.max(maxY, node.position.y + h);
+                      });
+
+                      // Add padding around the content
+                      const padding = 100;
+                      const contentWidth = maxX - minX + padding * 2;
+                      const contentHeight = maxY - minY + padding * 2;
+
+                      // Canvas dimensions (approximate viewport size)
+                      const canvasWidth = 800;
+                      const canvasHeight = 600;
+
+                      // Calculate zoom to fit content with margin
+                      const zoomX = (canvasWidth * 0.9) / contentWidth;
+                      const zoomY = (canvasHeight * 0.9) / contentHeight;
+                      const zoom = Math.max(
+                        0.1,
+                        Math.min(1.2, Math.min(zoomX, zoomY)),
+                      );
+
+                      // Calculate content center
+                      const contentCenterX = (minX + maxX) / 2;
+                      const contentCenterY = (minY + maxY) / 2;
+
+                      // Calculate viewport translation to center content
+                      const x = canvasWidth / 2 - contentCenterX * zoom;
+                      const y = canvasHeight / 2 - contentCenterY * zoom;
+
+                      setViewport({ x, y, zoom });
+                    }}
+                    canUndo={isReadOnly ? true : canUndo}
+                    canRedo={isReadOnly ? false : canRedo}
+                    onAutoLayout={handleAutoLayout}
+                    onSelectionChange={(
+                      nodeIds: string[],
+                      edgeIds: string[],
+                    ) => {
+                      // Update nodes selection
+                      if (nodeIds.length > 0) {
+                        setNodes((prev) =>
+                          prev.map((node) => ({
+                            ...node,
+                            selected: nodeIds.includes(node.id),
+                          })),
+                        );
+                        setSelectedNodeId(nodeIds[0] || "");
+                      } else {
+                        setNodes((prev) =>
+                          prev.map((node) => ({
+                            ...node,
+                            selected: false,
+                          })),
+                        );
+                        setSelectedNodeId("");
+                      }
+
+                      // Update edges selection
+                      if (edgeIds.length > 0) {
+                        setEdges((prev) =>
+                          prev.map((edge) => ({
+                            ...edge,
+                            selected: edgeIds.includes(edge.id),
+                          })),
+                        );
+                        setSelectedEdgeId(edgeIds[0] || "");
+                      } else {
+                        setEdges((prev) =>
+                          prev.map((edge) => ({
+                            ...edge,
+                            selected: false,
+                          })),
+                        );
+                        setSelectedEdgeId("");
+                      }
+                    }}
+                    inlineEditing={inlineEditing}
+                    onInlineEditingSave={(
+                      nodeId: string,
+                      part: "header" | "body",
+                      value: string,
+                    ) => {
+                      setNodes((prev) =>
+                        prev.map((node) => {
+                          if (node.id === nodeId) {
+                            // Clear measuredHeight when inline editing ends to restore autoHeight behavior
+                            const updatedNode = {
+                              ...node,
+                              measuredHeight: undefined,
+                              data:
+                                part === "header"
+                                  ? { ...node.data, label: value }
+                                  : { ...node.data, description: value },
+                            };
+                            return updatedNode;
+                          }
+                          return node;
+                        }),
+                      );
+                      setInlineEditing(null);
+                      setSelectedText("");
+                      saveToHistory("Edit node text");
+                    }}
+                    onInlineEditingCancel={() => {
+                      setInlineEditing(null);
+                      setSelectedText("");
+                    }}
+                    onTextSelectionChange={(text) => {
+                      setSelectedText(text);
+                    }}
+                    onHyperlinkEdit={(nodeId, hyperlinkId) => {
+                      const node = nodes.find((n) => n.id === nodeId);
+                      if (node) {
+                        // Find the node's screen position for the toolbar
+                        const rect = document
+                          .querySelector(
+                            `[data-testid="node-${node.type}-${node.id}"]`,
+                          )
+                          ?.getBoundingClientRect();
+                        if (rect) {
+                          setLinearToolbar({
+                            x: rect.left + rect.width / 2,
+                            y: rect.top,
+                            nodeRect: {
+                              top: rect.top,
+                              bottom: rect.bottom,
+                              left: rect.left,
+                              right: rect.right,
+                              width: rect.width,
+                            },
+                            node,
+                            initialSubmenu: "link",
+                            editingHyperlinkId: hyperlinkId,
+                          });
+                        }
+                      }
+                    }}
+                    onHyperlinkDelete={(nodeId, hyperlinkId) => {
+                      saveToHistory("Delete hyperlink");
+                      setNodes((prev) =>
+                        prev.map((n) => {
+                          if (n.id !== nodeId) return n;
+
+                          let existingLinks = n.data?.hyperlinks || [];
+                          if (
+                            existingLinks.length === 0 &&
+                            n.data?.hyperlink?.url
+                          ) {
+                            if (hyperlinkId === "legacy-0") {
+                              // Clear measuredHeight to allow node to shrink, clear style.height to restore autoHeight
+                              return {
+                                ...n,
+                                measuredHeight: undefined,
+                                style: n.style
+                                  ? { ...n.style, height: undefined }
+                                  : undefined,
+                                data: {
+                                  ...n.data,
+                                  hyperlink: undefined,
+                                  hyperlinks: [],
+                                },
+                              };
+                            }
+                            existingLinks = [
+                              {
+                                id: "legacy-0",
+                                text: n.data.hyperlink.text,
+                                url: n.data.hyperlink.url,
+                              },
+                            ];
+                          }
+
+                          const filteredLinks = existingLinks.filter(
+                            (h: any, index: number) => {
+                              if (h.id === hyperlinkId) return false;
+                              if (hyperlinkId.startsWith("link-idx-")) {
+                                const idx = parseInt(
+                                  hyperlinkId.replace("link-idx-", ""),
+                                  10,
+                                );
+                                if (index === idx && !h.id) return false;
+                              }
+                              return true;
+                            },
+                          );
+
+                          // Clear measuredHeight to allow node to shrink, clear style.height to restore autoHeight
+                          return {
+                            ...n,
+                            measuredHeight: undefined,
+                            style: n.style
+                              ? { ...n.style, height: undefined }
+                              : undefined,
+                            data: {
+                              ...n.data,
+                              hyperlinks: filteredLinks,
+                              hyperlink: undefined,
+                            },
+                          };
+                        }),
+                      );
+                    }}
+                    onTextObjectHyperlinkEdit={(canvasObjectId) => {
+                      const textObject = canvasObjects.find(
+                        (obj) => obj.id === canvasObjectId,
+                      );
+                      if (textObject) {
+                        const rect = document
+                          .querySelector(
+                            `[data-testid="text-object-${textObject.id}"]`,
+                          )
+                          ?.getBoundingClientRect();
+                        if (rect) {
+                          setLinearToolbar({
+                            x: rect.left + rect.width / 2,
+                            y: rect.top,
+                            nodeRect: {
+                              top: rect.top,
+                              bottom: rect.bottom,
+                              left: rect.left,
+                              right: rect.right,
+                              width: rect.width,
+                            },
+                            canvasObject: textObject,
+                            initialSubmenu: "textLink",
+                          });
+                        }
+                      }
+                    }}
+                    tableData={tableData}
+                    onOpenTable={(tableId) => {
+                      setOpenTablePanel(tableId);
+                    }}
+                    onTableDataChange={(tableId, table) => {
+                      setTableData((prev) => ({
+                        ...prev,
+                        [tableId]: table,
+                      }));
+                    }}
+                    onCreateNodeFromRow={(tableId, row, rowIndex) => {
+                      // Find the table node to get its position and metadata
+                      const tableNode = nodes.find(
+                        (n) =>
+                          n.type === "table" && n.data?.tableId === tableId,
+                      );
+                      const table =
+                        tableNode?.data?.table || tableData[tableId];
+                      const basePosition = tableNode
+                        ? {
+                            x:
+                              tableNode.position.x +
+                              (tableNode.width || 560) +
+                              50,
+                            y: tableNode.position.y + rowIndex * 140,
+                          }
+                        : getViewportCenteredPosition();
+
+                      // Get column info for display config
+                      const columns = table?.columns || [];
+                      const primaryColumnId =
+                        table?.meta?.primaryColumnId || columns[0]?.id;
+
+                      // Create row ID based on table row or generate one
+                      const tableRow = table?.rows?.[rowIndex];
+                      const rowId = tableRow?.id || `row-${rowIndex}`;
+
+                      // Get primary value for label
+                      const primaryValue =
+                        primaryColumnId && row[primaryColumnId] !== undefined
+                          ? String(row[primaryColumnId])
+                          : Object.values(row)
+                              .slice(0, 1)
+                              .filter(Boolean)
+                              .join("") || `Row ${rowIndex + 1}`;
+
+                      // Create FormNode with fields bound to each table column
+                      const nodeId = `node-${Date.now()}`;
+                      const timestamp = Date.now();
+
+                      // Generate form fields from table columns with data links
+                      const formFields: import("../lib/kiteframe/types").FormNodeField[] =
+                        columns.map(
+                          (col: { id: string; name: string }, idx: number) => {
+                            const cellValue = row[col.id];
+                            return {
+                              id: `field-${timestamp}-${idx}`,
+                              label: col.name,
+                              value:
+                                cellValue !== null && cellValue !== undefined
+                                  ? String(cellValue)
+                                  : "",
+                              type: "text" as import("../lib/kiteframe/types").FormFieldType,
+                              placeholder: `Enter ${col.name}...`,
+                              dataLink: {
+                                tableId: tableId,
+                                columnId: col.id,
+                                rowId: rowId,
+                                displayValue:
+                                  cellValue !== null && cellValue !== undefined
+                                    ? String(cellValue)
+                                    : "",
+                              },
+                            };
+                          },
+                        );
+
+                      const newNode: Node = {
+                        id: nodeId,
+                        type: "form",
+                        position: basePosition,
+                        data: {
+                          formTitle: `Row ${rowIndex + 1}`,
+                          fields: formFields,
+                          showLabels: true,
+                          layout: "vertical",
+                          linkedTableId: tableId,
+                          linkedTableNodeId: tableNode?.id,
+                          linkedTableName:
+                            tableNode?.data?.label || table?.name || "Table",
+                          linkedRowIndex: rowIndex + 1,
+                          colors: {
+                            headerBackground: "#6366f1",
+                            bodyBackground: "#ffffff",
+                            headerTextColor: "#ffffff",
+                          },
+                        },
+                        width: 320,
+                        height: Math.min(
+                          Math.max(200, 80 + columns.length * 60),
+                          600,
+                        ),
+                      };
+
+                      setNodes((prev) => [...prev, newNode]);
+
+                      // Create edge between table and form with link emoji
+                      if (tableNode) {
+                        const newEdge: import("../lib/kiteframe/types").Edge = {
+                          id: `edge-${Date.now()}`,
+                          source: tableNode.id,
+                          target: nodeId,
+                          type: "bezier",
+                          label: "🔗",
+                          labelStyle: {
+                            fontSize: 14,
+                            backgroundColor: "#ffffff",
+                            padding: 4,
+                            borderRadius: 8,
+                          },
+                          style: {
+                            strokeWidth: 2,
+                            stroke: "#6366f1",
+                          },
+                          data: {
+                            isDataLink: true,
+                            linkedTableId: tableId,
+                            linkedRowIndex: rowIndex + 1,
+                          },
+                        };
+                        setEdges((prev) => [...prev, newEdge]);
+                      }
+
+                      saveToHistory("Create form from table row");
+
+                      toast({
+                        title: "Form Created",
+                        description: `Created form with ${columns.length} linked fields from row ${rowIndex + 1}`,
+                        variant: "default",
+                      });
+                    }}
+                    onFocusNode={focusOnNode}
+                    onFormLinkTable={(nodeId) => {
+                      const tableNodes = nodes.filter(
+                        (n) => n.type === "table",
+                      );
+                      if (tableNodes.length === 0) {
+                        toast({
+                          title: "No Tables Available",
+                          description:
+                            "Create a table node first to link it to this form.",
+                          variant: "default",
+                        });
+                        return;
+                      }
+                      setTableLinkPicker({ formNodeId: nodeId });
+                    }}
+                    onFormUnlinkTable={(nodeId) => {
+                      // Get the linked table node ID before clearing
+                      const formNode = nodes.find((n) => n.id === nodeId);
+                      const linkedTableNodeId = (formNode?.data as any)
+                        ?.linkedTableNodeId;
+
+                      // Delete the edge between form and table
+                      if (linkedTableNodeId) {
+                        setEdges((prev) =>
+                          prev.filter(
+                            (e) =>
+                              !(
+                                (e.source === nodeId &&
+                                  e.target === linkedTableNodeId) ||
+                                (e.source === linkedTableNodeId &&
+                                  e.target === nodeId)
+                              ),
+                          ),
+                        );
+                      }
+
+                      // Clear the form data links
+                      setNodes((prev) =>
+                        prev.map((n) => {
+                          if (n.id === nodeId) {
+                            const formData =
+                              n.data as import("../lib/kiteframe/types").FormNodeData;
+                            const clearedFields =
+                              formData.fields?.map((field) => ({
+                                ...field,
+                                dataLink: undefined,
+                              })) || [];
+                            return {
+                              ...n,
+                              data: {
+                                ...n.data,
+                                fields: clearedFields,
+                                linkedTableId: undefined,
+                                linkedTableNodeId: undefined,
+                                linkedTableName: undefined,
+                                linkedRowIndex: undefined,
+                              },
+                            };
+                          }
+                          return n;
+                        }),
+                      );
+                      saveToHistory("Unlink form from table");
+                      toast({
+                        title: "Table Unlinked",
+                        description: "Form is no longer linked to a table.",
+                        variant: "default",
+                      });
+                    }}
+                    onUpdateTableCell={(tableId, rowId, columnId, value) => {
+                      setTableData((prev) => {
+                        const table = prev[tableId];
+                        if (!table) return prev;
+
+                        const updatedRows = table.rows.map((row) => {
+                          if (row.id === rowId) {
+                            return {
+                              ...row,
+                              values: {
+                                ...row.values,
+                                [columnId]: value,
+                              },
+                            };
+                          }
+                          return row;
+                        });
+
+                        return {
+                          ...prev,
+                          [tableId]: {
+                            ...table,
+                            rows: updatedRows,
+                          },
+                        };
+                      });
+
+                      setNodes((prev) =>
+                        prev.map((n) => {
+                          if (
+                            n.type === "table" &&
+                            n.data?.tableId === tableId
+                          ) {
+                            const tableNodeData = n.data as TableNodeData;
+                            if (tableNodeData.table) {
+                              const updatedRows = tableNodeData.table.rows.map(
+                                (row) => {
+                                  if (row.id === rowId) {
+                                    return {
+                                      ...row,
+                                      values: {
+                                        ...row.values,
+                                        [columnId]: value,
+                                      },
+                                    };
+                                  }
+                                  return row;
+                                },
+                              );
+                              return {
+                                ...n,
+                                data: {
+                                  ...n.data,
+                                  table: {
+                                    ...tableNodeData.table,
+                                    rows: updatedRows,
+                                  },
+                                },
+                              };
+                            }
+                          }
+                          return n;
+                        }),
+                      );
+                    }}
+                    onSaveAsTemplate={handleSaveAsTemplate}
+                    savedTemplates={savedTemplates}
+                    onGenerateFromTemplate={handleGenerateFromTemplate}
+                    flowSettings={activeTab?.flowSettings}
+                    onFlowSettingsChange={(flowId, settings) => {
+                      updateActiveTab({
+                        flowSettings: {
+                          ...activeTab?.flowSettings,
+                          [flowId]: settings,
+                        },
+                      });
+                    }}
+                    onResetFlowStatuses={(flowId) => {
+                      // Reset all node statuses in the flow
+                      const flowNodes = nodes.filter((n) => {
+                        // Find nodes that belong to this flow by checking connectivity
+                        return true; // For now, just reset all - flow detection handles this
+                      });
+                      setNodes(
+                        nodes.map((n) => ({
+                          ...n,
+                          data: { ...n.data, status: undefined },
+                        })),
+                      );
+                    }}
+                    onNodeStatusChange={(nodeId) => {
+                      // Cycle status: undefined/todo -> inprogress -> done -> undefined
+                      setNodes((prev) =>
+                        prev.map((n) => {
+                          if (n.id === nodeId) {
+                            const currentStatus = n.data?.status;
+                            let nextStatus: string | undefined;
+                            if (!currentStatus || currentStatus === "todo") {
+                              nextStatus = "inprogress";
+                            } else if (currentStatus === "inprogress") {
+                              nextStatus = "done";
+                            } else {
+                              nextStatus = undefined; // Cycle back to todo/undefined
+                            }
+                            return {
+                              ...n,
+                              data: { ...n.data, status: nextStatus },
+                            };
+                          }
+                          return n;
+                        }),
+                      );
+                      saveToHistory("Change node status");
+                    }}
+                    onApplyTheme={(flowId, theme) => {
+                      saveToHistory("Apply workflow theme");
+                      setNodes((prev) =>
+                        prev.map((n) => {
+                          // Check if this node belongs to the flow
+                          const flows = FlowDetection.detectFlows(prev, edges);
+                          const flow = flows.find((f) => f.id === flowId);
+                          if (flow && flow.nodes.some((fn) => fn.id === n.id)) {
+                            return {
+                              ...n,
+                              data: applyThemeToNode(n.data || {}, theme),
+                            };
+                          }
+                          return n;
+                        }),
+                      );
+                      setEdges((prev) =>
+                        prev.map((e) => {
+                          const flows = FlowDetection.detectFlows(nodes, prev);
+                          const flow = flows.find((f) => f.id === flowId);
+                          if (flow) {
+                            const nodeIds = flow.nodes.map((n) => n.id);
+                            if (
+                              nodeIds.includes(e.source) &&
+                              nodeIds.includes(e.target)
+                            ) {
+                              return applyThemeToEdge(e, theme);
+                            }
+                          }
+                          return e;
+                        }),
+                      );
+                    }}
+                    onDeleteWorkflow={(flowId, nodeIds) => {
+                      saveToHistory("Delete workflow");
+                      // Remove all nodes in the workflow
+                      setNodes((prev) =>
+                        prev.filter((n) => !nodeIds.includes(n.id)),
+                      );
+                      // Edges connected to deleted nodes are automatically cleaned up
+                      setEdges((prev) =>
+                        prev.filter(
+                          (e) =>
+                            !nodeIds.includes(e.source) &&
+                            !nodeIds.includes(e.target),
+                        ),
+                      );
+                    }}
+                    onDragWorkflow={(
+                      flowId,
+                      nodeIds,
+                      deltaX,
+                      deltaY,
+                      isDragStart,
+                    ) => {
+                      // Save to history only at drag start to create single undo entry
+                      if (isDragStart) {
+                        saveToHistory("Drag workflow");
+                      }
+                      setNodes((prev) =>
+                        prev.map((n) => {
+                          if (nodeIds.includes(n.id)) {
+                            return {
+                              ...n,
+                              position: {
+                                x: n.position.x + deltaX,
+                                y: n.position.y + deltaY,
+                              },
+                            };
+                          }
+                          return n;
+                        }),
+                      );
+                    }}
+                    onLayoutWorkflow={(flowId, nodeIds, layoutType) => {
+                      // Create position map for new positions (immutable approach)
+                      const newPositions: Map<
+                        string,
+                        { x: number; y: number }
+                      > = new Map();
+
+                      // Get workflow nodes and edges (create copies for calculation only)
+                      const workflowNodeData = nodes
+                        .filter((n) => nodeIds.includes(n.id))
+                        .map((n) => ({
+                          id: n.id,
+                          x: n.position.x,
+                          y: n.position.y,
+                          width: n.style?.width ?? n.width ?? 200,
+                          height: n.style?.height ?? n.height ?? 100,
+                        }));
+                      const workflowEdges = edges.filter(
+                        (e) =>
+                          nodeIds.includes(e.source) &&
+                          nodeIds.includes(e.target),
+                      );
+
+                      // Guard: no work to do if empty
+                      if (workflowNodeData.length === 0) return;
+
+                      // Save to history only after validation
+                      saveToHistory("Apply layout");
+
+                      // Calculate the workflow's current bounding box to preserve position
+                      const minX = Math.min(
+                        ...workflowNodeData.map((n) => n.x),
+                      );
+                      const minY = Math.min(
+                        ...workflowNodeData.map((n) => n.y),
+                      );
+
+                      // Apply layout based on type
+                      const horizontalSpacing = 280;
+                      const verticalSpacing = 180;
+
+                      // Helper: topological sort for consistent ordering
+                      const topoSort = (): typeof workflowNodeData => {
+                        const inDegree: Map<string, number> = new Map();
+                        const adjacency: Map<string, string[]> = new Map();
+
+                        workflowNodeData.forEach((n) => {
+                          inDegree.set(n.id, 0);
+                          adjacency.set(n.id, []);
+                        });
+
+                        workflowEdges.forEach((e) => {
+                          const current = inDegree.get(e.target) ?? 0;
+                          inDegree.set(e.target, current + 1);
+                          adjacency.get(e.source)?.push(e.target);
+                        });
+
+                        // Start with nodes that have no incoming edges
+                        const queue = workflowNodeData.filter(
+                          (n) => (inDegree.get(n.id) ?? 0) === 0,
+                        );
+                        const sorted: typeof workflowNodeData = [];
+
+                        while (queue.length > 0) {
+                          const node = queue.shift()!;
+                          sorted.push(node);
+
+                          const children = adjacency.get(node.id) ?? [];
+                          children.forEach((childId) => {
+                            const degree = (inDegree.get(childId) ?? 1) - 1;
+                            inDegree.set(childId, degree);
+                            if (degree === 0) {
+                              const childNode = workflowNodeData.find(
+                                (n) => n.id === childId,
+                              );
+                              if (childNode) queue.push(childNode);
+                            }
+                          });
+                        }
+
+                        // Add any remaining nodes (cycles) in original x/y order
+                        const remaining = workflowNodeData.filter(
+                          (n) => !sorted.find((s) => s.id === n.id),
+                        );
+                        remaining.sort((a, b) => a.x - b.x || a.y - b.y);
+                        return [...sorted, ...remaining];
+                      };
+
+                      switch (layoutType) {
+                        case "horizontal":
+                          const hSorted = topoSort();
+                          let currentX = minX;
+                          hSorted.forEach((node) => {
+                            newPositions.set(node.id, { x: currentX, y: minY });
+                            currentX += node.width + 80; // Gap between nodes
+                          });
+                          break;
+
+                        case "vertical":
+                          const vSorted = topoSort();
+                          let currentY = minY;
+                          vSorted.forEach((node) => {
+                            newPositions.set(node.id, { x: minX, y: currentY });
+                            currentY += node.height + 50; // Gap between nodes
+                          });
+                          break;
+
+                        case "hierarchical":
+                        default:
+                          // BFS to assign depth levels
+                          const targetNodeIds = new Set(
+                            workflowEdges.map((e) => e.target),
+                          );
+                          const rootNodeIds = workflowNodeData
+                            .filter((n) => !targetNodeIds.has(n.id))
+                            .map((n) => n.id);
+
+                          // If no roots found (cycle), use first node as root
+                          if (
+                            rootNodeIds.length === 0 &&
+                            workflowNodeData.length > 0
+                          ) {
+                            rootNodeIds.push(workflowNodeData[0].id);
+                          }
+
+                          // BFS to compute depth for each node
+                          const nodeDepth: Map<string, number> = new Map();
+                          const queue: string[] = [...rootNodeIds];
+                          rootNodeIds.forEach((id) => nodeDepth.set(id, 0));
+
+                          while (queue.length > 0) {
+                            const currentId = queue.shift()!;
+                            const currentDepth = nodeDepth.get(currentId) ?? 0;
+
+                            // Find children (targets of outgoing edges)
+                            const outEdges = workflowEdges.filter(
+                              (e) => e.source === currentId,
+                            );
+                            outEdges.forEach((edge) => {
+                              const existingDepth = nodeDepth.get(edge.target);
+                              // Only update if not visited or if new depth is greater (handle multi-parent)
+                              if (existingDepth === undefined) {
+                                nodeDepth.set(edge.target, currentDepth + 1);
+                                queue.push(edge.target);
+                              } else if (currentDepth + 1 > existingDepth) {
+                                // Update to deepest path for multi-parent nodes
+                                nodeDepth.set(edge.target, currentDepth + 1);
+                                queue.push(edge.target);
+                              }
+                            });
+                          }
+
+                          // Handle any disconnected nodes
+                          workflowNodeData.forEach((n) => {
+                            if (!nodeDepth.has(n.id)) {
+                              nodeDepth.set(n.id, 0);
+                            }
+                          });
+
+                          // Group nodes by depth
+                          const layers: Map<number, typeof workflowNodeData> =
+                            new Map();
+                          workflowNodeData.forEach((node) => {
+                            const depth = nodeDepth.get(node.id) ?? 0;
+                            if (!layers.has(depth)) {
+                              layers.set(depth, []);
+                            }
+                            layers.get(depth)!.push(node);
+                          });
+
+                          // Calculate max layer width for centering
+                          let maxLayerWidth = 0;
+                          layers.forEach((layer) => {
+                            const layerWidth =
+                              layer.reduce((sum, n) => sum + n.width, 0) +
+                              (layer.length - 1) * 80;
+                            maxLayerWidth = Math.max(maxLayerWidth, layerWidth);
+                          });
+
+                          // Position nodes by layer with centering
+                          const sortedDepths = Array.from(layers.keys()).sort(
+                            (a, b) => a - b,
+                          );
+                          sortedDepths.forEach((depth, layerIndex) => {
+                            const layer = layers.get(depth)!;
+                            const layerWidth =
+                              layer.reduce((sum, n) => sum + n.width, 0) +
+                              (layer.length - 1) * 80;
+                            const startX =
+                              minX + (maxLayerWidth - layerWidth) / 2;
+
+                            let xOffset = startX;
+                            layer.forEach((node) => {
+                              newPositions.set(node.id, {
+                                x: xOffset,
+                                y: minY + layerIndex * verticalSpacing,
+                              });
+                              xOffset += node.width + 80;
+                            });
+                          });
+                          break;
+                      }
+
+                      // Apply new positions immutably through setNodes
+                      setNodes((prev) =>
+                        prev.map((n) => {
+                          const newPos = newPositions.get(n.id);
+                          if (newPos) {
+                            return {
+                              ...n,
+                              position: { ...newPos },
+                            };
+                          }
+                          return n;
+                        }),
+                      );
+                    }}
+                  />
+                </>
+              ) : (
+                <BlankCanvasState
+                  onCreateBlank={handleCreateBlankFromCanvas}
+                  onCreateWithTemplate={handleCreateWithTemplate}
+                  onCreateWithAI={handleCreateWithAI}
+                  onImportWorkflow={handleImportFromCanvas}
+                  onCreateTemplate={handleCreateTemplateFromCanvas}
+                />
+              )}
+            </div>
+
+            {/* Project Panel - docked right side */}
+            {openTabs.length > 0 && (
+              <ProjectPanel
+                nodes={nodes}
+                edges={edges}
+                frames={[]}
+                canvasObjects={canvasObjects}
+                projectId={
+                  activeTab?.projectUuid ||
+                  activeTab?.cloudProjectId?.toString() ||
+                  activeTabId
+                }
+                projectName={activeTab?.name}
+                onProjectNameChange={(name) => updateActiveTab({ name })}
+                onApplyWorkflow={(workflow) => {
+                  const offset = calculateWorkflowOffset(workflow.nodes);
+                  const batchId = Date.now();
+                  const nodeIdMapping: { [oldId: string]: string } = {};
+
+                  const offsetNodes = workflow.nodes.map(
+                    (node: Node, index: number) => {
+                      const oldId = node.id || `node-${index}`;
+                      const newId = `node-${batchId}-${index}`;
+                      nodeIdMapping[oldId] = newId;
+
+                      return {
+                        ...node,
+                        id: newId,
+                        position: {
+                          x: node.position.x + offset.x,
+                          y: node.position.y + offset.y,
+                        },
+                        selected: false,
+                      };
+                    },
+                  );
+
+                  const offsetEdges = workflow.edges.map(
+                    (edge: Edge, index: number) => {
+                      let newSource = nodeIdMapping[edge.source];
+                      let newTarget = nodeIdMapping[edge.target];
+
+                      if (!newSource) {
+                        const sourceNumeric = parseInt(edge.source);
+                        if (
+                          !isNaN(sourceNumeric) &&
+                          sourceNumeric < workflow.nodes.length
+                        ) {
+                          const sourceNodeId =
+                            workflow.nodes[sourceNumeric]?.id ||
+                            `node-${sourceNumeric}`;
+                          newSource = nodeIdMapping[sourceNodeId];
+                        }
+                      }
+
+                      if (!newTarget) {
+                        const targetNumeric = parseInt(edge.target);
+                        if (
+                          !isNaN(targetNumeric) &&
+                          targetNumeric < workflow.nodes.length
+                        ) {
+                          const targetNodeId =
+                            workflow.nodes[targetNumeric]?.id ||
+                            `node-${targetNumeric}`;
+                          newTarget = nodeIdMapping[targetNodeId];
+                        }
+                      }
+
+                      return {
+                        ...edge,
+                        id: `edge-${batchId}-${index}`,
+                        source: newSource || edge.source,
+                        target: newTarget || edge.target,
+                        selected: false,
+                      };
+                    },
+                  );
+
+                  setNodes((prev) => [...prev, ...offsetNodes]);
+                  setEdges((prev) => [...prev, ...offsetEdges]);
+
+                  if (
+                    workflow.canvasObjects &&
+                    workflow.canvasObjects.length > 0
+                  ) {
+                    const offsetObjects = workflow.canvasObjects.map(
+                      (obj: CanvasObject, index: number) => ({
+                        ...obj,
+                        id: `obj-${batchId}-${index}`,
+                        position: {
+                          x: obj.position.x + offset.x,
+                          y: obj.position.y + offset.y,
+                        },
+                        selected: false,
+                      }),
+                    );
+                    updateActiveTab({
+                      canvasObjects: [...canvasObjects, ...offsetObjects],
+                    });
+                  }
+
+                  setTimeout(() => saveToHistory("Apply workflow"), 0);
+
+                  toast({
+                    title: "Workflow Applied",
+                    description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections.`,
+                  });
+                }}
               />
             )}
-          </div>
-          
-          {/* Project Panel - docked right side */}
-          {openTabs.length > 0 && (
-            <ProjectPanel
-              nodes={nodes}
-              edges={edges}
-              frames={[]}
-              canvasObjects={canvasObjects}
-              projectId={activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId}
-              projectName={activeTab?.name}
-              onProjectNameChange={(name) => updateActiveTab({ name })}
-              onApplyWorkflow={(workflow) => {
-                const offset = calculateWorkflowOffset(workflow.nodes);
-                const batchId = Date.now();
-                const nodeIdMapping: { [oldId: string]: string } = {};
-                
-                const offsetNodes = workflow.nodes.map((node: Node, index: number) => {
-                  const oldId = node.id || `node-${index}`;
-                  const newId = `node-${batchId}-${index}`;
-                  nodeIdMapping[oldId] = newId;
-                  
-                  return {
-                    ...node,
-                    id: newId,
-                    position: {
-                      x: node.position.x + offset.x,
-                      y: node.position.y + offset.y
-                    },
-                    selected: false
-                  };
-                });
-
-                const offsetEdges = workflow.edges.map((edge: Edge, index: number) => {
-                  let newSource = nodeIdMapping[edge.source];
-                  let newTarget = nodeIdMapping[edge.target];
-                  
-                  if (!newSource) {
-                    const sourceNumeric = parseInt(edge.source);
-                    if (!isNaN(sourceNumeric) && sourceNumeric < workflow.nodes.length) {
-                      const sourceNodeId = workflow.nodes[sourceNumeric]?.id || `node-${sourceNumeric}`;
-                      newSource = nodeIdMapping[sourceNodeId];
-                    }
-                  }
-                  
-                  if (!newTarget) {
-                    const targetNumeric = parseInt(edge.target);
-                    if (!isNaN(targetNumeric) && targetNumeric < workflow.nodes.length) {
-                      const targetNodeId = workflow.nodes[targetNumeric]?.id || `node-${targetNumeric}`;
-                      newTarget = nodeIdMapping[targetNodeId];
-                    }
-                  }
-                  
-                  return {
-                    ...edge,
-                    id: `edge-${batchId}-${index}`,
-                    source: newSource || edge.source,
-                    target: newTarget || edge.target,
-                    selected: false
-                  };
-                });
-
-                setNodes(prev => [...prev, ...offsetNodes]);
-                setEdges(prev => [...prev, ...offsetEdges]);
-                
-                if (workflow.canvasObjects && workflow.canvasObjects.length > 0) {
-                  const offsetObjects = workflow.canvasObjects.map((obj: CanvasObject, index: number) => ({
-                    ...obj,
-                    id: `obj-${batchId}-${index}`,
-                    position: {
-                      x: obj.position.x + offset.x,
-                      y: obj.position.y + offset.y
-                    },
-                    selected: false
-                  }));
-                  updateActiveTab({ canvasObjects: [...canvasObjects, ...offsetObjects] });
-                }
-                
-                setTimeout(() => saveToHistory('Apply workflow'), 0);
-                
-                toast({
-                  title: "Workflow Applied",
-                  description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections.`
-                });
-              }}
-            />
-          )}
           </>
-          )}
-        </div>
-
-        {/* Modals */}
-        {showAiModal && (
-          <AiSettingsModal
-            onClose={() => setShowAiModal(false)}
-            onSave={(settings) => {
-              // Save AI settings to localStorage
-              localStorage.setItem('ai_settings', JSON.stringify(settings));
-              if (settings.apiKey) {
-                localStorage.setItem('openai_api_key', settings.apiKey);
-              }
-              setShowAiModal(false);
-              // Update the AI client with new settings
-              onAiSettingsChange?.();
-            }}
-          />
         )}
-        {showAiGenerator && (
-          <AiWorkflowGenerator
-            onClose={() => {
-              setShowAiGenerator(false);
-              setGeneratorPrompt('');
-            }}
-            initialPrompt={generatorPrompt}
-            onGenerate={(generatedWorkflow: any) => {
-              // Append generated workflow to existing canvas instead of replacing it
-              if (generatedWorkflow.nodes && generatedWorkflow.edges) {
-                // Calculate offset for new nodes
-                const offset = calculateWorkflowOffset(generatedWorkflow.nodes);
-                
-                // Generate unique timestamp for this batch
-                const batchId = Date.now();
-                const randomSuffix = Math.random().toString(36).substr(2, 9);
-                
-                // Create a mapping from old node IDs to new node IDs
-                const nodeIdMapping: { [oldId: string]: string } = {};
-                
-                // Apply offset to new nodes with guaranteed unique IDs
-                const offsetNodes = generatedWorkflow.nodes.map((node: Node, index: number) => {
+      </div>
+
+      {/* Modals */}
+      {showAiModal && (
+        <AiSettingsModal
+          onClose={() => setShowAiModal(false)}
+          onSave={(settings) => {
+            // Save AI settings to localStorage
+            localStorage.setItem("ai_settings", JSON.stringify(settings));
+            if (settings.apiKey) {
+              localStorage.setItem("openai_api_key", settings.apiKey);
+            }
+            setShowAiModal(false);
+            // Update the AI client with new settings
+            onAiSettingsChange?.();
+          }}
+        />
+      )}
+      {showAiGenerator && (
+        <AiWorkflowGenerator
+          onClose={() => {
+            setShowAiGenerator(false);
+            setGeneratorPrompt("");
+          }}
+          initialPrompt={generatorPrompt}
+          onGenerate={(generatedWorkflow: any) => {
+            // Append generated workflow to existing canvas instead of replacing it
+            if (generatedWorkflow.nodes && generatedWorkflow.edges) {
+              // Calculate offset for new nodes
+              const offset = calculateWorkflowOffset(generatedWorkflow.nodes);
+
+              // Generate unique timestamp for this batch
+              const batchId = Date.now();
+              const randomSuffix = Math.random().toString(36).substr(2, 9);
+
+              // Create a mapping from old node IDs to new node IDs
+              const nodeIdMapping: { [oldId: string]: string } = {};
+
+              // Apply offset to new nodes with guaranteed unique IDs
+              const offsetNodes = generatedWorkflow.nodes.map(
+                (node: Node, index: number) => {
                   const oldId = node.id || `node-${index}`;
                   const newId = `${oldId}-ai-${batchId}-${index}`;
                   nodeIdMapping[oldId] = newId;
-                  
+
                   return {
                     ...node,
                     id: newId,
                     position: {
                       x: node.position.x + offset.x,
-                      y: node.position.y + offset.y
+                      y: node.position.y + offset.y,
                     },
-                    selected: false
+                    selected: false,
                   };
-                });
+                },
+              );
 
-                // Apply offset to new edges and update IDs using the mapping
-                const offsetEdges = generatedWorkflow.edges.map((edge: Edge, index: number) => ({
+              // Apply offset to new edges and update IDs using the mapping
+              const offsetEdges = generatedWorkflow.edges.map(
+                (edge: Edge, index: number) => ({
                   ...edge,
                   id: `${edge.id || `edge-${index}`}-ai-${batchId}-${index}`,
                   source: nodeIdMapping[edge.source] || edge.source,
                   target: nodeIdMapping[edge.target] || edge.target,
-                  selected: false
-                }));
+                  selected: false,
+                }),
+              );
 
-                // Append to existing nodes and edges
-                setNodes(prev => [...prev, ...offsetNodes]);
-                setEdges(prev => [...prev, ...offsetEdges]);
-                
-                // Save to history after state updates
-                setTimeout(() => saveToHistory('Generate AI workflow'), 0);
-                
-                toast({
-                  title: "Workflow Generated",
-                  description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections to canvas.`,
-                  variant: "default"
-                });
-              }
-              
-              setShowAiGenerator(false);
-            }}
-          />
-        )}
-        {showImportModal && (
-          <WorkflowImportModal
-            onClose={() => setShowImportModal(false)}
-            onImport={(importedData: any) => {
-              try {
-                // Handle comprehensive workflow format (direct JSON import)
-                if (importedData.version && importedData.canvas && importedData.workflow) {
-                  // New comprehensive format
-                  const { workflow, canvas } = importedData;
-                  
-                  // Restore workflow metadata
-                  if (activeTab) {
-                    updateActiveTab({
+              // Append to existing nodes and edges
+              setNodes((prev) => [...prev, ...offsetNodes]);
+              setEdges((prev) => [...prev, ...offsetEdges]);
+
+              // Save to history after state updates
+              setTimeout(() => saveToHistory("Generate AI workflow"), 0);
+
+              toast({
+                title: "Workflow Generated",
+                description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections to canvas.`,
+                variant: "default",
+              });
+            }
+
+            setShowAiGenerator(false);
+          }}
+        />
+      )}
+      {showImportModal && (
+        <WorkflowImportModal
+          onClose={() => setShowImportModal(false)}
+          onImport={(importedData: any) => {
+            try {
+              // Handle comprehensive workflow format (direct JSON import)
+              if (
+                importedData.version &&
+                importedData.canvas &&
+                importedData.workflow
+              ) {
+                // New comprehensive format
+                const { workflow, canvas } = importedData;
+
+                // Restore workflow metadata
+                if (activeTab) {
+                  updateActiveTab({
+                    name: workflow.name,
+                    metadata: {
                       name: workflow.name,
-                      metadata: {
-                        name: workflow.name,
-                        description: workflow.description || '',
-                        links: workflow.links || [],
-                        linksFormat: activeTab.metadata.linksFormat || 'text',
-                        categories: workflow.categories || []
-                      }
-                    });
-                  }
-                  
-                  // Restore canvas content with all styling
-                  if (canvas.nodes) {
-                    setNodes(canvas.nodes.map((node: any) => ({
-                      ...node,
-                      data: { ...node.data },
-                      style: node.style || {}
-                    })));
-                  }
-                  
-                  if (canvas.edges) {
-                    setEdges(canvas.edges.map((edge: any) => ({
-                      ...edge,
-                      style: edge.style || {},
-                      data: edge.data || {}
-                    })));
-                  }
-                  
-                  if (canvas.canvasObjects) {
-                    updateActiveTab({
-                      canvasObjects: canvas.canvasObjects.map((obj: any) => ({
-                        ...obj,
-                        data: { ...obj.data },
-                        style: obj.style || {}
-                      }))
-                    });
-                  }
-                  
-                  if (canvas.viewport) {
-                    setViewport(canvas.viewport);
-                  }
-                  
-                  toast({
-                    title: "Workflow Imported",
-                    description: `"${workflow.name}" imported with all content, styling, and metadata`,
-                  });
-                } else if (importedData.nodes || importedData.edges || importedData.canvasObjects) {
-                  // New modal format - handle nodes, edges, canvasObjects, and metadata
-                  const nodesCount = importedData.nodes ? importedData.nodes.length : 0;
-                  const edgesCount = importedData.edges ? importedData.edges.length : 0;
-                  const objectsCount = importedData.canvasObjects ? importedData.canvasObjects.length : 0;
-                  
-                  if (activeTab) {
-                    // Apply workflow metadata if provided
-                    const metadataUpdate = importedData.workflowMetadata ? {
-                      name: importedData.workflowMetadata.name || activeTab.name,
-                      metadata: {
-                        name: importedData.workflowMetadata.name || activeTab.metadata.name,
-                        description: importedData.workflowMetadata.description || activeTab.metadata.description,
-                        links: importedData.workflowMetadata.links || activeTab.metadata.links,
-                        linksFormat: activeTab.metadata.linksFormat || 'text',
-                        categories: importedData.workflowMetadata.categories || activeTab.metadata.categories
-                      }
-                    } : {};
-
-                    // Update tab with imported content and metadata
-                    updateActiveTab({
-                      ...metadataUpdate,
-                      nodes: importedData.nodes ? importedData.nodes.map((node: Node) => ({ ...node, selected: false })) : activeTab.nodes,
-                      edges: importedData.edges ? importedData.edges.map((edge: Edge) => ({ ...edge, selected: false })) : activeTab.edges,
-                      canvasObjects: importedData.canvasObjects ? importedData.canvasObjects.map((obj: any) => ({ ...obj, selected: false })) : activeTab.canvasObjects,
-                      viewport: importedData.viewport || activeTab.viewport
-                    });
-                    
-                    toast({
-                      title: "Workflow Imported",
-                      description: `Imported ${nodesCount} nodes, ${edgesCount} connections, and ${objectsCount} canvas objects with metadata`,
-                    });
-                  }
-                } else {
-                  // Legacy format fallback
-                  if (importedData.nodes) {
-                    setNodes(importedData.nodes);
-                  }
-                  if (importedData.edges) {
-                    setEdges(importedData.edges);
-                  }
-                  if (importedData.canvasObjects) {
-                    updateActiveTab({ canvasObjects: importedData.canvasObjects });
-                  }
-                  if (importedData.viewport) {
-                    setViewport(importedData.viewport);
-                  }
-                  
-                  toast({
-                    title: "Workflow Imported",
-                    description: "Legacy workflow format imported successfully",
+                      description: workflow.description || "",
+                      links: workflow.links || [],
+                      linksFormat: activeTab.metadata.linksFormat || "text",
+                      categories: workflow.categories || [],
+                    },
                   });
                 }
-                
-                // Clear selections and save to history
-                setSelectedNodeId('');
-                setSelectedEdgeId('');
-                saveToHistory('Import workflow');
-                
-              } catch (error) {
-                console.error('Import failed:', error);
+
+                // Restore canvas content with all styling
+                if (canvas.nodes) {
+                  setNodes(
+                    canvas.nodes.map((node: any) => ({
+                      ...node,
+                      data: { ...node.data },
+                      style: node.style || {},
+                    })),
+                  );
+                }
+
+                if (canvas.edges) {
+                  setEdges(
+                    canvas.edges.map((edge: any) => ({
+                      ...edge,
+                      style: edge.style || {},
+                      data: edge.data || {},
+                    })),
+                  );
+                }
+
+                if (canvas.canvasObjects) {
+                  updateActiveTab({
+                    canvasObjects: canvas.canvasObjects.map((obj: any) => ({
+                      ...obj,
+                      data: { ...obj.data },
+                      style: obj.style || {},
+                    })),
+                  });
+                }
+
+                if (canvas.viewport) {
+                  setViewport(canvas.viewport);
+                }
+
                 toast({
-                  title: "Import Failed",
-                  description: "Failed to import workflow. Please check the file format.",
-                  variant: "destructive"
+                  title: "Workflow Imported",
+                  description: `"${workflow.name}" imported with all content, styling, and metadata`,
+                });
+              } else if (
+                importedData.nodes ||
+                importedData.edges ||
+                importedData.canvasObjects
+              ) {
+                // New modal format - handle nodes, edges, canvasObjects, and metadata
+                const nodesCount = importedData.nodes
+                  ? importedData.nodes.length
+                  : 0;
+                const edgesCount = importedData.edges
+                  ? importedData.edges.length
+                  : 0;
+                const objectsCount = importedData.canvasObjects
+                  ? importedData.canvasObjects.length
+                  : 0;
+
+                if (activeTab) {
+                  // Apply workflow metadata if provided
+                  const metadataUpdate = importedData.workflowMetadata
+                    ? {
+                        name:
+                          importedData.workflowMetadata.name || activeTab.name,
+                        metadata: {
+                          name:
+                            importedData.workflowMetadata.name ||
+                            activeTab.metadata.name,
+                          description:
+                            importedData.workflowMetadata.description ||
+                            activeTab.metadata.description,
+                          links:
+                            importedData.workflowMetadata.links ||
+                            activeTab.metadata.links,
+                          linksFormat: activeTab.metadata.linksFormat || "text",
+                          categories:
+                            importedData.workflowMetadata.categories ||
+                            activeTab.metadata.categories,
+                        },
+                      }
+                    : {};
+
+                  // Update tab with imported content and metadata
+                  updateActiveTab({
+                    ...metadataUpdate,
+                    nodes: importedData.nodes
+                      ? importedData.nodes.map((node: Node) => ({
+                          ...node,
+                          selected: false,
+                        }))
+                      : activeTab.nodes,
+                    edges: importedData.edges
+                      ? importedData.edges.map((edge: Edge) => ({
+                          ...edge,
+                          selected: false,
+                        }))
+                      : activeTab.edges,
+                    canvasObjects: importedData.canvasObjects
+                      ? importedData.canvasObjects.map((obj: any) => ({
+                          ...obj,
+                          selected: false,
+                        }))
+                      : activeTab.canvasObjects,
+                    viewport: importedData.viewport || activeTab.viewport,
+                  });
+
+                  toast({
+                    title: "Workflow Imported",
+                    description: `Imported ${nodesCount} nodes, ${edgesCount} connections, and ${objectsCount} canvas objects with metadata`,
+                  });
+                }
+              } else {
+                // Legacy format fallback
+                if (importedData.nodes) {
+                  setNodes(importedData.nodes);
+                }
+                if (importedData.edges) {
+                  setEdges(importedData.edges);
+                }
+                if (importedData.canvasObjects) {
+                  updateActiveTab({
+                    canvasObjects: importedData.canvasObjects,
+                  });
+                }
+                if (importedData.viewport) {
+                  setViewport(importedData.viewport);
+                }
+
+                toast({
+                  title: "Workflow Imported",
+                  description: "Legacy workflow format imported successfully",
                 });
               }
-              saveToHistory('Import workflow');
-              setShowImportModal(false);
-            }}
-          />
-        )}
-        {showNewTabModal && (
-          <NewTabModal
-            isOpen={showNewTabModal}
-            onClose={() => setShowNewTabModal(false)}
-            onCreateBlank={handleCreateBlankFromCanvas}
-            onCreateFromPrompt={handleCreateFromPrompt}
-            onCreateFromFile={handleCreateFromFile}
-            onCreateFromTemplate={handleCreateFromTemplate}
-            onCreateFromImage={(imageFile: File) => {
-              // Image analysis is now handled directly in the modal
-            }}
-          />
-        )}
-        {showShareModal && (
-          <ShareModal
-            isOpen={showShareModal}
-            onClose={() => setShowShareModal(false)}
-            nodes={nodes}
-            edges={edges}
-            canvasObjects={canvasObjects}
-            viewport={viewport}
-            projectMetadata={activeTab?.metadata}
-            onShareCreated={(shareId) => setActiveShareId(shareId)}
-            projectId={currentProjectId}
-            existingShareUuid={activeShareId}
-            isAuthenticated={isAuthenticated}
-          />
-        )}
 
-        {/* Bug Report Modal */}
-        {showBugReportModal && (
-          <BugReportModal
-            onClose={() => setShowBugReportModal(false)}
-          />
-        )}
+              // Clear selections and save to history
+              setSelectedNodeId("");
+              setSelectedEdgeId("");
+              saveToHistory("Import workflow");
+            } catch (error) {
+              console.error("Import failed:", error);
+              toast({
+                title: "Import Failed",
+                description:
+                  "Failed to import workflow. Please check the file format.",
+                variant: "destructive",
+              });
+            }
+            saveToHistory("Import workflow");
+            setShowImportModal(false);
+          }}
+        />
+      )}
+      {showNewTabModal && (
+        <NewTabModal
+          isOpen={showNewTabModal}
+          onClose={() => setShowNewTabModal(false)}
+          onCreateBlank={handleCreateBlankFromCanvas}
+          onCreateFromPrompt={handleCreateFromPrompt}
+          onCreateFromFile={handleCreateFromFile}
+          onCreateFromTemplate={handleCreateFromTemplate}
+          onCreateFromImage={(imageFile: File) => {
+            // Image analysis is now handled directly in the modal
+          }}
+        />
+      )}
+      {showShareModal && (
+        <ShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          nodes={nodes}
+          edges={edges}
+          canvasObjects={canvasObjects}
+          viewport={viewport}
+          projectMetadata={activeTab?.metadata}
+          onShareCreated={(shareId) => setActiveShareId(shareId)}
+          projectId={currentProjectId}
+          existingShareUuid={activeShareId}
+          isAuthenticated={isAuthenticated}
+        />
+      )}
 
-        {/* Table Link Picker for FormNode */}
-        {tableLinkPicker && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 w-80 max-h-96 overflow-y-auto">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Link to Table</h3>
-                <button
-                  onClick={() => setTableLinkPicker(null)}
-                  className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                  data-testid="close-table-picker"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Select a table to link to this form:</p>
-              <div className="space-y-2">
-                {nodes.filter(n => n.type === 'table').map(tableNode => {
+      {/* Bug Report Modal */}
+      {showBugReportModal && (
+        <BugReportModal onClose={() => setShowBugReportModal(false)} />
+      )}
+
+      {/* Table Link Picker for FormNode */}
+      {tableLinkPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 w-80 max-h-96 overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Link to Table
+              </h3>
+              <button
+                onClick={() => setTableLinkPicker(null)}
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                data-testid="close-table-picker"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Select a table to link to this form:
+            </p>
+            <div className="space-y-2">
+              {nodes
+                .filter((n) => n.type === "table")
+                .map((tableNode) => {
                   const tableNodeData = tableNode.data as TableNodeData;
-                  const tableName = tableNodeData.table?.name || tableNodeData.label || 'Untitled Table';
+                  const tableName =
+                    tableNodeData.table?.name ||
+                    tableNodeData.label ||
+                    "Untitled Table";
                   const rowCount = tableNodeData.table?.rows?.length || 0;
                   return (
                     <button
                       key={tableNode.id}
                       onClick={() => {
-                        setNodes(prev => prev.map(n => {
-                          if (n.id === tableLinkPicker.formNodeId) {
-                            return {
-                              ...n,
-                              data: {
-                                ...n.data,
-                                linkedTableId: tableNodeData.tableId,
-                                linkedTableNodeId: tableNode.id,
-                                linkedTableName: tableName
-                              }
-                            };
-                          }
-                          return n;
-                        }));
-                        saveToHistory('Link form to table');
+                        setNodes((prev) =>
+                          prev.map((n) => {
+                            if (n.id === tableLinkPicker.formNodeId) {
+                              return {
+                                ...n,
+                                data: {
+                                  ...n.data,
+                                  linkedTableId: tableNodeData.tableId,
+                                  linkedTableNodeId: tableNode.id,
+                                  linkedTableName: tableName,
+                                },
+                              };
+                            }
+                            return n;
+                          }),
+                        );
+                        saveToHistory("Link form to table");
                         setTableLinkPicker(null);
                         toast({
                           title: "Table Linked",
                           description: `Form is now linked to "${tableName}"`,
-                          variant: "default"
+                          variant: "default",
                         });
                       }}
                       className="w-full text-left px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors"
@@ -8092,856 +9970,1101 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     >
                       <div className="flex items-center gap-2">
                         <Table2 size={16} className="text-indigo-500" />
-                        <span className="font-medium text-gray-900 dark:text-white">{tableName}</span>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {tableName}
+                        </span>
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {rowCount} row{rowCount !== 1 ? 's' : ''}
+                        {rowCount} row{rowCount !== 1 ? "s" : ""}
                       </div>
                     </button>
                   );
                 })}
-                {nodes.filter(n => n.type === 'table').length === 0 && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                    No tables available. Create a table node first.
-                  </p>
-                )}
-              </div>
+              {nodes.filter((n) => n.type === "table").length === 0 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                  No tables available. Create a table node first.
+                </p>
+              )}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Image Upload Modal */}
-        {showImageUploadModal && selectedImageNodeId && (
-          <ImageUploadModal
-            isOpen={showImageUploadModal}
-            onClose={() => {
-              setShowImageUploadModal(false);
-              setSelectedImageNodeId(null);
-            }}
-            onImageUpload={async (file: File) => {
-              // Convert file to data URL for local storage
-              return new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  const dataUrl = reader.result as string;
-                  // Update the node with the image
-                  setNodes(prev => prev.map(n => 
-                    n.id === selectedImageNodeId
-                      ? { ...n, data: { ...n.data, src: dataUrl, filename: file.name, sourceType: 'upload' } }
-                      : n
-                  ));
-                  resolve(dataUrl);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-              });
-            }}
-            onImageUrlSet={(url: string) => {
-              // Update the node with the URL
-              setNodes(prev => prev.map(n => 
-                n.id === selectedImageNodeId
-                  ? { ...n, data: { ...n.data, src: url, sourceType: 'url' } }
-                  : n
-              ));
-            }}
-          />
-        )}
-
-        {/* Figma Import Modal */}
-        <FigmaImportModal
-          isOpen={showFigmaModal}
-          onClose={() => setShowFigmaModal(false)}
-          onImport={async (framesWithThumbnails, mode, figmaInfo, importMode) => {
-            console.log('[WorkflowEditor] onImport received:', framesWithThumbnails.length, 'frames, mode:', mode, 'importMode:', importMode);
-            console.log('[WorkflowEditor] Frame details:', framesWithThumbnails.map(f => ({
-              name: f.frame.name,
-              id: f.frame.id,
-              hasThumbnail: !!f.thumbnailUrl,
-              hasSemantic: !!f.figmaSemantic,
-            })));
-            
-            if (framesWithThumbnails.length === 0) {
-              toast({
-                title: "No frames selected",
-                description: "Please select at least one frame to import.",
-                variant: "destructive"
-              });
-              return;
-            }
-            
-            let importedNodeIds: string[] = [];
-            
-            if (mode === 'new-project') {
-              console.log('[WorkflowEditor] Creating new project with', framesWithThumbnails.length, 'frames');
-              const workflowData = buildFigmaFrameWorkflow(framesWithThumbnails, { x: 100, y: 100 }, 50, figmaInfo?.fileKey, { importMode });
-              console.log('[WorkflowEditor] Built workflow data - nodes:', workflowData.nodes.length, 'edges:', workflowData.edges.length);
-              importedNodeIds = workflowData.nodes.map(n => n.id);
-              const name = generateCuteName();
-              const newTabId = generateTabId();
-              const projectUuid = `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-              const newTab: WorkflowTab = {
-                id: newTabId,
-                name,
-                nodes: workflowData.nodes,
-                edges: workflowData.edges,
-                canvasObjects: workflowData.canvasObjects || [],
-                viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
-                selectedNodeId: '',
-                selectedEdgeId: '',
-                history: [{ 
-                  nodes: workflowData.nodes, 
-                  edges: workflowData.edges, 
-                  canvasObjects: workflowData.canvasObjects || [], 
-                  viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 } 
-                }],
-                historyIndex: 0,
-                showImageModal: null,
-                metadata: {
-                  name,
-                  description: 'Imported from Figma',
-                  links: [],
-                  linksFormat: 'text',
-                  categories: []
-                },
-                projectUuid
-              };
-              setTabs(prev => [...prev, newTab]);
-              setActiveTabId(newTabId);
-              
-              if (figmaInfo) {
-                addFigmaSource(newTabId, figmaInfo.url, figmaInfo.fileName, figmaInfo.fileKey, framesWithThumbnails.length);
-              }
-              
-              toast({
-                title: "Figma Imported",
-                description: `Created "${name}" with ${framesWithThumbnails.length} frame${framesWithThumbnails.length > 1 ? 's' : ''}.`,
-              });
-              
-              if (importMode === 'workflow' && importedNodeIds.length > 0) {
-                setTimeout(() => {
-                  setWorkflowPreviewFrameIds(importedNodeIds);
-                  setShowWorkflowPreviewModal(true);
-                }, 300);
-              }
-            } else {
-              console.log('[WorkflowEditor] Inserting into existing project with', framesWithThumbnails.length, 'frames');
-              saveToHistory('Import Figma frames');
-              const newNodes = insertFigmaFrames(nodes, framesWithThumbnails, 50, figmaInfo?.fileKey, { importMode });
-              importedNodeIds = newNodes.map(n => n.id);
-              console.log('[WorkflowEditor] Created new nodes:', newNodes.length);
-              setNodes(prev => [...prev, ...newNodes]);
-              
-              if (figmaInfo) {
-                addFigmaSource(activeTabId, figmaInfo.url, figmaInfo.fileName, figmaInfo.fileKey, framesWithThumbnails.length);
-              }
-              
-              toast({
-                title: "Figma Added",
-                description: `Added ${framesWithThumbnails.length} frame${framesWithThumbnails.length > 1 ? 's' : ''} to your workflow.`,
-              });
-              
-              if (importMode === 'workflow' && importedNodeIds.length > 0) {
-                setTimeout(() => {
-                  setWorkflowPreviewFrameIds(importedNodeIds);
-                  setShowWorkflowPreviewModal(true);
-                }, 300);
-              }
-            }
-            
-            setShowFigmaModal(false);
-          }}
-          mode={figmaImportMode}
-        />
-
-        {/* Workflow Generation Preview Modal */}
-        <WorkflowGenerationPreviewModal
-          isOpen={showWorkflowPreviewModal}
+      {/* Image Upload Modal */}
+      {showImageUploadModal && selectedImageNodeId && (
+        <ImageUploadModal
+          isOpen={showImageUploadModal}
           onClose={() => {
-            setShowWorkflowPreviewModal(false);
-            setWorkflowPreviewFrameIds([]);
+            setShowImageUploadModal(false);
+            setSelectedImageNodeId(null);
           }}
-          frameNodes={nodes.filter(n => workflowPreviewFrameIds.includes(n.id))}
-          onConfirm={async ({ useCleanLayout, mode }) => {
-            setIsGeneratingWorkflow(true);
-            try {
-              const frameNodes = nodes.filter(n => workflowPreviewFrameIds.includes(n.id));
-              const validFrames = filterValidWorkflowFrames(frameNodes);
-              const sortedFrames = sortFrameNodesForWorkflow(validFrames);
-              
-              if (sortedFrames.length === 0) {
-                toast({
-                  title: "No valid frames",
-                  description: "No frames with semantic data found for workflow generation.",
-                  variant: "destructive"
-                });
-                return;
-              }
-
-              saveToHistory('Generate workflow from Figma');
-              
-              let generatedNodes: Node[] = [];
-              let generatedEdges: Edge[] = [];
-              const startY = Math.max(...nodes.map(n => n.position.y + (n.height || 100))) + 100;
-              
-              if (mode === 'ai_vision') {
-                const semantics = sortedFrames
-                  .map(f => f.data?.figmaSemantic)
-                  .filter(Boolean) as any[];
-                const thumbnailUrls = sortedFrames
-                  .map(f => f.data?.src)
-                  .filter(Boolean) as string[];
-                
-                const result = await generateAIVisionWorkflow(semantics, thumbnailUrls, { x: 400, y: startY });
-                generatedNodes = result.nodes;
-                generatedEdges = result.edges;
-              } else if (mode === 'ai_refined') {
-                const semantics = sortedFrames
-                  .map(f => f.data?.figmaSemantic)
-                  .filter(Boolean) as any[];
-                
-                const result = await generateAIRefinedWorkflow(semantics, { x: 400, y: startY });
-                generatedNodes = result.nodes;
-                generatedEdges = result.edges;
-              } else {
-                let offsetY = startY;
-                
-                for (const frame of sortedFrames) {
-                  const semantic = frame.data?.figmaSemantic;
-                  if (!semantic) continue;
-                  
-                  const frameName = frame.data?.label || frame.data?.figmaName || 'Frame';
-                  const result = generateWorkflowFromFigmaSemantic(
-                    semantic,
-                    frameName,
-                    frame,
-                    { mode }
-                  );
-                  
-                  generatedNodes.push(...result.nodes);
-                  generatedEdges.push(...result.edges);
-                  offsetY += result.nodes.length * 120 + 100;
-                }
-              }
-              
-              if (generatedNodes.length > 0) {
-                setNodes(prev => [...prev, ...generatedNodes]);
-                setEdges(prev => [...prev, ...generatedEdges]);
-                
-                if (useCleanLayout) {
-                  setTimeout(() => {
-                    const allNodes = [...nodes, ...generatedNodes];
-                    const layoutedNodes = allNodes.map((n, i) => ({
-                      ...n,
-                      position: {
-                        x: generatedNodes.some(gn => gn.id === n.id) ? 400 : n.position.x,
-                        y: generatedNodes.some(gn => gn.id === n.id) 
-                          ? Math.max(...nodes.map(node => node.position.y + (node.height || 100))) + 100 + (generatedNodes.indexOf(n) * 120)
-                          : n.position.y
-                      }
-                    }));
-                    setNodes(layoutedNodes);
-                  }, 100);
-                }
-                
-                const modeLabel = mode === 'ai_vision' ? 'AI Vision' : mode === 'ai_refined' ? 'AI Refined' : mode === 'detailed' ? 'Detailed' : 'Compact';
-                toast({
-                  title: "Workflow Generated",
-                  description: `Created ${generatedNodes.length} nodes (${modeLabel} mode) from ${sortedFrames.length} frame(s).`,
-                });
-                
-                // Use afterWorkflowCreation hook for PRD generation (Figma workflow path)
-                // Must use the same projectUuid that the tab has/will have
-                const effectiveProjectId = activeTab?.projectUuid || activeTabId;
-                // Compute workflow group ID from generated nodes
-                let figmaRootNodeId = generatedNodes[0]?.id || '';
-                let figmaMinSum = Infinity;
-                generatedNodes.forEach((node: Node) => {
-                  const sum = (node.position?.x || 0) + (node.position?.y || 0);
-                  if (sum < figmaMinSum) {
-                    figmaMinSum = sum;
-                    figmaRootNodeId = node.id;
-                  }
-                });
-                const figmaWorkflowGroupId = `workflow-${figmaRootNodeId}`;
-                const figmaWorkflowName = generatedNodes[0]?.data?.label || 'Figma Workflow';
-                
-                console.log('[Figma] Starting afterWorkflowCreation for Figma workflow, projectId:', effectiveProjectId, 'workflowId:', figmaWorkflowGroupId);
-                
-                afterWorkflowCreation({
-                  projectId: effectiveProjectId,
-                  workflows: [{
-                    workflowId: figmaWorkflowGroupId,
-                    workflowName: figmaWorkflowName,
-                    nodes: generatedNodes,
-                    edges: generatedEdges
-                  }],
-                  source: 'figma',
-                  generatePRD: true,
-                  aiClient: ai,
-                  onPRDGenerated: (workflowId, prd) => {
-                    console.log('[Figma] PRD generated for workflow:', workflowId);
-                    toast({
-                      title: 'PRD Generated',
-                      description: 'A first draft PRD has been created for your Figma workflow.',
-                    });
-                  },
-                  onProjectDetailsGenerated: (details) => {
-                    console.log('[Figma] Project details generated:', details.title);
-                  },
-                  onError: (error, context) => {
-                    console.error('[Figma] Error in afterWorkflowCreation:', context, error);
-                  }
-                }).catch(err => {
-                  console.error('[Figma] afterWorkflowCreation failed:', err);
-                });
-              }
-            } catch (error) {
-              console.error('Error generating workflow:', error);
-              toast({
-                title: "Generation Failed",
-                description: error instanceof Error ? error.message : "Failed to generate workflow from frames.",
-                variant: "destructive"
-              });
-            } finally {
-              setIsGeneratingWorkflow(false);
-              setShowWorkflowPreviewModal(false);
-              setWorkflowPreviewFrameIds([]);
-            }
-          }}
-          isGenerating={isGeneratingWorkflow}
-        />
-
-        {/* Table Panel */}
-        {openTablePanel && (
-          <TablePanel
-            tableId={openTablePanel}
-            table={tableData[openTablePanel]}
-            position={{ x: 100, y: 100 }}
-            onClose={() => setOpenTablePanel(null)}
-            onUpdateTable={(updatedTable) => {
-              setTableData(prev => ({
-                ...prev,
-                [openTablePanel]: updatedTable
-              }));
-              // Also update the node to trigger re-render
-              setNodes(prev => prev.map(n => 
-                n.data?.tableId === openTablePanel
-                  ? { ...n, data: { ...n.data, _tableUpdated: Date.now() } }
-                  : n
-              ));
-            }}
-            onCreateNodeFromRow={(row, rowIndex) => {
-              const tableNode = nodes.find(n => n.data?.tableId === openTablePanel);
-              const position = tableNode 
-                ? { 
-                    x: tableNode.position.x + (tableNode.width || 280) + 50, 
-                    y: tableNode.position.y + (rowIndex * 120) 
-                  }
-                : getViewportCenteredPosition();
-              
-              const rowLabel = Object.values(row)[0]?.toString() || `Row ${rowIndex + 1}`;
-              
-              const newNode: Node = {
-                id: `node-${Date.now()}`,
-                type: 'process',
-                position,
-                data: {
-                  label: rowLabel,
-                  description: `Data from ${openTablePanel}`,
-                  icon: 'Database',
-                  iconColor: 'text-indigo-500',
-                  sourceTable: openTablePanel,
-                  sourceTableNodeId: tableNode?.id,
-                  sourceTableName: tableNode?.data?.label || 'Table',
-                  sourceRowIndex: rowIndex,
-                  rowData: row
-                },
-                width: 200,
-                height: 100
-              };
-              
-              setNodes(prev => [...prev, newNode]);
-              saveToHistory('Create node from table row');
-              
-              toast({
-                title: "Data Node Created",
-                description: `Created node from row ${rowIndex + 1}`,
-                variant: "default"
-              });
-            }}
-          />
-        )}
-
-        {/* Node Gallery Panel */}
-        {showGalleryPanel && (
-          <div className="fixed bottom-4 right-4 z-50 w-[600px] max-w-[calc(100vw-2rem)]">
-            <NodeGalleryPanel
-              nodes={nodes}
-              templates={savedTemplates}
-              onFocusNode={focusOnNode}
-              onClose={() => setShowGalleryPanel(false)}
-            />
-          </div>
-        )}
-
-        {/* Plugin Test Panel */}
-        {showPluginTest && (
-          <PluginTestPanel
-            onClose={() => setShowPluginTest(false)}
-            nodes={nodes}
-            edges={edges}
-          />
-        )}
-
-
-        {contextMenu && (
-          <ContextMenu
-            x={contextMenu.x}
-            y={contextMenu.y}
-            onClose={() => setContextMenu(null)}
-            onCopyProperties={() => {
-              if (contextMenu.node) {
-                // Copy node properties (colors, icon, iconColor, etc.) but not label/description
-                const propertiesToCopy = {
-                  colors: contextMenu.node.data?.colors,
-                  data: {
-                    icon: contextMenu.node.data?.icon,
-                    iconColor: contextMenu.node.data?.iconColor,
-                  }
-                };
-                setCopiedProperties(propertiesToCopy);
-                setContextMenu(null);
-              } else if (contextMenu.canvasObject) {
-                // Copy canvas object properties (styling and data)
-                const propertiesToCopy = {
-                  data: { ...contextMenu.canvasObject.data },
-                  style: { ...contextMenu.canvasObject.style }
-                };
-                setCopiedCanvasObjectProperties(propertiesToCopy);
-                setContextMenu(null);
-              }
-            }}
-            onPasteProperties={(contextMenu.node && copiedProperties) || (contextMenu.canvasObject && copiedCanvasObjectProperties) ? () => {
-              if (contextMenu.node && copiedProperties) {
-                saveToHistory('Paste node properties');
-                updateActiveTab({
-                  nodes: nodes.map(n => 
-                    n.id === contextMenu.node!.id 
+          onImageUpload={async (file: File) => {
+            // Convert file to data URL for local storage
+            return new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const dataUrl = reader.result as string;
+                // Update the node with the image
+                setNodes((prev) =>
+                  prev.map((n) =>
+                    n.id === selectedImageNodeId
                       ? {
                           ...n,
                           data: {
                             ...n.data,
-                            ...copiedProperties.data,
-                            colors: copiedProperties.colors
-                          }
+                            src: dataUrl,
+                            filename: file.name,
+                            sourceType: "upload",
+                          },
                         }
-                      : n
-                  )
-                });
-                setContextMenu(null);
-              } else if (contextMenu.canvasObject && copiedCanvasObjectProperties) {
-                saveToHistory('Paste canvas object properties');
-                const updatedObjects = canvasObjects.map(obj => 
-                  obj.id === contextMenu.canvasObject!.id 
-                    ? {
-                        ...obj,
-                        data: {
-                          ...obj.data,
-                          ...copiedCanvasObjectProperties.data
-                        },
-                        style: {
-                          ...obj.style,
-                          ...copiedCanvasObjectProperties.style
-                        }
-                      }
-                    : obj
+                      : n,
+                  ),
                 );
-                updateActiveTab({ canvasObjects: updatedObjects });
-                setContextMenu(null);
-              }
-            } : undefined}
-            hasPropertiesInClipboard={!!(copiedProperties || copiedCanvasObjectProperties)}
-            onBringToFront={() => {
-              if (contextMenu.node) {
-                const maxZIndex = Math.max(...nodes.map(n => n.zIndex || 0));
-                saveToHistory('Bring node to front');
-                const updatedNodes = nodes.map(n => 
-                  n.id === contextMenu.node!.id 
-                    ? { ...n, zIndex: maxZIndex + 1 }
-                    : n
-                );
-                // Recalculate edge z-indexes based on updated nodes
-                const updatedEdges = recalculateAllEdgeZIndexes(edges, updatedNodes);
-                updateActiveTab({
-                  nodes: updatedNodes,
-                  edges: updatedEdges
-                });
-              } else if (contextMenu.canvasObject) {
-                const maxZIndex = Math.max(...canvasObjects.map(obj => obj.zIndex || 0));
-                saveToHistory('Bring canvas object to front');
-                updateActiveTab({
-                  canvasObjects: canvasObjects.map(obj => 
-                    obj.id === contextMenu.canvasObject!.id 
-                      ? { ...obj, zIndex: maxZIndex + 1 }
-                      : obj
-                  )
-                });
-              }
-              setContextMenu(null);
-            }}
-            onBringForward={() => {
-              if (contextMenu.node) {
-                const currentZIndex = contextMenu.node.zIndex || 0;
-                saveToHistory('Bring node forward');
-                const updatedNodes = nodes.map(n => 
-                  n.id === contextMenu.node!.id 
-                    ? { ...n, zIndex: currentZIndex + 1 }
-                    : n
-                );
-                // Recalculate edge z-indexes based on updated nodes
-                const updatedEdges = recalculateAllEdgeZIndexes(edges, updatedNodes);
-                updateActiveTab({
-                  nodes: updatedNodes,
-                  edges: updatedEdges
-                });
-              } else if (contextMenu.canvasObject) {
-                const currentZIndex = contextMenu.canvasObject.zIndex || 0;
-                saveToHistory('Bring canvas object forward');
-                updateActiveTab({
-                  canvasObjects: canvasObjects.map(obj => 
-                    obj.id === contextMenu.canvasObject!.id 
-                      ? { ...obj, zIndex: currentZIndex + 1 }
-                      : obj
-                  )
-                });
-              }
-              setContextMenu(null);
-            }}
-            onSendBackward={() => {
-              if (contextMenu.node) {
-                const currentZIndex = contextMenu.node.zIndex || 0;
-                saveToHistory('Send node backward');
-                const updatedNodes = nodes.map(n => 
-                  n.id === contextMenu.node!.id 
-                    ? { ...n, zIndex: Math.max(0, currentZIndex - 1) }
-                    : n
-                );
-                // Recalculate edge z-indexes based on updated nodes
-                const updatedEdges = recalculateAllEdgeZIndexes(edges, updatedNodes);
-                updateActiveTab({
-                  nodes: updatedNodes,
-                  edges: updatedEdges
-                });
-              } else if (contextMenu.canvasObject) {
-                const currentZIndex = contextMenu.canvasObject.zIndex || 0;
-                saveToHistory('Send canvas object backward');
-                updateActiveTab({
-                  canvasObjects: canvasObjects.map(obj => 
-                    obj.id === contextMenu.canvasObject!.id 
-                      ? { ...obj, zIndex: Math.max(0, currentZIndex - 1) }
-                      : obj
-                  )
-                });
-              }
-              setContextMenu(null);
-            }}
-            onSendToBack={() => {
-              if (contextMenu.node) {
-                saveToHistory('Send node to back');
-                const updatedNodes = nodes.map(n => 
-                  n.id === contextMenu.node!.id 
-                    ? { ...n, zIndex: 0 }
-                    : n
-                );
-                // Recalculate edge z-indexes based on updated nodes
-                const updatedEdges = recalculateAllEdgeZIndexes(edges, updatedNodes);
-                updateActiveTab({
-                  nodes: updatedNodes,
-                  edges: updatedEdges
-                });
-              } else if (contextMenu.canvasObject) {
-                saveToHistory('Send canvas object to back');
-                updateActiveTab({
-                  canvasObjects: canvasObjects.map(obj => 
-                    obj.id === contextMenu.canvasObject!.id 
-                      ? { ...obj, zIndex: 0 }
-                      : obj
-                  )
-                });
-              }
-              setContextMenu(null);
-            }}
-            onDelete={() => {
-              if (contextMenu.node) {
-                saveToHistory('Delete node');
-                setNodes(prev => prev.filter(n => n.id !== contextMenu.node!.id));
-                setEdges(prev => prev.filter(e => e.source !== contextMenu.node!.id && e.target !== contextMenu.node!.id));
-                setLinearToolbar(null);
-                setContextMenu(null);
-              } else if (contextMenu.canvasObject) {
-                saveToHistory('Delete canvas object');
-                const updatedObjects = canvasObjects.filter(obj => obj.id !== contextMenu.canvasObject!.id);
-                updateActiveTab({ canvasObjects: updatedObjects });
-                setLinearToolbar(null);
-                setContextMenu(null);
-              }
-            }}
-            onDuplicate={() => {
-              if (contextMenu.node) {
-                const newNode = {
-                  ...contextMenu.node,
-                  id: `node-${Date.now()}`,
-                  position: {
-                    x: contextMenu.node.position.x + 20,
-                    y: contextMenu.node.position.y + 20
-                  }
-                };
-                setNodes(prev => [...prev, newNode]);
-                saveToHistory('Duplicate node');
-                setContextMenu(null);
-              } else if (contextMenu.canvasObject) {
-                const newObject = {
-                  ...contextMenu.canvasObject,
-                  id: `canvas-object-${Date.now()}`,
-                  position: {
-                    x: contextMenu.canvasObject.position.x + 20,
-                    y: contextMenu.canvasObject.position.y + 20
-                  },
-                  selected: false
-                };
-                const updatedObjects = [...canvasObjects, newObject];
-                updateActiveTab({ canvasObjects: updatedObjects });
-                saveToHistory('Duplicate canvas object');
-                setContextMenu(null);
-              }
-            }}
-            onViewSemanticData={
-              contextMenu.node?.type === 'image' && contextMenu.node?.data?.figmaSemantic
-                ? () => {
-                    console.log('=== Figma Semantic Data ===');
-                    console.log('Node:', contextMenu.node?.data?.label);
-                    console.log('Figma ID:', contextMenu.node?.data?.figmaId);
-                    console.log('Semantic Metadata:', contextMenu.node?.data?.figmaSemantic);
-                    console.log('Elements:', contextMenu.node?.data?.figmaSemantic?.elements?.length || 0);
-                    console.log('Forms:', contextMenu.node?.data?.figmaSemantic?.forms?.length || 0);
-                    console.log('Navigation Targets:', contextMenu.node?.data?.figmaSemantic?.navigationTargets?.length || 0);
-                    console.log('===========================');
-                  }
-                : undefined
-            }
-            node={contextMenu.node}
-            onGenerateWorkflowFromFrames={(nodeIds) => {
-              setWorkflowPreviewFrameIds(nodeIds);
-              setShowWorkflowPreviewModal(true);
-              setContextMenu(null);
-            }}
-            onToggleReferenceFrame={(nodeId) => {
-              const node = nodes.find(n => n.id === nodeId);
-              if (node) {
-                const isNowReference = !node.data?.isReferenceFrame;
-                saveToHistory('Toggle reference frame');
-                updateActiveTab({
-                  nodes: nodes.map(n => 
-                    n.id === nodeId 
-                      ? { ...n, data: { ...n.data, isReferenceFrame: isNowReference } }
-                      : n
-                  )
-                });
-                toast({
-                  title: isNowReference ? 'Marked as Reference' : 'Unmarked as Reference',
-                  description: isNowReference 
-                    ? 'This frame will be excluded from workflow generation.' 
-                    : 'This frame is now available for workflow generation.',
-                });
-              }
-              setContextMenu(null);
-            }}
-            prdLinks={contextMenu.node && activeTab?.projectUuid ? prdNodeLinkStore.getLinksForNode(activeTab.projectUuid, contextMenu.node.id) : undefined}
-            onViewLinkedPRD={(link: PRDNodeLink) => {
-              // Scroll to the linked PRD section in the right panel
-              setTimeout(() => {
-                const sectionEl = document.getElementById(`prd-section-${link.sectionId}`);
-                if (sectionEl) {
-                  sectionEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  sectionEl.classList.add('ring-2', 'ring-blue-500');
-                  setTimeout(() => sectionEl.classList.remove('ring-2', 'ring-blue-500'), 2000);
-                }
-              }, 100);
-              setContextMenu(null);
-            }}
-          />
-        )}
+                resolve(dataUrl);
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+          }}
+          onImageUrlSet={(url: string) => {
+            // Update the node with the URL
+            setNodes((prev) =>
+              prev.map((n) =>
+                n.id === selectedImageNodeId
+                  ? { ...n, data: { ...n.data, src: url, sourceType: "url" } }
+                  : n,
+              ),
+            );
+          }}
+        />
+      )}
 
-        {/* Linear Toolbar for Node/Edge Styling */}
-        {linearToolbar && (
-          <LinearToolbar
-            key={`toolbar-${linearToolbar.node?.id || linearToolbar.edge?.id || linearToolbar.canvasObject?.id}-${linearToolbar.editingHyperlinkId || ''}-${linearToolbar.initialSubmenu || ''}`}
-            isOpen={true}
-            position={{ x: linearToolbar.x, y: linearToolbar.y }}
-            nodeRect={linearToolbar.nodeRect}
-            viewportHeight={window.innerHeight}
-            target={
-              linearToolbar.node 
-                ? { type: 'node', id: linearToolbar.node.id } 
-                : linearToolbar.edge 
-                  ? { type: 'edge', id: linearToolbar.edge.id }
-                  : linearToolbar.canvasObject
-                    ? { type: 'canvasObject', id: linearToolbar.canvasObject.id }
-                    : null
+      {/* Figma Import Modal */}
+      <FigmaImportModal
+        isOpen={showFigmaModal}
+        onClose={() => setShowFigmaModal(false)}
+        onImport={async (framesWithThumbnails, mode, figmaInfo, importMode) => {
+          console.log(
+            "[WorkflowEditor] onImport received:",
+            framesWithThumbnails.length,
+            "frames, mode:",
+            mode,
+            "importMode:",
+            importMode,
+          );
+          console.log(
+            "[WorkflowEditor] Frame details:",
+            framesWithThumbnails.map((f) => ({
+              name: f.frame.name,
+              id: f.frame.id,
+              hasThumbnail: !!f.thumbnailUrl,
+              hasSemantic: !!f.figmaSemantic,
+            })),
+          );
+
+          if (framesWithThumbnails.length === 0) {
+            toast({
+              title: "No frames selected",
+              description: "Please select at least one frame to import.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          let importedNodeIds: string[] = [];
+
+          if (mode === "new-project") {
+            console.log(
+              "[WorkflowEditor] Creating new project with",
+              framesWithThumbnails.length,
+              "frames",
+            );
+            const workflowData = buildFigmaFrameWorkflow(
+              framesWithThumbnails,
+              { x: 100, y: 100 },
+              50,
+              figmaInfo?.fileKey,
+              { importMode },
+            );
+            console.log(
+              "[WorkflowEditor] Built workflow data - nodes:",
+              workflowData.nodes.length,
+              "edges:",
+              workflowData.edges.length,
+            );
+            importedNodeIds = workflowData.nodes.map((n) => n.id);
+            const name = generateCuteName();
+            const newTabId = generateTabId();
+            const projectUuid = `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const newTab: WorkflowTab = {
+              id: newTabId,
+              name,
+              nodes: workflowData.nodes,
+              edges: workflowData.edges,
+              canvasObjects: workflowData.canvasObjects || [],
+              viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
+              selectedNodeId: "",
+              selectedEdgeId: "",
+              history: [
+                {
+                  nodes: workflowData.nodes,
+                  edges: workflowData.edges,
+                  canvasObjects: workflowData.canvasObjects || [],
+                  viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
+                },
+              ],
+              historyIndex: 0,
+              showImageModal: null,
+              metadata: {
+                name,
+                description: "Imported from Figma",
+                links: [],
+                linksFormat: "text",
+                categories: [],
+              },
+              projectUuid,
+            };
+            setTabs((prev) => [...prev, newTab]);
+            setActiveTabId(newTabId);
+
+            if (figmaInfo) {
+              addFigmaSource(
+                newTabId,
+                figmaInfo.url,
+                figmaInfo.fileName,
+                figmaInfo.fileKey,
+                framesWithThumbnails.length,
+              );
             }
-            node={linearToolbar.node ? nodes.find(n => n.id === linearToolbar.node!.id) ?? linearToolbar.node : undefined}
-            edge={linearToolbar.edge ? edges.find(e => e.id === linearToolbar.edge!.id) ?? linearToolbar.edge : undefined}
-            canvasObject={linearToolbar.canvasObject ? canvasObjects.find(o => o.id === linearToolbar.canvasObject!.id) ?? linearToolbar.canvasObject : undefined}
-            onClose={() => setLinearToolbar(null)}
-            onOpenComponentMenu={() => {
-              if (linearToolbar.node?.type === 'compound') {
-                window.dispatchEvent(new CustomEvent('openCompoundComponentMenu', { 
-                  detail: { nodeId: linearToolbar.node.id } 
-                }));
-                // Close the linear toolbar when opening component menu
-                setLinearToolbar(null);
+
+            toast({
+              title: "Figma Imported",
+              description: `Created "${name}" with ${framesWithThumbnails.length} frame${framesWithThumbnails.length > 1 ? "s" : ""}.`,
+            });
+
+            if (importMode === "workflow" && importedNodeIds.length > 0) {
+              setTimeout(() => {
+                setWorkflowPreviewFrameIds(importedNodeIds);
+                setShowWorkflowPreviewModal(true);
+              }, 300);
+            }
+          } else {
+            console.log(
+              "[WorkflowEditor] Inserting into existing project with",
+              framesWithThumbnails.length,
+              "frames",
+            );
+            saveToHistory("Import Figma frames");
+            const newNodes = insertFigmaFrames(
+              nodes,
+              framesWithThumbnails,
+              50,
+              figmaInfo?.fileKey,
+              { importMode },
+            );
+            importedNodeIds = newNodes.map((n) => n.id);
+            console.log("[WorkflowEditor] Created new nodes:", newNodes.length);
+            setNodes((prev) => [...prev, ...newNodes]);
+
+            if (figmaInfo) {
+              addFigmaSource(
+                activeTabId,
+                figmaInfo.url,
+                figmaInfo.fileName,
+                figmaInfo.fileKey,
+                framesWithThumbnails.length,
+              );
+            }
+
+            toast({
+              title: "Figma Added",
+              description: `Added ${framesWithThumbnails.length} frame${framesWithThumbnails.length > 1 ? "s" : ""} to your workflow.`,
+            });
+
+            if (importMode === "workflow" && importedNodeIds.length > 0) {
+              setTimeout(() => {
+                setWorkflowPreviewFrameIds(importedNodeIds);
+                setShowWorkflowPreviewModal(true);
+              }, 300);
+            }
+          }
+
+          setShowFigmaModal(false);
+        }}
+        mode={figmaImportMode}
+      />
+
+      {/* Workflow Generation Preview Modal */}
+      <WorkflowGenerationPreviewModal
+        isOpen={showWorkflowPreviewModal}
+        onClose={() => {
+          setShowWorkflowPreviewModal(false);
+          setWorkflowPreviewFrameIds([]);
+        }}
+        frameNodes={nodes.filter((n) => workflowPreviewFrameIds.includes(n.id))}
+        onConfirm={async ({ useCleanLayout, mode }) => {
+          setIsGeneratingWorkflow(true);
+          try {
+            const frameNodes = nodes.filter((n) =>
+              workflowPreviewFrameIds.includes(n.id),
+            );
+            const validFrames = filterValidWorkflowFrames(frameNodes);
+            const sortedFrames = sortFrameNodesForWorkflow(validFrames);
+
+            if (sortedFrames.length === 0) {
+              toast({
+                title: "No valid frames",
+                description:
+                  "No frames with semantic data found for workflow generation.",
+                variant: "destructive",
+              });
+              return;
+            }
+
+            saveToHistory("Generate workflow from Figma");
+
+            let generatedNodes: Node[] = [];
+            let generatedEdges: Edge[] = [];
+            const startY =
+              Math.max(...nodes.map((n) => n.position.y + (n.height || 100))) +
+              100;
+
+            if (mode === "ai_vision") {
+              const semantics = sortedFrames
+                .map((f) => f.data?.figmaSemantic)
+                .filter(Boolean) as any[];
+              const thumbnailUrls = sortedFrames
+                .map((f) => f.data?.src)
+                .filter(Boolean) as string[];
+
+              const result = await generateAIVisionWorkflow(
+                semantics,
+                thumbnailUrls,
+                { x: 400, y: startY },
+              );
+              generatedNodes = result.nodes;
+              generatedEdges = result.edges;
+            } else if (mode === "ai_refined") {
+              const semantics = sortedFrames
+                .map((f) => f.data?.figmaSemantic)
+                .filter(Boolean) as any[];
+
+              const result = await generateAIRefinedWorkflow(semantics, {
+                x: 400,
+                y: startY,
+              });
+              generatedNodes = result.nodes;
+              generatedEdges = result.edges;
+            } else {
+              let offsetY = startY;
+
+              for (const frame of sortedFrames) {
+                const semantic = frame.data?.figmaSemantic;
+                if (!semantic) continue;
+
+                const frameName =
+                  frame.data?.label || frame.data?.figmaName || "Frame";
+                const result = generateWorkflowFromFigmaSemantic(
+                  semantic,
+                  frameName,
+                  frame,
+                  { mode },
+                );
+
+                generatedNodes.push(...result.nodes);
+                generatedEdges.push(...result.edges);
+                offsetY += result.nodes.length * 120 + 100;
               }
-            }}
-            onColorChange={(colors) => {
-              if (linearToolbar.node) {
-                saveToHistory('Change node color');
-                setNodes(prev => prev.map(n => 
-                  n.id === linearToolbar.node!.id 
-                    ? { ...n, data: { ...n.data, colors: { ...n.data?.colors, ...colors } } }
-                    : n
-                ));
+            }
+
+            if (generatedNodes.length > 0) {
+              setNodes((prev) => [...prev, ...generatedNodes]);
+              setEdges((prev) => [...prev, ...generatedEdges]);
+
+              if (useCleanLayout) {
+                setTimeout(() => {
+                  const allNodes = [...nodes, ...generatedNodes];
+                  const layoutedNodes = allNodes.map((n, i) => ({
+                    ...n,
+                    position: {
+                      x: generatedNodes.some((gn) => gn.id === n.id)
+                        ? 400
+                        : n.position.x,
+                      y: generatedNodes.some((gn) => gn.id === n.id)
+                        ? Math.max(
+                            ...nodes.map(
+                              (node) => node.position.y + (node.height || 100),
+                            ),
+                          ) +
+                          100 +
+                          generatedNodes.indexOf(n) * 120
+                        : n.position.y,
+                    },
+                  }));
+                  setNodes(layoutedNodes);
+                }, 100);
               }
-            }}
-            onEdgeColorChange={(color) => {
-              if (linearToolbar.edge) {
-                saveToHistory('Change edge color');
-                setEdges(prev => prev.map(e => 
-                  e.id === linearToolbar.edge!.id 
-                    ? { ...e, style: { ...e.style, strokeColor: color, stroke: color } }
-                    : e
-                ));
-              }
-            }}
-            onTextEdit={() => {
-              if (linearToolbar.node) {
-                setInlineEditing({ nodeId: linearToolbar.node.id, part: 'body' });
-                // Keep toolbar open for text styling
-              }
-            }}
-            onStyleChange={(style) => {
-              if (linearToolbar.node) {
-                saveToHistory('Change node style');
-                setNodes(prev => prev.map(n => 
-                  n.id === linearToolbar.node!.id 
-                    ? { 
-                        ...n, 
-                        data: { 
-                          ...n.data, 
-                          borderStyle: style.borderStyle ?? n.data?.borderStyle, 
-                          borderWidth: style.borderWidth ?? n.data?.borderWidth,
-                          noStroke: style.noStroke ?? n.data?.noStroke
-                        } 
+
+              const modeLabel =
+                mode === "ai_vision"
+                  ? "AI Vision"
+                  : mode === "ai_refined"
+                    ? "AI Refined"
+                    : mode === "detailed"
+                      ? "Detailed"
+                      : "Compact";
+              toast({
+                title: "Workflow Generated",
+                description: `Created ${generatedNodes.length} nodes (${modeLabel} mode) from ${sortedFrames.length} frame(s).`,
+              });
+
+              // Use afterWorkflowCreation hook for PRD generation (Figma workflow path)
+              // Must use the same projectUuid that the tab has/will have
+              const effectiveProjectId = activeTab?.projectUuid || activeTabId;
+              // Compute workflow group ID from generated nodes
+              let figmaRootNodeId = generatedNodes[0]?.id || "";
+              let figmaMinSum = Infinity;
+              generatedNodes.forEach((node: Node) => {
+                const sum = (node.position?.x || 0) + (node.position?.y || 0);
+                if (sum < figmaMinSum) {
+                  figmaMinSum = sum;
+                  figmaRootNodeId = node.id;
+                }
+              });
+              const figmaWorkflowGroupId = `workflow-${figmaRootNodeId}`;
+              const figmaWorkflowName =
+                generatedNodes[0]?.data?.label || "Figma Workflow";
+
+              console.log(
+                "[Figma] Starting afterWorkflowCreation for Figma workflow, projectId:",
+                effectiveProjectId,
+                "workflowId:",
+                figmaWorkflowGroupId,
+              );
+
+              afterWorkflowCreation({
+                projectId: effectiveProjectId,
+                workflows: [
+                  {
+                    workflowId: figmaWorkflowGroupId,
+                    workflowName: figmaWorkflowName,
+                    nodes: generatedNodes,
+                    edges: generatedEdges,
+                  },
+                ],
+                source: "figma",
+                generatePRD: true,
+                aiClient: ai,
+                onPRDGenerated: (workflowId, prd) => {
+                  console.log(
+                    "[Figma] PRD generated for workflow:",
+                    workflowId,
+                  );
+                  toast({
+                    title: "PRD Generated",
+                    description:
+                      "A first draft PRD has been created for your Figma workflow.",
+                  });
+                },
+                onProjectDetailsGenerated: (details) => {
+                  console.log(
+                    "[Figma] Project details generated:",
+                    details.title,
+                  );
+                },
+                onError: (error, context) => {
+                  console.error(
+                    "[Figma] Error in afterWorkflowCreation:",
+                    context,
+                    error,
+                  );
+                },
+              }).catch((err) => {
+                console.error("[Figma] afterWorkflowCreation failed:", err);
+              });
+            }
+          } catch (error) {
+            console.error("Error generating workflow:", error);
+            toast({
+              title: "Generation Failed",
+              description:
+                error instanceof Error
+                  ? error.message
+                  : "Failed to generate workflow from frames.",
+              variant: "destructive",
+            });
+          } finally {
+            setIsGeneratingWorkflow(false);
+            setShowWorkflowPreviewModal(false);
+            setWorkflowPreviewFrameIds([]);
+          }
+        }}
+        isGenerating={isGeneratingWorkflow}
+      />
+
+      {/* Table Panel */}
+      {openTablePanel && (
+        <TablePanel
+          tableId={openTablePanel}
+          table={tableData[openTablePanel]}
+          position={{ x: 100, y: 100 }}
+          onClose={() => setOpenTablePanel(null)}
+          onUpdateTable={(updatedTable) => {
+            setTableData((prev) => ({
+              ...prev,
+              [openTablePanel]: updatedTable,
+            }));
+            // Also update the node to trigger re-render
+            setNodes((prev) =>
+              prev.map((n) =>
+                n.data?.tableId === openTablePanel
+                  ? { ...n, data: { ...n.data, _tableUpdated: Date.now() } }
+                  : n,
+              ),
+            );
+          }}
+          onCreateNodeFromRow={(row, rowIndex) => {
+            const tableNode = nodes.find(
+              (n) => n.data?.tableId === openTablePanel,
+            );
+            const position = tableNode
+              ? {
+                  x: tableNode.position.x + (tableNode.width || 280) + 50,
+                  y: tableNode.position.y + rowIndex * 120,
+                }
+              : getViewportCenteredPosition();
+
+            const rowLabel =
+              Object.values(row)[0]?.toString() || `Row ${rowIndex + 1}`;
+
+            const newNode: Node = {
+              id: `node-${Date.now()}`,
+              type: "process",
+              position,
+              data: {
+                label: rowLabel,
+                description: `Data from ${openTablePanel}`,
+                icon: "Database",
+                iconColor: "text-indigo-500",
+                sourceTable: openTablePanel,
+                sourceTableNodeId: tableNode?.id,
+                sourceTableName: tableNode?.data?.label || "Table",
+                sourceRowIndex: rowIndex,
+                rowData: row,
+              },
+              width: 200,
+              height: 100,
+            };
+
+            setNodes((prev) => [...prev, newNode]);
+            saveToHistory("Create node from table row");
+
+            toast({
+              title: "Data Node Created",
+              description: `Created node from row ${rowIndex + 1}`,
+              variant: "default",
+            });
+          }}
+        />
+      )}
+
+      {/* Node Gallery Panel */}
+      {showGalleryPanel && (
+        <div className="fixed bottom-4 right-4 z-50 w-[600px] max-w-[calc(100vw-2rem)]">
+          <NodeGalleryPanel
+            nodes={nodes}
+            templates={savedTemplates}
+            onFocusNode={focusOnNode}
+            onClose={() => setShowGalleryPanel(false)}
+          />
+        </div>
+      )}
+
+      {/* Plugin Test Panel */}
+      {showPluginTest && (
+        <PluginTestPanel
+          onClose={() => setShowPluginTest(false)}
+          nodes={nodes}
+          edges={edges}
+        />
+      )}
+
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onCopyProperties={() => {
+            if (contextMenu.node) {
+              // Copy node properties (colors, icon, iconColor, etc.) but not label/description
+              const propertiesToCopy = {
+                colors: contextMenu.node.data?.colors,
+                data: {
+                  icon: contextMenu.node.data?.icon,
+                  iconColor: contextMenu.node.data?.iconColor,
+                },
+              };
+              setCopiedProperties(propertiesToCopy);
+              setContextMenu(null);
+            } else if (contextMenu.canvasObject) {
+              // Copy canvas object properties (styling and data)
+              const propertiesToCopy = {
+                data: { ...contextMenu.canvasObject.data },
+                style: { ...contextMenu.canvasObject.style },
+              };
+              setCopiedCanvasObjectProperties(propertiesToCopy);
+              setContextMenu(null);
+            }
+          }}
+          onPasteProperties={
+            (contextMenu.node && copiedProperties) ||
+            (contextMenu.canvasObject && copiedCanvasObjectProperties)
+              ? () => {
+                  if (contextMenu.node && copiedProperties) {
+                    saveToHistory("Paste node properties");
+                    updateActiveTab({
+                      nodes: nodes.map((n) =>
+                        n.id === contextMenu.node!.id
+                          ? {
+                              ...n,
+                              data: {
+                                ...n.data,
+                                ...copiedProperties.data,
+                                colors: copiedProperties.colors,
+                              },
+                            }
+                          : n,
+                      ),
+                    });
+                    setContextMenu(null);
+                  } else if (
+                    contextMenu.canvasObject &&
+                    copiedCanvasObjectProperties
+                  ) {
+                    saveToHistory("Paste canvas object properties");
+                    const updatedObjects = canvasObjects.map((obj) =>
+                      obj.id === contextMenu.canvasObject!.id
+                        ? {
+                            ...obj,
+                            data: {
+                              ...obj.data,
+                              ...copiedCanvasObjectProperties.data,
+                            },
+                            style: {
+                              ...obj.style,
+                              ...copiedCanvasObjectProperties.style,
+                            },
+                          }
+                        : obj,
+                    );
+                    updateActiveTab({ canvasObjects: updatedObjects });
+                    setContextMenu(null);
+                  }
+                }
+              : undefined
+          }
+          hasPropertiesInClipboard={
+            !!(copiedProperties || copiedCanvasObjectProperties)
+          }
+          onBringToFront={() => {
+            if (contextMenu.node) {
+              const maxZIndex = Math.max(...nodes.map((n) => n.zIndex || 0));
+              saveToHistory("Bring node to front");
+              const updatedNodes = nodes.map((n) =>
+                n.id === contextMenu.node!.id
+                  ? { ...n, zIndex: maxZIndex + 1 }
+                  : n,
+              );
+              // Recalculate edge z-indexes based on updated nodes
+              const updatedEdges = recalculateAllEdgeZIndexes(
+                edges,
+                updatedNodes,
+              );
+              updateActiveTab({
+                nodes: updatedNodes,
+                edges: updatedEdges,
+              });
+            } else if (contextMenu.canvasObject) {
+              const maxZIndex = Math.max(
+                ...canvasObjects.map((obj) => obj.zIndex || 0),
+              );
+              saveToHistory("Bring canvas object to front");
+              updateActiveTab({
+                canvasObjects: canvasObjects.map((obj) =>
+                  obj.id === contextMenu.canvasObject!.id
+                    ? { ...obj, zIndex: maxZIndex + 1 }
+                    : obj,
+                ),
+              });
+            }
+            setContextMenu(null);
+          }}
+          onBringForward={() => {
+            if (contextMenu.node) {
+              const currentZIndex = contextMenu.node.zIndex || 0;
+              saveToHistory("Bring node forward");
+              const updatedNodes = nodes.map((n) =>
+                n.id === contextMenu.node!.id
+                  ? { ...n, zIndex: currentZIndex + 1 }
+                  : n,
+              );
+              // Recalculate edge z-indexes based on updated nodes
+              const updatedEdges = recalculateAllEdgeZIndexes(
+                edges,
+                updatedNodes,
+              );
+              updateActiveTab({
+                nodes: updatedNodes,
+                edges: updatedEdges,
+              });
+            } else if (contextMenu.canvasObject) {
+              const currentZIndex = contextMenu.canvasObject.zIndex || 0;
+              saveToHistory("Bring canvas object forward");
+              updateActiveTab({
+                canvasObjects: canvasObjects.map((obj) =>
+                  obj.id === contextMenu.canvasObject!.id
+                    ? { ...obj, zIndex: currentZIndex + 1 }
+                    : obj,
+                ),
+              });
+            }
+            setContextMenu(null);
+          }}
+          onSendBackward={() => {
+            if (contextMenu.node) {
+              const currentZIndex = contextMenu.node.zIndex || 0;
+              saveToHistory("Send node backward");
+              const updatedNodes = nodes.map((n) =>
+                n.id === contextMenu.node!.id
+                  ? { ...n, zIndex: Math.max(0, currentZIndex - 1) }
+                  : n,
+              );
+              // Recalculate edge z-indexes based on updated nodes
+              const updatedEdges = recalculateAllEdgeZIndexes(
+                edges,
+                updatedNodes,
+              );
+              updateActiveTab({
+                nodes: updatedNodes,
+                edges: updatedEdges,
+              });
+            } else if (contextMenu.canvasObject) {
+              const currentZIndex = contextMenu.canvasObject.zIndex || 0;
+              saveToHistory("Send canvas object backward");
+              updateActiveTab({
+                canvasObjects: canvasObjects.map((obj) =>
+                  obj.id === contextMenu.canvasObject!.id
+                    ? { ...obj, zIndex: Math.max(0, currentZIndex - 1) }
+                    : obj,
+                ),
+              });
+            }
+            setContextMenu(null);
+          }}
+          onSendToBack={() => {
+            if (contextMenu.node) {
+              saveToHistory("Send node to back");
+              const updatedNodes = nodes.map((n) =>
+                n.id === contextMenu.node!.id ? { ...n, zIndex: 0 } : n,
+              );
+              // Recalculate edge z-indexes based on updated nodes
+              const updatedEdges = recalculateAllEdgeZIndexes(
+                edges,
+                updatedNodes,
+              );
+              updateActiveTab({
+                nodes: updatedNodes,
+                edges: updatedEdges,
+              });
+            } else if (contextMenu.canvasObject) {
+              saveToHistory("Send canvas object to back");
+              updateActiveTab({
+                canvasObjects: canvasObjects.map((obj) =>
+                  obj.id === contextMenu.canvasObject!.id
+                    ? { ...obj, zIndex: 0 }
+                    : obj,
+                ),
+              });
+            }
+            setContextMenu(null);
+          }}
+          onDelete={() => {
+            if (contextMenu.node) {
+              saveToHistory("Delete node");
+              setNodes((prev) =>
+                prev.filter((n) => n.id !== contextMenu.node!.id),
+              );
+              setEdges((prev) =>
+                prev.filter(
+                  (e) =>
+                    e.source !== contextMenu.node!.id &&
+                    e.target !== contextMenu.node!.id,
+                ),
+              );
+              setLinearToolbar(null);
+              setContextMenu(null);
+            } else if (contextMenu.canvasObject) {
+              saveToHistory("Delete canvas object");
+              const updatedObjects = canvasObjects.filter(
+                (obj) => obj.id !== contextMenu.canvasObject!.id,
+              );
+              updateActiveTab({ canvasObjects: updatedObjects });
+              setLinearToolbar(null);
+              setContextMenu(null);
+            }
+          }}
+          onDuplicate={() => {
+            if (contextMenu.node) {
+              const newNode = {
+                ...contextMenu.node,
+                id: `node-${Date.now()}`,
+                position: {
+                  x: contextMenu.node.position.x + 20,
+                  y: contextMenu.node.position.y + 20,
+                },
+              };
+              setNodes((prev) => [...prev, newNode]);
+              saveToHistory("Duplicate node");
+              setContextMenu(null);
+            } else if (contextMenu.canvasObject) {
+              const newObject = {
+                ...contextMenu.canvasObject,
+                id: `canvas-object-${Date.now()}`,
+                position: {
+                  x: contextMenu.canvasObject.position.x + 20,
+                  y: contextMenu.canvasObject.position.y + 20,
+                },
+                selected: false,
+              };
+              const updatedObjects = [...canvasObjects, newObject];
+              updateActiveTab({ canvasObjects: updatedObjects });
+              saveToHistory("Duplicate canvas object");
+              setContextMenu(null);
+            }
+          }}
+          onViewSemanticData={
+            contextMenu.node?.type === "image" &&
+            contextMenu.node?.data?.figmaSemantic
+              ? () => {
+                  console.log("=== Figma Semantic Data ===");
+                  console.log("Node:", contextMenu.node?.data?.label);
+                  console.log("Figma ID:", contextMenu.node?.data?.figmaId);
+                  console.log(
+                    "Semantic Metadata:",
+                    contextMenu.node?.data?.figmaSemantic,
+                  );
+                  console.log(
+                    "Elements:",
+                    contextMenu.node?.data?.figmaSemantic?.elements?.length ||
+                      0,
+                  );
+                  console.log(
+                    "Forms:",
+                    contextMenu.node?.data?.figmaSemantic?.forms?.length || 0,
+                  );
+                  console.log(
+                    "Navigation Targets:",
+                    contextMenu.node?.data?.figmaSemantic?.navigationTargets
+                      ?.length || 0,
+                  );
+                  console.log("===========================");
+                }
+              : undefined
+          }
+          node={contextMenu.node}
+          onGenerateWorkflowFromFrames={(nodeIds) => {
+            setWorkflowPreviewFrameIds(nodeIds);
+            setShowWorkflowPreviewModal(true);
+            setContextMenu(null);
+          }}
+          onToggleReferenceFrame={(nodeId) => {
+            const node = nodes.find((n) => n.id === nodeId);
+            if (node) {
+              const isNowReference = !node.data?.isReferenceFrame;
+              saveToHistory("Toggle reference frame");
+              updateActiveTab({
+                nodes: nodes.map((n) =>
+                  n.id === nodeId
+                    ? {
+                        ...n,
+                        data: { ...n.data, isReferenceFrame: isNowReference },
                       }
-                    : n
-                ));
-              } else if (linearToolbar.edge) {
-                saveToHistory('Change edge style');
-                setEdges(prev => prev.map(e => 
-                  e.id === linearToolbar.edge!.id 
-                    ? { ...e, style: { ...e.style, strokeWidth: style.strokeWidth } }
-                    : e
-                ));
+                    : n,
+                ),
+              });
+              toast({
+                title: isNowReference
+                  ? "Marked as Reference"
+                  : "Unmarked as Reference",
+                description: isNowReference
+                  ? "This frame will be excluded from workflow generation."
+                  : "This frame is now available for workflow generation.",
+              });
+            }
+            setContextMenu(null);
+          }}
+          prdLinks={
+            contextMenu.node && activeTab?.projectUuid
+              ? prdNodeLinkStore.getLinksForNode(
+                  activeTab.projectUuid,
+                  contextMenu.node.id,
+                )
+              : undefined
+          }
+          onViewLinkedPRD={(link: PRDNodeLink) => {
+            // Scroll to the linked PRD section in the right panel
+            setTimeout(() => {
+              const sectionEl = document.getElementById(
+                `prd-section-${link.sectionId}`,
+              );
+              if (sectionEl) {
+                sectionEl.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                });
+                sectionEl.classList.add("ring-2", "ring-blue-500");
+                setTimeout(
+                  () => sectionEl.classList.remove("ring-2", "ring-blue-500"),
+                  2000,
+                );
               }
-            }}
-            onTextStyleChange={(style, part) => {
-              if (linearToolbar.node) {
-                saveToHistory('Change text style');
-                setNodes(prev => prev.map(n => {
+            }, 100);
+            setContextMenu(null);
+          }}
+        />
+      )}
+
+      {/* Linear Toolbar for Node/Edge Styling */}
+      {linearToolbar && (
+        <LinearToolbar
+          key={`toolbar-${linearToolbar.node?.id || linearToolbar.edge?.id || linearToolbar.canvasObject?.id}-${linearToolbar.editingHyperlinkId || ""}-${linearToolbar.initialSubmenu || ""}`}
+          isOpen={true}
+          position={{ x: linearToolbar.x, y: linearToolbar.y }}
+          nodeRect={linearToolbar.nodeRect}
+          viewportHeight={window.innerHeight}
+          target={
+            linearToolbar.node
+              ? { type: "node", id: linearToolbar.node.id }
+              : linearToolbar.edge
+                ? { type: "edge", id: linearToolbar.edge.id }
+                : linearToolbar.canvasObject
+                  ? { type: "canvasObject", id: linearToolbar.canvasObject.id }
+                  : null
+          }
+          node={
+            linearToolbar.node
+              ? (nodes.find((n) => n.id === linearToolbar.node!.id) ??
+                linearToolbar.node)
+              : undefined
+          }
+          edge={
+            linearToolbar.edge
+              ? (edges.find((e) => e.id === linearToolbar.edge!.id) ??
+                linearToolbar.edge)
+              : undefined
+          }
+          canvasObject={
+            linearToolbar.canvasObject
+              ? (canvasObjects.find(
+                  (o) => o.id === linearToolbar.canvasObject!.id,
+                ) ?? linearToolbar.canvasObject)
+              : undefined
+          }
+          onClose={() => setLinearToolbar(null)}
+          onOpenComponentMenu={() => {
+            if (linearToolbar.node?.type === "compound") {
+              window.dispatchEvent(
+                new CustomEvent("openCompoundComponentMenu", {
+                  detail: { nodeId: linearToolbar.node.id },
+                }),
+              );
+              // Close the linear toolbar when opening component menu
+              setLinearToolbar(null);
+            }
+          }}
+          onColorChange={(colors) => {
+            if (linearToolbar.node) {
+              saveToHistory("Change node color");
+              setNodes((prev) =>
+                prev.map((n) =>
+                  n.id === linearToolbar.node!.id
+                    ? {
+                        ...n,
+                        data: {
+                          ...n.data,
+                          colors: { ...n.data?.colors, ...colors },
+                        },
+                      }
+                    : n,
+                ),
+              );
+            }
+          }}
+          onEdgeColorChange={(color) => {
+            if (linearToolbar.edge) {
+              saveToHistory("Change edge color");
+              setEdges((prev) =>
+                prev.map((e) =>
+                  e.id === linearToolbar.edge!.id
+                    ? {
+                        ...e,
+                        style: {
+                          ...e.style,
+                          strokeColor: color,
+                          stroke: color,
+                        },
+                      }
+                    : e,
+                ),
+              );
+            }
+          }}
+          onTextEdit={() => {
+            if (linearToolbar.node) {
+              setInlineEditing({ nodeId: linearToolbar.node.id, part: "body" });
+              // Keep toolbar open for text styling
+            }
+          }}
+          onStyleChange={(style) => {
+            if (linearToolbar.node) {
+              saveToHistory("Change node style");
+              setNodes((prev) =>
+                prev.map((n) =>
+                  n.id === linearToolbar.node!.id
+                    ? {
+                        ...n,
+                        data: {
+                          ...n.data,
+                          borderStyle: style.borderStyle ?? n.data?.borderStyle,
+                          borderWidth: style.borderWidth ?? n.data?.borderWidth,
+                          noStroke: style.noStroke ?? n.data?.noStroke,
+                        },
+                      }
+                    : n,
+                ),
+              );
+            } else if (linearToolbar.edge) {
+              saveToHistory("Change edge style");
+              setEdges((prev) =>
+                prev.map((e) =>
+                  e.id === linearToolbar.edge!.id
+                    ? {
+                        ...e,
+                        style: { ...e.style, strokeWidth: style.strokeWidth },
+                      }
+                    : e,
+                ),
+              );
+            }
+          }}
+          onTextStyleChange={(style, part) => {
+            if (linearToolbar.node) {
+              saveToHistory("Change text style");
+              setNodes((prev) =>
+                prev.map((n) => {
                   if (n.id !== linearToolbar.node!.id) return n;
-                  
+
                   // Apply styles to header or body based on 'part' parameter
-                  if (part === 'header') {
-                    return { 
-                      ...n, 
-                      data: { 
-                        ...n.data, 
-                        headerFontSize: style.fontSize ?? n.data?.headerFontSize,
+                  if (part === "header") {
+                    return {
+                      ...n,
+                      data: {
+                        ...n.data,
+                        headerFontSize:
+                          style.fontSize ?? n.data?.headerFontSize,
                         headerBold: style.bold ?? n.data?.headerBold,
                         headerItalic: style.italic ?? n.data?.headerItalic,
-                        headerStrikethrough: style.strikethrough ?? n.data?.headerStrikethrough,
-                        headerUnderline: style.underline ?? n.data?.headerUnderline,
-                        headerTextAlign: style.align ?? n.data?.headerTextAlign
-                      } 
+                        headerStrikethrough:
+                          style.strikethrough ?? n.data?.headerStrikethrough,
+                        headerUnderline:
+                          style.underline ?? n.data?.headerUnderline,
+                        headerTextAlign: style.align ?? n.data?.headerTextAlign,
+                      },
                     };
                   } else {
                     // Default to body styles
-                    return { 
-                      ...n, 
-                      data: { 
-                        ...n.data, 
+                    return {
+                      ...n,
+                      data: {
+                        ...n.data,
                         fontSize: style.fontSize ?? n.data?.fontSize,
                         bold: style.bold ?? n.data?.bold,
                         italic: style.italic ?? n.data?.italic,
-                        strikethrough: style.strikethrough ?? n.data?.strikethrough,
+                        strikethrough:
+                          style.strikethrough ?? n.data?.strikethrough,
                         underline: style.underline ?? n.data?.underline,
-                        textAlign: style.align ?? n.data?.textAlign
-                      } 
+                        textAlign: style.align ?? n.data?.textAlign,
+                      },
                     };
                   }
-                }));
-              }
-            }}
-            onIconSelect={(iconData) => {
-              if (linearToolbar.node) {
-                saveToHistory('Change node icon');
-                setNodes(prev => prev.map(n => 
-                  n.id === linearToolbar.node!.id 
-                    ? { 
-                        ...n, 
-                        data: { 
-                          ...n.data, 
+                }),
+              );
+            }
+          }}
+          onIconSelect={(iconData) => {
+            if (linearToolbar.node) {
+              saveToHistory("Change node icon");
+              setNodes((prev) =>
+                prev.map((n) =>
+                  n.id === linearToolbar.node!.id
+                    ? {
+                        ...n,
+                        data: {
+                          ...n.data,
                           nodeIcon: iconData.emoji || iconData.icon,
-                          iconVisible: iconData.visible
-                        } 
+                          iconVisible: iconData.visible,
+                        },
                       }
-                    : n
-                ));
-              }
-            }}
-            selectedText={selectedText}
-            hyperlinks={linearToolbar.node?.data?.hyperlinks || []}
-            editingHyperlinkId={linearToolbar.editingHyperlinkId || null}
-            onAddHyperlink={(hyperlink) => {
-              const { id, text: linkText, url, showPreview, metadata } = hyperlink;
-              if (linearToolbar.node) {
-                saveToHistory('Add hyperlink');
-                setNodes(prev => prev.map(n => {
+                    : n,
+                ),
+              );
+            }
+          }}
+          selectedText={selectedText}
+          hyperlinks={linearToolbar.node?.data?.hyperlinks || []}
+          editingHyperlinkId={linearToolbar.editingHyperlinkId || null}
+          onAddHyperlink={(hyperlink) => {
+            const {
+              id,
+              text: linkText,
+              url,
+              showPreview,
+              metadata,
+            } = hyperlink;
+            if (linearToolbar.node) {
+              saveToHistory("Add hyperlink");
+              setNodes((prev) =>
+                prev.map((n) => {
                   if (n.id !== linearToolbar.node!.id) return n;
-                  
+
                   // Get existing hyperlinks array or create from legacy
                   let existingLinks = n.data?.hyperlinks || [];
                   if (existingLinks.length === 0 && n.data?.hyperlink?.url) {
-                    existingLinks = [{
-                      id: 'legacy-0',
-                      text: n.data.hyperlink.text,
-                      url: n.data.hyperlink.url,
-                      showPreview: n.data.hyperlink.showPreview,
-                      metadata: n.data.hyperlink.metadata,
-                    }];
+                    existingLinks = [
+                      {
+                        id: "legacy-0",
+                        text: n.data.hyperlink.text,
+                        url: n.data.hyperlink.url,
+                        showPreview: n.data.hyperlink.showPreview,
+                        metadata: n.data.hyperlink.metadata,
+                      },
+                    ];
                   }
-                  
+
                   // If text or url is empty, this is a delete for legacy
                   if (!linkText || !url) {
-                    return { 
-                      ...n, 
-                      data: { 
-                        ...n.data, 
-                        hyperlinks: existingLinks.filter((h: any) => h.id !== id),
+                    return {
+                      ...n,
+                      data: {
+                        ...n.data,
+                        hyperlinks: existingLinks.filter(
+                          (h: any) => h.id !== id,
+                        ),
                         hyperlink: undefined,
-                      } 
+                      },
                     };
                   }
-                  
+
                   const newLink = {
                     id: id || `link-${Date.now()}`,
                     text: linkText,
@@ -8949,126 +11072,160 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     showPreview: showPreview ?? false,
                     metadata: metadata ?? undefined,
                   };
-                  
+
                   // Update existing or add new
-                  const isEditing = id && (
-                    existingLinks.some((h: any) => h.id === id) ||
-                    (id.startsWith('link-idx-') && parseInt(id.replace('link-idx-', ''), 10) < existingLinks.length)
-                  );
-                  
+                  const isEditing =
+                    id &&
+                    (existingLinks.some((h: any) => h.id === id) ||
+                      (id.startsWith("link-idx-") &&
+                        parseInt(id.replace("link-idx-", ""), 10) <
+                          existingLinks.length));
+
                   if (isEditing) {
-                    return { 
-                      ...n, 
-                      data: { 
-                        ...n.data, 
-                        hyperlinks: existingLinks.map((h: any, index: number) => {
-                          if (h.id === id) return newLink;
-                          if (id.startsWith('link-idx-')) {
-                            const idx = parseInt(id.replace('link-idx-', ''), 10);
-                            if (index === idx && !h.id) return newLink;
-                          }
-                          return h;
-                        }),
+                    return {
+                      ...n,
+                      data: {
+                        ...n.data,
+                        hyperlinks: existingLinks.map(
+                          (h: any, index: number) => {
+                            if (h.id === id) return newLink;
+                            if (id.startsWith("link-idx-")) {
+                              const idx = parseInt(
+                                id.replace("link-idx-", ""),
+                                10,
+                              );
+                              if (index === idx && !h.id) return newLink;
+                            }
+                            return h;
+                          },
+                        ),
                         hyperlink: undefined,
-                      } 
+                      },
                     };
                   } else {
-                    return { 
-                      ...n, 
-                      data: { 
-                        ...n.data, 
+                    return {
+                      ...n,
+                      data: {
+                        ...n.data,
                         hyperlinks: [...existingLinks, newLink],
                         hyperlink: undefined,
-                      } 
+                      },
                     };
                   }
-                }));
-                // Clear editing state
-                if (linearToolbar) {
-                  setLinearToolbar({ ...linearToolbar, editingHyperlinkId: undefined });
-                }
+                }),
+              );
+              // Clear editing state
+              if (linearToolbar) {
+                setLinearToolbar({
+                  ...linearToolbar,
+                  editingHyperlinkId: undefined,
+                });
               }
-            }}
-            onDeleteHyperlink={(hyperlinkId) => {
-              if (linearToolbar.node) {
-                saveToHistory('Delete hyperlink');
-                setNodes(prev => prev.map(n => {
+            }
+          }}
+          onDeleteHyperlink={(hyperlinkId) => {
+            if (linearToolbar.node) {
+              saveToHistory("Delete hyperlink");
+              setNodes((prev) =>
+                prev.map((n) => {
                   if (n.id !== linearToolbar.node!.id) return n;
-                  
+
                   // Get existing hyperlinks array
                   let existingLinks = n.data?.hyperlinks || [];
                   if (existingLinks.length === 0 && n.data?.hyperlink?.url) {
                     // Handle legacy - if deleting legacy, clear it
-                    if (hyperlinkId === 'legacy-0') {
-                      return { ...n, data: { ...n.data, hyperlink: undefined, hyperlinks: [] } };
+                    if (hyperlinkId === "legacy-0") {
+                      return {
+                        ...n,
+                        data: {
+                          ...n.data,
+                          hyperlink: undefined,
+                          hyperlinks: [],
+                        },
+                      };
                     }
-                    existingLinks = [{
-                      id: 'legacy-0',
-                      text: n.data.hyperlink.text,
-                      url: n.data.hyperlink.url,
-                    }];
+                    existingLinks = [
+                      {
+                        id: "legacy-0",
+                        text: n.data.hyperlink.text,
+                        url: n.data.hyperlink.url,
+                      },
+                    ];
                   }
-                  
-                  const filteredLinks = existingLinks.filter((h: any, index: number) => {
-                    if (h.id === hyperlinkId) return false;
-                    if (hyperlinkId.startsWith('link-idx-')) {
-                      const idx = parseInt(hyperlinkId.replace('link-idx-', ''), 10);
-                      if (index === idx && !h.id) return false;
-                    }
-                    return true;
-                  });
-                  
-                  return { 
-                    ...n, 
-                    data: { 
-                      ...n.data, 
+
+                  const filteredLinks = existingLinks.filter(
+                    (h: any, index: number) => {
+                      if (h.id === hyperlinkId) return false;
+                      if (hyperlinkId.startsWith("link-idx-")) {
+                        const idx = parseInt(
+                          hyperlinkId.replace("link-idx-", ""),
+                          10,
+                        );
+                        if (index === idx && !h.id) return false;
+                      }
+                      return true;
+                    },
+                  );
+
+                  return {
+                    ...n,
+                    data: {
+                      ...n.data,
                       hyperlinks: filteredLinks,
                       hyperlink: undefined,
-                    } 
+                    },
                   };
-                }));
-                // Clear editing state
-                if (linearToolbar) {
-                  setLinearToolbar({ ...linearToolbar, editingHyperlinkId: undefined });
-                }
+                }),
+              );
+              // Clear editing state
+              if (linearToolbar) {
+                setLinearToolbar({
+                  ...linearToolbar,
+                  editingHyperlinkId: undefined,
+                });
               }
-            }}
-            onEdgeStyleChange={(style) => {
-              if (linearToolbar.edge) {
-                saveToHistory('Change edge style');
-                setEdges(prev => prev.map(e => {
+            }
+          }}
+          onEdgeStyleChange={(style) => {
+            if (linearToolbar.edge) {
+              saveToHistory("Change edge style");
+              setEdges((prev) =>
+                prev.map((e) => {
                   if (e.id !== linearToolbar.edge!.id) return e;
-                  
+
                   const updatedEdge = { ...e };
-                  
+
                   // Handle stroke style (solid, dashed, dotted)
                   if (style.strokeStyle !== undefined) {
-                    const styleConfig: Record<string, { dasharray: string | undefined; linecap: string }> = {
-                      'solid': { dasharray: undefined, linecap: 'butt' },
-                      'dashed': { dasharray: '8 4', linecap: 'butt' },
-                      'dotted': { dasharray: '0.1 6', linecap: 'round' }
+                    const styleConfig: Record<
+                      string,
+                      { dasharray: string | undefined; linecap: string }
+                    > = {
+                      solid: { dasharray: undefined, linecap: "butt" },
+                      dashed: { dasharray: "8 4", linecap: "butt" },
+                      dotted: { dasharray: "0.1 6", linecap: "round" },
                     };
                     const config = styleConfig[style.strokeStyle];
                     updatedEdge.style = {
                       ...updatedEdge.style,
                       strokeDasharray: config.dasharray,
-                      strokeLinecap: config.linecap as any
+                      strokeLinecap: config.linecap as any,
                     };
                   }
-                  
+
                   // Handle stroke width
                   if (style.strokeWidth !== undefined) {
                     updatedEdge.style = {
                       ...updatedEdge.style,
-                      strokeWidth: style.strokeWidth
+                      strokeWidth: style.strokeWidth,
                     };
                   }
-                  
+
                   // Handle line type
                   if (style.lineType !== undefined) {
                     updatedEdge.type = style.lineType;
                   }
-                  
+
                   // Handle markers
                   if (style.markerStart !== undefined) {
                     updatedEdge.markerStart = style.markerStart;
@@ -9076,20 +11233,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   if (style.markerEnd !== undefined) {
                     updatedEdge.markerEnd = style.markerEnd;
                   }
-                  
+
                   // Handle animated
                   if (style.animated !== undefined) {
                     updatedEdge.animated = style.animated;
                   }
-                  
+
                   return updatedEdge;
-                }));
-              }
-            }}
-            onEdgeDirectionSwap={() => {
-              if (linearToolbar.edge) {
-                saveToHistory('Swap edge direction');
-                setEdges(prev => prev.map(e => {
+                }),
+              );
+            }
+          }}
+          onEdgeDirectionSwap={() => {
+            if (linearToolbar.edge) {
+              saveToHistory("Swap edge direction");
+              setEdges((prev) =>
+                prev.map((e) => {
                   if (e.id !== linearToolbar.edge!.id) return e;
                   // Swap source and target
                   return {
@@ -9098,104 +11257,121 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     target: e.source,
                     // Also swap markers if they exist
                     markerStart: e.markerEnd,
-                    markerEnd: e.markerStart
+                    markerEnd: e.markerStart,
                   };
-                }));
-              }
-            }}
-            onDelete={() => {
-              if (linearToolbar.node) {
-                const nodeName = linearToolbar.node.data?.label || 'Node';
-                const nodeId = linearToolbar.node.id;
-                const deletedNode = linearToolbar.node;
-                const connectedEdges = edges.filter(e => e.source === nodeId || e.target === nodeId);
-                
-                saveToHistory('Delete node');
-                setNodes(prev => prev.filter(n => n.id !== nodeId));
-                setEdges(prev => prev.filter(e => e.source !== nodeId && e.target !== nodeId));
-                
-                toast({
-                  title: `${nodeName} deleted`,
-                  action: (
-                    <button
-                      className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
-                      onClick={() => {
-                        setNodes(prev => [...prev, deletedNode]);
-                        setEdges(prev => [...prev, ...connectedEdges]);
-                      }}
-                    >
-                      Undo
-                    </button>
-                  ),
-                  duration: 5000,
-                });
-              } else if (linearToolbar.edge) {
-                const edgeId = linearToolbar.edge.id;
-                const deletedEdge = linearToolbar.edge;
-                
-                saveToHistory('Delete edge');
-                setEdges(prev => prev.filter(e => e.id !== edgeId));
-                
-                toast({
-                  title: 'Connection deleted',
-                  action: (
-                    <button
-                      className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
-                      onClick={() => {
-                        setEdges(prev => [...prev, deletedEdge]);
-                      }}
-                    >
-                      Undo
-                    </button>
-                  ),
-                  duration: 5000,
-                });
-              } else if (linearToolbar.canvasObject) {
-                const objType = linearToolbar.canvasObject.type;
-                const objId = linearToolbar.canvasObject.id;
-                const deletedObj = linearToolbar.canvasObject;
-                const typeName = objType === 'sticky' ? 'Sticky note' : objType === 'text' ? 'Text' : 'Shape';
-                
-                saveToHistory('Delete canvas object');
-                updateActiveTab({
-                  canvasObjects: canvasObjects.filter(obj => obj.id !== objId)
-                });
-                
-                toast({
-                  title: `${typeName} deleted`,
-                  action: (
-                    <button
-                      className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
-                      onClick={() => {
-                        updateActiveTab({
-                          canvasObjects: [...canvasObjects, deletedObj]
-                        });
-                      }}
-                    >
-                      Undo
-                    </button>
-                  ),
-                  duration: 5000,
-                });
-              }
-              setLinearToolbar(null);
-            }}
-            onBreakDataLink={() => {
-              if (linearToolbar.edge) {
-                const edgeId = linearToolbar.edge.id;
-                const sourceNodeId = linearToolbar.edge.source;
-                const targetNodeId = linearToolbar.edge.target;
-                
-                saveToHistory('Break data link');
-                
-                // Delete the edge
-                setEdges(prev => prev.filter(e => e.id !== edgeId));
-                
-                // Clear the linked data from both form nodes (source or target)
-                setNodes(prev => prev.map(n => {
-                  if (n.type === 'form' && (n.id === sourceNodeId || n.id === targetNodeId)) {
+                }),
+              );
+            }
+          }}
+          onDelete={() => {
+            if (linearToolbar.node) {
+              const nodeName = linearToolbar.node.data?.label || "Node";
+              const nodeId = linearToolbar.node.id;
+              const deletedNode = linearToolbar.node;
+              const connectedEdges = edges.filter(
+                (e) => e.source === nodeId || e.target === nodeId,
+              );
+
+              saveToHistory("Delete node");
+              setNodes((prev) => prev.filter((n) => n.id !== nodeId));
+              setEdges((prev) =>
+                prev.filter((e) => e.source !== nodeId && e.target !== nodeId),
+              );
+
+              toast({
+                title: `${nodeName} deleted`,
+                action: (
+                  <button
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                    onClick={() => {
+                      setNodes((prev) => [...prev, deletedNode]);
+                      setEdges((prev) => [...prev, ...connectedEdges]);
+                    }}
+                  >
+                    Undo
+                  </button>
+                ),
+                duration: 5000,
+              });
+            } else if (linearToolbar.edge) {
+              const edgeId = linearToolbar.edge.id;
+              const deletedEdge = linearToolbar.edge;
+
+              saveToHistory("Delete edge");
+              setEdges((prev) => prev.filter((e) => e.id !== edgeId));
+
+              toast({
+                title: "Connection deleted",
+                action: (
+                  <button
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                    onClick={() => {
+                      setEdges((prev) => [...prev, deletedEdge]);
+                    }}
+                  >
+                    Undo
+                  </button>
+                ),
+                duration: 5000,
+              });
+            } else if (linearToolbar.canvasObject) {
+              const objType = linearToolbar.canvasObject.type;
+              const objId = linearToolbar.canvasObject.id;
+              const deletedObj = linearToolbar.canvasObject;
+              const typeName =
+                objType === "sticky"
+                  ? "Sticky note"
+                  : objType === "text"
+                    ? "Text"
+                    : "Shape";
+
+              saveToHistory("Delete canvas object");
+              updateActiveTab({
+                canvasObjects: canvasObjects.filter((obj) => obj.id !== objId),
+              });
+
+              toast({
+                title: `${typeName} deleted`,
+                action: (
+                  <button
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                    onClick={() => {
+                      updateActiveTab({
+                        canvasObjects: [...canvasObjects, deletedObj],
+                      });
+                    }}
+                  >
+                    Undo
+                  </button>
+                ),
+                duration: 5000,
+              });
+            }
+            setLinearToolbar(null);
+          }}
+          onBreakDataLink={() => {
+            if (linearToolbar.edge) {
+              const edgeId = linearToolbar.edge.id;
+              const sourceNodeId = linearToolbar.edge.source;
+              const targetNodeId = linearToolbar.edge.target;
+
+              saveToHistory("Break data link");
+
+              // Delete the edge
+              setEdges((prev) => prev.filter((e) => e.id !== edgeId));
+
+              // Clear the linked data from both form nodes (source or target)
+              setNodes((prev) =>
+                prev.map((n) => {
+                  if (
+                    n.type === "form" &&
+                    (n.id === sourceNodeId || n.id === targetNodeId)
+                  ) {
                     const formData = n.data as any;
-                    if (formData?.linkedTableId || formData?.linkedRowIndex !== undefined) {
+                    if (
+                      formData?.linkedTableId ||
+                      formData?.linkedRowIndex !== undefined
+                    ) {
                       return {
                         ...n,
                         data: {
@@ -9207,596 +11383,779 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           fields: formData.fields?.map((field: any) => ({
                             ...field,
                             dataLink: undefined,
-                            value: '' // Clear values when unlinked
-                          }))
-                        }
+                            value: "", // Clear values when unlinked
+                          })),
+                        },
                       };
                     }
                   }
                   return n;
-                }));
-                
-                toast({
-                  title: 'Data link broken',
-                  description: 'The form is no longer linked to the table row',
-                  duration: 3000,
+                }),
+              );
+
+              toast({
+                title: "Data link broken",
+                description: "The form is no longer linked to the table row",
+                duration: 3000,
+              });
+
+              setLinearToolbar(null);
+            }
+          }}
+          onWireframe={() => {
+            if (linearToolbar.node) {
+              const canUse = isPro || isAdmin;
+              if (canUse) {
+                const event = new CustomEvent("generateWireframe", {
+                  detail: {
+                    nodeId: linearToolbar.node.id,
+                    node: linearToolbar.node,
+                  },
                 });
-                
-                setLinearToolbar(null);
+                window.dispatchEvent(event);
               }
-            }}
-            onWireframe={() => {
-              if (linearToolbar.node) {
-                const canUse = isPro || isAdmin;
-                if (canUse) {
-                  const event = new CustomEvent('generateWireframe', {
-                    detail: { nodeId: linearToolbar.node.id, node: linearToolbar.node }
+              setLinearToolbar(null);
+            }
+          }}
+          canUseWireframe={isPro || isAdmin}
+          onGenerateWorkflow={async () => {
+            if (linearToolbar.node && linearToolbar.node.data?.figmaSemantic) {
+              const semantic = linearToolbar.node.data.figmaSemantic;
+              const frameName = linearToolbar.node.data.label || "Figma Frame";
+
+              try {
+                const result = generateWorkflowFromFigmaSemantic(
+                  semantic,
+                  frameName,
+                  linearToolbar.node,
+                );
+                const {
+                  nodes: generatedNodes,
+                  edges: generatedEdges,
+                  workflowName,
+                } = result;
+
+                if (generatedNodes.length > 0) {
+                  saveToHistory("Generate workflow from Figma");
+                  setNodes((prev) => [...prev, ...generatedNodes]);
+                  if (generatedEdges.length > 0) {
+                    setEdges((prev) => [...prev, ...generatedEdges]);
+                  }
+
+                  toast({
+                    title: "Workflow Generated",
+                    description: `Created ${generatedNodes.length} step${generatedNodes.length > 1 ? "s" : ""} from "${workflowName}"`,
                   });
-                  window.dispatchEvent(event);
-                }
-                setLinearToolbar(null);
-              }
-            }}
-            canUseWireframe={isPro || isAdmin}
-            onGenerateWorkflow={async () => {
-              if (linearToolbar.node && linearToolbar.node.data?.figmaSemantic) {
-                const semantic = linearToolbar.node.data.figmaSemantic;
-                const frameName = linearToolbar.node.data.label || 'Figma Frame';
-                
-                try {
-                  const result = generateWorkflowFromFigmaSemantic(semantic, frameName, linearToolbar.node);
-                  const { nodes: generatedNodes, edges: generatedEdges, workflowName } = result;
-                  
-                  if (generatedNodes.length > 0) {
-                    saveToHistory('Generate workflow from Figma');
-                    setNodes(prev => [...prev, ...generatedNodes]);
-                    if (generatedEdges.length > 0) {
-                      setEdges(prev => [...prev, ...generatedEdges]);
+
+                  // Use afterWorkflowCreation hook for PRD generation (single Figma node path)
+                  // Must use the same projectUuid that the tab has
+                  const effectiveProjectId =
+                    activeTab?.projectUuid || activeTabId;
+                  let singleFigmaRootNodeId = generatedNodes[0]?.id || "";
+                  let singleFigmaMinSum = Infinity;
+                  generatedNodes.forEach((node: Node) => {
+                    const sum =
+                      (node.position?.x || 0) + (node.position?.y || 0);
+                    if (sum < singleFigmaMinSum) {
+                      singleFigmaMinSum = sum;
+                      singleFigmaRootNodeId = node.id;
                     }
-                    
-                    toast({
-                      title: "Workflow Generated",
-                      description: `Created ${generatedNodes.length} step${generatedNodes.length > 1 ? 's' : ''} from "${workflowName}"`,
-                    });
-                    
-                    // Use afterWorkflowCreation hook for PRD generation (single Figma node path)
-                    // Must use the same projectUuid that the tab has
-                    const effectiveProjectId = activeTab?.projectUuid || activeTabId;
-                    let singleFigmaRootNodeId = generatedNodes[0]?.id || '';
-                    let singleFigmaMinSum = Infinity;
-                    generatedNodes.forEach((node: Node) => {
-                      const sum = (node.position?.x || 0) + (node.position?.y || 0);
-                      if (sum < singleFigmaMinSum) {
-                        singleFigmaMinSum = sum;
-                        singleFigmaRootNodeId = node.id;
-                      }
-                    });
-                    const singleFigmaWorkflowGroupId = `workflow-${singleFigmaRootNodeId}`;
-                    
-                    console.log('[Figma Single] Starting afterWorkflowCreation, projectId:', effectiveProjectId, 'workflowId:', singleFigmaWorkflowGroupId);
-                    
-                    await afterWorkflowCreation({
-                      projectId: effectiveProjectId,
-                      workflows: [{
+                  });
+                  const singleFigmaWorkflowGroupId = `workflow-${singleFigmaRootNodeId}`;
+
+                  console.log(
+                    "[Figma Single] Starting afterWorkflowCreation, projectId:",
+                    effectiveProjectId,
+                    "workflowId:",
+                    singleFigmaWorkflowGroupId,
+                  );
+
+                  await afterWorkflowCreation({
+                    projectId: effectiveProjectId,
+                    workflows: [
+                      {
                         workflowId: singleFigmaWorkflowGroupId,
                         workflowName: workflowName || frameName,
                         nodes: generatedNodes,
-                        edges: generatedEdges
-                      }],
-                      source: 'figma',
-                      generatePRD: true,
-                      aiClient: ai,
-                      onPRDGenerated: (workflowId, prd) => {
-                        console.log('[Figma Single] PRD generated for workflow:', workflowId);
-                        toast({
-                          title: 'PRD Generated',
-                          description: 'A first draft PRD has been created for your Figma workflow.',
-                        });
+                        edges: generatedEdges,
                       },
-                      onError: (error, context) => {
-                        console.error('[Figma Single] Error in afterWorkflowCreation:', context, error);
-                      }
-                    });
-                  } else {
-                    toast({
-                      title: "No Steps Found",
-                      description: "Could not detect logical screens in this Figma frame. Try a frame with clear visual sections.",
-                      variant: "destructive",
-                    });
-                  }
-                } catch (error) {
-                  console.error('Workflow generation failed:', error);
+                    ],
+                    source: "figma",
+                    generatePRD: true,
+                    aiClient: ai,
+                    onPRDGenerated: (workflowId, prd) => {
+                      console.log(
+                        "[Figma Single] PRD generated for workflow:",
+                        workflowId,
+                      );
+                      toast({
+                        title: "PRD Generated",
+                        description:
+                          "A first draft PRD has been created for your Figma workflow.",
+                      });
+                    },
+                    onError: (error, context) => {
+                      console.error(
+                        "[Figma Single] Error in afterWorkflowCreation:",
+                        context,
+                        error,
+                      );
+                    },
+                  });
+                } else {
                   toast({
-                    title: "Generation Failed",
-                    description: "Could not generate workflow from semantic data",
+                    title: "No Steps Found",
+                    description:
+                      "Could not detect logical screens in this Figma frame. Try a frame with clear visual sections.",
                     variant: "destructive",
                   });
                 }
-                
-                setLinearToolbar(null);
-              }
-            }}
-            onCanvasObjectColorChange={(color) => {
-              if (linearToolbar.canvasObject) {
-                saveToHistory('Change canvas object color');
-                const objType = linearToolbar.canvasObject.type;
-                updateActiveTab({
-                  canvasObjects: canvasObjects.map(obj => {
-                    if (obj.id !== linearToolbar.canvasObject!.id) return obj;
-                    if (objType === 'sticky') {
-                      return { ...obj, data: { ...obj.data, backgroundColor: color, borderColor: color } };
-                    } else if (objType === 'shape') {
-                      const currentFillStyle = (obj.data as any).fillStyle || 'solid';
-                      const fillOpacity = currentFillStyle === 'solid' ? 0.5 : currentFillStyle === 'transparent' ? 0.3 : 0;
-                      return { 
-                        ...obj, 
-                        data: { 
-                          ...obj.data, 
-                          fillColor: color, 
-                          strokeColor: color,
-                          fillOpacity: fillOpacity,
-                          strokeOpacity: 1.0
-                        } 
-                      };
-                    } else if (objType === 'text') {
-                      return { ...obj, data: { ...obj.data, textColor: color } };
-                    }
-                    return obj;
-                  })
+              } catch (error) {
+                console.error("Workflow generation failed:", error);
+                toast({
+                  title: "Generation Failed",
+                  description: "Could not generate workflow from semantic data",
+                  variant: "destructive",
                 });
               }
-            }}
-            onCanvasObjectStyleChange={(style) => {
-              if (linearToolbar.canvasObject) {
-                saveToHistory('Change canvas object style');
-                const objType = linearToolbar.canvasObject.type;
-                updateActiveTab({
-                  canvasObjects: canvasObjects.map(obj => {
-                    if (obj.id !== linearToolbar.canvasObject!.id) return obj;
-                    if (objType === 'shape') {
-                      // Shapes use strokeStyle and strokeWidth directly
-                      return { 
-                        ...obj, 
-                        data: { 
-                          ...obj.data, 
-                          strokeStyle: style.strokeStyle ?? obj.data?.strokeStyle,
-                          strokeWidth: style.strokeWidth ?? obj.data?.strokeWidth
-                        } 
-                      };
-                    } else {
-                      // Sticky notes and text use borderStyle
-                      return { 
-                        ...obj, 
-                        data: { 
-                          ...obj.data, 
-                          borderStyle: style.borderStyle ?? obj.data?.borderStyle,
-                          borderWidth: style.borderWidth ?? obj.data?.borderWidth
-                        } 
-                      };
-                    }
-                  })
-                });
-              }
-            }}
-            onCanvasObjectTextStyleChange={(style) => {
-              if (linearToolbar.canvasObject) {
-                saveToHistory('Change canvas object text style');
-                updateActiveTab({
-                  canvasObjects: canvasObjects.map(obj => {
-                    if (obj.id !== linearToolbar.canvasObject!.id) return obj;
-                    const currentData = obj.data || {};
-                    const updates: any = {};
-                    
-                    // Handle fontSize
-                    if (style.fontSize !== undefined) {
-                      updates.fontSize = style.fontSize;
-                    }
-                    
-                    // Handle bold -> fontWeight conversion
-                    if (style.bold !== undefined) {
-                      updates.fontWeight = style.bold ? 'bold' : 'normal';
-                    }
-                    
-                    // Handle italic -> textDecoration (toggle italic in decoration)
-                    if (style.italic !== undefined) {
-                      const currentDecoration = currentData.textDecoration || 'none';
-                      if (style.italic) {
-                        updates.textDecoration = currentDecoration === 'none' ? 'italic' : 
-                          currentDecoration.includes('italic') ? currentDecoration : `${currentDecoration} italic`;
-                      } else {
-                        updates.textDecoration = currentDecoration.replace('italic', '').trim() || 'none';
-                      }
-                    }
-                    
-                    // Handle strikethrough -> textDecoration (toggle line-through in decoration)
-                    if (style.strikethrough !== undefined) {
-                      let currentDecoration = updates.textDecoration ?? currentData.textDecoration ?? 'none';
-                      if (style.strikethrough) {
-                        currentDecoration = currentDecoration === 'none' ? 'line-through' : 
-                          currentDecoration.includes('line-through') ? currentDecoration : `${currentDecoration} line-through`;
-                      } else {
-                        currentDecoration = currentDecoration.replace('line-through', '').trim() || 'none';
-                      }
-                      updates.textDecoration = currentDecoration;
-                    }
-                    
-                    // Handle textAlign
-                    if (style.textAlign !== undefined) {
-                      updates.textAlign = style.textAlign;
-                    }
-                    
-                    return { 
-                      ...obj, 
-                      data: { 
-                        ...currentData, 
-                        ...updates
-                      } 
-                    };
-                  })
-                });
-              }
-            }}
-            onCanvasObjectFillStyleChange={(fillStyle) => {
-              if (linearToolbar.canvasObject && linearToolbar.canvasObject.type === 'shape') {
-                saveToHistory('Change shape fill style');
-                const fillOpacity = fillStyle === 'solid' ? 0.5 : fillStyle === 'transparent' ? 0.3 : 0;
-                updateActiveTab({
-                  canvasObjects: canvasObjects.map(obj => {
-                    if (obj.id !== linearToolbar.canvasObject!.id) return obj;
-                    return { 
-                      ...obj, 
-                      data: { 
-                        ...obj.data, 
-                        fillStyle: fillStyle,
-                        fillOpacity: fillOpacity
-                      } 
-                    };
-                  })
-                });
-              }
-            }}
-            onShapeTypeChange={(shapeType) => {
-              if (linearToolbar.canvasObject && linearToolbar.canvasObject.type === 'shape') {
-                saveToHistory('Change shape type');
-                updateActiveTab({
-                  canvasObjects: canvasObjects.map(obj => {
-                    if (obj.id !== linearToolbar.canvasObject!.id) return obj;
-                    
-                    // When switching to polygon, initialize with empty points and creation mode
-                    if (shapeType === 'polygon') {
-                      return { 
-                        ...obj, 
-                        data: { 
-                          ...obj.data, 
-                          shapeType: shapeType,
-                          points: [],
-                          isClosed: false,
-                          isCreating: true,
-                          // Clear line/arrow specific properties
-                          startPoint: undefined,
-                          endPoint: undefined
-                        } 
-                      };
-                    }
-                    
-                    // When switching from polygon to other shapes, clear polygon properties
-                    return { 
-                      ...obj, 
-                      data: { 
-                        ...obj.data, 
-                        shapeType: shapeType,
-                        // Clear polygon properties
-                        points: undefined,
-                        isClosed: undefined,
-                        isCreating: undefined
-                      } 
-                    };
-                  })
-                });
-              }
-            }}
-            scale={viewport.zoom}
-            isInlineEditing={!!(inlineEditing && linearToolbar.node && inlineEditing.nodeId === linearToolbar.node.id)}
-            inlineEditingPart={inlineEditing?.nodeId === linearToolbar.node?.id ? inlineEditing?.part : undefined}
-            initialSubmenu={linearToolbar.initialSubmenu}
-            onTextObjectHyperlinkChange={(hyperlink) => {
-              if (linearToolbar.canvasObject && linearToolbar.canvasObject.type === 'text') {
-                saveToHistory('Change text object hyperlink');
-                updateActiveTab({
-                  canvasObjects: canvasObjects.map(obj => {
-                    if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+
+              setLinearToolbar(null);
+            }
+          }}
+          onCanvasObjectColorChange={(color) => {
+            if (linearToolbar.canvasObject) {
+              saveToHistory("Change canvas object color");
+              const objType = linearToolbar.canvasObject.type;
+              updateActiveTab({
+                canvasObjects: canvasObjects.map((obj) => {
+                  if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                  if (objType === "sticky") {
                     return {
                       ...obj,
                       data: {
                         ...obj.data,
-                        hyperlink: hyperlink ?? undefined,
-                        // If hyperlink text is provided, update the main text of the object
-                        ...(hyperlink?.text ? { text: hyperlink.text } : {}),
-                      }
+                        backgroundColor: color,
+                        borderColor: color,
+                      },
                     };
-                  })
-                });
-              }
-            }}
-          />
-        )}
-
-        {/* Quick Create Radial Menu */}
-        {quickCreateMenu && (
-          <QuickCreateRadialMenu
-            isOpen={true}
-            position={quickCreateMenu.screenPosition}
-            canvasPosition={quickCreateMenu.canvasPosition}
-            onClose={() => setQuickCreateMenu(null)}
-            onCreateNode={(pos) => {
-              const newNode: Node = {
-                id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                type: 'process',
-                position: { x: pos.x - 100, y: pos.y - 50 },
-                data: {
-                  label: 'New Process',
-                  description: 'Click to edit',
-                  icon: 'Cog',
-                },
-                width: 200,
-                height: 100,
-                selected: true
-              };
-              setNodes(prev => [...prev.map(n => ({ ...n, selected: false })), newNode]);
-              setSelectedNodeId(newNode.id);
-              saveToHistory('Add node');
-              toast({
-                title: "Node Added",
-                description: "Double-click to edit the label",
+                  } else if (objType === "shape") {
+                    const currentFillStyle =
+                      (obj.data as any).fillStyle || "solid";
+                    const fillOpacity =
+                      currentFillStyle === "solid"
+                        ? 0.5
+                        : currentFillStyle === "transparent"
+                          ? 0.3
+                          : 0;
+                    return {
+                      ...obj,
+                      data: {
+                        ...obj.data,
+                        fillColor: color,
+                        strokeColor: color,
+                        fillOpacity: fillOpacity,
+                        strokeOpacity: 1.0,
+                      },
+                    };
+                  } else if (objType === "text") {
+                    return { ...obj, data: { ...obj.data, textColor: color } };
+                  }
+                  return obj;
+                }),
               });
-            }}
-            onCreateText={(pos) => {
-              const newTextObject: CanvasObject = {
-                id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                type: 'text',
-                position: { x: pos.x - 75, y: pos.y - 20 },
-                width: 150,
-                height: 40,
-                selected: true,
-                data: {
-                  text: 'Double-click to edit',
-                  fontSize: 14,
-                  fontFamily: 'Inter',
-                  fontWeight: 'normal',
-                  fontStyle: 'normal',
-                  textAlign: 'left',
-                  textDecoration: 'none',
-                  textColor: document.documentElement.classList.contains('dark') ? '#ffffff' : '#1e293b',
-                  backgroundColor: 'transparent',
-                } as TextNodeData
-              };
-              const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
-              updateActiveTab({ canvasObjects: [...updatedObjects, newTextObject] });
-              saveToHistory('Add text object');
-              toast({
-                title: "Text Object Added",
-                description: "Double-click to edit the text",
-              });
-            }}
-            onCreateShape={(pos, shapeType) => {
-              const isDark = document.documentElement.classList.contains('dark');
-              
-              // Build shape data with polygon-specific initialization if needed
-              const baseShapeData = {
-                shapeType,
-                fillColor: isDark ? '#374151' : '#e2e8f0',
-                fillOpacity: 0.5,
-                fillStyle: 'solid',
-                strokeColor: isDark ? '#6b7280' : '#94a3b8',
-                strokeWidth: 2,
-                strokeOpacity: 1.0,
-                strokeStyle: 'solid',
-                opacity: 1,
-                borderRadius: shapeType === 'rectangle' ? 8 : 0,
-              };
-              
-              const shapeData = {
-                ...baseShapeData,
-                ...(shapeType === 'polygon' ? {
-                  points: [],
-                  isClosed: false,
-                  isCreating: true
-                } : {})
-              } as ShapeNodeData;
-              
-              const newShapeObject: CanvasObject = {
-                id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                type: 'shape',
-                position: { x: pos.x - (shapeType === 'polygon' ? 150 : 50), y: pos.y - (shapeType === 'polygon' ? 150 : 50) },
-                width: shapeType === 'polygon' ? 300 : (shapeType === 'line' || shapeType === 'arrow' ? 150 : 100),
-                height: shapeType === 'polygon' ? 300 : (shapeType === 'line' || shapeType === 'arrow' ? 4 : 100),
-                selected: true,
-                data: shapeData
-              };
-              const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
-              updateActiveTab({ canvasObjects: [...updatedObjects, newShapeObject] });
-              saveToHistory('Add shape');
-              toast({
-                title: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} Added`,
-                description: shapeType === 'polygon' ? "Click to add points, double-click to close" : "Click to select and style",
-              });
-            }}
-            onCreateSticky={(pos) => {
-              const newStickyObject: CanvasObject = {
-                id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                type: 'sticky',
-                position: { x: pos.x - 75, y: pos.y - 75 },
-                width: 150,
-                height: 150,
-                selected: true,
-                data: {
-                  text: 'New sticky note',
-                  fontSize: 12,
-                  fontFamily: 'Inter',
-                  fontWeight: 'normal',
-                  fontStyle: 'normal',
-                  textAlign: 'left',
-                  textDecoration: 'none',
-                  textColor: '#1e293b',
-                  backgroundColor: '#fef3c7',
-                  autoTextColor: true,
-                } as StickyNoteData
-              };
-              const updatedObjects = canvasObjects.map(obj => ({ ...obj, selected: false }));
-              updateActiveTab({ canvasObjects: [...updatedObjects, newStickyObject] });
-              saveToHistory('Add sticky note');
-              toast({
-                title: "Sticky Note Added",
-                description: "Double-click to edit",
-              });
-            }}
-          />
-        )}
-
-        {/* Cloud Projects Drawer */}
-        <SavedProjectsDrawer
-          isOpen={showCloudProjects}
-          onOpenChange={setShowCloudProjects}
-          currentWorkflow={{
-            nodes,
-            edges,
-            canvasObjects,
-            viewport,
-            metadata: activeTab?.metadata,
+            }
           }}
-          onLoadProject={(workflowData) => {
-            saveToHistory('Load project');
-            const newTab: WorkflowTab = {
-              id: `tab-${Date.now()}`,
-              name: workflowData.metadata?.name || 'Loaded Project',
-              nodes: workflowData.nodes || [],
-              edges: workflowData.edges || [],
-              canvasObjects: workflowData.canvasObjects || [],
-              viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
-              selectedNodeId: '',
-              selectedEdgeId: '',
-              history: [{
+          onCanvasObjectStyleChange={(style) => {
+            if (linearToolbar.canvasObject) {
+              saveToHistory("Change canvas object style");
+              const objType = linearToolbar.canvasObject.type;
+              updateActiveTab({
+                canvasObjects: canvasObjects.map((obj) => {
+                  if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                  if (objType === "shape") {
+                    // Shapes use strokeStyle and strokeWidth directly
+                    return {
+                      ...obj,
+                      data: {
+                        ...obj.data,
+                        strokeStyle: style.strokeStyle ?? obj.data?.strokeStyle,
+                        strokeWidth: style.strokeWidth ?? obj.data?.strokeWidth,
+                      },
+                    };
+                  } else {
+                    // Sticky notes and text use borderStyle
+                    return {
+                      ...obj,
+                      data: {
+                        ...obj.data,
+                        borderStyle: style.borderStyle ?? obj.data?.borderStyle,
+                        borderWidth: style.borderWidth ?? obj.data?.borderWidth,
+                      },
+                    };
+                  }
+                }),
+              });
+            }
+          }}
+          onCanvasObjectTextStyleChange={(style) => {
+            if (linearToolbar.canvasObject) {
+              saveToHistory("Change canvas object text style");
+              updateActiveTab({
+                canvasObjects: canvasObjects.map((obj) => {
+                  if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                  const currentData = obj.data || {};
+                  const updates: any = {};
+
+                  // Handle fontSize
+                  if (style.fontSize !== undefined) {
+                    updates.fontSize = style.fontSize;
+                  }
+
+                  // Handle bold -> fontWeight conversion
+                  if (style.bold !== undefined) {
+                    updates.fontWeight = style.bold ? "bold" : "normal";
+                  }
+
+                  // Handle italic -> textDecoration (toggle italic in decoration)
+                  if (style.italic !== undefined) {
+                    const currentDecoration =
+                      currentData.textDecoration || "none";
+                    if (style.italic) {
+                      updates.textDecoration =
+                        currentDecoration === "none"
+                          ? "italic"
+                          : currentDecoration.includes("italic")
+                            ? currentDecoration
+                            : `${currentDecoration} italic`;
+                    } else {
+                      updates.textDecoration =
+                        currentDecoration.replace("italic", "").trim() ||
+                        "none";
+                    }
+                  }
+
+                  // Handle strikethrough -> textDecoration (toggle line-through in decoration)
+                  if (style.strikethrough !== undefined) {
+                    let currentDecoration =
+                      updates.textDecoration ??
+                      currentData.textDecoration ??
+                      "none";
+                    if (style.strikethrough) {
+                      currentDecoration =
+                        currentDecoration === "none"
+                          ? "line-through"
+                          : currentDecoration.includes("line-through")
+                            ? currentDecoration
+                            : `${currentDecoration} line-through`;
+                    } else {
+                      currentDecoration =
+                        currentDecoration.replace("line-through", "").trim() ||
+                        "none";
+                    }
+                    updates.textDecoration = currentDecoration;
+                  }
+
+                  // Handle textAlign
+                  if (style.textAlign !== undefined) {
+                    updates.textAlign = style.textAlign;
+                  }
+
+                  return {
+                    ...obj,
+                    data: {
+                      ...currentData,
+                      ...updates,
+                    },
+                  };
+                }),
+              });
+            }
+          }}
+          onCanvasObjectFillStyleChange={(fillStyle) => {
+            if (
+              linearToolbar.canvasObject &&
+              linearToolbar.canvasObject.type === "shape"
+            ) {
+              saveToHistory("Change shape fill style");
+              const fillOpacity =
+                fillStyle === "solid"
+                  ? 0.5
+                  : fillStyle === "transparent"
+                    ? 0.3
+                    : 0;
+              updateActiveTab({
+                canvasObjects: canvasObjects.map((obj) => {
+                  if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                  return {
+                    ...obj,
+                    data: {
+                      ...obj.data,
+                      fillStyle: fillStyle,
+                      fillOpacity: fillOpacity,
+                    },
+                  };
+                }),
+              });
+            }
+          }}
+          onShapeTypeChange={(shapeType) => {
+            if (
+              linearToolbar.canvasObject &&
+              linearToolbar.canvasObject.type === "shape"
+            ) {
+              saveToHistory("Change shape type");
+              updateActiveTab({
+                canvasObjects: canvasObjects.map((obj) => {
+                  if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+
+                  // When switching to polygon, initialize with empty points and creation mode
+                  if (shapeType === "polygon") {
+                    return {
+                      ...obj,
+                      data: {
+                        ...obj.data,
+                        shapeType: shapeType,
+                        points: [],
+                        isClosed: false,
+                        isCreating: true,
+                        // Clear line/arrow specific properties
+                        startPoint: undefined,
+                        endPoint: undefined,
+                      },
+                    };
+                  }
+
+                  // When switching from polygon to other shapes, clear polygon properties
+                  return {
+                    ...obj,
+                    data: {
+                      ...obj.data,
+                      shapeType: shapeType,
+                      // Clear polygon properties
+                      points: undefined,
+                      isClosed: undefined,
+                      isCreating: undefined,
+                    },
+                  };
+                }),
+              });
+            }
+          }}
+          scale={viewport.zoom}
+          isInlineEditing={
+            !!(
+              inlineEditing &&
+              linearToolbar.node &&
+              inlineEditing.nodeId === linearToolbar.node.id
+            )
+          }
+          inlineEditingPart={
+            inlineEditing?.nodeId === linearToolbar.node?.id
+              ? inlineEditing?.part
+              : undefined
+          }
+          initialSubmenu={linearToolbar.initialSubmenu}
+          onTextObjectHyperlinkChange={(hyperlink) => {
+            if (
+              linearToolbar.canvasObject &&
+              linearToolbar.canvasObject.type === "text"
+            ) {
+              saveToHistory("Change text object hyperlink");
+              updateActiveTab({
+                canvasObjects: canvasObjects.map((obj) => {
+                  if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                  return {
+                    ...obj,
+                    data: {
+                      ...obj.data,
+                      hyperlink: hyperlink ?? undefined,
+                      // If hyperlink text is provided, update the main text of the object
+                      ...(hyperlink?.text ? { text: hyperlink.text } : {}),
+                    },
+                  };
+                }),
+              });
+            }
+          }}
+        />
+      )}
+
+      {/* Quick Create Radial Menu */}
+      {quickCreateMenu && (
+        <QuickCreateRadialMenu
+          isOpen={true}
+          position={quickCreateMenu.screenPosition}
+          canvasPosition={quickCreateMenu.canvasPosition}
+          onClose={() => setQuickCreateMenu(null)}
+          onCreateNode={(pos) => {
+            const newNode: Node = {
+              id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              type: "process",
+              position: { x: pos.x - 100, y: pos.y - 50 },
+              data: {
+                label: "New Process",
+                description: "Click to edit",
+                icon: "Cog",
+              },
+              width: 200,
+              height: 100,
+              selected: true,
+            };
+            setNodes((prev) => [
+              ...prev.map((n) => ({ ...n, selected: false })),
+              newNode,
+            ]);
+            setSelectedNodeId(newNode.id);
+            saveToHistory("Add node");
+            toast({
+              title: "Node Added",
+              description: "Double-click to edit the label",
+            });
+          }}
+          onCreateText={(pos) => {
+            const newTextObject: CanvasObject = {
+              id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              type: "text",
+              position: { x: pos.x - 75, y: pos.y - 20 },
+              width: 150,
+              height: 40,
+              selected: true,
+              data: {
+                text: "Double-click to edit",
+                fontSize: 14,
+                fontFamily: "Inter",
+                fontWeight: "normal",
+                fontStyle: "normal",
+                textAlign: "left",
+                textDecoration: "none",
+                textColor: document.documentElement.classList.contains("dark")
+                  ? "#ffffff"
+                  : "#1e293b",
+                backgroundColor: "transparent",
+              } as TextNodeData,
+            };
+            const updatedObjects = canvasObjects.map((obj) => ({
+              ...obj,
+              selected: false,
+            }));
+            updateActiveTab({
+              canvasObjects: [...updatedObjects, newTextObject],
+            });
+            saveToHistory("Add text object");
+            toast({
+              title: "Text Object Added",
+              description: "Double-click to edit the text",
+            });
+          }}
+          onCreateShape={(pos, shapeType) => {
+            const isDark = document.documentElement.classList.contains("dark");
+
+            // Build shape data with polygon-specific initialization if needed
+            const baseShapeData = {
+              shapeType,
+              fillColor: isDark ? "#374151" : "#e2e8f0",
+              fillOpacity: 0.5,
+              fillStyle: "solid",
+              strokeColor: isDark ? "#6b7280" : "#94a3b8",
+              strokeWidth: 2,
+              strokeOpacity: 1.0,
+              strokeStyle: "solid",
+              opacity: 1,
+              borderRadius: shapeType === "rectangle" ? 8 : 0,
+            };
+
+            const shapeData = {
+              ...baseShapeData,
+              ...(shapeType === "polygon"
+                ? {
+                    points: [],
+                    isClosed: false,
+                    isCreating: true,
+                  }
+                : {}),
+            } as ShapeNodeData;
+
+            const newShapeObject: CanvasObject = {
+              id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              type: "shape",
+              position: {
+                x: pos.x - (shapeType === "polygon" ? 150 : 50),
+                y: pos.y - (shapeType === "polygon" ? 150 : 50),
+              },
+              width:
+                shapeType === "polygon"
+                  ? 300
+                  : shapeType === "line" || shapeType === "arrow"
+                    ? 150
+                    : 100,
+              height:
+                shapeType === "polygon"
+                  ? 300
+                  : shapeType === "line" || shapeType === "arrow"
+                    ? 4
+                    : 100,
+              selected: true,
+              data: shapeData,
+            };
+            const updatedObjects = canvasObjects.map((obj) => ({
+              ...obj,
+              selected: false,
+            }));
+            updateActiveTab({
+              canvasObjects: [...updatedObjects, newShapeObject],
+            });
+            saveToHistory("Add shape");
+            toast({
+              title: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} Added`,
+              description:
+                shapeType === "polygon"
+                  ? "Click to add points, double-click to close"
+                  : "Click to select and style",
+            });
+          }}
+          onCreateSticky={(pos) => {
+            const newStickyObject: CanvasObject = {
+              id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              type: "sticky",
+              position: { x: pos.x - 75, y: pos.y - 75 },
+              width: 150,
+              height: 150,
+              selected: true,
+              data: {
+                text: "New sticky note",
+                fontSize: 12,
+                fontFamily: "Inter",
+                fontWeight: "normal",
+                fontStyle: "normal",
+                textAlign: "left",
+                textDecoration: "none",
+                textColor: "#1e293b",
+                backgroundColor: "#fef3c7",
+                autoTextColor: true,
+              } as StickyNoteData,
+            };
+            const updatedObjects = canvasObjects.map((obj) => ({
+              ...obj,
+              selected: false,
+            }));
+            updateActiveTab({
+              canvasObjects: [...updatedObjects, newStickyObject],
+            });
+            saveToHistory("Add sticky note");
+            toast({
+              title: "Sticky Note Added",
+              description: "Double-click to edit",
+            });
+          }}
+        />
+      )}
+
+      {/* Cloud Projects Drawer */}
+      <SavedProjectsDrawer
+        isOpen={showCloudProjects}
+        onOpenChange={setShowCloudProjects}
+        currentWorkflow={{
+          nodes,
+          edges,
+          canvasObjects,
+          viewport,
+          metadata: activeTab?.metadata,
+        }}
+        onLoadProject={(workflowData) => {
+          saveToHistory("Load project");
+          const newTab: WorkflowTab = {
+            id: `tab-${Date.now()}`,
+            name: workflowData.metadata?.name || "Loaded Project",
+            nodes: workflowData.nodes || [],
+            edges: workflowData.edges || [],
+            canvasObjects: workflowData.canvasObjects || [],
+            viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
+            selectedNodeId: "",
+            selectedEdgeId: "",
+            history: [
+              {
                 nodes: workflowData.nodes || [],
                 edges: workflowData.edges || [],
                 canvasObjects: workflowData.canvasObjects || [],
-                viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 }
-              }],
-              historyIndex: 0,
-              showImageModal: null,
-              metadata: workflowData.metadata || {
-                name: 'Loaded Project',
-                description: '',
-                links: [],
-                linksFormat: 'text',
-                categories: []
+                viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
               },
-              projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-            };
-            setTabs(prev => [...prev, newTab]);
-            setActiveTabId(newTab.id);
-          }}
-          isPro={isPro}
-          isAuthenticated={isAuthenticated}
-        />
+            ],
+            historyIndex: 0,
+            showImageModal: null,
+            metadata: workflowData.metadata || {
+              name: "Loaded Project",
+              description: "",
+              links: [],
+              linksFormat: "text",
+              categories: [],
+            },
+            projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          };
+          setTabs((prev) => [...prev, newTab]);
+          setActiveTabId(newTab.id);
+        }}
+        isPro={isPro}
+        isAuthenticated={isAuthenticated}
+      />
 
-        {/* Keyboard Shortcuts Help Modal */}
-        {showKeyboardShortcuts && (
-          <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
-            onClick={() => setShowKeyboardShortcuts(false)}
+      {/* Keyboard Shortcuts Help Modal */}
+      {showKeyboardShortcuts && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+          onClick={() => setShowKeyboardShortcuts(false)}
+        >
+          <div
+            className="bg-background border border-border rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div 
-              className="bg-background border border-border rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-4 border-b border-border flex items-center justify-between bg-gradient-to-r from-purple-600/10 to-blue-600/10">
-                <h2 className="text-lg font-semibold">Keyboard Shortcuts</h2>
-                <button 
-                  onClick={() => setShowKeyboardShortcuts(false)}
-                  className="p-1 hover:bg-muted rounded"
-                  data-testid="button-close-shortcuts"
-                >
-                  <X size={18} />
-                </button>
+            <div className="p-4 border-b border-border flex items-center justify-between bg-gradient-to-r from-purple-600/10 to-blue-600/10">
+              <h2 className="text-lg font-semibold">Keyboard Shortcuts</h2>
+              <button
+                onClick={() => setShowKeyboardShortcuts(false)}
+                className="p-1 hover:bg-muted rounded"
+                data-testid="button-close-shortcuts"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[calc(80vh-60px)]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Node Operations */}
+                <div>
+                  <h3 className="font-medium text-sm text-muted-foreground mb-2">
+                    Node Operations
+                  </h3>
+                  <div className="space-y-1.5">
+                    <ShortcutRow
+                      keys={["N"]}
+                      description="Add new process node"
+                    />
+                    <ShortcutRow keys={["1"]} description="Add input node" />
+                    <ShortcutRow keys={["2"]} description="Add process node" />
+                    <ShortcutRow
+                      keys={["3"]}
+                      description="Add condition node"
+                    />
+                    <ShortcutRow keys={["4"]} description="Add output node" />
+                    <ShortcutRow keys={["5"]} description="Add AI task node" />
+                    <ShortcutRow keys={["6"]} description="Add image node" />
+                    <ShortcutRow
+                      keys={["Delete"]}
+                      description="Delete selected"
+                    />
+                    <ShortcutRow
+                      keys={["←", "↑", "→", "↓"]}
+                      description="Nudge selected (1px)"
+                    />
+                    <ShortcutRow
+                      keys={["Shift", "←↑→↓"]}
+                      description="Nudge selected (10px)"
+                    />
+                  </div>
+                </div>
+
+                {/* Selection & Navigation */}
+                <div>
+                  <h3 className="font-medium text-sm text-muted-foreground mb-2">
+                    Selection & Navigation
+                  </h3>
+                  <div className="space-y-1.5">
+                    <ShortcutRow
+                      keys={["Ctrl/⌘", "A"]}
+                      description="Select all nodes"
+                    />
+                    <ShortcutRow keys={["Esc"]} description="Deselect all" />
+                    <ShortcutRow
+                      keys={["Tab"]}
+                      description="Cycle to next node"
+                    />
+                    <ShortcutRow
+                      keys={["Shift", "Tab"]}
+                      description="Cycle to previous node"
+                    />
+                    <ShortcutRow keys={["H"]} description="Go to Home screen" />
+                    <ShortcutRow keys={["T"]} description="Create new tab" />
+                  </div>
+                </div>
+
+                {/* Edit Operations */}
+                <div>
+                  <h3 className="font-medium text-sm text-muted-foreground mb-2">
+                    Edit Operations
+                  </h3>
+                  <div className="space-y-1.5">
+                    <ShortcutRow keys={["Ctrl/⌘", "Z"]} description="Undo" />
+                    <ShortcutRow
+                      keys={["Ctrl/⌘", "Shift", "Z"]}
+                      description="Redo"
+                    />
+                    <ShortcutRow
+                      keys={["Ctrl/⌘", "Y"]}
+                      description="Redo (alternative)"
+                    />
+                    <ShortcutRow
+                      keys={["Ctrl/⌘", "S"]}
+                      description="Save/Download workflow"
+                    />
+                  </div>
+                </div>
+
+                {/* View Controls */}
+                <div>
+                  <h3 className="font-medium text-sm text-muted-foreground mb-2">
+                    View Controls
+                  </h3>
+                  <div className="space-y-1.5">
+                    <ShortcutRow keys={["Ctrl/⌘", "+"]} description="Zoom in" />
+                    <ShortcutRow
+                      keys={["Ctrl/⌘", "-"]}
+                      description="Zoom out"
+                    />
+                    <ShortcutRow
+                      keys={["Ctrl/⌘", "0"]}
+                      description="Reset zoom to 100%"
+                    />
+                    <ShortcutRow keys={["G"]} description="Open AI Generator" />
+                    <ShortcutRow keys={["?"]} description="Show this help" />
+                  </div>
+                </div>
               </div>
-              <div className="p-4 overflow-y-auto max-h-[calc(80vh-60px)]">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Node Operations */}
-                  <div>
-                    <h3 className="font-medium text-sm text-muted-foreground mb-2">Node Operations</h3>
-                    <div className="space-y-1.5">
-                      <ShortcutRow keys={["N"]} description="Add new process node" />
-                      <ShortcutRow keys={["1"]} description="Add input node" />
-                      <ShortcutRow keys={["2"]} description="Add process node" />
-                      <ShortcutRow keys={["3"]} description="Add condition node" />
-                      <ShortcutRow keys={["4"]} description="Add output node" />
-                      <ShortcutRow keys={["5"]} description="Add AI task node" />
-                      <ShortcutRow keys={["6"]} description="Add image node" />
-                      <ShortcutRow keys={["Delete"]} description="Delete selected" />
-                      <ShortcutRow keys={["←", "↑", "→", "↓"]} description="Nudge selected (1px)" />
-                      <ShortcutRow keys={["Shift", "←↑→↓"]} description="Nudge selected (10px)" />
-                    </div>
-                  </div>
-                  
-                  {/* Selection & Navigation */}
-                  <div>
-                    <h3 className="font-medium text-sm text-muted-foreground mb-2">Selection & Navigation</h3>
-                    <div className="space-y-1.5">
-                      <ShortcutRow keys={["Ctrl/⌘", "A"]} description="Select all nodes" />
-                      <ShortcutRow keys={["Esc"]} description="Deselect all" />
-                      <ShortcutRow keys={["Tab"]} description="Cycle to next node" />
-                      <ShortcutRow keys={["Shift", "Tab"]} description="Cycle to previous node" />
-                      <ShortcutRow keys={["H"]} description="Go to Home screen" />
-                      <ShortcutRow keys={["T"]} description="Create new tab" />
-                    </div>
-                  </div>
-                  
-                  {/* Edit Operations */}
-                  <div>
-                    <h3 className="font-medium text-sm text-muted-foreground mb-2">Edit Operations</h3>
-                    <div className="space-y-1.5">
-                      <ShortcutRow keys={["Ctrl/⌘", "Z"]} description="Undo" />
-                      <ShortcutRow keys={["Ctrl/⌘", "Shift", "Z"]} description="Redo" />
-                      <ShortcutRow keys={["Ctrl/⌘", "Y"]} description="Redo (alternative)" />
-                      <ShortcutRow keys={["Ctrl/⌘", "S"]} description="Save/Download workflow" />
-                    </div>
-                  </div>
-                  
-                  {/* View Controls */}
-                  <div>
-                    <h3 className="font-medium text-sm text-muted-foreground mb-2">View Controls</h3>
-                    <div className="space-y-1.5">
-                      <ShortcutRow keys={["Ctrl/⌘", "+"]} description="Zoom in" />
-                      <ShortcutRow keys={["Ctrl/⌘", "-"]} description="Zoom out" />
-                      <ShortcutRow keys={["Ctrl/⌘", "0"]} description="Reset zoom to 100%" />
-                      <ShortcutRow keys={["G"]} description="Open AI Generator" />
-                      <ShortcutRow keys={["?"]} description="Show this help" />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mt-4 pt-4 border-t border-border text-xs text-muted-foreground text-center">
-                  Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-foreground font-mono">?</kbd> anytime to toggle this help
-                </div>
+
+              <div className="mt-4 pt-4 border-t border-border text-xs text-muted-foreground text-center">
+                Press{" "}
+                <kbd className="px-1.5 py-0.5 bg-muted rounded text-foreground font-mono">
+                  ?
+                </kbd>{" "}
+                anytime to toggle this help
               </div>
             </div>
           </div>
-        )}
-
-      </div>
+        </div>
+      )}
+    </div>
   );
 }
 
 // Keyboard shortcut row component
-function ShortcutRow({ keys, description }: { keys: string[]; description: string }) {
+function ShortcutRow({
+  keys,
+  description,
+}: {
+  keys: string[];
+  description: string;
+}) {
   return (
     <div className="flex items-center justify-between text-sm">
       <span className="text-muted-foreground">{description}</span>
       <div className="flex items-center gap-1">
         {keys.map((key, i) => (
           <span key={i}>
-            <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">{key}</kbd>
-            {i < keys.length - 1 && <span className="mx-0.5 text-muted-foreground">+</span>}
+            <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">
+              {key}
+            </kbd>
+            {i < keys.length - 1 && (
+              <span className="mx-0.5 text-muted-foreground">+</span>
+            )}
           </span>
         ))}
       </div>
@@ -9812,37 +12171,38 @@ export type { WorkflowEditorContentProps };
 export default function WorkflowEditor() {
   const createAiClient = useCallback(() => {
     // Load saved AI settings
-    const savedSettings = localStorage.getItem('ai_settings');
-    let baseURL = 'https://api.openai.com/v1';
-    let defaultModel = 'gpt-4o'; // using gpt-4o as it's available with current API key access
-    
+    const savedSettings = localStorage.getItem("ai_settings");
+    let baseURL = "https://api.openai.com/v1";
+    let defaultModel = "gpt-4o"; // using gpt-4o as it's available with current API key access
+
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
-        
+
         // Legacy model migration for gpt-5 -> gpt-4o
-        if (settings.model === 'gpt-5') {
-          settings.model = 'gpt-4o';
-          localStorage.setItem('ai_settings', JSON.stringify(settings));
+        if (settings.model === "gpt-5") {
+          settings.model = "gpt-4o";
+          localStorage.setItem("ai_settings", JSON.stringify(settings));
         }
-        
-        if (settings.provider === 'custom' && settings.customEndpoint) {
+
+        if (settings.provider === "custom" && settings.customEndpoint) {
           baseURL = settings.customEndpoint;
-        } else if (settings.provider === 'anthropic') {
-          baseURL = 'https://api.anthropic.com/v1';
+        } else if (settings.provider === "anthropic") {
+          baseURL = "https://api.anthropic.com/v1";
         }
-        defaultModel = settings.model === 'custom' && settings.customModel 
-          ? settings.customModel 
-          : settings.model || defaultModel;
+        defaultModel =
+          settings.model === "custom" && settings.customModel
+            ? settings.customModel
+            : settings.model || defaultModel;
       } catch (e) {
-        console.warn('Failed to parse saved AI settings');
+        console.warn("Failed to parse saved AI settings");
       }
     }
-    
+
     return new OpenAICompatClient({
       baseURL,
-      apiKey: localStorage.getItem('openai_api_key') || '',
-      defaultModel
+      apiKey: localStorage.getItem("openai_api_key") || "",
+      defaultModel,
     });
   }, []);
 

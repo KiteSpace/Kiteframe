@@ -111,7 +111,10 @@
 }
 
 /* FontAwesome compatibility */
-.fas, .far, .fab, .fa {
+.fas,
+.far,
+.fab,
+.fa {
   font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands";
   font-weight: 900;
 }
@@ -178,15 +181,19 @@
   0% {
     background-position: 0% 0%, 100% 100%, 50% 0%, 0% 100%;
   }
+
   25% {
     background-position: 100% 0%, 0% 100%, 100% 50%, 50% 0%;
   }
+
   50% {
     background-position: 100% 100%, 0% 0%, 50% 100%, 100% 50%;
   }
+
   75% {
     background-position: 0% 100%, 100% 0%, 0% 50%, 50% 100%;
   }
+
   100% {
     background-position: 0% 0%, 100% 100%, 50% 0%, 0% 100%;
   }
@@ -194,50 +201,34 @@
 
 .kiteframe-ambient-gradient {
   background-image:
-    radial-gradient(
-      at top left,
-      rgba(255, 142, 28, 0.8),
-      transparent 50%
-    ),
-    radial-gradient(
-      at top right,
-      rgba(135, 221, 254, 0.8),
-      transparent 50%
-    ),
-    radial-gradient(
-      at bottom left,
-      rgba(35, 30, 254, 0.7),
-      transparent 50%
-    ),
-    radial-gradient(
-      at bottom right,
-      rgba(255, 10, 83, 0.75),
-      transparent 50%
-    );
+    radial-gradient(at top left,
+      rgb(26, 228, 255, 0.8),
+      transparent 90%),
+    radial-gradient(at top right,
+      rgb(253, 134, 227, 0.8),
+      transparent 90%),
+    radial-gradient(at bottom left,
+      rgb(90, 31, 255, 0.7),
+      transparent 90%),
+    radial-gradient(at bottom right,
+      rgb(244, 37, 99, 0.75),
+      transparent 90%);
   background-size: 200% 200%;
-  animation: gradientShift 20s ease-in-out infinite;
+  animation: gradientShift 8s ease-in-out infinite;
 }
 
 .dark .kiteframe-ambient-gradient {
   background-image:
-    radial-gradient(
-      at top left,
-      rgba(255, 142, 28, 0.5),
-      transparent 50%
-    ),
-    radial-gradient(
-      at top right,
-      rgba(135, 221, 254, 0.5),
-      transparent 50%
-    ),
-    radial-gradient(
-      at bottom left,
-      rgba(35, 30, 254, 0.45),
-      transparent 50%
-    ),
-    radial-gradient(
-      at bottom right,
-      rgba(255, 10, 83, 0.5),
-      transparent 50%
-    );
+    radial-gradient(at top left,
+      rgb(26, 228, 255, 0.8),
+      transparent 90%),
+    radial-gradient(at top right,
+      rgb(253, 134, 227, 0.8),
+      transparent 90%),
+    radial-gradient(at bottom left,
+      rgb(90, 31, 255, 0.7),
+      transparent 90%),
+    radial-gradient(at bottom right,
+      rgb(244, 37, 99, 0.75),
+      transparent 90%);
 }
