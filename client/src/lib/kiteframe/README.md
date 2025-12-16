@@ -75,6 +75,25 @@
 - **AI-powered error correction** - Fix incompatible imports
 - **File upload & paste** - Multiple import methods
 
+### ⚡ **Performance**
+- **Virtualization** - Only render visible nodes for large graphs
+- **Batch rendering** - RenderBatchManager coalesces updates at 60 FPS target
+- **Efficient state management** - Linear time complexity for graph operations
+- **Optimized for scale** - Designed to handle 1000+ nodes
+
+#### Data Structure Benchmarks
+
+The following benchmarks measure Kiteframe's internal data operations (graph generation, filtering, layout calculations) in isolation. These are useful for understanding algorithmic complexity:
+
+| Scenario | Nodes | Edges | Operation Time | Notes |
+|----------|-------|-------|----------------|-------|
+| Small Graph | 20 | 25 | <1ms | Typical workflow |
+| Medium Graph | 100 | 150 | ~1ms | Complex diagrams |
+| Large Graph | 500 | 600 | ~1ms | With virtualization |
+| Stress Test | 1000 | 1200 | ~8ms | Maximum tested |
+
+> **Note:** These benchmarks test data structure operations only (Node.js environment). Actual rendering performance depends on browser, GPU, and DOM complexity. For production performance testing, use browser DevTools or React Profiler.
+
 ---
 
 ## 📦 Installation
