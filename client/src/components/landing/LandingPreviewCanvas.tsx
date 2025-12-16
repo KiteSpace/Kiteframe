@@ -1,69 +1,147 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Node, Edge, Position } from '@/lib/kiteframe/types';
 
-const SAMPLE_NODES: Node[] = [
+interface LandingPreviewCanvasProps {
+  variant?: 'hero' | 'features' | 'objects';
+}
+
+const HERO_NODES: Node[] = [
   {
-    id: 'concept',
-    type: 'input',
-    position: { x: 80, y: 200 },
-    data: { label: 'Concept' },
-    draggable: true,
-    selectable: false,
-    doubleClickable: false,
-    width: 140,
-    height: 56,
-  },
-  {
-    id: 'workflow',
+    id: 'process',
     type: 'process',
-    position: { x: 280, y: 200 },
-    data: { label: 'Workflow' },
+    position: { x: 60, y: 180 },
+    data: { label: 'Process' },
     draggable: true,
     selectable: false,
     doubleClickable: false,
-    width: 140,
-    height: 56,
+    width: 120,
+    height: 50,
   },
   {
-    id: 'coordination',
-    type: 'process',
-    position: { x: 480, y: 200 },
-    data: { label: 'Coordination' },
+    id: 'table',
+    type: 'table',
+    position: { x: 240, y: 180 },
+    data: { label: 'Table' },
     draggable: true,
     selectable: false,
     doubleClickable: false,
-    width: 140,
-    height: 56,
+    width: 120,
+    height: 50,
   },
   {
-    id: 'alignment',
-    type: 'condition',
-    position: { x: 680, y: 188 },
-    data: { label: 'Alignment' },
+    id: 'form',
+    type: 'form',
+    position: { x: 420, y: 180 },
+    data: { label: 'Form' },
     draggable: true,
     selectable: false,
     doubleClickable: false,
-    width: 140,
-    height: 80,
+    width: 120,
+    height: 50,
   },
   {
-    id: 'launch',
-    type: 'output',
-    position: { x: 880, y: 200 },
-    data: { label: 'Launch' },
+    id: 'code',
+    type: 'code',
+    position: { x: 600, y: 180 },
+    data: { label: 'Code' },
     draggable: true,
     selectable: false,
     doubleClickable: false,
-    width: 140,
-    height: 56,
+    width: 120,
+    height: 50,
+  },
+  {
+    id: 'figma',
+    type: 'figma',
+    position: { x: 780, y: 180 },
+    data: { label: 'Figma' },
+    draggable: true,
+    selectable: false,
+    doubleClickable: false,
+    width: 120,
+    height: 50,
   },
 ];
 
-const SAMPLE_EDGES: Edge[] = [
-  { id: 'e1', source: 'concept', target: 'workflow', type: 'smoothstep' },
-  { id: 'e2', source: 'workflow', target: 'coordination', type: 'smoothstep' },
-  { id: 'e3', source: 'coordination', target: 'alignment', type: 'smoothstep' },
-  { id: 'e4', source: 'alignment', target: 'launch', type: 'smoothstep' },
+const HERO_EDGES: Edge[] = [
+  { id: 'e1', source: 'process', target: 'table', type: 'smoothstep' },
+  { id: 'e2', source: 'table', target: 'form', type: 'smoothstep' },
+  { id: 'e3', source: 'form', target: 'code', type: 'smoothstep' },
+  { id: 'e4', source: 'code', target: 'figma', type: 'smoothstep' },
+];
+
+const FEATURE_NODES: Node[] = [
+  {
+    id: 'input',
+    type: 'input',
+    position: { x: 80, y: 60 },
+    data: { label: 'User Input' },
+    draggable: true,
+    selectable: false,
+    doubleClickable: false,
+    width: 120,
+    height: 50,
+  },
+  {
+    id: 'validate',
+    type: 'process',
+    position: { x: 280, y: 60 },
+    data: { label: 'Validate' },
+    draggable: true,
+    selectable: false,
+    doubleClickable: false,
+    width: 120,
+    height: 50,
+  },
+  {
+    id: 'condition',
+    type: 'condition',
+    position: { x: 480, y: 48 },
+    data: { label: 'Valid?' },
+    draggable: true,
+    selectable: false,
+    doubleClickable: false,
+    width: 100,
+    height: 70,
+  },
+  {
+    id: 'success',
+    type: 'output',
+    position: { x: 680, y: 30 },
+    data: { label: 'Success' },
+    draggable: true,
+    selectable: false,
+    doubleClickable: false,
+    width: 100,
+    height: 50,
+  },
+  {
+    id: 'error',
+    type: 'output',
+    position: { x: 680, y: 120 },
+    data: { label: 'Error' },
+    draggable: true,
+    selectable: false,
+    doubleClickable: false,
+    width: 100,
+    height: 50,
+  },
+];
+
+const FEATURE_EDGES: Edge[] = [
+  { id: 'e1', source: 'input', target: 'validate', type: 'smoothstep' },
+  { id: 'e2', source: 'validate', target: 'condition', type: 'smoothstep' },
+  { id: 'e3', source: 'condition', target: 'success', type: 'smoothstep', label: 'Yes' },
+  { id: 'e4', source: 'condition', target: 'error', type: 'smoothstep', label: 'No' },
+];
+
+const OBJECTS_DATA = [
+  { id: 'sticky1', type: 'sticky', x: 60, y: 40, width: 140, height: 100, color: '#fef08a', text: 'Remember to\nvalidate inputs!' },
+  { id: 'sticky2', type: 'sticky', x: 220, y: 80, width: 140, height: 100, color: '#fed7aa', text: 'Check edge\ncases' },
+  { id: 'shape1', type: 'circle', x: 400, y: 60, size: 80, color: '#c4b5fd' },
+  { id: 'shape2', type: 'rect', x: 520, y: 50, width: 100, height: 60, color: '#a5f3fc' },
+  { id: 'text1', type: 'text', x: 60, y: 170, text: 'Workflow Notes', fontSize: 18 },
+  { id: 'link1', type: 'link', x: 400, y: 150, width: 220, height: 50, url: 'figma.com/design...' },
 ];
 
 const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
@@ -72,6 +150,10 @@ const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> 
   process: { bg: '#f3e8ff', border: '#c084fc', text: '#7e22ce' },
   condition: { bg: '#fef3c7', border: '#fbbf24', text: '#92400e' },
   ai: { bg: '#fce7f3', border: '#f472b6', text: '#9d174d' },
+  table: { bg: '#e0f2fe', border: '#38bdf8', text: '#0369a1' },
+  form: { bg: '#fef3c7', border: '#fbbf24', text: '#92400e' },
+  code: { bg: '#f0fdf4', border: '#22c55e', text: '#166534' },
+  figma: { bg: '#fce7f3', border: '#ec4899', text: '#9d174d' },
 };
 
 interface DragState {
@@ -82,14 +164,16 @@ interface DragState {
   nodeStartY: number;
 }
 
-export default function LandingPreviewCanvas() {
+export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPreviewCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [nodes, setNodes] = useState<Node[]>(SAMPLE_NODES);
+  const initialNodes = variant === 'hero' ? HERO_NODES : variant === 'features' ? FEATURE_NODES : [];
+  const edges = variant === 'hero' ? HERO_EDGES : variant === 'features' ? FEATURE_EDGES : [];
+  const [nodes, setNodes] = useState<Node[]>(initialNodes);
   const [dragState, setDragState] = useState<DragState | null>(null);
 
   const getNodeCenter = useCallback((node: Node): Position => {
-    const width = node.width || 140;
-    const height = node.height || 56;
+    const width = node.width || 120;
+    const height = node.height || 50;
     return {
       x: node.position.x + width / 2,
       y: node.position.y + height / 2,
@@ -146,7 +230,7 @@ export default function LandingPreviewCanvas() {
     const source = getNodeCenter(sourceNode);
     const target = getNodeCenter(targetNode);
     
-    const sourceRight = sourceNode.position.x + (sourceNode.width || 140);
+    const sourceRight = sourceNode.position.x + (sourceNode.width || 120);
     const targetLeft = targetNode.position.x;
     
     const startX = sourceRight;
@@ -182,8 +266,8 @@ export default function LandingPreviewCanvas() {
 
   const renderNode = (node: Node) => {
     const colors = NODE_COLORS[node.type || 'process'];
-    const width = node.width || 140;
-    const height = node.height || 56;
+    const width = node.width || 120;
+    const height = node.height || 50;
 
     return (
       <g
@@ -199,7 +283,6 @@ export default function LandingPreviewCanvas() {
           fill={colors.bg}
           stroke={colors.border}
           strokeWidth={2}
-          transform={node.type === 'condition' ? `rotate(0)` : undefined}
           style={{
             filter: dragState?.nodeId === node.id ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.15))' : 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))',
           }}
@@ -211,7 +294,7 @@ export default function LandingPreviewCanvas() {
           dominantBaseline="middle"
           fill={colors.text}
           className="text-sm font-medium select-none pointer-events-none"
-          style={{ fontSize: '14px' }}
+          style={{ fontSize: '13px' }}
         >
           {node.data.label}
         </text>
@@ -219,13 +302,105 @@ export default function LandingPreviewCanvas() {
     );
   };
 
+  const renderObjects = () => {
+    return OBJECTS_DATA.map((obj) => {
+      if (obj.type === 'sticky') {
+        return (
+          <g key={obj.id} transform={`translate(${obj.x}, ${obj.y})`}>
+            <rect
+              width={obj.width}
+              height={obj.height}
+              fill={obj.color}
+              rx={4}
+              style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}
+            />
+            <text
+              x={10}
+              y={25}
+              fill="#525252"
+              style={{ fontSize: '12px', fontWeight: 500 }}
+            >
+              {obj.text?.split('\n').map((line, i) => (
+                <tspan key={i} x={10} dy={i === 0 ? 0 : 16}>{line}</tspan>
+              ))}
+            </text>
+          </g>
+        );
+      }
+      if (obj.type === 'circle') {
+        return (
+          <circle
+            key={obj.id}
+            cx={obj.x + (obj.size || 40) / 2}
+            cy={obj.y + (obj.size || 40) / 2}
+            r={(obj.size || 40) / 2}
+            fill={obj.color}
+            style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}
+          />
+        );
+      }
+      if (obj.type === 'rect') {
+        return (
+          <rect
+            key={obj.id}
+            x={obj.x}
+            y={obj.y}
+            width={obj.width}
+            height={obj.height}
+            fill={obj.color}
+            rx={6}
+            style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}
+          />
+        );
+      }
+      if (obj.type === 'text') {
+        return (
+          <text
+            key={obj.id}
+            x={obj.x}
+            y={obj.y}
+            fill="#374151"
+            style={{ fontSize: `${obj.fontSize || 14}px`, fontWeight: 600 }}
+          >
+            {obj.text}
+          </text>
+        );
+      }
+      if (obj.type === 'link') {
+        return (
+          <g key={obj.id} transform={`translate(${obj.x}, ${obj.y})`}>
+            <rect
+              width={obj.width}
+              height={obj.height}
+              fill="#f8fafc"
+              stroke="#e2e8f0"
+              strokeWidth={1}
+              rx={6}
+            />
+            <text
+              x={12}
+              y={30}
+              fill="#6366f1"
+              style={{ fontSize: '12px', textDecoration: 'underline' }}
+            >
+              {obj.url}
+            </text>
+          </g>
+        );
+      }
+      return null;
+    });
+  };
+
+  const viewBox = variant === 'hero' ? '0 0 960 400' : variant === 'objects' ? '0 0 680 220' : '0 0 840 200';
+
   return (
     <div 
       ref={canvasRef}
-      className="w-full h-full bg-slate-50/50 dark:bg-slate-900/50 overflow-hidden"
-      data-testid="landing-preview-canvas"
+      className="w-full h-full overflow-hidden"
+      data-testid={`landing-canvas-${variant}`}
     >
-      <svg width="100%" height="100%" viewBox="0 0 1100 456" preserveAspectRatio="xMidYMid meet">
+      <svg width="100%" height="100%" viewBox={viewBox} preserveAspectRatio="xMidYMid meet">
         <defs>
           <marker
             id="arrowhead"
@@ -237,13 +412,15 @@ export default function LandingPreviewCanvas() {
           >
             <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" />
           </marker>
-          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-            <circle cx="10" cy="10" r="1" fill="#e2e8f0" fillOpacity="0.5" />
-          </pattern>
         </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-        {SAMPLE_EDGES.map(renderEdge)}
-        {nodes.map(renderNode)}
+        {variant === 'objects' ? (
+          renderObjects()
+        ) : (
+          <>
+            {edges.map(renderEdge)}
+            {nodes.map(renderNode)}
+          </>
+        )}
       </svg>
     </div>
   );
