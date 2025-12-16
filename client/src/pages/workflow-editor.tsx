@@ -3116,11 +3116,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     (label?: string) => {
       if (!activeTab) return;
 
-      // Debug logging for undo tracking
-      if (process.env.NODE_ENV === "development" && label) {
-        console.log(`[UNDO] Snapshot saved: ${label}`);
-      }
-
       // Clear any existing timeout to debounce the save operation
       if (saveToHistoryTimeoutRef.current) {
         clearTimeout(saveToHistoryTimeoutRef.current);
@@ -3152,9 +3147,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           lastState.canvasObjects.length === currentCanvasObjects.length
         ) {
           // Skip saving if nothing substantial has changed
-          if (process.env.NODE_ENV === "development" && label) {
-            console.log(`[UNDO] Skipped duplicate: ${label}`);
-          }
+          console.log(`[ACTIVITY] ⏭️ SKIPPED (no change): "${label || 'unlabeled'}"`);
           return;
         }
 
@@ -3172,14 +3165,30 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             : newHistory;
         const newHistoryIndex = trimmedHistory.length - 1;
 
+        // Detailed activity tracking log
+        const nodeDiff = currentNodes.length - (lastState?.nodes.length || 0);
+        const edgeDiff = currentEdges.length - (lastState?.edges.length || 0);
+        const objDiff = currentCanvasObjects.length - (lastState?.canvasObjects?.length || 0);
+        
+        console.log(`[ACTIVITY] 💾 SAVED: "${label || 'unlabeled'}"`, {
+          historyIndex: `${currentHistoryIndex} → ${newHistoryIndex}`,
+          historyLength: trimmedHistory.length,
+          state: {
+            nodes: currentNodes.length,
+            edges: currentEdges.length,
+            objects: currentCanvasObjects.length,
+          },
+          diff: {
+            nodes: nodeDiff >= 0 ? `+${nodeDiff}` : `${nodeDiff}`,
+            edges: edgeDiff >= 0 ? `+${edgeDiff}` : `${edgeDiff}`,
+            objects: objDiff >= 0 ? `+${objDiff}` : `${objDiff}`,
+          },
+        });
+
         updateActiveTab({
           history: trimmedHistory,
           historyIndex: newHistoryIndex,
         });
-
-        if (process.env.NODE_ENV === "development" && label) {
-          console.log(`[UNDO] Committed: ${label} (index: ${newHistoryIndex})`);
-        }
       }, 200); // Debounce for 200ms to prevent excessive calls
     },
     [activeTab, updateActiveTab, nodes, edges, canvasObjects, viewport],
@@ -3665,6 +3674,31 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     if (canUndo && history[historyIndex - 1]) {
       const newIndex = historyIndex - 1;
       const targetState = history[newIndex];
+      const currentState = history[historyIndex];
+
+      // Detailed undo tracking log
+      const nodeDiff = targetState.nodes.length - (currentState?.nodes.length || 0);
+      const edgeDiff = targetState.edges.length - (currentState?.edges.length || 0);
+      const objDiff = (targetState.canvasObjects?.length || 0) - (currentState?.canvasObjects?.length || 0);
+
+      console.log(`[UNDO] ⬅️ UNDO: historyIndex ${historyIndex} → ${newIndex}`, {
+        historyLength: history.length,
+        before: {
+          nodes: currentState?.nodes.length || 0,
+          edges: currentState?.edges.length || 0,
+          objects: currentState?.canvasObjects?.length || 0,
+        },
+        after: {
+          nodes: targetState.nodes.length,
+          edges: targetState.edges.length,
+          objects: targetState.canvasObjects?.length || 0,
+        },
+        diff: {
+          nodes: nodeDiff >= 0 ? `+${nodeDiff}` : `${nodeDiff}`,
+          edges: edgeDiff >= 0 ? `+${edgeDiff}` : `${edgeDiff}`,
+          objects: objDiff >= 0 ? `+${objDiff}` : `${objDiff}`,
+        },
+      });
 
       updateActiveTab({
         nodes: [...targetState.nodes],
@@ -3673,6 +3707,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         viewport: { ...targetState.viewport },
         historyIndex: newIndex,
       });
+    } else {
+      console.log(`[UNDO] ⚠️ UNDO blocked: historyIndex=${historyIndex}, historyLength=${history.length}`);
     }
   }, [historyIndex, history, updateActiveTab, nodes, edges, activeTab]);
 
@@ -3682,6 +3718,31 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     if (canRedo && history[historyIndex + 1]) {
       const newIndex = historyIndex + 1;
       const targetState = history[newIndex];
+      const currentState = history[historyIndex];
+
+      // Detailed redo tracking log
+      const nodeDiff = targetState.nodes.length - (currentState?.nodes.length || 0);
+      const edgeDiff = targetState.edges.length - (currentState?.edges.length || 0);
+      const objDiff = (targetState.canvasObjects?.length || 0) - (currentState?.canvasObjects?.length || 0);
+
+      console.log(`[REDO] ➡️ REDO: historyIndex ${historyIndex} → ${newIndex}`, {
+        historyLength: history.length,
+        before: {
+          nodes: currentState?.nodes.length || 0,
+          edges: currentState?.edges.length || 0,
+          objects: currentState?.canvasObjects?.length || 0,
+        },
+        after: {
+          nodes: targetState.nodes.length,
+          edges: targetState.edges.length,
+          objects: targetState.canvasObjects?.length || 0,
+        },
+        diff: {
+          nodes: nodeDiff >= 0 ? `+${nodeDiff}` : `${nodeDiff}`,
+          edges: edgeDiff >= 0 ? `+${edgeDiff}` : `${edgeDiff}`,
+          objects: objDiff >= 0 ? `+${objDiff}` : `${objDiff}`,
+        },
+      });
 
       updateActiveTab({
         nodes: [...targetState.nodes],
@@ -3690,6 +3751,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         viewport: { ...targetState.viewport },
         historyIndex: newIndex,
       });
+    } else {
+      console.log(`[REDO] ⚠️ REDO blocked: historyIndex=${historyIndex}, historyLength=${history.length}`);
     }
   }, [historyIndex, history, updateActiveTab, nodes, edges, activeTab]);
 
