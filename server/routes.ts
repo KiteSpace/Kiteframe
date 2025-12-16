@@ -395,10 +395,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user is admin and add isAdmin flag
       const isAdmin = isAdminUser(user?.email);
       
-      // For admins, override tier to 'pro' and show unlimited credits
+      // For admins, override tier to 'pro', grant beta access, and show unlimited credits
       const responseUser = user ? {
         ...user,
         isAdmin,
+        isBeta: isAdmin ? true : user.isBeta,
         subscriptionTier: isAdmin ? 'pro' : user.subscriptionTier,
         isUnlimited: isAdmin ? true : undefined,
       } : null;
