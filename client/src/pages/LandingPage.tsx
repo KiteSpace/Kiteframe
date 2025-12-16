@@ -164,10 +164,14 @@ export default function LandingPage() {
                 Enter App <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             ) : isAuthenticated && isOnWaitlist ? (
-              <span className="text-sm text-muted-foreground" data-testid="text-waitlist-status">
-                On the waitlist
-              </span>
-            ) : null}
+              <Button variant="ghost" onClick={() => window.location.href = '/waitlist-dashboard'} data-testid="button-view-status">
+                View Status
+              </Button>
+            ) : (
+              <Button variant="ghost" onClick={() => window.location.href = '/signin'} data-testid="button-signin-header">
+                Already a Beta user? Sign in
+              </Button>
+            )}
           </div>
         </header>
 
@@ -190,6 +194,19 @@ export default function LandingPage() {
                   Learn More
                 </Button>
               </div>
+              
+              {!isAuthenticated && (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Already a Beta user?{' '}
+                  <a 
+                    href="/signin" 
+                    className="text-violet-600 hover:text-violet-700 dark:text-violet-400 font-medium underline-offset-4 hover:underline"
+                    data-testid="link-signin-hero"
+                  >
+                    Sign in
+                  </a>
+                </p>
+              )}
             </div>
 
             <div className="relative">

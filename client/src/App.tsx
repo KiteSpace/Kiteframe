@@ -12,6 +12,8 @@ import KitelineDocs from "@/pages/kiteline-docs";
 import AdminCodes from "@/pages/AdminCodes";
 import Pricing from "@/pages/Pricing";
 import Account from "@/pages/Account";
+import SignIn from "@/pages/SignIn";
+import WaitlistDashboard from "@/pages/WaitlistDashboard";
 import MockupCodeDataReference from "@/pages/mockup-code-data-reference";
 import ViewOnlyViewer from "@/pages/ViewOnlyViewer";
 import NotFound from "@/pages/not-found";
@@ -50,11 +52,11 @@ function BetaProtectedRoute<P extends object>({
   }
 
   if (!user) {
-    return <Redirect to="/" />;
+    return <Redirect to="/signin" />;
   }
 
   if (!user.isBeta) {
-    return <Redirect to="/" />;
+    return <Redirect to="/waitlist-dashboard" />;
   }
 
   return <Component {...(componentProps as P)} />;
@@ -93,6 +95,10 @@ function LandingRoute() {
     return <Redirect to="/app" />;
   }
 
+  if (user && !user.isBeta) {
+    return <Redirect to="/waitlist-dashboard" />;
+  }
+
   return <LandingPage />;
 }
 
@@ -113,6 +119,8 @@ function Router() {
             />
           )}
         </Route>
+        <Route path="/signin" component={SignIn} />
+        <Route path="/waitlist-dashboard" component={WaitlistDashboard} />
         <Route path="/demo" component={KitelineDemo} />
         <Route path="/docs" component={KitelineDocs} />
         <Route path="/pricing" component={Pricing} />
