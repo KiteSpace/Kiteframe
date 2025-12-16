@@ -1,0 +1,247 @@
+KITEFRAME — WAITLIST + BETA ACCESS ADMIN IMPLEMENTATION SPEC
+============================================================
+
+GOAL
+----
+Add a waitlist system that:
+• Blocks non-beta users from accessing the Home / Editor
+• Allows beta-approved users to authenticate normally
+• Lets non-approved users submit email to a waitlist
+• Gives admins a dashboard to manage approvals
+• Enforces gating in code (not just UI)
+
+This DOES NOT replace the authorized Home prompt page.
+It introduces:
+• A public landing page
+• A waitlist flow
+• Admin waitlist management
+
+------------------------------------------------------------
+SECTION 1 — DATA MODEL
+------------------------------------------------------------
+
+Create a new persistent model: WaitlistEntry
+
+Schema:
+---------
+WaitlistEntry {
+  id: string
+  email: string (lowercased, unique)
+  status: 'pending' | 'approved' | 'rejected'
+  source: 'landing' | 'auth_blocked' | 'manual'
+  notes?: string
+  createdAt: timestamp
+  updatedAt: timestamp
+  approvedAt?: timestamp
+  approvedBy?: string (admin user id)
+}
+
+Constraints:
+------------
+• Enforce UNIQUE(email)
+• Normalize email to lowercase before save
+• One entry per email only
+
+------------------------------------------------------------
+SECTION 2 — AUTH GATING (CRITICAL)
+------------------------------------------------------------
+
+RULE:
+-----
+Authentication success ≠ Product access
+
+After ANY OAuth login (Google / GitHub / Replit):
+
+1. Resolve user email
+2. Query WaitlistEntry by email
+3. Apply gating:
+
+IF entry.status === 'approved'
+  → allow normal app access
+
+IF entry does NOT exist
+  → create WaitlistEntry:
+       status = 'pending'
+       source = 'auth_blocked'
+  → redirect to WaitlistBlockedScreen
+
+IF entry.status === 'pending'
+  → redirect to WaitlistBlockedScreen
+
+IF entry.status === 'rejected'
+  → redirect to WaitlistRejectedScreen
+
+This logic MUST be enforced:
+• Server-side or immediately after auth resolution
+• Not just via frontend routing
+
+------------------------------------------------------------
+SECTION 3 — PUBLIC LANDING PAGE (NON-AUTH USERS)
+------------------------------------------------------------
+
+Route:
+------
+/landing (or /)
+
+Purpose:
+--------
+• Show Kiteframe is in Private Beta
+• Allow waitlist email submission
+• Prevent auth attempts unless approved
+
+UI REQUIREMENTS:
+----------------
+• Styling matches Home prompt (same input treatment)
+• Kiteframe subtle moving gradient background
+• Copy example:
+
+Header:
+"Kiteframe is in Private Beta"
+
+Subtext:
+"Design, product, and engineering workflows — unified."
+
+Primary CTA:
+[ Join the waitlist ]
+
+Secondary text:
+"If approved, you’ll be able to sign in using Google, GitHub, or Replit."
+
+Form behavior:
+--------------
+• Email input only
+• On submit:
+   - Create WaitlistEntry (status = pending, source = landing)
+   - Show confirmation state (no auth yet)
+
+------------------------------------------------------------
+SECTION 4 — BLOCKED AUTH SCREENS
+------------------------------------------------------------
+
+Create two simple screens:
+
+1. WaitlistBlockedScreen
+   Copy:
+   "Kiteframe is currently in private beta.
+    You’ve been added to the waitlist."
+
+   Optional:
+   • Show submitted email
+   • Disable retry spam
+
+2. WaitlistRejectedScreen
+   Copy:
+   "Thanks for your interest.
+    We’re not accepting new beta users at this time."
+
+------------------------------------------------------------
+SECTION 5 — ADMIN DASHBOARD: WAITLIST MANAGEMENT
+------------------------------------------------------------
+
+Add new Admin route:
+--------------------
+/admin/waitlist
+
+Access:
+-------
+Admin users only (role === 'admin')
+
+TABLE VIEW:
+-----------
+Columns:
+• Email
+• Status (pill)
+• Source
+• Submitted date
+• Actions
+
+Status colors:
+--------------
+pending  → gray
+approved → green
+rejected → red
+
+ACTIONS:
+--------
+Per row:
+• Approve
+• Reject
+
+On Approve:
+-----------
+• status = 'approved'
+• set approvedAt
+• set approvedBy
+
+On Reject:
+----------
+• status = 'rejected'
+
+FILTERS:
+--------
+• Status filter (pending / approved / rejected)
+• Email search
+• Date range (optional MVP)
+
+METRICS (TOP OF PAGE):
+---------------------
+• Total requests
+• Pending
+• Approved
+• Conversion rate (approved / total)
+
+------------------------------------------------------------
+SECTION 6 — AUTH FLOW MODIFICATION
+------------------------------------------------------------
+
+Disable direct auth access for non-approved users.
+
+Behavior:
+---------
+• Auth buttons visible ONLY if:
+    user email is approved
+• Otherwise:
+    redirect to landing or blocked screen
+
+DO NOT:
+-------
+• Allow users to brute force auth attempts
+• Allow UI-only gating
+
+------------------------------------------------------------
+SECTION 7 — NON-GOALS (DO NOT IMPLEMENT)
+------------------------------------------------------------
+
+• Invite codes
+• Referral systems
+• Paid tiers
+• Email campaigns
+• CRM integrations
+
+------------------------------------------------------------
+SECTION 8 — IMPLEMENTATION ORDER
+------------------------------------------------------------
+
+1. Create WaitlistEntry model + API
+2. Enforce auth gating logic
+3. Build landing page + waitlist form
+4. Build blocked / rejected screens
+5. Add admin waitlist dashboard
+6. QA flows:
+   • Approved user
+   • Pending user
+   • Rejected user
+   • New unauthenticated visitor
+
+------------------------------------------------------------
+SECTION 9 — ACCEPTANCE CRITERIA
+------------------------------------------------------------
+
+• Non-approved users CANNOT reach Home or Editor
+• Approved users authenticate normally
+• Admin can approve users and unlock access
+• Waitlist entries are never duplicated
+• Gating works regardless of auth provider
+
+END OF SPEC
+============================================================

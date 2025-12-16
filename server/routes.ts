@@ -19,7 +19,7 @@ import {
   groupAccessControlsSchema,
   userCredits,
 } from "@shared/schema";
-import { eq, desc, and, or, isNotNull, isNull, sql } from "drizzle-orm";
+import { eq, desc, and, or, isNotNull, isNull, sql, ilike } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, getUserGroupAccessControls } from "./middleware/creditCheck";
@@ -3062,8 +3062,28 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       const limit = Math.min(100, parseInt(req.query.limit as string) || 50);
       const offset = parseInt(req.query.offset as string) || 0;
       const status = req.query.status as string; // 'pending' | 'beta' | 'all'
+      const search = (req.query.search as string)?.toLowerCase()?.trim();
 
-      let query = db.select({
+      // Build conditions for filtered query
+      const conditions: any[] = [];
+      
+      if (status === 'pending') {
+        conditions.push(isNotNull(users.waitlistRequestedAt));
+        conditions.push(or(eq(users.isBeta, false), isNull(users.isBeta)));
+      } else if (status === 'beta') {
+        conditions.push(eq(users.isBeta, true));
+        conditions.push(isNotNull(users.waitlistRequestedAt));
+      } else {
+        conditions.push(isNotNull(users.waitlistRequestedAt));
+      }
+
+      if (search) {
+        conditions.push(ilike(users.email, `%${search}%`));
+      }
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const waitlistUsers = await db.select({
         id: users.id,
         email: users.email,
         firstName: users.firstName,
@@ -3074,32 +3094,45 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         waitlistRole: users.waitlistRole,
         waitlistUseCase: users.waitlistUseCase,
         createdAt: users.createdAt,
-      }).from(users);
-
-      if (status === 'pending') {
-        query = query.where(and(
-          isNotNull(users.waitlistRequestedAt),
-          or(eq(users.isBeta, false), isNull(users.isBeta))
-        ));
-      } else if (status === 'beta') {
-        query = query.where(eq(users.isBeta, true));
-      } else {
-        query = query.where(isNotNull(users.waitlistRequestedAt));
-      }
-
-      const waitlistUsers = await query
+      }).from(users)
+        .where(whereClause)
         .orderBy(desc(users.waitlistRequestedAt))
         .limit(limit)
         .offset(offset);
 
-      const countQuery = await db.select({ count: sql<number>`count(*)` })
+      // Count for current filter (for pagination)
+      const filteredCountQuery = await db.select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(whereClause);
+
+      // Global stats (always show real totals regardless of filter)
+      const totalCountQuery = await db.select({ count: sql<number>`count(*)` })
         .from(users)
         .where(isNotNull(users.waitlistRequestedAt));
+
+      const pendingCountQuery = await db.select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(and(
+          isNotNull(users.waitlistRequestedAt),
+          or(eq(users.isBeta, false), isNull(users.isBeta))
+        ));
+
+      const approvedCountQuery = await db.select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(and(
+          isNotNull(users.waitlistRequestedAt),
+          eq(users.isBeta, true)
+        ));
       
       res.json({
         success: true,
         users: waitlistUsers,
-        total: countQuery[0]?.count || 0,
+        total: filteredCountQuery[0]?.count || 0,
+        stats: {
+          total: totalCountQuery[0]?.count || 0,
+          pending: pendingCountQuery[0]?.count || 0,
+          approved: approvedCountQuery[0]?.count || 0,
+        },
         limit,
         offset
       });

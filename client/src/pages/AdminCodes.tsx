@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Key, Shield, Ban, RotateCcw, BarChart3, Users, FolderTree, Upload, Search, Plus, Trash2, Edit, UserPlus, Download, ChevronLeft, ChevronRight, Star, UserMinus } from 'lucide-react';
+import { Copy, Key, Shield, Ban, RotateCcw, BarChart3, Users, FolderTree, Upload, Search, Plus, Trash2, Edit, UserPlus, Download, ChevronLeft, ChevronRight, Star, UserMinus, ClipboardList, Check, X } from 'lucide-react';
 import AdminAnalytics from './AdminAnalytics';
 
 interface UnlockCode {
@@ -61,6 +61,26 @@ interface GroupAccessControls {
   features?: string[];
 }
 
+interface WaitlistUser {
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  isBeta: boolean | null;
+  betaGrantedAt: string | null;
+  waitlistRequestedAt: string | null;
+  waitlistRole: string | null;
+  waitlistUseCase: string | null;
+  createdAt: string | null;
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  pm: 'Product Manager',
+  design: 'Designer',
+  engineering: 'Engineer',
+  founder: 'Founder / CEO',
+};
+
 const AVAILABLE_COUNTRIES = [
   { code: 'US', name: 'United States' },
   { code: 'CA', name: 'Canada' },
@@ -77,6 +97,283 @@ const AVAILABLE_COUNTRIES = [
 ];
 
 const SUBSCRIPTION_TIERS = ['free', 'advanced', 'pro'] as const;
+
+function WaitlistTab({ authHeader }: { authHeader: string }) {
+  const { toast } = useToast();
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'beta'>('pending');
+  const [searchEmail, setSearchEmail] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const limit = 20;
+
+  // Debounce search input
+  const searchTimeoutRef = useCallback((value: string) => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(value);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, []);
+
+  const handleSearchChange = (value: string) => {
+    setSearchEmail(value);
+    searchTimeoutRef(value);
+  };
+
+  const { data: waitlistData, isLoading, refetch } = useQuery({
+    queryKey: ['/internal/x9k7m2p4/waitlist', statusFilter, page, debouncedSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        status: statusFilter,
+        limit: String(limit),
+        offset: String((page - 1) * limit),
+      });
+      if (debouncedSearch) {
+        params.set('search', debouncedSearch);
+      }
+      const response = await fetch(`/internal/x9k7m2p4/waitlist?${params}`, {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch waitlist');
+      return response.json();
+    },
+  });
+
+  const grantBetaMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await fetch('/internal/x9k7m2p4/beta/grant', {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Failed to grant beta access' }));
+        throw new Error(err.error);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      refetch();
+      toast({ title: 'Beta Access Granted', description: 'User can now access the app' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const revokeBetaMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await fetch('/internal/x9k7m2p4/beta/revoke', {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Failed to revoke beta access' }));
+        throw new Error(err.error);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      refetch();
+      toast({ title: 'Beta Access Revoked', description: 'User access has been revoked' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const waitlistUsers: WaitlistUser[] = waitlistData?.users || [];
+  const filteredTotal = waitlistData?.total || 0;
+  const totalPages = Math.ceil(filteredTotal / limit);
+
+  // Use server-side stats for accurate metrics
+  const stats = waitlistData?.stats || { total: 0, pending: 0, approved: 0 };
+  const conversionRate = stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0;
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">Total Requests</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+            <p className="text-xs text-muted-foreground">Pending</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
+            <p className="text-xs text-muted-foreground">Approved</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold">
+              {conversionRate}%
+            </div>
+            <p className="text-xs text-muted-foreground">Conversion Rate</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ClipboardList className="w-5 h-5" />
+            Waitlist Requests
+          </CardTitle>
+          <CardDescription>
+            Manage beta access requests from the landing page
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by email..."
+                  value={searchEmail}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="pl-9"
+                  data-testid="input-waitlist-search"
+                />
+              </div>
+            </div>
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as any); setPage(1); }}>
+              <SelectTrigger className="w-40" data-testid="select-waitlist-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="beta">Approved</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {isLoading ? (
+            <p className="text-muted-foreground text-center py-8">Loading...</p>
+          ) : waitlistUsers.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No waitlist requests found</p>
+          ) : (
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left p-3 text-sm font-medium">Email</th>
+                    <th className="text-left p-3 text-sm font-medium">Role</th>
+                    <th className="text-left p-3 text-sm font-medium">Use Case</th>
+                    <th className="text-left p-3 text-sm font-medium">Status</th>
+                    <th className="text-left p-3 text-sm font-medium">Requested</th>
+                    <th className="text-right p-3 text-sm font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {waitlistUsers.map((user) => (
+                    <tr key={user.id} className="border-t" data-testid={`row-waitlist-${user.id}`}>
+                      <td className="p-3 text-sm font-medium">{user.email || '-'}</td>
+                      <td className="p-3 text-sm text-muted-foreground">
+                        {user.waitlistRole ? ROLE_LABELS[user.waitlistRole] || user.waitlistRole : '-'}
+                      </td>
+                      <td className="p-3 text-sm text-muted-foreground max-w-xs truncate" title={user.waitlistUseCase || undefined}>
+                        {user.waitlistUseCase || '-'}
+                      </td>
+                      <td className="p-3">
+                        {user.isBeta ? (
+                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                            Approved
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                            Pending
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="p-3 text-sm text-muted-foreground">
+                        {formatDate(user.waitlistRequestedAt)}
+                      </td>
+                      <td className="p-3 text-right">
+                        {user.isBeta ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => revokeBetaMutation.mutate(user.id)}
+                            disabled={revokeBetaMutation.isPending}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            data-testid={`button-revoke-${user.id}`}
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Revoke
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => grantBetaMutation.mutate(user.id)}
+                            disabled={grantBetaMutation.isPending}
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                            data-testid={`button-approve-${user.id}`}
+                          >
+                            <Check className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4">
+              <p className="text-sm text-muted-foreground">
+                Page {page} of {totalPages} ({filteredTotal} total)
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  data-testid="button-prev-page"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  data-testid="button-next-page"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 function UsersTab({ authHeader }: { authHeader: string }) {
   const { toast } = useToast();
@@ -1456,8 +1753,12 @@ export default function AdminCodes() {
           </Button>
         </div>
 
-        <Tabs defaultValue="codes" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+        <Tabs defaultValue="waitlist" className="w-full">
+          <TabsList className="grid w-full grid-cols-7">
+            <TabsTrigger value="waitlist" data-testid="tab-waitlist-management">
+              <ClipboardList className="w-4 h-4 mr-2" />
+              Waitlist
+            </TabsTrigger>
             <TabsTrigger value="codes" data-testid="tab-codes-management">
               <Key className="w-4 h-4 mr-2" />
               Codes
@@ -1483,6 +1784,10 @@ export default function AdminCodes() {
               Analytics
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="waitlist" className="mt-6">
+            <WaitlistTab authHeader={authHeader} />
+          </TabsContent>
 
           <TabsContent value="codes" className="space-y-6 mt-6">
             <Card>
