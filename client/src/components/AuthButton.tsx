@@ -1,9 +1,11 @@
-import { LogIn, LogOut, User, ChevronDown, Settings } from 'lucide-react';
+import { LogIn, LogOut, User, ChevronDown, Settings, Crown, Sparkles, Shield } from 'lucide-react';
 import { useReplitAuth } from '@/hooks/useReplitAuth';
 import { useState, useRef, useEffect } from 'react';
 import { SignInModal } from './SignInModal';
 import { SignUpModal } from './SignUpModal';
 import { useLocation } from 'wouter';
+import { useSubscription } from '@/hooks/useSubscription';
+import { Badge } from '@/components/ui/badge';
 
 export function AuthButton() {
   const { user, isLoading, isAuthenticated } = useReplitAuth();
@@ -12,6 +14,7 @@ export function AuthButton() {
   const [showSignUp, setShowSignUp] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [, navigate] = useLocation();
+  const { tier, isPro, isAdvanced, isAdmin } = useSubscription();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -82,11 +85,29 @@ export function AuthButton() {
         </button>
 
         {showDropdown && (
-          <div className="absolute right-0 top-full mt-1 w-48 bg-popover border rounded-md shadow-md z-50">
+          <div className="absolute right-0 top-full mt-1 w-52 bg-popover border rounded-md shadow-md z-50">
             <div className="py-1">
               <div className="px-3 py-2 text-sm border-b">
-                <div className="font-medium truncate">
-                  {user.firstName || user.email || 'User'}
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="font-medium truncate">
+                    {user.firstName || user.email || 'User'}
+                  </span>
+                  {isAdmin ? (
+                    <Badge variant="default" className="bg-gradient-to-r from-purple-600 to-violet-600 text-white border-0 text-xs px-1.5 py-0">
+                      <Shield className="h-3 w-3 mr-0.5" />
+                      Admin
+                    </Badge>
+                  ) : isPro ? (
+                    <Badge variant="default" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 text-xs px-1.5 py-0">
+                      <Crown className="h-3 w-3 mr-0.5" />
+                      Pro
+                    </Badge>
+                  ) : isAdvanced ? (
+                    <Badge variant="default" className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0 text-xs px-1.5 py-0">
+                      <Sparkles className="h-3 w-3 mr-0.5" />
+                      Advanced
+                    </Badge>
+                  ) : null}
                 </div>
                 <div className="text-xs text-muted-foreground truncate">
                   {user.email}

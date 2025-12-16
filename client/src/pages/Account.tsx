@@ -11,7 +11,10 @@ import {
   Loader2,
   ExternalLink,
   AlertTriangle,
+  ArrowLeft,
 } from 'lucide-react';
+import { Link } from 'wouter';
+import kiteframeIcon from "@assets/kiteframe@2x_1758226635607.png";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -140,9 +143,23 @@ export default function Account() {
   const TierIcon = tier.icon;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white py-12 px-4">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold text-slate-900 mb-8">Account Settings</h1>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
+      {/* Header with back button and logo */}
+      <header className="h-16 px-4 py-2 flex items-center justify-between bg-card border-b border-border shadow-sm">
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <a className="flex items-center gap-2 hover:opacity-80 transition-opacity" data-testid="link-back-to-app">
+              <ArrowLeft className="h-5 w-5" />
+              <img src={kiteframeIcon} alt="Kiteframe" className="w-6 h-6" />
+              <span className="text-lg font-semibold">Kiteframe</span>
+            </a>
+          </Link>
+        </div>
+      </header>
+
+      <div className="py-12 px-4">
+        <div className="max-w-3xl mx-auto">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-8">Account Settings</h1>
 
         <div className="space-y-6">
           {/* Profile Card */}
@@ -309,6 +326,7 @@ export default function Account() {
               </AlertDialog>
             </CardContent>
           </Card>
+        </div>
         </div>
       </div>
     </div>
