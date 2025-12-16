@@ -25,6 +25,7 @@ import { AiWorkflowGenerator } from "@/components/AiWorkflowGenerator";
 import { WorkflowImportModal } from "@/components/WorkflowImportModal";
 import { ShareModal } from "@/components/ShareModal";
 import { BugReportModal } from "@/components/BugReportModal";
+import { TutorialOverlay } from "@/components/TutorialOverlay";
 import { ContextMenu } from "@/components/ContextMenu";
 import { MissingImagesModal } from "@/components/MissingImagesModal";
 import { NewTabModal } from "@/components/NewTabModal";
@@ -3788,6 +3789,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // State for keyboard shortcuts help modal
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
+  // State for tutorial overlay
+  const [showTutorial, setShowTutorial] = useState(false);
+
   // Comprehensive keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -5495,6 +5499,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         editorSettings={editorSettings}
         onEditorSettingsChange={setEditorSettings}
         onOpenBugReport={() => setShowBugReportModal(true)}
+        onStartTutorial={() => {
+          localStorage.removeItem('kiteframe-tutorial-completed');
+          setShowTutorial(true);
+        }}
         isReadOnly={isReadOnly}
       />
 
@@ -12059,6 +12067,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         }}
         isPro={isPro}
         isAuthenticated={isAuthenticated}
+      />
+
+      {/* Tutorial Overlay for new users */}
+      <TutorialOverlay 
+        onComplete={() => setShowTutorial(false)} 
+        forceShow={showTutorial}
       />
 
       {/* Keyboard Shortcuts Help Modal */}

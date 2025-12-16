@@ -8,6 +8,7 @@ import {
   Sun,
   Moon,
   Bug,
+  GraduationCap,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import kiteframeIcon from "@assets/kiteframe@2x_1758226635607.png";
@@ -28,6 +29,7 @@ interface ToolbarProps {
   editorSettings?: EditorSettings;
   onEditorSettingsChange?: (settings: EditorSettings) => void;
   onOpenBugReport?: () => void;
+  onStartTutorial?: () => void;
   isReadOnly?: boolean;
 }
 
@@ -38,6 +40,7 @@ export function Toolbar({
   editorSettings,
   onEditorSettingsChange,
   onOpenBugReport,
+  onStartTutorial,
   isReadOnly,
 }: ToolbarProps) {
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
@@ -133,6 +136,22 @@ export function Toolbar({
                 >
                   <Bug size={16} className="text-red-500" />
                   Report Bug
+                </button>
+              )}
+
+              {/* Tutorial Button */}
+              {onStartTutorial && (
+                <button
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2 rounded-lg"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onStartTutorial();
+                    setShowSettingsDropdown(false);
+                  }}
+                  data-testid="button-restart-tutorial"
+                >
+                  <GraduationCap size={16} className="text-violet-500" />
+                  Start Tutorial
                 </button>
               )}
 
