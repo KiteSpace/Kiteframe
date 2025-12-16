@@ -1625,27 +1625,51 @@ export default function AdminCodes() {
   });
 
   const handleLogin = async () => {
-    const auth = btoa(`${username}:${password}`);
-    const header = `Basic ${auth}`;
-    
     try {
-      const response = await fetch('/internal/ops-codes/list', {
+      const loginResponse = await fetch('/internal/x9k7m2p4/login', {
+        method: 'POST',
         headers: {
-          'Authorization': header,
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ username, password }),
       });
       
-      if (response.ok) {
+      if (loginResponse.ok) {
+        const data = await loginResponse.json();
+        const header = `Bearer ${data.token}`;
         setAuthHeader(header);
         setIsAuthenticated(true);
+        
+        if (data.expiresIn) {
+          setTimeout(() => {
+            toast({
+              title: 'Session Expiring',
+              description: 'Your admin session will expire soon. Please re-login.',
+              variant: 'destructive',
+            });
+          }, (data.expiresIn - 300) * 1000);
+        }
+        
         toast({
           title: 'Login Successful',
           description: 'Welcome to admin panel',
         });
       } else {
+        let errorMessage = 'Invalid username or password';
+        try {
+          const contentType = loginResponse.headers.get('content-type');
+          if (contentType?.includes('application/json')) {
+            const errorData = await loginResponse.json();
+            errorMessage = errorData.error || errorMessage;
+          } else if (loginResponse.status === 429) {
+            errorMessage = 'Too many login attempts. Please try again later.';
+          }
+        } catch {
+          // Use default error message if parsing fails
+        }
         toast({
           title: 'Login Failed',
-          description: 'Invalid username or password',
+          description: errorMessage,
           variant: 'destructive',
         });
       }
@@ -1743,7 +1767,15 @@ export default function AdminCodes() {
           </h1>
           <Button
             variant="outline"
-            onClick={() => {
+            onClick={async () => {
+              try {
+                await fetch('/internal/x9k7m2p4/logout', {
+                  method: 'POST',
+                  headers: { 'Authorization': authHeader },
+                });
+              } catch {
+                // Continue with logout even if server request fails
+              }
               setIsAuthenticated(false);
               setAuthHeader('');
             }}

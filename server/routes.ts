@@ -24,7 +24,10 @@ import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, getUserGroupAccessControls } from "./middleware/creditCheck";
 import { creditService } from "./creditService";
-import { requireAdminAuth } from "./middleware/adminAuth";
+import { requireAdminAuth, adminLogin, adminLogout, refreshAdminSession } from "./middleware/adminAuth";
+import { logBetaAction, logCodeAction } from "./middleware/auditLog";
+import { requireHttps } from "./middleware/httpsEnforce";
+import { adminLoginRateLimiter } from "./middleware/rateLimiter";
 import { unlockCodes } from "@shared/schema";
 import { analyticsService } from "./analyticsService";
 import { geolocationService } from "./geolocation";
@@ -2813,7 +2816,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin: Generate unlock code
-  app.post('/internal/ops-codes/generate', requireAdminAuth, async (req, res) => {
+  app.post('/internal/ops-codes/generate', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const { grantsUnlimited, creditsToAdd, allowedCountries, notes } = req.body;
       
@@ -2846,6 +2849,12 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         notes: notes || null,
       }).returning();
       
+      await logCodeAction(req, 'code_generate', newCode.id, { 
+        credits, 
+        grantsUnlimited: grantsUnlimited || false,
+        countries 
+      });
+      
       res.json({
         success: true,
         code: newCode,
@@ -2860,7 +2869,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin: List all unlock codes
-  app.get('/internal/ops-codes/list', requireAdminAuth, async (req, res) => {
+  app.get('/internal/ops-codes/list', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const codes = await db.query.unlockCodes.findMany({
         orderBy: desc(unlockCodes.createdAt),
@@ -2880,7 +2889,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin: Revoke or unrevoke an unlock code
-  app.post('/internal/ops-codes/revoke/:codeId', requireAdminAuth, async (req, res) => {
+  app.post('/internal/ops-codes/revoke/:codeId', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const { codeId } = req.params;
       const { revoke } = req.body;
@@ -2895,6 +2904,8 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
           error: 'Code not found',
         });
       }
+      
+      await logCodeAction(req, 'code_revoke', codeId, { revoke });
       
       res.json({
         success: true,
@@ -2911,7 +2922,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: Overview stats
-  app.get('/internal/x9k7m2p4/analytics/overview', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/overview', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const { analyticsEvents } = await import('@shared/schema');
       const { sql } = await import('drizzle-orm');
@@ -2946,7 +2957,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: Geographic activity
-  app.get('/internal/x9k7m2p4/analytics/geographic', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/geographic', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const { analyticsEvents } = await import('@shared/schema');
       const { sql } = await import('drizzle-orm');
@@ -2976,7 +2987,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: Code usage stats
-  app.get('/internal/x9k7m2p4/analytics/code-usage', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/code-usage', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const { analyticsEvents } = await import('@shared/schema');
       const { sql } = await import('drizzle-orm');
@@ -3005,7 +3016,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: Recent credit alerts
-  app.get('/internal/x9k7m2p4/analytics/alerts', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/alerts', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const { analyticsEvents } = await import('@shared/schema');
       
@@ -3029,7 +3040,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: AI Usage Summary (all users)
-  app.get('/internal/x9k7m2p4/analytics/ai-usage/summary', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/ai-usage/summary', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const { getSystemUsageSummary } = await import('./aiUsageService');
       
@@ -3056,7 +3067,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: AI Usage Time Series (all users)
-  app.get('/internal/x9k7m2p4/analytics/ai-usage/timeseries', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/ai-usage/timeseries', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const { getSystemUsageTimeSeries } = await import('./aiUsageService');
       
@@ -3104,7 +3115,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin Analytics: AI Usage Events (all users)
-  app.get('/internal/x9k7m2p4/analytics/ai-usage/events', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/analytics/ai-usage/events', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const { getSystemUsageEvents } = await import('./aiUsageService');
       
@@ -3136,10 +3147,21 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
     }
   });
 
+  // ============= ADMIN AUTH ENDPOINTS =============
+  
+  // Admin login - returns JWT token
+  app.post('/internal/x9k7m2p4/login', requireHttps, adminLoginRateLimiter, adminLogin);
+  
+  // Admin logout
+  app.post('/internal/x9k7m2p4/logout', requireHttps, adminLoginRateLimiter, adminLogout);
+  
+  // Refresh admin session
+  app.post('/internal/x9k7m2p4/refresh', requireHttps, adminLoginRateLimiter, requireAdminAuth, refreshAdminSession);
+
   // ============= BETA ACCESS ADMIN ENDPOINTS =============
   
   // Admin: Get waitlist users
-  app.get('/internal/x9k7m2p4/waitlist', requireAdminAuth, async (req, res) => {
+  app.get('/internal/x9k7m2p4/waitlist', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const limit = Math.min(100, parseInt(req.query.limit as string) || 50);
       const offset = parseInt(req.query.offset as string) || 0;
@@ -3228,7 +3250,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin: Grant beta access to a user
-  app.post('/internal/x9k7m2p4/beta/grant', requireAdminAuth, async (req, res) => {
+  app.post('/internal/x9k7m2p4/beta/grant', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const { userId, email } = req.body;
 
@@ -3253,6 +3275,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         updatedAt: new Date(),
       }).where(eq(users.id, user.id));
 
+      await logBetaAction(req, 'beta_grant', user.id, user.email || undefined);
       console.log(`Beta access granted to user ${user.id} (${user.email})`);
       res.json({ 
         success: true, 
@@ -3273,7 +3296,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin: Revoke beta access from a user
-  app.post('/internal/x9k7m2p4/beta/revoke', requireAdminAuth, async (req, res) => {
+  app.post('/internal/x9k7m2p4/beta/revoke', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const { userId, email } = req.body;
 
@@ -3297,6 +3320,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         updatedAt: new Date(),
       }).where(eq(users.id, user.id));
 
+      await logBetaAction(req, 'beta_revoke', user.id, user.email || undefined);
       console.log(`Beta access revoked from user ${user.id} (${user.email})`);
       res.json({ 
         success: true, 

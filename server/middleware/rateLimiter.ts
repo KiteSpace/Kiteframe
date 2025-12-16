@@ -86,3 +86,16 @@ export const sensitiveRateLimiter = rateLimit({
   keyGenerator: getClientKey,
   validate: { keyGeneratorIpFallback: false }
 });
+
+export const adminLoginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: {
+    error: 'Too many admin login attempts. Account locked for 15 minutes.',
+    retryAfter: 900
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { keyGeneratorIpFallback: false },
+  skipSuccessfulRequests: false,
+});

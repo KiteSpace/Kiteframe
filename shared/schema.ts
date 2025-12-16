@@ -385,3 +385,22 @@ export const insertAiUsageEventSchema = createInsertSchema(aiUsageEvents).omit({
 
 export type AiUsageEvent = typeof aiUsageEvents.$inferSelect;
 export type InsertAiUsageEvent = z.infer<typeof insertAiUsageEventSchema>;
+
+// Admin audit logs for security tracking
+export const adminAuditLogs = pgTable("admin_audit_logs", {
+  id: varchar("id").primaryKey(),
+  action: varchar("action").notNull(),
+  adminIdentifier: varchar("admin_identifier").notNull(),
+  targetId: varchar("target_id"),
+  targetType: varchar("target_type"),
+  details: text("details"),
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_audit_action").on(table.action),
+  index("IDX_audit_admin").on(table.adminIdentifier),
+  index("IDX_audit_created_at").on(table.createdAt),
+]);
+
+export type AdminAuditLog = typeof adminAuditLogs.$inferSelect;
