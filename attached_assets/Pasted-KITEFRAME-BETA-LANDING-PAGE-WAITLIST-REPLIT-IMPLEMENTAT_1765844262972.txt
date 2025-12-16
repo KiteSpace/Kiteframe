@@ -1,0 +1,265 @@
+KITEFRAME — BETA LANDING PAGE + WAITLIST
+REPLIT IMPLEMENTATION INSTRUCTIONS
+=================================
+
+GOAL
+----
+Introduce a non-authenticated landing page that:
+1) Clearly communicates Kiteframe is in private beta
+2) Allows beta-approved users to authenticate and enter the product
+3) Prevents non-beta users from accessing the Home Screen
+4) Allows non-beta users to join a waitlist via email
+5) Uses the SAME visual language as the Home prompt (no modals)
+6) Uses the Kiteframe ambient gradient + a lightweight interactive canvas preview
+
+--------------------------------
+SECTION 1 — ROUTING & ACCESS FLOW
+--------------------------------
+
+1. Add a new public route:
+   Path: /
+   Component: LandingPage.tsx
+
+2. Change existing Home behavior:
+   - HomeScreen and WorkflowEditor MUST require:
+     user.isBeta === true
+   - If user is unauthenticated OR authenticated but not beta:
+     redirect to /
+
+3. Auth flow rules:
+   - OAuth login is allowed for everyone
+   - Authorization happens AFTER auth
+   - Post-auth redirect logic:
+     if (user.isBeta) → /home
+     else → /waitlist
+
+--------------------------------
+SECTION 2 — USER MODEL CHANGES
+--------------------------------
+
+Extend User model (DB or equivalent):
+
+User {
+  id
+  email
+  authProvider
+  isBeta: boolean (default false)
+  betaGrantedAt?: Date
+  waitlistRequestedAt?: Date
+}
+
+--------------------------------
+SECTION 3 — LANDING PAGE STRUCTURE
+--------------------------------
+
+Component: LandingPage.tsx
+
+Layout Structure (Top → Bottom):
+
+1) Full-bleed gradient hero section
+2) Prompt-style form (centered)
+3) Preview section (nodes canvas)
+4) Lightweight product copy
+
+IMPORTANT:
+- NO modal dialogs
+- Everything is inline
+- Same visual language as Home prompt
+
+--------------------------------
+SECTION 4 — VISUAL BACKGROUND
+--------------------------------
+
+Background:
+- Use existing Kiteframe ambient gradient (moving)
+- Gradient fades to white at ~60% height
+- White background below for readability
+
+Implementation notes:
+- Use FullBleedSection pattern
+- Gradient MUST extend full viewport width (100vw)
+- Do NOT constrain by editor layout containers
+
+--------------------------------
+SECTION 5 — PROMPT-STYLE FORM (CORE UX)
+--------------------------------
+
+The beta entry form MUST visually match:
+Home prompt input (same spacing, radius, shadows, typography)
+
+FORM CONTENT (inside prompt card):
+
+HEADER (inside the prompt area):
+Text (H1, black):
+"What would you like to build with Kiteframe?"
+
+Subtext (gray):
+"Kiteframe is currently in private beta. Sign in if you have access, or request early access below."
+
+PRIMARY ACTION:
+Button: "Continue with Beta Access"
+- Triggers OAuth flow (Google / GitHub / Replit)
+- No provider-specific copy
+
+SECONDARY ACTION:
+Inline text button:
+"Request Early Access"
+
+--------------------------------
+SECTION 6 — WAITLIST FLOW
+--------------------------------
+
+If user clicks "Request Early Access":
+
+Show inline form (NO modal):
+
+Fields:
+- Email (required)
+- Optional dropdown: "How will you use Kiteframe?"
+  Options:
+    - Product Management
+    - Design
+    - Engineering
+    - Founder / Solo Builder
+- Optional textarea:
+  "What are you hoping to build?"
+
+Submit button:
+"Join the Waitlist"
+
+On submit:
+- Save waitlistRequestedAt
+- Persist email
+- Show confirmation state inline:
+  "You're on the list. We'll be in touch."
+
+--------------------------------
+SECTION 7 — POST-AUTH BETA GATE
+--------------------------------
+
+After OAuth completes:
+
+1. Load user record
+2. If user.isBeta === true:
+     redirect to /home
+3. If user.isBeta === false:
+     redirect to /waitlist-authenticated
+
+--------------------------------
+SECTION 8 — AUTHENTICATED WAITLIST SCREEN
+--------------------------------
+
+Route: /waitlist-authenticated
+
+Purpose:
+- User is authenticated
+- User is NOT beta-approved
+
+UI:
+- Same prompt-card styling
+- Show user's email (read-only)
+- Show message:
+
+"Kiteframe is currently in private beta.
+You've signed in successfully, but your account doesn't yet have access."
+
+Button:
+"Join the Waitlist"
+
+Optional copy:
+"We prioritize designers, PMs, and builders working on real products."
+
+--------------------------------
+SECTION 9 — INTERACTIVE PREVIEW CANVAS
+--------------------------------
+
+Below the prompt form, render a SMALL interactive canvas:
+
+Component: LandingPreviewCanvas.tsx
+
+Behavior:
+- Render ~6-8 static nodes
+- Nodes represent:
+  - Design
+  - PM
+  - Engineering
+  - Workflow
+  - PRD
+- Edges connect them loosely
+
+INTERACTION RULES:
+- Nodes are draggable
+- NO editing
+- NO context menus
+- NO AI
+- NO selection state
+- NO persistence
+
+Purpose:
+- Convey collaboration visually
+- Add delight
+- Zero cognitive load
+
+--------------------------------
+SECTION 10 — PREVIEW COPY
+--------------------------------
+
+Text near preview canvas:
+
+Headline:
+"From design to PRD — without the disconnect"
+
+Body copy:
+"Kiteframe connects design intent, product reasoning, and execution into a single workflow. No more lost context between tools."
+
+--------------------------------
+SECTION 11 — ACCESS PROTECTION (REQUIRED)
+--------------------------------
+
+All protected routes must enforce:
+
+if (!user || !user.isBeta) {
+  redirect('/')
+}
+
+This includes:
+- HomeScreen
+- WorkflowEditor
+- Project routes
+- Deep links
+
+--------------------------------
+SECTION 12 — BETA ADMIN FLOW (MANUAL)
+--------------------------------
+
+No UI required yet.
+
+Beta access granted by:
+updateUser(email, { isBeta: true, betaGrantedAt: new Date() })
+
+--------------------------------
+SECTION 13 — NON-GOALS (DO NOT IMPLEMENT)
+--------------------------------
+
+- No pricing tiers
+- No payment logic
+- No invites system
+- No email automation
+- No analytics beyond basic logging
+- No editing inside preview canvas
+
+--------------------------------
+SECTION 14 — ACCEPTANCE CHECKLIST
+--------------------------------
+
+- [ ] Unauthenticated users see landing page
+- [ ] Landing uses Home prompt styling
+- [ ] Gradient is full-bleed
+- [ ] OAuth allowed for all
+- [ ] Non-beta users blocked post-auth
+- [ ] Waitlist works for both authed & unauthed users
+- [ ] Preview canvas is draggable only
+- [ ] No modals used anywhere
+- [ ] Product routes are fully gated
+
+END OF SPEC
