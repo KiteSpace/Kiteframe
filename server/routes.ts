@@ -511,10 +511,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to verify Turnstile token
+  async function verifyTurnstileToken(token: string, ip?: string): Promise<boolean> {
+    const secretKey = process.env.TURNSTILE_SECRET_KEY;
+    if (!secretKey) {
+      console.warn('TURNSTILE_SECRET_KEY not configured, skipping verification');
+      return true;
+    }
+    
+    try {
+      const formData = new URLSearchParams();
+      formData.append('secret', secretKey);
+      formData.append('response', token);
+      if (ip) formData.append('remoteip', ip);
+
+      const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json() as { success: boolean; 'error-codes'?: string[] };
+      if (!result.success) {
+        console.warn('Turnstile verification failed:', result['error-codes']);
+      }
+      return result.success;
+    } catch (error) {
+      console.error('Turnstile verification error:', error);
+      return false;
+    }
+  }
+
   // Waitlist endpoint - public, allows both authenticated and unauthenticated users
   app.post('/api/waitlist', authRateLimiter, async (req: any, res) => {
     try {
-      const { email, role, useCase } = req.body;
+      const { email, role, useCase, turnstileToken, hp } = req.body;
+
+      // Honeypot check - if filled, silently reject (bots fill hidden fields)
+      if (hp) {
+        console.log('Honeypot triggered, rejecting submission');
+        return res.json({ success: true });
+      }
 
       if (!email || typeof email !== 'string') {
         return res.status(400).json({ error: 'Email is required' });
@@ -526,10 +562,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid email format' });
       }
 
+      // Email length and character sanitization
+      if (email.length > 254) {
+        return res.status(400).json({ error: 'Email too long' });
+      }
+
+      // Verify Turnstile token if configured
+      if (process.env.TURNSTILE_SECRET_KEY) {
+        if (!turnstileToken) {
+          return res.status(400).json({ error: 'Please complete the CAPTCHA verification' });
+        }
+        const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
+        const isValid = await verifyTurnstileToken(turnstileToken, clientIp);
+        if (!isValid) {
+          return res.status(400).json({ error: 'CAPTCHA verification failed. Please try again.' });
+        }
+      }
+
       // Validate role if provided
       const validRoles = ['pm', 'design', 'engineering', 'founder'];
       if (role && !validRoles.includes(role)) {
         return res.status(400).json({ error: 'Invalid role' });
+      }
+
+      // Sanitize useCase - strip any HTML/script tags
+      let sanitizedUseCase = useCase;
+      if (useCase && typeof useCase === 'string') {
+        sanitizedUseCase = useCase
+          .replace(/<[^>]*>/g, '')
+          .replace(/javascript:/gi, '')
+          .substring(0, 1000);
       }
 
       // Check if user already exists
@@ -540,7 +602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await db.update(users).set({
           waitlistRequestedAt: new Date(),
           waitlistRole: role || user.waitlistRole,
-          waitlistUseCase: useCase || user.waitlistUseCase,
+          waitlistUseCase: sanitizedUseCase || user.waitlistUseCase,
           updatedAt: new Date(),
         }).where(eq(users.id, user.id));
       } else {
@@ -551,7 +613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email,
           waitlistRequestedAt: new Date(),
           waitlistRole: role || null,
-          waitlistUseCase: useCase || null,
+          waitlistUseCase: sanitizedUseCase || null,
           isBeta: false,
         });
       }
@@ -576,6 +638,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid role' });
       }
 
+      // Sanitize useCase - strip any HTML/script tags
+      let sanitizedUseCase = useCase;
+      if (useCase && typeof useCase === 'string') {
+        sanitizedUseCase = useCase
+          .replace(/<[^>]*>/g, '')
+          .replace(/javascript:/gi, '')
+          .substring(0, 1000);
+      }
+
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
@@ -584,7 +655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await db.update(users).set({
         waitlistRequestedAt: user.waitlistRequestedAt || new Date(),
         waitlistRole: role || user.waitlistRole,
-        waitlistUseCase: useCase || user.waitlistUseCase,
+        waitlistUseCase: sanitizedUseCase || user.waitlistUseCase,
         updatedAt: new Date(),
       }).where(eq(users.id, userId));
 

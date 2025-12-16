@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -6,6 +6,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Chrome, Github, Check, Loader2, ArrowRight, Zap, Shield, Download, Users, Palette, Code, Rocket, Terminal } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, getQueryFn } from '@/lib/queryClient';
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: string | HTMLElement, options: {
+        sitekey: string;
+        callback?: (token: string) => void;
+        'error-callback'?: () => void;
+        'expired-callback'?: () => void;
+        theme?: 'light' | 'dark' | 'auto';
+        size?: 'normal' | 'compact';
+      }) => string;
+      reset: (widgetId?: string) => void;
+      remove: (widgetId?: string) => void;
+    };
+  }
+}
 
 const LandingPreviewCanvas = lazy(() => import('@/components/landing/LandingPreviewCanvas'));
 const FloatingShapes = lazy(() => import('@/components/landing/FloatingShapes'));
@@ -27,12 +44,18 @@ interface AuthUser {
   waitlistRequestedAt?: string | null;
 }
 
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+
 export default function LandingPage() {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<WaitlistRole | ''>('');
   const [useCase, setUseCase] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showFullForm, setShowFullForm] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
+  const [honeypot, setHoneypot] = useState('');
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<string | null>(null);
 
   const { data: user } = useQuery<AuthUser | null>({
     queryKey: ['/api/auth/user'],
@@ -45,8 +68,46 @@ export default function LandingPage() {
 
   const availableProviders = providersData?.providers || [];
 
+  const initTurnstile = useCallback(() => {
+    if (!turnstileRef.current || !window.turnstile || !TURNSTILE_SITE_KEY) return;
+    if (widgetIdRef.current) {
+      window.turnstile.remove(widgetIdRef.current);
+    }
+    widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+      sitekey: TURNSTILE_SITE_KEY,
+      callback: (token: string) => setTurnstileToken(token),
+      'expired-callback': () => setTurnstileToken(''),
+      'error-callback': () => setTurnstileToken(''),
+      theme: 'auto',
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!showFullForm || !TURNSTILE_SITE_KEY) return;
+
+    if (window.turnstile) {
+      initTurnstile();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        setTimeout(initTurnstile, 100);
+      };
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      if (widgetIdRef.current && window.turnstile) {
+        window.turnstile.remove(widgetIdRef.current);
+        widgetIdRef.current = null;
+      }
+    };
+  }, [showFullForm, initTurnstile]);
+
   const waitlistMutation = useMutation({
-    mutationFn: async (data: { email: string; role?: string; useCase?: string }) => {
+    mutationFn: async (data: { email: string; role?: string; useCase?: string; turnstileToken?: string; hp?: string }) => {
       return apiRequest('POST', '/api/waitlist', data);
     },
     onSuccess: () => {
@@ -66,12 +127,17 @@ export default function LandingPage() {
 
   const handleWaitlistSubmit = () => {
     if (!email) return;
+    if (honeypot) return;
     waitlistMutation.mutate({
       email,
       role: role || undefined,
       useCase: useCase || undefined,
+      turnstileToken: turnstileToken || undefined,
+      hp: honeypot || undefined,
     });
   };
+
+  const canSubmit = email && (!TURNSTILE_SITE_KEY || turnstileToken);
 
   const isAuthenticated = !!user;
   const isOnWaitlist = user?.waitlistRequestedAt;
@@ -467,10 +533,29 @@ export default function LandingPage() {
                     data-testid="input-waitlist-usecase"
                   />
 
+                  {/* Honeypot field - hidden from users, catches bots */}
+                  <div className="absolute -left-[9999px]" aria-hidden="true">
+                    <input
+                      type="text"
+                      name="website"
+                      value={honeypot}
+                      onChange={(e) => setHoneypot(e.target.value)}
+                      tabIndex={-1}
+                      autoComplete="off"
+                    />
+                  </div>
+
+                  {/* Turnstile CAPTCHA widget */}
+                  {TURNSTILE_SITE_KEY && (
+                    <div className="flex justify-center" data-testid="turnstile-container">
+                      <div ref={turnstileRef} />
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-3">
                     <Button
                       onClick={handleWaitlistSubmit}
-                      disabled={!email || waitlistMutation.isPending}
+                      disabled={!canSubmit || waitlistMutation.isPending}
                       className="flex-1 h-11"
                       data-testid="button-join-waitlist"
                     >
