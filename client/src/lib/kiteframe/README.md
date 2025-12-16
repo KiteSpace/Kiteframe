@@ -15,13 +15,22 @@
 - **Smooth zoom & pan** - Intuitive viewport navigation with mouse/trackpad
 - **Pixel-perfect rendering** - Crisp text and edges at all zoom levels
 - **Minimap navigation** - Bird's-eye view for large workflows
-- **Responsive design** - Works seamlessly on desktop and tablet
+- **Configurable limits** - Adjustable min/max zoom (default 0.1x - 3x)
+- **Desktop optimized** - Best experience on desktop and tablet with mouse/trackpad
+
+> **Note:** Touch gestures (pinch-zoom, two-finger pan) are currently disabled due to conflicts with node drag interactions. Mobile users can use the minimap or toolbar controls for zoom/pan.
 
 ### 📦 **Rich Node System**
-- **6 built-in node types** - Input, Process, Condition, Output, AI, and Image nodes
+- **12 built-in node types**:
+  - **Basic**: Input, Process, Condition, Output
+  - **AI-powered**: AI nodes with integrated processing
+  - **Media**: Image and Webview nodes (embed external content)
+  - **Data**: Table and Form nodes for data collection
+  - **Advanced**: Code, Render, and Compound nodes
 - **Dynamic text wrapping** - Automatic height adjustment for content
 - **Custom styling** - Full control over colors, icons, and appearance
 - **Connection handles** - Smart positioning with visual feedback
+- **Node status** - Track node states (todo, in-progress, done)
 
 ### 🔗 **Flexible Edge System**
 - **6 edge types** - Bezier, Straight, Step, Smoothstep, Curved, Orthogonal
@@ -167,19 +176,29 @@ Nodes are the building blocks of your workflow. Each node has:
 ```typescript
 interface Node {
   id: string;
-  type: 'input' | 'process' | 'condition' | 'output' | 'ai' | 'image';
+  type?: string;  // Optional, built-in types listed below
   position: { x: number; y: number };
-  data: {
-    label: string;
-    description?: string;
-    icon?: string;
-    iconColor?: string;
-  };
+  data: any;      // Flexible data object, shape depends on node type
   width?: number;
   height?: number;
-  style?: NodeStyle;
+  selected?: boolean;
+  hidden?: boolean;
+  draggable?: boolean;
+  resizable?: boolean;
+  zIndex?: number;
 }
+
+// Common data properties (optional):
+// - label: string
+// - description?: string  
+// - icon?: string
+// - colors?: NodeColors
+// - status?: 'todo' | 'inprogress' | 'done'
 ```
+
+**Built-in node types:** `input`, `process`, `condition`, `output`, `ai`, `image`, `table`, `form`, `compound`, `webview`, `code`, `render`
+
+> **Note:** The `data` field is typed as `any` for flexibility. Each built-in node type expects specific data properties - see individual node documentation for details.
 
 ### Edges
 
@@ -204,7 +223,7 @@ Control the canvas view:
 interface Viewport {
   x: number;        // Pan X offset
   y: number;        // Pan Y offset
-  zoom: number;     // Zoom level (0.1 - 2.0)
+  zoom: number;     // Zoom level (default: 0.1 - 3.0, configurable)
 }
 ```
 
@@ -221,20 +240,47 @@ The main canvas component.
 **Props:**
 ```typescript
 {
+  // Required
   nodes: Node[];
   edges: Edge[];
-  viewport: Viewport;
   onNodesChange: (nodes: Node[]) => void;
   onEdgesChange: (edges: Edge[]) => void;
-  onViewportChange: (viewport: Viewport) => void;
-  onNodeClick?: (nodeId: string) => void;
-  onEdgeClick?: (edgeId: string) => void;
+  
+  // Viewport (optional - internal state if not provided)
+  viewport?: Viewport;
+  onViewportChange?: (viewport: Viewport) => void;
+  
+  // Canvas objects (sticky notes, shapes, text)
+  canvasObjects?: CanvasObject[];
+  onCanvasObjectsChange?: (objects: CanvasObject[]) => void;
+  
+  // Event handlers
+  onNodeClick?: (event: React.MouseEvent, node: Node) => void;
+  onNodeDoubleClick?: (event: React.MouseEvent, node: Node) => void;
+  onNodeRightClick?: (event: React.MouseEvent, node: Node) => void;
+  onEdgeClick?: (event: React.MouseEvent, edge: Edge) => void;
   onCanvasClick?: () => void;
+  onConnect?: (connection: { source: string; target: string }) => void;
+  
+  // Viewport controls
+  minZoom?: number;          // Default: 0.1
+  maxZoom?: number;          // Default: 3
+  disablePan?: boolean;      // Disable canvas panning
+  disableWheelZoom?: boolean; // Disable mouse wheel zoom
+  fitView?: boolean;         // Auto-fit content on mount
+  enableTouchGestures?: boolean; // Prop exists but gestures currently disabled (see note above)
+  
+  // UI toggles
+  showMiniMap?: boolean;     // Show minimap navigation
+  snapToGrid?: boolean;      // Enable grid snapping
+  snapToGuides?: boolean;    // Enable guide snapping
+  
+  // Plugin system
   enablePlugins?: boolean;
-  showMinimap?: boolean;
-  showZoomControls?: boolean;
-  snapToGrid?: boolean;
-  gridSize?: number;
+  proFeatures?: ProFeaturesConfig;
+  
+  // Styling
+  className?: string;
 }
 ```
 
