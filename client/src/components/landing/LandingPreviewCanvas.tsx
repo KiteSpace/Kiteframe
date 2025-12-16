@@ -3,21 +3,43 @@ import type { Node, Edge, Position } from '@/lib/kiteframe/types';
 
 const SAMPLE_NODES: Node[] = [
   {
-    id: 'start',
+    id: 'concept',
     type: 'input',
-    position: { x: 50, y: 120 },
-    data: { label: 'User opens app' },
+    position: { x: 80, y: 200 },
+    data: { label: 'Concept' },
     draggable: true,
     selectable: false,
     doubleClickable: false,
-    width: 160,
-    height: 60,
+    width: 140,
+    height: 56,
   },
   {
-    id: 'auth-check',
+    id: 'workflow',
+    type: 'process',
+    position: { x: 280, y: 200 },
+    data: { label: 'Workflow' },
+    draggable: true,
+    selectable: false,
+    doubleClickable: false,
+    width: 140,
+    height: 56,
+  },
+  {
+    id: 'coordination',
+    type: 'process',
+    position: { x: 480, y: 200 },
+    data: { label: 'Coordination' },
+    draggable: true,
+    selectable: false,
+    doubleClickable: false,
+    width: 140,
+    height: 56,
+  },
+  {
+    id: 'alignment',
     type: 'condition',
-    position: { x: 280, y: 100 },
-    data: { label: 'Logged in?', condition: 'user.isAuthenticated' },
+    position: { x: 680, y: 188 },
+    data: { label: 'Alignment' },
     draggable: true,
     selectable: false,
     doubleClickable: false,
@@ -25,57 +47,23 @@ const SAMPLE_NODES: Node[] = [
     height: 80,
   },
   {
-    id: 'show-login',
-    type: 'process',
-    position: { x: 480, y: 40 },
-    data: { label: 'Show login screen' },
-    draggable: true,
-    selectable: false,
-    doubleClickable: false,
-    width: 160,
-    height: 60,
-  },
-  {
-    id: 'load-data',
-    type: 'process',
-    position: { x: 480, y: 150 },
-    data: { label: 'Load user data' },
-    draggable: true,
-    selectable: false,
-    doubleClickable: false,
-    width: 160,
-    height: 60,
-  },
-  {
-    id: 'ai-process',
-    type: 'ai',
-    position: { x: 700, y: 150 },
-    data: { label: 'Personalize content', prompt: 'Generate recommendations' },
-    draggable: true,
-    selectable: false,
-    doubleClickable: false,
-    width: 170,
-    height: 70,
-  },
-  {
-    id: 'dashboard',
+    id: 'launch',
     type: 'output',
-    position: { x: 930, y: 150 },
-    data: { label: 'Show dashboard' },
+    position: { x: 880, y: 200 },
+    data: { label: 'Launch' },
     draggable: true,
     selectable: false,
     doubleClickable: false,
-    width: 160,
-    height: 60,
+    width: 140,
+    height: 56,
   },
 ];
 
 const SAMPLE_EDGES: Edge[] = [
-  { id: 'e1', source: 'start', target: 'auth-check', type: 'smoothstep' },
-  { id: 'e2', source: 'auth-check', target: 'show-login', type: 'smoothstep', label: 'No' },
-  { id: 'e3', source: 'auth-check', target: 'load-data', type: 'smoothstep', label: 'Yes' },
-  { id: 'e4', source: 'load-data', target: 'ai-process', type: 'smoothstep' },
-  { id: 'e5', source: 'ai-process', target: 'dashboard', type: 'smoothstep' },
+  { id: 'e1', source: 'concept', target: 'workflow', type: 'smoothstep' },
+  { id: 'e2', source: 'workflow', target: 'coordination', type: 'smoothstep' },
+  { id: 'e3', source: 'coordination', target: 'alignment', type: 'smoothstep' },
+  { id: 'e4', source: 'alignment', target: 'launch', type: 'smoothstep' },
 ];
 
 const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
@@ -100,8 +88,8 @@ export default function LandingPreviewCanvas() {
   const [dragState, setDragState] = useState<DragState | null>(null);
 
   const getNodeCenter = useCallback((node: Node): Position => {
-    const width = node.width || 160;
-    const height = node.height || 60;
+    const width = node.width || 140;
+    const height = node.height || 56;
     return {
       x: node.position.x + width / 2,
       y: node.position.y + height / 2,
@@ -158,7 +146,7 @@ export default function LandingPreviewCanvas() {
     const source = getNodeCenter(sourceNode);
     const target = getNodeCenter(targetNode);
     
-    const sourceRight = sourceNode.position.x + (sourceNode.width || 160);
+    const sourceRight = sourceNode.position.x + (sourceNode.width || 140);
     const targetLeft = targetNode.position.x;
     
     const startX = sourceRight;
@@ -194,8 +182,8 @@ export default function LandingPreviewCanvas() {
 
   const renderNode = (node: Node) => {
     const colors = NODE_COLORS[node.type || 'process'];
-    const width = node.width || 160;
-    const height = node.height || 60;
+    const width = node.width || 140;
+    const height = node.height || 56;
 
     return (
       <g
@@ -223,22 +211,10 @@ export default function LandingPreviewCanvas() {
           dominantBaseline="middle"
           fill={colors.text}
           className="text-sm font-medium select-none pointer-events-none"
-          style={{ fontSize: '13px' }}
+          style={{ fontSize: '14px' }}
         >
           {node.data.label}
         </text>
-        {node.type === 'ai' && (
-          <text
-            x={width - 8}
-            y={12}
-            textAnchor="end"
-            className="text-[10px] select-none pointer-events-none"
-            fill={colors.text}
-            style={{ opacity: 0.7 }}
-          >
-            ✨
-          </text>
-        )}
       </g>
     );
   };
@@ -246,10 +222,10 @@ export default function LandingPreviewCanvas() {
   return (
     <div 
       ref={canvasRef}
-      className="w-full h-full bg-slate-50/50 dark:bg-slate-900/50 rounded-xl overflow-hidden"
+      className="w-full h-full bg-slate-50/50 dark:bg-slate-900/50 overflow-hidden"
       data-testid="landing-preview-canvas"
     >
-      <svg width="100%" height="100%" viewBox="0 0 1140 300" preserveAspectRatio="xMidYMid meet">
+      <svg width="100%" height="100%" viewBox="0 0 1100 456" preserveAspectRatio="xMidYMid meet">
         <defs>
           <marker
             id="arrowhead"

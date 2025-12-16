@@ -17,7 +17,6 @@ import ViewOnlyViewer from "@/pages/ViewOnlyViewer";
 import NotFound from "@/pages/not-found";
 
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
-const WaitlistAuthenticated = lazy(() => import("@/pages/WaitlistAuthenticated"));
 
 interface AuthUser {
   id: string;
@@ -50,11 +49,11 @@ function BetaProtectedRoute<P extends object>({
   }
 
   if (!user) {
-    return <Redirect to="/beta" />;
+    return <Redirect to="/" />;
   }
 
   if (!user.isBeta) {
-    return <Redirect to="/waitlist" />;
+    return <Redirect to="/" />;
   }
 
   return <Component {...(componentProps as P)} />;
@@ -79,17 +78,30 @@ function useCleanupQueryParams() {
   }, []);
 }
 
+function LandingRoute() {
+  const { data: user, isLoading } = useQuery<AuthUser | null>({
+    queryKey: ['/api/auth/user'],
+  });
+
+  if (isLoading) {
+    return <LoadingFallback />;
+  }
+
+  if (user?.isBeta) {
+    return <Redirect to="/app" />;
+  }
+
+  return <LandingPage />;
+}
+
 function Router() {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Switch>
-        <Route path="/beta">
-          <LandingPage />
-        </Route>
-        <Route path="/waitlist">
-          <WaitlistAuthenticated />
-        </Route>
         <Route path="/">
+          <LandingRoute />
+        </Route>
+        <Route path="/app">
           <BetaProtectedRoute component={WorkflowEditor} />
         </Route>
         <Route path="/project/:projectUuid">
