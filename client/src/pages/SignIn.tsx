@@ -65,11 +65,9 @@ export default function SignIn() {
 
       <div className="relative z-10 min-h-screen flex flex-col">
         <header className="flex items-center justify-between px-8 py-6 max-w-7xl mx-auto w-full">
-          <Link href="/">
-            <a className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="link-back-home">
-              <ArrowLeft className="h-4 w-4" />
-              <span>Back to Home</span>
-            </a>
+          <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors" data-testid="link-back-home">
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to Home</span>
           </Link>
           <div className="flex items-center gap-3">
             <span className="text-xl font-bold text-foreground" data-testid="text-logo">Kiteframe</span>
