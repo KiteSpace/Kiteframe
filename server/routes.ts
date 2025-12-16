@@ -1325,13 +1325,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log('AI Chat Request:', { 
-        provider: activeProvider,
-        model,
-        hasApiKey: !!activeApiKey, 
-        keyPrefix: activeApiKey ? activeApiKey.substring(0, 7) + '...' : 'none'
-      });
-
       let endpoint: string;
       let headers: Record<string, string>;
       let requestBody: any;
