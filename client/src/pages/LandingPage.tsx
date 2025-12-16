@@ -41,6 +41,7 @@ interface AuthUser {
   id: string;
   email?: string;
   isBeta?: boolean;
+  isAdmin?: boolean;
   waitlistRequestedAt?: string | null;
 }
 

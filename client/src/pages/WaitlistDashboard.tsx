@@ -30,6 +30,7 @@ interface AuthUser {
   profileImageUrl?: string;
   authProvider?: string;
   isBeta?: boolean;
+  isAdmin?: boolean;
   waitlistRequestedAt?: string | null;
   waitlistRole?: string | null;
 }
@@ -80,7 +81,7 @@ export default function WaitlistDashboard() {
     return <Redirect to="/signin" />;
   }
 
-  if (user.isBeta) {
+  if (user.isBeta || user.isAdmin) {
     return <Redirect to="/app" />;
   }
 

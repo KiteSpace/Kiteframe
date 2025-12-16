@@ -13,6 +13,7 @@ interface AuthUser {
   id: string;
   email?: string;
   isBeta?: boolean;
+  isAdmin?: boolean;
   waitlistRequestedAt?: string | null;
 }
 
@@ -36,11 +37,13 @@ export default function SignIn() {
     );
   }
 
-  if (user?.isBeta) {
+  // Admin or beta users go directly to app
+  if (user?.isBeta || user?.isAdmin) {
     return <Redirect to="/app" />;
   }
 
-  if (user && !user.isBeta) {
+  // Authenticated non-beta/non-admin users go to waitlist dashboard
+  if (user && !user.isBeta && !user.isAdmin) {
     return <Redirect to="/waitlist-dashboard" />;
   }
 
