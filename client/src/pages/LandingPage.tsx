@@ -8,7 +8,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, getQueryFn } from '@/lib/queryClient';
 
 const LandingPreviewCanvas = lazy(() => import('@/components/landing/LandingPreviewCanvas'));
-const FloatingCircles = lazy(() => import('@/components/landing/FloatingCircles'));
+const FloatingShapes = lazy(() => import('@/components/landing/FloatingShapes'));
 const TypingPrompt = lazy(() => import('@/components/landing/TypingPrompt'));
 
 type WaitlistRole = 'pm' | 'design' | 'engineering' | 'founder';
@@ -79,7 +79,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen relative bg-white dark:bg-slate-950">
       <Suspense fallback={null}>
-        <FloatingCircles />
+        <FloatingShapes />
       </Suspense>
 
       <div className="relative z-10">
@@ -126,7 +126,7 @@ export default function LandingPage() {
             </div>
 
             <div className="relative">
-              <div className="h-[360px] lg:h-[400px] border-2 border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden" data-testid="hero-canvas-container">
+              <div className="h-[360px] lg:h-[400px] rounded-xl overflow-hidden" data-testid="hero-canvas-container">
                 <Suspense fallback={
                   <div className="w-full h-full flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -206,7 +206,7 @@ export default function LandingPage() {
                 </li>
               </ul>
             </div>
-            <div className="h-[240px] border-2 border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden" data-testid="canvas-section-a">
+            <div className="h-[240px] rounded-xl overflow-hidden" data-testid="canvas-section-a">
               <Suspense fallback={
                 <div className="w-full h-full flex items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -222,7 +222,7 @@ export default function LandingPage() {
         <section className="bg-slate-50/50 dark:bg-slate-900/30 py-20">
           <div className="max-w-7xl mx-auto px-8">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div className="order-2 lg:order-1 h-[240px] border-2 border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden" data-testid="canvas-section-b">
+              <div className="order-2 lg:order-1 h-[240px] rounded-xl overflow-hidden" data-testid="canvas-section-b">
                 <Suspense fallback={
                   <div className="w-full h-full flex items-center justify-center">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
