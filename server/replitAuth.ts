@@ -13,6 +13,12 @@ import { users, oauthProviders } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { authRateLimiter } from "./middleware/rateLimiter";
 
+function isAdminEmail(email: string | undefined | null): boolean {
+  if (!email) return false;
+  const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
+  return adminEmails.includes(email.toLowerCase());
+}
+
 const getOidcConfig = memoize(
   async () => {
     return await client.discovery(
@@ -88,7 +94,7 @@ async function upsertUser(claims: any) {
     }
 
     if (!dbUser) {
-      // No existing user found, create a new one
+      // No existing user found, create a new one with waitlist status
       const [newUser] = await db.insert(users).values({
         id: replitProviderId,
         email: email,
@@ -99,19 +105,25 @@ async function upsertUser(claims: any) {
         authProviderId: replitProviderId,
         subscriptionTier: 'free',
         subscriptionStatus: 'active',
+        waitlistRequestedAt: new Date(),
       }).returning();
       dbUser = newUser;
     } else {
       // Existing user found by email, update their profile info
+      const updateData: any = {
+        firstName: claims["first_name"] || dbUser.firstName,
+        lastName: claims["last_name"] || dbUser.lastName,
+        profileImageUrl: claims["profile_image_url"] || dbUser.profileImageUrl,
+        authProvider: 'replit',
+        authProviderId: replitProviderId,
+        updatedAt: new Date(),
+      };
+      // Also add to waitlist if not already on waitlist and not beta
+      if (!dbUser.waitlistRequestedAt && !dbUser.isBeta) {
+        updateData.waitlistRequestedAt = new Date();
+      }
       const [updatedUser] = await db.update(users)
-        .set({
-          firstName: claims["first_name"] || dbUser.firstName,
-          lastName: claims["last_name"] || dbUser.lastName,
-          profileImageUrl: claims["profile_image_url"] || dbUser.profileImageUrl,
-          authProvider: 'replit',
-          authProviderId: replitProviderId,
-          updatedAt: new Date(),
-        })
+        .set(updateData)
         .where(eq(users.id, dbUser.id))
         .returning();
       dbUser = updatedUser;
@@ -200,8 +212,14 @@ async function findOrCreateUser(profile: OAuthProfile) {
       authProviderId: profile.providerId,
       subscriptionTier: 'free',
       subscriptionStatus: 'active',
+      waitlistRequestedAt: new Date(),
     }).returning();
     user = newUser;
+  } else if (!user.waitlistRequestedAt && !user.isBeta) {
+    await db.update(users)
+      .set({ waitlistRequestedAt: new Date() })
+      .where(eq(users.id, user.id));
+    user = { ...user, waitlistRequestedAt: new Date() };
   }
 
   await linkOAuthProvider(user!.id, profile);
@@ -222,6 +240,7 @@ export async function setupAuth(app: Express) {
   ) => {
     const claims = tokens.claims();
     const dbUser = await upsertUser(claims);
+    const isAdmin = isAdminEmail(dbUser.email);
     const user: any = { 
       id: dbUser.id,
       email: dbUser.email,
@@ -230,6 +249,8 @@ export async function setupAuth(app: Express) {
       profileImageUrl: dbUser.profileImageUrl,
       subscriptionTier: dbUser.subscriptionTier,
       subscriptionStatus: dbUser.subscriptionStatus,
+      isBeta: dbUser.isBeta,
+      isAdmin,
     };
     updateUserSession(user, tokens);
     verified(null, user);
@@ -288,8 +309,14 @@ export async function setupAuth(app: Express) {
     app.get('/api/auth/google/callback',
       authRateLimiter,
       passport.authenticate('google', { failureRedirect: '/?error=google_auth_failed' }),
-      (req, res) => {
-        res.redirect('/app');
+      async (req, res) => {
+        const user = req.user as any;
+        const isAdmin = isAdminEmail(user?.email);
+        if (user?.isBeta || isAdmin) {
+          res.redirect('/app');
+        } else {
+          res.redirect('/waitlist-dashboard');
+        }
       }
     );
   }
@@ -323,8 +350,14 @@ export async function setupAuth(app: Express) {
     app.get('/api/auth/github/callback',
       authRateLimiter,
       passport.authenticate('github', { failureRedirect: '/?error=github_auth_failed' }),
-      (req, res) => {
-        res.redirect('/app');
+      async (req, res) => {
+        const user = req.user as any;
+        const isAdmin = isAdminEmail(user?.email);
+        if (user?.isBeta || isAdmin) {
+          res.redirect('/app');
+        } else {
+          res.redirect('/waitlist-dashboard');
+        }
       }
     );
   }
@@ -375,8 +408,24 @@ export async function setupAuth(app: Express) {
   app.get("/api/callback", authRateLimiter, (req, res, next) => {
     ensureStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/app",
       failureRedirect: "/api/login",
+    }, (err: any, user: any) => {
+      if (err) {
+        return res.redirect('/api/login');
+      }
+      if (!user) {
+        return res.redirect('/api/login');
+      }
+      req.logIn(user, (loginErr) => {
+        if (loginErr) {
+          return res.redirect('/api/login');
+        }
+        if (user?.isBeta || user?.isAdmin) {
+          res.redirect('/app');
+        } else {
+          res.redirect('/waitlist-dashboard');
+        }
+      });
     })(req, res, next);
   });
 

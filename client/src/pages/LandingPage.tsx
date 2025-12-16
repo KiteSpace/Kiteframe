@@ -1,41 +1,12 @@
-import { useState, lazy, Suspense, useRef, useEffect, useCallback } from 'react';
+import { lazy, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Chrome, Github, Check, Loader2, ArrowRight, Zap, Shield, Download, Users, Palette, Code, Rocket, Terminal } from 'lucide-react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiRequest, getQueryFn } from '@/lib/queryClient';
-
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (container: string | HTMLElement, options: {
-        sitekey: string;
-        callback?: (token: string) => void;
-        'error-callback'?: () => void;
-        'expired-callback'?: () => void;
-        theme?: 'light' | 'dark' | 'auto';
-        size?: 'normal' | 'compact';
-      }) => string;
-      reset: (widgetId?: string) => void;
-      remove: (widgetId?: string) => void;
-    };
-  }
-}
+import { useQuery } from '@tanstack/react-query';
+import { getQueryFn } from '@/lib/queryClient';
 
 const LandingPreviewCanvas = lazy(() => import('@/components/landing/LandingPreviewCanvas'));
 const FloatingShapes = lazy(() => import('@/components/landing/FloatingShapes'));
 const TypingPrompt = lazy(() => import('@/components/landing/TypingPrompt'));
-
-type WaitlistRole = 'pm' | 'design' | 'engineering' | 'founder';
-
-const ROLE_LABELS: Record<WaitlistRole, string> = {
-  pm: 'Product Management',
-  design: 'Design',
-  engineering: 'Engineering',
-  founder: 'Founder / Solo Builder',
-};
 
 interface AuthUser {
   id: string;
@@ -45,20 +16,7 @@ interface AuthUser {
   waitlistRequestedAt?: string | null;
 }
 
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
-const TURNSTILE_ENABLED = !!TURNSTILE_SITE_KEY;
-
 export default function LandingPage() {
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState<WaitlistRole | ''>('');
-  const [useCase, setUseCase] = useState('');
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [showFullForm, setShowFullForm] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string>('');
-  const [honeypot, setHoneypot] = useState('');
-  const turnstileRef = useRef<HTMLDivElement>(null);
-  const widgetIdRef = useRef<string | null>(null);
-
   const { data: user } = useQuery<AuthUser | null>({
     queryKey: ['/api/auth/user'],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -70,53 +28,6 @@ export default function LandingPage() {
 
   const availableProviders = providersData?.providers || [];
 
-  const initTurnstile = useCallback(() => {
-    if (!turnstileRef.current || !window.turnstile || !TURNSTILE_SITE_KEY) return;
-    if (widgetIdRef.current) {
-      window.turnstile.remove(widgetIdRef.current);
-    }
-    widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
-      sitekey: TURNSTILE_SITE_KEY,
-      callback: (token: string) => setTurnstileToken(token),
-      'expired-callback': () => setTurnstileToken(''),
-      'error-callback': () => setTurnstileToken(''),
-      theme: 'auto',
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!showFullForm || !TURNSTILE_SITE_KEY) return;
-
-    if (window.turnstile) {
-      initTurnstile();
-    } else {
-      const script = document.createElement('script');
-      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        setTimeout(initTurnstile, 100);
-      };
-      document.head.appendChild(script);
-    }
-
-    return () => {
-      if (widgetIdRef.current && window.turnstile) {
-        window.turnstile.remove(widgetIdRef.current);
-        widgetIdRef.current = null;
-      }
-    };
-  }, [showFullForm, initTurnstile]);
-
-  const waitlistMutation = useMutation({
-    mutationFn: async (data: { email: string; role?: string; useCase?: string; turnstileToken?: string; hp?: string }) => {
-      return apiRequest('POST', '/api/waitlist', data);
-    },
-    onSuccess: () => {
-      setIsSubmitted(true);
-    },
-  });
-
   const handleOAuthLogin = (provider: string) => {
     if (provider === 'google') {
       window.location.href = '/api/auth/google';
@@ -126,20 +37,6 @@ export default function LandingPage() {
       window.location.href = '/api/login';
     }
   };
-
-  const handleWaitlistSubmit = () => {
-    if (!email) return;
-    if (honeypot) return;
-    waitlistMutation.mutate({
-      email,
-      role: role || undefined,
-      useCase: useCase || undefined,
-      turnstileToken: turnstileToken || undefined,
-      hp: honeypot || undefined,
-    });
-  };
-
-  const canSubmit = email && (!TURNSTILE_ENABLED || turnstileToken);
 
   const isAuthenticated = !!user;
   const isOnWaitlist = user?.waitlistRequestedAt;
@@ -439,171 +336,75 @@ export default function LandingPage() {
             Join the private beta
           </h2>
           <p className="text-lg text-muted-foreground text-center mb-8">
-            Be among the first to experience Kiteframe.
+            Sign in to request access. We'll notify you when your spot is ready.
           </p>
 
-          {!isSubmitted && !isOnWaitlist && (
+          {!isOnWaitlist && (
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6" data-testid="waitlist-container">
-              {!showFullForm ? (
-                <div className="space-y-4">
-                  <div className="flex gap-3">
-                    <Input
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="h-12 flex-1 text-base"
-                      data-testid="input-waitlist-email"
-                    />
-                    <Button
-                      onClick={() => email ? setShowFullForm(true) : null}
-                      disabled={!email}
-                      className="h-12 px-6"
-                      data-testid="button-request-access"
-                    >
-                      Request Access
-                    </Button>
-                  </div>
-                  
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-slate-200 dark:border-slate-700" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-white dark:bg-slate-900 px-2 text-muted-foreground">
-                        or sign in with beta access
-                      </span>
-                    </div>
-                  </div>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground text-center mb-2">
+                  Choose how you'd like to sign in to join the waitlist
+                </p>
 
-                  <div className="flex gap-3">
-                    {providersLoading ? (
-                      <div className="flex items-center justify-center py-2 w-full">
-                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : (
-                      <>
-                        {availableProviders.includes('google') && (
-                          <Button
-                            variant="outline"
-                            className="flex-1 h-11"
-                            onClick={() => handleOAuthLogin('google')}
-                            data-testid="button-oauth-google"
-                          >
-                            <Chrome className="h-4 w-4 mr-2" />
-                            Google
-                          </Button>
-                        )}
-                        {availableProviders.includes('github') && (
-                          <Button
-                            variant="outline"
-                            className="flex-1 h-11"
-                            onClick={() => handleOAuthLogin('github')}
-                            data-testid="button-oauth-github"
-                          >
-                            <Github className="h-4 w-4 mr-2" />
-                            GitHub
-                          </Button>
-                        )}
-                        {availableProviders.includes('replit') && (
-                          <Button
-                            variant="outline"
-                            className="flex-1 h-11"
-                            onClick={() => handleOAuthLogin('replit')}
-                            data-testid="button-oauth-replit"
-                          >
-                            <Terminal className="h-4 w-4 mr-2" />
-                            Replit
-                          </Button>
-                        )}
-                      </>
+                {providersLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {availableProviders.includes('google') && (
+                      <Button
+                        variant="outline"
+                        className="w-full h-12 text-base font-medium border-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        onClick={() => handleOAuthLogin('google')}
+                        data-testid="button-waitlist-google"
+                      >
+                        <Chrome className="h-5 w-5 mr-3" />
+                        Continue with Google
+                      </Button>
+                    )}
+                    {availableProviders.includes('github') && (
+                      <Button
+                        variant="outline"
+                        className="w-full h-12 text-base font-medium border-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        onClick={() => handleOAuthLogin('github')}
+                        data-testid="button-waitlist-github"
+                      >
+                        <Github className="h-5 w-5 mr-3" />
+                        Continue with GitHub
+                      </Button>
+                    )}
+                    {availableProviders.includes('replit') && (
+                      <Button
+                        variant="outline"
+                        className="w-full h-12 text-base font-medium border-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        onClick={() => handleOAuthLogin('replit')}
+                        data-testid="button-waitlist-replit"
+                      >
+                        <Terminal className="h-5 w-5 mr-3" />
+                        Continue with Replit
+                      </Button>
                     )}
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-4" data-testid="waitlist-form-full">
-                  <Input
-                    type="email"
-                    placeholder="Email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="h-11"
-                    data-testid="input-waitlist-email-full"
-                  />
+                )}
 
-                  <Select value={role} onValueChange={(v) => setRole(v as WaitlistRole)}>
-                    <SelectTrigger className="h-11" data-testid="select-waitlist-role">
-                      <SelectValue placeholder="How will you use Kiteframe? (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(ROLE_LABELS) as WaitlistRole[]).map((r) => (
-                        <SelectItem key={r} value={r} data-testid={`option-role-${r}`}>
-                          {ROLE_LABELS[r]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Textarea
-                    placeholder="What are you hoping to build? (optional)"
-                    value={useCase}
-                    onChange={(e) => setUseCase(e.target.value)}
-                    className="min-h-[80px] resize-none"
-                    data-testid="input-waitlist-usecase"
-                  />
-
-                  {/* Honeypot field - hidden from users, catches bots */}
-                  <div className="absolute -left-[9999px]" aria-hidden="true">
-                    <input
-                      type="text"
-                      name="website"
-                      value={honeypot}
-                      onChange={(e) => setHoneypot(e.target.value)}
-                      tabIndex={-1}
-                      autoComplete="off"
-                    />
-                  </div>
-
-                  {/* Turnstile CAPTCHA widget */}
-                  {TURNSTILE_SITE_KEY && (
-                    <div className="flex justify-center" data-testid="turnstile-container">
-                      <div ref={turnstileRef} />
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-3">
-                    <Button
-                      onClick={handleWaitlistSubmit}
-                      disabled={!canSubmit || waitlistMutation.isPending}
-                      className="flex-1 h-11"
-                      data-testid="button-join-waitlist"
-                    >
-                      {waitlistMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : null}
-                      Join the Waitlist
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setShowFullForm(false)}
-                      className="h-11"
-                      data-testid="button-back"
-                    >
-                      Back
-                    </Button>
-                  </div>
-                </div>
-              )}
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                  Already have beta access? Just sign in above.
+                </p>
+              </div>
             </div>
           )}
 
-          {(isSubmitted || isOnWaitlist) && (
+          {isOnWaitlist && (
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-8 text-center" data-testid="waitlist-success">
               <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
                 <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
               <h3 className="text-lg font-semibold mb-2">You're on the list!</h3>
-              <p className="text-muted-foreground">We'll notify you when your access is ready.</p>
+              <p className="text-muted-foreground mb-4">We'll notify you when your access is ready.</p>
+              <Button variant="outline" onClick={() => window.location.href = '/waitlist-dashboard'} data-testid="button-view-waitlist-status">
+                View Your Status
+              </Button>
             </div>
           )}
         </section>
