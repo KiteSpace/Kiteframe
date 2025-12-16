@@ -93,10 +93,50 @@ pnpm add @kiteline/core
 
 ### Peer Dependencies
 
-Kiteline requires React 18+:
+Kiteline requires the following peer dependencies to be installed in your project:
 
+**Required:**
 ```bash
+# React 18+
 npm install react react-dom
+
+# UI Components (Radix UI primitives)
+npm install @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-tooltip @radix-ui/react-popover @radix-ui/react-select @radix-ui/react-tabs @radix-ui/react-scroll-area
+
+# Icons
+npm install lucide-react
+
+# Styling utilities
+npm install tailwind-merge class-variance-authority clsx
+
+# Validation
+npm install zod
+```
+
+**Optional (for specific features):**
+```bash
+# Code editor nodes
+npm install @uiw/react-codemirror @codemirror/lang-javascript @codemirror/lang-python @codemirror/lang-html @codemirror/theme-one-dark
+
+# Charts/visualization in nodes
+npm install recharts
+
+# Markdown rendering
+npm install react-markdown
+```
+
+**Tailwind CSS Setup:**
+
+Kiteline uses Tailwind CSS for styling. Add to your `tailwind.config.js`:
+
+```js
+module.exports = {
+  content: [
+    // ... your paths
+    './node_modules/@kiteline/core/**/*.{ts,tsx}',
+  ],
+  // ... rest of config
+}
 ```
 
 ### 📝 Note on TypeScript Sources
