@@ -1,10 +1,11 @@
-import { useEffect } from "react";
-import { Switch, Route } from "wouter";
+import { useEffect, lazy, Suspense } from "react";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PromptContextStoreProvider } from "@/contexts/PromptContextStore";
+import { Loader2 } from "lucide-react";
 import WorkflowEditor from "@/pages/workflow-editor";
 import KitelineDemo from "@/pages/kiteline-demo";
 import KitelineDocs from "@/pages/kiteline-docs";
@@ -14,6 +15,50 @@ import Account from "@/pages/Account";
 import MockupCodeDataReference from "@/pages/mockup-code-data-reference";
 import ViewOnlyViewer from "@/pages/ViewOnlyViewer";
 import NotFound from "@/pages/not-found";
+
+const LandingPage = lazy(() => import("@/pages/LandingPage"));
+const WaitlistAuthenticated = lazy(() => import("@/pages/WaitlistAuthenticated"));
+
+interface AuthUser {
+  id: string;
+  email?: string;
+  isBeta?: boolean;
+  waitlistRequestedAt?: string | null;
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
+function BetaProtectedRoute<P extends object>({ 
+  component: Component,
+  componentProps 
+}: { 
+  component: React.ComponentType<P>;
+  componentProps?: P;
+}) {
+  const { data: user, isLoading } = useQuery<AuthUser | null>({
+    queryKey: ['/api/auth/user'],
+  });
+
+  if (isLoading) {
+    return <LoadingFallback />;
+  }
+
+  if (!user) {
+    return <Redirect to="/beta" />;
+  }
+
+  if (!user.isBeta) {
+    return <Redirect to="/waitlist" />;
+  }
+
+  return <Component {...(componentProps as P)} />;
+}
 
 function useCleanupQueryParams() {
   useEffect(() => {
@@ -36,19 +81,39 @@ function useCleanupQueryParams() {
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={WorkflowEditor} />
-      <Route path="/project/:projectUuid" component={WorkflowEditor} />
-      <Route path="/demo" component={KitelineDemo} />
-      <Route path="/docs" component={KitelineDocs} />
-      <Route path="/pricing" component={Pricing} />
-      <Route path="/account" component={Account} />
-      <Route path="/checkout/success" component={Account} />
-      <Route path="/internal/x9k7m2p4" component={AdminCodes} />
-      <Route path="/mockup/code-data" component={MockupCodeDataReference} />
-      <Route path="/view/:shareId" component={ViewOnlyViewer} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<LoadingFallback />}>
+      <Switch>
+        <Route path="/beta">
+          <LandingPage />
+        </Route>
+        <Route path="/waitlist">
+          <WaitlistAuthenticated />
+        </Route>
+        <Route path="/">
+          <BetaProtectedRoute component={WorkflowEditor} />
+        </Route>
+        <Route path="/project/:projectUuid">
+          {(params: { projectUuid: string }) => (
+            <BetaProtectedRoute 
+              component={WorkflowEditor}
+            />
+          )}
+        </Route>
+        <Route path="/demo" component={KitelineDemo} />
+        <Route path="/docs" component={KitelineDocs} />
+        <Route path="/pricing" component={Pricing} />
+        <Route path="/account">
+          <BetaProtectedRoute component={Account} />
+        </Route>
+        <Route path="/checkout/success">
+          <BetaProtectedRoute component={Account} />
+        </Route>
+        <Route path="/internal/x9k7m2p4" component={AdminCodes} />
+        <Route path="/mockup/code-data" component={MockupCodeDataReference} />
+        <Route path="/view/:shareId" component={ViewOnlyViewer} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 

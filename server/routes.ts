@@ -19,7 +19,7 @@ import {
   groupAccessControlsSchema,
   userCredits,
 } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, or, isNotNull, isNull, sql } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, getUserGroupAccessControls } from "./middleware/creditCheck";
@@ -508,6 +508,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Portal error:', error);
       res.status(500).json({ error: 'Failed to create portal session' });
+    }
+  });
+
+  // Waitlist endpoint - public, allows both authenticated and unauthenticated users
+  app.post('/api/waitlist', authRateLimiter, async (req: any, res) => {
+    try {
+      const { email, role, useCase } = req.body;
+
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      // Simple email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+
+      // Validate role if provided
+      const validRoles = ['pm', 'design', 'engineering', 'founder'];
+      if (role && !validRoles.includes(role)) {
+        return res.status(400).json({ error: 'Invalid role' });
+      }
+
+      // Check if user already exists
+      let user = await storage.getUserByEmail(email);
+      
+      if (user) {
+        // Update existing user's waitlist fields
+        await db.update(users).set({
+          waitlistRequestedAt: new Date(),
+          waitlistRole: role || user.waitlistRole,
+          waitlistUseCase: useCase || user.waitlistUseCase,
+          updatedAt: new Date(),
+        }).where(eq(users.id, user.id));
+      } else {
+        // Create new user with waitlist info
+        const newUserId = crypto.randomUUID();
+        await db.insert(users).values({
+          id: newUserId,
+          email,
+          waitlistRequestedAt: new Date(),
+          waitlistRole: role || null,
+          waitlistUseCase: useCase || null,
+          isBeta: false,
+        });
+      }
+
+      console.log(`Waitlist signup: ${email}${role ? ` (${role})` : ''}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Waitlist error:', error);
+      res.status(500).json({ error: 'Failed to join waitlist' });
+    }
+  });
+
+  // Authenticated waitlist update - for users who are logged in but want to update their waitlist info
+  app.post('/api/waitlist/update', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { role, useCase } = req.body;
+
+      // Validate role if provided
+      const validRoles = ['pm', 'design', 'engineering', 'founder'];
+      if (role && !validRoles.includes(role)) {
+        return res.status(400).json({ error: 'Invalid role' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      await db.update(users).set({
+        waitlistRequestedAt: user.waitlistRequestedAt || new Date(),
+        waitlistRole: role || user.waitlistRole,
+        waitlistUseCase: useCase || user.waitlistUseCase,
+        updatedAt: new Date(),
+      }).where(eq(users.id, userId));
+
+      console.log(`Waitlist update for user ${userId}${role ? ` (${role})` : ''}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Waitlist update error:', error);
+      res.status(500).json({ error: 'Failed to update waitlist info' });
     }
   });
 
@@ -2964,6 +3049,152 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       console.error('AI usage events analytics error:', error);
       res.status(500).json({ 
         error: 'Failed to fetch AI usage events',
+        details: error.message 
+      });
+    }
+  });
+
+  // ============= BETA ACCESS ADMIN ENDPOINTS =============
+  
+  // Admin: Get waitlist users
+  app.get('/internal/x9k7m2p4/waitlist', requireAdminAuth, async (req, res) => {
+    try {
+      const limit = Math.min(100, parseInt(req.query.limit as string) || 50);
+      const offset = parseInt(req.query.offset as string) || 0;
+      const status = req.query.status as string; // 'pending' | 'beta' | 'all'
+
+      let query = db.select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        isBeta: users.isBeta,
+        betaGrantedAt: users.betaGrantedAt,
+        waitlistRequestedAt: users.waitlistRequestedAt,
+        waitlistRole: users.waitlistRole,
+        waitlistUseCase: users.waitlistUseCase,
+        createdAt: users.createdAt,
+      }).from(users);
+
+      if (status === 'pending') {
+        query = query.where(and(
+          isNotNull(users.waitlistRequestedAt),
+          or(eq(users.isBeta, false), isNull(users.isBeta))
+        ));
+      } else if (status === 'beta') {
+        query = query.where(eq(users.isBeta, true));
+      } else {
+        query = query.where(isNotNull(users.waitlistRequestedAt));
+      }
+
+      const waitlistUsers = await query
+        .orderBy(desc(users.waitlistRequestedAt))
+        .limit(limit)
+        .offset(offset);
+
+      const countQuery = await db.select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(isNotNull(users.waitlistRequestedAt));
+      
+      res.json({
+        success: true,
+        users: waitlistUsers,
+        total: countQuery[0]?.count || 0,
+        limit,
+        offset
+      });
+    } catch (error: any) {
+      console.error('Waitlist fetch error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch waitlist',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Grant beta access to a user
+  app.post('/internal/x9k7m2p4/beta/grant', requireAdminAuth, async (req, res) => {
+    try {
+      const { userId, email } = req.body;
+
+      if (!userId && !email) {
+        return res.status(400).json({ error: 'userId or email is required' });
+      }
+
+      let user;
+      if (userId) {
+        user = await storage.getUser(userId);
+      } else if (email) {
+        user = await storage.getUserByEmail(email);
+      }
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      await db.update(users).set({
+        isBeta: true,
+        betaGrantedAt: new Date(),
+        updatedAt: new Date(),
+      }).where(eq(users.id, user.id));
+
+      console.log(`Beta access granted to user ${user.id} (${user.email})`);
+      res.json({ 
+        success: true, 
+        user: {
+          id: user.id,
+          email: user.email,
+          isBeta: true,
+          betaGrantedAt: new Date()
+        }
+      });
+    } catch (error: any) {
+      console.error('Beta grant error:', error);
+      res.status(500).json({ 
+        error: 'Failed to grant beta access',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Revoke beta access from a user
+  app.post('/internal/x9k7m2p4/beta/revoke', requireAdminAuth, async (req, res) => {
+    try {
+      const { userId, email } = req.body;
+
+      if (!userId && !email) {
+        return res.status(400).json({ error: 'userId or email is required' });
+      }
+
+      let user;
+      if (userId) {
+        user = await storage.getUser(userId);
+      } else if (email) {
+        user = await storage.getUserByEmail(email);
+      }
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      await db.update(users).set({
+        isBeta: false,
+        updatedAt: new Date(),
+      }).where(eq(users.id, user.id));
+
+      console.log(`Beta access revoked from user ${user.id} (${user.email})`);
+      res.json({ 
+        success: true, 
+        user: {
+          id: user.id,
+          email: user.email,
+          isBeta: false
+        }
+      });
+    } catch (error: any) {
+      console.error('Beta revoke error:', error);
+      res.status(500).json({ 
+        error: 'Failed to revoke beta access',
         details: error.message 
       });
     }

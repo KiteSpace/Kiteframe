@@ -34,6 +34,10 @@ export type SubscriptionStatus = typeof subscriptionStatusEnum[number];
 
 // User storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+// Waitlist role options
+export const waitlistRoleEnum = ['pm', 'design', 'engineering', 'founder'] as const;
+export type WaitlistRole = typeof waitlistRoleEnum[number];
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
@@ -49,6 +53,13 @@ export const users = pgTable("users", {
   // Primary OAuth provider (legacy, maintained for backward compatibility)
   authProvider: varchar("auth_provider"), // google, github, replit
   authProviderId: varchar("auth_provider_id"), // Provider's unique user ID
+  // Beta access fields
+  isBeta: boolean("is_beta").default(false),
+  betaGrantedAt: timestamp("beta_granted_at"),
+  // Waitlist fields
+  waitlistRequestedAt: timestamp("waitlist_requested_at"),
+  waitlistRole: varchar("waitlist_role"), // pm, design, engineering, founder
+  waitlistUseCase: text("waitlist_use_case"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
