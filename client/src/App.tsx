@@ -1,6 +1,6 @@
 import { useEffect, lazy, Suspense } from "react";
 import { Switch, Route, Redirect, useLocation } from "wouter";
-import { queryClient } from "./lib/queryClient";
+import { queryClient, getQueryFn } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -42,6 +42,7 @@ function BetaProtectedRoute<P extends object>({
 }) {
   const { data: user, isLoading } = useQuery<AuthUser | null>({
     queryKey: ['/api/auth/user'],
+    queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
   if (isLoading) {
@@ -81,6 +82,7 @@ function useCleanupQueryParams() {
 function LandingRoute() {
   const { data: user, isLoading } = useQuery<AuthUser | null>({
     queryKey: ['/api/auth/user'],
+    queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
   if (isLoading) {

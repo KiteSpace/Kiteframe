@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Chrome, Github, Check, Loader2, ArrowRight } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, getQueryFn } from '@/lib/queryClient';
 
 const LandingPreviewCanvas = lazy(() => import('@/components/landing/LandingPreviewCanvas'));
 
@@ -34,6 +34,7 @@ export default function LandingPage() {
 
   const { data: user } = useQuery<AuthUser | null>({
     queryKey: ['/api/auth/user'],
+    queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
   const { data: providersData, isLoading: providersLoading } = useQuery<{ providers: string[] }>({
