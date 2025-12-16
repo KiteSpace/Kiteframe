@@ -16,6 +16,7 @@ import SignIn from "@/pages/SignIn";
 import WaitlistDashboard from "@/pages/WaitlistDashboard";
 import MockupCodeDataReference from "@/pages/mockup-code-data-reference";
 import ViewOnlyViewer from "@/pages/ViewOnlyViewer";
+import Benchmark from "@/pages/Benchmark";
 import NotFound from "@/pages/not-found";
 
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
@@ -137,6 +138,7 @@ function Router() {
         <Route path="/internal/x9k7m2p4" component={AdminCodes} />
         <Route path="/mockup/code-data" component={MockupCodeDataReference} />
         <Route path="/view/:shareId" component={ViewOnlyViewer} />
+        <Route path="/benchmark" component={Benchmark} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
