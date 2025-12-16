@@ -286,9 +286,9 @@ export async function setupAuth(app: Express) {
 
     app.get('/api/auth/google/callback',
       authRateLimiter,
-      passport.authenticate('google', { failureRedirect: '/account?error=google_auth_failed' }),
+      passport.authenticate('google', { failureRedirect: '/?error=google_auth_failed' }),
       (req, res) => {
-        res.redirect('/account?success=logged_in');
+        res.redirect('/app');
       }
     );
   }
@@ -321,9 +321,9 @@ export async function setupAuth(app: Express) {
 
     app.get('/api/auth/github/callback',
       authRateLimiter,
-      passport.authenticate('github', { failureRedirect: '/account?error=github_auth_failed' }),
+      passport.authenticate('github', { failureRedirect: '/?error=github_auth_failed' }),
       (req, res) => {
-        res.redirect('/account?success=logged_in');
+        res.redirect('/app');
       }
     );
   }
@@ -374,7 +374,7 @@ export async function setupAuth(app: Express) {
   app.get("/api/callback", authRateLimiter, (req, res, next) => {
     ensureStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
+      successReturnToOrRedirect: "/app",
       failureRedirect: "/api/login",
     })(req, res, next);
   });
