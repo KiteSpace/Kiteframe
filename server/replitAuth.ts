@@ -386,22 +386,43 @@ export async function setupAuth(app: Express) {
     });
   });
 
+  const isGoogleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  const isGitHubEnabled = !!(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET);
+
+  console.log('[AUTH] Providers enabled:', {
+    google: isGoogleEnabled,
+    github: isGitHubEnabled,
+    replit: true
+  });
+
   app.get('/api/auth/available-providers', (req, res) => {
-    console.log('[AUTH DEBUG] Checking available providers:', {
-      googleClientIdExists: !!process.env.GOOGLE_CLIENT_ID,
-      googleClientSecretExists: !!process.env.GOOGLE_CLIENT_SECRET,
-      githubClientIdExists: !!process.env.GITHUB_CLIENT_ID,
-      githubClientSecretExists: !!process.env.GITHUB_CLIENT_SECRET,
-    });
     const providers = ['replit'];
-    if (process.env.GOOGLE_CLIENT_ID) {
+    if (isGoogleEnabled) {
       providers.push('google');
     }
-    if (process.env.GITHUB_CLIENT_ID) {
+    if (isGitHubEnabled) {
       providers.push('github');
     }
     res.json({ providers });
   });
+
+  if (!isGoogleEnabled) {
+    app.get('/api/auth/google', (req, res) => {
+      res.status(404).json({ error: 'Google authentication is not configured' });
+    });
+    app.get('/api/auth/google/callback', (req, res) => {
+      res.status(404).json({ error: 'Google authentication is not configured' });
+    });
+  }
+
+  if (!isGitHubEnabled) {
+    app.get('/api/auth/github', (req, res) => {
+      res.status(404).json({ error: 'GitHub authentication is not configured' });
+    });
+    app.get('/api/auth/github/callback', (req, res) => {
+      res.status(404).json({ error: 'GitHub authentication is not configured' });
+    });
+  }
 
   app.get("/api/login", authRateLimiter, (req, res, next) => {
     ensureStrategy(req.hostname);
