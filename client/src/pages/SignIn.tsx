@@ -145,10 +145,8 @@ export default function SignIn() {
               <div className="pt-4 text-center">
                 <p className="text-sm text-muted-foreground">
                   Don't have access yet?{' '}
-                  <Link href="/#waitlist-section">
-                    <a className="text-violet-600 hover:text-violet-700 dark:text-violet-400 font-medium" data-testid="link-request-access">
-                      Request beta access
-                    </a>
+                  <Link href="/#waitlist-section" className="text-violet-600 hover:text-violet-700 dark:text-violet-400 font-medium" data-testid="link-request-access">
+                    Request beta access
                   </Link>
                 </p>
               </div>
