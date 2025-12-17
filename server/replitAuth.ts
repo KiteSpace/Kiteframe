@@ -371,10 +371,37 @@ export async function setupAuth(app: Express) {
       callbackURL: '/api/auth/github/callback',
     }, async (accessToken: string, refreshToken: string, profile: any, done: any) => {
       try {
+        // Try to get email from profile first
+        let email = profile.emails?.[0]?.value;
+        
+        // If no email in profile, fetch from GitHub API
+        if (!email && accessToken) {
+          try {
+            const emailResponse = await fetch('https://api.github.com/user/emails', {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'Kiteframe-App'
+              }
+            });
+            if (emailResponse.ok) {
+              const emails = await emailResponse.json();
+              // Find primary email, or first verified email, or any email
+              const primaryEmail = emails.find((e: any) => e.primary && e.verified);
+              const verifiedEmail = emails.find((e: any) => e.verified);
+              const anyEmail = emails[0];
+              email = primaryEmail?.email || verifiedEmail?.email || anyEmail?.email;
+              console.log('[AUTH] GitHub fetched email from API:', email);
+            }
+          } catch (emailError) {
+            console.error('[AUTH] Failed to fetch GitHub emails:', emailError);
+          }
+        }
+
         const oauthProfile: OAuthProfile = {
           provider: 'github',
           providerId: profile.id,
-          email: profile.emails?.[0]?.value,
+          email,
           displayName: profile.displayName || profile.username,
           profileImageUrl: profile.photos?.[0]?.value,
         };

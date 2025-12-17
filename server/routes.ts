@@ -16,6 +16,7 @@ import {
   userGroups,
   userGroupMemberships,
   users,
+  oauthProviders,
   groupAccessControlsSchema,
   userCredits,
 } from "@shared/schema";
@@ -73,6 +74,7 @@ function sanitizeUserForResponse(user: any, options?: { isAdmin?: boolean }) {
     firstName: user.firstName,
     lastName: user.lastName,
     profileImageUrl: user.profileImageUrl,
+    authProvider: user.authProvider,
     subscriptionTier: options?.isAdmin ? 'pro' : user.subscriptionTier,
     subscriptionStatus: options?.isAdmin ? 'active' : user.subscriptionStatus,
     billingPeriodEnd: user.billingPeriodEnd,
@@ -451,9 +453,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserIdFromRequest(req.user);
       const user = await storage.getUser(userId);
       
+      if (!user) {
+        return res.json(null);
+      }
+      
+      // If user has no authProvider set, look it up from oauthProviders table
+      let authProvider = user.authProvider;
+      if (!authProvider) {
+        const oauthProvider = await db.query.oauthProviders.findFirst({
+          where: eq(oauthProviders.userId, user.id),
+          orderBy: (oauthProviders, { desc }) => [desc(oauthProviders.lastUsedAt)],
+        });
+        if (oauthProvider) {
+          authProvider = oauthProvider.provider;
+        }
+      }
+      
       // Check if user is admin and sanitize response
-      const isAdmin = isAdminUser(user?.email);
-      const responseUser = sanitizeUserForResponse(user, { isAdmin });
+      const isAdmin = isAdminUser(user.email);
+      const responseUser = sanitizeUserForResponse({ ...user, authProvider }, { isAdmin });
       
       res.json(responseUser);
     } catch (error) {
