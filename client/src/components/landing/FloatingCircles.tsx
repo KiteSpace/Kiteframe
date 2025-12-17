@@ -24,7 +24,7 @@ export default function FloatingCircles() {
 
   useEffect(() => {
     const generated: Circle[] = [];
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 5; i++) {
       generated.push({
         id: i,
         x: Math.random() * 100,
@@ -50,7 +50,7 @@ export default function FloatingCircles() {
             width: circle.size,
             height: circle.size,
             backgroundColor: circle.color,
-            animation: `floatUpDown ${circle.duration}s ease-in-out infinite`,
+            animation: `floatUpDown ${circle.duration}s ease-in-out infinite, slowRotate 25s linear infinite`,
             animationDelay: `${circle.delay}s`,
           }}
         />
@@ -62,6 +62,14 @@ export default function FloatingCircles() {
           }
           50% {
             transform: translateY(-12px);
+          }
+        }
+        @keyframes slowRotate {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
           }
         }
       `}</style>

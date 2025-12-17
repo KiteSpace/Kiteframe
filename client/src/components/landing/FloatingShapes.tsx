@@ -46,7 +46,7 @@ export default function FloatingShapes() {
     const generated: Shape[] = [];
     let id = 0;
 
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 3; i++) {
       generated.push({
         id: id++,
         type: 'circle',
@@ -60,7 +60,7 @@ export default function FloatingShapes() {
       });
     }
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 2; i++) {
       generated.push({
         id: id++,
         type: 'square',
@@ -74,7 +74,7 @@ export default function FloatingShapes() {
       });
     }
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 1; i++) {
       generated.push({
         id: id++,
         type: 'triangle',
@@ -97,8 +97,12 @@ export default function FloatingShapes() {
       if (shape.type === 'circle') {
         return `
           @keyframes float-${shape.id} {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-12px); }
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-12px) rotate(0deg); }
+          }
+          @keyframes rotate-${shape.id} {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
           }
         `;
       }
@@ -106,6 +110,10 @@ export default function FloatingShapes() {
         @keyframes float-${shape.id} {
           0%, 100% { transform: translateY(0px) rotate(${rot}deg); }
           50% { transform: translateY(-12px) rotate(${rot}deg); }
+        }
+        @keyframes rotate-${shape.id} {
+          0% { transform: rotate(${rot}deg); }
+          100% { transform: rotate(${rot + 360}deg); }
         }
       `;
     }).join('\n');
@@ -116,7 +124,7 @@ export default function FloatingShapes() {
       position: 'absolute',
       left: `${shape.x}%`,
       top: `${shape.y}%`,
-      animation: `float-${shape.id} ${shape.duration}s ease-in-out infinite`,
+      animation: `float-${shape.id} ${shape.duration}s ease-in-out infinite, rotate-${shape.id} 20s linear infinite`,
       animationDelay: `${shape.delay}s`,
     };
 
@@ -145,7 +153,6 @@ export default function FloatingShapes() {
             width: shape.size,
             height: shape.size,
             backgroundColor: shape.color,
-            transform: `rotate(${shape.rotation}deg)`,
           }}
         />
       );
@@ -162,7 +169,6 @@ export default function FloatingShapes() {
             borderLeft: `${shape.size / 2}px solid transparent`,
             borderRight: `${shape.size / 2}px solid transparent`,
             borderBottom: `${shape.size}px solid ${shape.color}`,
-            transform: `rotate(${shape.rotation}deg)`,
             backgroundColor: 'transparent',
           }}
         />
