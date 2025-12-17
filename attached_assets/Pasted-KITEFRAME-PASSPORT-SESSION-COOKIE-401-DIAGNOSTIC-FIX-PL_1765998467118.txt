@@ -1,0 +1,214 @@
+KITEFRAME — PASSPORT SESSION COOKIE 401 DIAGNOSTIC + FIX PLAN
+
+GOAL
+Fix Google/GitHub OAuth completing successfully (session created in Postgres) but
+subsequent /api/auth/user returning 401 because the browser is not sending the
+session cookie back.
+
+Architecture confirmed:
+- Passport.js with direct OAuth (Google, GitHub, Replit)
+- express-session + connect-pg-simple
+- Account linking by email
+- Cookie flags: HttpOnly; Secure; SameSite=Lax
+
+We need to determine whether:
+1) The browser never stores the cookie
+2) The browser stores it but does not send it on API requests
+3) The cookie is sent but the server cannot read the session
+4) The frontend is calling a different origin than the cookie was set for
+
+------------------------------------------------------------
+SECTION A — SINGLE SOURCE OF TRUTH CHECK (REQUIRED)
+------------------------------------------------------------
+
+After completing Google or GitHub OAuth, collect the following:
+
+A1. Network tab → request to /api/auth/google/callback (or github callback)
+- Response headers:
+  - Set-Cookie: connect.sid=...
+  - Confirm attributes:
+    - Domain
+    - Path
+    - Secure
+    - SameSite
+    - HttpOnly
+
+A2. Application tab → Cookies → <current domain>
+- Is connect.sid present?
+- If present:
+  - Domain
+  - Path
+  - Expires / Max-Age
+  - SameSite
+  - Secure
+
+A3. Network tab → request to /api/auth/user
+- Request headers:
+  - Does it include: Cookie: connect.sid=... ?
+
+This single check tells us exactly where the failure is.
+
+------------------------------------------------------------
+SECTION B — MOST LIKELY ROOT CAUSES
+------------------------------------------------------------
+
+B1. Frontend calling a different origin than cookie domain
+
+Questions:
+1) What is the exact API base URL used by the frontend in production?
+2) Are API calls made using:
+   - fetch('/api/auth/user')  (relative)
+   - OR fetch('https://some-other-host/api/auth/user') (absolute)?
+3) Is VITE_API_BASE_URL set?
+
+Required fix:
+- Standardize ALL API calls to relative /api/... URLs
+- Do not mix absolute and relative API calls
+
+------------------------------------------------------------
+
+B2. Requests not including credentials
+
+Questions:
+1) What HTTP client is used (fetch, axios, React Query custom fetcher)?
+2) For absolute URLs, is one of the following set?
+   - fetch: credentials: 'include'
+   - axios: withCredentials: true
+3) Is there a centralized API client?
+
+Required fix (example):
+
+// client/src/lib/api.ts
+export async function apiFetch(path, init = {}) {
+  return fetch(path, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init.headers || {}),
+    },
+  });
+}
+
+Replace all direct fetch/axios calls with apiFetch().
+
+------------------------------------------------------------
+
+B3. Missing trust proxy / proxy-aware session config
+
+Questions:
+1) Is app.set('trust proxy', 1) present?
+2) Is express-session configured with proxy: true?
+3) What do logs show for:
+   - req.protocol
+   - req.secure
+   - x-forwarded-proto
+
+Required fix:
+
+app.set('trust proxy', 1);
+
+app.use(session({
+  store: new PgSession(...),
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  proxy: true,
+  cookie: {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 * 24 * 7,
+  },
+}));
+
+Temporary debug logging:
+
+app.use((req, _res, next) => {
+  console.log('[REQ]', {
+    url: req.url,
+    secure: req.secure,
+    proto: req.protocol,
+    xfp: req.headers['x-forwarded-proto'],
+    hasCookie: Boolean(req.headers.cookie),
+  });
+  next();
+});
+
+------------------------------------------------------------
+
+B4. Cookie domain or path mismatch
+
+Questions:
+1) Are we explicitly setting cookie.domain anywhere?
+2) Does Set-Cookie include Domain=?
+
+Required fix:
+- Do NOT set cookie.domain on Replit preview domains
+- Allow default host-based cookie
+
+------------------------------------------------------------
+SECTION C — OPTIONAL OAUTH CALLBACK BRIDGE (LAST RESORT)
+------------------------------------------------------------
+
+If cookies are not being persisted during redirect chains:
+
+Instead of res.redirect(...) immediately after OAuth success,
+return a first-party HTML page:
+
+res.status(200).send(`
+<!doctype html>
+<html>
+  <body>
+    <script>
+      setTimeout(() => window.location.replace('/auth/complete'), 0);
+    </script>
+  </body>
+</html>
+`);
+
+Only apply if cookie storage fails during redirect.
+
+------------------------------------------------------------
+SECTION D — SERVER SESSION RETRIEVAL
+------------------------------------------------------------
+
+Add temporary logs to confirm server-side behavior:
+
+In /api/auth/user handler:
+console.log({
+  hasCookie: Boolean(req.headers.cookie),
+  sessionID: req.sessionID,
+  hasSession: Boolean(req.session),
+  isAuthenticated: req.isAuthenticated?.(),
+  userId: req.user?.id,
+});
+
+In passport.deserializeUser:
+console.log('[DESERIALIZE]', id);
+
+------------------------------------------------------------
+SECTION E — REQUIRED OUTPUT FROM REPLIT
+------------------------------------------------------------
+
+Please return:
+
+1) Screenshot of Set-Cookie header from OAuth callback
+2) Screenshot of Application → Cookies showing connect.sid
+3) Screenshot of /api/auth/user request headers
+4) Sanitized Set-Cookie attributes (no value)
+5) Exact frontend URL used to call /api/auth/user
+6) Confirmation of trust proxy + session.proxy settings
+
+------------------------------------------------------------
+SECTION F — FINAL RECOMMENDED STABLE CONFIG
+------------------------------------------------------------
+
+- Relative /api/... calls only
+- Centralized apiFetch with credentials: 'include'
+- app.set('trust proxy', 1)
+- session.proxy = true
+- SameSite=Lax, Secure, HttpOnly
+- No explicit cookie domain
+
+With the outputs from Section E, the fix can be selected immediately.

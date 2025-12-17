@@ -343,10 +343,22 @@ export async function setupAuth(app: Express) {
           if (err) {
             console.error('[AUTH] Session save error:', err);
           }
-          res.on('finish', () => {
-            console.log('[AUTH] Google Set-Cookie:', res.getHeader('Set-Cookie'));
-          });
-          res.redirect(redirectTarget);
+          console.log('[AUTH] Google Set-Cookie:', res.getHeader('Set-Cookie'));
+          const safeRedirect = JSON.stringify(redirectTarget);
+          res.status(200).send(`
+<!DOCTYPE html>
+<html>
+<head><title>Completing sign in...</title></head>
+<body>
+  <p>Completing sign in...</p>
+  <script>
+    setTimeout(function() {
+      window.location.replace(${safeRedirect});
+    }, 100);
+  </script>
+</body>
+</html>
+          `);
         });
       }
     );
@@ -403,10 +415,22 @@ export async function setupAuth(app: Express) {
           if (err) {
             console.error('[AUTH] Session save error:', err);
           }
-          res.on('finish', () => {
-            console.log('[AUTH] GitHub Set-Cookie:', res.getHeader('Set-Cookie'));
-          });
-          res.redirect(redirectTarget);
+          console.log('[AUTH] GitHub Set-Cookie:', res.getHeader('Set-Cookie'));
+          const safeRedirect = JSON.stringify(redirectTarget);
+          res.status(200).send(`
+<!DOCTYPE html>
+<html>
+<head><title>Completing sign in...</title></head>
+<body>
+  <p>Completing sign in...</p>
+  <script>
+    setTimeout(function() {
+      window.location.replace(${safeRedirect});
+    }, 100);
+  </script>
+</body>
+</html>
+          `);
         });
       }
     );
@@ -521,10 +545,31 @@ export async function setupAuth(app: Express) {
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  console.log('[AUTH DEBUG] isAuthenticated check:', {
+    url: req.url,
+    hasCookie: Boolean(req.headers.cookie),
+    sessionID: req.sessionID,
+    hasSession: Boolean(req.session),
+    hasUser: Boolean(user),
+    isAuthenticatedFn: req.isAuthenticated?.(),
+    userHasExpiresAt: Boolean(user?.expires_at),
+    userHasId: Boolean(user?.id),
+  });
+
+  if (!req.isAuthenticated() || !user) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
+  // For Google/GitHub OAuth users, they don't have expires_at (no OIDC refresh)
+  // Just check they have a valid user ID and allow through
+  if (!user.expires_at) {
+    if (user.id) {
+      return next();
+    }
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  // For Replit OIDC users, check token expiration
   const now = Math.floor(Date.now() / 1000);
   if (now <= user.expires_at) {
     return next();
