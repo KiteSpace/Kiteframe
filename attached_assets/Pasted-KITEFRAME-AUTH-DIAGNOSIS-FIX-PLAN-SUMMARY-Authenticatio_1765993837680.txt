@@ -1,0 +1,126 @@
+KITEFRAME AUTH DIAGNOSIS & FIX PLAN
+=================================
+
+SUMMARY
+-------
+Authentication logic is functioning correctly (Passport + PostgreSQL).
+Sessions ARE being created server-side, but the browser is NOT persisting
+or sending the session cookie on subsequent requests.
+
+This is a cookie delivery / proxy configuration issue, NOT a Passport or
+beta-gating issue.
+
+ROOT CAUSE (MOST LIKELY → LEAST LIKELY)
+--------------------------------------
+
+1) `secure: true` COOKIE ON NON-HTTPS NODE CONTEXT (CRITICAL)
+   - Replit terminates TLS upstream.
+   - Express often believes requests are HTTP unless proxy trust is enabled.
+   - If Express thinks the request is HTTP and `secure: true`,
+     the browser silently drops the cookie.
+
+2) MISSING `app.set('trust proxy', 1)`
+   - Required for apps behind proxies (Replit, Vercel, Railway).
+   - Without it, secure cookies and OAuth redirects break.
+
+3) COOKIE DOMAIN MISMATCH
+   - Replit dev URLs are long and dynamic (*.worf.replit.dev).
+   - If callback and frontend differ even slightly, cookies won’t match.
+
+4) SESSION SAVE RACE CONDITION (LESS LIKELY)
+   - `req.session.save()` was added correctly.
+   - Unlikely to cause 100% failure but still worth verifying.
+
+WHAT IS NOT THE PROBLEM
+----------------------
+- Passport strategy registration
+- Beta gating logic
+- Missing OAuth env vars (confirmed present)
+- Frontend polling logic
+- Nested <a> warning (UI-only issue)
+
+REQUIRED FIX STEPS (DO IN THIS ORDER)
+------------------------------------
+
+STEP 1 — TRUST THE PROXY (REQUIRED)
+----------------------------------
+Add this BEFORE session middleware:
+
+    app.set('trust proxy', 1);
+
+This allows Express to correctly detect HTTPS behind Replit’s proxy.
+
+STEP 2 — MAKE COOKIE `secure` ENV-AWARE
+---------------------------------------
+Update session cookie config:
+
+    const isProd = process.env.NODE_ENV === 'production';
+
+    cookie: {
+      httpOnly: true,
+      secure: isProd,        // ❗ NOT always true
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    }
+
+Behavior:
+- Replit dev → secure: false
+- Production (kiteframe.space) → secure: true
+
+STEP 3 — LOG SET-COOKIE HEADER (HTTP-LEVEL VERIFICATION)
+--------------------------------------------------------
+In OAuth callback handler, add:
+
+    res.on('finish', () => {
+      console.log('Set-Cookie:', res.getHeader('Set-Cookie'));
+    });
+
+Confirm:
+- Header exists
+- Browser receives it
+- Cookie appears in DevTools
+
+STEP 4 — VERIFY COOKIE IN BROWSER
+--------------------------------
+Chrome DevTools → Application → Cookies
+
+Check:
+- Cookie name exists
+- Domain matches current origin
+- Path is '/'
+- NOT marked as blocked
+
+If cookie is missing → server config issue
+If cookie exists but not sent → domain / secure / SameSite issue
+
+STEP 5 — RETEST AUTH FLOW
+-------------------------
+- Complete OAuth login
+- Hard refresh page
+- Call /api/auth/user
+- Expect HTTP 200 with user object
+
+WHY THIS MATCHES ALL SYMPTOMS
+-----------------------------
+- Replit auth works: same-origin OIDC flow
+- Google button refreshes page: cookie dropped
+- GitHub auth returns to login: session lost after redirect
+- /api/auth/user returns 401: no cookie sent
+- Server logs show authenticated: session exists server-side
+- Browser disagrees: cookie never persisted
+
+MINIMAL REPLIT TASK CHECKLIST
+-----------------------------
+1. Add `app.set('trust proxy', 1)`
+2. Make `secure` conditional on NODE_ENV
+3. Verify Set-Cookie header on OAuth callback
+4. Confirm cookie exists in browser
+5. Retest /api/auth/user after redirect
+
+FINAL CONFIDENCE STATEMENT
+--------------------------
+This is NOT an architectural failure.
+This is a standard proxy + secure-cookie misconfiguration.
+
+Once fixed, the existing Passport + PostgreSQL auth system
+is fully viable for beta and production.

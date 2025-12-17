@@ -1,0 +1,197 @@
+KITEFRAME — AUTH WORKFLOW DIAGNOSTIC & ARCHITECTURE QUESTIONS
+(POST-CHANGE AUDIT)
+
+GOAL:
+Identify why Google/GitHub auth still fails while Replit auth works, and confirm
+the complete authentication + session + beta-gating architecture.
+
+============================================================
+SECTION 1 — WHAT CHANGED (CRITICAL CONTEXT)
+============================================================
+
+1. Please list *exactly* what was changed in the auth workflow:
+   - Files modified
+   - Logic changes (not refactors)
+   - Config changes (cookies, session, redirects, env vars)
+
+2. Was the change intended to fix:
+   - OAuth redirect issues?
+   - Session persistence?
+   - Beta gating?
+   - UI login flow?
+   - Something else?
+
+3. Did you test all three providers (Replit, Google, GitHub) after the change?
+   - If yes, which environments?
+   - If not, why?
+
+============================================================
+SECTION 2 — PROVIDER REGISTRATION & ROUTES
+============================================================
+
+4. For EACH provider, confirm:
+   - Strategy registration file
+   - Route that initiates auth
+   - Callback route
+   - Where user is attached to req.user
+
+   Google:
+     - Init route:
+     - Callback route:
+     - Strategy file:
+     - Env vars confirmed present? (YES/NO)
+
+   GitHub:
+     - Init route:
+     - Callback route:
+     - Strategy file:
+     - Env vars confirmed present? (YES/NO)
+
+   Replit:
+     - Init route:
+     - Callback route:
+     - Strategy file:
+
+5. Are auth routes conditionally registered?
+   - If env vars are missing, are routes still exposed?
+   - Are login buttons hidden if routes are missing?
+
+============================================================
+SECTION 3 — SESSION CREATION & PERSISTENCE
+============================================================
+
+6. What session store is used?
+   - express-session memory store?
+   - custom store?
+   - Replit-provided session?
+
+7. Where is the session created?
+   - In the OAuth callback?
+   - In a shared middleware?
+   - In a post-auth handler?
+
+8. On successful OAuth callback, please log:
+   - req.user
+   - req.session
+   - req.sessionID
+   - Set-Cookie header
+
+9. Cookie configuration (ACTUAL VALUES):
+   - httpOnly:
+   - secure:
+   - sameSite:
+   - domain:
+   - path:
+   - maxAge:
+
+10. Has `sameSite` been changed from `strict`?
+    - If yes, to what?
+    - If no, why?
+
+============================================================
+SECTION 4 — COOKIE DELIVERY & DOMAIN ISSUES
+============================================================
+
+11. After GitHub auth completes:
+    - Is a session cookie set in the browser? (YES/NO)
+    - Is it visible in DevTools → Application → Cookies?
+    - Which domain is it scoped to?
+
+12. On subsequent request to:
+    GET /api/auth/user
+    - Is the cookie sent?
+    - If not, why?
+
+13. Are there differences between:
+    - Incognito vs normal window
+    - Replit auth vs GitHub/Google auth
+
+============================================================
+SECTION 5 — BETA GATING & REDIRECT LOGIC
+============================================================
+
+14. Where does beta gating occur?
+    - Before session creation?
+    - After session creation?
+    - During /api/auth/user?
+
+15. On successful OAuth but user NOT beta-approved:
+    - What is the redirect target?
+    - Should it be /waitlist-dashboard?
+    - Is user incorrectly redirected back to /login?
+
+16. Does beta gating ever clear or block session creation?
+    - If yes, why?
+
+============================================================
+SECTION 6 — FRONTEND AUTH CHECK
+============================================================
+
+17. What is the expected contract of:
+    GET /api/auth/user
+    - 200 response payload?
+    - 401 behavior?
+
+18. Does the frontend:
+    - Poll this endpoint on load?
+    - Clear auth state on first 401?
+    - Redirect automatically on 401?
+
+19. Is there a race condition between:
+    - OAuth redirect completion
+    - Frontend auth polling
+
+============================================================
+SECTION 7 — UI / DOM ISSUES (NON-BLOCKING BUT IMPORTANT)
+============================================================
+
+20. Has the nested <a> tag warning been fixed?
+    - File(s) affected:
+    - Confirm no anchor-in-anchor patterns remain
+
+21. Are OAuth buttons implemented as:
+    - <a href="/api/auth/provider">
+    - OR JS navigation?
+    - OR form submission?
+
+============================================================
+SECTION 8 — LOGGING & OBSERVABILITY
+============================================================
+
+22. Are there logs for:
+    - OAuth callback entry
+    - Session creation
+    - Beta gating decision
+    - Final redirect
+
+23. If not, can you add temporary logs for:
+    - Provider name
+    - User email
+    - isBeta value
+    - Redirect target
+
+============================================================
+SECTION 9 — CONFIRMATION QUESTIONS
+============================================================
+
+24. Does Replit auth work because:
+    - It is same-origin?
+    - It bypasses OAuth redirects?
+    - It uses a different session mechanism?
+
+25. Is there any intentional divergence between
+    Replit auth and Google/GitHub auth?
+
+26. If you had to summarize the current auth flow in 5 steps,
+    what are they?
+
+============================================================
+SECTION 10 — EXPECTED FIX PATH
+============================================================
+
+27. What do you believe is the current root cause?
+28. What is your proposed fix?
+29. What will you test after applying the fix?
+30. What regression risks should we watch for?
+
+END OF QUESTIONNAIRE
