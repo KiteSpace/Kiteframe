@@ -52,6 +52,16 @@ function isAdminUser(email: string | undefined | null): boolean {
   return adminEmails.includes(email.toLowerCase());
 }
 
+// Helper to get user ID from either OIDC (claims.sub) or OAuth (id) users
+// Should only be called behind isAuthenticated middleware
+function getUserIdFromRequest(user: any): string {
+  // OIDC users (Replit) have claims.sub
+  if (user?.claims?.sub) return user.claims.sub;
+  // OAuth users (Google, GitHub) have id directly
+  if (user?.id) return user.id;
+  throw new Error('Unable to extract user ID from request - invalid user object');
+}
+
 // Sanitize user data for API responses - removes sensitive internal fields
 function sanitizeUserForResponse(user: any, options?: { isAdmin?: boolean }) {
   if (!user) return null;
@@ -438,7 +448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const user = await storage.getUser(userId);
       
       // Check if user is admin and sanitize response
@@ -466,7 +476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get subscription status
   app.get('/api/subscription', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -498,7 +508,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create checkout session
   app.post('/api/checkout', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const user = await storage.getUser(userId);
       const { priceId } = req.body;
 
@@ -534,7 +544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Customer portal for managing subscription
   app.post('/api/billing/portal', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const user = await storage.getUser(userId);
 
       if (!user?.stripeCustomerId) {
@@ -667,7 +677,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authenticated waitlist update - for users who are logged in but want to update their waitlist info
   app.post('/api/waitlist/update', csrfProtection, isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const { role, useCase } = req.body;
 
       // Validate role if provided
@@ -738,7 +748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Account deletion endpoint
   app.delete('/api/account', sensitiveRateLimiter, isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const user = await storage.getUser(userId);
 
       if (!user) {
@@ -770,7 +780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Saved Projects API (Pro tier or Admin)
   app.get('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const user = await storage.getUser(userId);
 
       if (!(await hasCloudProjectAccess(user))) {
@@ -787,7 +797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/projects', projectRateLimiter, isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const user = await storage.getUser(userId);
 
       if (!(await hasCloudProjectAccess(user))) {
@@ -821,7 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/projects/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const { id } = req.params;
 
       const project = await storage.getSavedProject(id, userId);
@@ -838,7 +848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/projects/:id', projectRateLimiter, isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const user = await storage.getUser(userId);
 
       if (!(await hasCloudProjectAccess(user))) {
@@ -899,7 +909,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/projects/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const user = await storage.getUser(userId);
 
       if (!(await hasCloudProjectAccess(user))) {
@@ -919,7 +929,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Project Folders API
   app.get('/api/folders', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const folders = await storage.getProjectFolders(userId);
       res.json({ folders });
     } catch (error) {
@@ -930,7 +940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/folders', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const { name, parentFolderId, color } = req.body;
 
       const folder = await storage.createProjectFolder({
@@ -949,7 +959,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/folders/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const { id } = req.params;
       const { name, parentFolderId, color } = req.body;
 
@@ -972,7 +982,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/folders/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const { id } = req.params;
 
       await storage.deleteProjectFolder(id, userId);
@@ -1105,7 +1115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user is the owner
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       if (project.userId !== userId) {
         // Not the owner - do not leak shareUuid, just reject
         return res.status(403).json({ error: 'Not authorized to access this project' });
@@ -1128,7 +1138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/project/:projectUuid', projectRateLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const { projectUuid } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       
       console.log(`📝 [PROJECT UPDATE] Received update for projectUuid: ${projectUuid}`);
       
@@ -1196,7 +1206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Enable sharing for a project (generates shareUuid if not exists)
   app.post('/api/projects/:id/share', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const { id } = req.params;
 
       const project = await storage.getSavedProject(id, userId);
@@ -1233,7 +1243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Disable sharing for a project
   app.delete('/api/projects/:id/share', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserIdFromRequest(req.user);
       const { id } = req.params;
 
       const updated = await storage.disableProjectSharing(id, userId);
