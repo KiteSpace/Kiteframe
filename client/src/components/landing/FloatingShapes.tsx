@@ -46,7 +46,7 @@ export default function FloatingShapes() {
     const generated: Shape[] = [];
     let id = 0;
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 5; i++) {
       generated.push({
         id: id++,
         type: 'circle',
@@ -60,7 +60,7 @@ export default function FloatingShapes() {
       });
     }
 
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 3; i++) {
       generated.push({
         id: id++,
         type: 'square',
@@ -74,7 +74,7 @@ export default function FloatingShapes() {
       });
     }
 
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < 2; i++) {
       generated.push({
         id: id++,
         type: 'triangle',

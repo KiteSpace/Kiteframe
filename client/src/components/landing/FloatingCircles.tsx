@@ -24,7 +24,7 @@ export default function FloatingCircles() {
 
   useEffect(() => {
     const generated: Circle[] = [];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 8; i++) {
       generated.push({
         id: i,
         x: Math.random() * 100,
