@@ -149,6 +149,7 @@ import {
   afterWorkflowCreation,
   type ProjectDetails,
 } from "@/lib/kiteframe/hooks/afterWorkflowCreation";
+import { prdGenerationBus } from "@/stores/prdGenerationBus";
 
 // Project metadata types
 interface ProjectLink {
@@ -1817,62 +1818,94 @@ Position nodes 250px apart horizontally.`;
             ")",
           );
 
-          const result = await afterWorkflowCreation({
-            projectId: effectiveProjectId,
-            workflows: [
-              {
-                workflowId: workflowGroupId,
-                workflowName: workflowName,
-                nodes: processedNodes,
-                edges: processedEdges,
+          // Signal that PRD generation is starting
+          const prdGenerationStarted = shouldGeneratePRD;
+          if (prdGenerationStarted) {
+            prdGenerationBus.startGeneration(effectiveProjectId);
+          }
+
+          try {
+            const result = await afterWorkflowCreation({
+              projectId: effectiveProjectId,
+              workflows: [
+                {
+                  workflowId: workflowGroupId,
+                  workflowName: workflowName,
+                  nodes: processedNodes,
+                  edges: processedEdges,
+                },
+              ],
+              source: "kiteai",
+              generatePRD: shouldGeneratePRD,
+              aiClient: ai,
+              onPRDGenerated: (workflowId, prd) => {
+                console.log("[KiteAI] PRD generated for workflow:", workflowId);
+                toast({
+                  title: "PRD Generated",
+                  description:
+                    "A first draft PRD has been created for your workflow.",
+                });
+                // Notify the project panel that PRD was updated
+                prdGenerationBus.notifyPRDUpdated(effectiveProjectId, workflowId);
               },
-            ],
-            source: "kiteai",
-            generatePRD: shouldGeneratePRD,
-            aiClient: ai,
-            onPRDGenerated: (workflowId, prd) => {
-              console.log("[KiteAI] PRD generated for workflow:", workflowId);
-              toast({
-                title: "PRD Generated",
-                description:
-                  "A first draft PRD has been created for your workflow.",
-              });
-            },
-            onProjectDetailsGenerated: (details) => {
-              console.log("[KiteAI] Project details generated:", details.title);
-              // Update tab metadata with generated project details
-              setTabs((prev) =>
-                prev.map((tab) =>
-                  tab.id === tabId
-                    ? {
-                        ...tab,
-                        metadata: {
-                          ...tab.metadata,
-                          name: details.title || tab.metadata?.name,
-                          description:
-                            details.overview || tab.metadata?.description,
-                        },
-                      }
-                    : tab,
-                ),
-              );
-            },
-            onError: (error, context) => {
-              console.error(
-                "[KiteAI] Error in afterWorkflowCreation:",
-                context,
-                error,
-              );
-            },
-          });
+              onProjectDetailsGenerated: (details) => {
+                console.log("[KiteAI] Project details generated:", details.title);
+                // Update tab metadata with generated project details
+                setTabs((prev) =>
+                  prev.map((tab) =>
+                    tab.id === tabId
+                      ? {
+                          ...tab,
+                          metadata: {
+                            ...tab.metadata,
+                            name: details.title || tab.metadata?.name,
+                            description:
+                              details.overview || tab.metadata?.description,
+                          },
+                        }
+                      : tab,
+                  ),
+                );
+                // Save project details to localStorage for ProjectOverviewSection
+                const detailsStorageKey = `kiteframe-details-${effectiveProjectId}`;
+                try {
+                  const existingData = localStorage.getItem(detailsStorageKey);
+                  const existing = existingData ? JSON.parse(existingData) : {};
+                  localStorage.setItem(detailsStorageKey, JSON.stringify({
+                    ...existing,
+                    name: details.title || existing.name || '',
+                    description: details.overview || existing.description || '',
+                    updatedAt: Date.now(),
+                    createdAt: existing.createdAt || Date.now(),
+                  }));
+                } catch (e) {
+                  console.warn('[KiteAI] Failed to save project details to localStorage:', e);
+                }
+                // Notify the project panel that project details were updated
+                prdGenerationBus.notifyProjectDetailsUpdated(effectiveProjectId);
+              },
+              onError: (error, context) => {
+                console.error(
+                  "[KiteAI] Error in afterWorkflowCreation:",
+                  context,
+                  error,
+                );
+              },
+            });
 
-          promptContextStore?.setGeneratePRD(false);
+            promptContextStore?.setGeneratePRD(false);
 
-          if (result.errors.length > 0) {
-            console.warn(
-              "[KiteAI] afterWorkflowCreation completed with errors:",
-              result.errors,
-            );
+            if (result.errors.length > 0) {
+              console.warn(
+                "[KiteAI] afterWorkflowCreation completed with errors:",
+                result.errors,
+              );
+            }
+          } finally {
+            // Signal that PRD generation is complete (always runs even on error)
+            if (prdGenerationStarted) {
+              prdGenerationBus.completeGeneration(effectiveProjectId);
+            }
           }
         }
       } catch (error) {

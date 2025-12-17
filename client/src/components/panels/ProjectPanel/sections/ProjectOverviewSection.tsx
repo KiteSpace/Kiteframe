@@ -3,10 +3,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Calendar, Tag, X, Plus, ChevronDown, ChevronRight, Edit3, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAi } from '@/ai/AiProvider';
+import { usePRDGenerationState } from '@/stores/prdGenerationBus';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 
 interface ProjectDetails {
@@ -149,49 +151,60 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
   const [isCategoriesHovered, setIsCategoriesHovered] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingLocal, setIsGeneratingLocal] = useState(false);
   const prevProjectId = useRef<string | undefined>(undefined);
   const categoryInputRef = useRef<HTMLInputElement>(null);
   const aiClient = useAi();
+  
+  const { isGenerating: isGeneratingFromBus, updateKey } = usePRDGenerationState(projectId);
 
   const storageKey = projectId ? `kiteframe-details-${projectId}` : null;
 
-  useEffect(() => {
-    if (projectId !== prevProjectId.current) {
-      prevProjectId.current = projectId;
-      
-      if (!storageKey) {
-        setDetails({ ...DEFAULT_DETAILS, name: projectName || '' });
-        return;
-      }
-      
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setDetails({ 
-            ...DEFAULT_DETAILS, 
-            ...parsed, 
-            name: projectName || parsed.name || '' 
-          });
-        } catch {
-          setDetails({ 
-            ...DEFAULT_DETAILS, 
-            name: projectName || '', 
-            createdAt: Date.now() 
-          });
-        }
-      } else {
+  const loadFromStorage = useCallback(() => {
+    if (!storageKey) {
+      setDetails({ ...DEFAULT_DETAILS, name: projectName || '' });
+      return;
+    }
+    
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setDetails({ 
+          ...DEFAULT_DETAILS, 
+          ...parsed, 
+          name: projectName || parsed.name || '' 
+        });
+      } catch {
         setDetails({ 
           ...DEFAULT_DETAILS, 
           name: projectName || '', 
           createdAt: Date.now() 
         });
       }
+    } else {
+      setDetails({ 
+        ...DEFAULT_DETAILS, 
+        name: projectName || '', 
+        createdAt: Date.now() 
+      });
+    }
+  }, [storageKey, projectName]);
+
+  useEffect(() => {
+    if (projectId !== prevProjectId.current) {
+      prevProjectId.current = projectId;
+      loadFromStorage();
     } else if (projectName !== details.name && projectName !== undefined) {
       setDetails(prev => ({ ...prev, name: projectName }));
     }
-  }, [projectId, projectName, storageKey]);
+  }, [projectId, projectName, loadFromStorage]);
+
+  useEffect(() => {
+    if (updateKey > 0) {
+      loadFromStorage();
+    }
+  }, [updateKey, loadFromStorage]);
 
   useEffect(() => {
     if (!storageKey) return;
@@ -240,7 +253,7 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
   const generateProjectInfo = useCallback(async () => {
     if (!nodes || nodes.length === 0 || !aiClient) return;
     
-    setIsGenerating(true);
+    setIsGeneratingLocal(true);
     try {
       const nodeTypes = nodes.map(n => n.type).join(', ');
       const nodeCount = nodes.length;
@@ -273,9 +286,11 @@ Respond in JSON format: {"name": "descriptive project name", "description": "2-3
     } catch (error) {
       console.error('Error generating project info:', error);
     } finally {
-      setIsGenerating(false);
+      setIsGeneratingLocal(false);
     }
   }, [nodes, edges, aiClient]);
+
+  const isGenerating = isGeneratingLocal || isGeneratingFromBus;
 
   if (!projectId) {
     return (
@@ -315,22 +330,37 @@ Respond in JSON format: {"name": "descriptive project name", "description": "2-3
           )}
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-4">
-          <InlineEditField
-            value={details.name}
-            placeholder="Click to add project name..."
-            onSave={updateName}
-            className="text-lg font-semibold"
-            testId="project-name"
-          />
+          {isGeneratingFromBus ? (
+            <div className="space-y-4" data-testid="overview-skeleton">
+              <Skeleton className="h-7 w-3/4" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/6" />
+              </div>
+              <div className="flex gap-2">
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </div>
+            </div>
+          ) : (
+            <>
+              <InlineEditField
+                value={details.name}
+                placeholder="Click to add project name..."
+                onSave={updateName}
+                className="text-lg font-semibold"
+                testId="project-name"
+              />
 
-          <InlineEditField
-            value={details.description}
-            placeholder="Click to add a description..."
-            onSave={updateDescription}
-            className="text-sm text-muted-foreground leading-relaxed"
-            multiline
-            testId="project-description"
-          />
+              <InlineEditField
+                value={details.description}
+                placeholder="Click to add a description..."
+                onSave={updateDescription}
+                className="text-sm text-muted-foreground leading-relaxed"
+                multiline
+                testId="project-description"
+              />
 
           <div 
             className="space-y-2"
@@ -411,16 +441,18 @@ Respond in JSON format: {"name": "descriptive project name", "description": "2-3
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-[10px] text-muted-foreground pt-2 border-t border-border/50">
-            <span className="flex items-center gap-1">
-              <Calendar size={10} />
-              Created: {formatDate(details.createdAt)}
-            </span>
-            <span className="flex items-center gap-1">
-              <Calendar size={10} />
-              Updated: {formatDate(details.updatedAt)}
-            </span>
-          </div>
+              <div className="flex items-center gap-4 text-[10px] text-muted-foreground pt-2 border-t border-border/50">
+                <span className="flex items-center gap-1">
+                  <Calendar size={10} />
+                  Created: {formatDate(details.createdAt)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Calendar size={10} />
+                  Updated: {formatDate(details.updatedAt)}
+                </span>
+              </div>
+            </>
+          )}
         </CollapsibleContent>
       </Collapsible>
     </section>

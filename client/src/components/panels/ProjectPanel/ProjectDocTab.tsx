@@ -1,9 +1,11 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { GitBranch, Circle, FileText, FolderOpen, List, Download } from 'lucide-react';
+import { GitBranch, Circle, FileText, FolderOpen, List, Download, Loader2 } from 'lucide-react';
 import { focusBus } from '@/stores/focusBus';
+import { usePRDGenerationState } from '@/stores/prdGenerationBus';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import { FlowDetection } from '@/lib/kiteframe/utils/FlowDetection';
 import { 
@@ -110,6 +112,8 @@ export function ProjectDocTab({
   const [prdUpdateKey, setPrdUpdateKey] = useState(0);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  
+  const { isGenerating, updateKey: generationUpdateKey } = usePRDGenerationState(projectId);
 
   const { workflowSummaries, standaloneNodes } = useMemo(() => {
     if (nodes.length === 0) {
@@ -160,11 +164,17 @@ export function ProjectDocTab({
     if (!projectId || docMode !== 'project-prd') return [];
     const prd = loadProjectPRD(projectId);
     return prd?.sections || [];
-  }, [projectId, docMode, prdUpdateKey]);
+  }, [projectId, docMode, prdUpdateKey, generationUpdateKey]);
 
   const handlePRDGenerated = useCallback(() => {
     setPrdUpdateKey(prev => prev + 1);
   }, []);
+
+  useEffect(() => {
+    if (generationUpdateKey > 0) {
+      setPrdUpdateKey(prev => prev + 1);
+    }
+  }, [generationUpdateKey]);
 
   const handleSectionClick = useCallback((sectionId: string) => {
     const element = document.getElementById(`prd-section-${sectionId}`);
@@ -257,6 +267,12 @@ export function ProjectDocTab({
         <div className="px-4 py-4 space-y-6">
           {docMode === 'overview' && (
             <>
+              {isGenerating && (
+                <div className="mb-4 p-3 rounded-lg bg-accent/30 border border-accent flex items-center gap-2" data-testid="overview-generating-indicator">
+                  <Loader2 size={14} className="animate-spin text-primary" />
+                  <span className="text-xs text-muted-foreground">Generating project documentation...</span>
+                </div>
+              )}
               <ProjectOverviewSection
                 projectId={projectId}
                 projectName={projectName}
@@ -395,6 +411,12 @@ export function ProjectDocTab({
 
           {docMode === 'project-prd' && projectId && (
             <>
+              {isGenerating && (
+                <div className="mb-4 p-3 rounded-lg bg-accent/30 border border-accent flex items-center gap-2" data-testid="project-prd-generating-indicator">
+                  <Loader2 size={14} className="animate-spin text-primary" />
+                  <span className="text-xs text-muted-foreground">Generating project documentation...</span>
+                </div>
+              )}
               <DocumentOutline
                 sections={projectPRDSections}
                 activeSection={activeSection}
@@ -412,6 +434,12 @@ export function ProjectDocTab({
 
           {docMode === 'workflow-prd' && (
             <>
+              {isGenerating && (
+                <div className="mb-4 p-3 rounded-lg bg-accent/30 border border-accent flex items-center gap-2" data-testid="prd-generating-indicator">
+                  <Loader2 size={14} className="animate-spin text-primary" />
+                  <span className="text-xs text-muted-foreground">Generating project documentation...</span>
+                </div>
+              )}
               {workflowSummaries.length > 0 && (
                 <section className="mb-4">
                   <header className="flex items-center justify-between mb-3">
