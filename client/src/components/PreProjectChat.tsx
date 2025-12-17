@@ -319,12 +319,15 @@ export function PreProjectChat({
 
       let userContent: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = content.trim();
       
-      const filesFromStore = promptContext.attachments.filter(a => a.file).map(a => a.file!);
-      const allFiles = [...filesFromStore, ...(context?.uploadedFiles ?? [])];
+      // Only include image attachments (not Figma) when sending to AI
+      const imageFilesFromStore = promptContext.attachments
+        .filter(a => a.type === 'image' && a.file)
+        .map(a => a.file!);
+      const allImageFiles = [...imageFilesFromStore, ...(context?.uploadedFiles ?? [])];
       
-      if (allFiles.length > 0 && messages.length === 0) {
+      if (allImageFiles.length > 0 && messages.length === 0) {
         try {
-          const imageDataUrls = await convertFilesToBase64(allFiles);
+          const imageDataUrls = await convertFilesToBase64(allImageFiles);
           userContent = [
             { type: 'text', text: content.trim() },
             ...imageDataUrls.map(url => ({ type: 'image_url' as const, image_url: { url } }))
