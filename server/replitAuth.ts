@@ -31,6 +31,8 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const isProd = process.env.NODE_ENV === 'production';
+  
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
@@ -38,6 +40,13 @@ export function getSession() {
     ttl: sessionTtl,
     tableName: "sessions",
   });
+  
+  console.log('[SESSION] Cookie config:', { 
+    secure: isProd, 
+    sameSite: 'lax', 
+    NODE_ENV: process.env.NODE_ENV 
+  });
+  
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
@@ -45,7 +54,7 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: isProd,
       sameSite: 'lax',
       maxAge: sessionTtl,
     },
@@ -329,6 +338,9 @@ export async function setupAuth(app: Express) {
           if (err) {
             console.error('[AUTH] Session save error:', err);
           }
+          res.on('finish', () => {
+            console.log('[AUTH] Google Set-Cookie:', res.getHeader('Set-Cookie'));
+          });
           res.redirect(redirectTarget);
         });
       }
@@ -384,6 +396,9 @@ export async function setupAuth(app: Express) {
           if (err) {
             console.error('[AUTH] Session save error:', err);
           }
+          res.on('finish', () => {
+            console.log('[AUTH] GitHub Set-Cookie:', res.getHeader('Set-Cookie'));
+          });
           res.redirect(redirectTarget);
         });
       }
