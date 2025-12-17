@@ -413,6 +413,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // General logout - clear backend session (used by AuthButton)
+  app.post('/api/logout', async (req: any, res) => {
+    try {
+      req.logout((err: any) => {
+        if (err) {
+          console.error('Logout error:', err);
+          return res.status(500).json({ error: 'Failed to logout' });
+        }
+        req.session?.destroy((err: any) => {
+          if (err) {
+            console.error('Session destroy error:', err);
+          }
+          res.clearCookie('connect.sid');
+          res.json({ success: true });
+        });
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      res.status(500).json({ error: 'Failed to logout' });
+    }
+  });
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
