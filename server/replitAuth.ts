@@ -325,7 +325,12 @@ export async function setupAuth(app: Express) {
           redirectTarget,
         });
 
-        res.redirect(redirectTarget);
+        req.session.save((err) => {
+          if (err) {
+            console.error('[AUTH] Session save error:', err);
+          }
+          res.redirect(redirectTarget);
+        });
       }
     );
   }
@@ -375,7 +380,12 @@ export async function setupAuth(app: Express) {
           redirectTarget,
         });
 
-        res.redirect(redirectTarget);
+        req.session.save((err) => {
+          if (err) {
+            console.error('[AUTH] Session save error:', err);
+          }
+          res.redirect(redirectTarget);
+        });
       }
     );
   }
