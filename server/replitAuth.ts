@@ -46,7 +46,7 @@ export function getSession() {
     cookie: {
       httpOnly: true,
       secure: true,
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: sessionTtl,
     },
   });
@@ -312,11 +312,20 @@ export async function setupAuth(app: Express) {
       async (req, res) => {
         const user = req.user as any;
         const isAdmin = isAdminEmail(user?.email);
-        if (user?.isBeta || isAdmin) {
-          res.redirect('/app');
-        } else {
-          res.redirect('/waitlist-dashboard');
-        }
+        const redirectTarget = (user?.isBeta || isAdmin) ? '/app' : '/waitlist-dashboard';
+        
+        console.log('[AUTH] Google callback:', {
+          userExists: !!user,
+          userId: user?.id,
+          email: user?.email,
+          isBeta: user?.isBeta,
+          isAdmin,
+          sessionId: req.sessionID,
+          isAuthenticated: req.isAuthenticated?.(),
+          redirectTarget,
+        });
+
+        res.redirect(redirectTarget);
       }
     );
   }
@@ -353,11 +362,20 @@ export async function setupAuth(app: Express) {
       async (req, res) => {
         const user = req.user as any;
         const isAdmin = isAdminEmail(user?.email);
-        if (user?.isBeta || isAdmin) {
-          res.redirect('/app');
-        } else {
-          res.redirect('/waitlist-dashboard');
-        }
+        const redirectTarget = (user?.isBeta || isAdmin) ? '/app' : '/waitlist-dashboard';
+        
+        console.log('[AUTH] GitHub callback:', {
+          userExists: !!user,
+          userId: user?.id,
+          email: user?.email,
+          isBeta: user?.isBeta,
+          isAdmin,
+          sessionId: req.sessionID,
+          isAuthenticated: req.isAuthenticated?.(),
+          redirectTarget,
+        });
+
+        res.redirect(redirectTarget);
       }
     );
   }
