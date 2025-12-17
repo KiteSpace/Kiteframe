@@ -113,7 +113,7 @@ export function HomeHero({
       const imageCount = context.attachments.filter(
         (a) => a.type === "image",
       ).length;
-      const remainingSlots = 3 - imageCount;
+      const remainingSlots = 1 - imageCount;
       const filesToAdd = Array.from(files).slice(0, remainingSlots);
 
       filesToAdd.forEach((file) => {
@@ -214,7 +214,10 @@ export function HomeHero({
                 >
                   <SiFigma className="w-4 h-4" />
                   <div className="text-left">
-                    <div className="font-medium text-xs">Figma</div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium text-xs">Figma</span>
+                      <span className="text-[9px] px-1 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded font-medium">Beta</span>
+                    </div>
                     <div className="text-[10px] opacity-70">
                       {hasFigmaAttachment ? "1/1 added" : "Import design"}
                     </div>
@@ -236,8 +239,8 @@ export function HomeHero({
                   <div className="font-medium text-xs">Image</div>
                   <div className="text-[10px] opacity-70">
                     {!canAddMoreImages
-                      ? "3/3 added"
-                      : `${context.attachments.filter((a) => a.type === "image").length}/3 added`}
+                      ? "1/1 added"
+                      : `${context.attachments.filter((a) => a.type === "image").length}/1 added`}
                   </div>
                 </div>
               </button>
@@ -245,7 +248,6 @@ export function HomeHero({
                 ref={fileInputRef}
                 type="file"
                 accept="image/png,image/jpeg,image/gif,image/webp"
-                multiple
                 onChange={handleFileChange}
                 className="hidden"
                 data-testid="input-file-upload"

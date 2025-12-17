@@ -23,7 +23,7 @@ export interface PromptContext {
 }
 
 export const MAX_FIGMA_ATTACHMENTS = 1;
-export const MAX_IMAGE_ATTACHMENTS = 3;
+export const MAX_IMAGE_ATTACHMENTS = 1;
 
 export function canAddFigma(attachments: PromptAttachment[]): boolean {
   const figmaCount = attachments.filter(a => a.type === 'figma').length;

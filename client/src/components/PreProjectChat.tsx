@@ -17,6 +17,7 @@ import { usePromptContextStore } from '@/contexts/PromptContextStore';
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  imagePreview?: string;
 }
 
 interface PreProjectContext {
@@ -276,7 +277,15 @@ export function PreProjectChat({
   const handleSendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isLoading) return;
 
-    const userMessage: Message = { role: 'user', content: content.trim() };
+    // Get image preview for display in first message
+    const imageAttachment = promptContext.attachments.find(a => a.type === 'image' && a.thumbnailUrl);
+    const imagePreviewForMessage = messages.length === 0 && imageAttachment ? imageAttachment.thumbnailUrl : undefined;
+
+    const userMessage: Message = { 
+      role: 'user', 
+      content: content.trim(),
+      imagePreview: imagePreviewForMessage
+    };
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
@@ -476,6 +485,15 @@ export function PreProjectChat({
                     }`}
                     data-testid={`message-${message.role}-${index}`}
                   >
+                    {message.imagePreview && (
+                      <div className="mb-2">
+                        <img 
+                          src={message.imagePreview} 
+                          alt="Uploaded context" 
+                          className="max-w-full max-h-48 rounded-lg object-contain"
+                        />
+                      </div>
+                    )}
                     <div className={`text-sm whitespace-pre-wrap prose prose-sm max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1 ${
                       message.role === 'user' ? 'prose-invert' : 'dark:prose-invert'
                     }`}>
