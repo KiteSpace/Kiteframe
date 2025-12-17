@@ -387,6 +387,12 @@ export async function setupAuth(app: Express) {
   });
 
   app.get('/api/auth/available-providers', (req, res) => {
+    console.log('[AUTH DEBUG] Checking available providers:', {
+      googleClientIdExists: !!process.env.GOOGLE_CLIENT_ID,
+      googleClientSecretExists: !!process.env.GOOGLE_CLIENT_SECRET,
+      githubClientIdExists: !!process.env.GITHUB_CLIENT_ID,
+      githubClientSecretExists: !!process.env.GITHUB_CLIENT_SECRET,
+    });
     const providers = ['replit'];
     if (process.env.GOOGLE_CLIENT_ID) {
       providers.push('google');
