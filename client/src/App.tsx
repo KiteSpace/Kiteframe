@@ -14,6 +14,7 @@ import Pricing from "@/pages/Pricing";
 import Account from "@/pages/Account";
 import SignIn from "@/pages/SignIn";
 import WaitlistDashboard from "@/pages/WaitlistDashboard";
+import AuthComplete from "@/pages/AuthComplete";
 import MockupCodeDataReference from "@/pages/mockup-code-data-reference";
 import ViewOnlyViewer from "@/pages/ViewOnlyViewer";
 import Benchmark from "@/pages/Benchmark";
@@ -125,6 +126,7 @@ function Router() {
           )}
         </Route>
         <Route path="/signin" component={SignIn} />
+        <Route path="/auth-complete" component={AuthComplete} />
         <Route path="/waitlist-dashboard" component={WaitlistDashboard} />
         <Route path="/demo" component={KitelineDemo} />
         <Route path="/docs" component={KitelineDocs} />

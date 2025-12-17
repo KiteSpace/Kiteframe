@@ -321,7 +321,8 @@ export async function setupAuth(app: Express) {
       async (req, res) => {
         const user = req.user as any;
         const isAdmin = isAdminEmail(user?.email);
-        const redirectTarget = (user?.isBeta || isAdmin) ? '/app' : '/waitlist-dashboard';
+        const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist-dashboard';
+        const redirectTarget = `/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
         
         console.log('[AUTH] Google callback:', {
           userExists: !!user,
@@ -331,6 +332,7 @@ export async function setupAuth(app: Express) {
           isAdmin,
           sessionId: req.sessionID,
           isAuthenticated: req.isAuthenticated?.(),
+          finalDestination,
           redirectTarget,
         });
 
@@ -379,7 +381,8 @@ export async function setupAuth(app: Express) {
       async (req, res) => {
         const user = req.user as any;
         const isAdmin = isAdminEmail(user?.email);
-        const redirectTarget = (user?.isBeta || isAdmin) ? '/app' : '/waitlist-dashboard';
+        const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist-dashboard';
+        const redirectTarget = `/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
         
         console.log('[AUTH] GitHub callback:', {
           userExists: !!user,
@@ -389,6 +392,7 @@ export async function setupAuth(app: Express) {
           isAdmin,
           sessionId: req.sessionID,
           isAuthenticated: req.isAuthenticated?.(),
+          finalDestination,
           redirectTarget,
         });
 
