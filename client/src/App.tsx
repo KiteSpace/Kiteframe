@@ -10,6 +10,8 @@ import WorkflowEditor from "@/pages/workflow-editor";
 import KitelineDemo from "@/pages/kiteline-demo";
 import KitelineDocs from "@/pages/kiteline-docs";
 import AdminCodes from "@/pages/AdminCodes";
+import AdminUserDetails from "@/pages/AdminUserDetails";
+import AdminGroupDetails from "@/pages/AdminGroupDetails";
 import Pricing from "@/pages/Pricing";
 import Account from "@/pages/Account";
 import SignIn from "@/pages/SignIn";
@@ -138,6 +140,8 @@ function Router() {
           <BetaProtectedRoute component={Account} />
         </Route>
         <Route path="/internal/x9k7m2p4" component={AdminCodes} />
+        <Route path="/internal/x9k7m2p4/users/:userId" component={AdminUserDetails} />
+        <Route path="/internal/x9k7m2p4/groups/:groupId" component={AdminGroupDetails} />
         <Route path="/mockup/code-data" component={MockupCodeDataReference} />
         <Route path="/view/:shareId" component={ViewOnlyViewer} />
         <Route path="/benchmark" component={Benchmark} />

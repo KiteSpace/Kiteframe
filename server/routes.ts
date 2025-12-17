@@ -20,7 +20,7 @@ import {
   groupAccessControlsSchema,
   userCredits,
 } from "@shared/schema";
-import { eq, desc, and, or, isNotNull, isNull, sql, ilike } from "drizzle-orm";
+import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, getUserGroupAccessControls } from "./middleware/creditCheck";
@@ -38,6 +38,7 @@ import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter, waitlistRateLimiter, creditUnlockRateLimiter, chatRateLimiter } from "./middleware/rateLimiter";
 import { csrfProtection } from "./middleware/csrf";
 import { logAiUsage, getUserUsageSummary, getUserUsageTimeSeries, getUserUsageEvents, type UsageLogParams } from "./aiUsageService";
+import { sendBetaApprovalEmail } from "./emailService";
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
 import { z } from "zod";
 import { registerFigmaRoutes } from "./figmaRoutes";
@@ -3096,6 +3097,85 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
     }
   });
 
+  // Admin Analytics: Activity Log (all AI usage events with search and pagination)
+  app.get('/internal/x9k7m2p4/analytics/activity-log', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { aiUsageEvents, users } = await import('@shared/schema');
+      const { count } = await import('drizzle-orm');
+      
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+      const offset = (page - 1) * limit;
+      const search = (req.query.search as string)?.trim().toLowerCase();
+      
+      // Build search condition if provided (using ilike for case-insensitive search, coalesce for nulls)
+      let whereCondition;
+      if (search) {
+        const searchTerm = `%${search}%`;
+        whereCondition = or(
+          ilike(sql`COALESCE(${aiUsageEvents.userId}, '')`, searchTerm),
+          ilike(sql`COALESCE(${aiUsageEvents.userIdentifier}, '')`, searchTerm),
+          ilike(sql`COALESCE(${aiUsageEvents.feature}, '')`, searchTerm),
+          ilike(sql`COALESCE(${aiUsageEvents.model}, '')`, searchTerm),
+          ilike(sql`COALESCE(${users.email}, '')`, searchTerm)
+        );
+      }
+      
+      // Base query with left join
+      const baseQuery = db.select({
+        id: aiUsageEvents.id,
+        userId: aiUsageEvents.userId,
+        userIdentifier: aiUsageEvents.userIdentifier,
+        feature: aiUsageEvents.feature,
+        model: aiUsageEvents.model,
+        units: aiUsageEvents.units,
+        createdAt: aiUsageEvents.createdAt,
+        userEmail: users.email,
+      })
+        .from(aiUsageEvents)
+        .leftJoin(users, eq(aiUsageEvents.userId, users.id));
+      
+      // Get total count with same join and filter
+      const countQuery = db.select({ count: count() })
+        .from(aiUsageEvents)
+        .leftJoin(users, eq(aiUsageEvents.userId, users.id));
+      
+      let totalResult;
+      let events;
+      
+      if (whereCondition) {
+        totalResult = await countQuery.where(whereCondition);
+        events = await baseQuery
+          .where(whereCondition)
+          .orderBy(desc(aiUsageEvents.createdAt))
+          .limit(limit)
+          .offset(offset);
+      } else {
+        totalResult = await countQuery;
+        events = await baseQuery
+          .orderBy(desc(aiUsageEvents.createdAt))
+          .limit(limit)
+          .offset(offset);
+      }
+      
+      const total = totalResult[0]?.count || 0;
+      
+      res.json({
+        success: true,
+        events,
+        total,
+        page,
+        limit,
+      });
+    } catch (error: any) {
+      console.error('Activity log error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch activity log',
+        details: error.message 
+      });
+    }
+  });
+
   // Admin Analytics: AI Usage Summary (all users)
   app.get('/internal/x9k7m2p4/analytics/ai-usage/summary', requireHttps, requireAdminAuth, async (req, res) => {
     try {
@@ -3323,7 +3403,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   // Admin: Grant beta access to a user
   app.post('/internal/x9k7m2p4/beta/grant', requireHttps, requireAdminAuth, async (req, res) => {
     try {
-      const { userId, email } = req.body;
+      const { userId, email, sendEmail: shouldSendEmail = true } = req.body;
 
       if (!userId && !email) {
         return res.status(400).json({ error: 'userId or email is required' });
@@ -3349,6 +3429,16 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
 
       await logBetaAction(req, 'beta_grant', user.id, user.email || undefined);
       console.log(`Beta access granted to user ${user.id} (${user.email})`);
+      
+      // Send approval email if requested and user has email
+      let emailSent = false;
+      if (shouldSendEmail && user.email) {
+        emailSent = await sendBetaApprovalEmail(user.email, user.firstName);
+        if (emailSent) {
+          console.log(`Beta approval email sent to ${user.email}`);
+        }
+      }
+      
       res.json({ 
         success: true, 
         user: {
@@ -3356,7 +3446,8 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
           email: user.email,
           isBeta: true,
           betaGrantedAt: new Date()
-        }
+        },
+        emailSent,
       });
     } catch (error: any) {
       console.error('Beta grant error:', error);
@@ -4119,6 +4210,268 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       console.error('Get user error:', error);
       res.status(500).json({ 
         error: 'Failed to get user',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Get user activity (sessions, AI usage) for user details page
+  app.get('/internal/users/:userId/activity', requireAdminAuth, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { periodStart, periodEnd } = req.query;
+      
+      const start = periodStart ? new Date(periodStart as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const end = periodEnd ? new Date(periodEnd as string) : new Date();
+      
+      // Get AI usage summary for this user
+      const { aiUsageEvents } = await import('@shared/schema');
+      
+      const usageEvents = await db.select()
+        .from(aiUsageEvents)
+        .where(
+          and(
+            eq(aiUsageEvents.userId, userId),
+            gte(aiUsageEvents.createdAt, start),
+            lte(aiUsageEvents.createdAt, end)
+          )
+        )
+        .orderBy(desc(aiUsageEvents.createdAt))
+        .limit(100);
+      
+      // Calculate totals
+      const totalTokens = usageEvents.reduce((sum, e) => sum + (e.totalTokens || 0), 0);
+      const totalUnits = usageEvents.reduce((sum, e) => sum + (e.finalUnits || 0), 0);
+      
+      // Feature breakdown
+      const featureBreakdown: Record<string, number> = {};
+      for (const event of usageEvents) {
+        featureBreakdown[event.feature] = (featureBreakdown[event.feature] || 0) + (event.finalUnits || 0);
+      }
+      
+      // Model breakdown
+      const modelBreakdown: Record<string, number> = {};
+      for (const event of usageEvents) {
+        modelBreakdown[event.model] = (modelBreakdown[event.model] || 0) + (event.finalUnits || 0);
+      }
+      
+      // Daily usage for chart
+      const dailyUsage: Record<string, number> = {};
+      for (const event of usageEvents) {
+        const day = new Date(event.createdAt!).toISOString().split('T')[0];
+        dailyUsage[day] = (dailyUsage[day] || 0) + (event.finalUnits || 0);
+      }
+      
+      // Session activity (login count from oauthProviders)
+      const { oauthProviders } = await import('@shared/schema');
+      const oauthLogins = await db.select()
+        .from(oauthProviders)
+        .where(eq(oauthProviders.userId, userId));
+      
+      const lastLogin = oauthLogins.reduce((latest, p) => {
+        if (!p.lastUsedAt) return latest;
+        return !latest || new Date(p.lastUsedAt) > new Date(latest) ? p.lastUsedAt : latest;
+      }, null as Date | null);
+      
+      res.json({
+        success: true,
+        activity: {
+          totalTokens,
+          totalUnits,
+          eventCount: usageEvents.length,
+          featureBreakdown,
+          modelBreakdown,
+          dailyUsage: Object.entries(dailyUsage).map(([date, units]) => ({ date, units })).sort((a, b) => a.date.localeCompare(b.date)),
+          recentEvents: usageEvents.slice(0, 20).map(e => ({
+            id: e.id,
+            feature: e.feature,
+            model: e.model,
+            tokens: e.totalTokens,
+            units: e.finalUnits,
+            createdAt: e.createdAt,
+          })),
+          providers: oauthLogins.map(p => ({ provider: p.provider, lastUsedAt: p.lastUsedAt })),
+          lastLogin,
+        },
+      });
+    } catch (error: any) {
+      console.error('Get user activity error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get user activity',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Delete user
+  app.delete('/internal/users/:userId', requireAdminAuth, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Check if user exists
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+      });
+      
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Delete related data in order
+      const { userCredits, oauthProviders, aiUsageEvents } = await import('@shared/schema');
+      
+      // Delete group memberships
+      await db.delete(userGroupMemberships).where(eq(userGroupMemberships.userId, userId));
+      
+      // Delete credits
+      await db.delete(userCredits).where(eq(userCredits.userIdentifier, userId));
+      
+      // Delete oauth providers
+      await db.delete(oauthProviders).where(eq(oauthProviders.userId, userId));
+      
+      // Delete AI usage events (optional - could keep for analytics)
+      await db.delete(aiUsageEvents).where(eq(aiUsageEvents.userId, userId));
+      
+      // Delete the user
+      await db.delete(users).where(eq(users.id, userId));
+      
+      res.json({
+        success: true,
+        message: 'User deleted successfully',
+      });
+    } catch (error: any) {
+      console.error('Delete user error:', error);
+      res.status(500).json({ 
+        error: 'Failed to delete user',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Get activity log (searchable, for analytics tab)
+  app.get('/internal/activity-log', requireAdminAuth, async (req, res) => {
+    try {
+      const { search, feature, model, page = '1', limit = '50', periodStart, periodEnd } = req.query;
+      const pageNum = parseInt(page as string) || 1;
+      const limitNum = Math.min(parseInt(limit as string) || 50, 100);
+      const offset = (pageNum - 1) * limitNum;
+      
+      const start = periodStart ? new Date(periodStart as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const end = periodEnd ? new Date(periodEnd as string) : new Date();
+      
+      const { aiUsageEvents } = await import('@shared/schema');
+      
+      // Build conditions
+      const conditions = [
+        gte(aiUsageEvents.createdAt, start),
+        lte(aiUsageEvents.createdAt, end),
+      ];
+      
+      if (feature && typeof feature === 'string' && feature !== 'all') {
+        conditions.push(eq(aiUsageEvents.feature, feature));
+      }
+      
+      if (model && typeof model === 'string' && model !== 'all') {
+        conditions.push(eq(aiUsageEvents.model, model));
+      }
+      
+      // Get events with user info
+      const events = await db.select({
+        id: aiUsageEvents.id,
+        userId: aiUsageEvents.userId,
+        feature: aiUsageEvents.feature,
+        model: aiUsageEvents.model,
+        totalTokens: aiUsageEvents.totalTokens,
+        finalUnits: aiUsageEvents.finalUnits,
+        isVision: aiUsageEvents.isVision,
+        createdAt: aiUsageEvents.createdAt,
+        userEmail: users.email,
+        userFirstName: users.firstName,
+        userLastName: users.lastName,
+      })
+        .from(aiUsageEvents)
+        .leftJoin(users, eq(aiUsageEvents.userId, users.id))
+        .where(and(...conditions))
+        .orderBy(desc(aiUsageEvents.createdAt))
+        .limit(limitNum)
+        .offset(offset);
+      
+      // Filter by search (email) if provided
+      let filteredEvents = events;
+      if (search && typeof search === 'string' && search.trim()) {
+        const searchLower = search.trim().toLowerCase();
+        filteredEvents = events.filter(e => 
+          e.userEmail?.toLowerCase().includes(searchLower) ||
+          e.userFirstName?.toLowerCase().includes(searchLower) ||
+          e.userLastName?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Get total count
+      const { sql: sqlFn } = await import('drizzle-orm');
+      const [{ count }] = await db.select({ count: sqlFn<number>`COUNT(*)::int` })
+        .from(aiUsageEvents)
+        .where(and(...conditions));
+      
+      res.json({
+        success: true,
+        events: filteredEvents,
+        total: count,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: count,
+          totalPages: Math.ceil(count / limitNum),
+        },
+      });
+    } catch (error: any) {
+      console.error('Get activity log error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get activity log',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Get group details with members
+  app.get('/internal/groups/:groupId/details', requireAdminAuth, async (req, res) => {
+    try {
+      const { groupId } = req.params;
+      
+      const group = await db.query.userGroups.findFirst({
+        where: eq(userGroups.id, groupId),
+      });
+      
+      if (!group) {
+        return res.status(404).json({ error: 'Group not found' });
+      }
+      
+      // Get members with their details
+      const members = await db.select({
+        userId: userGroupMemberships.userId,
+        addedAt: userGroupMemberships.addedAt,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        subscriptionTier: users.subscriptionTier,
+        profileImageUrl: users.profileImageUrl,
+      })
+        .from(userGroupMemberships)
+        .leftJoin(users, eq(userGroupMemberships.userId, users.id))
+        .where(eq(userGroupMemberships.groupId, groupId));
+      
+      res.json({
+        success: true,
+        group: {
+          ...group,
+          members,
+          memberCount: members.length,
+        },
+      });
+    } catch (error: any) {
+      console.error('Get group details error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get group details',
         details: error.message 
       });
     }

@@ -15,7 +15,8 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Key, Shield, Ban, RotateCcw, BarChart3, Users, FolderTree, Upload, Search, Plus, Trash2, Edit, UserPlus, Download, ChevronLeft, ChevronRight, Star, UserMinus, ClipboardList, Check, X } from 'lucide-react';
+import { Copy, Key, Shield, Ban, RotateCcw, BarChart3, Users, FolderTree, Upload, Search, Plus, Trash2, Edit, UserPlus, Download, ChevronLeft, ChevronRight, Star, UserMinus, ClipboardList, Check, X, ExternalLink } from 'lucide-react';
+import { Link } from 'wouter';
 import AdminAnalytics from './AdminAnalytics';
 
 interface UnlockCode {
@@ -595,15 +596,16 @@ function UsersTab({ authHeader }: { authHeader: string }) {
                         </div>
                       )}
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openEditDialog(user)}
-                      data-testid={`button-edit-user-${user.id}`}
-                    >
-                      <Edit className="w-4 h-4 mr-1" />
-                      Edit
-                    </Button>
+                    <Link href={`/internal/x9k7m2p4/users/${user.id}`}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        data-testid={`button-view-user-${user.id}`}
+                      >
+                        <ExternalLink className="w-4 h-4 mr-1" />
+                        View
+                      </Button>
+                    </Link>
                   </div>
                 ))}
               </div>
@@ -996,14 +998,15 @@ function GroupsTab({ authHeader }: { authHeader: string }) {
                     )}
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openEditDialog(group)}
-                      data-testid={`button-edit-group-${group.id}`}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
+                    <Link href={`/internal/x9k7m2p4/groups/${group.id}`}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        data-testid={`button-view-group-${group.id}`}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    </Link>
                     <Button
                       size="sm"
                       variant="destructive"

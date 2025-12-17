@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AlertCircle, Activity, Globe, Key, TrendingUp, Zap, Bot, BarChart3, Info, Sparkles } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { AlertCircle, Activity, Globe, Key, TrendingUp, Zap, Bot, BarChart3, Info, Sparkles, Search, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 
@@ -242,6 +245,11 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
   const [usageTimeRange, setUsageTimeRange] = useState<TimeRange>("30d");
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [visionOnly, setVisionOnly] = useState(false);
+  
+  // Activity log state
+  const [activitySearch, setActivitySearch] = useState('');
+  const [activityPage, setActivityPage] = useState(1);
+  const activityLimit = 50;
 
   const { start: usageStart, end: usageEnd } = getDateRange(usageTimeRange);
 
@@ -353,6 +361,28 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
   const usageBucket = usageTimeSeriesData?.bucket || "day";
   const usageEvents = usageEventsData?.events || [];
 
+  // Activity log query (all AI usage events with pagination and search)
+  const { data: activityLogData, isLoading: activityLogLoading } = useQuery({
+    queryKey: ['/internal/x9k7m2p4/analytics/activity-log', activityPage, activitySearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: activityPage.toString(),
+        limit: activityLimit.toString(),
+      });
+      if (activitySearch) params.set("search", activitySearch);
+      const response = await fetch(`/internal/x9k7m2p4/analytics/activity-log?${params}`, {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch activity log');
+      return response.json();
+    },
+    refetchInterval: 30000,
+  });
+
+  const activityEvents = activityLogData?.events || [];
+  const activityTotal = activityLogData?.total || 0;
+  const activityTotalPages = Math.ceil(activityTotal / activityLimit);
+
   const getCountryColor = (countryCode: string) => {
     const activity = geoData?.find(d => d.country === countryCode);
     if (!activity) return '#E5E7EB';
@@ -385,7 +415,7 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview" data-testid="tab-overview">
               <TrendingUp className="w-4 h-4 mr-2" />
               Overview
@@ -393,6 +423,10 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
             <TabsTrigger value="ai-usage" data-testid="tab-ai-usage">
               <Zap className="w-4 h-4 mr-2" />
               AI Usage
+            </TabsTrigger>
+            <TabsTrigger value="activity" data-testid="tab-activity">
+              <ClipboardList className="w-4 h-4 mr-2" />
+              Activity Log
             </TabsTrigger>
             <TabsTrigger value="map" data-testid="tab-map">
               <Globe className="w-4 h-4 mr-2" />
@@ -581,6 +615,136 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
               </CardHeader>
               <CardContent>
                 <UsageEventsTable events={usageEvents} isLoading={usageEventsLoading} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="activity" className="space-y-4">
+            <Card data-testid="card-activity-log">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5" />
+                  Activity Log
+                </CardTitle>
+                <CardDescription>
+                  All AI usage events with searchable user profiles
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by user ID, email, feature, or model..."
+                      value={activitySearch}
+                      onChange={(e) => {
+                        setActivitySearch(e.target.value);
+                        setActivityPage(1);
+                      }}
+                      className="pl-10"
+                      data-testid="input-activity-search"
+                    />
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {activityTotal} total events
+                  </div>
+                </div>
+
+                {activityLogLoading ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <Skeleton key={i} className="h-16 w-full" />
+                    ))}
+                  </div>
+                ) : activityEvents.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-12">
+                    {activitySearch ? 'No events match your search.' : 'No activity events recorded yet.'}
+                  </div>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm" data-testid="activity-log-table">
+                      <thead className="bg-muted/50">
+                        <tr className="border-b">
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground">User</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground">Feature</th>
+                          <th className="text-left py-3 px-4 font-medium text-muted-foreground">Model</th>
+                          <th className="text-right py-3 px-4 font-medium text-muted-foreground">Units</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activityEvents.map((event: any) => (
+                          <tr key={event.id} className="border-b last:border-0 hover:bg-muted/50" data-testid={`activity-row-${event.id}`}>
+                            <td className="py-3 px-4 text-muted-foreground">
+                              {new Date(event.createdAt).toLocaleDateString("en-US", { 
+                                month: "short", 
+                                day: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit"
+                              })}
+                            </td>
+                            <td className="py-3 px-4">
+                              {event.userId ? (
+                                <Link href={`/internal/x9k7m2p4/users/${event.userId}`}>
+                                  <span className="text-primary hover:underline cursor-pointer font-medium">
+                                    {event.userEmail || event.userId.slice(0, 8) + '...'}
+                                  </span>
+                                </Link>
+                              ) : (
+                                <span className="text-muted-foreground font-mono text-xs">
+                                  {event.userIdentifier?.slice(0, 12) || 'anonymous'}...
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span 
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium"
+                                style={{ 
+                                  backgroundColor: `${FEATURE_COLORS[event.feature]}20`, 
+                                  color: FEATURE_COLORS[event.feature] 
+                                }}
+                              >
+                                {FEATURE_LABELS[event.feature] || event.feature}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 font-mono text-xs">{event.model}</td>
+                            <td className="py-3 px-4 text-right font-medium">{event.units}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {activityTotalPages > 1 && (
+                  <div className="flex items-center justify-between pt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Page {activityPage} of {activityTotalPages}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setActivityPage(p => Math.max(1, p - 1))}
+                        disabled={activityPage <= 1 || activityLogLoading}
+                        data-testid="button-activity-prev"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setActivityPage(p => Math.min(activityTotalPages, p + 1))}
+                        disabled={activityPage >= activityTotalPages || activityLogLoading}
+                        data-testid="button-activity-next"
+                      >
+                        Next
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
