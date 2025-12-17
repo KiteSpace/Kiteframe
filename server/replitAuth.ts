@@ -31,7 +31,8 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const isProd = process.env.NODE_ENV === 'production';
+  // Always use secure cookies on Replit (HTTPS) or in production
+  const isSecure = !!process.env.REPL_ID || process.env.NODE_ENV === 'production';
   
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
@@ -42,9 +43,10 @@ export function getSession() {
   });
   
   console.log('[SESSION] Cookie config:', { 
-    secure: isProd, 
+    secure: isSecure, 
     sameSite: 'lax', 
-    NODE_ENV: process.env.NODE_ENV 
+    NODE_ENV: process.env.NODE_ENV,
+    REPL_ID: !!process.env.REPL_ID
   });
   
   return session({
@@ -52,9 +54,10 @@ export function getSession() {
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
+    proxy: true,
     cookie: {
       httpOnly: true,
-      secure: isProd,
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: sessionTtl,
     },
