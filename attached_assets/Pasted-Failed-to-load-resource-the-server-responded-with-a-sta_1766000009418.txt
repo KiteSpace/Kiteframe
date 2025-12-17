@@ -1,0 +1,24 @@
+Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+AuthComplete.tsx:27 [AuthComplete] Session not ready, attempt: 1
+/api/auth/user:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+AuthComplete.tsx:27 [AuthComplete] Session not ready, attempt: 2
+/api/auth/user:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+AuthComplete.tsx:27 [AuthComplete] Session not ready, attempt: 3
+/api/auth/user:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+AuthComplete.tsx:27 [AuthComplete] Session not ready, attempt: 4
+/api/auth/user:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+AuthComplete.tsx:27 [AuthComplete] Session not ready, attempt: 5
+/api/auth/user:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+AuthComplete.tsx:27 [AuthComplete] Session not ready, attempt: 6
+/api/auth/user:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+AuthComplete.tsx:27 [AuthComplete] Session not ready, attempt: 7
+/api/auth/user:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+AuthComplete.tsx:27 [AuthComplete] Session not ready, attempt: 8
+/api/auth/user:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+AuthComplete.tsx:27 [AuthComplete] Session not ready, attempt: 9
+/api/auth/user:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+AuthComplete.tsx:27 [AuthComplete] Session not ready, attempt: 10
+/api/auth/user:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+AuthComplete.tsx:30 [AuthComplete] Max attempts reached, redirecting to signin
+checkAuth @ AuthComplete.tsx:30
+/api/auth/user:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)

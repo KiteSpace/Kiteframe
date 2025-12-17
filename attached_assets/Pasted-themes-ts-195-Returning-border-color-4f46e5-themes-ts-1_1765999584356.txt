@@ -1,0 +1,69 @@
+themes.ts:195 🎨 Returning border color: #4f46e5
+themes.ts:192 🎨 getBorderColorFromHeader called with: #6366f1
+themes.ts:195 🎨 Returning border color: #6366f1
+themes.ts:192 🎨 getBorderColorFromHeader called with: #1e1e1e
+themes.ts:195 🎨 Returning border color: #1e1e1e
+themes.ts:192 🎨 getBorderColorFromHeader called with: #06b6d4
+themes.ts:195 🎨 Returning border color: #06b6d4
+queryClient.ts:32 
+ GET https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/auth/user 500 (Internal Server Error)
+themes.ts:192 🎨 getBorderColorFromHeader called with: #4f46e5
+themes.ts:195 🎨 Returning border color: #4f46e5
+themes.ts:192 🎨 getBorderColorFromHeader called with: #6366f1
+themes.ts:195 🎨 Returning border color: #6366f1
+themes.ts:192 🎨 getBorderColorFromHeader called with: #1e1e1e
+themes.ts:195 🎨 Returning border color: #1e1e1e
+themes.ts:192 🎨 getBorderColorFromHeader called with: #06b6d4
+themes.ts:195 🎨 Returning border color: #06b6d4
+queryClient.ts:32 
+ GET https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/auth/user 500 (Internal Server Error)
+themes.ts:192 🎨 getBorderColorFromHeader called with: #4f46e5
+themes.ts:195 🎨 Returning border color: #4f46e5
+themes.ts:192 🎨 getBorderColorFromHeader called with: #6366f1
+themes.ts:195 🎨 Returning border color: #6366f1
+themes.ts:192 🎨 getBorderColorFromHeader called with: #1e1e1e
+themes.ts:195 🎨 Returning border color: #1e1e1e
+themes.ts:192 🎨 getBorderColorFromHeader called with: #06b6d4
+themes.ts:195 🎨 Returning border color: #06b6d4
+queryClient.ts:32 
+ GET https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/auth/user 500 (Internal Server Error)
+themes.ts:192 🎨 getBorderColorFromHeader called with: #4f46e5
+themes.ts:195 🎨 Returning border color: #4f46e5
+themes.ts:192 🎨 getBorderColorFromHeader called with: #6366f1
+themes.ts:195 🎨 Returning border color: #6366f1
+themes.ts:192 🎨 getBorderColorFromHeader called with: #1e1e1e
+themes.ts:195 🎨 Returning border color: #1e1e1e
+themes.ts:192 🎨 getBorderColorFromHeader called with: #06b6d4
+themes.ts:195 🎨 Returning border color: #06b6d4
+queryClient.ts:32 
+ GET https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/auth/user 500 (Internal Server Error)
+themes.ts:192 🎨 getBorderColorFromHeader called with: #4f46e5
+themes.ts:195 🎨 Returning border color: #4f46e5
+themes.ts:192 🎨 getBorderColorFromHeader called with: #6366f1
+themes.ts:195 🎨 Returning border color: #6366f1
+themes.ts:192 🎨 getBorderColorFromHeader called with: #1e1e1e
+themes.ts:195 🎨 Returning border color: #1e1e1e
+themes.ts:192 🎨 getBorderColorFromHeader called with: #06b6d4
+themes.ts:195 🎨 Returning border color: #06b6d4
+queryClient.ts:32 
+ GET https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/auth/user 500 (Internal Server Error)
+themes.ts:192 🎨 getBorderColorFromHeader called with: #4f46e5
+themes.ts:195 🎨 Returning border color: #4f46e5
+themes.ts:192 🎨 getBorderColorFromHeader called with: #6366f1
+themes.ts:195 🎨 Returning border color: #6366f1
+themes.ts:192 🎨 getBorderColorFromHeader called with: #1e1e1e
+themes.ts:195 🎨 Returning border color: #1e1e1e
+themes.ts:192 🎨 getBorderColorFromHeader called with: #06b6d4
+themes.ts:195 🎨 Returning border color: #06b6d4
+queryClient.ts:32 
+ GET https://a3695e9e-75a3-493f-96e8-c7b25c2638e2-00-1k0bblkfh8jgm.worf.replit.dev/api/auth/user 500 (Internal Server Error)
+themes.ts:192 🎨 getBorderColorFromHeader called with: #4f46e5
+themes.ts:195 🎨 Returning border color: #4f46e5
+themes.ts:192 🎨 getBorderColorFromHeader called with: #6366f1
+themes.ts:195 🎨 Returning border color: #6366f1
+themes.ts:192 🎨 getBorderColorFromHeader called with: #1e1e1e
+themes.ts:195 🎨 Returning border color: #1e1e1e
+themes.ts:192 🎨 getBorderColorFromHeader called with: #06b6d4
+themes.ts:195 🎨 Returning border color: #06b6d4
+﻿
+
