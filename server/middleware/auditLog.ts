@@ -7,6 +7,7 @@ export type AdminAction =
   | 'admin_login_failed'
   | 'beta_grant'
   | 'beta_revoke'
+  | 'waitlist_reject'
   | 'code_generate'
   | 'code_revoke'
   | 'user_group_create'
@@ -64,7 +65,7 @@ export async function logAdminLogin(req: Request, success: boolean, username: st
 
 export async function logBetaAction(
   req: Request, 
-  action: 'beta_grant' | 'beta_revoke', 
+  action: 'beta_grant' | 'beta_revoke' | 'waitlist_reject', 
   userId: string, 
   userEmail?: string
 ): Promise<void> {

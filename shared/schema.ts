@@ -58,6 +58,7 @@ export const users = pgTable("users", {
   betaGrantedAt: timestamp("beta_granted_at"),
   // Waitlist fields
   waitlistRequestedAt: timestamp("waitlist_requested_at"),
+  waitlistRejectedAt: timestamp("waitlist_rejected_at"),
   waitlistRole: varchar("waitlist_role"), // pm, design, engineering, founder
   waitlistUseCase: text("waitlist_use_case"),
   createdAt: timestamp("created_at").defaultNow(),

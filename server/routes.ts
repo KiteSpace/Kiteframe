@@ -3181,9 +3181,13 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       if (status === 'pending') {
         conditions.push(isNotNull(users.waitlistRequestedAt));
         conditions.push(or(eq(users.isBeta, false), isNull(users.isBeta)));
+        conditions.push(isNull(users.waitlistRejectedAt));
       } else if (status === 'beta') {
         conditions.push(eq(users.isBeta, true));
         conditions.push(isNotNull(users.waitlistRequestedAt));
+      } else if (status === 'rejected') {
+        conditions.push(isNotNull(users.waitlistRequestedAt));
+        conditions.push(isNotNull(users.waitlistRejectedAt));
       } else {
         conditions.push(isNotNull(users.waitlistRequestedAt));
       }
@@ -3202,6 +3206,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         isBeta: users.isBeta,
         betaGrantedAt: users.betaGrantedAt,
         waitlistRequestedAt: users.waitlistRequestedAt,
+        waitlistRejectedAt: users.waitlistRejectedAt,
         waitlistRole: users.waitlistRole,
         waitlistUseCase: users.waitlistUseCase,
         createdAt: users.createdAt,
@@ -3225,7 +3230,8 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         .from(users)
         .where(and(
           isNotNull(users.waitlistRequestedAt),
-          or(eq(users.isBeta, false), isNull(users.isBeta))
+          or(eq(users.isBeta, false), isNull(users.isBeta)),
+          isNull(users.waitlistRejectedAt)
         ));
 
       const approvedCountQuery = await db.select({ count: sql<number>`count(*)` })
@@ -3233,6 +3239,13 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         .where(and(
           isNotNull(users.waitlistRequestedAt),
           eq(users.isBeta, true)
+        ));
+
+      const rejectedCountQuery = await db.select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(and(
+          isNotNull(users.waitlistRequestedAt),
+          isNotNull(users.waitlistRejectedAt)
         ));
       
       res.json({
@@ -3243,6 +3256,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
           total: totalCountQuery[0]?.count || 0,
           pending: pendingCountQuery[0]?.count || 0,
           approved: approvedCountQuery[0]?.count || 0,
+          rejected: rejectedCountQuery[0]?.count || 0,
         },
         limit,
         offset
@@ -3279,6 +3293,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       await db.update(users).set({
         isBeta: true,
         betaGrantedAt: new Date(),
+        waitlistRejectedAt: null,
         updatedAt: new Date(),
       }).where(eq(users.id, user.id));
 
@@ -3341,6 +3356,53 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       console.error('Beta revoke error:', error);
       res.status(500).json({ 
         error: 'Failed to revoke beta access',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin: Reject a waitlist request
+  app.post('/internal/x9k7m2p4/waitlist/reject', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ error: 'userId is required' });
+      }
+
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      if (!user.waitlistRequestedAt) {
+        return res.status(400).json({ error: 'User is not on the waitlist' });
+      }
+
+      if (user.isBeta) {
+        return res.status(400).json({ error: 'Cannot reject a user who already has beta access' });
+      }
+
+      await db.update(users).set({
+        waitlistRejectedAt: new Date(),
+        updatedAt: new Date(),
+      }).where(eq(users.id, user.id));
+
+      await logBetaAction(req, 'waitlist_reject', user.id, user.email || undefined);
+      console.log(`Waitlist request rejected for user ${user.id} (${user.email})`);
+      res.json({ 
+        success: true, 
+        user: {
+          id: user.id,
+          email: user.email,
+          waitlistRejectedAt: new Date()
+        }
+      });
+    } catch (error: any) {
+      console.error('Waitlist reject error:', error);
+      res.status(500).json({ 
+        error: 'Failed to reject waitlist request',
         details: error.message 
       });
     }

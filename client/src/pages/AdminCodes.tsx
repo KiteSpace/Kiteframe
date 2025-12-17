@@ -69,6 +69,7 @@ interface WaitlistUser {
   isBeta: boolean | null;
   betaGrantedAt: string | null;
   waitlistRequestedAt: string | null;
+  waitlistRejectedAt: string | null;
   waitlistRole: string | null;
   waitlistUseCase: string | null;
   createdAt: string | null;
@@ -100,7 +101,7 @@ const SUBSCRIPTION_TIERS = ['free', 'advanced', 'pro'] as const;
 
 function WaitlistTab({ authHeader }: { authHeader: string }) {
   const { toast } = useToast();
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'beta'>('pending');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'beta' | 'rejected'>('pending');
   const [searchEmail, setSearchEmail] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -183,12 +184,34 @@ function WaitlistTab({ authHeader }: { authHeader: string }) {
     },
   });
 
+  const rejectMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await fetch('/internal/x9k7m2p4/waitlist/reject', {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Failed to reject waitlist request' }));
+        throw new Error(err.error);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      refetch();
+      toast({ title: 'Request Rejected', description: 'Waitlist request has been rejected' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const waitlistUsers: WaitlistUser[] = waitlistData?.users || [];
   const filteredTotal = waitlistData?.total || 0;
   const totalPages = Math.ceil(filteredTotal / limit);
 
   // Use server-side stats for accurate metrics
-  const stats = waitlistData?.stats || { total: 0, pending: 0, approved: 0 };
+  const stats = waitlistData?.stats || { total: 0, pending: 0, approved: 0, rejected: 0 };
   const conversionRate = stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0;
 
   const formatDate = (dateStr: string | null) => {
@@ -223,10 +246,8 @@ function WaitlistTab({ authHeader }: { authHeader: string }) {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">
-              {conversionRate}%
-            </div>
-            <p className="text-xs text-muted-foreground">Conversion Rate</p>
+            <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
+            <p className="text-xs text-muted-foreground">Rejected</p>
           </CardContent>
         </Card>
       </div>
@@ -263,6 +284,7 @@ function WaitlistTab({ authHeader }: { authHeader: string }) {
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="beta">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -299,6 +321,10 @@ function WaitlistTab({ authHeader }: { authHeader: string }) {
                           <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
                             Approved
                           </Badge>
+                        ) : user.waitlistRejectedAt ? (
+                          <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                            Rejected
+                          </Badge>
                         ) : (
                           <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
                             Pending
@@ -321,18 +347,33 @@ function WaitlistTab({ authHeader }: { authHeader: string }) {
                             <X className="w-4 h-4 mr-1" />
                             Revoke
                           </Button>
+                        ) : user.waitlistRejectedAt ? (
+                          <span className="text-sm text-muted-foreground">-</span>
                         ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => grantBetaMutation.mutate(user.id)}
-                            disabled={grantBetaMutation.isPending}
-                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                            data-testid={`button-approve-${user.id}`}
-                          >
-                            <Check className="w-4 h-4 mr-1" />
-                            Approve
-                          </Button>
+                          <div className="flex gap-1 justify-end">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => grantBetaMutation.mutate(user.id)}
+                              disabled={grantBetaMutation.isPending}
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              data-testid={`button-approve-${user.id}`}
+                            >
+                              <Check className="w-4 h-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => rejectMutation.mutate(user.id)}
+                              disabled={rejectMutation.isPending}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              data-testid={`button-reject-${user.id}`}
+                            >
+                              <X className="w-4 h-4 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
                         )}
                       </td>
                     </tr>
