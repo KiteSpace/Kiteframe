@@ -729,6 +729,7 @@ export function FigmaImportModal({
           <DialogTitle className="flex items-center gap-2">
             <SiFigma className="h-5 w-5 text-[#F24E1E]" />
             Import from Figma
+            <span className="text-[10px] px-1.5 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded font-medium">Beta</span>
           </DialogTitle>
           <DialogDescription>
             {mode === 'new-project'

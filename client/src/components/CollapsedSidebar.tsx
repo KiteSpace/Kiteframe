@@ -580,22 +580,28 @@ export function CollapsedSidebar({
                   setActivePopout(null);
                   onUploadImage?.();
                 }}
-                className="p-3 border border-border rounded-md cursor-pointer hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+                className="p-3 border border-border rounded-md cursor-pointer hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 flex flex-col gap-1"
                 data-testid="boost-upload-image"
               >
-                <Upload className="w-4 h-4 text-blue-500" />
-                <span className="text-xs font-medium">Upload image</span>
+                <div className="flex items-center gap-2 w-full">
+                  <Upload className="w-4 h-4 text-blue-500" />
+                  <span className="text-xs font-medium">Analyze Image</span>
+                  <span className="ml-auto text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded font-medium">Beta</span>
+                </div>
               </button>
               <button
                 onClick={() => {
                   setActivePopout(null);
                   onImportFigma?.();
                 }}
-                className="p-3 border border-border rounded-md cursor-pointer hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+                className="p-3 border border-border rounded-md cursor-pointer hover:bg-accent hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 flex flex-col gap-1"
                 data-testid="boost-import-figma"
               >
-                <Figma className="w-4 h-4 text-purple-500" />
-                <span className="text-xs font-medium">Import Figma</span>
+                <div className="flex items-center gap-2 w-full">
+                  <Figma className="w-4 h-4 text-purple-500" />
+                  <span className="text-xs font-medium">Import Figma</span>
+                  <span className="ml-auto text-[10px] px-1.5 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded font-medium">Beta</span>
+                </div>
               </button>
             </div>
           </div>

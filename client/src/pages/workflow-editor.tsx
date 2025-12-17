@@ -29,6 +29,7 @@ import { ContextMenu } from "@/components/ContextMenu";
 import { MissingImagesModal } from "@/components/MissingImagesModal";
 import { NewTabModal } from "@/components/NewTabModal";
 import { ImageUploadModal } from "@/lib/kiteframe/components/modals/ImageUploadModal";
+import { ImageAnalysisModal } from "@/components/modals/ImageAnalysisModal";
 import { LinearToolbar } from "@/lib/kiteframe/components/LinearToolbar";
 import {
   QuickCreateRadialMenu,
@@ -4566,6 +4567,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
   const [generatorPrompt, setGeneratorPrompt] = useState("");
+  const [showImageAnalysisModal, setShowImageAnalysisModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [activeShareId, setActiveShareId] = useState<string | null>(null);
@@ -6438,7 +6440,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     onImport={() => setShowImportModal(true)}
                     onShare={() => setShowShareModal(true)}
                     onOpenAiGenerator={() => setShowAiGenerator(true)}
-                    onUploadImage={() => setShowImageUploadModal(true)}
+                    onUploadImage={() => setShowImageAnalysisModal(true)}
                     onImportFigma={() => setShowFigmaModal(true)}
                     onCreateTemplate={(templateType: string) => {
                       // Create a new tab if none are open
@@ -10271,6 +10273,89 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           }}
         />
       )}
+
+      {/* Image Analysis Modal for Boost menu */}
+      <ImageAnalysisModal
+        isOpen={showImageAnalysisModal}
+        onClose={() => setShowImageAnalysisModal(false)}
+        onGenerate={(workflow) => {
+          // Create a new tab if none are open
+          if (openTabs.length === 0) {
+            const newTab = createBlankTab();
+            setTabs((prev) => [...prev, newTab]);
+            setActiveTabId(newTab.id);
+            setTimeout(() => {
+              // For new tabs, set the workflow directly
+              setNodes(workflow.nodes);
+              setEdges(workflow.edges);
+              setTimeout(() => saveToHistory("Generate workflow from image"), 0);
+              toast({
+                title: "Workflow Generated",
+                description: `Created ${workflow.nodes.length} nodes from image analysis.`,
+              });
+            }, 50);
+          } else {
+            // Append to existing canvas - calculate offset similar to AI generator
+            const offset = calculateWorkflowOffset(workflow.nodes);
+            const batchId = Date.now();
+            
+            // Create ID mapping
+            const nodeIdMapping: { [oldId: string]: string } = {};
+            
+            // Offset nodes with unique IDs
+            const offsetNodes = workflow.nodes.map((node: Node, index: number) => {
+              const oldId = node.id || `node-${index}`;
+              const newId = `${oldId}-img-${batchId}-${index}`;
+              nodeIdMapping[oldId] = newId;
+              return {
+                ...node,
+                id: newId,
+                position: {
+                  x: node.position.x + offset.x,
+                  y: node.position.y + offset.y,
+                },
+                selected: false,
+              };
+            });
+            
+            // Offset edges with updated IDs
+            const offsetEdges = workflow.edges.map((edge: Edge, index: number) => ({
+              ...edge,
+              id: `${edge.id || `edge-${index}`}-img-${batchId}-${index}`,
+              source: nodeIdMapping[edge.source] || edge.source,
+              target: nodeIdMapping[edge.target] || edge.target,
+              selected: false,
+            }));
+            
+            // Append to existing nodes and edges
+            setNodes((prev) => [...prev, ...offsetNodes]);
+            setEdges((prev) => [...prev, ...offsetEdges]);
+            
+            setTimeout(() => saveToHistory("Generate workflow from image"), 0);
+            
+            toast({
+              title: "Workflow Generated",
+              description: `Added ${offsetNodes.length} nodes from image analysis.`,
+            });
+          }
+        }}
+        onAddDetails={(analysisContext) => {
+          // Build context message from analysis
+          const stepsText = analysisContext.nodes
+            .map((n, i) => `${i + 1}. ${n.data?.label || 'Untitled'}${n.data?.description ? `: ${n.data.description}` : ''}`)
+            .join('\n');
+          const recommendationsText = analysisContext.recommendations.length > 0 
+            ? `\n\nRecommendations:\n${analysisContext.recommendations.map(r => `- ${r}`).join('\n')}`
+            : '';
+          
+          const contextPrompt = `I analyzed a workflow image and want to refine it.\n\nAnalysis: ${analysisContext.analysis}\n\nDetected Steps (${analysisContext.nodes.length}):\n${stepsText}${recommendationsText}\n\nPlease help me improve this workflow. What details should I add or change?`;
+          
+          // Close analysis modal and open AI generator with pre-filled context
+          setShowImageAnalysisModal(false);
+          setGeneratorPrompt(contextPrompt);
+          setShowAiGenerator(true);
+        }}
+      />
 
       {/* Figma Import Modal */}
       <FigmaImportModal
