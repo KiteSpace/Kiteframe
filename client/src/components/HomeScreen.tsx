@@ -1,7 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+
+const FloatingShapes = lazy(() => import("@/components/landing/FloatingShapes"));
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -562,8 +564,11 @@ Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, 
 
   // Main Home View
   return (
-    <div className="flex-1 overflow-auto bg-background">
-      <div className="max-w-5xl mx-auto px-6 pb-8">
+    <div className="flex-1 overflow-auto bg-background relative">
+      <Suspense fallback={null}>
+        <FloatingShapes />
+      </Suspense>
+      <div className="relative z-10 max-w-5xl mx-auto px-6 pb-8">
         {/* Zero Credits Warning Banner */}
         {showZeroCreditsWarning && (
           <div

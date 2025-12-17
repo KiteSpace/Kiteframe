@@ -151,7 +151,7 @@ export function HomeHero({
 
   return (
     <FullBleedSection className="mb-10">
-      <div className="absolute inset-0 kiteframe-ambient-gradient" />
+      {/* <div className="absolute inset-0 kiteframe-ambient-gradient" /> */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
 
       <div className="relative z-10 py-20 pb-32 flex flex-col items-center max-w-6xl mx-auto px-6">
