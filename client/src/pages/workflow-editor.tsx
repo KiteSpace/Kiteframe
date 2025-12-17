@@ -33,6 +33,7 @@ import { LinearToolbar } from "@/lib/kiteframe/components/LinearToolbar";
 import {
   QuickCreateRadialMenu,
   ShapeType,
+  NodeVariantType,
 } from "@/lib/kiteframe/components/QuickCreateRadialMenu";
 import { TablePanel } from "@/lib/kiteframe/components/TablePanel";
 import { NodeGalleryPanel } from "@/lib/kiteframe/components/NodeGalleryPanel";
@@ -4097,10 +4098,144 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         return;
       }
 
-      // T - Add new tab
+      // T - Add text object at center of viewport
       if (e.key === "t" && !isCtrlOrCmd) {
         e.preventDefault();
-        createNewTab();
+        if (isOnHomeTab || openTabs.length === 0) return;
+        
+        setLinearToolbar(null);
+        const canvasWidth = window.innerWidth - 300;
+        const canvasHeight = window.innerHeight - 100;
+        const centerX = (-viewport.x + canvasWidth / 2) / viewport.zoom;
+        const centerY = (-viewport.y + canvasHeight / 2) / viewport.zoom;
+
+        const isDark = document.documentElement.classList.contains("dark");
+        const newTextObject: CanvasObject = {
+          id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: "text",
+          position: { x: centerX - 75, y: centerY - 20 },
+          width: 150,
+          height: 40,
+          selected: true,
+          data: {
+            text: "Double-click to edit",
+            fontSize: 14,
+            fontFamily: "Inter",
+            fontWeight: "normal",
+            fontStyle: "normal",
+            textAlign: "left",
+            textDecoration: "none",
+            textColor: isDark ? "#ffffff" : "#1e293b",
+            backgroundColor: "transparent",
+          } as TextNodeData,
+        };
+        
+        const updatedObjects = canvasObjects.map((obj) => ({
+          ...obj,
+          selected: false,
+        }));
+        updateActiveTab({
+          canvasObjects: [...updatedObjects, newTextObject],
+        });
+        saveToHistory("Add text object");
+        toast({
+          title: "Text Object Added",
+          description: "Press T again to add more",
+        });
+        return;
+      }
+
+      // S - Add shape (rectangle) at center of viewport
+      if (e.key === "s" && !isCtrlOrCmd) {
+        e.preventDefault();
+        if (isOnHomeTab || openTabs.length === 0) return;
+        
+        setLinearToolbar(null);
+        const canvasWidth = window.innerWidth - 300;
+        const canvasHeight = window.innerHeight - 100;
+        const centerX = (-viewport.x + canvasWidth / 2) / viewport.zoom;
+        const centerY = (-viewport.y + canvasHeight / 2) / viewport.zoom;
+
+        const isDark = document.documentElement.classList.contains("dark");
+        const newShapeObject: CanvasObject = {
+          id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: "shape",
+          position: { x: centerX - 50, y: centerY - 50 },
+          width: 100,
+          height: 100,
+          selected: true,
+          data: {
+            shapeType: "rectangle",
+            fillColor: isDark ? "#374151" : "#e2e8f0",
+            fillOpacity: 0.5,
+            fillStyle: "solid",
+            strokeColor: isDark ? "#6b7280" : "#94a3b8",
+            strokeWidth: 2,
+            strokeOpacity: 1.0,
+            strokeStyle: "solid",
+            opacity: 1,
+            borderRadius: 8,
+          } as ShapeNodeData,
+        };
+        
+        const updatedObjects = canvasObjects.map((obj) => ({
+          ...obj,
+          selected: false,
+        }));
+        updateActiveTab({
+          canvasObjects: [...updatedObjects, newShapeObject],
+        });
+        saveToHistory("Add shape");
+        toast({
+          title: "Rectangle Added",
+          description: "Press S again to add more",
+        });
+        return;
+      }
+
+      // P - Add sticky note at center of viewport
+      if (e.key === "p" && !isCtrlOrCmd) {
+        e.preventDefault();
+        if (isOnHomeTab || openTabs.length === 0) return;
+        
+        setLinearToolbar(null);
+        const canvasWidth = window.innerWidth - 300;
+        const canvasHeight = window.innerHeight - 100;
+        const centerX = (-viewport.x + canvasWidth / 2) / viewport.zoom;
+        const centerY = (-viewport.y + canvasHeight / 2) / viewport.zoom;
+
+        const newStickyObject: CanvasObject = {
+          id: `canvas-object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: "sticky",
+          position: { x: centerX - 75, y: centerY - 75 },
+          width: 150,
+          height: 150,
+          selected: true,
+          data: {
+            text: "New sticky note",
+            fontSize: 12,
+            fontFamily: "Inter",
+            fontWeight: "normal",
+            fontStyle: "normal",
+            textAlign: "left",
+            textDecoration: "none",
+            textColor: "#1e293b",
+            backgroundColor: "#fef08a",
+          } as StickyNoteData,
+        };
+        
+        const updatedObjects = canvasObjects.map((obj) => ({
+          ...obj,
+          selected: false,
+        }));
+        updateActiveTab({
+          canvasObjects: [...updatedObjects, newStickyObject],
+        });
+        saveToHistory("Add sticky note");
+        toast({
+          title: "Sticky Note Added",
+          description: "Press P again to add more",
+        });
         return;
       }
 
@@ -4209,6 +4344,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     isOnHomeTab,
     openTabs.length,
     toast,
+    canvasObjects,
+    updateActiveTab,
   ]);
 
   // Track mouse position for quick create menu
@@ -11850,18 +11987,32 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           position={quickCreateMenu.screenPosition}
           canvasPosition={quickCreateMenu.canvasPosition}
           onClose={() => setQuickCreateMenu(null)}
-          onCreateNode={(pos) => {
+          onCreateNode={(pos, nodeType?: NodeVariantType) => {
+            const nodeVariant = nodeType || 'step';
+            const nodeConfigs: Record<NodeVariantType, { type: NodeType; label: string; icon: string; width: number; height: number }> = {
+              step: { type: 'process', label: 'New Step', icon: 'Cog', width: 200, height: 100 },
+              form: { type: 'form', label: 'New Form', icon: 'FormInput', width: 280, height: 200 },
+              table: { type: 'table', label: 'New Table', icon: 'Table2', width: 400, height: 300 },
+              compound: { type: 'compound', label: 'New Compound', icon: 'Layers', width: 300, height: 200 },
+              code: { type: 'code', label: 'New Code', icon: 'Code2', width: 400, height: 300 },
+              image: { type: 'image', label: 'New Image', icon: 'Image', width: 200, height: 150 },
+            };
+            const config = nodeConfigs[nodeVariant];
             const newNode: Node = {
               id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              type: "process",
-              position: { x: pos.x - 100, y: pos.y - 50 },
+              type: config.type,
+              position: { x: pos.x - config.width / 2, y: pos.y - config.height / 2 },
               data: {
-                label: "New Process",
+                label: config.label,
                 description: "Click to edit",
-                icon: "Cog",
+                icon: config.icon,
+                ...(nodeVariant === 'table' ? { tableId: `table-${Date.now()}`, columns: [], rows: [] } : {}),
+                ...(nodeVariant === 'form' ? { fields: [] } : {}),
+                ...(nodeVariant === 'compound' ? { subcomponents: [] } : {}),
+                ...(nodeVariant === 'code' ? { code: '', language: 'javascript', outputType: 'console' } : {}),
               },
-              width: 200,
-              height: 100,
+              width: config.width,
+              height: config.height,
               selected: true,
             };
             setNodes((prev) => [
@@ -11869,10 +12020,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               newNode,
             ]);
             setSelectedNodeId(newNode.id);
-            saveToHistory("Add node");
+            saveToHistory(`Add ${nodeVariant} node`);
             toast({
-              title: "Node Added",
-              description: "Double-click to edit the label",
+              title: `${config.label} Added`,
+              description: "Double-click to edit",
             });
           }}
           onCreateText={(pos) => {

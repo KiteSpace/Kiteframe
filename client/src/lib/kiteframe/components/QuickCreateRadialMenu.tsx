@@ -12,17 +12,23 @@ import {
   Hexagon,
   ArrowRight,
   PenTool,
-  Minus
+  Minus,
+  FormInput,
+  Table2,
+  Layers,
+  Code2,
+  Image as ImageIcon
 } from 'lucide-react';
 
 export type QuickCreateType = 'node' | 'text' | 'shape' | 'sticky';
 export type ShapeType = 'rectangle' | 'circle' | 'triangle' | 'hexagon' | 'polygon' | 'arrow' | 'line';
+export type NodeVariantType = 'step' | 'form' | 'table' | 'compound' | 'code' | 'image';
 
 interface QuickCreateRadialMenuProps {
   isOpen: boolean;
   position: { x: number; y: number };
   onClose: () => void;
-  onCreateNode: (position: { x: number; y: number }) => void;
+  onCreateNode: (position: { x: number; y: number }, nodeType?: NodeVariantType) => void;
   onCreateText: (position: { x: number; y: number }) => void;
   onCreateShape: (position: { x: number; y: number }, shapeType: ShapeType) => void;
   onCreateSticky: (position: { x: number; y: number }) => void;
@@ -46,6 +52,15 @@ const SHAPE_OPTIONS: { id: ShapeType; icon: React.ReactNode; label: string }[] =
   { id: 'line', icon: <Minus size={18} />, label: 'Line' },
 ];
 
+const NODE_OPTIONS: { id: NodeVariantType; icon: React.ReactNode; label: string }[] = [
+  { id: 'step', icon: <Square size={18} />, label: 'Step' },
+  { id: 'form', icon: <FormInput size={18} />, label: 'Form' },
+  { id: 'table', icon: <Table2 size={18} />, label: 'Table' },
+  { id: 'compound', icon: <Layers size={18} />, label: 'Compound' },
+  { id: 'code', icon: <Code2 size={18} />, label: 'Code' },
+  { id: 'image', icon: <ImageIcon size={18} />, label: 'Image' },
+];
+
 export const QuickCreateRadialMenu: React.FC<QuickCreateRadialMenuProps> = ({
   isOpen,
   position,
@@ -58,16 +73,19 @@ export const QuickCreateRadialMenu: React.FC<QuickCreateRadialMenuProps> = ({
 }) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [showShapeSubmenu, setShowShapeSubmenu] = useState(false);
+  const [showNodeSubmenu, setShowNodeSubmenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setIsAnimating(true);
       setShowShapeSubmenu(false);
+      setShowNodeSubmenu(false);
       const timer = setTimeout(() => setIsAnimating(false), 300);
       return () => clearTimeout(timer);
     } else {
       setShowShapeSubmenu(false);
+      setShowNodeSubmenu(false);
     }
   }, [isOpen]);
 
@@ -82,6 +100,8 @@ export const QuickCreateRadialMenu: React.FC<QuickCreateRadialMenuProps> = ({
       if (e.key === 'Escape') {
         if (showShapeSubmenu) {
           setShowShapeSubmenu(false);
+        } else if (showNodeSubmenu) {
+          setShowNodeSubmenu(false);
         } else {
           onClose();
         }
@@ -97,14 +117,13 @@ export const QuickCreateRadialMenu: React.FC<QuickCreateRadialMenuProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isOpen, showShapeSubmenu, onClose]);
+  }, [isOpen, showShapeSubmenu, showNodeSubmenu, onClose]);
 
   const handleOptionClick = useCallback((optionId: QuickCreateType) => {
     if (optionId === 'shape') {
       setShowShapeSubmenu(true);
     } else if (optionId === 'node') {
-      onCreateNode(canvasPosition);
-      onClose();
+      setShowNodeSubmenu(true);
     } else if (optionId === 'text') {
       onCreateText(canvasPosition);
       onClose();
@@ -112,42 +131,50 @@ export const QuickCreateRadialMenu: React.FC<QuickCreateRadialMenuProps> = ({
       onCreateSticky(canvasPosition);
       onClose();
     }
-  }, [canvasPosition, onCreateNode, onCreateText, onCreateSticky, onClose]);
+  }, [canvasPosition, onCreateText, onCreateSticky, onClose]);
 
   const handleShapeSelect = useCallback((shapeType: ShapeType) => {
     onCreateShape(canvasPosition, shapeType);
     onClose();
   }, [canvasPosition, onCreateShape, onClose]);
 
+  const handleNodeSelect = useCallback((nodeType: NodeVariantType) => {
+    onCreateNode(canvasPosition, nodeType);
+    onClose();
+  }, [canvasPosition, onCreateNode, onClose]);
+
   const radius = 80;
   const shapeRadius = 70;
+  const nodeRadius = 70;
 
   const options: RadialOption[] = [
     {
       id: 'node',
       icon: <Square size={20} />,
-      label: 'New Node',
+      label: 'Node (N)',
       angle: -90
     },
     {
       id: 'text',
       icon: <Type size={20} />,
-      label: 'Text Object',
+      label: 'Text (T)',
       angle: 0
     },
     {
       id: 'shape',
       icon: <Shapes size={20} />,
-      label: 'Shape',
+      label: 'Shape (S)',
       angle: 90
     },
     {
       id: 'sticky',
       icon: <StickyNote size={20} />,
-      label: 'Sticky Note',
+      label: 'Sticky (P)',
       angle: 180
     }
   ];
+
+  const showSubmenu = showShapeSubmenu || showNodeSubmenu;
 
   if (!isOpen) return null;
 
@@ -173,7 +200,7 @@ export const QuickCreateRadialMenu: React.FC<QuickCreateRadialMenuProps> = ({
         </button>
 
         {/* Main options - radial fan */}
-        {!showShapeSubmenu && options.map((option, index) => {
+        {!showSubmenu && options.map((option, index) => {
           const angleRad = (option.angle * Math.PI) / 180;
           const x = Math.cos(angleRad) * radius;
           const y = Math.sin(angleRad) * radius;
@@ -200,8 +227,8 @@ export const QuickCreateRadialMenu: React.FC<QuickCreateRadialMenuProps> = ({
                 data-testid={`quick-create-${option.id}`}
               >
                 {option.icon}
-                <span className="text-[9px] font-medium mt-0.5 leading-tight text-center px-1">
-                  {option.id === 'node' ? 'Node' : option.id === 'text' ? 'Text' : option.id === 'shape' ? 'Shape' : 'Sticky'}
+                <span className="text-[8px] font-medium mt-0.5 leading-tight text-center px-1">
+                  {option.id === 'node' ? 'Node (N)' : option.id === 'text' ? 'Text (T)' : option.id === 'shape' ? 'Shape (S)' : 'Sticky (P)'}
                 </span>
               </button>
             </div>
@@ -254,6 +281,57 @@ export const QuickCreateRadialMenu: React.FC<QuickCreateRadialMenuProps> = ({
             onClick={() => setShowShapeSubmenu(false)}
             style={{ animationDelay: '200ms' }}
             data-testid="quick-create-shape-back"
+          >
+            ← Back
+          </button>
+        )}
+
+        {/* Node submenu - radial fan */}
+        {showNodeSubmenu && NODE_OPTIONS.map((nodeOpt, index) => {
+          const totalAngle = 300;
+          const angleStep = totalAngle / Math.max(NODE_OPTIONS.length - 1, 1);
+          const angle = -150 + (index * angleStep);
+          const angleRad = (angle * Math.PI) / 180;
+          const x = Math.cos(angleRad) * nodeRadius;
+          const y = Math.sin(angleRad) * nodeRadius;
+
+          return (
+            <div
+              key={nodeOpt.id}
+              className="absolute left-1/2 top-1/2 radial-sector-enter"
+              style={{
+                left: x,
+                top: y,
+                animationDelay: `${index * 40}ms`
+              }}
+            >
+              <button
+                className={cn(
+                  "w-12 h-12 rounded-full flex flex-col items-center justify-center shadow-lg transition-all duration-200",
+                  "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700",
+                  "hover:scale-110 hover:shadow-xl active:scale-95",
+                  "text-gray-700 dark:text-gray-200"
+                )}
+                onClick={() => handleNodeSelect(nodeOpt.id)}
+                title={nodeOpt.label}
+                data-testid={`quick-create-node-${nodeOpt.id}`}
+              >
+                {nodeOpt.icon}
+                <span className="text-[8px] font-medium mt-0.5 leading-tight">
+                  {nodeOpt.label.slice(0, 5)}
+                </span>
+              </button>
+            </div>
+          );
+        })}
+
+        {/* Back button when in node submenu */}
+        {showNodeSubmenu && (
+          <button
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 translate-y-[70px] px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-md radial-sector-enter"
+            onClick={() => setShowNodeSubmenu(false)}
+            style={{ animationDelay: '200ms' }}
+            data-testid="quick-create-node-back"
           >
             ← Back
           </button>
