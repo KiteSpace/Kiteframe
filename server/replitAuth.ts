@@ -324,7 +324,7 @@ export async function setupAuth(app: Express) {
       async (req, res) => {
         const user = req.user as any;
         const isAdmin = isAdminEmail(user?.email);
-        const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist-dashboard';
+        const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist';
         const redirectTarget = `/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
         
         console.log('[AUTH] Google callback:', {
@@ -396,7 +396,7 @@ export async function setupAuth(app: Express) {
       async (req, res) => {
         const user = req.user as any;
         const isAdmin = isAdminEmail(user?.email);
-        const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist-dashboard';
+        const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist';
         const redirectTarget = `/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
         
         console.log('[AUTH] GitHub callback:', {
@@ -524,7 +524,7 @@ export async function setupAuth(app: Express) {
         if (user?.isBeta || user?.isAdmin) {
           res.redirect('/app');
         } else {
-          res.redirect('/waitlist-dashboard');
+          res.redirect('/waitlist');
         }
       });
     })(req, res, next);

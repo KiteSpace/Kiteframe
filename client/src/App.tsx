@@ -60,7 +60,7 @@ function BetaProtectedRoute<P extends object>({
 
   // Admin users always have full access, regardless of beta status
   if (!user.isBeta && !user.isAdmin) {
-    return <Redirect to="/waitlist-dashboard" />;
+    return <Redirect to="/waitlist" />;
   }
 
   return <Component {...(componentProps as P)} />;
@@ -102,7 +102,7 @@ function LandingRoute() {
 
   // Authenticated non-beta/non-admin users go to waitlist dashboard
   if (user && !user.isBeta && !user.isAdmin) {
-    return <Redirect to="/waitlist-dashboard" />;
+    return <Redirect to="/waitlist" />;
   }
 
   return <LandingPage />;
@@ -127,7 +127,7 @@ function Router() {
         </Route>
         <Route path="/signin" component={SignIn} />
         <Route path="/auth-complete" component={AuthComplete} />
-        <Route path="/waitlist-dashboard" component={WaitlistDashboard} />
+        <Route path="/waitlist" component={WaitlistDashboard} />
         <Route path="/demo" component={KitelineDemo} />
         <Route path="/docs" component={KitelineDocs} />
         <Route path="/pricing" component={Pricing} />

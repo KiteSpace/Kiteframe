@@ -44,7 +44,7 @@ export default function SignIn() {
 
   // Authenticated non-beta/non-admin users go to waitlist dashboard
   if (user && !user.isBeta && !user.isAdmin) {
-    return <Redirect to="/waitlist-dashboard" />;
+    return <Redirect to="/waitlist" />;
   }
 
   const handleOAuthLogin = (provider: string) => {

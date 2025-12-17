@@ -62,7 +62,7 @@ export default function LandingPage() {
                 Enter App <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             ) : isAuthenticated && isOnWaitlist ? (
-              <Button variant="ghost" onClick={() => window.location.href = '/waitlist-dashboard'} data-testid="button-view-status">
+              <Button variant="ghost" onClick={() => window.location.href = '/waitlist'} data-testid="button-view-status">
                 View Status
               </Button>
             ) : (
@@ -402,7 +402,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-lg font-semibold mb-2">You're on the list!</h3>
               <p className="text-muted-foreground mb-4">We'll notify you when your access is ready.</p>
-              <Button variant="outline" onClick={() => window.location.href = '/waitlist-dashboard'} data-testid="button-view-waitlist-status">
+              <Button variant="outline" onClick={() => window.location.href = '/waitlist'} data-testid="button-view-waitlist-status">
                 View Your Status
               </Button>
             </div>
