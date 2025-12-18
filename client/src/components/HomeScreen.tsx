@@ -670,7 +670,7 @@ Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, 
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {recentProjects
-                  .slice(0, 3)
+                  .slice(0, 6)
                   .map((project) => renderProjectCard(project))}
               </div>
             </>
