@@ -46,7 +46,8 @@ export function getSession() {
     secure: isSecure, 
     sameSite: 'lax', 
     NODE_ENV: process.env.NODE_ENV,
-    REPL_ID: !!process.env.REPL_ID
+    REPL_ID: !!process.env.REPL_ID,
+    REPLIT_DEPLOYMENT: process.env.REPLIT_DEPLOYMENT,
   });
   
   return session({
@@ -534,25 +535,80 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/callback", authRateLimiter, (req, res, next) => {
-    ensureStrategy(req.hostname);
-    passport.authenticate(`replitauth:${req.hostname}`, {
+    const hostname = req.hostname;
+    console.log('[AUTH] Replit callback started:', {
+      hostname,
+      protocol: req.protocol,
+      originalUrl: req.originalUrl,
+      query: req.query,
+      sessionID: req.sessionID,
+      REPLIT_DEPLOYMENT: process.env.REPLIT_DEPLOYMENT,
+    });
+    
+    ensureStrategy(hostname);
+    passport.authenticate(`replitauth:${hostname}`, {
       failureRedirect: "/api/login",
-    }, (err: any, user: any) => {
+    }, (err: any, user: any, info: any) => {
+      console.log('[AUTH] Replit authenticate result:', {
+        hasError: !!err,
+        error: err?.message || err,
+        hasUser: !!user,
+        userId: user?.id,
+        email: user?.email,
+        info: info,
+      });
+      
       if (err) {
-        return res.redirect('/api/login');
+        console.error('[AUTH] Replit auth error:', err);
+        return res.redirect('/?error=replit_auth_error');
       }
       if (!user) {
-        return res.redirect('/api/login');
+        console.error('[AUTH] Replit auth no user returned, info:', info);
+        return res.redirect('/?error=replit_auth_no_user');
       }
       req.logIn(user, (loginErr) => {
         if (loginErr) {
-          return res.redirect('/api/login');
+          console.error('[AUTH] Replit logIn error:', loginErr);
+          return res.redirect('/?error=replit_login_error');
         }
-        if (user?.isBeta || user?.isAdmin) {
-          res.redirect('/app');
-        } else {
-          res.redirect('/waitlist');
-        }
+        
+        const isAdmin = isAdminEmail(user?.email);
+        const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist';
+        const redirectTarget = `/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
+        
+        console.log('[AUTH] Replit callback success:', {
+          userId: user?.id,
+          email: user?.email,
+          isBeta: user?.isBeta,
+          isAdmin,
+          sessionId: req.sessionID,
+          isAuthenticated: req.isAuthenticated?.(),
+          finalDestination,
+          redirectTarget,
+        });
+        
+        // Save session explicitly and use HTML redirect like Google/GitHub
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error('[AUTH] Replit session save error:', saveErr);
+          }
+          console.log('[AUTH] Replit Set-Cookie:', res.getHeader('Set-Cookie'));
+          const safeRedirect = JSON.stringify(redirectTarget);
+          res.status(200).send(`
+<!DOCTYPE html>
+<html>
+<head><title>Completing sign in...</title></head>
+<body>
+  <p>Completing sign in...</p>
+  <script>
+    setTimeout(function() {
+      window.location.replace(${safeRedirect});
+    }, 100);
+  </script>
+</body>
+</html>
+          `);
+        });
       });
     })(req, res, next);
   });
