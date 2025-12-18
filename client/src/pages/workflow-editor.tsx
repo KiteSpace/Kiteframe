@@ -3146,88 +3146,114 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     [generateTabId, generateCuteName],
   );
 
-  // History management with debouncing to prevent excessive saves
+  // History management - captures snapshot SYNCHRONOUSLY, debounces only the push
   const saveToHistoryTimeoutRef = useRef<NodeJS.Timeout>();
+  const pendingSnapshotRef = useRef<{
+    snapshot: { nodes: Node[]; edges: Edge[]; canvasObjects: CanvasObject[]; viewport: { x: number; y: number; zoom: number } };
+    label: string;
+    tabId: string; // Track which tab this snapshot belongs to
+  } | null>(null);
+
   const saveToHistory = useCallback(
     (label?: string) => {
       if (!activeTab) return;
 
-      // Clear any existing timeout to debounce the save operation
+      const currentTabId = activeTab.id;
+
+      // CRITICAL: Capture snapshot SYNCHRONOUSLY before any mutation
+      // This ensures we save the "before" state, not "after"
+      const snapshot = {
+        nodes: structuredClone(nodes),
+        edges: structuredClone(edges),
+        canvasObjects: structuredClone(canvasObjects),
+        viewport: { ...viewport },
+      };
+
+      // Store the snapshot with tab ID for the debounced push
+      pendingSnapshotRef.current = { snapshot, label: label || 'unlabeled', tabId: currentTabId };
+
+      // Clear any existing timeout to debounce the history push (not snapshot)
       if (saveToHistoryTimeoutRef.current) {
         clearTimeout(saveToHistoryTimeoutRef.current);
       }
 
       saveToHistoryTimeoutRef.current = setTimeout(() => {
-        // Use current state variables instead of stale activeTab references
-        const currentNodes = nodes;
-        const currentEdges = edges;
-        const currentCanvasObjects = canvasObjects;
-        const currentViewport = viewport;
+        const pending = pendingSnapshotRef.current;
+        if (!pending) return;
 
-        const newHistoryState = {
-          nodes: [...currentNodes],
-          edges: [...currentEdges],
-          canvasObjects: [...currentCanvasObjects],
-          viewport: { ...currentViewport },
-        };
+        const { snapshot: newHistoryState, label: actionLabel, tabId: targetTabId } = pending;
+        pendingSnapshotRef.current = null;
 
-        const currentHistory = activeTab.history;
-        const currentHistoryIndex = activeTab.historyIndex;
+        // Update the correct tab's history using setTabs directly
+        // This ensures history is written to the originating tab even if user switched tabs
+        setTabs(prevTabs => {
+          const targetTab = prevTabs.find(t => t.id === targetTabId);
+          if (!targetTab) {
+            console.log(`[ACTIVITY] ⚠️ Tab no longer exists, discarding snapshot for: "${actionLabel}"`);
+            return prevTabs;
+          }
 
-        // Check if this state is actually different from the last saved state
-        const lastState = currentHistory[currentHistoryIndex];
-        if (
-          lastState &&
-          lastState.nodes.length === currentNodes.length &&
-          lastState.edges.length === currentEdges.length &&
-          lastState.canvasObjects.length === currentCanvasObjects.length
-        ) {
-          // Skip saving if nothing substantial has changed
-          console.log(`[ACTIVITY] ⏭️ SKIPPED (no change): "${label || 'unlabeled'}"`);
-          return;
-        }
+          const currentHistory = targetTab.history;
+          const currentHistoryIndex = targetTab.historyIndex;
+          const lastState = currentHistory[currentHistoryIndex];
 
-        // Remove any future history states if we're in the middle of history
-        const newHistory = [
-          ...currentHistory.slice(0, currentHistoryIndex + 1),
-          newHistoryState,
-        ];
+          // Check if this state is actually different from the last saved state
+          // Use JSON comparison for deep equality (not just array lengths!)
+          const isIdentical = lastState && (
+            JSON.stringify(lastState.nodes) === JSON.stringify(newHistoryState.nodes) &&
+            JSON.stringify(lastState.edges) === JSON.stringify(newHistoryState.edges) &&
+            JSON.stringify(lastState.canvasObjects) === JSON.stringify(newHistoryState.canvasObjects)
+          );
 
-        // Limit history size to prevent memory issues (keep last 20 states)
-        const maxHistorySize = 20;
-        const trimmedHistory =
-          newHistory.length > maxHistorySize
-            ? newHistory.slice(-maxHistorySize)
-            : newHistory;
-        const newHistoryIndex = trimmedHistory.length - 1;
+          if (isIdentical) {
+            console.log(`[ACTIVITY] ⏭️ SKIPPED (no change): "${actionLabel}"`);
+            return prevTabs;
+          }
 
-        // Detailed activity tracking log
-        const nodeDiff = currentNodes.length - (lastState?.nodes.length || 0);
-        const edgeDiff = currentEdges.length - (lastState?.edges.length || 0);
-        const objDiff = currentCanvasObjects.length - (lastState?.canvasObjects?.length || 0);
-        
-        console.log(`[ACTIVITY] 💾 SAVED: "${label || 'unlabeled'}"`, {
-          historyIndex: `${currentHistoryIndex} → ${newHistoryIndex}`,
-          historyLength: trimmedHistory.length,
-          state: {
-            nodes: currentNodes.length,
-            edges: currentEdges.length,
-            objects: currentCanvasObjects.length,
-          },
-          diff: {
-            nodes: nodeDiff >= 0 ? `+${nodeDiff}` : `${nodeDiff}`,
-            edges: edgeDiff >= 0 ? `+${edgeDiff}` : `${edgeDiff}`,
-            objects: objDiff >= 0 ? `+${objDiff}` : `${objDiff}`,
-          },
+          // Remove any future history states if we're in the middle of history
+          const newHistory = [
+            ...currentHistory.slice(0, currentHistoryIndex + 1),
+            newHistoryState,
+          ];
+
+          // Limit history size to prevent memory issues (keep last 20 states)
+          const maxHistorySize = 20;
+          const trimmedHistory =
+            newHistory.length > maxHistorySize
+              ? newHistory.slice(-maxHistorySize)
+              : newHistory;
+          const newHistoryIndex = trimmedHistory.length - 1;
+
+          // Detailed activity tracking log
+          const nodeDiff = newHistoryState.nodes.length - (lastState?.nodes.length || 0);
+          const edgeDiff = newHistoryState.edges.length - (lastState?.edges.length || 0);
+          const objDiff = newHistoryState.canvasObjects.length - (lastState?.canvasObjects?.length || 0);
+          
+          console.log(`[ACTIVITY] 💾 SAVED: "${actionLabel}"`, {
+            tabId: targetTabId,
+            historyIndex: `${currentHistoryIndex} → ${newHistoryIndex}`,
+            historyLength: trimmedHistory.length,
+            state: {
+              nodes: newHistoryState.nodes.length,
+              edges: newHistoryState.edges.length,
+              objects: newHistoryState.canvasObjects.length,
+            },
+            diff: {
+              nodes: nodeDiff >= 0 ? `+${nodeDiff}` : `${nodeDiff}`,
+              edges: edgeDiff >= 0 ? `+${edgeDiff}` : `${edgeDiff}`,
+              objects: objDiff >= 0 ? `+${objDiff}` : `${objDiff}`,
+            },
+          });
+
+          return prevTabs.map(tab =>
+            tab.id === targetTabId
+              ? { ...tab, history: trimmedHistory, historyIndex: newHistoryIndex }
+              : tab
+          );
         });
-
-        updateActiveTab({
-          history: trimmedHistory,
-          historyIndex: newHistoryIndex,
-        });
-      }, 200); // Debounce for 200ms to prevent excessive calls
+      }, 50); // Reduced debounce to 50ms since snapshot is already captured
     },
-    [activeTab, updateActiveTab, nodes, edges, canvasObjects, viewport],
+    [activeTab, nodes, edges, canvasObjects, viewport, setTabs],
   );
 
   // Quick-add functionality
