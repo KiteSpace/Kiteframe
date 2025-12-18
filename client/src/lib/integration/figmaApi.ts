@@ -94,6 +94,37 @@ export async function fetchFigmaNode(fileKey: string, nodeId: string, patToken?:
   return callFigmaApi(`files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}`, patToken);
 }
 
+/**
+ * Fetch lightweight file metadata for delta-aware refresh.
+ * Returns lastModified timestamp without fetching full document tree.
+ */
+export interface FigmaFileMetadata {
+  name: string;
+  lastModified: string;
+  version: string;
+  thumbnailUrl?: string;
+}
+
+export async function fetchFigmaFileMetadata(
+  fileKey: string,
+  patToken?: string
+): Promise<FigmaFileMetadata> {
+  // Use depth=1 to get minimal document structure with metadata
+  const response = await callFigmaApi<{
+    name: string;
+    lastModified: string;
+    version: string;
+    thumbnailUrl?: string;
+  }>(`files/${fileKey}?depth=1`, patToken);
+  
+  return {
+    name: response.name,
+    lastModified: response.lastModified,
+    version: response.version,
+    thumbnailUrl: response.thumbnailUrl,
+  };
+}
+
 export async function fetchFigmaThumbnails(
   fileKey: string,
   nodeIds: string[],
@@ -101,6 +132,19 @@ export async function fetchFigmaThumbnails(
 ): Promise<{ images: Record<string, string | null> }> {
   const idsParam = nodeIds.join(',');
   return callFigmaApi(`images/${fileKey}?ids=${encodeURIComponent(idsParam)}&format=png`, patToken);
+}
+
+/**
+ * Fetch a single node's thumbnail image.
+ * Convenience wrapper around fetchFigmaThumbnails for single-node refresh.
+ */
+export async function fetchFigmaNodeThumbnail(
+  fileKey: string,
+  nodeId: string,
+  patToken?: string
+): Promise<string | null> {
+  const result = await fetchFigmaThumbnails(fileKey, [nodeId], patToken);
+  return result.images?.[nodeId] || null;
 }
 
 export function discoverFrames(fileJson: any): FigmaFrame[] {

@@ -123,6 +123,10 @@ import { FigmaImportModal } from "@/components/modals/FigmaImportModal";
 import { WorkflowGenerationPreviewModal } from "@/components/modals/WorkflowGenerationPreviewModal";
 import { parseFigmaUrl } from "@/lib/integration/figmaUrl";
 import {
+  fetchFigmaFileMetadata,
+  fetchFigmaThumbnails,
+} from "@/lib/integration/figmaApi";
+import {
   generateWorkflowFromFigmaSemantic,
   generateAIRefinedWorkflow,
   generateAIVisionWorkflow,
@@ -9747,6 +9751,68 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           return n;
                         }),
                       );
+                    }}
+                    onRefreshFigma={async (nodeId: string) => {
+                      const node = nodes.find(n => n.id === nodeId);
+                      if (!node || node.type !== 'image') return;
+                      
+                      const { figmaFileKey, figmaNodeId, figmaLastModified, imageUrl } = node.data as any;
+                      if (!figmaFileKey || !figmaNodeId) return;
+                      
+                      try {
+                        // First, check if file has been modified
+                        const { fetchFigmaFileMetadata, fetchFigmaNodeThumbnail } = await import('@/lib/integration/figmaApi');
+                        const metadata = await fetchFigmaFileMetadata(figmaFileKey);
+                        
+                        if (metadata.lastModified === figmaLastModified) {
+                          toast({
+                            title: "Already up to date",
+                            description: "The Figma design hasn't changed since last refresh.",
+                          });
+                          return;
+                        }
+                        
+                        // Fetch new thumbnail
+                        const newThumbnail = await fetchFigmaNodeThumbnail(figmaFileKey, figmaNodeId);
+                        
+                        if (!newThumbnail) {
+                          toast({
+                            title: "Refresh failed",
+                            description: "Could not get updated image from Figma.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        
+                        // Update node with new image and metadata (use 'src' field, not 'imageUrl')
+                        setNodes(prev => prev.map(n => {
+                          if (n.id === nodeId) {
+                            return {
+                              ...n,
+                              data: {
+                                ...n.data,
+                                src: newThumbnail,
+                                figmaLastModified: metadata.lastModified,
+                              }
+                            };
+                          }
+                          return n;
+                        }));
+                        
+                        saveToHistory("Refresh Figma image");
+                        
+                        toast({
+                          title: "Image refreshed",
+                          description: "Figma design has been updated.",
+                        });
+                      } catch (error) {
+                        console.error('Error refreshing Figma image:', error);
+                        toast({
+                          title: "Refresh failed",
+                          description: "Could not refresh the Figma image. Please try again.",
+                          variant: "destructive",
+                        });
+                      }
                     }}
                   />
                 </>

@@ -18,6 +18,7 @@ export interface FigmaFrameWithThumbnail {
 
 export interface FigmaBuildOptions {
   importMode?: FigmaImportMode;
+  figmaLastModified?: string;
 }
 
 function generateId(): string {
@@ -61,6 +62,7 @@ export function buildFigmaFrameWorkflow(
         originalWidth: frame.width,
         originalHeight: frame.height,
         figmaSemantic: figmaSemantic ?? null,
+        figmaLastModified: options?.figmaLastModified ?? null,
       },
       style: {
         width: displayWidth,

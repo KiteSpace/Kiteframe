@@ -1218,6 +1218,7 @@ type Props = {
   className?: string;
   onImageUpload?: (id: string, data: string) => void;
   onImageUrlSet?: (id: string, url: string) => void;
+  onRefreshFigma?: (nodeId: string) => Promise<void>;
   disablePan?: boolean;
   disableWheelZoom?: boolean;
   enableTouchGestures?: boolean;
@@ -3874,6 +3875,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     onImageUrlSet={(nodeId: string, url: string) => {
                       props.onImageUrlSet?.(nodeId, url);
                     }}
+                    onRefreshFigma={props.onRefreshFigma}
                     onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
                     showHandles={!props.readOnly && n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}

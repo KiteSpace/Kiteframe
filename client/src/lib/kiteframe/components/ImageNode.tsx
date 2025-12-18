@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
 import DragPlaceholder from './DragPlaceholder';
-import { Upload, Image as ImageIcon, AlertCircle, Globe } from 'lucide-react';
+import { Upload, Image as ImageIcon, AlertCircle, Globe, RefreshCw, ExternalLink, Loader2 } from 'lucide-react';
 import type { Node, ImageNodeData, ImageNodeComponentProps, ImageFit } from '../types';
 import { getDynamicClassName, getNodeStyleClasses } from '../utils/styles';
 import { sanitizeText } from '../utils/validation';
@@ -18,6 +18,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   onUpdate,
   onImageUpload,
   onImageUrlSet,
+  onRefreshFigma,
   onDoubleClick,
   className,
   style,
@@ -37,6 +38,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   const [imageError, setImageError] = useState(false);
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const [editLabelValue, setEditLabelValue] = useState(node.data.label || '');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const nodeRef = useRef<HTMLDivElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
@@ -163,6 +165,40 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     e.stopPropagation();
     setIsEditingLabel(true);
   }, []);
+
+  // Check if this is a Figma-imported or URL-sourced image that can be refreshed/opened
+  const isFigmaImport = Boolean(node.data.figmaFileKey && node.data.figmaId);
+  const isUrlSource = node.data.sourceType === 'url' && node.data.src;
+  const canRefresh = isFigmaImport;
+  const canOpenExternal = isFigmaImport || isUrlSource;
+
+  const handleRefresh = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onRefreshFigma || isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      await onRefreshFigma(node.id);
+    } catch (err) {
+      console.error('Figma refresh failed:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [node.id, onRefreshFigma, isRefreshing]);
+
+  const handleOpenExternal = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (isFigmaImport && node.data.figmaFileKey) {
+      // Build Figma URL from stored metadata
+      const figmaUrl = node.data.figmaId
+        ? `https://www.figma.com/design/${node.data.figmaFileKey}?node-id=${encodeURIComponent(node.data.figmaId)}`
+        : `https://www.figma.com/design/${node.data.figmaFileKey}`;
+      window.open(figmaUrl, '_blank', 'noopener,noreferrer');
+    } else if (isUrlSource && node.data.src) {
+      window.open(node.data.src, '_blank', 'noopener,noreferrer');
+    }
+  }, [isFigmaImport, isUrlSource, node.data.figmaFileKey, node.data.figmaId, node.data.src]);
 
   const handleImageLoad = useCallback(() => {
     setImageLoaded(true);
@@ -377,6 +413,34 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
             >
               Reference
             </span>
+          )}
+          {canRefresh && (
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className={cn(
+                "p-1 rounded transition-colors",
+                isRefreshing ? "opacity-50 cursor-wait" : "hover:bg-black/10 dark:hover:bg-white/20"
+              )}
+              title={isRefreshing ? "Refreshing..." : "Refresh from Figma"}
+              data-testid={`image-refresh-${node.id}`}
+            >
+              {isRefreshing ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <RefreshCw size={12} />
+              )}
+            </button>
+          )}
+          {canOpenExternal && (
+            <button
+              onClick={handleOpenExternal}
+              className="p-1 rounded transition-colors hover:bg-black/10 dark:hover:bg-white/20"
+              title={isFigmaImport ? "Open in Figma" : "Open image URL"}
+              data-testid={`image-open-external-${node.id}`}
+            >
+              <ExternalLink size={12} />
+            </button>
           )}
           <div
             className={cn('w-2 h-2 rounded-full flex-shrink-0',

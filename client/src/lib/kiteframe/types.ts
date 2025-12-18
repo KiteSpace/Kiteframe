@@ -406,6 +406,7 @@ export interface ImageNodeData {
   figmaType?: string;
   figmaPageName?: string;
   figmaFileKey?: string; // Source Figma file key for multi-file tracking
+  figmaLastModified?: string; // ISO timestamp from Figma API for delta-aware refresh
   originalWidth?: number;
   originalHeight?: number;
   // Semantic metadata extracted from Figma node tree (for AI workflows)
@@ -797,6 +798,7 @@ export interface ImageNodeComponentProps extends BaseNodeComponentProps<ImageNod
   node: ImageNode;
   onImageUpload?: (nodeId: string, file: File) => Promise<string>;
   onImageUrlSet?: (nodeId: string, url: string) => void;
+  onRefreshFigma?: (nodeId: string) => Promise<void>; // Refresh Figma-imported image
   onStartDrag?: (e: React.MouseEvent, node: Node) => void;
   onClick?: (e: React.MouseEvent, node: Node) => void;
   onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
