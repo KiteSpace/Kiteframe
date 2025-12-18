@@ -44,6 +44,7 @@ interface ProjectDocTabProps {
   edges: Edge[];
   canvasObjects?: CanvasObject[];
   onProjectNameChange?: (name: string) => void;
+  isReadOnly?: boolean;
 }
 
 const WORKFLOW_NAMES_KEY_PREFIX = 'kiteframe-workflow-names-';
@@ -104,7 +105,8 @@ export function ProjectDocTab({
   nodes, 
   edges, 
   canvasObjects = [],
-  onProjectNameChange 
+  onProjectNameChange,
+  isReadOnly = false
 }: ProjectDocTabProps) {
   const [docMode, setDocMode] = useState<DocMode>('overview');
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
@@ -428,6 +430,7 @@ export function ProjectDocTab({
                 nodes={nodes}
                 edges={edges}
                 onPRDGenerated={handlePRDGenerated}
+                isReadOnly={isReadOnly}
               />
             </>
           )}
@@ -539,6 +542,7 @@ export function ProjectDocTab({
                     workflowName={selectedWorkflow.name}
                     nodes={selectedWorkflow.nodes}
                     edges={selectedWorkflow.edges}
+                    isReadOnly={isReadOnly}
                   />
                 </section>
               )}

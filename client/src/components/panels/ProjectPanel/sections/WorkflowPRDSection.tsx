@@ -60,6 +60,7 @@ interface WorkflowPRDSectionProps {
   workflowName: string;
   nodes: Node[];
   edges: Edge[];
+  isReadOnly?: boolean;
 }
 
 type LinkPickerTab = 'nodes' | 'edges';
@@ -169,7 +170,8 @@ export function WorkflowPRDSection({
   workflowId, 
   workflowName,
   nodes,
-  edges 
+  edges,
+  isReadOnly = false
 }: WorkflowPRDSectionProps) {
   const [prd, setPrd] = useState<WorkflowPRD | null>(null);
   const [history, setHistory] = useState<PRDVersion<WorkflowPRD>[]>([]);
@@ -615,7 +617,7 @@ export function WorkflowPRDSection({
 
   return (
     <div data-testid="workflow-prd-section">
-      {isStale && prd && (
+      {isStale && prd && !isReadOnly && (
         <div className="flex items-center gap-2 mb-4 text-xs text-yellow-600 dark:text-yellow-500">
           <AlertTriangle size={12} />
           <span>Workflow changed since last update.</span>
@@ -635,16 +637,18 @@ export function WorkflowPRDSection({
       {!prd && !isGenerating && (
         <div className="text-center py-6">
           <p className="text-sm text-muted-foreground mb-3">
-            No spec generated yet for this workflow.
+            {isReadOnly ? 'No spec available for this workflow.' : 'No spec generated yet for this workflow.'}
           </p>
-          <Button
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            data-testid="generate-prd"
-          >
-            <Sparkles size={14} className="mr-2" />
-            Generate Spec
-          </Button>
+          {!isReadOnly && (
+            <Button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              data-testid="generate-prd"
+            >
+              <Sparkles size={14} className="mr-2" />
+              Generate Spec
+            </Button>
+          )}
         </div>
       )}
 
@@ -675,7 +679,7 @@ export function WorkflowPRDSection({
               )}
             </div>
             <div className="flex items-center gap-1">
-              {history.length > 0 && (
+              {!isReadOnly && history.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0" data-testid="workflow-history-dropdown">
@@ -699,32 +703,36 @@ export function WorkflowPRDSection({
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
-                onClick={handleReview}
-                disabled={isReviewing || isGenerating}
-                data-testid="review-prd-btn"
-              >
-                {isReviewing ? (
-                  <Loader2 size={10} className="mr-1 animate-spin" />
-                ) : (
-                  <Sparkles size={10} className="mr-1" />
-                )}
-                Analyze
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs text-muted-foreground"
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                data-testid="regenerate-btn"
-              >
-                <RefreshCw size={12} className="mr-1" />
-                Regenerate
-              </Button>
+              {!isReadOnly && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                    onClick={handleReview}
+                    disabled={isReviewing || isGenerating}
+                    data-testid="review-prd-btn"
+                  >
+                    {isReviewing ? (
+                      <Loader2 size={10} className="mr-1 animate-spin" />
+                    ) : (
+                      <Sparkles size={10} className="mr-1" />
+                    )}
+                    Analyze
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground"
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    data-testid="regenerate-btn"
+                  >
+                    <RefreshCw size={12} className="mr-1" />
+                    Regenerate
+                  </Button>
+                </>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -758,11 +766,15 @@ export function WorkflowPRDSection({
                     <Printer size={14} className="mr-2" />
                     Print to PDF
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setIsImportModalOpen(true)} data-testid="import-prd">
-                    <Upload size={14} className="mr-2" />
-                    Import PRD
-                  </DropdownMenuItem>
+                  {!isReadOnly && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setIsImportModalOpen(true)} data-testid="import-prd">
+                        <Upload size={14} className="mr-2" />
+                        Import PRD
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -796,6 +808,7 @@ export function WorkflowPRDSection({
                   onUnlinkItem={(targetId, targetType) => handleUnlinkItem(targetId, targetType, section.id)}
                   onFocusNode={handleFocusNode}
                   onFocusEdge={handleFocusEdge}
+                  isReadOnly={isReadOnly}
                 />
               </div>
             );

@@ -9935,6 +9935,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections.`,
                   });
                 }}
+                isReadOnly={isReadOnly}
               />
             )}
           </>

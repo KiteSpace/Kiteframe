@@ -22,9 +22,10 @@ interface LayersTabProps {
   frames?: any[];
   canvasObjects?: CanvasObject[];
   projectId?: string;
+  isReadOnly?: boolean;
 }
 
-export function LayersTab({ nodes, edges, frames, canvasObjects, projectId }: LayersTabProps) {
+export function LayersTab({ nodes, edges, frames, canvasObjects, projectId, isReadOnly = false }: LayersTabProps) {
   const [tree, setTree] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [collapseVersion, forceCollapseUpdate] = useReducer((x: number) => x + 1, 0);

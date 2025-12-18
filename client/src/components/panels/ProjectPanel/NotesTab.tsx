@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 interface NotesTabProps {
   projectId?: string;
+  isReadOnly?: boolean;
 }
 
 interface TranscriptMessage {
@@ -50,7 +51,7 @@ function formatTimestamp(timestamp: Date | string | undefined): string {
   });
 }
 
-export function NotesTab({ projectId }: NotesTabProps) {
+export function NotesTab({ projectId, isReadOnly = false }: NotesTabProps) {
   const [notes, setNotes] = useState('');
   const [savedNotes, setSavedNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -141,6 +142,8 @@ export function NotesTab({ projectId }: NotesTabProps) {
   }, [notes, projectId]);
 
   useEffect(() => {
+    if (isReadOnly) return; // Don't auto-save in read-only mode
+    
     const timer = setTimeout(() => {
       if (notes !== savedNotes && notes.length > 0) {
         saveNotes();
@@ -148,7 +151,7 @@ export function NotesTab({ projectId }: NotesTabProps) {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [notes, savedNotes, saveNotes]);
+  }, [notes, savedNotes, saveNotes, isReadOnly]);
 
   const hasUnsavedChanges = notes !== savedNotes;
 
@@ -182,7 +185,7 @@ export function NotesTab({ projectId }: NotesTabProps) {
                 {formatLastSaved(lastSaved)}
               </span>
             )}
-            {hasUnsavedChanges && (
+            {hasUnsavedChanges && !isReadOnly && (
               <Button 
                 size="sm" 
                 variant="ghost" 
@@ -200,9 +203,10 @@ export function NotesTab({ projectId }: NotesTabProps) {
         
         <Textarea
           value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Add notes about your project here...&#10;&#10;• Design decisions&#10;• TODO items&#10;• Meeting notes&#10;• Reference links"
+          onChange={(e) => !isReadOnly && setNotes(e.target.value)}
+          placeholder={isReadOnly ? "No notes available" : "Add notes about your project here...&#10;&#10;• Design decisions&#10;• TODO items&#10;• Meeting notes&#10;• Reference links"}
           className="min-h-[150px] resize-none text-sm border-primary/20 focus:border-primary/40"
+          readOnly={isReadOnly}
           data-testid="input-notes"
         />
         

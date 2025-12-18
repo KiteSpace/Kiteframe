@@ -35,6 +35,7 @@ interface DocSectionProps {
   onUnlinkItem?: (targetId: string, targetType: PRDLinkTargetType) => void;
   onFocusNode?: (nodeId: string) => void;
   onFocusEdge?: (edgeId: string) => void;
+  isReadOnly?: boolean;
 }
 
 function ConfidenceBadge({ level }: { level: ConfidenceLevel }) {
@@ -337,7 +338,8 @@ export function DocSection({
   onUnlinkNode,
   onUnlinkItem,
   onFocusNode,
-  onFocusEdge
+  onFocusEdge,
+  isReadOnly = false
 }: DocSectionProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(content);
@@ -383,10 +385,10 @@ export function DocSection({
   }, [handleCancel, handleSave]);
 
   const handleContentClick = useCallback(() => {
-    if (!isEditing) {
+    if (!isEditing && !isReadOnly) {
       setIsEditing(true);
     }
-  }, [isEditing]);
+  }, [isEditing, isReadOnly]);
 
   const handleReset = useCallback(() => {
     onResetToAI?.(sectionKey);
@@ -478,7 +480,7 @@ export function DocSection({
           "flex items-center gap-1 transition-opacity duration-150",
           isHovered || isEditing || suggestion ? "opacity-100" : "opacity-0"
         )}>
-          {isStale && onRegenerateSection && !isEditing && !suggestion && (
+          {!isReadOnly && isStale && onRegenerateSection && !isEditing && !suggestion && (
             <Button
               variant="ghost"
               size="sm"
@@ -490,7 +492,7 @@ export function DocSection({
               Regenerate
             </Button>
           )}
-          {enableAISuggestions && content && !isEditing && !suggestion && (
+          {!isReadOnly && enableAISuggestions && content && !isEditing && !suggestion && (
             <Button
               variant="ghost"
               size="sm"
@@ -507,7 +509,7 @@ export function DocSection({
               Suggest
             </Button>
           )}
-          {manuallyEdited && onResetToAI && !suggestion && (
+          {!isReadOnly && manuallyEdited && onResetToAI && !suggestion && (
             <Button
               variant="ghost"
               size="sm"
@@ -519,7 +521,7 @@ export function DocSection({
               Reset
             </Button>
           )}
-          {onLinkNode && !isEditing && !suggestion && (
+          {!isReadOnly && onLinkNode && !isEditing && !suggestion && (
             <Button
               variant="ghost"
               size="sm"
@@ -531,7 +533,7 @@ export function DocSection({
               Link
             </Button>
           )}
-          {!isEditing && !suggestion && (
+          {!isReadOnly && !isEditing && !suggestion && (
             <Button
               variant="ghost"
               size="sm"
@@ -579,7 +581,7 @@ export function DocSection({
               >
                 {isEdge ? <ArrowRight size={8} /> : <Link2 size={8} />}
                 {isEdge ? 'Edge' : 'Node'}
-                {(onUnlinkItem || onUnlinkNode) && (
+                {!isReadOnly && (onUnlinkItem || onUnlinkNode) && (
                   <button
                     onClick={handleUnlink}
                     className="ml-0.5 hover:text-red-500"
@@ -600,7 +602,7 @@ export function DocSection({
             <InsightChip
               key={insight.id}
               insight={insight}
-              onDismiss={onDismissInsight ? () => onDismissInsight(insight.id) : undefined}
+              onDismiss={!isReadOnly && onDismissInsight ? () => onDismissInsight(insight.id) : undefined}
             />
           ))}
         </div>
@@ -629,16 +631,17 @@ export function DocSection({
           <div
             onClick={handleContentClick}
             className={cn(
-              "text-muted-foreground cursor-text",
-              "hover:bg-accent/30 rounded-md transition-colors duration-100 -mx-2 px-2 py-1",
+              "text-muted-foreground",
+              !isReadOnly && "cursor-text hover:bg-accent/30",
+              "rounded-md transition-colors duration-100 -mx-2 px-2 py-1",
               !content && "italic text-sm"
             )}
             data-testid={`content-${sectionKey}`}
           >
-            {formattedContent || "Click to add content..."}
+            {formattedContent || (isReadOnly ? "No content" : "Click to add content...")}
           </div>
 
-          {suggestion && (
+          {!isReadOnly && suggestion && (
             <div className="mt-3 border border-primary/30 rounded-md bg-primary/5 p-3" data-testid={`suggestion-${sectionKey}`}>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] uppercase text-primary font-medium flex items-center gap-1">
@@ -674,7 +677,7 @@ export function DocSection({
             </div>
           )}
 
-          {reviewSuggestions.length > 0 && (
+          {!isReadOnly && reviewSuggestions.length > 0 && (
             <div data-testid={`review-suggestions-${sectionKey}`}>
               {reviewSuggestions.map((reviewSuggestion, idx) => (
                 <ReviewSuggestionCard

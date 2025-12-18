@@ -25,6 +25,7 @@ interface ProjectPanelProps {
   onProjectNameChange?: (name: string) => void;
   onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
+  isReadOnly?: boolean;
 }
 
 const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string }[] = [
@@ -43,7 +44,8 @@ export function ProjectPanel({
   projectName,
   onProjectNameChange,
   onApplyWorkflow,
-  onPreviewWorkflow
+  onPreviewWorkflow,
+  isReadOnly = false
 }: ProjectPanelProps) {
   const resizeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -234,8 +236,9 @@ export function ProjectPanel({
             nodes={nodes}
             edges={edges}
             canvasObjects={canvasObjects}
-            onApplyWorkflow={onApplyWorkflow}
-            onPreviewWorkflow={onPreviewWorkflow}
+            onApplyWorkflow={isReadOnly ? undefined : onApplyWorkflow}
+            onPreviewWorkflow={isReadOnly ? undefined : onPreviewWorkflow}
+            isReadOnly={isReadOnly}
           />
         </TabsContent>
         
@@ -247,7 +250,8 @@ export function ProjectPanel({
             nodes={nodes}
             edges={edges}
             canvasObjects={canvasObjects}
-            onProjectNameChange={onProjectNameChange}
+            onProjectNameChange={isReadOnly ? undefined : onProjectNameChange}
+            isReadOnly={isReadOnly}
           />
         </TabsContent>
         
@@ -259,6 +263,7 @@ export function ProjectPanel({
             frames={frames}
             canvasObjects={canvasObjects}
             projectId={projectId}
+            isReadOnly={isReadOnly}
           />
         </TabsContent>
         
@@ -266,6 +271,7 @@ export function ProjectPanel({
           <NotesTab
             key={projectId || 'default'}
             projectId={projectId}
+            isReadOnly={isReadOnly}
           />
         </TabsContent>
       </Tabs>

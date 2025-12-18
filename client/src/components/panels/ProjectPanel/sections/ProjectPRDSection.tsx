@@ -30,6 +30,7 @@ interface ProjectPRDSectionProps {
   nodes: Node[];
   edges: Edge[];
   onPRDGenerated?: () => void;
+  isReadOnly?: boolean;
 }
 
 export function ProjectPRDSection({ 
@@ -37,7 +38,8 @@ export function ProjectPRDSection({
   projectName,
   nodes,
   edges,
-  onPRDGenerated
+  onPRDGenerated,
+  isReadOnly = false
 }: ProjectPRDSectionProps) {
   const [prd, setPrd] = useState<ProjectPRD | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -156,16 +158,18 @@ export function ProjectPRDSection({
       {!prd && !isGenerating && (
         <div className="text-center py-6">
           <p className="text-sm text-muted-foreground mb-3">
-            No project spec generated yet.
+            {isReadOnly ? 'No project spec available.' : 'No project spec generated yet.'}
           </p>
-          <Button
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            data-testid="generate-project-prd"
-          >
-            <Sparkles size={14} className="mr-2" />
-            Generate Project Spec
-          </Button>
+          {!isReadOnly && (
+            <Button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              data-testid="generate-project-prd"
+            >
+              <Sparkles size={14} className="mr-2" />
+              Generate Project Spec
+            </Button>
+          )}
         </div>
       )}
 
@@ -189,7 +193,7 @@ export function ProjectPRDSection({
               )}
             </div>
             <div className="flex items-center gap-1">
-              {history.length > 0 && (
+              {!isReadOnly && history.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -223,17 +227,19 @@ export function ProjectPRDSection({
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs text-muted-foreground"
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                data-testid="regenerate-project-prd"
-              >
-                <RefreshCw size={12} className="mr-1" />
-                Regenerate
-              </Button>
+              {!isReadOnly && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-muted-foreground"
+                  onClick={handleGenerate}
+                  disabled={isGenerating}
+                  data-testid="regenerate-project-prd"
+                >
+                  <RefreshCw size={12} className="mr-1" />
+                  Regenerate
+                </Button>
+              )}
             </div>
           </div>
 
@@ -246,6 +252,7 @@ export function ProjectPRDSection({
               manuallyEdited={!!prd.manualEditedAt[section.id]}
               onSave={handleSectionSave}
               onResetToAI={handleResetSection}
+              isReadOnly={isReadOnly}
             />
           ))}
         </WorkflowDocument>
