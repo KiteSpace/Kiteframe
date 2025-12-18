@@ -117,8 +117,7 @@ export default function FloatingShapes() {
       position: 'absolute',
       left: `${shape.x}%`,
       top: `${shape.y}%`,
-      animation: `float-rotate-${shape.id} ${shape.duration}s ease-in-out infinite`,
-      animationDelay: `${shape.delay}s`,
+      animation: `float-rotate-${shape.id} ${shape.duration}s linear infinite`,
     };
 
     if (shape.type === 'circle') {
