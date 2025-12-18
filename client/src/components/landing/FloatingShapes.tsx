@@ -57,7 +57,7 @@ export default function FloatingShapes() {
         color: CIRCLE_COLORS[Math.floor(Math.random() * CIRCLE_COLORS.length)],
         rotation: 0,
         delay: Math.random() * 4,
-        duration: (4 + Math.random() * 4) * 1.66,
+        duration: 12 + Math.random() * 6,
         rotateClockwise: Math.random() > 0.5,
       });
     }
@@ -72,7 +72,7 @@ export default function FloatingShapes() {
         color: SQUARE_COLORS[Math.floor(Math.random() * SQUARE_COLORS.length)],
         rotation: Math.random() * 45,
         delay: Math.random() * 4,
-        duration: (4 + Math.random() * 4) * 1.66,
+        duration: 12 + Math.random() * 6,
         rotateClockwise: Math.random() > 0.5,
       });
     }
@@ -87,7 +87,7 @@ export default function FloatingShapes() {
         color: TRIANGLE_COLORS[Math.floor(Math.random() * TRIANGLE_COLORS.length)],
         rotation: Math.random() * 360,
         delay: Math.random() * 4,
-        duration: (4 + Math.random() * 4) * 1.66,
+        duration: 12 + Math.random() * 6,
         rotateClockwise: Math.random() > 0.5,
       });
     }
