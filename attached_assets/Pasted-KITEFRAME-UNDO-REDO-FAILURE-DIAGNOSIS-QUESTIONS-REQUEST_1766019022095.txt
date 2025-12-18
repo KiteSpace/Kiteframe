@@ -1,0 +1,163 @@
+KITEFRAME — UNDO / REDO FAILURE DIAGNOSIS QUESTIONS
+(REQUEST FOR CODE-LEVEL ANSWERS)
+
+Context:
+Undo/redo is logging many actions as:
+[ACTIVITY] ⏭️ SKIPPED (no change)
+
+Despite visible user-facing changes (nodes, shapes, themes).
+We need to determine whether the issue is:
+• in-place mutation
+• incorrect snapshot timing
+• flawed diff logic
+• semantic vs persisted action mismatch
+• plugin side effects
+
+Please answer each section concretely with file names, functions, and execution order.
+
+--------------------------------------------------
+SECTION 1 — HISTORY SNAPSHOT CREATION (GROUND TRUTH)
+--------------------------------------------------
+
+1. Where is `saveToHistory()` defined?
+   • File path:
+   • Function signature:
+
+2. For each of the following actions, confirm EXACTLY when `saveToHistory()` is called:
+   - Add node
+   - Add shape
+   - Apply theme
+   - Drag node(s)
+   - Drag workflow
+   - Auto-layout
+
+   For each action, specify:
+   • Is saveToHistory called BEFORE mutation or AFTER mutation?
+   • Is it called inside the same tick or after setState?
+   • Is it wrapped in debounce/throttle?
+
+3. What exact state is captured in the snapshot?
+   • nodes
+   • edges
+   • canvasObjects
+   • viewport
+   • selection
+   • themes
+
+4. Is there ANY path where mutation happens before the snapshot is taken?
+   (Yes/No — list locations)
+
+--------------------------------------------------
+SECTION 2 — MUTATION VS IMMUTABILITY
+--------------------------------------------------
+
+5. For the following state updates, confirm whether they mutate in place or create new references:
+   - Node creation helpers
+   - Shape creation helpers
+   - Theme application helpers
+   - Canvas object updates
+
+6. Do any helpers:
+   • push into arrays
+   • mutate objects directly
+   • reuse existing references
+
+7. Are we relying on shallow comparison or reference equality to detect changes?
+   (If yes, mutation will break undo.)
+
+--------------------------------------------------
+SECTION 3 — DIFF / CHANGE DETECTION LOGIC
+--------------------------------------------------
+
+8. Where does the system decide an activity is "SKIPPED (no change)"?
+   • File path:
+   • Function name:
+
+9. What comparison is used?
+   • Reference equality?
+   • Shallow diff?
+   • Deep diff?
+
+10. Are transient or derived fields stripped before comparison?
+    (e.g., position rounding, theme-derived colors)
+
+11. Can a real change be missed if mutation occurs before comparison?
+    (Explain how the diff works step-by-step.)
+
+--------------------------------------------------
+SECTION 4 — SEMANTIC VS PERSISTED ACTIONS
+--------------------------------------------------
+
+12. What is the intended difference between:
+    • "Add node"
+    • "Update canvas objects"
+
+13. Which of these is supposed to be undoable?
+    • Both?
+    • Only persisted updates?
+
+14. Is it expected behavior that user-visible actions are labeled SKIPPED
+    while a later generic update is saved?
+
+--------------------------------------------------
+SECTION 5 — EXECUTION ORDER (CRITICAL)
+--------------------------------------------------
+
+15. For a concrete example (Add node from popout), please provide the exact order:
+    1. Event handler
+    2. Helper function(s)
+    3. Mutation
+    4. Diff check
+    5. saveToHistory
+    6. setState
+
+16. Does ANY step mutate before the diff comparison runs?
+
+--------------------------------------------------
+SECTION 6 — PLUGINS & SIDE EFFECTS
+--------------------------------------------------
+
+17. Can plugins mutate nodes, edges, canvasObjects, or themes?
+    (Yes/No — list which hooks.)
+
+18. Do plugin hooks bypass saveToHistory or mutate shared references?
+
+19. Could plugin re-installation (seen in logs) affect undo state?
+
+--------------------------------------------------
+SECTION 7 — EXPECTED BEHAVIOR CONFIRMATION
+--------------------------------------------------
+
+20. Confirm intended guarantees:
+    • Every user-visible change must create ONE undo step
+    • Drag operations should batch into one step
+    • Theme changes must be undoable
+    • Shape additions must be undoable
+
+21. Is the current behavior aligned with these guarantees?
+    (If no, where does it diverge?)
+
+--------------------------------------------------
+SECTION 8 — LIKELY ROOT CAUSE (YOUR ASSESSMENT)
+--------------------------------------------------
+
+22. Based on the above, which do you believe is the root cause?
+    (Choose all that apply)
+    ☐ In-place mutation
+    ☐ saveToHistory timing
+    ☐ Diff logic flaw
+    ☐ Semantic labeling mismatch
+    ☐ Plugin side effects
+
+23. What is the minimal fix you would propose?
+
+--------------------------------------------------
+SECTION 9 — CONFIDENCE CHECK
+--------------------------------------------------
+
+24. After fixing the issue, how will we ensure regressions don’t reappear?
+    • Tests?
+    • Mutation guards?
+    • Middleware enforcement?
+
+END OF DIAGNOSTIC REQUEST
