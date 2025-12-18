@@ -10104,90 +10104,153 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   const { projectPRD, workflows, projectName, projectId: importedProjectId } = importedData.projectData;
                   console.log('[Import] Processing AssembledProjectPRD with', workflows.length, 'workflows');
                   
-                  // Use the imported project ID if available, or create a unique one
-                  // This ensures PRD storage keys match between export and import
-                  const importProjectUuid = importedProjectId || `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                  // Merge all workflows onto a single canvas (current active tab)
+                  // This preserves the original project layout with all workflows together
+                  const allNodes: Node[] = [];
+                  const allEdges: Edge[] = [];
+                  const allCanvasObjects: CanvasObject[] = [];
+                  let primaryViewport = { x: 0, y: 0, zoom: 1 };
                   
-                  // Create tabs for each workflow with canvas data
-                  const newTabs: WorkflowTab[] = [];
-                  let firstTabId = '';
+                  // Map from original workflowId to PRD data for deterministic remapping
+                  const workflowIdToPRD: Record<string, { sections: any[], workflowName: string }> = {};
                   
                   for (const workflow of workflows) {
                     const canvas = workflow.canvas || {};
-                    const nodes = (canvas.nodes || []).map((node: Node) => ({ ...node, selected: false }));
+                    // Tag each node with its original workflowId for deterministic PRD remapping
+                    // Guard against nodes without data property
+                    const nodes = (canvas.nodes || []).map((node: Node) => ({ 
+                      ...node, 
+                      selected: false,
+                      data: node.data 
+                        ? { ...node.data, _importedWorkflowId: workflow.workflowId }
+                        : { _importedWorkflowId: workflow.workflowId }
+                    }));
                     const edges = (canvas.edges || []).map((edge: Edge) => ({ ...edge, selected: false }));
                     const canvasObjects = (canvas.canvasObjects || []).map((obj: any) => ({ ...obj, selected: false }));
-                    const viewport = canvas.viewport || { x: 0, y: 0, zoom: 1 };
                     
-                    const tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                    if (!firstTabId) firstTabId = tabId;
+                    // Collect all canvas elements - positions are preserved from export
+                    allNodes.push(...nodes);
+                    allEdges.push(...edges);
+                    allCanvasObjects.push(...canvasObjects);
                     
-                    const newTab: WorkflowTab = {
-                      id: tabId,
-                      name: workflow.workflowName || 'Imported Workflow',
-                      isOpen: true,
-                      projectUuid: importProjectUuid,
-                      nodes,
-                      edges,
-                      canvasObjects,
-                      viewport,
-                      selectedNodeId: '',
-                      selectedEdgeId: '',
-                      showImageModal: null,
-                      isDirty: false,
-                      metadata: {
-                        name: workflow.workflowName || 'Imported Workflow',
-                        description: workflow.metadata?.description || '',
-                        links: workflow.metadata?.links || [],
-                        linksFormat: 'text' as const,
-                        categories: workflow.metadata?.categories || [],
-                      },
-                      history: [{
-                        nodes,
-                        edges,
-                        canvasObjects,
-                        viewport,
-                      }],
-                      historyIndex: 0,
-                    };
+                    // Use the first workflow's viewport as the primary viewport
+                    if (canvas.viewport && allNodes.length === nodes.length) {
+                      primaryViewport = canvas.viewport;
+                    }
                     
-                    newTabs.push(newTab);
-                    
-                    // Save workflow PRD if present
+                    // Store PRD sections by original workflowId for deterministic remapping
                     if (workflow.prdSections && workflow.prdSections.length > 0) {
-                      saveWorkflowPRD(importProjectUuid, workflow.workflowId, {
-                        workflowId: workflow.workflowId,
-                        workflowName: workflow.workflowName,
+                      workflowIdToPRD[workflow.workflowId] = {
                         sections: workflow.prdSections,
-                        manualEditedAt: {},
-                        version: 1,
-                        generatedAt: Date.now(),
-                      });
-                      console.log('[Import] Saved workflow PRD for', workflow.workflowName, 'with', workflow.prdSections.length, 'sections');
+                        workflowName: workflow.workflowName
+                      };
+                      console.log('[Import] Stored PRD sections for workflow:', workflow.workflowName, '(id:', workflow.workflowId, ')');
                     }
                   }
                   
-                  // Save project PRD if present
-                  if (projectPRD?.sections) {
-                    saveProjectPRD(importProjectUuid, {
-                      projectId: importProjectUuid,
-                      projectName: projectName || 'Imported Project',
-                      sections: projectPRD.sections,
-                      manualEditedAt: {},
-                      version: projectPRD.version || 1,
-                      generatedAt: projectPRD.generatedAt || Date.now(),
-                    });
-                    console.log('[Import] Saved project PRD with', projectPRD.sections.length, 'sections');
-                  }
+                  console.log('[Import] Merged', allNodes.length, 'nodes,', allEdges.length, 'edges,', allCanvasObjects.length, 'canvas objects');
                   
-                  // Add all new tabs and switch to the first one
-                  if (newTabs.length > 0) {
-                    setTabs((prev) => [...prev, ...newTabs]);
-                    setActiveTabId(firstTabId);
+                  // Use the imported project ID for consistency with export
+                  // This ensures PRD storage keys match between export and import
+                  const targetProjectId = importedProjectId || activeTab?.projectUuid || `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                  
+                  // Apply merged content to the active tab
+                  if (activeTab) {
+                    // Update tab name with project name
+                    const updatedMetadata = {
+                      ...activeTab.metadata,
+                      name: projectName || activeTab.metadata.name,
+                      description: importedData.projectData.project?.description || activeTab.metadata.description,
+                    };
+                    
+                    // Reset history with the new imported state
+                    const newHistory = [{
+                      nodes: allNodes,
+                      edges: allEdges,
+                      canvasObjects: allCanvasObjects,
+                      viewport: primaryViewport,
+                    }];
+                    
+                    updateActiveTab({
+                      name: projectName || activeTab.name,
+                      projectUuid: targetProjectId,
+                      nodes: allNodes,
+                      edges: allEdges,
+                      canvasObjects: allCanvasObjects,
+                      viewport: primaryViewport,
+                      metadata: updatedMetadata,
+                      history: newHistory,
+                      historyIndex: 0,
+                    });
+                    
+                    // Also update ReactFlow state directly to ensure rendering
+                    setNodes(allNodes);
+                    setEdges(allEdges);
+                    setViewport(primaryViewport);
+                    
+                    // After updating the canvas, use FlowDetection to get new workflow IDs
+                    // and re-map PRD sections using the _importedWorkflowId tags (deterministic)
+                    setTimeout(() => {
+                      const detectedFlows = FlowDetection.detectFlows(allNodes, allEdges);
+                      console.log('[Import] FlowDetection found', detectedFlows.length, 'flows after merge');
+                      
+                      // Track which original workflow IDs have been mapped
+                      const mappedWorkflowIds = new Set<string>();
+                      
+                      // Match PRDs to detected flows using the _importedWorkflowId tags
+                      for (const flow of detectedFlows) {
+                        // Find the majority original workflowId among nodes in this flow
+                        const workflowIdCounts: Record<string, number> = {};
+                        for (const node of flow.nodes) {
+                          const originalId = node.data?._importedWorkflowId;
+                          if (originalId) {
+                            workflowIdCounts[originalId] = (workflowIdCounts[originalId] || 0) + 1;
+                          }
+                        }
+                        
+                        // Find the workflowId with the most nodes
+                        let bestOriginalId: string | null = null;
+                        let bestCount = 0;
+                        for (const [id, count] of Object.entries(workflowIdCounts)) {
+                          if (count > bestCount && !mappedWorkflowIds.has(id)) {
+                            bestCount = count;
+                            bestOriginalId = id;
+                          }
+                        }
+                        
+                        // Map PRD if we found a matching original workflow
+                        if (bestOriginalId && workflowIdToPRD[bestOriginalId]) {
+                          const prdData = workflowIdToPRD[bestOriginalId];
+                          saveWorkflowPRD(targetProjectId, flow.id, {
+                            workflowId: flow.id,
+                            workflowName: prdData.workflowName,
+                            sections: prdData.sections,
+                            manualEditedAt: {},
+                            version: 1,
+                            generatedAt: Date.now(),
+                          });
+                          mappedWorkflowIds.add(bestOriginalId);
+                          console.log('[Import] Mapped PRD for', prdData.workflowName, 'to flow', flow.id, '(', bestCount, 'nodes matched)');
+                        }
+                      }
+                    }, 100);
+                    
+                    // Save project PRD if present
+                    if (projectPRD?.sections) {
+                      saveProjectPRD(targetProjectId, {
+                        projectId: targetProjectId,
+                        projectName: projectName || 'Imported Project',
+                        sections: projectPRD.sections,
+                        manualEditedAt: {},
+                        version: projectPRD.version || 1,
+                        generatedAt: projectPRD.generatedAt || Date.now(),
+                      });
+                      console.log('[Import] Saved project PRD with', projectPRD.sections.length, 'sections');
+                    }
                     
                     toast({
                       title: "Project Imported",
-                      description: `Imported "${projectName || 'Project'}" with ${newTabs.length} workflow(s) and PRD data`,
+                      description: `Imported "${projectName || 'Project'}" with ${workflows.length} workflow(s) onto a single canvas`,
                     });
                   }
                 } else {
