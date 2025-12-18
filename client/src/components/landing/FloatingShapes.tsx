@@ -99,26 +99,25 @@ export default function FloatingShapes() {
     return shapes.map(shape => {
       const rot = shape.rotation;
       const rotDir = shape.rotateClockwise ? 1 : -1;
-      const rotSpeed = 25 + Math.random() * 15;
+      const floatDistance = 4 + Math.random() * 4; // Subtle 4-8px float
       return `
         @keyframes float-rotate-${shape.id} {
-          0% { transform: translateY(0px) rotate(${rot}deg); }
-          25% { transform: translateY(-6px) rotate(${rot + rotDir * 90}deg); }
-          50% { transform: translateY(-12px) rotate(${rot + rotDir * 180}deg); }
-          75% { transform: translateY(-6px) rotate(${rot + rotDir * 270}deg); }
-          100% { transform: translateY(0px) rotate(${rot + rotDir * 360}deg); }
+          0% { transform: translateY(0px) rotate(${rot}deg); opacity: 0.7; }
+          25% { transform: translateY(-${floatDistance / 2}px) rotate(${rot + rotDir * 90}deg); opacity: 0.8; }
+          50% { transform: translateY(-${floatDistance}px) rotate(${rot + rotDir * 180}deg); opacity: 0.85; }
+          75% { transform: translateY(-${floatDistance / 2}px) rotate(${rot + rotDir * 270}deg); opacity: 0.8; }
+          100% { transform: translateY(0px) rotate(${rot + rotDir * 360}deg); opacity: 0.7; }
         }
       `;
     }).join('\n');
   }, [shapes]);
 
   const renderShape = (shape: Shape) => {
-    const rotationDuration = 25 + (shape.id % 5) * 5;
     const baseStyle: React.CSSProperties = {
       position: 'absolute',
       left: `${shape.x}%`,
       top: `${shape.y}%`,
-      animation: `float-rotate-${shape.id} ${rotationDuration}s ease-in-out infinite`,
+      animation: `float-rotate-${shape.id} ${shape.duration}s ease-in-out infinite`,
       animationDelay: `${shape.delay}s`,
     };
 
