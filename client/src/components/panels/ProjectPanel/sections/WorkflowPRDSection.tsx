@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -52,6 +52,7 @@ import {
   exportKiteframePRDJson,
   downloadKiteframePRDJson
 } from '@/lib/export';
+import { usePRDGenerationState } from '@/stores/prdGenerationBus';
 
 interface WorkflowPRDSectionProps {
   projectId: string;
@@ -182,9 +183,12 @@ export function WorkflowPRDSection({
   const [staleSections, setStaleSections] = useState<Record<string, boolean>>({});
   const [isRegeneratingSectionId, setIsRegeneratingSectionId] = useState<string | null>(null);
   const [applyingSuggestionSectionId, setApplyingSuggestionSectionId] = useState<string | null>(null);
+  const prevUpdateKeyRef = useRef(0);
   const ai = useAi();
   const { toast } = useToast();
   const prdLinks = usePRDNodeLinks(projectId);
+  
+  const { updateKey } = usePRDGenerationState(projectId);
 
   const suggestionsBySectionId = useMemo(() => {
     if (!reviewResult?.suggestions) return {};
@@ -215,7 +219,7 @@ export function WorkflowPRDSection({
     loadSectionInsights();
   }, [projectId, loadSectionInsights]);
 
-  useEffect(() => {
+  const loadFromStorage = useCallback(() => {
     if (projectId && workflowId) {
       const loaded = loadWorkflowPRD(projectId, workflowId);
       if (loaded) {
@@ -240,6 +244,17 @@ export function WorkflowPRDSection({
       setHistory(loadedHistory);
     }
   }, [projectId, workflowId, nodes, edges]);
+
+  useEffect(() => {
+    loadFromStorage();
+  }, [loadFromStorage]);
+  
+  useEffect(() => {
+    if (updateKey > 0 && updateKey !== prevUpdateKeyRef.current) {
+      prevUpdateKeyRef.current = updateKey;
+      loadFromStorage();
+    }
+  }, [updateKey, loadFromStorage]);
 
   const handleGenerate = useCallback(async () => {
     if (!workflowId || !projectId) return;

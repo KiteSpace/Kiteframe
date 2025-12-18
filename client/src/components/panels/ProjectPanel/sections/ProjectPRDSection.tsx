@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, RefreshCw, Loader2, History, RotateCw } from 'lucide-react';
 import {
@@ -22,6 +22,7 @@ import { type ProjectPRD, generateProjectPRD } from '@/ai/prdEngine';
 import { useAi } from '@/ai/AiProvider';
 import { useToast } from '@/hooks/use-toast';
 import { DocSection, WorkflowDocument } from '@/components/docs';
+import { usePRDGenerationState } from '@/stores/prdGenerationBus';
 
 interface ProjectPRDSectionProps {
   projectId: string;
@@ -41,10 +42,13 @@ export function ProjectPRDSection({
   const [prd, setPrd] = useState<ProjectPRD | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [history, setHistory] = useState<PRDVersion<ProjectPRD>[]>([]);
+  const prevUpdateKeyRef = useRef(0);
   const ai = useAi();
   const { toast } = useToast();
+  
+  const { updateKey } = usePRDGenerationState(projectId);
 
-  useEffect(() => {
+  const loadFromStorage = useCallback(() => {
     if (projectId) {
       const loaded = loadProjectPRD(projectId);
       if (loaded) {
@@ -56,6 +60,17 @@ export function ProjectPRDSection({
       setHistory(loadedHistory);
     }
   }, [projectId]);
+
+  useEffect(() => {
+    loadFromStorage();
+  }, [loadFromStorage]);
+  
+  useEffect(() => {
+    if (updateKey > 0 && updateKey !== prevUpdateKeyRef.current) {
+      prevUpdateKeyRef.current = updateKey;
+      loadFromStorage();
+    }
+  }, [updateKey, loadFromStorage]);
 
   const handleGenerate = useCallback(async () => {
     if (!projectId || !projectName) return;
