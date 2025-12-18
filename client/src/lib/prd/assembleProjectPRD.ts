@@ -1,12 +1,21 @@
 import type { WorkflowPRD, ProjectPRD, PRDSection } from '../../ai/prdEngine';
 import { loadWorkflowPRD, loadProjectPRD, listWorkflowPRDs } from '../kiteframe/utils/prdStorage';
 import type { SemanticWorkflowModel } from '../kiteframe/utils/extractSemanticWorkflowModel';
+import type { Node, Edge, CanvasObject } from '../kiteframe/types';
+
+export interface WorkflowCanvasData {
+  nodes: Node[];
+  edges: Edge[];
+  canvasObjects?: CanvasObject[];
+  viewport?: { x: number; y: number; zoom: number };
+}
 
 export interface WorkflowPRDEntry {
   workflowId: string;
   workflowName: string;
   prdSections: PRDSection[];
   semanticSummary?: string;
+  canvas?: WorkflowCanvasData;
 }
 
 export interface AssembledProjectPRD {
@@ -34,6 +43,7 @@ export interface AssembleOptions {
   selectedWorkflowIds: string[];
   workflowNames?: Record<string, string>;
   semanticModels?: Record<string, SemanticWorkflowModel>;
+  workflowCanvasData?: Record<string, WorkflowCanvasData>;
 }
 
 export function assembleProjectPRD(options: AssembleOptions): AssembledProjectPRD {
@@ -43,7 +53,8 @@ export function assembleProjectPRD(options: AssembleOptions): AssembledProjectPR
     projectDescription,
     selectedWorkflowIds,
     workflowNames = {},
-    semanticModels = {}
+    semanticModels = {},
+    workflowCanvasData = {}
   } = options;
 
   const projectPRD = loadProjectPRD(projectId);
@@ -53,21 +64,22 @@ export function assembleProjectPRD(options: AssembleOptions): AssembledProjectPR
   for (const workflowId of selectedWorkflowIds) {
     const workflowPRD = loadWorkflowPRD(projectId, workflowId);
     
-    if (workflowPRD) {
-      const semanticModel = semanticModels[workflowId];
-      let semanticSummary: string | undefined;
-      
-      if (semanticModel) {
-        semanticSummary = buildSemanticSummary(semanticModel);
-      }
-      
-      workflows.push({
-        workflowId,
-        workflowName: workflowPRD.workflowName || workflowNames[workflowId] || workflowId,
-        prdSections: workflowPRD.sections,
-        semanticSummary
-      });
+    const semanticModel = semanticModels[workflowId];
+    let semanticSummary: string | undefined;
+    
+    if (semanticModel) {
+      semanticSummary = buildSemanticSummary(semanticModel);
     }
+    
+    const canvasData = workflowCanvasData[workflowId];
+    
+    workflows.push({
+      workflowId,
+      workflowName: workflowPRD?.workflowName || workflowNames[workflowId] || workflowId,
+      prdSections: workflowPRD?.sections || [],
+      semanticSummary,
+      canvas: canvasData
+    });
   }
 
   return {

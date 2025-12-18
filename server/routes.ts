@@ -116,6 +116,37 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
 
   // Helper function to extract nodes/edges/canvasObjects/viewport from various formats
   const extractWorkflowData = (data: any) => {
+    // Check if this is an AssembledProjectPRD format (Kiteframe PRD JSON export)
+    if (data.version && data.workflows && Array.isArray(data.workflows)) {
+      const allNodes: any[] = [];
+      const allEdges: any[] = [];
+      const allCanvasObjects: any[] = [];
+      
+      for (const workflow of data.workflows) {
+        if (workflow.canvas) {
+          if (Array.isArray(workflow.canvas.nodes)) {
+            allNodes.push(...workflow.canvas.nodes);
+          }
+          if (Array.isArray(workflow.canvas.edges)) {
+            allEdges.push(...workflow.canvas.edges);
+          }
+          if (Array.isArray(workflow.canvas.canvasObjects)) {
+            allCanvasObjects.push(...workflow.canvas.canvasObjects);
+          }
+        }
+      }
+      
+      if (allNodes.length > 0 || allEdges.length > 0) {
+        return {
+          nodes: allNodes,
+          edges: allEdges,
+          canvasObjects: allCanvasObjects,
+          viewport: null,
+          format: 'assembled-project-prd'
+        };
+      }
+    }
+    
     const paths = [
       // Comprehensive format variations
       { 
@@ -131,6 +162,13 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
         canvasObjects: data.workflow?.canvas?.canvasObjects,
         viewport: data.workflow?.canvas?.viewport, 
         type: 'workflow.canvas' 
+      },
+      { 
+        nodes: data.workflow?.nodes, 
+        edges: data.workflow?.edges, 
+        canvasObjects: data.workflow?.canvasObjects,
+        viewport: data.workflow?.viewport, 
+        type: 'workflow' 
       },
       { 
         nodes: data.flow?.nodes, 
@@ -175,7 +213,12 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
   const { nodes, edges, canvasObjects, viewport, format } = extracted;
   
   // Format-specific metadata validation
-  if (format === 'comprehensive' || format === 'workflow.canvas') {
+  if (format === 'assembled-project-prd') {
+    // This is a Kiteframe PRD JSON export with embedded canvas data
+    if (!data.project || typeof data.project !== 'object') {
+      warnings.push('Missing project metadata, will use defaults');
+    }
+  } else if (format === 'comprehensive' || format === 'workflow.canvas' || format === 'workflow') {
     if (!data.workflow || typeof data.workflow !== 'object') {
       warnings.push('Missing or invalid workflow metadata, will use defaults');
     }

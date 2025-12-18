@@ -6,15 +6,24 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Loader2, FileText, FileJson, FileCode, ExternalLink, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { assembleProjectPRD, getAvailableWorkflowsForExport } from '@/lib/prd/assembleProjectPRD';
+import { assembleProjectPRD, getAvailableWorkflowsForExport, type WorkflowCanvasData } from '@/lib/prd/assembleProjectPRD';
 import { downloadPrototypingPrompt } from '@/lib/prd/exporters/exportToPrototypingPrompt';
 import { downloadKiteframeJSON } from '@/lib/prd/exporters/exportToKiteframeJSON';
 import { downloadMarkdown } from '@/lib/prd/exporters/exportToMarkdown';
 import { exportToGoogleDocs } from '@/lib/prd/exporters/exportToGoogleDocs';
 import type { WorkflowPRD } from '@/ai/prdEngine';
 import { loadWorkflowPRD } from '@/lib/kiteframe/utils/prdStorage';
+import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 
 type ExportFormat = 'prototyping-prompt' | 'kiteframe-json' | 'markdown' | 'google-docs';
+
+interface WorkflowData {
+  id: string;
+  name: string;
+  nodes?: Node[];
+  edges?: Edge[];
+  canvasObjects?: CanvasObject[];
+}
 
 interface ExportPRDModalProps {
   isOpen: boolean;
@@ -22,7 +31,7 @@ interface ExportPRDModalProps {
   projectId: string;
   projectName: string;
   projectDescription?: string;
-  workflows: Array<{ id: string; name: string }>;
+  workflows: WorkflowData[];
 }
 
 interface WorkflowWithPRD {
@@ -96,8 +105,17 @@ export function ExportPRDModal({
 
     try {
       const workflowNames: Record<string, string> = {};
+      const workflowCanvasData: Record<string, WorkflowCanvasData> = {};
+      
       workflows.forEach(w => {
         workflowNames[w.id] = w.name;
+        if (w.nodes || w.edges) {
+          workflowCanvasData[w.id] = {
+            nodes: w.nodes || [],
+            edges: w.edges || [],
+            canvasObjects: w.canvasObjects
+          };
+        }
       });
 
       const assembled = assembleProjectPRD({
@@ -105,7 +123,8 @@ export function ExportPRDModal({
         projectName,
         projectDescription,
         selectedWorkflowIds: Array.from(selectedWorkflows),
-        workflowNames
+        workflowNames,
+        workflowCanvasData
       });
 
       switch (format) {

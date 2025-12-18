@@ -8,6 +8,13 @@ import { useAi } from '../ai/AiProvider';
 import type { Node, Edge } from '../lib/kiteframe/types';
 import { Upload, FileText, Bot, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
+interface ProjectImportData {
+  projectName?: string;
+  projectId?: string;
+  projectPRD?: any;
+  workflows?: any[];
+}
+
 interface WorkflowImportModalProps {
   onClose: () => void;
   onImport: (importData: { 
@@ -20,7 +27,8 @@ interface WorkflowImportModalProps {
       description: string, 
       links: any[], 
       categories: any[] 
-    } 
+    },
+    projectData?: ProjectImportData
   }) => void;
 }
 
@@ -190,6 +198,39 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
       
       // Extract nodes, edges, canvasObjects, and viewport using the same logic as server validation
       const extractWorkflowData = (data: any) => {
+        // Check if this is an AssembledProjectPRD format (Kiteframe PRD JSON export)
+        if (data.version && data.workflows && Array.isArray(data.workflows)) {
+          console.log('Detected AssembledProjectPRD format with', data.workflows.length, 'workflows');
+          
+          // Find the first workflow with canvas data to use as the primary import
+          const primaryWorkflow = data.workflows.find((w: any) => 
+            w.canvas && (Array.isArray(w.canvas.nodes) || Array.isArray(w.canvas.edges))
+          );
+          
+          if (primaryWorkflow?.canvas) {
+            const nodes = primaryWorkflow.canvas.nodes || [];
+            const edges = primaryWorkflow.canvas.edges || [];
+            const canvasObjects = primaryWorkflow.canvas.canvasObjects || [];
+            const viewport = primaryWorkflow.canvas.viewport || { x: 0, y: 0, zoom: 1 };
+            
+            console.log('Using primary workflow:', primaryWorkflow.workflowName, 'with', nodes.length, 'nodes');
+            
+            return {
+              nodes,
+              edges,
+              canvasObjects,
+              viewport,
+              format: 'assembled-project-prd',
+              projectData: {
+                projectName: data.project?.name,
+                projectId: data.project?.id,
+                projectPRD: data.projectPRD,
+                workflows: data.workflows
+              }
+            };
+          }
+        }
+        
         const paths = [
           // Comprehensive format variations
           { 
@@ -205,6 +246,13 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
             canvasObjects: data.workflow?.canvas?.canvasObjects,
             viewport: data.workflow?.canvas?.viewport, 
             type: 'workflow.canvas' 
+          },
+          { 
+            nodes: data.workflow?.nodes, 
+            edges: data.workflow?.edges, 
+            canvasObjects: data.workflow?.canvasObjects,
+            viewport: data.workflow?.viewport, 
+            type: 'workflow' 
           },
           { 
             nodes: data.flow?.nodes, 
@@ -250,25 +298,33 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
       const edges = extracted.edges;
       const canvasObjects = extracted.canvasObjects;
       const viewport = extracted.viewport;
+      const projectData = extracted.projectData;
       
-      console.log('Extracted data:', { nodes, edges, canvasObjects, viewport });
+      console.log('Extracted data:', { nodes, edges, canvasObjects, viewport, format: extracted.format });
       console.log('Calling onImport with:', nodes.length, 'nodes,', edges.length, 'edges, and', canvasObjects.length, 'canvas objects');
+      if (projectData) {
+        console.log('Project data included:', projectData.projectName, 'with', projectData.workflows?.length, 'workflows');
+      }
 
       // Extract full workflow metadata from multiple possible formats
       const workflowMetadata = {
-        name: workflowData.metadata?.name || workflowData.workflowName || workflowData.workflow?.name || '',
-        description: workflowData.metadata?.description || workflowData.workflow?.description || '',
+        name: projectData?.projectName || workflowData.metadata?.name || workflowData.workflowName || workflowData.workflow?.name || workflowData.project?.name || '',
+        description: workflowData.metadata?.description || workflowData.workflow?.description || workflowData.project?.description || '',
         links: workflowData.metadata?.links || workflowData.workflow?.links || [],
         categories: workflowData.metadata?.categories || workflowData.workflow?.categories || []
       };
       
       // Allow close after successful import
       setAllowClose(true);
-      onImport({ nodes, edges, canvasObjects, viewport, workflowMetadata });
+      onImport({ nodes, edges, canvasObjects, viewport, workflowMetadata, projectData });
+      
+      const toastDescription = projectData 
+        ? `Imported project "${projectData.projectName}" with ${nodes.length} nodes and ${edges.length} connections.`
+        : `Imported ${nodes.length} nodes, ${edges.length} connections, and ${canvasObjects.length} canvas objects.`;
       
       toast({
         title: "Import Successful",
-        description: `Imported ${nodes.length} nodes, ${edges.length} connections, and ${canvasObjects.length} canvas objects.`,
+        description: toastDescription,
         variant: "default"
       });
     } catch (error) {

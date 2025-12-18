@@ -150,6 +150,7 @@ import { extractSemanticWorkflowModel } from "@/lib/kiteframe/utils/extractSeman
 import {
   saveWorkflowPRD,
   saveWorkflowPRDVersion,
+  saveProjectPRD,
 } from "@/lib/kiteframe/utils/prdStorage";
 import {
   afterWorkflowCreation,
@@ -10098,69 +10099,162 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 importedData.edges ||
                 importedData.canvasObjects
               ) {
-                // New modal format - handle nodes, edges, canvasObjects, and metadata
-                const nodesCount = importedData.nodes
-                  ? importedData.nodes.length
-                  : 0;
-                const edgesCount = importedData.edges
-                  ? importedData.edges.length
-                  : 0;
-                const objectsCount = importedData.canvasObjects
-                  ? importedData.canvasObjects.length
-                  : 0;
+                // Check if this is a multi-workflow project import (AssembledProjectPRD format)
+                if (importedData.projectData?.workflows && importedData.projectData.workflows.length > 0) {
+                  const { projectPRD, workflows, projectName, projectId: importedProjectId } = importedData.projectData;
+                  console.log('[Import] Processing AssembledProjectPRD with', workflows.length, 'workflows');
+                  
+                  // Use the imported project ID if available, or create a unique one
+                  // This ensures PRD storage keys match between export and import
+                  const importProjectUuid = importedProjectId || `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                  
+                  // Create tabs for each workflow with canvas data
+                  const newTabs: WorkflowTab[] = [];
+                  let firstTabId = '';
+                  
+                  for (const workflow of workflows) {
+                    const canvas = workflow.canvas || {};
+                    const nodes = (canvas.nodes || []).map((node: Node) => ({ ...node, selected: false }));
+                    const edges = (canvas.edges || []).map((edge: Edge) => ({ ...edge, selected: false }));
+                    const canvasObjects = (canvas.canvasObjects || []).map((obj: any) => ({ ...obj, selected: false }));
+                    const viewport = canvas.viewport || { x: 0, y: 0, zoom: 1 };
+                    
+                    const tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                    if (!firstTabId) firstTabId = tabId;
+                    
+                    const newTab: WorkflowTab = {
+                      id: tabId,
+                      name: workflow.workflowName || 'Imported Workflow',
+                      isOpen: true,
+                      projectUuid: importProjectUuid,
+                      nodes,
+                      edges,
+                      canvasObjects,
+                      viewport,
+                      selectedNodeId: '',
+                      selectedEdgeId: '',
+                      showImageModal: null,
+                      isDirty: false,
+                      metadata: {
+                        name: workflow.workflowName || 'Imported Workflow',
+                        description: workflow.metadata?.description || '',
+                        links: workflow.metadata?.links || [],
+                        linksFormat: 'text' as const,
+                        categories: workflow.metadata?.categories || [],
+                      },
+                      history: [{
+                        nodes,
+                        edges,
+                        canvasObjects,
+                        viewport,
+                      }],
+                      historyIndex: 0,
+                    };
+                    
+                    newTabs.push(newTab);
+                    
+                    // Save workflow PRD if present
+                    if (workflow.prdSections && workflow.prdSections.length > 0) {
+                      saveWorkflowPRD(importProjectUuid, workflow.workflowId, {
+                        workflowId: workflow.workflowId,
+                        workflowName: workflow.workflowName,
+                        sections: workflow.prdSections,
+                        manualEditedAt: {},
+                        version: 1,
+                        generatedAt: Date.now(),
+                      });
+                      console.log('[Import] Saved workflow PRD for', workflow.workflowName, 'with', workflow.prdSections.length, 'sections');
+                    }
+                  }
+                  
+                  // Save project PRD if present
+                  if (projectPRD?.sections) {
+                    saveProjectPRD(importProjectUuid, {
+                      projectId: importProjectUuid,
+                      projectName: projectName || 'Imported Project',
+                      sections: projectPRD.sections,
+                      manualEditedAt: {},
+                      version: projectPRD.version || 1,
+                      generatedAt: projectPRD.generatedAt || Date.now(),
+                    });
+                    console.log('[Import] Saved project PRD with', projectPRD.sections.length, 'sections');
+                  }
+                  
+                  // Add all new tabs and switch to the first one
+                  if (newTabs.length > 0) {
+                    setTabs((prev) => [...prev, ...newTabs]);
+                    setActiveTabId(firstTabId);
+                    
+                    toast({
+                      title: "Project Imported",
+                      description: `Imported "${projectName || 'Project'}" with ${newTabs.length} workflow(s) and PRD data`,
+                    });
+                  }
+                } else {
+                  // Standard single workflow import
+                  const nodesCount = importedData.nodes
+                    ? importedData.nodes.length
+                    : 0;
+                  const edgesCount = importedData.edges
+                    ? importedData.edges.length
+                    : 0;
+                  const objectsCount = importedData.canvasObjects
+                    ? importedData.canvasObjects.length
+                    : 0;
 
-                if (activeTab) {
-                  // Apply workflow metadata if provided
-                  const metadataUpdate = importedData.workflowMetadata
-                    ? {
-                        name:
-                          importedData.workflowMetadata.name || activeTab.name,
-                        metadata: {
+                  if (activeTab) {
+                    // Apply workflow metadata if provided
+                    const metadataUpdate = importedData.workflowMetadata
+                      ? {
                           name:
-                            importedData.workflowMetadata.name ||
-                            activeTab.metadata.name,
-                          description:
-                            importedData.workflowMetadata.description ||
-                            activeTab.metadata.description,
-                          links:
-                            importedData.workflowMetadata.links ||
-                            activeTab.metadata.links,
-                          linksFormat: activeTab.metadata.linksFormat || "text",
-                          categories:
-                            importedData.workflowMetadata.categories ||
-                            activeTab.metadata.categories,
-                        },
-                      }
-                    : {};
+                            importedData.workflowMetadata.name || activeTab.name,
+                          metadata: {
+                            name:
+                              importedData.workflowMetadata.name ||
+                              activeTab.metadata.name,
+                            description:
+                              importedData.workflowMetadata.description ||
+                              activeTab.metadata.description,
+                            links:
+                              importedData.workflowMetadata.links ||
+                              activeTab.metadata.links,
+                            linksFormat: activeTab.metadata.linksFormat || "text",
+                            categories:
+                              importedData.workflowMetadata.categories ||
+                              activeTab.metadata.categories,
+                          },
+                        }
+                      : {};
 
-                  // Update tab with imported content and metadata
-                  updateActiveTab({
-                    ...metadataUpdate,
-                    nodes: importedData.nodes
-                      ? importedData.nodes.map((node: Node) => ({
-                          ...node,
-                          selected: false,
-                        }))
-                      : activeTab.nodes,
-                    edges: importedData.edges
-                      ? importedData.edges.map((edge: Edge) => ({
-                          ...edge,
-                          selected: false,
-                        }))
-                      : activeTab.edges,
-                    canvasObjects: importedData.canvasObjects
-                      ? importedData.canvasObjects.map((obj: any) => ({
-                          ...obj,
-                          selected: false,
-                        }))
-                      : activeTab.canvasObjects,
-                    viewport: importedData.viewport || activeTab.viewport,
-                  });
+                    // Update tab with imported content and metadata
+                    updateActiveTab({
+                      ...metadataUpdate,
+                      nodes: importedData.nodes
+                        ? importedData.nodes.map((node: Node) => ({
+                            ...node,
+                            selected: false,
+                          }))
+                        : activeTab.nodes,
+                      edges: importedData.edges
+                        ? importedData.edges.map((edge: Edge) => ({
+                            ...edge,
+                            selected: false,
+                          }))
+                        : activeTab.edges,
+                      canvasObjects: importedData.canvasObjects
+                        ? importedData.canvasObjects.map((obj: any) => ({
+                            ...obj,
+                            selected: false,
+                          }))
+                        : activeTab.canvasObjects,
+                      viewport: importedData.viewport || activeTab.viewport,
+                    });
 
-                  toast({
-                    title: "Workflow Imported",
-                    description: `Imported ${nodesCount} nodes, ${edgesCount} connections, and ${objectsCount} canvas objects with metadata`,
-                  });
+                    toast({
+                      title: "Workflow Imported",
+                      description: `Imported ${nodesCount} nodes, ${edgesCount} connections, and ${objectsCount} canvas objects`,
+                    });
+                  }
                 }
               } else {
                 // Legacy format fallback

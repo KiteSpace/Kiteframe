@@ -30,6 +30,7 @@ interface WorkflowSummary {
   edgeCount: number;
   nodes: Node[];
   edges: Edge[];
+  canvasObjects?: CanvasObject[];
 }
 
 interface StandaloneNodeSummary {
@@ -564,7 +565,13 @@ export function ProjectDocTab({
         onClose={() => setIsExportModalOpen(false)}
         projectId={projectId || 'default'}
         projectName={projectName || 'Untitled Project'}
-        workflows={workflowSummaries.map(wf => ({ id: wf.id, name: wf.name }))}
+        workflows={workflowSummaries.map(wf => ({ 
+          id: wf.id, 
+          name: wf.name,
+          nodes: wf.nodes,
+          edges: wf.edges,
+          canvasObjects: canvasObjects || []
+        }))}
       />
     </div>
   );
