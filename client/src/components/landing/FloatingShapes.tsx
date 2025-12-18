@@ -12,6 +12,7 @@ interface Shape {
   rotation: number;
   delay: number;
   duration: number;
+  rotateClockwise: boolean;
 }
 
 const CIRCLE_COLORS = [
@@ -57,6 +58,7 @@ export default function FloatingShapes() {
         rotation: 0,
         delay: Math.random() * 4,
         duration: 4 + Math.random() * 4,
+        rotateClockwise: Math.random() > 0.5,
       });
     }
 
@@ -71,6 +73,7 @@ export default function FloatingShapes() {
         rotation: Math.random() * 45,
         delay: Math.random() * 4,
         duration: 4 + Math.random() * 4,
+        rotateClockwise: Math.random() > 0.5,
       });
     }
 
@@ -85,6 +88,7 @@ export default function FloatingShapes() {
         rotation: Math.random() * 360,
         delay: Math.random() * 4,
         duration: 4 + Math.random() * 4,
+        rotateClockwise: Math.random() > 0.5,
       });
     }
 
@@ -94,37 +98,27 @@ export default function FloatingShapes() {
   const keyframes = useMemo(() => {
     return shapes.map(shape => {
       const rot = shape.rotation;
-      if (shape.type === 'circle') {
-        return `
-          @keyframes float-${shape.id} {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-12px) rotate(0deg); }
-          }
-          @keyframes rotate-${shape.id} {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `;
-      }
+      const rotDir = shape.rotateClockwise ? 1 : -1;
+      const rotSpeed = 25 + Math.random() * 15;
       return `
-        @keyframes float-${shape.id} {
-          0%, 100% { transform: translateY(0px) rotate(${rot}deg); }
-          50% { transform: translateY(-12px) rotate(${rot}deg); }
-        }
-        @keyframes rotate-${shape.id} {
-          0% { transform: rotate(${rot}deg); }
-          100% { transform: rotate(${rot + 360}deg); }
+        @keyframes float-rotate-${shape.id} {
+          0% { transform: translateY(0px) rotate(${rot}deg); }
+          25% { transform: translateY(-6px) rotate(${rot + rotDir * 90}deg); }
+          50% { transform: translateY(-12px) rotate(${rot + rotDir * 180}deg); }
+          75% { transform: translateY(-6px) rotate(${rot + rotDir * 270}deg); }
+          100% { transform: translateY(0px) rotate(${rot + rotDir * 360}deg); }
         }
       `;
     }).join('\n');
   }, [shapes]);
 
   const renderShape = (shape: Shape) => {
+    const rotationDuration = 25 + (shape.id % 5) * 5;
     const baseStyle: React.CSSProperties = {
       position: 'absolute',
       left: `${shape.x}%`,
       top: `${shape.y}%`,
-      animation: `float-${shape.id} ${shape.duration}s ease-in-out infinite, rotate-${shape.id} 20s linear infinite`,
+      animation: `float-rotate-${shape.id} ${rotationDuration}s ease-in-out infinite`,
       animationDelay: `${shape.delay}s`,
     };
 
