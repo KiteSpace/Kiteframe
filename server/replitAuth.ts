@@ -271,21 +271,52 @@ export async function setupAuth(app: Express) {
 
   const registeredStrategies = new Set<string>();
 
+  // Get the Replit-controlled domain for OAuth callback
+  // REPLIT_DEV_DOMAIN is available in development, REPLIT_DOMAINS in production
+  const getReplitCallbackDomain = () => {
+    // In production deployments, REPLIT_DOMAINS contains the replit.app domain
+    // Format: "custom.domain.com,xxx.replit.app" or just "xxx.replit.app"
+    const domains = process.env.REPLIT_DOMAINS?.split(',') || [];
+    const replitDomain = domains.find(d => d.includes('replit.app') || d.includes('replit.dev'));
+    if (replitDomain) return replitDomain.trim();
+    
+    // Fallback to REPLIT_DEV_DOMAIN for development
+    if (process.env.REPLIT_DEV_DOMAIN) {
+      return process.env.REPLIT_DEV_DOMAIN;
+    }
+    
+    return null;
+  };
+
   const ensureStrategy = (domain: string) => {
-    const strategyName = `replitauth:${domain}`;
+    // Always use the Replit-controlled domain for callback URL
+    // This is required because Replit's OIDC only accepts callbacks from registered domains
+    const callbackDomain = getReplitCallbackDomain() || domain;
+    const strategyName = `replitauth:${callbackDomain}`;
+    
+    console.log('[AUTH] ensureStrategy:', { 
+      requestDomain: domain, 
+      callbackDomain, 
+      strategyName,
+      REPLIT_DOMAINS: process.env.REPLIT_DOMAINS,
+      REPLIT_DEV_DOMAIN: process.env.REPLIT_DEV_DOMAIN,
+    });
+    
     if (!registeredStrategies.has(strategyName)) {
       const strategy = new Strategy(
         {
           name: strategyName,
           config,
           scope: "openid email profile offline_access",
-          callbackURL: `https://${domain}/api/callback`,
+          callbackURL: `https://${callbackDomain}/api/callback`,
         },
         verify,
       );
       passport.use(strategy);
       registeredStrategies.add(strategyName);
     }
+    
+    return strategyName;
   };
 
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
@@ -527,8 +558,8 @@ export async function setupAuth(app: Express) {
   }
 
   app.get("/api/login", authRateLimiter, (req, res, next) => {
-    ensureStrategy(req.hostname);
-    passport.authenticate(`replitauth:${req.hostname}`, {
+    const strategyName = ensureStrategy(req.hostname);
+    passport.authenticate(strategyName, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
     })(req, res, next);
@@ -536,8 +567,11 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/callback", authRateLimiter, (req, res, next) => {
     const hostname = req.hostname;
+    const strategyName = ensureStrategy(hostname);
+    
     console.log('[AUTH] Replit callback started:', {
       hostname,
+      strategyName,
       protocol: req.protocol,
       originalUrl: req.originalUrl,
       query: req.query,
@@ -545,8 +579,7 @@ export async function setupAuth(app: Express) {
       REPLIT_DEPLOYMENT: process.env.REPLIT_DEPLOYMENT,
     });
     
-    ensureStrategy(hostname);
-    passport.authenticate(`replitauth:${hostname}`, {
+    passport.authenticate(strategyName, {
       failureRedirect: "/api/login",
     }, (err: any, user: any, info: any) => {
       console.log('[AUTH] Replit authenticate result:', {
