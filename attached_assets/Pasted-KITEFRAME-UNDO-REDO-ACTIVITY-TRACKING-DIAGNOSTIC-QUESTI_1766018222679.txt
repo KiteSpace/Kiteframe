@@ -1,0 +1,156 @@
+KITEFRAME — UNDO / REDO & ACTIVITY TRACKING DIAGNOSTIC QUESTIONS
+(For Replit Investigation)
+
+CONTEXT
+We are seeing repeated “[ACTIVITY] ⏭️ SKIPPED (no change)” logs for actions that should be undoable
+(e.g. Add node, Add shape, Apply theme), while undo/redo index increments still occur.
+This suggests history detection, diffing, or mutation pathways are misaligned.
+
+==============================
+SECTION 1 — HISTORY SNAPSHOT LOGIC
+==============================
+
+1. Where is the authoritative undo history stored?
+   - Is workflow-editor.tsx still using snapshot-based history (history[], historyIndex)?
+   - Is UndoRedoManager.ts active anywhere in the canvas path, or effectively unused?
+
+2. What function decides whether an activity is “SKIPPED (no change)”?
+   - Exact function name and file path.
+   - What equality check is being used (deepEqual, shallow ref compare, JSON stringify, custom diff)?
+
+3. Are we comparing:
+   - previousState vs nextState?
+   - OR previousSnapshot vs current live state?
+   - OR diff result length === 0?
+
+4. Are canvasObjects, nodes, edges, viewport all included in the comparison?
+   - If yes: is canvasObjects mutating in-place?
+
+==============================
+SECTION 2 — MUTATION VS IMMUTABILITY
+==============================
+
+5. Do node creation, shape creation, and theme application:
+   - mutate existing arrays/objects?
+   - or always create new references?
+
+6. For these actions that log “SKIPPED”:
+   - Add node
+   - Add shape
+   - Apply theme
+
+   Please confirm:
+   - Are setNodes / setCanvasObjects called with a new array reference?
+   - Or are items pushed/mutated before setState?
+
+7. Specifically for shapes:
+   - Does onCreateShapeAtPosition mutate canvasObjects before saveToHistory?
+   - Is saveToHistory called before or after mutation?
+
+==============================
+SECTION 3 — ACTIVITY LOGGING VS HISTORY SAVING
+==============================
+
+8. Are ACTIVITY logs and history snapshots triggered by the same function?
+   - Or is ACTIVITY logged earlier, and history saved later?
+
+9. When we see:
+   “[ACTIVITY] ⏭️ SKIPPED (no change): Add node”
+   but later see:
+   “[ACTIVITY] 💾 SAVED: Update canvas objects”
+
+   → What changed between those two calls?
+
+10. Is “Add node” being treated as a semantic label only,
+    while “Update canvas objects” is the actual persisted history entry?
+
+==============================
+SECTION 4 — DIFF SYSTEM
+==============================
+
+11. The logs show diff objects:
+    { before, after, diff }
+
+    Questions:
+    - What library or logic produces `diff`?
+    - Does it ignore ordering?
+    - Does it ignore nested object mutations?
+
+12. Are we stripping transient fields before diffing?
+    Examples:
+    - selection state
+    - UI-only metadata
+    - timestamps
+    - plugin-added fields
+
+13. Is there a chance the diff function returns “empty” even though
+    references changed but values look identical?
+
+==============================
+SECTION 5 — UNDO / REDO EXECUTION PATH
+==============================
+
+14. When UNDO runs:
+    - Are we restoring the full snapshot (nodes, edges, canvasObjects, viewport)?
+    - Or applying a patch/diff?
+
+15. After undo/redo:
+    - Are we calling setState once (atomic)?
+    - Or multiple setState calls that might re-trigger saveToHistory?
+
+16. Is undo/redo triggering ACTIVITY logs again?
+    - If yes, are those logs suppressed correctly?
+
+==============================
+SECTION 6 — PLUGINS & SIDE EFFECTS
+==============================
+
+17. The logs show repeated:
+    “Plugin X is already installed, replacing…”
+
+    Questions:
+    - Are plugins mutating state on install?
+    - Could plugin re-installation cause hidden state resets?
+
+18. Are any plugins:
+    - modifying nodes/canvasObjects directly?
+    - bypassing the editor’s mutation + history pipeline?
+
+==============================
+SECTION 7 — EXPECTED BEHAVIOR CONFIRMATION
+==============================
+
+19. Confirm expected rule:
+    ANY user-visible change should create exactly ONE undo step.
+
+20. Confirm which actions are intentionally NOT undoable:
+    - Selection changes?
+    - Hover state?
+    - Temporary drag previews?
+
+21. Should theme changes, shape adds, and node adds
+    ALWAYS produce undo entries? (Expected: YES)
+
+==============================
+SECTION 8 — DEBUGGING REQUESTS
+==============================
+
+22. Please add temporary logs:
+    - Log deep equality result and references being compared
+    - Log before/after object identity (===) for nodes & canvasObjects
+
+23. Please confirm:
+    - Whether SKIPPED logs are correct or false negatives
+    - Whether saveToHistory is being called too late or too early
+
+==============================
+LIKELY ROOT CAUSES (FOR REFERENCE)
+==============================
+
+• In-place mutation causing diff to see “no change”
+• saveToHistory called after mutation instead of before
+• Diff logic ignoring nested object updates
+• Multiple state layers (snapshot + command) conflicting
+• Plugins mutating state outside history pipeline
+
+END

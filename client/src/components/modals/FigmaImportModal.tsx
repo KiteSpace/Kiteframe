@@ -76,6 +76,7 @@ export function FigmaImportModal({
   const [detectedUrlType, setDetectedUrlType] = useState<FigmaUrlType>(null);
   const [pageNode, setPageNode] = useState<{ id: string; name: string; type: string } | null>(null);
   const [discoveredPages, setDiscoveredPages] = useState<Array<{ id: string; name: string; frameCount: number }>>([]);
+  const [progressMessage, setProgressMessage] = useState<string>('');
 
   const queryFigmaStatus = useCallback(() => {
     setStatusLoading(true);
@@ -124,6 +125,7 @@ export function FigmaImportModal({
     setDetectedUrlType(null);
     setPageNode(null);
     setDiscoveredPages([]);
+    setProgressMessage('');
   }, []);
 
   const handleContinue = useCallback(async () => {
@@ -153,6 +155,7 @@ export function FigmaImportModal({
 
     setError(null);
     setIsLoading(true);
+    setProgressMessage('Connecting to Figma...');
     setFileKey(parsed.fileKey);
 
     const tokenToUse = figmaStatus?.connected ? undefined : trimmedPat;
@@ -161,6 +164,7 @@ export function FigmaImportModal({
     try {
       if (parsed.nodeId) {
         console.log('[FigmaImport] Fetching node data for nodeId:', parsed.nodeId);
+        setProgressMessage('Fetching frame data...');
         const nodeData = await fetchFigmaNode(parsed.fileKey, parsed.nodeId, tokenToUse);
         const nodeInfo = nodeData.nodes?.[parsed.nodeId];
         
@@ -214,9 +218,11 @@ export function FigmaImportModal({
             absoluteBoundingBox: nodeInfo.document.absoluteBoundingBox,
           };
 
+          setProgressMessage('Generating thumbnail...');
           const thumbnails = await fetchFigmaThumbnails(parsed.fileKey, [parsed.nodeId], tokenToUse);
           const thumbnailUrl = thumbnails.images?.[parsed.nodeId] || null;
 
+          setProgressMessage('Extracting design metadata...');
           let figmaSemantic: FigmaSemanticMetadata | null = null;
           try {
             if (nodeInfo.document) {
@@ -226,6 +232,7 @@ export function FigmaImportModal({
             console.warn('Failed to extract semantic data for direct import:', extractError);
           }
 
+          setProgressMessage('Importing to canvas...');
           console.log('[FigmaImport] Direct import - calling onImport with 1 frame');
           await onImport([{ frame, thumbnailUrl, figmaSemantic }], mode, {
             url: trimmedUrl,
@@ -237,6 +244,7 @@ export function FigmaImportModal({
         }
       } else {
         console.log('[FigmaImport] FILE URL (no nodeId) - fetching full file');
+        setProgressMessage('Loading Figma file...');
         setDetectedUrlType('file');
         const fileData = await fetchFigmaFile(parsed.fileKey, tokenToUse);
         setFileName(fileData.name || 'Untitled');
@@ -293,6 +301,7 @@ export function FigmaImportModal({
 
     setIsLoading(true);
     setError(null);
+    setProgressMessage(`Loading ${selectedFrames.length} frame${selectedFrames.length > 1 ? 's' : ''}...`);
 
     const tokenToUse = figmaStatus?.connected ? undefined : pat.trim();
 
@@ -301,6 +310,7 @@ export function FigmaImportModal({
       const frameIds = selectedFrames.map(f => f.id);
       console.log('[FigmaImport] Fetching thumbnails and frame trees for:', frameIds);
       
+      setProgressMessage('Generating thumbnails...');
       const [thumbnails, frameTrees] = await Promise.all([
         fetchFigmaThumbnails(fileKey, frameIds, tokenToUse),
         fetchFigmaFrameTrees(fileKey, frameIds, tokenToUse).catch(err => {
@@ -309,7 +319,8 @@ export function FigmaImportModal({
         })
       ]);
 
-      const framesWithThumbnails = selectedFrames.map(frame => {
+      setProgressMessage(`Extracting metadata from ${selectedFrames.length} frame${selectedFrames.length > 1 ? 's' : ''}...`);
+      const framesWithThumbnails = selectedFrames.map((frame) => {
         let figmaSemantic: FigmaSemanticMetadata | null = null;
         
         // Extract semantic metadata from frame tree (graceful failure)
@@ -330,6 +341,7 @@ export function FigmaImportModal({
         };
       });
 
+      setProgressMessage('Importing to canvas...');
       console.log('[FigmaImport] Calling onImport with', framesWithThumbnails.length, 'frames', 'importMode:', importMode);
       console.log('[FigmaImport] Frames with semantic:', framesWithThumbnails.filter(f => f.figmaSemantic).length);
       await onImport(framesWithThumbnails, mode, {
@@ -920,7 +932,7 @@ export function FigmaImportModal({
             {isLoading ? (
               <>
                 <Loader2 size={16} className="mr-2 animate-spin" />
-                Loading...
+                {progressMessage || 'Loading...'}
               </>
             ) : (
               'Continue'

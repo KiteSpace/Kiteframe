@@ -1,12 +1,62 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Chrome, Github, Check, Loader2, ArrowRight, Zap, Shield, Download, Users, Palette, Code, Rocket, Terminal } from 'lucide-react';
+import { Chrome, Github, Check, Loader2, ArrowRight, Zap, Shield, Download, Users, Palette, Code, Rocket, Terminal, Play } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getQueryFn } from '@/lib/queryClient';
 
 const LandingPreviewCanvas = lazy(() => import('@/components/landing/LandingPreviewCanvas'));
 const FloatingShapes = lazy(() => import('@/components/landing/FloatingShapes'));
 const TypingPrompt = lazy(() => import('@/components/landing/TypingPrompt'));
+
+function LazyCanvasLoader({ variant, className }: { variant: 'hero' | 'features' | 'objects'; className?: string }) {
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    // Feature detect IntersectionObserver - fall back to immediate load if unavailable
+    if (typeof IntersectionObserver === 'undefined') {
+      setShouldLoad(true);
+      return;
+    }
+    
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '100px' }
+    );
+    
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+    
+    return () => observer.disconnect();
+  }, []);
+  
+  return (
+    <div ref={containerRef} className={className}>
+      {shouldLoad ? (
+        <Suspense fallback={
+          <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900/50 rounded-xl">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        }>
+          <LandingPreviewCanvas variant={variant} />
+        </Suspense>
+      ) : (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Play className="h-5 w-5" />
+            <span className="text-sm">Interactive preview loading...</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface AuthUser {
   id: string;
@@ -108,15 +158,7 @@ export default function LandingPage() {
             </div>
 
             <div className="relative">
-              <div className="h-[360px] lg:h-[400px] rounded-xl overflow-hidden" data-testid="hero-canvas-container">
-                <Suspense fallback={
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
-                }>
-                  <LandingPreviewCanvas variant="hero" />
-                </Suspense>
-              </div>
+              <LazyCanvasLoader variant="hero" className="h-[360px] lg:h-[400px] rounded-xl overflow-hidden" />
               <p className="text-center text-sm text-muted-foreground mt-4" data-testid="text-demo-hint">
                 Interactive preview — try dragging the nodes
               </p>
@@ -188,15 +230,7 @@ export default function LandingPage() {
                 </li>
               </ul>
             </div>
-            <div className="h-[240px] rounded-xl overflow-hidden" data-testid="canvas-section-a">
-              <Suspense fallback={
-                <div className="w-full h-full flex items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              }>
-                <LandingPreviewCanvas variant="features" />
-              </Suspense>
-            </div>
+            <LazyCanvasLoader variant="features" className="h-[240px] rounded-xl overflow-hidden" />
           </div>
         </section>
 
@@ -204,15 +238,7 @@ export default function LandingPage() {
         <section className="bg-slate-50/50 dark:bg-slate-900/30 py-20">
           <div className="max-w-7xl mx-auto px-8">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div className="order-2 lg:order-1 h-[240px] rounded-xl overflow-hidden" data-testid="canvas-section-b">
-                <Suspense fallback={
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                }>
-                  <LandingPreviewCanvas variant="objects" />
-                </Suspense>
-              </div>
+              <LazyCanvasLoader variant="objects" className="order-2 lg:order-1 h-[240px] rounded-xl overflow-hidden" />
               <div className="order-1 lg:order-2">
                 <h2 className="text-3xl font-bold text-foreground mb-4" data-testid="heading-section-b">
                   More than just nodes

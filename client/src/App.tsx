@@ -6,23 +6,23 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PromptContextStoreProvider } from "@/contexts/PromptContextStore";
 import { Loader2 } from "lucide-react";
-import WorkflowEditor from "@/pages/workflow-editor";
-import KitelineDemo from "@/pages/kiteline-demo";
-import KitelineDocs from "@/pages/kiteline-docs";
-import AdminCodes from "@/pages/AdminCodes";
-import AdminUserDetails from "@/pages/AdminUserDetails";
-import AdminGroupDetails from "@/pages/AdminGroupDetails";
-import Pricing from "@/pages/Pricing";
-import Account from "@/pages/Account";
-import SignIn from "@/pages/SignIn";
-import WaitlistDashboard from "@/pages/WaitlistDashboard";
-import AuthComplete from "@/pages/AuthComplete";
-import MockupCodeDataReference from "@/pages/mockup-code-data-reference";
-import ViewOnlyViewer from "@/pages/ViewOnlyViewer";
-import Benchmark from "@/pages/Benchmark";
 import NotFound from "@/pages/not-found";
 
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
+const WorkflowEditor = lazy(() => import("@/pages/workflow-editor"));
+const KitelineDemo = lazy(() => import("@/pages/kiteline-demo"));
+const KitelineDocs = lazy(() => import("@/pages/kiteline-docs"));
+const AdminCodes = lazy(() => import("@/pages/AdminCodes"));
+const AdminUserDetails = lazy(() => import("@/pages/AdminUserDetails"));
+const AdminGroupDetails = lazy(() => import("@/pages/AdminGroupDetails"));
+const Pricing = lazy(() => import("@/pages/Pricing"));
+const Account = lazy(() => import("@/pages/Account"));
+const SignIn = lazy(() => import("@/pages/SignIn"));
+const WaitlistDashboard = lazy(() => import("@/pages/WaitlistDashboard"));
+const AuthComplete = lazy(() => import("@/pages/AuthComplete"));
+const MockupCodeDataReference = lazy(() => import("@/pages/mockup-code-data-reference"));
+const ViewOnlyViewer = lazy(() => import("@/pages/ViewOnlyViewer"));
+const Benchmark = lazy(() => import("@/pages/Benchmark"));
 
 interface AuthUser {
   id: string;

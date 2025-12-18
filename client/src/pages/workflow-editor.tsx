@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
+import "../lib/export/printStyles.css";
 import { usePluginSystem } from "@/lib/kiteframe/core/PluginProvider";
 import { WorkflowCanvas } from "@/components/WorkflowCanvas";
 import { ProjectPanel } from "@/components/panels/ProjectPanel";
