@@ -107,16 +107,23 @@ export function ExportPRDModal({
       const workflowNames: Record<string, string> = {};
       const workflowCanvasData: Record<string, WorkflowCanvasData> = {};
       
+      console.log('[Export] Building canvas data from workflows:', workflows.length);
       workflows.forEach(w => {
         workflowNames[w.id] = w.name;
-        if (w.nodes || w.edges) {
+        const hasNodes = w.nodes && w.nodes.length > 0;
+        const hasEdges = w.edges && w.edges.length > 0;
+        console.log(`[Export] Workflow ${w.id}: nodes=${w.nodes?.length || 0}, edges=${w.edges?.length || 0}`);
+        if (hasNodes || hasEdges) {
           workflowCanvasData[w.id] = {
             nodes: w.nodes || [],
             edges: w.edges || [],
             canvasObjects: w.canvasObjects
           };
+          console.log(`[Export] Added canvas data for ${w.id}`);
         }
       });
+      console.log('[Export] workflowCanvasData keys:', Object.keys(workflowCanvasData));
+      console.log('[Export] selectedWorkflowIds:', Array.from(selectedWorkflows));
 
       const assembled = assembleProjectPRD({
         projectId,
@@ -176,8 +183,8 @@ export function ExportPRDModal({
     },
     {
       value: 'kiteframe-json' as const,
-      label: 'Kiteframe PRD',
-      description: 'Full JSON export for reimport',
+      label: 'Kiteframe Project File',
+      description: 'Complete project with workflows and PRD for reimport',
       icon: FileJson
     },
     {

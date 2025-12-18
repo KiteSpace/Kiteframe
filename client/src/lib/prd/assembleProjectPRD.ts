@@ -57,6 +57,10 @@ export function assembleProjectPRD(options: AssembleOptions): AssembledProjectPR
     workflowCanvasData = {}
   } = options;
 
+  console.log('[assembleProjectPRD] Starting assembly');
+  console.log('[assembleProjectPRD] selectedWorkflowIds:', selectedWorkflowIds);
+  console.log('[assembleProjectPRD] workflowCanvasData keys:', Object.keys(workflowCanvasData));
+
   const projectPRD = loadProjectPRD(projectId);
 
   const workflows: WorkflowPRDEntry[] = [];
@@ -72,6 +76,7 @@ export function assembleProjectPRD(options: AssembleOptions): AssembledProjectPR
     }
     
     const canvasData = workflowCanvasData[workflowId];
+    console.log(`[assembleProjectPRD] Workflow ${workflowId}: canvasData exists=${!!canvasData}, nodes=${canvasData?.nodes?.length || 0}`);
     
     workflows.push({
       workflowId,
