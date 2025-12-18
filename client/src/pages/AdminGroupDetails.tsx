@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation, useRoute, Link } from 'wouter';
 import { queryClient } from '@/lib/queryClient';
@@ -48,8 +48,27 @@ export default function AdminGroupDetails() {
   const [groupDescription, setGroupDescription] = useState('');
   const [accessControls, setAccessControls] = useState<GroupAccessControls>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [adminToken, setAdminToken] = useState<string | null>(null);
   
-  const authHeader = `Bearer ${sessionStorage.getItem('adminToken')}`;
+  // Check auth on mount (only once)
+  useEffect(() => {
+    const token = sessionStorage.getItem('adminToken');
+    if (!token) {
+      navigate('/internal/x9k7m2p4');
+    } else {
+      setAdminToken(token);
+    }
+    setAuthChecked(true);
+  }, [navigate]);
+  
+  const authHeader = adminToken ? `Bearer ${adminToken}` : '';
+
+  const handleAuthError = () => {
+    sessionStorage.removeItem('adminToken');
+    setAdminToken(null);
+    navigate('/internal/x9k7m2p4');
+  };
 
   const { data: groupData, isLoading } = useQuery({
     queryKey: ['/internal/groups', groupId, 'details'],
@@ -57,6 +76,10 @@ export default function AdminGroupDetails() {
       const response = await fetch(`/internal/groups/${groupId}/details`, {
         headers: { 'Authorization': authHeader },
       });
+      if (response.status === 401) {
+        handleAuthError();
+        throw new Error('Session expired');
+      }
       if (!response.ok) throw new Error('Failed to fetch group');
       const data = await response.json();
       setGroupName(data.group?.name || '');
@@ -64,7 +87,7 @@ export default function AdminGroupDetails() {
       setAccessControls(data.group?.accessControls || {});
       return data;
     },
-    enabled: !!groupId,
+    enabled: !!groupId && !!adminToken && authChecked,
   });
 
   const updateGroupMutation = useMutation({

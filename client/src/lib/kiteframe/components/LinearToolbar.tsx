@@ -2413,27 +2413,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             </button>
           )}
           
-          {/* Generate Workflow button - only for Figma image nodes with semantic data */}
-          {isNodeTarget && node?.type === 'image' && node?.data?.figmaSemantic && onGenerateWorkflow && !isInlineEditing && (
-            <button
-              className={cn(
-                "h-9 px-3 rounded-full flex items-center gap-1.5 text-sm font-medium shadow-md transition-all duration-200",
-                "text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 hover:scale-105 active:scale-95 hover:shadow-lg cursor-pointer"
-              )}
-              onClick={(e) => {
-                e.stopPropagation();
-                onGenerateWorkflow();
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-              title="Generate workflow nodes from Figma semantic data"
-              data-testid="toolbar-button-generate-workflow"
-              tabIndex={0}
-            >
-              <Zap size={14} />
-              <span>Generate Workflow</span>
-            </button>
-          )}
-          
           {/* Delete button always last */}
           {buttons.find(b => b.id === 'delete') && (
             <button

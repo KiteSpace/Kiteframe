@@ -1583,6 +1583,28 @@ export default function AdminCodes() {
   const [notes, setNotes] = useState('');
   const { toast } = useToast();
 
+  // Restore auth from sessionStorage on mount
+  useEffect(() => {
+    const savedToken = sessionStorage.getItem('adminToken');
+    if (savedToken) {
+      const header = `Bearer ${savedToken}`;
+      setAuthHeader(header);
+      setIsAuthenticated(true);
+    }
+  }, []);
+  
+  // Handle auth errors (session expired)
+  const handleAuthError = () => {
+    sessionStorage.removeItem('adminToken');
+    setAuthHeader('');
+    setIsAuthenticated(false);
+    toast({
+      title: 'Session Expired',
+      description: 'Please login again',
+      variant: 'destructive',
+    });
+  };
+
   const { data: codesData, isLoading } = useQuery({
     queryKey: ['/internal/ops-codes/list'],
     queryFn: async () => {
@@ -1591,10 +1613,14 @@ export default function AdminCodes() {
           'Authorization': authHeader,
         },
       });
+      if (response.status === 401) {
+        handleAuthError();
+        throw new Error('Session expired');
+      }
       if (!response.ok) throw new Error('Failed to fetch codes');
       return response.json();
     },
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !!authHeader,
   });
 
   const generateCodeMutation = useMutation({
@@ -1683,6 +1709,8 @@ export default function AdminCodes() {
         const header = `Bearer ${data.token}`;
         setAuthHeader(header);
         setIsAuthenticated(true);
+        // Save token to sessionStorage for cross-page access
+        sessionStorage.setItem('adminToken', data.token);
         
         if (data.expiresIn) {
           setTimeout(() => {
