@@ -104,9 +104,10 @@ async function hasCloudProjectAccess(user: { id?: string; subscriptionTier?: str
 }
 
 // Workflow validation utility
-function validateWorkflowStructure(data: any): { isValid: boolean; errors: string[]; warnings: string[] } {
+function validateWorkflowStructure(data: any): { isValid: boolean; errors: string[]; warnings: string[]; cleanedData?: any } {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const orphanEdgeIds: Set<number> = new Set();
 
   // Check basic structure
   if (!data || typeof data !== 'object') {
@@ -276,16 +277,26 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
         warnings.push(`Edge at index ${index} missing ID, will auto-generate`);
       }
 
+      let isOrphan = false;
+      
       if (!edge.source) {
         errors.push(`Edge at index ${index} missing required 'source' field`);
       } else if (!nodeIds.has(edge.source)) {
-        errors.push(`Edge ${edge.id || index} references non-existent source node: ${edge.source}`);
+        // Orphan edge - source node doesn't exist
+        warnings.push(`Edge ${edge.id || index} references non-existent source node: ${edge.source} (will be removed)`);
+        isOrphan = true;
       }
 
       if (!edge.target) {
         errors.push(`Edge at index ${index} missing required 'target' field`);
       } else if (!nodeIds.has(edge.target)) {
-        errors.push(`Edge ${edge.id || index} references non-existent target node: ${edge.target}`);
+        // Orphan edge - target node doesn't exist
+        warnings.push(`Edge ${edge.id || index} references non-existent target node: ${edge.target} (will be removed)`);
+        isOrphan = true;
+      }
+
+      if (isOrphan) {
+        orphanEdgeIds.add(index);
       }
 
       if (!edge.type) {
@@ -338,7 +349,49 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
     }
   }
 
-  return { isValid: errors.length === 0, errors, warnings };
+  // Filter out orphan edges and include cleaned data in result
+  const cleanedEdges = Array.isArray(edges) 
+    ? edges.filter((_: any, index: number) => !orphanEdgeIds.has(index))
+    : [];
+  
+  // Build cleaned data object that matches the original structure
+  let cleanedData: any = undefined;
+  if (orphanEdgeIds.size > 0) {
+    // Deep clone the original data and replace edges with cleaned version
+    cleanedData = JSON.parse(JSON.stringify(data));
+    
+    // Update edges in the appropriate location based on format
+    if (format === 'assembled-project-prd' && cleanedData.workflows) {
+      // Filter orphan edges from all workflows
+      for (const workflow of cleanedData.workflows) {
+        if (workflow.canvas?.edges) {
+          const workflowNodeIds = new Set(workflow.canvas.nodes?.map((n: any) => n.id) || []);
+          workflow.canvas.edges = workflow.canvas.edges.filter((edge: any) => 
+            workflowNodeIds.has(edge.source) && workflowNodeIds.has(edge.target)
+          );
+        }
+      }
+    } else if (cleanedData.canvas?.edges) {
+      cleanedData.canvas.edges = cleanedEdges;
+    } else if (cleanedData.workflow?.canvas?.edges) {
+      cleanedData.workflow.canvas.edges = cleanedEdges;
+    } else if (cleanedData.workflow?.edges) {
+      cleanedData.workflow.edges = cleanedEdges;
+    } else if (cleanedData.flow?.edges) {
+      cleanedData.flow.edges = cleanedEdges;
+    } else if (cleanedData.edges) {
+      cleanedData.edges = cleanedEdges;
+    }
+    
+    warnings.push(`Automatically removed ${orphanEdgeIds.size} orphan edge(s) referencing non-existent nodes`);
+  }
+
+  return { 
+    isValid: errors.length === 0, 
+    errors, 
+    warnings,
+    cleanedData
+  };
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {

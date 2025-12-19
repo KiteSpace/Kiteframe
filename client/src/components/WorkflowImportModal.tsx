@@ -37,6 +37,7 @@ interface ValidationResult {
   errors: string[];
   warnings: string[];
   correctedData?: any;
+  cleanedData?: any; // Data with orphan edges automatically removed
 }
 
 export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalProps) {
@@ -89,26 +90,43 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
       
       if (response.ok) {
         console.log('Validation API response:', result);
-        setValidationResult(result);
         
-        if (!result.isValid && result.errors.length > 0) {
-          toast({
-            title: "Validation Issues Found",
-            description: `Found ${result.errors.length} errors and ${result.warnings.length} warnings. AI correction available.`,
-            variant: "destructive"
+        // If orphan edges were auto-cleaned, update import data with cleaned version
+        if (result.cleanedData) {
+          // Use cleaned data (orphan edges removed)
+          const cleanedJson = JSON.stringify(result.cleanedData, null, 2);
+          setImportData(cleanedJson);
+          setValidationResult({
+            ...result,
+            isValid: true, // Mark as valid since we cleaned the orphan edges
           });
-        } else if (result.warnings.length > 0) {
           toast({
-            title: "Validation Warnings",
-            description: `Found ${result.warnings.length} warnings. Data is importable.`,
+            title: "Orphan Edges Removed",
+            description: `Automatically removed edges pointing to non-existent nodes. Data is ready to import.`,
             variant: "default"
           });
         } else {
-          toast({
-            title: "Validation Successful",
-            description: "Workflow data is valid and ready to import.",
-            variant: "default"
-          });
+          setValidationResult(result);
+          
+          if (!result.isValid && result.errors.length > 0) {
+            toast({
+              title: "Validation Issues Found",
+              description: `Found ${result.errors.length} errors and ${result.warnings.length} warnings. AI correction available.`,
+              variant: "destructive"
+            });
+          } else if (result.warnings.length > 0) {
+            toast({
+              title: "Validation Warnings",
+              description: `Found ${result.warnings.length} warnings. Data is importable.`,
+              variant: "default"
+            });
+          } else {
+            toast({
+              title: "Validation Successful",
+              description: "Workflow data is valid and ready to import.",
+              variant: "default"
+            });
+          }
         }
       } else {
         throw new Error(result.error || 'Validation failed');
