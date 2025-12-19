@@ -416,13 +416,15 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
     }
   }, [variant]);
 
+  const isReadOnly = variant === 'hero';
+
   const canvasStyle = useMemo(() => ({
     width: '100%',
     height: '100%',
     background: 'transparent',
-  }), []);
-
-  const isReadOnly = variant === 'hero';
+    '--kiteframe-canvas-bg': 'transparent',
+    ...(isReadOnly ? { pointerEvents: 'none' as const } : {}),
+  }), [isReadOnly]);
 
   return (
     <PluginProvider>
