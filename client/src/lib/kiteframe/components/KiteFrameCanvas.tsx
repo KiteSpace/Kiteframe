@@ -3352,7 +3352,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
       <div
         ref={containerRef}
-        className={`kiteframe-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 ${props.className || ""} ${panning ? "kiteframe-hand" : ""}`}
+        className={`kiteframe-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 bg-[#ffffff] ${props.className || ""} ${panning ? "kiteframe-hand" : ""}`}
         style={{ touchAction: enableTouchGestures ? 'none' : 'auto' }}
         role="application"
         aria-label="Visual workflow canvas. Use arrow keys to navigate, Tab to select nodes, and Space to create connections."
