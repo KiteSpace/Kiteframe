@@ -191,7 +191,9 @@ export function PreProjectChat({
     processUserInput, 
     reset: resetConversation,
     addAssistantMessage,
-    getAccumulatedSummary
+    getAccumulatedSummary,
+    addConversationSource,
+    getSources,
   } = useKiteAIConversation('base');
 
   const hasUploadedFiles = useMemo(() => {
@@ -332,9 +334,49 @@ export function PreProjectChat({
             { type: 'text', text: content.trim() },
             ...imageDataUrls.map(url => ({ type: 'image_url' as const, image_url: { url } }))
           ];
+          
+          // Add image sources to conversation context for unified vision pipeline
+          // Vision signals will be extracted from AI response and boost actionability
+          for (let i = 0; i < allImageFiles.length; i++) {
+            addConversationSource(
+              'image',
+              {
+                fileName: allImageFiles[i].name,
+                fileSize: allImageFiles[i].size,
+                dataUrl: imageDataUrls[i],
+              },
+              0.5, // Initial confidence, will be boosted by AI analysis
+              undefined // Vision signals extracted from AI response later
+            );
+          }
+          console.log('[PreProjectChat] Added', allImageFiles.length, 'image sources to conversation');
         } catch (err) {
           console.error('Error converting images to base64:', err);
         }
+      }
+      
+      // Also add Figma attachments as sources
+      const figmaAttachments = promptContext.attachments.filter(a => a.type === 'figma' && a.figmaData);
+      if (figmaAttachments.length > 0 && getSources().filter(s => s.type === 'figma-frame').length === 0) {
+        for (const attachment of figmaAttachments) {
+          addConversationSource(
+            'figma-frame',
+            {
+              fileKey: attachment.figmaData?.fileKey,
+              frameName: attachment.figmaData?.frameName,
+              thumbnailUrl: attachment.thumbnailUrl,
+              semantic: attachment.figmaData?.semantic,
+            },
+            0.6, // Figma frames often have good structure
+            {
+              flowsDetected: Boolean(attachment.figmaData?.semantic?.elements?.length),
+              branching: Boolean(attachment.figmaData?.semantic?.navigationTargets?.length),
+              screensDetected: attachment.figmaData?.frameName ? [attachment.figmaData.frameName] : undefined,
+              primaryCTA: attachment.figmaData?.semantic?.elements?.find((e: { isPrimaryAction?: boolean }) => e.isPrimaryAction)?.text,
+            }
+          );
+        }
+        console.log('[PreProjectChat] Added', figmaAttachments.length, 'Figma sources to conversation');
       }
 
       const response = await aiClient.chat({
@@ -373,7 +415,7 @@ export function PreProjectChat({
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, processUserInput, addAssistantMessage, context, convertFilesToBase64, promptContext.attachments]);
+  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, processUserInput, addAssistantMessage, context, convertFilesToBase64, promptContext.attachments, addConversationSource, getSources]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
