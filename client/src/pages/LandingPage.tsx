@@ -124,9 +124,9 @@ export default function LandingPage() {
         </header>
 
         {/* Hero Section */}
-        <section className="max-w-7xl mx-auto px-8 pt-12 pb-20">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
+        <section className="pt-12 pb-8">
+          <div className="max-w-7xl mx-auto px-8">
+            <div className="text-center max-w-3xl mx-auto mb-8">
               <h1 className="text-4xl lg:text-5xl font-bold text-foreground leading-tight mb-6" data-testid="text-hero-headline">
                 Wire your ideas with Kiteframe
               </h1>
@@ -134,7 +134,7 @@ export default function LandingPage() {
                 A visual workflow editor for building interactive diagrams, connecting designs to execution, and generating PRDs — all in one place.
               </p>
               
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3 justify-center">
                 <Button size="lg" className="h-12 px-8" onClick={() => document.getElementById('waitlist-section')?.scrollIntoView({ behavior: 'smooth' })} data-testid="button-hero-cta">
                   Request Beta Access
                 </Button>
@@ -156,13 +156,13 @@ export default function LandingPage() {
                 </p>
               )}
             </div>
+          </div>
 
-            <div className="relative">
-              <LazyCanvasLoader variant="hero" className="h-[360px] lg:h-[400px] rounded-xl overflow-hidden" />
-              <p className="text-center text-sm text-muted-foreground mt-4" data-testid="text-demo-hint">
-                Interactive preview — try dragging the nodes
-              </p>
-            </div>
+          <div className="w-full mt-8">
+            <LazyCanvasLoader variant="hero" className="h-[400px] md:h-[500px] lg:h-[600px] w-full" />
+            <p className="text-center text-sm text-muted-foreground mt-4" data-testid="text-demo-hint">
+              Mission Critical Initiative — Two paths, one outcome
+            </p>
           </div>
         </section>
 
