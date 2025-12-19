@@ -3,7 +3,12 @@
  * 
  * Determines if user input meets the actionability threshold for workflow generation.
  * A prompt is actionable ONLY if it satisfies AT LEAST 3 of the 5 dimensions.
+ * 
+ * This system now supports unified scoring across text, image, and Figma inputs
+ * by incorporating vision-extracted signals into the overall confidence score.
  */
+
+import { VisionExtractedSignals } from './kiteaiState';
 
 export type ActionabilityDimensions = {
   actor: boolean;
@@ -146,4 +151,125 @@ export function getMissingDimensionQuestions(missing: (keyof ActionabilityDimens
     flowSignal: 'Can you describe the main steps or stages in this process?',
   };
   return missing.map(dim => questions[dim]);
+}
+
+/**
+ * Compute actionability with vision signals enhancement.
+ * Vision signals from images/Figma can boost confidence and satisfy dimensions.
+ */
+export function computeActionabilityWithVision(
+  input: string,
+  visionSignals?: VisionExtractedSignals
+): ActionabilityResult {
+  // Start with base text actionability
+  const baseResult = computeActionability(input);
+  
+  if (!visionSignals) {
+    return baseResult;
+  }
+  
+  // Clone dimensions for modification
+  const dimensions = { ...baseResult.dimensions };
+  
+  // Vision signals can satisfy dimensions
+  // Flows detected satisfies flowSignal
+  if (visionSignals.flowsDetected || visionSignals.branching) {
+    dimensions.flowSignal = true;
+  }
+  
+  // Screens detected can indicate scope
+  if (visionSignals.screensDetected && visionSignals.screensDetected.length > 0) {
+    dimensions.scope = true;
+  }
+  
+  // Decision points indicate flow
+  if (visionSignals.decisionPoints && visionSignals.decisionPoints.length > 0) {
+    dimensions.flowSignal = true;
+  }
+  
+  // Entry points indicate trigger
+  if (visionSignals.entryPoints && visionSignals.entryPoints.length > 0) {
+    dimensions.trigger = true;
+  }
+  
+  // Primary CTA indicates goal
+  if (visionSignals.primaryCTA) {
+    dimensions.goal = true;
+  }
+  
+  // Recalculate present/missing based on enhanced dimensions
+  const present = (Object.keys(dimensions) as (keyof ActionabilityDimensions)[])
+    .filter(key => dimensions[key]);
+  const missing = (Object.keys(dimensions) as (keyof ActionabilityDimensions)[])
+    .filter(key => !dimensions[key]);
+  
+  const score = present.length;
+  
+  // Calculate vision confidence boost
+  let visionBoost = 0;
+  
+  if (visionSignals.screensDetected && visionSignals.screensDetected.length > 0) {
+    visionBoost += 0.1;
+  }
+  if (visionSignals.flowsDetected) {
+    visionBoost += 0.15;
+  }
+  if (visionSignals.decisionPoints && visionSignals.decisionPoints.length > 0) {
+    visionBoost += 0.1;
+  }
+  if (visionSignals.entryPoints && visionSignals.entryPoints.length > 0) {
+    visionBoost += 0.05;
+  }
+  if (visionSignals.primaryCTA) {
+    visionBoost += 0.05;
+  }
+  
+  // Cap vision boost
+  visionBoost = Math.min(visionBoost, 0.3);
+  
+  // Enhanced confidence with vision
+  const confidence = Math.min(baseResult.confidence + visionBoost, 1);
+  const isActionable = score >= 3 && confidence >= 0.75;
+  
+  console.log('[Actionability] Enhanced with vision:', {
+    baseConfidence: baseResult.confidence,
+    visionBoost,
+    finalConfidence: confidence,
+    score,
+    visionSignals,
+  });
+  
+  return {
+    score,
+    dimensions,
+    missing,
+    present,
+    confidence: Math.round(confidence * 100) / 100,
+    isActionable,
+  };
+}
+
+/**
+ * Get clarification questions that are specific to missing vision signals.
+ * These help guide the user when image/Figma analysis is incomplete.
+ */
+export function getVisionMissingQuestions(signals: VisionExtractedSignals): string[] {
+  const questions: string[] = [];
+  
+  if (signals.missingInfo && signals.missingInfo.length > 0) {
+    // Use the AI-detected missing info
+    questions.push(...signals.missingInfo.map(info => 
+      `I noticed this might be missing: ${info}. Can you clarify?`
+    ));
+  }
+  
+  if (!signals.flowsDetected && !signals.branching) {
+    questions.push('Can you describe the main steps or flow for this process?');
+  }
+  
+  if (!signals.primaryCTA) {
+    questions.push('What is the main action users should take?');
+  }
+  
+  return questions;
 }

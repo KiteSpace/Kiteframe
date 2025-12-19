@@ -13,6 +13,35 @@ export type KiteAIState = 'clarification' | 'escalation' | 'execution-ready';
 
 export type KiteAIMode = 'base' | 'designer' | 'pm';
 
+/**
+ * ConversationSource - tracks all inputs (text, image, Figma) in a unified structure
+ * This enables consistent actionability scoring across all entry modes.
+ */
+export type ConversationSourceType = 'text' | 'image' | 'figma-frame';
+
+export interface VisionExtractedSignals {
+  // Common signals
+  screensDetected?: string[];
+  flowsDetected?: boolean;
+  decisionPoints?: string[];
+  missingInfo?: string[];
+  // Figma-specific signals
+  screenType?: string;
+  entryPoints?: string[];
+  primaryCTA?: string;
+  branching?: boolean;
+  // General vision confidence
+  overallDescription?: string;
+}
+
+export interface ConversationSource {
+  type: ConversationSourceType;
+  payload: any;
+  confidence: number;
+  extractedSignals?: VisionExtractedSignals;
+  timestamp: number;
+}
+
 export interface ConversationContext {
   state: KiteAIState;
   mode: KiteAIMode;
@@ -20,6 +49,7 @@ export interface ConversationContext {
   lastActionability: ActionabilityResult | null;
   conversationHistory: ConversationMessage[];
   accumulatedContext: AccumulatedContext;
+  sources: ConversationSource[];
 }
 
 export interface ConversationMessage {
@@ -64,7 +94,112 @@ export function createInitialContext(mode: KiteAIMode = 'base'): ConversationCon
     lastActionability: null,
     conversationHistory: [],
     accumulatedContext: {},
+    sources: [],
   };
+}
+
+/**
+ * Add a source (text, image, or Figma) to the conversation context.
+ * All sources feed into the same actionability pipeline.
+ */
+export function addSource(
+  context: ConversationContext,
+  source: Omit<ConversationSource, 'timestamp'>
+): ConversationContext {
+  return {
+    ...context,
+    sources: [
+      ...context.sources,
+      { ...source, timestamp: Date.now() },
+    ],
+  };
+}
+
+/**
+ * Get aggregated signals from all vision sources (images and Figma frames).
+ * Used to enhance actionability scoring.
+ */
+export function getAggregatedVisionSignals(context: ConversationContext): VisionExtractedSignals {
+  const visionSources = context.sources.filter(
+    s => s.type === 'image' || s.type === 'figma-frame'
+  );
+  
+  const aggregated: VisionExtractedSignals = {
+    screensDetected: [],
+    decisionPoints: [],
+    missingInfo: [],
+    entryPoints: [],
+  };
+  
+  for (const source of visionSources) {
+    if (source.extractedSignals) {
+      const signals = source.extractedSignals;
+      if (signals.screensDetected) {
+        aggregated.screensDetected!.push(...signals.screensDetected);
+      }
+      if (signals.decisionPoints) {
+        aggregated.decisionPoints!.push(...signals.decisionPoints);
+      }
+      if (signals.missingInfo) {
+        aggregated.missingInfo!.push(...signals.missingInfo);
+      }
+      if (signals.entryPoints) {
+        aggregated.entryPoints!.push(...signals.entryPoints);
+      }
+      if (signals.flowsDetected) {
+        aggregated.flowsDetected = true;
+      }
+      if (signals.branching) {
+        aggregated.branching = true;
+      }
+      if (signals.primaryCTA) {
+        aggregated.primaryCTA = signals.primaryCTA;
+      }
+      if (signals.screenType) {
+        aggregated.screenType = signals.screenType;
+      }
+      if (signals.overallDescription) {
+        aggregated.overallDescription = signals.overallDescription;
+      }
+    }
+  }
+  
+  return aggregated;
+}
+
+/**
+ * Calculate a vision confidence boost based on extracted signals.
+ * This is added to the text-based actionability score.
+ */
+export function getVisionConfidenceBoost(signals: VisionExtractedSignals): number {
+  let boost = 0;
+  
+  // Screens detected indicate structure
+  if (signals.screensDetected && signals.screensDetected.length > 0) {
+    boost += 0.1;
+  }
+  
+  // Flows detected indicate sequence
+  if (signals.flowsDetected) {
+    boost += 0.15;
+  }
+  
+  // Decision points indicate branching logic
+  if (signals.decisionPoints && signals.decisionPoints.length > 0) {
+    boost += 0.1;
+  }
+  
+  // Entry points clarify scope
+  if (signals.entryPoints && signals.entryPoints.length > 0) {
+    boost += 0.05;
+  }
+  
+  // Primary CTA clarifies goal
+  if (signals.primaryCTA) {
+    boost += 0.05;
+  }
+  
+  return Math.min(boost, 0.3); // Cap at 0.3 boost
 }
 
 export function isVagueReply(actionability: ActionabilityResult): boolean {

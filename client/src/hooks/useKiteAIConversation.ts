@@ -8,18 +8,25 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
   computeActionability,
+  computeActionabilityWithVision,
   ActionabilityResult,
   getMissingDimensionQuestions,
+  getVisionMissingQuestions,
 } from '@/ai/actionability';
 import {
   KiteAIState,
   KiteAIMode,
   ConversationContext,
+  ConversationSource,
+  ConversationSourceType,
+  VisionExtractedSignals,
   createInitialContext,
   computeNextState,
   applyTransition,
   canShowStartProject,
   getConfidenceLevel,
+  addSource,
+  getAggregatedVisionSignals,
 } from '@/ai/kiteaiState';
 import {
   getSystemPrompt,
@@ -46,6 +53,24 @@ export interface UseKiteAIConversationResult {
   reset: () => void;
   addAssistantMessage: (content: string) => void;
   getAccumulatedSummary: () => string;
+  /**
+   * Add a source (text, image, or Figma frame) to the conversation context.
+   * This enables unified actionability scoring across all input types.
+   */
+  addConversationSource: (
+    type: ConversationSourceType,
+    payload: any,
+    confidence: number,
+    extractedSignals?: VisionExtractedSignals
+  ) => void;
+  /**
+   * Get all sources currently in the conversation.
+   */
+  getSources: () => ConversationSource[];
+  /**
+   * Get aggregated vision signals from all image/Figma sources.
+   */
+  getVisionSignals: () => VisionExtractedSignals;
 }
 
 export interface ProcessInputResult {
@@ -69,7 +94,17 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
   );
 
   const processUserInput = useCallback((input: string): ProcessInputResult => {
-    const actionability = computeActionability(input);
+    // Get aggregated vision signals from all image/Figma sources
+    const visionSignals = getAggregatedVisionSignals(context);
+    const hasVisionSources = context.sources.some(
+      s => s.type === 'image' || s.type === 'figma-frame'
+    );
+    
+    // Use vision-enhanced actionability if we have vision sources
+    const actionability = hasVisionSources
+      ? computeActionabilityWithVision(input, visionSignals)
+      : computeActionability(input);
+    
     const transition = computeNextState(context, actionability);
     const newContext = applyTransition(context, transition, input);
     
@@ -78,11 +113,21 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
     let guidancePrompt = '';
     
     if (transition.to === 'clarification') {
+      // Include vision-specific questions if available
+      const visionQuestions = hasVisionSources 
+        ? getVisionMissingQuestions(visionSignals) 
+        : [];
+      
       guidancePrompt = buildClarificationPrompt(
         actionability.missing,
         actionability.score,
         context.mode
       );
+      
+      // Append vision-specific context if available
+      if (visionQuestions.length > 0) {
+        guidancePrompt += `\n\nBased on the visual analysis: ${visionQuestions.slice(0, 2).join(' ')}`;
+      }
     } else if (transition.to === 'escalation') {
       const userContext = context.conversationHistory
         .filter(m => m.role === 'user')
@@ -133,11 +178,57 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
     return buildContextSummary(context);
   }, [context]);
 
+  /**
+   * Add a source (text, image, or Figma frame) to the conversation context.
+   */
+  const addConversationSource = useCallback((
+    type: ConversationSourceType,
+    payload: any,
+    confidence: number,
+    extractedSignals?: VisionExtractedSignals
+  ) => {
+    console.log('[KiteAI] Adding source:', { type, confidence, extractedSignals });
+    setContext(prev => addSource(prev, {
+      type,
+      payload,
+      confidence,
+      extractedSignals,
+    }));
+  }, []);
+
+  /**
+   * Get all sources in the conversation.
+   */
+  const getSources = useCallback((): ConversationSource[] => {
+    return context.sources;
+  }, [context.sources]);
+
+  /**
+   * Get aggregated vision signals from all image/Figma sources.
+   */
+  const getVisionSignals = useCallback((): VisionExtractedSignals => {
+    return getAggregatedVisionSignals(context);
+  }, [context]);
+
   const state = useMemo((): KiteAIConversationState => {
     const lastActionability = context.lastActionability;
     const score = lastActionability?.score ?? 0;
     const confidence = lastActionability?.confidence ?? 0;
     const missing = lastActionability?.missing ?? [];
+    
+    // Include vision-related questions if we have vision sources
+    const visionSignals = getAggregatedVisionSignals(context);
+    const hasVisionSources = context.sources.some(
+      s => s.type === 'image' || s.type === 'figma-frame'
+    );
+    const visionQuestions = hasVisionSources 
+      ? getVisionMissingQuestions(visionSignals)
+      : [];
+    
+    const suggestedQuestions = [
+      ...getMissingDimensionQuestions(missing),
+      ...visionQuestions,
+    ];
     
     return {
       context,
@@ -145,7 +236,7 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
       currentScore: score,
       currentConfidence: confidence,
       missingDimensions: missing,
-      suggestedQuestions: getMissingDimensionQuestions(missing),
+      suggestedQuestions,
       systemPrompt: getSystemPrompt(context.mode),
       stateLabel: STATE_LABELS[context.state],
     };
@@ -158,6 +249,9 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
     reset,
     addAssistantMessage,
     getAccumulatedSummary,
+    addConversationSource,
+    getSources,
+    getVisionSignals,
   };
 }
 
