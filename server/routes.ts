@@ -4622,7 +4622,11 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       const { userId } = req.params;
       const { groupIds } = req.body;
       
+      console.log('[Admin Groups] Setting groups for user:', userId);
+      console.log('[Admin Groups] Group IDs to set:', groupIds);
+      
       if (!Array.isArray(groupIds)) {
+        console.log('[Admin Groups] Error: groupIds is not an array:', typeof groupIds);
         return res.status(400).json({ error: 'groupIds must be an array' });
       }
       
@@ -4631,8 +4635,10 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         where: eq(users.id, userId),
       });
       if (!user) {
+        console.log('[Admin Groups] Error: User not found:', userId);
         return res.status(404).json({ error: 'User not found' });
       }
+      console.log('[Admin Groups] User found:', user.email);
       
       // Verify all groups exist
       for (const groupId of groupIds) {
@@ -4640,22 +4646,27 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
           where: eq(userGroups.id, groupId),
         });
         if (!group) {
+          console.log('[Admin Groups] Error: Group not found:', groupId);
           return res.status(400).json({ error: `Group ${groupId} not found` });
         }
+        console.log('[Admin Groups] Group verified:', group.name);
       }
       
       // Remove all existing memberships for this user
-      await db.delete(userGroupMemberships)
-        .where(eq(userGroupMemberships.userId, userId));
+      const deleteResult = await db.delete(userGroupMemberships)
+        .where(eq(userGroupMemberships.userId, userId))
+        .returning();
+      console.log('[Admin Groups] Deleted existing memberships:', deleteResult.length);
       
       // Add new memberships
       if (groupIds.length > 0) {
-        await db.insert(userGroupMemberships).values(
+        const insertResult = await db.insert(userGroupMemberships).values(
           groupIds.map((groupId: string) => ({
             userId,
             groupId,
           }))
-        );
+        ).returning();
+        console.log('[Admin Groups] Inserted new memberships:', insertResult);
       }
       
       // Get updated memberships
@@ -4668,12 +4679,14 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         .leftJoin(userGroups, eq(userGroupMemberships.groupId, userGroups.id))
         .where(eq(userGroupMemberships.userId, userId));
       
+      console.log('[Admin Groups] Final memberships for user:', memberships);
+      
       res.json({
         success: true,
         groups: memberships,
       });
     } catch (error: any) {
-      console.error('Set user groups error:', error);
+      console.error('[Admin Groups] Set user groups error:', error);
       res.status(500).json({ 
         error: 'Failed to update user groups',
         details: error.message 

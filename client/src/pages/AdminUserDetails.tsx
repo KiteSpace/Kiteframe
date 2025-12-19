@@ -124,21 +124,41 @@ export default function AdminUserDetails() {
 
   const updateUserMutation = useMutation({
     mutationFn: async () => {
-      await fetch(`/internal/users/${userId}`, {
+      console.log('[AdminUserDetails] Updating user:', userId);
+      console.log('[AdminUserDetails] Selected groups:', selectedGroups);
+      
+      const tierResponse = await fetch(`/internal/users/${userId}`, {
         method: 'PUT',
         headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscriptionTier: editTier }),
       });
-      await fetch(`/internal/users/${userId}/credits`, {
+      if (!tierResponse.ok) {
+        const error = await tierResponse.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update subscription tier');
+      }
+      
+      const creditsResponse = await fetch(`/internal/users/${userId}/credits`, {
         method: 'PUT',
         headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
         body: JSON.stringify({ credits: editCredits, isUnlimited: editUnlimited }),
       });
-      await fetch(`/internal/users/${userId}/groups`, {
+      if (!creditsResponse.ok) {
+        const error = await creditsResponse.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update credits');
+      }
+      
+      const groupsResponse = await fetch(`/internal/users/${userId}/groups`, {
         method: 'PUT',
         headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
         body: JSON.stringify({ groupIds: selectedGroups }),
       });
+      if (!groupsResponse.ok) {
+        const error = await groupsResponse.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update groups');
+      }
+      
+      const groupsResult = await groupsResponse.json();
+      console.log('[AdminUserDetails] Groups update result:', groupsResult);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/internal/users', userId] });
