@@ -202,6 +202,32 @@ export function getVisionConfidenceBoost(signals: VisionExtractedSignals): numbe
   return Math.min(boost, 0.3); // Cap at 0.3 boost
 }
 
+/**
+ * Update vision signals for a specific source type.
+ * Used to enrich sources with AI-extracted signals after analysis.
+ */
+export function updateSourceSignals(
+  context: ConversationContext,
+  sourceType: ConversationSourceType,
+  signals: VisionExtractedSignals
+): ConversationContext {
+  const updatedSources = context.sources.map(source => {
+    if (source.type === sourceType && !source.extractedSignals) {
+      return {
+        ...source,
+        extractedSignals: signals,
+        confidence: Math.min(source.confidence + 0.2, 1), // Boost confidence after analysis
+      };
+    }
+    return source;
+  });
+  
+  return {
+    ...context,
+    sources: updatedSources,
+  };
+}
+
 export function isVagueReply(actionability: ActionabilityResult): boolean {
   return actionability.score < 2 || actionability.confidence < CONFIDENCE_THRESHOLDS.silent;
 }

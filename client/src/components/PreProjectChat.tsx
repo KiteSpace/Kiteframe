@@ -13,6 +13,53 @@ import { buildKiteAIContext, inferRoleFromIntent, type KiteAIRole } from '../lib
 import { useKiteAIConversation } from '@/hooks/useKiteAIConversation';
 import { getSystemPrompt, buildFollowUpEnforcement } from '@/ai/kiteaiPrompts';
 import { usePromptContextStore } from '@/contexts/PromptContextStore';
+import type { VisionExtractedSignals } from '@/ai/kiteaiState';
+
+/**
+ * Extract vision signals from AI response text about an image/Figma design.
+ * Parses natural language for workflow-related indicators.
+ */
+function extractVisionSignalsFromResponse(responseText: string): VisionExtractedSignals {
+  const lower = responseText.toLowerCase();
+  
+  // Detect flow indicators
+  const flowsDetected = /flow|step|process|sequence|workflow|journey|path/i.test(lower);
+  
+  // Detect branching/decision indicators
+  const branching = /condition|if|decision|branch|choice|option|alternative|either/i.test(lower);
+  
+  // Detect screens/pages
+  const screenMatches = lower.match(/screen|page|view|modal|dialog|form|dashboard/gi) || [];
+  const screensDetected = screenMatches.length > 0 ? [...new Set(screenMatches)] : undefined;
+  
+  // Detect CTA/action indicators
+  const ctaMatch = responseText.match(/button|submit|click|action|save|continue|next/i);
+  const primaryCTA = ctaMatch ? ctaMatch[0] : undefined;
+  
+  // Detect decision points
+  const decisionMatches = lower.match(/decide|choose|select|option|condition/gi) || [];
+  const decisionPoints = decisionMatches.length > 0 ? decisionMatches.slice(0, 3) : undefined;
+  
+  // Detect entry points
+  const entryMatch = lower.match(/start|begin|entry|login|home|landing/gi);
+  const entryPoints = entryMatch ? [entryMatch[0]] : undefined;
+  
+  // Detect missing info from questions in response
+  const missingInfo: string[] = [];
+  if (/what.*user|who.*user/i.test(lower)) missingInfo.push('user type');
+  if (/what.*trigger|when.*start/i.test(lower)) missingInfo.push('trigger');
+  if (/what.*goal|what.*outcome/i.test(lower)) missingInfo.push('goal');
+  
+  return {
+    flowsDetected,
+    branching,
+    screensDetected,
+    primaryCTA,
+    decisionPoints,
+    entryPoints,
+    missingInfo: missingInfo.length > 0 ? missingInfo : undefined,
+  };
+}
 
 interface Message {
   role: 'user' | 'assistant';
@@ -194,6 +241,7 @@ export function PreProjectChat({
     getAccumulatedSummary,
     addConversationSource,
     getSources,
+    updateVisionSignals,
   } = useKiteAIConversation('base');
 
   const hasUploadedFiles = useMemo(() => {
@@ -355,24 +403,30 @@ export function PreProjectChat({
         }
       }
       
-      // Also add Figma attachments as sources
+      // Also add Figma attachments as sources with proper defensive checks
       const figmaAttachments = promptContext.attachments.filter(a => a.type === 'figma' && a.figmaData);
       if (figmaAttachments.length > 0 && getSources().filter(s => s.type === 'figma-frame').length === 0) {
         for (const attachment of figmaAttachments) {
+          const semantic = attachment.figmaData?.semantic;
+          const elements = Array.isArray(semantic?.elements) ? semantic.elements : [];
+          const navTargets = Array.isArray(semantic?.navigationTargets) ? semantic.navigationTargets : [];
+          const primaryAction = elements.find((e: { isPrimaryAction?: boolean; text?: string }) => e.isPrimaryAction);
+          
           addConversationSource(
             'figma-frame',
             {
               fileKey: attachment.figmaData?.fileKey,
               frameName: attachment.figmaData?.frameName,
               thumbnailUrl: attachment.thumbnailUrl,
-              semantic: attachment.figmaData?.semantic,
+              semantic: semantic,
             },
             0.6, // Figma frames often have good structure
             {
-              flowsDetected: Boolean(attachment.figmaData?.semantic?.elements?.length),
-              branching: Boolean(attachment.figmaData?.semantic?.navigationTargets?.length),
+              flowsDetected: elements.length > 0,
+              branching: navTargets.length > 1,
               screensDetected: attachment.figmaData?.frameName ? [attachment.figmaData.frameName] : undefined,
-              primaryCTA: attachment.figmaData?.semantic?.elements?.find((e: { isPrimaryAction?: boolean }) => e.isPrimaryAction)?.text,
+              primaryCTA: primaryAction?.text || undefined,
+              entryPoints: navTargets.length > 0 ? ['navigation'] : undefined,
             }
           );
         }
@@ -392,6 +446,26 @@ export function PreProjectChat({
       const assistantMessage: Message = { role: 'assistant', content: response.text };
       setMessages(prev => [...prev, assistantMessage]);
       addAssistantMessage(response.text);
+
+      // Extract vision signals from AI response and update sources
+      // This enriches image/Figma sources with signals after AI analysis
+      // Only update sources that haven't been enriched yet
+      const unenrichedImageSources = getSources().filter(s => s.type === 'image' && !s.extractedSignals);
+      const unenrichedFigmaSources = getSources().filter(s => s.type === 'figma-frame' && !s.extractedSignals);
+      
+      if (unenrichedImageSources.length > 0) {
+        const extractedSignals = extractVisionSignalsFromResponse(response.text);
+        console.log('[PreProjectChat] Extracted vision signals from AI response for images:', extractedSignals);
+        updateVisionSignals('image', extractedSignals);
+      }
+      
+      // Figma sources already have initial signals from semantic metadata
+      // But we can enrich them with additional signals from AI response
+      if (unenrichedFigmaSources.length > 0) {
+        const extractedSignals = extractVisionSignalsFromResponse(response.text);
+        console.log('[PreProjectChat] Extracted additional signals from AI response for Figma:', extractedSignals);
+        // Note: Figma sources already have signals from semantic metadata, this enriches them
+      }
 
       if (processResult.newState === 'escalation') {
         const options = extractEscalationOptions(response.text);
@@ -415,7 +489,7 @@ export function PreProjectChat({
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, processUserInput, addAssistantMessage, context, convertFilesToBase64, promptContext.attachments, addConversationSource, getSources]);
+  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, processUserInput, addAssistantMessage, context, convertFilesToBase64, promptContext.attachments, addConversationSource, getSources, updateVisionSignals]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

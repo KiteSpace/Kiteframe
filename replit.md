@@ -78,6 +78,15 @@ Preferred communication style: Simple, everyday language.
 - **Privacy Tiers**: UI options for "Maximum Privacy" (Ollama-based) and "Standard Privacy" (OpenAI, Anthropic).
 - **Image-to-Workflow Generation**: AI analysis of diagrams for conversion to interactive workflows.
 
+### Unified Vision Pipeline (KiteAI)
+- **Location**: `client/src/ai/kiteaiState.ts`, `client/src/ai/actionability.ts`, `client/src/hooks/useKiteAIConversation.ts`
+- **Purpose**: Routes all input types (text, image, Figma) through the same PM conversation flow with consistent actionability scoring.
+- **ConversationSource**: Tracks text prompts, images, and Figma frames with extracted vision signals.
+- **VisionExtractedSignals**: Captures flowsDetected, branching, screensDetected, primaryCTA, decisionPoints, entryPoints.
+- **computeActionabilityWithVision()**: Enhances base actionability score with vision signals, boosting confidence up to 0.3.
+- **Vision Signal Extraction**: Extracts signals from AI responses via regex patterns in PreProjectChat.
+- **Dimension Satisfaction**: Vision signals can satisfy actionability dimensions (flowSignal, scope, trigger, goal).
+
 ### PM Depth Guards (Phase 3.5)
 - **Location**: `client/src/ai/guards/pmDepthGuards.ts`
 - **Purpose**: Enforces PM-level reasoning depth, blocking workflows that are structurally valid but lack meaningful product decisions.

@@ -27,6 +27,7 @@ import {
   getConfidenceLevel,
   addSource,
   getAggregatedVisionSignals,
+  updateSourceSignals,
 } from '@/ai/kiteaiState';
 import {
   getSystemPrompt,
@@ -71,6 +72,11 @@ export interface UseKiteAIConversationResult {
    * Get aggregated vision signals from all image/Figma sources.
    */
   getVisionSignals: () => VisionExtractedSignals;
+  /**
+   * Update vision signals for sources of a specific type.
+   * Used to enrich sources with AI-extracted signals after analysis.
+   */
+  updateVisionSignals: (sourceType: ConversationSourceType, signals: VisionExtractedSignals) => void;
 }
 
 export interface ProcessInputResult {
@@ -210,6 +216,17 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
     return getAggregatedVisionSignals(context);
   }, [context]);
 
+  /**
+   * Update vision signals for sources of a specific type.
+   */
+  const updateVisionSignals = useCallback((
+    sourceType: ConversationSourceType,
+    signals: VisionExtractedSignals
+  ) => {
+    console.log('[KiteAI] Updating vision signals for', sourceType, signals);
+    setContext(prev => updateSourceSignals(prev, sourceType, signals));
+  }, []);
+
   const state = useMemo((): KiteAIConversationState => {
     const lastActionability = context.lastActionability;
     const score = lastActionability?.score ?? 0;
@@ -252,6 +269,7 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
     addConversationSource,
     getSources,
     getVisionSignals,
+    updateVisionSignals,
   };
 }
 
