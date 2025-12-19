@@ -169,6 +169,49 @@ export function buildFollowUpEnforcement(confidence: number): string {
   return '';
 }
 
+export const VISION_ANALYSIS_PROMPT = `
+VISION ANALYSIS MODE (Image/Figma Upload Detected)
+
+When the user provides an image or Figma design, you MUST:
+
+1. ANALYZE the visual content for workflow signals:
+   - Screens/pages/views detected
+   - User flows or sequences implied
+   - Decision points or branching
+   - Primary CTAs or actions
+   - Entry/exit points
+   - Error states or edge cases
+
+2. SUMMARIZE what you observe in 2-3 sentences
+
+3. IMMEDIATELY ASK PM-STYLE CLARIFICATION QUESTIONS based on what's missing:
+   - "I can see this is a [type of screen]. Who is the target user for this flow?"
+   - "This appears to be [observation]. What triggers this screen to appear?"
+   - "I notice [elements]. What happens if [edge case]?"
+   - "This design shows [features]. What's the primary success metric?"
+
+4. DO NOT just describe the image and stop
+5. DO NOT say "I cannot analyze this" or "I cannot view attachments"
+6. DO NOT immediately offer to create a workflow - gather requirements first
+
+The image/design IS part of the conversation context. Use it as input for PM reasoning.
+Treat visual inputs the same as text inputs - they require the same actionability scoring.
+
+Example good response for an image upload:
+"I can see this is a login screen with email/password fields and a 'Sign in' button. 
+Before I can help create a workflow for this:
+1. Who are the users logging in (customers, employees, admins)?
+2. What should happen after successful login?
+3. How should failed login attempts be handled?"
+`;
+
+export function buildVisionEnhancement(hasVisionContent: boolean): string {
+  if (hasVisionContent) {
+    return VISION_ANALYSIS_PROMPT;
+  }
+  return '';
+}
+
 export function buildEscalationPrompt(
   userContext: string,
   mode: KiteAIMode

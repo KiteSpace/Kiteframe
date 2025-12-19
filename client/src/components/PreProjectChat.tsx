@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAi } from '../ai/AiProvider';
 import { buildKiteAIContext, inferRoleFromIntent, type KiteAIRole } from '../lib/ai/buildKiteAIContext';
 import { useKiteAIConversation } from '@/hooks/useKiteAIConversation';
-import { getSystemPrompt, buildFollowUpEnforcement } from '@/ai/kiteaiPrompts';
+import { getSystemPrompt, buildFollowUpEnforcement, buildVisionEnhancement } from '@/ai/kiteaiPrompts';
 import { usePromptContextStore } from '@/contexts/PromptContextStore';
 import type { VisionExtractedSignals } from '@/ai/kiteaiState';
 
@@ -30,7 +30,7 @@ function extractVisionSignalsFromResponse(responseText: string): VisionExtracted
   
   // Detect screens/pages
   const screenMatches = lower.match(/screen|page|view|modal|dialog|form|dashboard/gi) || [];
-  const screensDetected = screenMatches.length > 0 ? [...new Set(screenMatches)] : undefined;
+  const screensDetected = screenMatches.length > 0 ? Array.from(new Set(screenMatches)) : undefined;
   
   // Detect CTA/action indicators
   const ctaMatch = responseText.match(/button|submit|click|action|save|continue|next/i);
@@ -65,6 +65,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   imagePreview?: string;
+  imagePreviews?: string[]; // Support multiple image previews
 }
 
 interface PreProjectContext {
@@ -327,14 +328,21 @@ export function PreProjectChat({
   const handleSendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isLoading) return;
 
-    // Get image preview for display in first message
-    const imageAttachment = promptContext.attachments.find(a => a.type === 'image' && a.thumbnailUrl);
-    const imagePreviewForMessage = messages.length === 0 && imageAttachment ? imageAttachment.thumbnailUrl : undefined;
+    // Get all image/Figma previews for display in first message
+    const allPreviews: string[] = [];
+    if (messages.length === 0) {
+      for (const attachment of promptContext.attachments) {
+        if (attachment.thumbnailUrl && (attachment.type === 'image' || attachment.type === 'figma')) {
+          allPreviews.push(attachment.thumbnailUrl);
+        }
+      }
+    }
 
     const userMessage: Message = { 
       role: 'user', 
       content: content.trim(),
-      imagePreview: imagePreviewForMessage
+      imagePreview: allPreviews.length === 1 ? allPreviews[0] : undefined,
+      imagePreviews: allPreviews.length > 1 ? allPreviews : undefined,
     };
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
@@ -354,6 +362,15 @@ export function PreProjectChat({
       const systemPrompt = getSystemPrompt('base');
       
       let enhancedSystemPrompt = systemPrompt;
+      
+      // Add vision enhancement if there are image/Figma attachments
+      const hasVisionContent = promptContext.attachments.some(a => 
+        (a.type === 'image' && (a.thumbnailUrl || a.file)) || 
+        (a.type === 'figma' && a.thumbnailUrl)
+      );
+      if (hasVisionContent && messages.length === 0) {
+        enhancedSystemPrompt += buildVisionEnhancement(true);
+      }
       
       // Add confidence enforcement to ALL states
       const confidenceEnforcement = buildFollowUpEnforcement(processResult.actionability.confidence);
@@ -403,31 +420,58 @@ export function PreProjectChat({
         }
       }
       
-      // Also add Figma attachments as sources with proper defensive checks
-      const figmaAttachments = promptContext.attachments.filter(a => a.type === 'figma' && a.figmaData);
-      if (figmaAttachments.length > 0 && getSources().filter(s => s.type === 'figma-frame').length === 0) {
+      // Add Figma attachments as vision content AND sources
+      const figmaAttachments = promptContext.attachments.filter(a => a.type === 'figma' && a.thumbnailUrl);
+      if (figmaAttachments.length > 0 && messages.length === 0) {
+        // Convert Figma thumbnails to base64 for vision API
+        const figmaImageUrls: string[] = [];
         for (const attachment of figmaAttachments) {
-          const semantic = attachment.figmaData?.semantic;
-          const elements = Array.isArray(semantic?.elements) ? semantic.elements : [];
-          const navTargets = Array.isArray(semantic?.navigationTargets) ? semantic.navigationTargets : [];
-          const primaryAction = elements.find((e: { isPrimaryAction?: boolean; text?: string }) => e.isPrimaryAction);
-          
+          if (attachment.thumbnailUrl) {
+            try {
+              // Fetch the Figma thumbnail and convert to base64
+              const response = await fetch(attachment.thumbnailUrl);
+              const blob = await response.blob();
+              const base64 = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+              });
+              figmaImageUrls.push(base64);
+            } catch (err) {
+              console.error('Error converting Figma thumbnail to base64:', err);
+            }
+          }
+        }
+        
+        // Include Figma images in vision request
+        if (figmaImageUrls.length > 0) {
+          if (typeof userContent === 'string') {
+            userContent = [
+              { type: 'text', text: userContent },
+              ...figmaImageUrls.map(url => ({ type: 'image_url' as const, image_url: { url } }))
+            ];
+          } else {
+            // Already an array from image files, add Figma images
+            userContent = [
+              ...userContent,
+              ...figmaImageUrls.map(url => ({ type: 'image_url' as const, image_url: { url } }))
+            ];
+          }
+          console.log('[PreProjectChat] Added', figmaImageUrls.length, 'Figma images to vision request');
+        }
+        
+        // Add Figma sources to conversation context WITHOUT initial signals
+        // so that updateVisionSignals('figma-frame', ...) will run after AI analysis
+        for (const attachment of figmaAttachments) {
           addConversationSource(
             'figma-frame',
             {
-              fileKey: attachment.figmaData?.fileKey,
-              frameName: attachment.figmaData?.frameName,
+              fileKey: attachment.metadata?.fileKey,
+              frameName: attachment.displayName,
               thumbnailUrl: attachment.thumbnailUrl,
-              semantic: semantic,
             },
             0.6, // Figma frames often have good structure
-            {
-              flowsDetected: elements.length > 0,
-              branching: navTargets.length > 1,
-              screensDetected: attachment.figmaData?.frameName ? [attachment.figmaData.frameName] : undefined,
-              primaryCTA: primaryAction?.text || undefined,
-              entryPoints: navTargets.length > 0 ? ['navigation'] : undefined,
-            }
+            undefined // Vision signals will be extracted from AI response
           );
         }
         console.log('[PreProjectChat] Added', figmaAttachments.length, 'Figma sources to conversation');
@@ -459,12 +503,12 @@ export function PreProjectChat({
         updateVisionSignals('image', extractedSignals);
       }
       
-      // Figma sources already have initial signals from semantic metadata
-      // But we can enrich them with additional signals from AI response
+      // Figma sources need vision signals updated from AI response
+      // This ensures Figma uploads boost actionability/confidence
       if (unenrichedFigmaSources.length > 0) {
         const extractedSignals = extractVisionSignalsFromResponse(response.text);
-        console.log('[PreProjectChat] Extracted additional signals from AI response for Figma:', extractedSignals);
-        // Note: Figma sources already have signals from semantic metadata, this enriches them
+        console.log('[PreProjectChat] Extracted vision signals from AI response for Figma:', extractedSignals);
+        updateVisionSignals('figma-frame', extractedSignals);
       }
 
       if (processResult.newState === 'escalation') {
@@ -604,13 +648,27 @@ export function PreProjectChat({
                     }`}
                     data-testid={`message-${message.role}-${index}`}
                   >
-                    {message.imagePreview && (
+                    {/* Single image preview */}
+                    {message.imagePreview && !message.imagePreviews && (
                       <div className="mb-2">
                         <img 
                           src={message.imagePreview} 
                           alt="Uploaded context" 
                           className="max-w-full max-h-48 rounded-lg object-contain"
                         />
+                      </div>
+                    )}
+                    {/* Multiple image previews */}
+                    {message.imagePreviews && message.imagePreviews.length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {message.imagePreviews.map((preview, i) => (
+                          <img 
+                            key={i}
+                            src={preview} 
+                            alt={`Uploaded context ${i + 1}`} 
+                            className="max-h-32 rounded-lg object-contain"
+                          />
+                        ))}
                       </div>
                     )}
                     <div className={`text-sm whitespace-pre-wrap prose prose-sm max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1 ${
