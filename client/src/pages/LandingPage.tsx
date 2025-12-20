@@ -3,6 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Chrome, Github, Check, Loader2, ArrowRight, Zap, Shield, Download, Users, Palette, Code, Rocket, Terminal, Play } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getQueryFn } from '@/lib/queryClient';
+import workflowScreenshot from '@assets/Screenshot_2025-12-19_at_3.34.24_PM_1766188467311.png';
+import nodeRadialMenu from '@assets/Screenshot_2025-12-19_at_3.39.43_PM_1766189459831.png';
+import compoundNode from '@assets/Screenshot_2025-12-19_at_3.39.03_PM_1766189459833.png';
 
 const LandingPreviewCanvas = lazy(() => import('@/components/landing/LandingPreviewCanvas'));
 const FloatingShapes = lazy(() => import('@/components/landing/FloatingShapes'));
@@ -230,7 +233,49 @@ export default function LandingPage() {
                 </li>
               </ul>
             </div>
-            <LazyCanvasLoader variant="features" className="h-[240px] rounded-xl overflow-hidden" />
+            <div className="flex items-center justify-center">
+              <img 
+                src={workflowScreenshot} 
+                alt="Kiteframe workflow example showing connected nodes" 
+                className="rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 max-h-[300px] object-contain"
+                data-testid="img-workflow-example"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Section: More Than Standard Diagram Nodes */}
+        <section className="bg-slate-50/50 dark:bg-slate-900/30 py-20">
+          <div className="max-w-5xl mx-auto px-8">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-foreground mb-2" data-testid="heading-diagram-nodes">
+                More Than Standard Diagram Nodes
+              </h2>
+              <p className="text-xl text-muted-foreground mb-4">
+                A canvas built for real product work
+              </p>
+              <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+                Kiteframe goes beyond basic boxes and arrows with rich, extensible building blocks designed for how teams actually work—supporting structure, logic, data, and context in one unified workflow. This isn't just diagramming; it's a system for thinking, aligning, and shipping together.
+              </p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="flex items-center justify-center">
+                <img 
+                  src={nodeRadialMenu} 
+                  alt="Node with radial editing menu" 
+                  className="rounded-xl shadow-lg max-h-[400px] object-contain"
+                  data-testid="img-radial-menu"
+                />
+              </div>
+              <div className="flex items-center justify-center">
+                <img 
+                  src={compoundNode} 
+                  alt="Compound node with embedded content" 
+                  className="rounded-xl shadow-lg max-h-[400px] object-contain"
+                  data-testid="img-compound-node"
+                />
+              </div>
+            </div>
           </div>
         </section>
 

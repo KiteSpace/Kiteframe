@@ -297,45 +297,156 @@ const createTextData = (text: string): TextNodeData => ({
 
 const OBJECTS_DATA: CanvasObject[] = [
   {
-    id: 'sticky1',
-    type: 'sticky',
-    position: { x: 40, y: 30 },
-    data: createStickyNoteData('Remember to\nvalidate inputs!', '#fef08a'),
-    width: 140,
-    height: 100,
-  },
-  {
-    id: 'sticky2',
-    type: 'sticky',
-    position: { x: 200, y: 60 },
-    data: createStickyNoteData('Check edge\ncases', '#fed7aa'),
-    width: 140,
-    height: 100,
-  },
-  {
-    id: 'shape1',
+    id: 'object-1766187644228',
     type: 'shape',
-    position: { x: 380, y: 40 },
-    data: createShapeData('circle', '#c4b5fd', '#a78bfa'),
-    width: 80,
-    height: 80,
+    position: { x: 40, y: 40 },
+    data: {
+      shapeType: 'rectangle',
+      fillColor: '#ec4899',
+      fillOpacity: 0.5,
+      gradient: { enabled: false, type: 'linear', direction: 0, colors: [{ color: '#e5e7eb', position: 0 }, { color: '#d1d5db', position: 1 }] },
+      strokeColor: '#ec4899',
+      strokeWidth: 2,
+      strokeOpacity: 1,
+      strokeStyle: 'dashed',
+      text: '',
+      textColor: '#374151',
+      fontSize: 14,
+      fontFamily: 'Inter',
+      fontWeight: 400,
+      fontStyle: 'normal',
+      textAlign: 'center',
+      borderRadius: 8,
+      opacity: 1,
+      shadow: { enabled: false, color: '#00000040', blur: 8, offsetX: 0, offsetY: 4 },
+      lineCap: 'round',
+      arrowSize: 1
+    } as ShapeNodeData,
+    width: 280,
+    height: 170,
+    style: { width: 280, height: 170 }
   },
   {
-    id: 'shape2',
-    type: 'shape',
-    position: { x: 500, y: 50 },
-    data: createShapeData('rectangle', '#a5f3fc', '#67e8f9'),
-    width: 100,
-    height: 60,
-  },
-  {
-    id: 'text1',
+    id: 'object-1766187646611',
     type: 'text',
-    position: { x: 40, y: 160 },
-    data: createTextData('Workflow Notes'),
-    width: 150,
-    height: 30,
+    position: { x: 52, y: 10 },
+    data: createTextData('Add a styled text object!'),
+    width: 260,
+    height: 40,
+    style: { width: 260, height: 40 }
   },
+  {
+    id: 'object-1766187649812',
+    type: 'sticky',
+    position: { x: 120, y: 80 },
+    data: {
+      text: 'Have an idea you want to return to later? Drop a sticky note so you don\'t forget your killer idea!',
+      backgroundColor: '#fef3c7',
+      textColor: '#92400e',
+      borderStyle: 'dotted'
+    } as StickyNoteData,
+    width: 180,
+    height: 130,
+    zIndex: 1,
+    style: {}
+  },
+  {
+    id: 'object-1766187657595',
+    type: 'shape',
+    position: { x: 340, y: 60 },
+    data: {
+      shapeType: 'hexagon',
+      fillColor: '#6366f1',
+      fillOpacity: 0.5,
+      gradient: { enabled: false, type: 'linear', direction: 0, colors: [{ color: '#e5e7eb', position: 0 }, { color: '#d1d5db', position: 1 }] },
+      strokeColor: '#6366f1',
+      strokeWidth: 2,
+      strokeOpacity: 1,
+      strokeStyle: 'solid',
+      text: '',
+      textColor: '#374151',
+      fontSize: 14,
+      fontFamily: 'Inter',
+      fontWeight: 400,
+      fontStyle: 'normal',
+      textAlign: 'center',
+      borderRadius: 8,
+      opacity: 1,
+      shadow: { enabled: false, color: '#00000040', blur: 8, offsetX: 0, offsetY: 4 },
+      lineCap: 'round',
+      arrowSize: 1
+    } as ShapeNodeData,
+    width: 180,
+    height: 160,
+    style: { width: 180, height: 160 },
+    zIndex: 0
+  },
+  {
+    id: 'object-1766187867093',
+    type: 'text',
+    position: { x: 560, y: 30 },
+    data: {
+      ...createTextData('Replit'),
+      hyperlink: {
+        url: 'https://replit.com',
+        text: 'Replit',
+        showPreview: true,
+        showText: false,
+        metadata: {
+          title: 'Replit – Build apps and sites with AI',
+          description: 'Build and deploy software collaboratively with the power of AI without spending a second on setup.',
+          image: 'https://replit.com/public/images/opengraph.png',
+          siteName: 'replit',
+          favicon: 'https://replit.com/public/icons/favicon-prompt-192.png'
+        }
+      }
+    },
+    width: 200,
+    height: 100,
+    style: { width: 200, height: 100 }
+  },
+  {
+    id: 'canvas-object-1766187971025',
+    type: 'text',
+    position: { x: 556, y: -30 },
+    data: {
+      ...createTextData('You can even convert text objects to link previews!'),
+      textColor: '#3b82f6'
+    },
+    width: 220,
+    height: 60,
+    style: { width: 220, height: 60 }
+  },
+  {
+    id: 'object-1766188080940',
+    type: 'shape',
+    position: { x: 530, y: 150 },
+    data: {
+      shapeType: 'circle',
+      fillColor: '#06b6d4',
+      fillOpacity: 0.5,
+      gradient: { enabled: false, type: 'linear', direction: 0, colors: [{ color: '#e5e7eb', position: 0 }, { color: '#d1d5db', position: 1 }] },
+      strokeColor: '#06b6d4',
+      strokeWidth: 2,
+      strokeOpacity: 1,
+      strokeStyle: 'solid',
+      text: '',
+      textColor: '#374151',
+      fontSize: 14,
+      fontFamily: 'Inter',
+      fontWeight: 400,
+      fontStyle: 'normal',
+      textAlign: 'center',
+      borderRadius: 8,
+      opacity: 1,
+      shadow: { enabled: false, color: '#00000040', blur: 8, offsetX: 0, offsetY: 4 },
+      lineCap: 'round',
+      arrowSize: 1
+    } as ShapeNodeData,
+    width: 140,
+    height: 120,
+    style: { width: 140, height: 120 }
+  }
 ];
 
 function calculateFitViewport(nodes: Node[], containerWidth: number, containerHeight: number, padding: number = 50) {
@@ -362,6 +473,30 @@ function calculateFitViewport(nodes: Node[], containerWidth: number, containerHe
   return { x, y, zoom };
 }
 
+function calculateFitViewportForObjects(objects: CanvasObject[], containerWidth: number, containerHeight: number, padding: number = 30) {
+  if (objects.length === 0) return { x: 0, y: 0, zoom: 1 };
+  
+  const minX = Math.min(...objects.map(o => o.position.x));
+  const maxX = Math.max(...objects.map(o => o.position.x + (o.width || 200)));
+  const minY = Math.min(...objects.map(o => o.position.y));
+  const maxY = Math.max(...objects.map(o => o.position.y + (o.height || 100)));
+  
+  const contentWidth = maxX - minX;
+  const contentHeight = maxY - minY;
+  
+  const scaleX = (containerWidth - padding * 2) / contentWidth;
+  const scaleY = (containerHeight - padding * 2) / contentHeight;
+  const zoom = Math.min(scaleX, scaleY, 1);
+  
+  const centerX = minX + contentWidth / 2;
+  const centerY = minY + contentHeight / 2;
+  
+  const x = containerWidth / 2 - centerX * zoom;
+  const y = containerHeight / 2 - centerY * zoom;
+  
+  return { x, y, zoom };
+}
+
 export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPreviewCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const initialNodes = variant === 'hero' ? HERO_NODES : variant === 'features' ? FEATURE_NODES : [];
@@ -370,26 +505,36 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
 
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
-  const [canvasObjects] = useState<CanvasObject[]>(initialObjects);
+  const [canvasObjects, setCanvasObjects] = useState<CanvasObject[]>(initialObjects);
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
 
   useEffect(() => {
-    if (variant === 'hero' && containerRef.current) {
+    if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      const fitViewport = calculateFitViewport(HERO_NODES, rect.width, rect.height, 40);
-      setViewport(fitViewport);
+      if (variant === 'hero') {
+        const fitViewport = calculateFitViewport(HERO_NODES, rect.width, rect.height, 40);
+        setViewport(fitViewport);
+      } else if (variant === 'objects') {
+        const fitViewport = calculateFitViewportForObjects(OBJECTS_DATA, rect.width, rect.height, 30);
+        setViewport(fitViewport);
+      }
     }
   }, [variant]);
 
   useEffect(() => {
-    if (variant !== 'hero' || !containerRef.current) return;
+    if ((variant !== 'hero' && variant !== 'objects') || !containerRef.current) return;
     
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
         if (width > 0 && height > 0) {
-          const fitViewport = calculateFitViewport(HERO_NODES, width, height, 40);
-          setViewport(fitViewport);
+          if (variant === 'hero') {
+            const fitViewport = calculateFitViewport(HERO_NODES, width, height, 40);
+            setViewport(fitViewport);
+          } else if (variant === 'objects') {
+            const fitViewport = calculateFitViewportForObjects(OBJECTS_DATA, width, height, 30);
+            setViewport(fitViewport);
+          }
         }
       }
     });
@@ -410,13 +555,20 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
     }
   }, [variant]);
 
+  const handleCanvasObjectsChange = useCallback((newObjects: CanvasObject[]) => {
+    if (variant === 'objects') {
+      setCanvasObjects(newObjects);
+    }
+  }, [variant]);
+
   const handleViewportChange = useCallback((newViewport: { x: number; y: number; zoom: number }) => {
-    if (variant !== 'hero') {
+    if (variant !== 'hero' && variant !== 'objects') {
       setViewport(newViewport);
     }
   }, [variant]);
 
   const isReadOnly = variant === 'hero';
+  const disablePanZoom = variant === 'hero' || variant === 'objects';
 
   const canvasStyle = useMemo(() => ({
     width: '100%',
@@ -440,11 +592,14 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
           viewport={viewport}
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
+          onCanvasObjectsChange={handleCanvasObjectsChange}
           onViewportChange={handleViewportChange}
           enablePlugins={false}
           showMiniMap={false}
           snapToGrid={false}
           readOnly={isReadOnly}
+          disablePan={disablePanZoom}
+          disableWheelZoom={disablePanZoom}
         />
       </div>
     </PluginProvider>
