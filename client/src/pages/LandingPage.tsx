@@ -4,8 +4,6 @@ import { Chrome, Github, Check, Loader2, ArrowRight, Zap, Shield, Download, User
 import { useQuery } from '@tanstack/react-query';
 import { getQueryFn } from '@/lib/queryClient';
 import workflowScreenshot from '@assets/Screenshot_2025-12-19_at_3.34.24_PM_1766188467311.png';
-import nodeRadialMenu from '@assets/Screenshot_2025-12-19_at_4.20.12_PM_1766190106510.png';
-import compoundNode from '@assets/Screenshot_2025-12-19_at_4.20.29_PM_1766190106509.png';
 
 const LandingPreviewCanvas = lazy(() => import('@/components/landing/LandingPreviewCanvas'));
 const FloatingShapes = lazy(() => import('@/components/landing/FloatingShapes'));
@@ -257,24 +255,6 @@ export default function LandingPage() {
               <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
                 Kiteframe goes beyond basic boxes and arrows with rich, extensible building blocks designed for how teams actually work—supporting structure, logic, data, and context in one unified workflow. This isn't just diagramming; it's a system for thinking, aligning, and shipping together.
               </p>
-            </div>
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="flex items-center justify-center">
-                <img 
-                  src={nodeRadialMenu} 
-                  alt="Node with radial editing menu" 
-                  className="rounded-xl max-h-[400px] object-contain"
-                  data-testid="img-radial-menu"
-                />
-              </div>
-              <div className="flex items-center justify-center">
-                <img 
-                  src={compoundNode} 
-                  alt="Compound node with embedded content" 
-                  className="rounded-xl max-h-[400px] object-contain"
-                  data-testid="img-compound-node"
-                />
-              </div>
             </div>
           </div>
         </section>
