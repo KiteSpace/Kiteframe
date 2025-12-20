@@ -263,7 +263,7 @@ export default function LandingPage() {
         <section className="bg-slate-50/50 dark:bg-slate-900/30 py-20">
           <div className="max-w-7xl mx-auto px-8">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <LazyCanvasLoader variant="objects" className="order-2 lg:order-1 h-[400px] rounded-xl overflow-hidden" />
+              <LazyCanvasLoader variant="objects" className="order-2 lg:order-1 h-[400px] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700" />
               <div className="order-1 lg:order-2">
                 <h2 className="text-3xl font-bold text-foreground mb-4" data-testid="heading-section-b">
                   More than just nodes
