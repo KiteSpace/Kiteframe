@@ -129,7 +129,7 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto px-8">
             <div className="text-center max-w-3xl mx-auto mb-8">
               <h1 className="text-4xl lg:text-5xl font-bold text-foreground leading-tight mb-6" data-testid="text-hero-headline">
-                Wire your ideas with Kiteframe
+                Kiteframe helps ideas take flight
               </h1>
               <p className="text-xl text-muted-foreground mb-8" data-testid="text-hero-subhead">
                 A visual workflow editor for building interactive diagrams, connecting designs to execution, and generating PRDs — all in one place.
