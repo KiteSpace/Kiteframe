@@ -4,8 +4,8 @@ import { Chrome, Github, Check, Loader2, ArrowRight, Zap, Shield, Download, User
 import { useQuery } from '@tanstack/react-query';
 import { getQueryFn } from '@/lib/queryClient';
 import workflowScreenshot from '@assets/Screenshot_2025-12-19_at_3.34.24_PM_1766188467311.png';
-import nodeRadialMenu from '@assets/Screenshot_2025-12-19_at_3.39.43_PM_1766189459831.png';
-import compoundNode from '@assets/Screenshot_2025-12-19_at_3.39.03_PM_1766189459833.png';
+import nodeRadialMenu from '@assets/Screenshot_2025-12-19_at_4.20.12_PM_1766190106510.png';
+import compoundNode from '@assets/Screenshot_2025-12-19_at_4.20.29_PM_1766190106509.png';
 
 const LandingPreviewCanvas = lazy(() => import('@/components/landing/LandingPreviewCanvas'));
 const FloatingShapes = lazy(() => import('@/components/landing/FloatingShapes'));
@@ -263,7 +263,7 @@ export default function LandingPage() {
                 <img 
                   src={nodeRadialMenu} 
                   alt="Node with radial editing menu" 
-                  className="rounded-xl shadow-lg max-h-[400px] object-contain"
+                  className="rounded-xl max-h-[400px] object-contain"
                   data-testid="img-radial-menu"
                 />
               </div>
@@ -271,7 +271,7 @@ export default function LandingPage() {
                 <img 
                   src={compoundNode} 
                   alt="Compound node with embedded content" 
-                  className="rounded-xl shadow-lg max-h-[400px] object-contain"
+                  className="rounded-xl max-h-[400px] object-contain"
                   data-testid="img-compound-node"
                 />
               </div>
