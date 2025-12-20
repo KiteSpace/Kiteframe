@@ -132,7 +132,7 @@ export default function LandingPage() {
                 Kiteframe helps ideas take flight
               </h1>
               <p className="text-xl text-muted-foreground mb-8" data-testid="text-hero-subhead">
-                A visual workflow editor for building interactive diagrams, connecting designs to execution, and generating PRDs — all in one place.
+                An AI-powered visual workflow editor for product alignment, connecting designs to execution, and generating PRDs — all in one place.
               </p>
               
               <div className="flex flex-wrap gap-3 justify-center">
