@@ -726,6 +726,154 @@ function NodeTypesDemo() {
           <CodeBlock code={codeSnippet} />
         </CardContent>
       </Card>
+      
+      <AdvancedNodesSection />
+    </div>
+  );
+}
+
+function AdvancedNodesSection() {
+  const [advancedNodeType, setAdvancedNodeType] = useState('image');
+  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
+  
+  const advancedNodeConfigs: { value: string; label: string; headerColor: string; bodyColor: string; description: string }[] = [
+    { value: 'image', label: 'Image', headerColor: '#0ea5e9', bodyColor: '#f0f9ff', description: 'Display images in workflows' },
+    { value: 'compound', label: 'Compound', headerColor: '#6366f1', bodyColor: '#eef2ff', description: 'Group multiple elements' },
+    { value: 'form', label: 'Form', headerColor: '#14b8a6', bodyColor: '#f0fdfa', description: 'Capture user input' },
+    { value: 'table', label: 'Table', headerColor: '#f97316', bodyColor: '#fff7ed', description: 'Display structured data' },
+    { value: 'code', label: 'Code', headerColor: '#64748b', bodyColor: '#f8fafc', description: 'Show code snippets' },
+  ];
+  
+  const currentAdvConfig = advancedNodeConfigs.find(n => n.value === advancedNodeType) || advancedNodeConfigs[0];
+  
+  const [advNodes, setAdvNodes] = useState<Node[]>(() => createAdvancedNode(advancedNodeType, advancedNodeConfigs));
+  const [advEdges] = useState<Edge[]>([]);
+  
+  function createAdvancedNode(type: string, configs: typeof advancedNodeConfigs): Node[] {
+    const config = configs.find(n => n.value === type) || configs[0];
+    return [{
+      id: 'adv-demo-node',
+      type: type,
+      position: { x: 100, y: 60 },
+      data: { 
+        label: `${config.label} Node`,
+        description: config.description,
+        colors: {
+          headerBackground: config.headerColor,
+          bodyBackground: config.bodyColor,
+          borderColor: config.headerColor,
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#374151'
+        },
+        ...(type === 'image' ? { src: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&h=120&fit=crop' } : {}),
+        ...(type === 'table' ? { 
+          columns: [{ id: 'name', label: 'Name' }, { id: 'value', label: 'Value' }],
+          rows: [{ name: 'Status', value: 'Active' }, { name: 'Priority', value: 'High' }]
+        } : {}),
+        ...(type === 'form' ? { 
+          fields: [
+            { id: 'name', label: 'Name', type: 'text' },
+            { id: 'email', label: 'Email', type: 'email' }
+          ]
+        } : {}),
+        ...(type === 'code' ? { 
+          code: 'const result = await process(data);',
+          language: 'javascript'
+        } : {}),
+      },
+      style: { width: 220, height: type === 'image' ? 160 : (type === 'table' || type === 'form' ? 180 : 120) }
+    }];
+  }
+  
+  useEffect(() => {
+    setAdvNodes(createAdvancedNode(advancedNodeType, advancedNodeConfigs));
+  }, [advancedNodeType]);
+  
+  const advCodeSnippet = `// Advanced Node: ${currentAdvConfig.label}
+const node: Node = {
+  id: 'adv-node-1',
+  type: '${advancedNodeType}',
+  position: { x: 100, y: 100 },
+  data: {
+    label: '${currentAdvConfig.label} Node',
+    description: '${currentAdvConfig.description}',${advancedNodeType === 'image' ? `
+    src: 'https://example.com/image.jpg',` : ''}${advancedNodeType === 'table' ? `
+    columns: [{ id: 'name', label: 'Name' }],
+    rows: [{ name: 'Example' }],` : ''}${advancedNodeType === 'form' ? `
+    fields: [{ id: 'input', label: 'Input', type: 'text' }],` : ''}${advancedNodeType === 'code' ? `
+    code: 'const x = 1;',
+    language: 'javascript',` : ''}
+    colors: {
+      headerBackground: '${currentAdvConfig.headerColor}',
+      bodyBackground: '${currentAdvConfig.bodyColor}',
+    }
+  }
+};`;
+
+  return (
+    <div className="mt-8 pt-8 border-t" data-testid="demo-advanced-nodes">
+      <h3 className="text-xl font-bold mb-4">Advanced Node Types</h3>
+      
+      <p className="text-muted-foreground mb-4">
+        Specialized nodes for complex workflows: display images, group elements, capture input, show data tables, or embed code.
+      </p>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <DemoPreview title={`${currentAdvConfig.label} Node`}>
+            <div className="relative w-full h-[480px] rounded overflow-hidden">
+              <PluginProvider>
+                <KiteFrameCanvas
+                  nodes={advNodes}
+                  edges={advEdges}
+                  onNodesChange={setAdvNodes}
+                  onEdgesChange={() => {}}
+                  viewport={viewport}
+                  onViewportChange={setViewport}
+                  className="w-full h-full"
+                />
+              </PluginProvider>
+            </div>
+          </DemoPreview>
+        </div>
+        
+        <div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Props</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PropControl 
+                label="Advanced Type" 
+                type="select" 
+                value={advancedNodeType} 
+                onChange={setAdvancedNodeType}
+                options={advancedNodeConfigs.map(n => ({ value: n.value, label: n.label }))}
+              />
+              <Separator className="my-3" />
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded" style={{ backgroundColor: currentAdvConfig.headerColor }} />
+                  Header: {currentAdvConfig.headerColor}
+                </div>
+                <div className="text-muted-foreground mt-2">{currentAdvConfig.description}</div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      
+      <Card className="mt-4">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Code className="w-4 h-4" />
+            Advanced Node Code
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CodeBlock code={advCodeSnippet} />
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -741,13 +889,14 @@ function EdgeStylingDemo() {
     { value: 'bezier', label: 'Bezier (Curved)' },
   ];
   
-  const [nodes] = useState<Node[]>([
+  const [nodes, setNodes] = useState<Node[]>([
     {
       id: 'source',
       type: 'input',
-      position: { x: 50, y: 80 },
+      position: { x: 40, y: 30 },
       data: { 
-        label: 'Source',
+        label: 'Source Node',
+        description: 'Drag me!',
         colors: {
           headerBackground: '#3b82f6',
           bodyBackground: '#eff6ff',
@@ -756,14 +905,15 @@ function EdgeStylingDemo() {
           bodyTextColor: '#1e40af'
         }
       },
-      style: { width: 120, height: 60 }
+      style: { width: 140, height: 80 }
     },
     {
       id: 'target',
       type: 'output',
-      position: { x: 350, y: 80 },
+      position: { x: 320, y: 120 },
       data: { 
-        label: 'Target',
+        label: 'Target Node',
+        description: 'Drag me too!',
         colors: {
           headerBackground: '#22c55e',
           bodyBackground: '#f0fdf4',
@@ -772,7 +922,7 @@ function EdgeStylingDemo() {
           bodyTextColor: '#166534'
         }
       },
-      style: { width: 120, height: 60 }
+      style: { width: 140, height: 80 }
     }
   ]);
   
@@ -802,18 +952,18 @@ function EdgeStylingDemo() {
       <h2 className="text-2xl font-bold mb-4">Edge Styling</h2>
       
       <p className="text-muted-foreground mb-4">
-        Configure edge appearance with different path types. The canvas renders real edges between nodes.
+        Configure edge appearance with different path types. Drag the nodes to see how edges follow!
       </p>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <DemoPreview title="Edge Preview">
-            <div className="relative w-full h-[200px] rounded overflow-hidden">
+            <div className="relative w-full h-[280px] rounded overflow-hidden">
               <PluginProvider>
                 <KiteFrameCanvas
                   nodes={nodes}
                   edges={edges}
-                  onNodesChange={() => {}}
+                  onNodesChange={setNodes}
                   onEdgesChange={setEdges}
                   viewport={viewport}
                   onViewportChange={setViewport}
@@ -1330,15 +1480,16 @@ function SelectionDemo() {
 
 function MinimapDemo() {
   const [showMinimap, setShowMinimap] = useState(true);
-  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
+  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 0.8 });
   
-  const [nodes] = useState<Node[]>([
+  const [nodes, setNodes] = useState<Node[]>([
     {
       id: 'nav-1',
       type: 'input',
       position: { x: 50, y: 50 },
       data: { 
         label: 'Start',
+        description: 'Entry point',
         colors: {
           headerBackground: '#3b82f6',
           bodyBackground: '#eff6ff',
@@ -1347,14 +1498,15 @@ function MinimapDemo() {
           bodyTextColor: '#1e40af'
         }
       },
-      style: { width: 100, height: 60 }
+      style: { width: 140, height: 80 }
     },
     {
       id: 'nav-2',
       type: 'process',
-      position: { x: 200, y: 100 },
+      position: { x: 280, y: 150 },
       data: { 
         label: 'Process',
+        description: 'Transform data',
         colors: {
           headerBackground: '#8b5cf6',
           bodyBackground: '#f5f3ff',
@@ -1363,14 +1515,15 @@ function MinimapDemo() {
           bodyTextColor: '#6b21a8'
         }
       },
-      style: { width: 100, height: 60 }
+      style: { width: 140, height: 80 }
     },
     {
       id: 'nav-3',
       type: 'output',
-      position: { x: 350, y: 50 },
+      position: { x: 500, y: 50 },
       data: { 
         label: 'End',
+        description: 'Final output',
         colors: {
           headerBackground: '#22c55e',
           bodyBackground: '#f0fdf4',
@@ -1379,14 +1532,15 @@ function MinimapDemo() {
           bodyTextColor: '#166534'
         }
       },
-      style: { width: 100, height: 60 }
+      style: { width: 140, height: 80 }
     },
     {
       id: 'nav-4',
       type: 'condition',
-      position: { x: 100, y: 180 },
+      position: { x: 100, y: 280 },
       data: { 
         label: 'Check',
+        description: 'Validate input',
         colors: {
           headerBackground: '#f59e0b',
           bodyBackground: '#fefce8',
@@ -1395,18 +1549,37 @@ function MinimapDemo() {
           bodyTextColor: '#a16207'
         }
       },
-      style: { width: 100, height: 60 }
+      style: { width: 140, height: 80 }
+    },
+    {
+      id: 'nav-5',
+      type: 'ai',
+      position: { x: 380, y: 320 },
+      data: { 
+        label: 'AI Analysis',
+        description: 'Process with AI',
+        colors: {
+          headerBackground: '#ec4899',
+          bodyBackground: '#fdf2f8',
+          borderColor: '#ec4899',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#9d174d'
+        }
+      },
+      style: { width: 140, height: 80 }
     }
   ]);
   
   const [edges] = useState<Edge[]>([
     { id: 'e-nav-1', source: 'nav-1', target: 'nav-2', type: 'smoothstep' },
     { id: 'e-nav-2', source: 'nav-2', target: 'nav-3', type: 'smoothstep' },
-    { id: 'e-nav-3', source: 'nav-1', target: 'nav-4', type: 'smoothstep' }
+    { id: 'e-nav-3', source: 'nav-1', target: 'nav-4', type: 'smoothstep' },
+    { id: 'e-nav-4', source: 'nav-4', target: 'nav-5', type: 'smoothstep' },
+    { id: 'e-nav-5', source: 'nav-5', target: 'nav-3', type: 'smoothstep' }
   ]);
   
   const handleReset = () => {
-    setViewport({ x: 0, y: 0, zoom: 1 });
+    setViewport({ x: 0, y: 0, zoom: 0.8 });
   };
   
   const codeSnippet = `<KiteFrameCanvas
@@ -1431,13 +1604,13 @@ function MinimapDemo() {
       <h2 className="text-2xl font-bold mb-4">Minimap & Navigation</h2>
       
       <p className="text-muted-foreground mb-4">
-        Use the real KiteFrameCanvas minimap. Pan by dragging the background, zoom with scroll wheel. The minimap shows an overview.
+        Zoom out to see the minimap in the bottom-right corner. Pan by dragging the background, zoom with scroll wheel.
       </p>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <DemoPreview title="Live Navigation">
-            <div className="flex flex-col h-[300px]">
+            <div className="flex flex-col h-[420px]">
               <div className="flex items-center gap-2 mb-2">
                 <Button size="sm" variant="outline" onClick={handleReset} data-testid="button-reset-view">
                   <Maximize className="w-4 h-4 mr-1" /> Reset View
@@ -1447,12 +1620,12 @@ function MinimapDemo() {
                 </span>
               </div>
               
-              <div className="flex-1 relative rounded overflow-hidden" data-testid="canvas-minimap-demo">
+              <div className="flex-1 relative rounded overflow-hidden border border-slate-200 dark:border-slate-700" data-testid="canvas-minimap-demo">
                 <PluginProvider>
                   <KiteFrameCanvas
                     nodes={nodes}
                     edges={edges}
-                    onNodesChange={() => {}}
+                    onNodesChange={setNodes}
                     onEdgesChange={() => {}}
                     viewport={viewport}
                     onViewportChange={setViewport}

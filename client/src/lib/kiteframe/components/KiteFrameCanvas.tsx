@@ -1122,7 +1122,7 @@ const calculateNodeHeight = (node: Node, nodeWidth: number): number => {
   if (
     !bodyText ||
     bodyText.trim() === "" ||
-    bodyText.trim() === "Drop content here…"
+    bodyText.trim() === "Double click to edit text"
   ) {
     return minHeight;
   }
@@ -3226,6 +3226,67 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     return cleanupKeydown;
   }, [props.nodes, props.canvasObjects]);
 
+  // Keyboard event handling for Ctrl+A (select all) and Escape (clear selection)
+  useEffect(() => {
+    const handleSelectionKeyDown = (e: Event) => {
+      const keyboardEvent = e as KeyboardEvent;
+      
+      // Check if we're focused on an input field - if so, don't interfere
+      const activeElement = document.activeElement as HTMLElement;
+      if (
+        activeElement &&
+        (activeElement.tagName === "INPUT" ||
+          activeElement.tagName === "TEXTAREA" ||
+          activeElement.isContentEditable)
+      ) {
+        return;
+      }
+
+      // Ctrl+A or Cmd+A: Select all nodes and canvas objects
+      if ((keyboardEvent.ctrlKey || keyboardEvent.metaKey) && keyboardEvent.key.toLowerCase() === 'a') {
+        keyboardEvent.preventDefault();
+        
+        // Select all nodes
+        const allNodesSelected = props.nodes.map(node => ({ ...node, selected: true }));
+        props.onNodesChange(allNodesSelected);
+        
+        // Select all canvas objects if available
+        if (props.canvasObjects && props.onCanvasObjectsChange) {
+          const allObjectsSelected = props.canvasObjects.map(obj => ({ ...obj, selected: true }));
+          props.onCanvasObjectsChange(allObjectsSelected);
+        }
+        
+        return;
+      }
+
+      // Escape: Clear all selections
+      if (keyboardEvent.key === 'Escape') {
+        keyboardEvent.preventDefault();
+        
+        // Deselect all nodes
+        const allNodesDeselected = props.nodes.map(node => ({ ...node, selected: false }));
+        props.onNodesChange(allNodesDeselected);
+        
+        // Deselect all canvas objects if available
+        if (props.canvasObjects && props.onCanvasObjectsChange) {
+          const allObjectsDeselected = props.canvasObjects.map(obj => ({ ...obj, selected: false }));
+          props.onCanvasObjectsChange(allObjectsDeselected);
+        }
+        
+        return;
+      }
+    };
+
+    // Add event listener
+    const cleanupKeydown = cleanupManager.addEventListener(
+      document,
+      "keydown",
+      handleSelectionKeyDown,
+    );
+
+    // Cleanup
+    return cleanupKeydown;
+  }, [props.nodes, props.canvasObjects, props.onNodesChange, props.onCanvasObjectsChange]);
 
   const worldStyle = {
     transform: `translate(${Math.round(viewport.x)}px, ${Math.round(viewport.y)}px) scale(${viewport.zoom})`,
@@ -5137,7 +5198,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                                 wordBreak: 'break-word',
                               }}
                             >
-                              {n.data?.description ? renderTextWithLinks(n.data.description) : "Drop content here…"}
+                              {n.data?.description ? renderTextWithLinks(n.data.description) : "Double click to edit text"}
                             </span>
                           )}
                         </div>
