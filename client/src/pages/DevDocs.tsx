@@ -36,6 +36,18 @@ import {
   Palette
 } from 'lucide-react';
 import { Link } from 'wouter';
+import { 
+  ACTIONABILITY_RULES,
+  BASE_SYSTEM_PROMPT,
+  PM_MODE_PROMPT,
+  DESIGNER_MODE_PROMPT,
+  VISION_ANALYSIS_PROMPT
+} from '@/ai/kiteaiPrompts';
+import { 
+  PM_SYSTEM_PROMPT,
+  DESIGNER_SYSTEM_PROMPT,
+  HYBRID_SYSTEM_PROMPT
+} from '@/ai/systemPrompts';
 
 interface AuthUser {
   id: string;
@@ -185,6 +197,17 @@ const docSections: DocSection[] = [
       { id: 'perf-optimization', title: 'React Optimization' },
     ]
   },
+  { 
+    id: 'demos', 
+    title: 'Interactive Demos', 
+    icon: <Palette className="w-4 h-4" />,
+    subsections: [
+      { id: 'demo-canvas', title: 'Canvas Playground' },
+      { id: 'demo-nodes', title: 'Node Types' },
+      { id: 'demo-edges', title: 'Edge Styling' },
+      { id: 'demo-layouts', title: 'Auto-Layout' },
+    ]
+  },
 ];
 
 function CodeBlock({ code, language = 'typescript' }: { code: string; language?: string }) {
@@ -322,6 +345,582 @@ function DataFlowDiagram() {
           <div className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg text-sm font-medium">Workflow Output</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PropControl({ 
+  label, 
+  type, 
+  value, 
+  onChange, 
+  options 
+}: { 
+  label: string; 
+  type: 'boolean' | 'select' | 'number' | 'color'; 
+  value: any; 
+  onChange: (value: any) => void; 
+  options?: { label: string; value: string }[];
+}) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+      <label className="text-sm font-medium">{label}</label>
+      {type === 'boolean' && (
+        <button
+          onClick={() => onChange(!value)}
+          className={`w-10 h-5 rounded-full transition-colors ${value ? 'bg-primary' : 'bg-muted'}`}
+          data-testid={`toggle-${label.toLowerCase().replace(/\s+/g, '-')}`}
+        >
+          <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        </button>
+      )}
+      {type === 'select' && options && (
+        <select 
+          value={value} 
+          onChange={(e) => onChange(e.target.value)}
+          className="px-2 py-1 rounded border bg-background text-sm"
+          data-testid={`select-${label.toLowerCase().replace(/\s+/g, '-')}`}
+        >
+          {options.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      )}
+      {type === 'number' && (
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="w-20 px-2 py-1 rounded border bg-background text-sm"
+          data-testid={`input-${label.toLowerCase().replace(/\s+/g, '-')}`}
+        />
+      )}
+      {type === 'color' && (
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-10 h-6 rounded cursor-pointer"
+          data-testid={`color-${label.toLowerCase().replace(/\s+/g, '-')}`}
+        />
+      )}
+    </div>
+  );
+}
+
+function DemoPreview({ children, title }: { children: React.ReactNode; title: string }) {
+  const testId = `demo-preview-${title.toLowerCase().replace(/\s+/g, '-')}`;
+  return (
+    <div className="border rounded-lg overflow-hidden" data-testid={testId}>
+      <div className="bg-muted px-4 py-2 border-b flex items-center gap-2">
+        <div className="flex gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-red-500" />
+          <div className="w-3 h-3 rounded-full bg-yellow-500" />
+          <div className="w-3 h-3 rounded-full bg-green-500" />
+        </div>
+        <span className="text-sm font-medium ml-2">{title}</span>
+      </div>
+      <div className="bg-slate-100 dark:bg-slate-900 p-4 min-h-[300px]" data-testid={`${testId}-content`}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function CanvasPlaygroundDemo() {
+  const [showMinimap, setShowMinimap] = useState(true);
+  const [showGrid, setShowGrid] = useState(true);
+  const [snapToGrid, setSnapToGrid] = useState(false);
+  const [enableZoom, setEnableZoom] = useState(true);
+  const [enablePan, setEnablePan] = useState(true);
+  const [gridSize, setGridSize] = useState(20);
+  
+  const codeSnippet = `<KiteFrameCanvas
+  showMinimap={${showMinimap}}
+  showGrid={${showGrid}}
+  snapToGrid={${snapToGrid}}
+  enableZoom={${enableZoom}}
+  enablePan={${enablePan}}
+  gridSize={${gridSize}}
+  nodes={nodes}
+  edges={edges}
+  onNodeUpdate={handleNodeUpdate}
+  onEdgeUpdate={handleEdgeUpdate}
+/>`;
+
+  return (
+    <div className="space-y-6" data-testid="demo-canvas-playground">
+      <h2 className="text-2xl font-bold mb-4">Canvas Playground</h2>
+      
+      <p className="text-muted-foreground mb-4">
+        Interactive demo of the KiteFrame canvas. Toggle props to see how they affect the canvas behavior.
+      </p>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <DemoPreview title="Canvas Preview">
+            <div className="relative w-full h-[400px] bg-white dark:bg-slate-800 rounded border overflow-hidden">
+              {showGrid && (
+                <div 
+                  className="absolute inset-0 opacity-30"
+                  style={{
+                    backgroundImage: `
+                      linear-gradient(to right, #e5e7eb 1px, transparent 1px),
+                      linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)
+                    `,
+                    backgroundSize: `${gridSize}px ${gridSize}px`
+                  }}
+                />
+              )}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-8">
+                <div className="w-32 h-20 bg-blue-500 rounded-lg shadow-lg flex items-center justify-center text-white font-medium cursor-move">
+                  Input Node
+                </div>
+                <div className="w-32 h-20 bg-purple-500 rounded-lg shadow-lg flex items-center justify-center text-white font-medium cursor-move">
+                  Process Node
+                </div>
+                <div className="w-32 h-20 bg-green-500 rounded-lg shadow-lg flex items-center justify-center text-white font-medium cursor-move">
+                  Output Node
+                </div>
+              </div>
+              {showMinimap && (
+                <div className="absolute bottom-4 right-4 w-32 h-24 bg-slate-200 dark:bg-slate-700 rounded border shadow-lg overflow-hidden">
+                  <div className="p-1 text-[8px] text-muted-foreground">Minimap</div>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1">
+                    <div className="w-4 h-2 bg-blue-500 rounded-sm" />
+                    <div className="w-4 h-2 bg-purple-500 rounded-sm" />
+                    <div className="w-4 h-2 bg-green-500 rounded-sm" />
+                  </div>
+                </div>
+              )}
+              <div className="absolute top-4 left-4 flex gap-2">
+                {enableZoom && (
+                  <div className="bg-white dark:bg-slate-700 rounded shadow px-2 py-1 text-xs">Zoom: 100%</div>
+                )}
+                {enablePan && (
+                  <div className="bg-white dark:bg-slate-700 rounded shadow px-2 py-1 text-xs">Pan enabled</div>
+                )}
+                {snapToGrid && (
+                  <div className="bg-primary text-primary-foreground rounded shadow px-2 py-1 text-xs">Snap: ON</div>
+                )}
+              </div>
+            </div>
+          </DemoPreview>
+        </div>
+        
+        <div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Props</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PropControl label="Show Minimap" type="boolean" value={showMinimap} onChange={setShowMinimap} />
+              <PropControl label="Show Grid" type="boolean" value={showGrid} onChange={setShowGrid} />
+              <PropControl label="Snap to Grid" type="boolean" value={snapToGrid} onChange={setSnapToGrid} />
+              <PropControl label="Enable Zoom" type="boolean" value={enableZoom} onChange={setEnableZoom} />
+              <PropControl label="Enable Pan" type="boolean" value={enablePan} onChange={setEnablePan} />
+              <PropControl label="Grid Size" type="number" value={gridSize} onChange={setGridSize} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Code className="w-4 h-4" />
+            Generated Code
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CodeBlock code={codeSnippet} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function NodeTypesDemo() {
+  const [nodeType, setNodeType] = useState('input');
+  const [nodeColor, setNodeColor] = useState('#3b82f6');
+  const [nodeWidth, setNodeWidth] = useState(160);
+  const [nodeHeight, setNodeHeight] = useState(80);
+  const [showIcon, setShowIcon] = useState(true);
+  const [showHandles, setShowHandles] = useState(true);
+  
+  const nodeTypes: { value: string; label: string; color: string; icon: string }[] = [
+    { value: 'input', label: 'Input', color: '#3b82f6', icon: '📥' },
+    { value: 'process', label: 'Process', color: '#8b5cf6', icon: '⚙️' },
+    { value: 'condition', label: 'Condition', color: '#f59e0b', icon: '❓' },
+    { value: 'output', label: 'Output', color: '#22c55e', icon: '📤' },
+    { value: 'ai', label: 'AI Task', color: '#ec4899', icon: '🤖' },
+    { value: 'image', label: 'Image', color: '#06b6d4', icon: '🖼️' },
+  ];
+  
+  const currentNode = nodeTypes.find(n => n.value === nodeType) || nodeTypes[0];
+  
+  const codeSnippet = `const node: KiteNode = {
+  id: 'node-1',
+  type: '${nodeType}',
+  position: { x: 100, y: 100 },
+  data: {
+    label: '${currentNode.label} Node',
+    color: '${nodeColor}',
+  },
+  width: ${nodeWidth},
+  height: ${nodeHeight},
+};`;
+
+  return (
+    <div className="space-y-6" data-testid="demo-node-types">
+      <h2 className="text-2xl font-bold mb-4">Node Types</h2>
+      
+      <p className="text-muted-foreground mb-4">
+        Explore the 6 built-in node types. Each type has specific styling and behavior for different workflow stages.
+      </p>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <DemoPreview title={`${currentNode.label} Node`}>
+            <div className="flex items-center justify-center h-[300px]">
+              <div 
+                className="relative rounded-lg shadow-xl flex flex-col items-center justify-center text-white font-medium transition-all"
+                style={{ 
+                  backgroundColor: nodeColor, 
+                  width: nodeWidth, 
+                  height: nodeHeight 
+                }}
+              >
+                {showIcon && <span className="text-2xl mb-1">{currentNode.icon}</span>}
+                <span>{currentNode.label}</span>
+                {showHandles && (
+                  <>
+                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-slate-400" />
+                    <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-slate-400" />
+                  </>
+                )}
+              </div>
+            </div>
+          </DemoPreview>
+        </div>
+        
+        <div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Props</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PropControl 
+                label="Node Type" 
+                type="select" 
+                value={nodeType} 
+                onChange={(v) => {
+                  setNodeType(v);
+                  const newNode = nodeTypes.find(n => n.value === v);
+                  if (newNode) setNodeColor(newNode.color);
+                }}
+                options={nodeTypes.map(n => ({ value: n.value, label: n.label }))}
+              />
+              <PropControl label="Color" type="color" value={nodeColor} onChange={setNodeColor} />
+              <PropControl label="Width" type="number" value={nodeWidth} onChange={setNodeWidth} />
+              <PropControl label="Height" type="number" value={nodeHeight} onChange={setNodeHeight} />
+              <PropControl label="Show Icon" type="boolean" value={showIcon} onChange={setShowIcon} />
+              <PropControl label="Show Handles" type="boolean" value={showHandles} onChange={setShowHandles} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Code className="w-4 h-4" />
+            Generated Code
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CodeBlock code={codeSnippet} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function EdgeStylingDemo() {
+  const [edgeType, setEdgeType] = useState('bezier');
+  const [edgeColor, setEdgeColor] = useState('#64748b');
+  const [strokeWidth, setStrokeWidth] = useState(2);
+  const [animated, setAnimated] = useState(false);
+  const [showArrow, setShowArrow] = useState(true);
+  const [dashed, setDashed] = useState(false);
+  
+  const edgeTypes = [
+    { value: 'bezier', label: 'Bezier (Curved)' },
+    { value: 'straight', label: 'Straight' },
+    { value: 'step', label: 'Step (Right Angle)' },
+    { value: 'smoothstep', label: 'Smooth Step' },
+    { value: 'simplebezier', label: 'Simple Bezier' },
+    { value: 'custom', label: 'Custom' },
+  ];
+  
+  const codeSnippet = `const edge: KiteEdge = {
+  id: 'edge-1',
+  source: 'node-1',
+  target: 'node-2',
+  type: '${edgeType}',
+  style: {
+    stroke: '${edgeColor}',
+    strokeWidth: ${strokeWidth},
+    strokeDasharray: ${dashed ? "'5,5'" : 'undefined'},
+  },
+  animated: ${animated},
+  markerEnd: ${showArrow ? "{ type: 'arrowclosed' }" : 'undefined'},
+};`;
+
+  const renderEdgePath = () => {
+    const start = { x: 50, y: 100 };
+    const end = { x: 250, y: 100 };
+    
+    switch (edgeType) {
+      case 'straight':
+        return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+      case 'step':
+        const midX = (start.x + end.x) / 2;
+        return `M ${start.x} ${start.y} L ${midX} ${start.y} L ${midX} ${end.y} L ${end.x} ${end.y}`;
+      case 'smoothstep':
+        const mx = (start.x + end.x) / 2;
+        return `M ${start.x} ${start.y} L ${mx - 20} ${start.y} Q ${mx} ${start.y} ${mx} ${(start.y + end.y) / 2} Q ${mx} ${end.y} ${mx + 20} ${end.y} L ${end.x} ${end.y}`;
+      case 'bezier':
+      case 'simplebezier':
+      default:
+        const cx1 = start.x + 60;
+        const cx2 = end.x - 60;
+        return `M ${start.x} ${start.y} C ${cx1} ${start.y}, ${cx2} ${end.y}, ${end.x} ${end.y}`;
+    }
+  };
+
+  return (
+    <div className="space-y-6" data-testid="demo-edge-styling">
+      <h2 className="text-2xl font-bold mb-4">Edge Styling</h2>
+      
+      <p className="text-muted-foreground mb-4">
+        Configure edge appearance with different types, colors, and styles.
+      </p>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <DemoPreview title="Edge Preview">
+            <div className="flex items-center justify-center h-[200px]">
+              <svg width="300" height="200" className="overflow-visible">
+                <defs>
+                  {showArrow && (
+                    <marker
+                      id="arrowhead"
+                      markerWidth="10"
+                      markerHeight="7"
+                      refX="9"
+                      refY="3.5"
+                      orient="auto"
+                    >
+                      <polygon points="0 0, 10 3.5, 0 7" fill={edgeColor} />
+                    </marker>
+                  )}
+                </defs>
+                <circle cx="50" cy="100" r="20" fill="#3b82f6" />
+                <circle cx="250" cy="100" r="20" fill="#22c55e" />
+                <path
+                  d={renderEdgePath()}
+                  stroke={edgeColor}
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={dashed ? '5,5' : undefined}
+                  fill="none"
+                  markerEnd={showArrow ? 'url(#arrowhead)' : undefined}
+                  className={animated ? 'animate-pulse' : ''}
+                />
+                <text x="50" y="140" textAnchor="middle" className="text-xs fill-current">Source</text>
+                <text x="250" y="140" textAnchor="middle" className="text-xs fill-current">Target</text>
+              </svg>
+            </div>
+          </DemoPreview>
+        </div>
+        
+        <div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Props</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PropControl 
+                label="Edge Type" 
+                type="select" 
+                value={edgeType} 
+                onChange={setEdgeType}
+                options={edgeTypes}
+              />
+              <PropControl label="Color" type="color" value={edgeColor} onChange={setEdgeColor} />
+              <PropControl label="Stroke Width" type="number" value={strokeWidth} onChange={setStrokeWidth} />
+              <PropControl label="Animated" type="boolean" value={animated} onChange={setAnimated} />
+              <PropControl label="Show Arrow" type="boolean" value={showArrow} onChange={setShowArrow} />
+              <PropControl label="Dashed" type="boolean" value={dashed} onChange={setDashed} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Code className="w-4 h-4" />
+            Generated Code
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CodeBlock code={codeSnippet} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function AutoLayoutDemo() {
+  const [layoutType, setLayoutType] = useState('horizontal');
+  const [spacing, setSpacing] = useState(100);
+  const [animate, setAnimate] = useState(true);
+  
+  const layoutTypes = [
+    { value: 'horizontal', label: 'Horizontal Flow' },
+    { value: 'vertical', label: 'Vertical Flow' },
+    { value: 'grid', label: 'Grid' },
+    { value: 'circular', label: 'Circular' },
+    { value: 'hierarchical', label: 'Hierarchical' },
+  ];
+  
+  const codeSnippet = `import { applyAutoLayout } from '@kiteline/core';
+
+const layoutedNodes = applyAutoLayout(nodes, edges, {
+  type: '${layoutType}',
+  spacing: ${spacing},
+  animate: ${animate},
+});`;
+
+  const renderLayout = () => {
+    const nodeSize = 40;
+    const nodes = [
+      { id: 1, label: 'A' },
+      { id: 2, label: 'B' },
+      { id: 3, label: 'C' },
+      { id: 4, label: 'D' },
+      { id: 5, label: 'E' },
+    ];
+    
+    const getPositions = () => {
+      const s = spacing * 0.5;
+      switch (layoutType) {
+        case 'horizontal':
+          return nodes.map((_, i) => ({ x: 30 + i * s, y: 80 }));
+        case 'vertical':
+          return nodes.map((_, i) => ({ x: 130, y: 20 + i * (s * 0.6) }));
+        case 'grid':
+          return nodes.map((_, i) => ({ 
+            x: 50 + (i % 3) * s, 
+            y: 40 + Math.floor(i / 3) * s 
+          }));
+        case 'circular':
+          const cx = 130, cy = 90, r = 60;
+          return nodes.map((_, i) => ({
+            x: cx + r * Math.cos((i / nodes.length) * 2 * Math.PI - Math.PI/2),
+            y: cy + r * Math.sin((i / nodes.length) * 2 * Math.PI - Math.PI/2),
+          }));
+        case 'hierarchical':
+          return [
+            { x: 130, y: 20 },
+            { x: 70, y: 80 },
+            { x: 190, y: 80 },
+            { x: 40, y: 140 },
+            { x: 100, y: 140 },
+          ];
+        default:
+          return nodes.map((_, i) => ({ x: 30 + i * 50, y: 80 }));
+      }
+    };
+    
+    const positions = getPositions();
+    
+    return (
+      <svg width="300" height="180" className="overflow-visible">
+        {positions.map((pos, i) => (
+          <g key={i} className={animate ? 'transition-all duration-500' : ''}>
+            <rect 
+              x={pos.x - nodeSize/2} 
+              y={pos.y - nodeSize/2} 
+              width={nodeSize} 
+              height={nodeSize} 
+              rx="8"
+              fill={`hsl(${i * 60}, 70%, 50%)`}
+              className="shadow-lg"
+            />
+            <text 
+              x={pos.x} 
+              y={pos.y + 5} 
+              textAnchor="middle" 
+              className="text-sm font-bold fill-white"
+            >
+              {nodes[i].label}
+            </text>
+          </g>
+        ))}
+      </svg>
+    );
+  };
+
+  return (
+    <div className="space-y-6" data-testid="demo-auto-layout">
+      <h2 className="text-2xl font-bold mb-4">Auto-Layout</h2>
+      
+      <p className="text-muted-foreground mb-4">
+        Automatically arrange nodes using one of 5 layout algorithms.
+      </p>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <DemoPreview title={`${layoutTypes.find(l => l.value === layoutType)?.label || 'Layout'} Preview`}>
+            <div className="flex items-center justify-center h-[200px]">
+              {renderLayout()}
+            </div>
+          </DemoPreview>
+        </div>
+        
+        <div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Props</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PropControl 
+                label="Layout Type" 
+                type="select" 
+                value={layoutType} 
+                onChange={setLayoutType}
+                options={layoutTypes}
+              />
+              <PropControl label="Spacing" type="number" value={spacing} onChange={setSpacing} />
+              <PropControl label="Animate" type="boolean" value={animate} onChange={setAnimate} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Code className="w-4 h-4" />
+            Generated Code
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CodeBlock code={codeSnippet} />
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1650,6 +2249,125 @@ interface ConversationSource {
               </ol>
             </CardContent>
           </Card>
+          
+          <Separator className="my-6" />
+          
+          <h3 className="text-xl font-semibold mb-4">System Prompts</h3>
+          <p className="text-muted-foreground mb-4">
+            These prompts define KiteAI's behavior. They are imported directly from the source files,
+            so changes to the prompts are automatically reflected here.
+          </p>
+          
+          <div className="space-y-4">
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
+                <ChevronRight className="w-4 h-4 transition-transform data-[state=open]:rotate-90" />
+                <span className="font-medium">Actionability Rules</span>
+                <Badge variant="secondary" className="ml-auto">Hard Gate</Badge>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <CodeBlock code={ACTIONABILITY_RULES.trim()} language="text" />
+              </CollapsibleContent>
+            </Collapsible>
+            
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
+                <ChevronRight className="w-4 h-4 transition-transform data-[state=open]:rotate-90" />
+                <span className="font-medium">Base System Prompt</span>
+                <Badge variant="outline" className="ml-auto">Core</Badge>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <CodeBlock code={BASE_SYSTEM_PROMPT.trim()} language="text" />
+              </CollapsibleContent>
+            </Collapsible>
+            
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
+                <ChevronRight className="w-4 h-4 transition-transform data-[state=open]:rotate-90" />
+                <span className="font-medium">PM Mode Prompt</span>
+                <Badge variant="outline" className="ml-auto">Role</Badge>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <CodeBlock code={PM_MODE_PROMPT.trim()} language="text" />
+              </CollapsibleContent>
+            </Collapsible>
+            
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
+                <ChevronRight className="w-4 h-4 transition-transform data-[state=open]:rotate-90" />
+                <span className="font-medium">Designer Mode Prompt</span>
+                <Badge variant="outline" className="ml-auto">Role</Badge>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <CodeBlock code={DESIGNER_MODE_PROMPT.trim()} language="text" />
+              </CollapsibleContent>
+            </Collapsible>
+            
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
+                <ChevronRight className="w-4 h-4 transition-transform data-[state=open]:rotate-90" />
+                <span className="font-medium">Vision Analysis Prompt</span>
+                <Badge variant="outline" className="ml-auto">Vision</Badge>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <CodeBlock code={VISION_ANALYSIS_PROMPT.trim()} language="text" />
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+          
+          <Separator className="my-6" />
+          
+          <h3 className="text-xl font-semibold mb-4">Role System Prompts</h3>
+          <p className="text-muted-foreground mb-4">
+            These prompts are used by the role selector system (systemPrompts.ts) for specialized reasoning modes.
+          </p>
+          
+          <div className="space-y-4">
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
+                <ChevronRight className="w-4 h-4 transition-transform data-[state=open]:rotate-90" />
+                <span className="font-medium">PM System Prompt</span>
+                <Badge className="ml-auto bg-blue-500">PM</Badge>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <CodeBlock code={PM_SYSTEM_PROMPT.trim()} language="text" />
+              </CollapsibleContent>
+            </Collapsible>
+            
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
+                <ChevronRight className="w-4 h-4 transition-transform data-[state=open]:rotate-90" />
+                <span className="font-medium">Designer System Prompt</span>
+                <Badge className="ml-auto bg-purple-500">Designer</Badge>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <CodeBlock code={DESIGNER_SYSTEM_PROMPT.trim()} language="text" />
+              </CollapsibleContent>
+            </Collapsible>
+            
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
+                <ChevronRight className="w-4 h-4 transition-transform data-[state=open]:rotate-90" />
+                <span className="font-medium">Hybrid System Prompt</span>
+                <Badge className="ml-auto bg-green-500">Hybrid</Badge>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <CodeBlock code={HYBRID_SYSTEM_PROMPT.trim()} language="text" />
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+          
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Source Files</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              <ul className="list-disc list-inside space-y-1">
+                <li><code>client/src/ai/kiteaiPrompts.ts</code> — Main KiteAI prompts</li>
+                <li><code>client/src/ai/systemPrompts.ts</code> — Role-based system prompts</li>
+              </ul>
+            </CardContent>
+          </Card>
         </div>
       );
       
@@ -2706,6 +3424,46 @@ const NodeComponent = React.memo(function NodeComponent({
 });`} />
         </div>
       );
+      
+    case 'demos':
+      return (
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold mb-4">Interactive Demos</h2>
+          
+          <p className="text-muted-foreground mb-4">
+            Live, interactive demos of KiteFrame canvas features. Use the controls to toggle props
+            and see real-time changes. Code snippets update automatically to reflect current settings.
+          </p>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Available Demos</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-2 text-muted-foreground">
+              <div><strong>Canvas Playground:</strong> Full-featured canvas with all controls</div>
+              <div><strong>Node Types:</strong> Explore all 6 node types with customizable props</div>
+              <div><strong>Edge Styling:</strong> Configure edge types, colors, and animations</div>
+              <div><strong>Auto-Layout:</strong> Test the 5 layout algorithms</div>
+            </CardContent>
+          </Card>
+          
+          <p className="text-sm text-muted-foreground italic">
+            Select a subsection from the sidebar to explore interactive demos.
+          </p>
+        </div>
+      );
+      
+    case 'demo-canvas':
+      return <CanvasPlaygroundDemo />;
+      
+    case 'demo-nodes':
+      return <NodeTypesDemo />;
+      
+    case 'demo-edges':
+      return <EdgeStylingDemo />;
+      
+    case 'demo-layouts':
+      return <AutoLayoutDemo />;
       
     default:
       return (
