@@ -733,28 +733,54 @@ function NodeTypesDemo() {
 }
 
 function AdvancedNodesSection() {
-  const [advancedNodeType, setAdvancedNodeType] = useState('image');
+  const [advancedNodeType, setAdvancedNodeType] = useState('table');
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
+  const [tableData, setTableData] = useState<{ incident_number: string; battalion: string; station_area: string; box: string }[]>([]);
+  const [dogImageUrl, setDogImageUrl] = useState('https://images.dog.ceo/breeds/retriever-golden/n02099601_1234.jpg');
+  
+  useEffect(() => {
+    fetch('https://data.sfgov.org/resource/hi6h-neyh.json?$limit=8')
+      .then(res => res.json())
+      .then((data: { incident_number: string; battalion: string; station_area: string; box: string }[]) => {
+        setTableData(data.slice(0, 8));
+      })
+      .catch(() => {
+        setTableData([
+          { incident_number: '23001234', battalion: 'B01', station_area: '01', box: '1234' },
+          { incident_number: '23001235', battalion: 'B02', station_area: '02', box: '1235' },
+        ]);
+      });
+    
+    fetch('https://dog.ceo/api/breeds/image/random')
+      .then(res => res.json())
+      .then(data => {
+        if (data.message) setDogImageUrl(data.message);
+      })
+      .catch(() => {});
+  }, []);
   
   const advancedNodeConfigs: { value: string; label: string; headerColor: string; bodyColor: string; description: string }[] = [
+    { value: 'table', label: 'Table', headerColor: '#f97316', bodyColor: '#fff7ed', description: 'SF Fire Incidents (Live API)' },
+    { value: 'form', label: 'Form', headerColor: '#14b8a6', bodyColor: '#f0fdfa', description: 'Dog Lover Contact Form' },
+    { value: 'compound', label: 'Compound', headerColor: '#6366f1', bodyColor: '#eef2ff', description: 'Add child elements' },
+    { value: 'code', label: 'Code', headerColor: '#64748b', bodyColor: '#f8fafc', description: 'Interactive Dog Breed Viewer' },
     { value: 'image', label: 'Image', headerColor: '#0ea5e9', bodyColor: '#f0f9ff', description: 'Display images in workflows' },
-    { value: 'compound', label: 'Compound', headerColor: '#6366f1', bodyColor: '#eef2ff', description: 'Group multiple elements' },
-    { value: 'form', label: 'Form', headerColor: '#14b8a6', bodyColor: '#f0fdfa', description: 'Capture user input' },
-    { value: 'table', label: 'Table', headerColor: '#f97316', bodyColor: '#fff7ed', description: 'Display structured data' },
-    { value: 'code', label: 'Code', headerColor: '#64748b', bodyColor: '#f8fafc', description: 'Show code snippets' },
   ];
   
   const currentAdvConfig = advancedNodeConfigs.find(n => n.value === advancedNodeType) || advancedNodeConfigs[0];
   
-  const [advNodes, setAdvNodes] = useState<Node[]>(() => createAdvancedNode(advancedNodeType, advancedNodeConfigs));
+  const [advNodes, setAdvNodes] = useState<Node[]>(() => createAdvancedNode(advancedNodeType, advancedNodeConfigs, tableData, dogImageUrl));
   const [advEdges] = useState<Edge[]>([]);
   
-  function createAdvancedNode(type: string, configs: typeof advancedNodeConfigs): Node[] {
+  function createAdvancedNode(type: string, configs: typeof advancedNodeConfigs, apiData: typeof tableData, dogImg: string): Node[] {
     const config = configs.find(n => n.value === type) || configs[0];
-    return [{
+    
+    const baseNode = {
       id: 'adv-demo-node',
       type: type,
-      position: { x: 100, y: 60 },
+      position: { x: 60, y: 40 },
+      selected: true,
+      resizable: true,
       data: { 
         label: `${config.label} Node`,
         description: config.description,
@@ -765,48 +791,269 @@ function AdvancedNodesSection() {
           headerTextColor: '#ffffff',
           bodyTextColor: '#374151'
         },
-        ...(type === 'image' ? { src: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&h=120&fit=crop' } : {}),
-        ...(type === 'table' ? { 
-          columns: [{ id: 'name', label: 'Name' }, { id: 'value', label: 'Value' }],
-          rows: [{ name: 'Status', value: 'Active' }, { name: 'Priority', value: 'High' }]
-        } : {}),
-        ...(type === 'form' ? { 
-          fields: [
-            { id: 'name', label: 'Name', type: 'text' },
-            { id: 'email', label: 'Email', type: 'email' }
-          ]
-        } : {}),
-        ...(type === 'code' ? { 
-          code: 'const result = await process(data);',
-          language: 'javascript'
-        } : {}),
       },
-      style: { width: 220, height: type === 'image' ? 160 : (type === 'table' || type === 'form' ? 180 : 120) }
-    }];
+      style: { width: 320, height: 280 }
+    };
+    
+    if (type === 'image') {
+      return [{
+        ...baseNode,
+        data: { 
+          ...baseNode.data,
+          src: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=200&fit=crop'
+        },
+        style: { width: 280, height: 220 }
+      }];
+    }
+    
+    if (type === 'table') {
+      const rows = apiData.length > 0 ? apiData.map(r => ({
+        incident: r.incident_number || 'N/A',
+        battalion: r.battalion || 'N/A',
+        station: r.station_area || 'N/A',
+        box: r.box || 'N/A'
+      })) : [
+        { incident: 'Loading...', battalion: '-', station: '-', box: '-' }
+      ];
+      return [{
+        ...baseNode,
+        data: { 
+          ...baseNode.data,
+          label: 'SF Fire Incidents',
+          columns: [
+            { id: 'incident', label: 'Incident #' }, 
+            { id: 'battalion', label: 'Battalion' },
+            { id: 'station', label: 'Station' },
+            { id: 'box', label: 'Box' }
+          ],
+          rows: rows
+        },
+        style: { width: 420, height: 320 }
+      }];
+    }
+    
+    if (type === 'form') {
+      return [
+        {
+          ...baseNode,
+          id: 'form-demo-node',
+          selected: true,
+          resizable: true,
+          data: { 
+            ...baseNode.data,
+            label: 'Dog Lover Contact',
+            formTitle: 'Dog Lover Survey',
+            fields: [
+              { id: 'name', label: 'Name', type: 'text', value: '', placeholder: 'Your name' },
+              { id: 'profession', label: 'Profession', type: 'text', value: '', placeholder: 'What do you do?' },
+              { id: 'hobby', label: 'Favorite Hobby', type: 'text', value: '', placeholder: 'e.g. Walking dogs' },
+              { id: 'hasPet', label: 'I have a pet', type: 'checkbox', value: '', checked: false },
+              { id: 'dogPreference', label: 'Are dogs better than cats?', type: 'radio', value: '', options: [{ id: 'yes', label: 'Yes', value: 'yes' }, { id: 'defyes', label: 'Definitely Yes', value: 'definitely' }, { id: 'abs', label: 'Absolutely', value: 'absolutely' }] },
+              { id: 'dogReason', label: 'Why are dogs the best?', type: 'textarea', value: '', placeholder: 'Tell us why dogs are better...' },
+            ]
+          },
+          style: { width: 280, height: 360 }
+        },
+        {
+          id: 'dog-image-node',
+          type: 'image',
+          position: { x: 360, y: 60 },
+          selected: false,
+          resizable: true,
+          data: { 
+            label: 'Random Dog',
+            description: 'From dog.ceo API',
+            src: dogImg,
+            colors: {
+              headerBackground: '#f97316',
+              bodyBackground: '#fff7ed',
+              borderColor: '#f97316',
+              headerTextColor: '#ffffff',
+              bodyTextColor: '#374151'
+            }
+          },
+          style: { width: 180, height: 200 }
+        }
+      ];
+    }
+    
+    if (type === 'compound') {
+      return [{
+        ...baseNode,
+        data: { 
+          ...baseNode.data,
+          label: 'Compound Container',
+          description: 'Click + to add elements',
+          subcomponents: [
+            { id: 'sub-1', type: 'text', order: 0, data: { content: 'Welcome to Compound Nodes!', fontWeight: 'bold', fontSize: 14 } },
+            { id: 'sub-2', type: 'text', order: 1, data: { content: 'Click the + button to add more elements like text, images, links, or inputs.', fontSize: 12 } },
+            { id: 'sub-3', type: 'link', order: 2, data: { text: 'Learn more about Kiteline', url: 'https://kiteline.dev' } },
+          ],
+          containerPadding: 12,
+          gap: 8
+        },
+        style: { width: 300, height: 200 }
+      }];
+    }
+    
+    if (type === 'code') {
+      const dogBreedCode = `<!-- Interactive Dog Breed Viewer -->
+<div id="app" style="font-family: sans-serif; padding: 16px;">
+  <h3 style="margin: 0 0 12px 0;">Dog Breeds</h3>
+  <div style="display: flex; gap: 16px;">
+    <ul id="breeds" style="list-style: none; padding: 0; margin: 0; width: 140px; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
+      <li data-breed="labrador" style="padding: 8px; cursor: pointer; border-bottom: 1px solid #eee;">Labrador</li>
+      <li data-breed="husky" style="padding: 8px; cursor: pointer; border-bottom: 1px solid #eee;">Husky</li>
+      <li data-breed="beagle" style="padding: 8px; cursor: pointer; border-bottom: 1px solid #eee;">Beagle</li>
+      <li data-breed="poodle" style="padding: 8px; cursor: pointer; border-bottom: 1px solid #eee;">Poodle</li>
+      <li data-breed="bulldog" style="padding: 8px; cursor: pointer;">Bulldog</li>
+    </ul>
+    <div id="preview" style="flex: 1; text-align: center;">
+      <p style="color: #666;">Click a breed to see image</p>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('breeds').addEventListener('click', async (e) => {
+  if (e.target.tagName === 'LI') {
+    const breed = e.target.dataset.breed;
+    const res = await fetch('https://dog.ceo/api/breed/' + breed + '/images/random');
+    const data = await res.json();
+    document.getElementById('preview').innerHTML = 
+      '<img src="' + data.message + '" style="max-width: 180px; max-height: 180px; border-radius: 8px;" />' +
+      '<p style="margin: 8px 0 0; font-weight: bold; text-transform: capitalize;">' + breed + '</p>';
+  }
+});
+</script>`;
+      return [{
+        ...baseNode,
+        data: { 
+          ...baseNode.data,
+          label: 'Dog Breed Viewer',
+          code: dogBreedCode,
+          language: 'html',
+          showPreview: true
+        },
+        style: { width: 440, height: 380 }
+      }];
+    }
+    
+    return [baseNode];
   }
   
   useEffect(() => {
-    setAdvNodes(createAdvancedNode(advancedNodeType, advancedNodeConfigs));
-  }, [advancedNodeType]);
+    setAdvNodes(createAdvancedNode(advancedNodeType, advancedNodeConfigs, tableData, dogImageUrl));
+  }, [advancedNodeType, tableData, dogImageUrl]);
   
-  const advCodeSnippet = `// Advanced Node: ${currentAdvConfig.label}
-const node: Node = {
-  id: 'adv-node-1',
-  type: '${advancedNodeType}',
-  position: { x: 100, y: 100 },
+  const advCodeSnippet = advancedNodeType === 'table' ? `// Table Node with Live API Data
+const tableNode: Node = {
+  id: 'table-1',
+  type: 'table',
+  selected: true,
+  resizable: true,
   data: {
-    label: '${currentAdvConfig.label} Node',
-    description: '${currentAdvConfig.description}',${advancedNodeType === 'image' ? `
-    src: 'https://example.com/image.jpg',` : ''}${advancedNodeType === 'table' ? `
-    columns: [{ id: 'name', label: 'Name' }],
-    rows: [{ name: 'Example' }],` : ''}${advancedNodeType === 'form' ? `
-    fields: [{ id: 'input', label: 'Input', type: 'text' }],` : ''}${advancedNodeType === 'code' ? `
-    code: 'const x = 1;',
-    language: 'javascript',` : ''}
-    colors: {
-      headerBackground: '${currentAdvConfig.headerColor}',
-      bodyBackground: '${currentAdvConfig.bodyColor}',
-    }
+    label: 'SF Fire Incidents',
+    columns: [
+      { id: 'incident', label: 'Incident #' }, 
+      { id: 'battalion', label: 'Battalion' },
+      { id: 'station', label: 'Station' },
+      { id: 'box', label: 'Box' }
+    ],
+    // Fetch from SF Open Data API
+    rows: await fetch(
+      'https://data.sfgov.org/resource/hi6h-neyh.json?$limit=8'
+    ).then(r => r.json()).then(data => data.map(r => ({
+      incident: r.incident_number,
+      battalion: r.battalion,
+      station: r.station_area,
+      box: r.box
+    })))
+  }
+};` : advancedNodeType === 'form' ? `// Form Node + Companion Image Node
+const formNode: Node = {
+  id: 'form-demo-node',
+  type: 'form',
+  selected: true,
+  resizable: true,
+  data: {
+    label: 'Dog Lover Contact',
+    formTitle: 'Dog Lover Survey',
+    fields: [
+      { id: 'name', label: 'Name', type: 'text', value: '' },
+      { id: 'profession', label: 'Profession', type: 'text', value: '' },
+      { id: 'hobby', label: 'Favorite Hobby', type: 'text', value: '' },
+      { id: 'hasPet', label: 'I have a pet', type: 'checkbox', checked: false },
+      { id: 'dogPreference', label: 'Are dogs better than cats?', type: 'radio', 
+        options: [
+          { id: 'yes', label: 'Yes', value: 'yes' },
+          { id: 'defyes', label: 'Definitely Yes', value: 'definitely' },
+          { id: 'abs', label: 'Absolutely', value: 'absolutely' }
+        ] },
+      { id: 'dogReason', label: 'Why are dogs the best?', type: 'textarea' }
+    ]
+  }
+};
+// Companion Image node showing random dog from dog.ceo API
+const dogImageNode: Node = {
+  id: 'dog-image-node',
+  type: 'image',
+  position: { x: 360, y: 60 },
+  data: { 
+    label: 'Random Dog',
+    description: 'From dog.ceo API',
+    src: await fetch('https://dog.ceo/api/breeds/image/random')
+      .then(r => r.json()).then(d => d.message)
+  }
+};` : advancedNodeType === 'code' ? `// Code Node with Live HTML/JS Preview
+const codeNode: Node = {
+  id: 'code-1',
+  type: 'code',
+  selected: true,
+  resizable: true,
+  data: {
+    label: 'Dog Breed Viewer',
+    language: 'html',
+    showPreview: true,
+    code: \`<ul id="breeds">
+  <li data-breed="labrador">Labrador</li>
+  <li data-breed="husky">Husky</li>
+</ul>
+<div id="preview"></div>
+<script>
+document.getElementById('breeds').onclick = async (e) => {
+  const breed = e.target.dataset.breed;
+  const res = await fetch('https://dog.ceo/api/breed/' 
+    + breed + '/images/random');
+  const data = await res.json();
+  document.getElementById('preview').innerHTML = 
+    '<img src="' + data.message + '" />';
+};
+</script>\`
+  }
+};` : advancedNodeType === 'compound' ? `// Compound Node with Subcomponents
+const compoundNode: Node = {
+  id: 'compound-1',
+  type: 'compound',
+  data: {
+    label: 'Container',
+    subcomponents: [
+      { id: 'sub-1', type: 'text', order: 0, 
+        data: { content: 'Title', fontWeight: 'bold' } },
+      { id: 'sub-2', type: 'text', order: 1, 
+        data: { content: 'Description text' } },
+      { id: 'sub-3', type: 'link', order: 2, 
+        data: { text: 'Click here', url: 'https://...' } },
+    ],
+    containerPadding: 12,
+    gap: 8  // Click + to add more elements
+  }
+};` : `// Image Node
+const imageNode: Node = {
+  id: 'image-1',
+  type: 'image',
+  data: {
+    label: 'Image Node',
+    src: 'https://example.com/image.jpg'
   }
 };`;
 
@@ -815,13 +1062,13 @@ const node: Node = {
       <h3 className="text-xl font-bold mb-4">Advanced Node Types</h3>
       
       <p className="text-muted-foreground mb-4">
-        Specialized nodes for complex workflows: display images, group elements, capture input, show data tables, or embed code.
+        Specialized nodes for complex workflows. <strong>Nodes are resizable</strong> - drag corner handles when selected. Try: Table (live SF Fire data), Form (dog lover contact), Code (interactive dog breed viewer), Compound (add child elements).
       </p>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <DemoPreview title={`${currentAdvConfig.label} Node`}>
-            <div className="relative w-full h-[480px] rounded overflow-hidden">
+          <DemoPreview title={`${currentAdvConfig.label} Node - ${currentAdvConfig.description}`}>
+            <div className="relative w-full h-[520px] rounded overflow-hidden">
               <PluginProvider>
                 <KiteFrameCanvas
                   nodes={advNodes}
