@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -38,7 +38,8 @@ import {
   RotateCw,
   ZoomIn,
   ZoomOut,
-  Maximize
+  Maximize,
+  Plus
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { 
@@ -53,6 +54,13 @@ import {
   DESIGNER_SYSTEM_PROMPT,
   HYBRID_SYSTEM_PROMPT
 } from '@/ai/systemPrompts';
+import { 
+  KiteFrameCanvas, 
+  PluginProvider,
+  useUndoRedo,
+  type Node,
+  type Edge
+} from '@/lib/kiteframe';
 
 
 interface DocSection {
@@ -434,81 +442,109 @@ function DemoPreview({ children, title }: { children: React.ReactNode; title: st
 
 function CanvasPlaygroundDemo() {
   const [showMinimap, setShowMinimap] = useState(true);
-  const [showGrid, setShowGrid] = useState(true);
   const [snapToGrid, setSnapToGrid] = useState(false);
-  const [enableZoom, setEnableZoom] = useState(true);
-  const [enablePan, setEnablePan] = useState(true);
-  const [gridSize, setGridSize] = useState(20);
+  const [disableZoom, setDisableZoom] = useState(false);
+  const [disablePan, setDisablePan] = useState(false);
+  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
   
-  const codeSnippet = `<KiteFrameCanvas
-  showMinimap={${showMinimap}}
-  showGrid={${showGrid}}
-  snapToGrid={${snapToGrid}}
-  enableZoom={${enableZoom}}
-  enablePan={${enablePan}}
-  gridSize={${gridSize}}
-  nodes={nodes}
-  edges={edges}
-  onNodeUpdate={handleNodeUpdate}
-  onEdgeUpdate={handleEdgeUpdate}
-/>`;
+  const [nodes, setNodes] = useState<Node[]>([
+    {
+      id: 'demo-1',
+      type: 'input',
+      position: { x: 50, y: 80 },
+      data: { 
+        label: 'Input Node',
+        colors: {
+          headerBackground: '#3b82f6',
+          bodyBackground: '#eff6ff',
+          borderColor: '#3b82f6',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#1e40af'
+        }
+      },
+      style: { width: 140, height: 70 }
+    },
+    {
+      id: 'demo-2',
+      type: 'process',
+      position: { x: 250, y: 80 },
+      data: { 
+        label: 'Process Node',
+        colors: {
+          headerBackground: '#8b5cf6',
+          bodyBackground: '#f5f3ff',
+          borderColor: '#8b5cf6',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#6b21a8'
+        }
+      },
+      style: { width: 140, height: 70 }
+    },
+    {
+      id: 'demo-3',
+      type: 'output',
+      position: { x: 450, y: 80 },
+      data: { 
+        label: 'Output Node',
+        colors: {
+          headerBackground: '#22c55e',
+          bodyBackground: '#f0fdf4',
+          borderColor: '#22c55e',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#166534'
+        }
+      },
+      style: { width: 140, height: 70 }
+    }
+  ]);
+  
+  const [edges, setEdges] = useState<Edge[]>([
+    { id: 'e1-2', source: 'demo-1', target: 'demo-2', type: 'smoothstep' },
+    { id: 'e2-3', source: 'demo-2', target: 'demo-3', type: 'smoothstep' }
+  ]);
+  
+  const codeSnippet = `<PluginProvider>
+  <KiteFrameCanvas
+    nodes={nodes}
+    edges={edges}
+    onNodesChange={setNodes}
+    onEdgesChange={setEdges}
+    viewport={viewport}
+    onViewportChange={setViewport}
+    showMiniMap={${showMinimap}}
+    snapToGrid={${snapToGrid}}
+    disablePan={${disablePan}}
+    disableWheelZoom={${disableZoom}}
+  />
+</PluginProvider>`;
 
   return (
     <div className="space-y-6" data-testid="demo-canvas-playground">
       <h2 className="text-2xl font-bold mb-4">Canvas Playground</h2>
       
       <p className="text-muted-foreground mb-4">
-        Interactive demo of the KiteFrame canvas. Toggle props to see how they affect the canvas behavior.
+        Interactive demo using the real KiteFrameCanvas. Drag nodes, zoom with scroll wheel, and pan by dragging the background.
       </p>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <DemoPreview title="Canvas Preview">
-            <div className="relative w-full h-[400px] bg-white dark:bg-slate-800 rounded border overflow-hidden">
-              {showGrid && (
-                <div 
-                  className="absolute inset-0 opacity-30"
-                  style={{
-                    backgroundImage: `
-                      linear-gradient(to right, #e5e7eb 1px, transparent 1px),
-                      linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)
-                    `,
-                    backgroundSize: `${gridSize}px ${gridSize}px`
-                  }}
+          <DemoPreview title="Live Canvas">
+            <div className="relative w-full h-[400px] rounded overflow-hidden" data-testid="canvas-container">
+              <PluginProvider>
+                <KiteFrameCanvas
+                  nodes={nodes}
+                  edges={edges}
+                  onNodesChange={setNodes}
+                  onEdgesChange={setEdges}
+                  viewport={viewport}
+                  onViewportChange={setViewport}
+                  showMiniMap={showMinimap}
+                  snapToGrid={snapToGrid}
+                  disablePan={disablePan}
+                  disableWheelZoom={disableZoom}
+                  className="w-full h-full"
                 />
-              )}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-8">
-                <div className="w-32 h-20 bg-blue-500 rounded-lg shadow-lg flex items-center justify-center text-white font-medium cursor-move">
-                  Input Node
-                </div>
-                <div className="w-32 h-20 bg-purple-500 rounded-lg shadow-lg flex items-center justify-center text-white font-medium cursor-move">
-                  Process Node
-                </div>
-                <div className="w-32 h-20 bg-green-500 rounded-lg shadow-lg flex items-center justify-center text-white font-medium cursor-move">
-                  Output Node
-                </div>
-              </div>
-              {showMinimap && (
-                <div className="absolute bottom-4 right-4 w-32 h-24 bg-slate-200 dark:bg-slate-700 rounded border shadow-lg overflow-hidden">
-                  <div className="p-1 text-[8px] text-muted-foreground">Minimap</div>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1">
-                    <div className="w-4 h-2 bg-blue-500 rounded-sm" />
-                    <div className="w-4 h-2 bg-purple-500 rounded-sm" />
-                    <div className="w-4 h-2 bg-green-500 rounded-sm" />
-                  </div>
-                </div>
-              )}
-              <div className="absolute top-4 left-4 flex gap-2">
-                {enableZoom && (
-                  <div className="bg-white dark:bg-slate-700 rounded shadow px-2 py-1 text-xs">Zoom: 100%</div>
-                )}
-                {enablePan && (
-                  <div className="bg-white dark:bg-slate-700 rounded shadow px-2 py-1 text-xs">Pan enabled</div>
-                )}
-                {snapToGrid && (
-                  <div className="bg-primary text-primary-foreground rounded shadow px-2 py-1 text-xs">Snap: ON</div>
-                )}
-              </div>
+              </PluginProvider>
             </div>
           </DemoPreview>
         </div>
@@ -520,11 +556,14 @@ function CanvasPlaygroundDemo() {
             </CardHeader>
             <CardContent>
               <PropControl label="Show Minimap" type="boolean" value={showMinimap} onChange={setShowMinimap} />
-              <PropControl label="Show Grid" type="boolean" value={showGrid} onChange={setShowGrid} />
               <PropControl label="Snap to Grid" type="boolean" value={snapToGrid} onChange={setSnapToGrid} />
-              <PropControl label="Enable Zoom" type="boolean" value={enableZoom} onChange={setEnableZoom} />
-              <PropControl label="Enable Pan" type="boolean" value={enablePan} onChange={setEnablePan} />
-              <PropControl label="Grid Size" type="number" value={gridSize} onChange={setGridSize} />
+              <PropControl label="Disable Zoom" type="boolean" value={disableZoom} onChange={setDisableZoom} />
+              <PropControl label="Disable Pan" type="boolean" value={disablePan} onChange={setDisablePan} />
+              <Separator className="my-3" />
+              <div className="text-xs text-muted-foreground">
+                <div>Zoom: {Math.round(viewport.zoom * 100)}%</div>
+                <div>Pan: ({Math.round(viewport.x)}, {Math.round(viewport.y)})</div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -547,33 +586,77 @@ function CanvasPlaygroundDemo() {
 
 function NodeTypesDemo() {
   const [nodeType, setNodeType] = useState('input');
-  const [nodeColor, setNodeColor] = useState('#3b82f6');
-  const [nodeWidth, setNodeWidth] = useState(160);
-  const [nodeHeight, setNodeHeight] = useState(80);
-  const [showIcon, setShowIcon] = useState(true);
-  const [showHandles, setShowHandles] = useState(true);
+  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
   
-  const nodeTypes: { value: string; label: string; color: string; icon: string }[] = [
-    { value: 'input', label: 'Input', color: '#3b82f6', icon: '📥' },
-    { value: 'process', label: 'Process', color: '#8b5cf6', icon: '⚙️' },
-    { value: 'condition', label: 'Condition', color: '#f59e0b', icon: '❓' },
-    { value: 'output', label: 'Output', color: '#22c55e', icon: '📤' },
-    { value: 'ai', label: 'AI Task', color: '#ec4899', icon: '🤖' },
-    { value: 'image', label: 'Image', color: '#06b6d4', icon: '🖼️' },
+  const nodeTypeConfigs: { value: string; label: string; headerColor: string; bodyColor: string }[] = [
+    { value: 'input', label: 'Input', headerColor: '#3b82f6', bodyColor: '#eff6ff' },
+    { value: 'process', label: 'Process', headerColor: '#8b5cf6', bodyColor: '#f5f3ff' },
+    { value: 'condition', label: 'Condition', headerColor: '#f59e0b', bodyColor: '#fefce8' },
+    { value: 'output', label: 'Output', headerColor: '#22c55e', bodyColor: '#f0fdf4' },
+    { value: 'ai', label: 'AI Task', headerColor: '#ec4899', bodyColor: '#fdf2f8' },
   ];
   
-  const currentNode = nodeTypes.find(n => n.value === nodeType) || nodeTypes[0];
+  const currentConfig = nodeTypeConfigs.find(n => n.value === nodeType) || nodeTypeConfigs[0];
   
-  const codeSnippet = `const node: KiteNode = {
+  const [nodes, setNodes] = useState<Node[]>([
+    {
+      id: 'demo-node',
+      type: nodeType,
+      position: { x: 150, y: 80 },
+      data: { 
+        label: `${currentConfig.label} Node`,
+        description: 'Click to select, drag to move',
+        colors: {
+          headerBackground: currentConfig.headerColor,
+          bodyBackground: currentConfig.bodyColor,
+          borderColor: currentConfig.headerColor,
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#374151'
+        }
+      },
+      style: { width: 180, height: 90 }
+    }
+  ]);
+  
+  const [edges] = useState<Edge[]>([]);
+  
+  useEffect(() => {
+    const config = nodeTypeConfigs.find(n => n.value === nodeType) || nodeTypeConfigs[0];
+    setNodes([{
+      id: 'demo-node',
+      type: nodeType,
+      position: { x: 150, y: 80 },
+      data: { 
+        label: `${config.label} Node`,
+        description: 'Click to select, drag to move',
+        colors: {
+          headerBackground: config.headerColor,
+          bodyBackground: config.bodyColor,
+          borderColor: config.headerColor,
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#374151'
+        }
+      },
+      style: { width: 180, height: 90 }
+    }]);
+  }, [nodeType]);
+  
+  const codeSnippet = `const node: Node = {
   id: 'node-1',
   type: '${nodeType}',
   position: { x: 100, y: 100 },
   data: {
-    label: '${currentNode.label} Node',
-    color: '${nodeColor}',
+    label: '${currentConfig.label} Node',
+    description: 'Optional description',
+    colors: {
+      headerBackground: '${currentConfig.headerColor}',
+      bodyBackground: '${currentConfig.bodyColor}',
+      borderColor: '${currentConfig.headerColor}',
+      headerTextColor: '#ffffff',
+      bodyTextColor: '#374151'
+    }
   },
-  width: ${nodeWidth},
-  height: ${nodeHeight},
+  style: { width: 180, height: 90 }
 };`;
 
   return (
@@ -581,30 +664,24 @@ function NodeTypesDemo() {
       <h2 className="text-2xl font-bold mb-4">Node Types</h2>
       
       <p className="text-muted-foreground mb-4">
-        Explore the 6 built-in node types. Each type has specific styling and behavior for different workflow stages.
+        Explore the built-in node types. Each type has specific styling for different workflow stages. Try dragging the node!
       </p>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <DemoPreview title={`${currentNode.label} Node`}>
-            <div className="flex items-center justify-center h-[300px]">
-              <div 
-                className="relative rounded-lg shadow-xl flex flex-col items-center justify-center text-white font-medium transition-all"
-                style={{ 
-                  backgroundColor: nodeColor, 
-                  width: nodeWidth, 
-                  height: nodeHeight 
-                }}
-              >
-                {showIcon && <span className="text-2xl mb-1">{currentNode.icon}</span>}
-                <span>{currentNode.label}</span>
-                {showHandles && (
-                  <>
-                    <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-slate-400" />
-                    <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-slate-400" />
-                  </>
-                )}
-              </div>
+          <DemoPreview title={`${currentConfig.label} Node`}>
+            <div className="relative w-full h-[300px] rounded overflow-hidden">
+              <PluginProvider>
+                <KiteFrameCanvas
+                  nodes={nodes}
+                  edges={edges}
+                  onNodesChange={setNodes}
+                  onEdgesChange={() => {}}
+                  viewport={viewport}
+                  onViewportChange={setViewport}
+                  className="w-full h-full"
+                />
+              </PluginProvider>
             </div>
           </DemoPreview>
         </div>
@@ -619,18 +696,20 @@ function NodeTypesDemo() {
                 label="Node Type" 
                 type="select" 
                 value={nodeType} 
-                onChange={(v) => {
-                  setNodeType(v);
-                  const newNode = nodeTypes.find(n => n.value === v);
-                  if (newNode) setNodeColor(newNode.color);
-                }}
-                options={nodeTypes.map(n => ({ value: n.value, label: n.label }))}
+                onChange={setNodeType}
+                options={nodeTypeConfigs.map(n => ({ value: n.value, label: n.label }))}
               />
-              <PropControl label="Color" type="color" value={nodeColor} onChange={setNodeColor} />
-              <PropControl label="Width" type="number" value={nodeWidth} onChange={setNodeWidth} />
-              <PropControl label="Height" type="number" value={nodeHeight} onChange={setNodeHeight} />
-              <PropControl label="Show Icon" type="boolean" value={showIcon} onChange={setShowIcon} />
-              <PropControl label="Show Handles" type="boolean" value={showHandles} onChange={setShowHandles} />
+              <Separator className="my-3" />
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded" style={{ backgroundColor: currentConfig.headerColor }} />
+                  Header: {currentConfig.headerColor}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded border" style={{ backgroundColor: currentConfig.bodyColor }} />
+                  Body: {currentConfig.bodyColor}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -652,99 +731,95 @@ function NodeTypesDemo() {
 }
 
 function EdgeStylingDemo() {
-  const [edgeType, setEdgeType] = useState('bezier');
-  const [edgeColor, setEdgeColor] = useState('#64748b');
-  const [strokeWidth, setStrokeWidth] = useState(2);
-  const [animated, setAnimated] = useState(false);
-  const [showArrow, setShowArrow] = useState(true);
-  const [dashed, setDashed] = useState(false);
+  const [edgeType, setEdgeType] = useState<'smoothstep' | 'straight' | 'step' | 'bezier'>('smoothstep');
+  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
   
   const edgeTypes = [
-    { value: 'bezier', label: 'Bezier (Curved)' },
+    { value: 'smoothstep', label: 'Smooth Step' },
     { value: 'straight', label: 'Straight' },
     { value: 'step', label: 'Step (Right Angle)' },
-    { value: 'smoothstep', label: 'Smooth Step' },
-    { value: 'simplebezier', label: 'Simple Bezier' },
-    { value: 'custom', label: 'Custom' },
+    { value: 'bezier', label: 'Bezier (Curved)' },
   ];
   
-  const codeSnippet = `const edge: KiteEdge = {
+  const [nodes] = useState<Node[]>([
+    {
+      id: 'source',
+      type: 'input',
+      position: { x: 50, y: 80 },
+      data: { 
+        label: 'Source',
+        colors: {
+          headerBackground: '#3b82f6',
+          bodyBackground: '#eff6ff',
+          borderColor: '#3b82f6',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#1e40af'
+        }
+      },
+      style: { width: 120, height: 60 }
+    },
+    {
+      id: 'target',
+      type: 'output',
+      position: { x: 350, y: 80 },
+      data: { 
+        label: 'Target',
+        colors: {
+          headerBackground: '#22c55e',
+          bodyBackground: '#f0fdf4',
+          borderColor: '#22c55e',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#166534'
+        }
+      },
+      style: { width: 120, height: 60 }
+    }
+  ]);
+  
+  const [edges, setEdges] = useState<Edge[]>([
+    { id: 'demo-edge', source: 'source', target: 'target', type: edgeType }
+  ]);
+  
+  useEffect(() => {
+    setEdges([{ id: 'demo-edge', source: 'source', target: 'target', type: edgeType as 'smoothstep' | 'straight' | 'step' | 'bezier' }]);
+  }, [edgeType]);
+  
+  const codeSnippet = `const edge: Edge = {
   id: 'edge-1',
   source: 'node-1',
   target: 'node-2',
   type: '${edgeType}',
-  style: {
-    stroke: '${edgeColor}',
-    strokeWidth: ${strokeWidth},
-    strokeDasharray: ${dashed ? "'5,5'" : 'undefined'},
-  },
-  animated: ${animated},
-  markerEnd: ${showArrow ? "{ type: 'arrowclosed' }" : 'undefined'},
-};`;
+};
 
-  const renderEdgePath = () => {
-    const start = { x: 50, y: 100 };
-    const end = { x: 250, y: 100 };
-    
-    switch (edgeType) {
-      case 'straight':
-        return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
-      case 'step':
-        const midX = (start.x + end.x) / 2;
-        return `M ${start.x} ${start.y} L ${midX} ${start.y} L ${midX} ${end.y} L ${end.x} ${end.y}`;
-      case 'smoothstep':
-        const mx = (start.x + end.x) / 2;
-        return `M ${start.x} ${start.y} L ${mx - 20} ${start.y} Q ${mx} ${start.y} ${mx} ${(start.y + end.y) / 2} Q ${mx} ${end.y} ${mx + 20} ${end.y} L ${end.x} ${end.y}`;
-      case 'bezier':
-      case 'simplebezier':
-      default:
-        const cx1 = start.x + 60;
-        const cx2 = end.x - 60;
-        return `M ${start.x} ${start.y} C ${cx1} ${start.y}, ${cx2} ${end.y}, ${end.x} ${end.y}`;
-    }
-  };
+// Available edge types:
+// - 'smoothstep': Rounded corners (default)
+// - 'straight': Direct line
+// - 'step': Right-angle corners
+// - 'bezier': Curved bezier path`;
 
   return (
     <div className="space-y-6" data-testid="demo-edge-styling">
       <h2 className="text-2xl font-bold mb-4">Edge Styling</h2>
       
       <p className="text-muted-foreground mb-4">
-        Configure edge appearance with different types, colors, and styles.
+        Configure edge appearance with different path types. The canvas renders real edges between nodes.
       </p>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <DemoPreview title="Edge Preview">
-            <div className="flex items-center justify-center h-[200px]">
-              <svg width="300" height="200" className="overflow-visible">
-                <defs>
-                  {showArrow && (
-                    <marker
-                      id="arrowhead"
-                      markerWidth="10"
-                      markerHeight="7"
-                      refX="9"
-                      refY="3.5"
-                      orient="auto"
-                    >
-                      <polygon points="0 0, 10 3.5, 0 7" fill={edgeColor} />
-                    </marker>
-                  )}
-                </defs>
-                <circle cx="50" cy="100" r="20" fill="#3b82f6" />
-                <circle cx="250" cy="100" r="20" fill="#22c55e" />
-                <path
-                  d={renderEdgePath()}
-                  stroke={edgeColor}
-                  strokeWidth={strokeWidth}
-                  strokeDasharray={dashed ? '5,5' : undefined}
-                  fill="none"
-                  markerEnd={showArrow ? 'url(#arrowhead)' : undefined}
-                  className={animated ? 'animate-pulse' : ''}
+            <div className="relative w-full h-[200px] rounded overflow-hidden">
+              <PluginProvider>
+                <KiteFrameCanvas
+                  nodes={nodes}
+                  edges={edges}
+                  onNodesChange={() => {}}
+                  onEdgesChange={setEdges}
+                  viewport={viewport}
+                  onViewportChange={setViewport}
+                  className="w-full h-full"
                 />
-                <text x="50" y="140" textAnchor="middle" className="text-xs fill-current">Source</text>
-                <text x="250" y="140" textAnchor="middle" className="text-xs fill-current">Target</text>
-              </svg>
+              </PluginProvider>
             </div>
           </DemoPreview>
         </div>
@@ -762,11 +837,10 @@ function EdgeStylingDemo() {
                 onChange={setEdgeType}
                 options={edgeTypes}
               />
-              <PropControl label="Color" type="color" value={edgeColor} onChange={setEdgeColor} />
-              <PropControl label="Stroke Width" type="number" value={strokeWidth} onChange={setStrokeWidth} />
-              <PropControl label="Animated" type="boolean" value={animated} onChange={setAnimated} />
-              <PropControl label="Show Arrow" type="boolean" value={showArrow} onChange={setShowArrow} />
-              <PropControl label="Dashed" type="boolean" value={dashed} onChange={setDashed} />
+              <Separator className="my-3" />
+              <div className="text-xs text-muted-foreground">
+                Current: <span className="font-mono">{edgeType}</span>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -1063,110 +1137,149 @@ const { undo, redo, canUndo, canRedo } = useUndoRedo(undoRedoConfig);
 }
 
 function SelectionDemo() {
-  const [selectedNodes, setSelectedNodes] = useState<number[]>([]);
-  const [selectionMode, setSelectionMode] = useState<'click' | 'box' | 'lasso'>('click');
-  const [multiSelectEnabled, setMultiSelectEnabled] = useState(true);
-  const [showSelectionBox, setShowSelectionBox] = useState(true);
+  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
+  const [selectedCount, setSelectedCount] = useState(0);
   
-  const nodes = [
-    { id: 1, x: 50, y: 50, label: 'Node 1', color: '#3b82f6' },
-    { id: 2, x: 150, y: 50, label: 'Node 2', color: '#8b5cf6' },
-    { id: 3, x: 250, y: 50, label: 'Node 3', color: '#22c55e' },
-    { id: 4, x: 100, y: 130, label: 'Node 4', color: '#f59e0b' },
-    { id: 5, x: 200, y: 130, label: 'Node 5', color: '#ec4899' },
-  ];
-  
-  const toggleSelection = (id: number) => {
-    if (multiSelectEnabled) {
-      setSelectedNodes(prev => 
-        prev.includes(id) ? prev.filter(n => n !== id) : [...prev, id]
-      );
-    } else {
-      setSelectedNodes([id]);
+  const [nodes, setNodes] = useState<Node[]>([
+    {
+      id: 'sel-1',
+      type: 'input',
+      position: { x: 50, y: 50 },
+      data: { 
+        label: 'Node 1',
+        colors: {
+          headerBackground: '#3b82f6',
+          bodyBackground: '#eff6ff',
+          borderColor: '#3b82f6',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#1e40af'
+        }
+      },
+      style: { width: 100, height: 60 }
+    },
+    {
+      id: 'sel-2',
+      type: 'process',
+      position: { x: 200, y: 50 },
+      data: { 
+        label: 'Node 2',
+        colors: {
+          headerBackground: '#8b5cf6',
+          bodyBackground: '#f5f3ff',
+          borderColor: '#8b5cf6',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#6b21a8'
+        }
+      },
+      style: { width: 100, height: 60 }
+    },
+    {
+      id: 'sel-3',
+      type: 'output',
+      position: { x: 350, y: 50 },
+      data: { 
+        label: 'Node 3',
+        colors: {
+          headerBackground: '#22c55e',
+          bodyBackground: '#f0fdf4',
+          borderColor: '#22c55e',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#166534'
+        }
+      },
+      style: { width: 100, height: 60 }
+    },
+    {
+      id: 'sel-4',
+      type: 'condition',
+      position: { x: 125, y: 140 },
+      data: { 
+        label: 'Node 4',
+        colors: {
+          headerBackground: '#f59e0b',
+          bodyBackground: '#fefce8',
+          borderColor: '#f59e0b',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#a16207'
+        }
+      },
+      style: { width: 100, height: 60 }
+    },
+    {
+      id: 'sel-5',
+      type: 'ai',
+      position: { x: 275, y: 140 },
+      data: { 
+        label: 'Node 5',
+        colors: {
+          headerBackground: '#ec4899',
+          bodyBackground: '#fdf2f8',
+          borderColor: '#ec4899',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#9d174d'
+        }
+      },
+      style: { width: 100, height: 60 }
     }
-  };
+  ]);
   
-  const selectAll = () => setSelectedNodes(nodes.map(n => n.id));
-  const clearSelection = () => setSelectedNodes([]);
+  const [edges] = useState<Edge[]>([]);
+  
+  const handleNodesChange = useCallback((newNodes: Node[]) => {
+    setNodes(newNodes);
+    const selected = newNodes.filter(n => n.selected).length;
+    setSelectedCount(selected);
+  }, []);
   
   const codeSnippet = `<KiteFrameCanvas
-  selectionMode="${selectionMode}"
-  multiSelectEnabled={${multiSelectEnabled}}
-  showSelectionBox={${showSelectionBox}}
-  selectedNodes={selectedNodes}
-  onSelectionChange={setSelectedNodes}
+  nodes={nodes}
+  edges={edges}
+  onNodesChange={setNodes}
+  onNodeClick={(e, node) => console.log('Clicked:', node.id)}
 />
 
-// Keyboard shortcuts
-// Click = Select single node
-// Ctrl/Cmd + Click = Toggle selection
-// Ctrl/Cmd + A = Select all
-// Escape = Clear selection`;
+// Selection interactions:
+// - Click node = Select (clears others)
+// - Ctrl/Cmd + Click = Toggle selection
+// - Drag background = Box select
+// - Ctrl/Cmd + A = Select all
+// - Escape = Clear selection
+
+// Currently selected: ${selectedCount} nodes`;
 
   return (
     <div className="space-y-6" data-testid="demo-selection">
       <h2 className="text-2xl font-bold mb-4">Selection System</h2>
       
       <p className="text-muted-foreground mb-4">
-        Multiple selection modes with keyboard modifiers and box/lasso selection support.
+        Click nodes to select, Ctrl+Click to multi-select, drag background for box selection. Real canvas interactions!
       </p>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <DemoPreview title="Selection Demo">
+          <DemoPreview title="Live Selection">
             <div className="flex flex-col h-[300px]">
-              <div className="flex items-center gap-2 mb-4">
-                <Button size="sm" variant="outline" onClick={selectAll} data-testid="button-select-all">
-                  Select All
-                </Button>
-                <Button size="sm" variant="outline" onClick={clearSelection} data-testid="button-clear-selection">
-                  Clear
-                </Button>
-                <span className="text-sm text-muted-foreground ml-auto" data-testid="text-selection-count">
-                  {selectedNodes.length} selected
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm text-muted-foreground" data-testid="text-selection-count">
+                  {selectedCount} node{selectedCount !== 1 ? 's' : ''} selected
+                </span>
+                <span className="text-xs text-muted-foreground ml-auto">
+                  Tip: Ctrl+Click for multi-select
                 </span>
               </div>
               
-              <div className="flex-1 relative bg-white dark:bg-slate-800 rounded-lg overflow-hidden">
-                <svg width="100%" height="100%" viewBox="0 0 300 180">
-                  {nodes.map(node => (
-                    <g 
-                      key={node.id} 
-                      onClick={() => toggleSelection(node.id)}
-                      className="cursor-pointer"
-                      data-testid={`node-${node.id}`}
-                    >
-                      <rect
-                        x={node.x - 30}
-                        y={node.y - 20}
-                        width={60}
-                        height={40}
-                        rx={8}
-                        fill={node.color}
-                        stroke={selectedNodes.includes(node.id) ? '#fff' : 'transparent'}
-                        strokeWidth={3}
-                        className="transition-all"
-                      />
-                      {selectedNodes.includes(node.id) && showSelectionBox && (
-                        <rect
-                          x={node.x - 34}
-                          y={node.y - 24}
-                          width={68}
-                          height={48}
-                          rx={10}
-                          fill="none"
-                          stroke="#3b82f6"
-                          strokeWidth={2}
-                          strokeDasharray="4"
-                          className="animate-pulse"
-                        />
-                      )}
-                      <text x={node.x} y={node.y + 5} textAnchor="middle" className="text-xs fill-white font-medium pointer-events-none">
-                        {node.label}
-                      </text>
-                    </g>
-                  ))}
-                </svg>
+              <div className="flex-1 relative rounded overflow-hidden" data-testid="canvas-selection-demo">
+                <PluginProvider>
+                  <KiteFrameCanvas
+                    nodes={nodes}
+                    edges={edges}
+                    onNodesChange={handleNodesChange}
+                    onEdgesChange={() => {}}
+                    viewport={viewport}
+                    onViewportChange={setViewport}
+                    className="w-full h-full"
+                  />
+                </PluginProvider>
               </div>
             </div>
           </DemoPreview>
@@ -1175,22 +1288,26 @@ function SelectionDemo() {
         <div>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Props</CardTitle>
+              <CardTitle className="text-lg">Selection State</CardTitle>
             </CardHeader>
             <CardContent>
-              <PropControl 
-                label="Selection Mode" 
-                type="select" 
-                value={selectionMode} 
-                onChange={(v) => setSelectionMode(v as 'click' | 'box' | 'lasso')}
-                options={[
-                  { value: 'click', label: 'Click' },
-                  { value: 'box', label: 'Box Select' },
-                  { value: 'lasso', label: 'Lasso' },
-                ]}
-              />
-              <PropControl label="Multi-Select" type="boolean" value={multiSelectEnabled} onChange={setMultiSelectEnabled} />
-              <PropControl label="Show Selection Box" type="boolean" value={showSelectionBox} onChange={setShowSelectionBox} />
+              <div className="text-sm space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total nodes:</span>
+                  <span className="font-medium">{nodes.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Selected:</span>
+                  <span className="font-medium text-primary">{selectedCount}</span>
+                </div>
+                <Separator className="my-3" />
+                <div className="text-xs text-muted-foreground">
+                  <div className="font-medium mb-1">Keyboard shortcuts:</div>
+                  <div>Ctrl+A = Select all</div>
+                  <div>Escape = Clear selection</div>
+                  <div>Delete = Remove selected</div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -1213,122 +1330,136 @@ function SelectionDemo() {
 
 function MinimapDemo() {
   const [showMinimap, setShowMinimap] = useState(true);
-  const [minimapPosition, setMinimapPosition] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'>('bottom-right');
-  const [minimapSize, setMinimapSize] = useState(150);
-  const [zoom, setZoom] = useState(100);
-  const [panX, setPanX] = useState(0);
-  const [panY, setPanY] = useState(0);
+  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
   
-  const handleZoom = (delta: number) => {
-    setZoom(Math.max(25, Math.min(200, zoom + delta)));
+  const [nodes] = useState<Node[]>([
+    {
+      id: 'nav-1',
+      type: 'input',
+      position: { x: 50, y: 50 },
+      data: { 
+        label: 'Start',
+        colors: {
+          headerBackground: '#3b82f6',
+          bodyBackground: '#eff6ff',
+          borderColor: '#3b82f6',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#1e40af'
+        }
+      },
+      style: { width: 100, height: 60 }
+    },
+    {
+      id: 'nav-2',
+      type: 'process',
+      position: { x: 200, y: 100 },
+      data: { 
+        label: 'Process',
+        colors: {
+          headerBackground: '#8b5cf6',
+          bodyBackground: '#f5f3ff',
+          borderColor: '#8b5cf6',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#6b21a8'
+        }
+      },
+      style: { width: 100, height: 60 }
+    },
+    {
+      id: 'nav-3',
+      type: 'output',
+      position: { x: 350, y: 50 },
+      data: { 
+        label: 'End',
+        colors: {
+          headerBackground: '#22c55e',
+          bodyBackground: '#f0fdf4',
+          borderColor: '#22c55e',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#166534'
+        }
+      },
+      style: { width: 100, height: 60 }
+    },
+    {
+      id: 'nav-4',
+      type: 'condition',
+      position: { x: 100, y: 180 },
+      data: { 
+        label: 'Check',
+        colors: {
+          headerBackground: '#f59e0b',
+          bodyBackground: '#fefce8',
+          borderColor: '#f59e0b',
+          headerTextColor: '#ffffff',
+          bodyTextColor: '#a16207'
+        }
+      },
+      style: { width: 100, height: 60 }
+    }
+  ]);
+  
+  const [edges] = useState<Edge[]>([
+    { id: 'e-nav-1', source: 'nav-1', target: 'nav-2', type: 'smoothstep' },
+    { id: 'e-nav-2', source: 'nav-2', target: 'nav-3', type: 'smoothstep' },
+    { id: 'e-nav-3', source: 'nav-1', target: 'nav-4', type: 'smoothstep' }
+  ]);
+  
+  const handleReset = () => {
+    setViewport({ x: 0, y: 0, zoom: 1 });
   };
   
   const codeSnippet = `<KiteFrameCanvas
-  showMinimap={${showMinimap}}
-  minimapPosition="${minimapPosition}"
-  minimapSize={${minimapSize}}
-  zoom={${zoom / 100}}
-  pan={{ x: ${panX}, y: ${panY} }}
-  onZoomChange={(newZoom) => setZoom(newZoom)}
-  onPanChange={({ x, y }) => { setPanX(x); setPanY(y); }}
+  nodes={nodes}
+  edges={edges}
+  viewport={viewport}
+  onViewportChange={setViewport}
+  showMiniMap={${showMinimap}}
 />
 
-// Zoom controls
-// Mouse wheel = Zoom in/out
-// Ctrl + 0 = Reset zoom
-// Ctrl + + = Zoom in
-// Ctrl + - = Zoom out`;
+// Current viewport state:
+// zoom: ${viewport.zoom.toFixed(2)}
+// pan: { x: ${Math.round(viewport.x)}, y: ${Math.round(viewport.y)} }
 
-  const positionClasses: Record<string, string> = {
-    'bottom-right': 'bottom-2 right-2',
-    'bottom-left': 'bottom-2 left-2',
-    'top-right': 'top-2 right-2',
-    'top-left': 'top-2 left-2',
-  };
+// Built-in navigation:
+// - Mouse wheel = Zoom in/out
+// - Drag background = Pan canvas
+// - Click minimap = Jump to location`;
 
   return (
     <div className="space-y-6" data-testid="demo-minimap">
       <h2 className="text-2xl font-bold mb-4">Minimap & Navigation</h2>
       
       <p className="text-muted-foreground mb-4">
-        Navigate large canvases with the minimap overview and zoom/pan controls.
+        Use the real KiteFrameCanvas minimap. Pan by dragging the background, zoom with scroll wheel. The minimap shows an overview.
       </p>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <DemoPreview title="Navigation Demo">
+          <DemoPreview title="Live Navigation">
             <div className="flex flex-col h-[300px]">
-              <div className="flex items-center gap-2 mb-4">
-                <Button size="sm" variant="outline" onClick={() => handleZoom(-10)} data-testid="button-zoom-out">
-                  <ZoomOut className="w-4 h-4" />
+              <div className="flex items-center gap-2 mb-2">
+                <Button size="sm" variant="outline" onClick={handleReset} data-testid="button-reset-view">
+                  <Maximize className="w-4 h-4 mr-1" /> Reset View
                 </Button>
-                <span className="text-sm font-mono w-16 text-center" data-testid="text-zoom-level">{zoom}%</span>
-                <Button size="sm" variant="outline" onClick={() => handleZoom(10)} data-testid="button-zoom-in">
-                  <ZoomIn className="w-4 h-4" />
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => { setZoom(100); setPanX(0); setPanY(0); }} data-testid="button-reset-view">
-                  <Maximize className="w-4 h-4 mr-1" /> Reset
-                </Button>
-                <div className="ml-auto flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => setPanX(panX - 20)} data-testid="button-pan-left">
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setPanY(panY - 20)} data-testid="button-pan-up">
-                    <ChevronUp className="w-4 h-4" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setPanY(panY + 20)} data-testid="button-pan-down">
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setPanX(panX + 20)} data-testid="button-pan-right">
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
+                <span className="text-xs text-muted-foreground ml-auto" data-testid="text-zoom-level">
+                  Zoom: {Math.round(viewport.zoom * 100)}%
+                </span>
               </div>
               
-              <div className="flex-1 relative bg-white dark:bg-slate-800 rounded-lg overflow-hidden">
-                <svg 
-                  width="100%" 
-                  height="100%" 
-                  viewBox={`${-panX} ${-panY} ${300 * (100/zoom)} ${200 * (100/zoom)}`}
-                  className="transition-all"
-                >
-                  <defs>
-                    <pattern id="smallGrid" width="20" height="20" patternUnits="userSpaceOnUse">
-                      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e5e7eb" strokeWidth="0.5"/>
-                    </pattern>
-                  </defs>
-                  <rect width="500" height="400" fill="url(#smallGrid)" />
-                  <rect x="50" y="50" width="80" height="50" rx="8" fill="#3b82f6" />
-                  <rect x="180" y="80" width="80" height="50" rx="8" fill="#22c55e" />
-                  <rect x="100" y="150" width="80" height="50" rx="8" fill="#f59e0b" />
-                  <path d="M 130 75 L 180 105" stroke="#94a3b8" strokeWidth="2" />
-                  <path d="M 180 130 L 140 150" stroke="#94a3b8" strokeWidth="2" />
-                </svg>
-                
-                {showMinimap && (
-                  <div 
-                    className={`absolute ${positionClasses[minimapPosition]} bg-slate-100 dark:bg-slate-700 rounded border border-slate-300 dark:border-slate-600 shadow-lg`}
-                    style={{ width: minimapSize, height: minimapSize * 0.66 }}
-                    data-testid="minimap-container"
-                  >
-                    <svg width="100%" height="100%" viewBox="0 0 300 200">
-                      <rect width="300" height="200" fill="#f1f5f9" />
-                      <rect x="50" y="50" width="80" height="50" rx="4" fill="#3b82f6" opacity="0.5" />
-                      <rect x="180" y="80" width="80" height="50" rx="4" fill="#22c55e" opacity="0.5" />
-                      <rect x="100" y="150" width="80" height="50" rx="4" fill="#f59e0b" opacity="0.5" />
-                      <rect 
-                        x={panX} 
-                        y={panY} 
-                        width={300 * (100/zoom)} 
-                        height={200 * (100/zoom)} 
-                        fill="none" 
-                        stroke="#3b82f6" 
-                        strokeWidth="2"
-                        rx="2"
-                      />
-                    </svg>
-                  </div>
-                )}
+              <div className="flex-1 relative rounded overflow-hidden" data-testid="canvas-minimap-demo">
+                <PluginProvider>
+                  <KiteFrameCanvas
+                    nodes={nodes}
+                    edges={edges}
+                    onNodesChange={() => {}}
+                    onEdgesChange={() => {}}
+                    viewport={viewport}
+                    onViewportChange={setViewport}
+                    showMiniMap={showMinimap}
+                    className="w-full h-full"
+                  />
+                </PluginProvider>
               </div>
             </div>
           </DemoPreview>
@@ -1341,19 +1472,12 @@ function MinimapDemo() {
             </CardHeader>
             <CardContent>
               <PropControl label="Show Minimap" type="boolean" value={showMinimap} onChange={setShowMinimap} />
-              <PropControl 
-                label="Position" 
-                type="select" 
-                value={minimapPosition} 
-                onChange={(v) => setMinimapPosition(v as 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left')}
-                options={[
-                  { value: 'bottom-right', label: 'Bottom Right' },
-                  { value: 'bottom-left', label: 'Bottom Left' },
-                  { value: 'top-right', label: 'Top Right' },
-                  { value: 'top-left', label: 'Top Left' },
-                ]}
-              />
-              <PropControl label="Minimap Size" type="number" value={minimapSize} onChange={setMinimapSize} />
+              <Separator className="my-3" />
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div>Zoom: {Math.round(viewport.zoom * 100)}%</div>
+                <div>Pan X: {Math.round(viewport.x)}</div>
+                <div>Pan Y: {Math.round(viewport.y)}</div>
+              </div>
             </CardContent>
           </Card>
         </div>
