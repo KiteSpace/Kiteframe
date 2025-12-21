@@ -1837,24 +1837,31 @@ export default function AdminCodes() {
             <Shield className="w-8 h-8" />
             Admin Panel
           </h1>
-          <Button
-            variant="outline"
-            onClick={async () => {
-              try {
-                await fetch('/internal/x9k7m2p4/logout', {
-                  method: 'POST',
-                  headers: { 'Authorization': authHeader },
-                });
-              } catch {
-                // Continue with logout even if server request fails
-              }
-              setIsAuthenticated(false);
-              setAuthHeader('');
-            }}
-            data-testid="button-logout"
-          >
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link href="/internal/x9k7m2p4/docs">
+              <Button variant="outline" data-testid="button-dev-docs">
+                Developer Docs
+              </Button>
+            </Link>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await fetch('/internal/x9k7m2p4/logout', {
+                    method: 'POST',
+                    headers: { 'Authorization': authHeader },
+                  });
+                } catch {
+                  // Continue with logout even if server request fails
+                }
+                setIsAuthenticated(false);
+                setAuthHeader('');
+              }}
+              data-testid="button-logout"
+            >
+              Logout
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="waitlist" className="w-full">

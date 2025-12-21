@@ -23,6 +23,7 @@ const AuthComplete = lazy(() => import("@/pages/AuthComplete"));
 const MockupCodeDataReference = lazy(() => import("@/pages/mockup-code-data-reference"));
 const ViewOnlyViewer = lazy(() => import("@/pages/ViewOnlyViewer"));
 const Benchmark = lazy(() => import("@/pages/Benchmark"));
+const DevDocs = lazy(() => import("@/pages/DevDocs"));
 
 interface AuthUser {
   id: string;
@@ -142,6 +143,7 @@ function Router() {
         <Route path="/internal/x9k7m2p4" component={AdminCodes} />
         <Route path="/internal/x9k7m2p4/users/:userId" component={AdminUserDetails} />
         <Route path="/internal/x9k7m2p4/groups/:groupId" component={AdminGroupDetails} />
+        <Route path="/internal/x9k7m2p4/docs" component={DevDocs} />
         <Route path="/mockup/code-data" component={MockupCodeDataReference} />
         <Route path="/view/:shareId" component={ViewOnlyViewer} />
         <Route path="/benchmark" component={Benchmark} />
