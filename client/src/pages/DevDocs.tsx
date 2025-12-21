@@ -833,48 +833,26 @@ function AdvancedNodesSection() {
     }
     
     if (type === 'form') {
-      return [
-        {
-          ...baseNode,
-          id: 'form-demo-node',
-          selected: true,
-          resizable: true,
-          data: { 
-            ...baseNode.data,
-            label: 'Dog Lover Contact',
-            formTitle: 'Dog Lover Survey',
-            fields: [
-              { id: 'name', label: 'Name', type: 'text', value: '', placeholder: 'Your name' },
-              { id: 'profession', label: 'Profession', type: 'text', value: '', placeholder: 'What do you do?' },
-              { id: 'hobby', label: 'Favorite Hobby', type: 'text', value: '', placeholder: 'e.g. Walking dogs' },
-              { id: 'hasPet', label: 'I have a pet', type: 'checkbox', value: '', checked: false },
-              { id: 'dogPreference', label: 'Are dogs better than cats?', type: 'radio', value: '', options: [{ id: 'yes', label: 'Yes', value: 'yes' }, { id: 'defyes', label: 'Definitely Yes', value: 'definitely' }, { id: 'abs', label: 'Absolutely', value: 'absolutely' }] },
-              { id: 'dogReason', label: 'Why are dogs the best?', type: 'textarea', value: '', placeholder: 'Tell us why dogs are better...' },
-            ]
-          },
-          style: { width: 280, height: 360 }
+      return [{
+        ...baseNode,
+        id: 'form-demo-node',
+        selected: true,
+        resizable: true,
+        data: { 
+          ...baseNode.data,
+          label: 'Dog Lover Contact',
+          formTitle: 'Dog Lover Survey',
+          fields: [
+            { id: 'name', label: 'Name', type: 'text', value: '', placeholder: 'Your name' },
+            { id: 'profession', label: 'Profession', type: 'text', value: '', placeholder: 'What do you do?' },
+            { id: 'hobby', label: 'Favorite Hobby', type: 'text', value: '', placeholder: 'e.g. Walking dogs' },
+            { id: 'hasPet', label: 'I have a pet', type: 'checkbox', value: '', checked: false },
+            { id: 'dogPreference', label: 'Are dogs better than cats?', type: 'radio', value: '', options: [{ id: 'yes', label: 'Yes', value: 'yes' }, { id: 'defyes', label: 'Definitely Yes', value: 'definitely' }, { id: 'abs', label: 'Absolutely', value: 'absolutely' }] },
+            { id: 'dogReason', label: 'Why are dogs the best?', type: 'textarea', value: '', placeholder: 'Tell us why dogs are better...' },
+          ]
         },
-        {
-          id: 'dog-image-node',
-          type: 'image',
-          position: { x: 360, y: 60 },
-          selected: false,
-          resizable: true,
-          data: { 
-            label: 'Random Dog',
-            description: 'From dog.ceo API',
-            src: dogImg,
-            colors: {
-              headerBackground: '#f97316',
-              bodyBackground: '#fff7ed',
-              borderColor: '#f97316',
-              headerTextColor: '#ffffff',
-              bodyTextColor: '#374151'
-            }
-          },
-          style: { width: 180, height: 200 }
-        }
-      ];
+        style: { width: 280, height: 360 }
+      }];
     }
     
     if (type === 'compound') {
@@ -886,13 +864,14 @@ function AdvancedNodesSection() {
           description: 'Click + to add elements',
           subcomponents: [
             { id: 'sub-1', type: 'text', order: 0, data: { content: 'Welcome to Compound Nodes!', fontWeight: 'bold', fontSize: 14 } },
-            { id: 'sub-2', type: 'text', order: 1, data: { content: 'Click the + button to add more elements like text, images, links, or inputs.', fontSize: 12 } },
-            { id: 'sub-3', type: 'link', order: 2, data: { text: 'Learn more about Kiteline', url: 'https://kiteline.dev' } },
+            { id: 'sub-2', type: 'image', order: 1, data: { src: dogImg, alt: 'Random Dog from dog.ceo API', width: 180, height: 120 } },
+            { id: 'sub-3', type: 'text', order: 2, data: { content: 'Click the + button to add more elements.', fontSize: 12 } },
+            { id: 'sub-4', type: 'link', order: 3, data: { text: 'Learn more about Kiteline', url: 'https://kiteline.dev' } },
           ],
           containerPadding: 12,
           gap: 8
         },
-        style: { width: 300, height: 200 }
+        style: { width: 300, height: 320 }
       }];
     }
     
@@ -969,7 +948,7 @@ const tableNode: Node = {
       box: r.box
     })))
   }
-};` : advancedNodeType === 'form' ? `// Form Node + Companion Image Node
+};` : advancedNodeType === 'form' ? `// Form Node with Various Field Types
 const formNode: Node = {
   id: 'form-demo-node',
   type: 'form',
@@ -979,30 +958,19 @@ const formNode: Node = {
     label: 'Dog Lover Contact',
     formTitle: 'Dog Lover Survey',
     fields: [
-      { id: 'name', label: 'Name', type: 'text', value: '' },
-      { id: 'profession', label: 'Profession', type: 'text', value: '' },
-      { id: 'hobby', label: 'Favorite Hobby', type: 'text', value: '' },
-      { id: 'hasPet', label: 'I have a pet', type: 'checkbox', checked: false },
-      { id: 'dogPreference', label: 'Are dogs better than cats?', type: 'radio', 
+      { id: 'name', label: 'Name', type: 'text', value: '', placeholder: 'Your name' },
+      { id: 'profession', label: 'Profession', type: 'text', value: '', placeholder: 'What do you do?' },
+      { id: 'hobby', label: 'Favorite Hobby', type: 'text', value: '', placeholder: 'e.g. Walking dogs' },
+      { id: 'hasPet', label: 'I have a pet', type: 'checkbox', value: '', checked: false },
+      { id: 'dogPreference', label: 'Are dogs better than cats?', type: 'radio', value: '', 
         options: [
           { id: 'yes', label: 'Yes', value: 'yes' },
           { id: 'defyes', label: 'Definitely Yes', value: 'definitely' },
           { id: 'abs', label: 'Absolutely', value: 'absolutely' }
         ] },
-      { id: 'dogReason', label: 'Why are dogs the best?', type: 'textarea' }
+      { id: 'dogReason', label: 'Why are dogs the best?', type: 'textarea', value: '', 
+        placeholder: 'Tell us why dogs are better...' }
     ]
-  }
-};
-// Companion Image node showing random dog from dog.ceo API
-const dogImageNode: Node = {
-  id: 'dog-image-node',
-  type: 'image',
-  position: { x: 360, y: 60 },
-  data: { 
-    label: 'Random Dog',
-    description: 'From dog.ceo API',
-    src: await fetch('https://dog.ceo/api/breeds/image/random')
-      .then(r => r.json()).then(d => d.message)
   }
 };` : advancedNodeType === 'code' ? `// Code Node with Live HTML/JS Preview
 const codeNode: Node = {
@@ -1030,22 +998,27 @@ document.getElementById('breeds').onclick = async (e) => {
 };
 </script>\`
   }
-};` : advancedNodeType === 'compound' ? `// Compound Node with Subcomponents
+};` : advancedNodeType === 'compound' ? `// Compound Node with Image Subcomponent
 const compoundNode: Node = {
   id: 'compound-1',
   type: 'compound',
+  selected: true,
+  resizable: true,
   data: {
-    label: 'Container',
+    label: 'Compound Container',
+    description: 'Click + to add elements',
     subcomponents: [
       { id: 'sub-1', type: 'text', order: 0, 
-        data: { content: 'Title', fontWeight: 'bold' } },
-      { id: 'sub-2', type: 'text', order: 1, 
-        data: { content: 'Description text' } },
-      { id: 'sub-3', type: 'link', order: 2, 
-        data: { text: 'Click here', url: 'https://...' } },
+        data: { content: 'Welcome to Compound Nodes!', fontWeight: 'bold', fontSize: 14 } },
+      { id: 'sub-2', type: 'image', order: 1, 
+        data: { src: 'https://dog.ceo/api/breeds/image/random', alt: 'Random Dog from dog.ceo API', width: 180, height: 120 } },
+      { id: 'sub-3', type: 'text', order: 2, 
+        data: { content: 'Click the + button to add more elements.', fontSize: 12 } },
+      { id: 'sub-4', type: 'link', order: 3, 
+        data: { text: 'Learn more about Kiteline', url: 'https://kiteline.dev' } },
     ],
     containerPadding: 12,
-    gap: 8  // Click + to add more elements
+    gap: 8
   }
 };` : `// Image Node
 const imageNode: Node = {
