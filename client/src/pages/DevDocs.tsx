@@ -11,7 +11,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { 
   Search, 
   ChevronRight, 
-  ChevronDown, 
+  ChevronDown,
+  ChevronLeft,
+  ChevronUp,
   ArrowLeft, 
   Copy, 
   Check,
@@ -33,7 +35,12 @@ import {
   Lock,
   Server,
   Monitor,
-  Palette
+  Palette,
+  RotateCcw,
+  RotateCw,
+  ZoomIn,
+  ZoomOut,
+  Maximize
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { 
@@ -206,6 +213,10 @@ const docSections: DocSection[] = [
       { id: 'demo-nodes', title: 'Node Types' },
       { id: 'demo-edges', title: 'Edge Styling' },
       { id: 'demo-layouts', title: 'Auto-Layout' },
+      { id: 'demo-undo', title: 'Undo/Redo' },
+      { id: 'demo-selection', title: 'Selection' },
+      { id: 'demo-minimap', title: 'Minimap & Navigation' },
+      { id: 'demo-plugins', title: 'Plugin Hooks' },
     ]
   },
 ];
@@ -905,6 +916,597 @@ const layoutedNodes = applyAutoLayout(nodes, edges, {
               />
               <PropControl label="Spacing" type="number" value={spacing} onChange={setSpacing} />
               <PropControl label="Animate" type="boolean" value={animate} onChange={setAnimate} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Code className="w-4 h-4" />
+            Generated Code
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CodeBlock code={codeSnippet} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function UndoRedoDemo() {
+  const [history, setHistory] = useState<string[]>(['Initial state']);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showHistory, setShowHistory] = useState(true);
+  const [maxHistory, setMaxHistory] = useState(50);
+  const [batchOperations, setBatchOperations] = useState(false);
+  
+  const canUndo = currentIndex > 0;
+  const canRedo = currentIndex < history.length - 1;
+  
+  const addAction = (action: string) => {
+    const newHistory = [...history.slice(0, currentIndex + 1), action];
+    if (newHistory.length > maxHistory) {
+      newHistory.shift();
+      setHistory(newHistory);
+    } else {
+      setHistory(newHistory);
+      setCurrentIndex(newHistory.length - 1);
+    }
+  };
+  
+  const undo = () => {
+    if (canUndo) setCurrentIndex(currentIndex - 1);
+  };
+  
+  const redo = () => {
+    if (canRedo) setCurrentIndex(currentIndex + 1);
+  };
+  
+  const codeSnippet = `const undoRedoConfig = {
+  maxHistorySize: ${maxHistory},
+  batchOperations: ${batchOperations},
+};
+
+// Using the undo/redo system
+const { undo, redo, canUndo, canRedo } = useUndoRedo(undoRedoConfig);
+
+// Keyboard shortcuts (built-in)
+// Ctrl/Cmd + Z = Undo
+// Ctrl/Cmd + Shift + Z = Redo`;
+
+  return (
+    <div className="space-y-6" data-testid="demo-undo-redo">
+      <h2 className="text-2xl font-bold mb-4">Undo/Redo System</h2>
+      
+      <p className="text-muted-foreground mb-4">
+        The command pattern implementation provides robust undo/redo with batching support and configurable history limits.
+      </p>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <DemoPreview title="Undo/Redo Demo">
+            <div className="flex flex-col h-[300px]">
+              <div className="flex items-center gap-2 mb-4">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={undo} 
+                  disabled={!canUndo}
+                  data-testid="button-undo"
+                >
+                  <RotateCcw className="w-4 h-4 mr-1" /> Undo
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={redo} 
+                  disabled={!canRedo}
+                  data-testid="button-redo"
+                >
+                  <RotateCw className="w-4 h-4 mr-1" /> Redo
+                </Button>
+                <div className="flex gap-1 ml-auto">
+                  <Button size="sm" onClick={() => addAction(`Add node ${history.length}`)} data-testid="button-add-node">
+                    Add Node
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => addAction(`Move node ${history.length}`)} data-testid="button-move-node">
+                    Move Node
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => addAction(`Delete node ${history.length}`)} data-testid="button-delete-node">
+                    Delete
+                  </Button>
+                </div>
+              </div>
+              
+              {showHistory && (
+                <div className="flex-1 overflow-auto bg-white dark:bg-slate-800 rounded-lg p-3">
+                  <div className="text-xs font-medium text-muted-foreground mb-2">Command History</div>
+                  {history.map((action, i) => (
+                    <div 
+                      key={i}
+                      className={`text-sm px-2 py-1 rounded mb-1 ${i === currentIndex ? 'bg-blue-100 dark:bg-blue-900 font-medium' : 'text-muted-foreground'} ${i > currentIndex ? 'opacity-40' : ''}`}
+                      data-testid={`history-item-${i}`}
+                    >
+                      {i + 1}. {action}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DemoPreview>
+        </div>
+        
+        <div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Props</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PropControl label="Show History" type="boolean" value={showHistory} onChange={setShowHistory} />
+              <PropControl label="Max History" type="number" value={maxHistory} onChange={setMaxHistory} />
+              <PropControl label="Batch Operations" type="boolean" value={batchOperations} onChange={setBatchOperations} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Code className="w-4 h-4" />
+            Generated Code
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CodeBlock code={codeSnippet} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function SelectionDemo() {
+  const [selectedNodes, setSelectedNodes] = useState<number[]>([]);
+  const [selectionMode, setSelectionMode] = useState<'click' | 'box' | 'lasso'>('click');
+  const [multiSelectEnabled, setMultiSelectEnabled] = useState(true);
+  const [showSelectionBox, setShowSelectionBox] = useState(true);
+  
+  const nodes = [
+    { id: 1, x: 50, y: 50, label: 'Node 1', color: '#3b82f6' },
+    { id: 2, x: 150, y: 50, label: 'Node 2', color: '#8b5cf6' },
+    { id: 3, x: 250, y: 50, label: 'Node 3', color: '#22c55e' },
+    { id: 4, x: 100, y: 130, label: 'Node 4', color: '#f59e0b' },
+    { id: 5, x: 200, y: 130, label: 'Node 5', color: '#ec4899' },
+  ];
+  
+  const toggleSelection = (id: number) => {
+    if (multiSelectEnabled) {
+      setSelectedNodes(prev => 
+        prev.includes(id) ? prev.filter(n => n !== id) : [...prev, id]
+      );
+    } else {
+      setSelectedNodes([id]);
+    }
+  };
+  
+  const selectAll = () => setSelectedNodes(nodes.map(n => n.id));
+  const clearSelection = () => setSelectedNodes([]);
+  
+  const codeSnippet = `<KiteFrameCanvas
+  selectionMode="${selectionMode}"
+  multiSelectEnabled={${multiSelectEnabled}}
+  showSelectionBox={${showSelectionBox}}
+  selectedNodes={selectedNodes}
+  onSelectionChange={setSelectedNodes}
+/>
+
+// Keyboard shortcuts
+// Click = Select single node
+// Ctrl/Cmd + Click = Toggle selection
+// Ctrl/Cmd + A = Select all
+// Escape = Clear selection`;
+
+  return (
+    <div className="space-y-6" data-testid="demo-selection">
+      <h2 className="text-2xl font-bold mb-4">Selection System</h2>
+      
+      <p className="text-muted-foreground mb-4">
+        Multiple selection modes with keyboard modifiers and box/lasso selection support.
+      </p>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <DemoPreview title="Selection Demo">
+            <div className="flex flex-col h-[300px]">
+              <div className="flex items-center gap-2 mb-4">
+                <Button size="sm" variant="outline" onClick={selectAll} data-testid="button-select-all">
+                  Select All
+                </Button>
+                <Button size="sm" variant="outline" onClick={clearSelection} data-testid="button-clear-selection">
+                  Clear
+                </Button>
+                <span className="text-sm text-muted-foreground ml-auto" data-testid="text-selection-count">
+                  {selectedNodes.length} selected
+                </span>
+              </div>
+              
+              <div className="flex-1 relative bg-white dark:bg-slate-800 rounded-lg overflow-hidden">
+                <svg width="100%" height="100%" viewBox="0 0 300 180">
+                  {nodes.map(node => (
+                    <g 
+                      key={node.id} 
+                      onClick={() => toggleSelection(node.id)}
+                      className="cursor-pointer"
+                      data-testid={`node-${node.id}`}
+                    >
+                      <rect
+                        x={node.x - 30}
+                        y={node.y - 20}
+                        width={60}
+                        height={40}
+                        rx={8}
+                        fill={node.color}
+                        stroke={selectedNodes.includes(node.id) ? '#fff' : 'transparent'}
+                        strokeWidth={3}
+                        className="transition-all"
+                      />
+                      {selectedNodes.includes(node.id) && showSelectionBox && (
+                        <rect
+                          x={node.x - 34}
+                          y={node.y - 24}
+                          width={68}
+                          height={48}
+                          rx={10}
+                          fill="none"
+                          stroke="#3b82f6"
+                          strokeWidth={2}
+                          strokeDasharray="4"
+                          className="animate-pulse"
+                        />
+                      )}
+                      <text x={node.x} y={node.y + 5} textAnchor="middle" className="text-xs fill-white font-medium pointer-events-none">
+                        {node.label}
+                      </text>
+                    </g>
+                  ))}
+                </svg>
+              </div>
+            </div>
+          </DemoPreview>
+        </div>
+        
+        <div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Props</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PropControl 
+                label="Selection Mode" 
+                type="select" 
+                value={selectionMode} 
+                onChange={(v) => setSelectionMode(v as 'click' | 'box' | 'lasso')}
+                options={[
+                  { value: 'click', label: 'Click' },
+                  { value: 'box', label: 'Box Select' },
+                  { value: 'lasso', label: 'Lasso' },
+                ]}
+              />
+              <PropControl label="Multi-Select" type="boolean" value={multiSelectEnabled} onChange={setMultiSelectEnabled} />
+              <PropControl label="Show Selection Box" type="boolean" value={showSelectionBox} onChange={setShowSelectionBox} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Code className="w-4 h-4" />
+            Generated Code
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CodeBlock code={codeSnippet} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function MinimapDemo() {
+  const [showMinimap, setShowMinimap] = useState(true);
+  const [minimapPosition, setMinimapPosition] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'>('bottom-right');
+  const [minimapSize, setMinimapSize] = useState(150);
+  const [zoom, setZoom] = useState(100);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  
+  const handleZoom = (delta: number) => {
+    setZoom(Math.max(25, Math.min(200, zoom + delta)));
+  };
+  
+  const codeSnippet = `<KiteFrameCanvas
+  showMinimap={${showMinimap}}
+  minimapPosition="${minimapPosition}"
+  minimapSize={${minimapSize}}
+  zoom={${zoom / 100}}
+  pan={{ x: ${panX}, y: ${panY} }}
+  onZoomChange={(newZoom) => setZoom(newZoom)}
+  onPanChange={({ x, y }) => { setPanX(x); setPanY(y); }}
+/>
+
+// Zoom controls
+// Mouse wheel = Zoom in/out
+// Ctrl + 0 = Reset zoom
+// Ctrl + + = Zoom in
+// Ctrl + - = Zoom out`;
+
+  const positionClasses: Record<string, string> = {
+    'bottom-right': 'bottom-2 right-2',
+    'bottom-left': 'bottom-2 left-2',
+    'top-right': 'top-2 right-2',
+    'top-left': 'top-2 left-2',
+  };
+
+  return (
+    <div className="space-y-6" data-testid="demo-minimap">
+      <h2 className="text-2xl font-bold mb-4">Minimap & Navigation</h2>
+      
+      <p className="text-muted-foreground mb-4">
+        Navigate large canvases with the minimap overview and zoom/pan controls.
+      </p>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <DemoPreview title="Navigation Demo">
+            <div className="flex flex-col h-[300px]">
+              <div className="flex items-center gap-2 mb-4">
+                <Button size="sm" variant="outline" onClick={() => handleZoom(-10)} data-testid="button-zoom-out">
+                  <ZoomOut className="w-4 h-4" />
+                </Button>
+                <span className="text-sm font-mono w-16 text-center" data-testid="text-zoom-level">{zoom}%</span>
+                <Button size="sm" variant="outline" onClick={() => handleZoom(10)} data-testid="button-zoom-in">
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => { setZoom(100); setPanX(0); setPanY(0); }} data-testid="button-reset-view">
+                  <Maximize className="w-4 h-4 mr-1" /> Reset
+                </Button>
+                <div className="ml-auto flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => setPanX(panX - 20)} data-testid="button-pan-left">
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setPanY(panY - 20)} data-testid="button-pan-up">
+                    <ChevronUp className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setPanY(panY + 20)} data-testid="button-pan-down">
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setPanX(panX + 20)} data-testid="button-pan-right">
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="flex-1 relative bg-white dark:bg-slate-800 rounded-lg overflow-hidden">
+                <svg 
+                  width="100%" 
+                  height="100%" 
+                  viewBox={`${-panX} ${-panY} ${300 * (100/zoom)} ${200 * (100/zoom)}`}
+                  className="transition-all"
+                >
+                  <defs>
+                    <pattern id="smallGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e5e7eb" strokeWidth="0.5"/>
+                    </pattern>
+                  </defs>
+                  <rect width="500" height="400" fill="url(#smallGrid)" />
+                  <rect x="50" y="50" width="80" height="50" rx="8" fill="#3b82f6" />
+                  <rect x="180" y="80" width="80" height="50" rx="8" fill="#22c55e" />
+                  <rect x="100" y="150" width="80" height="50" rx="8" fill="#f59e0b" />
+                  <path d="M 130 75 L 180 105" stroke="#94a3b8" strokeWidth="2" />
+                  <path d="M 180 130 L 140 150" stroke="#94a3b8" strokeWidth="2" />
+                </svg>
+                
+                {showMinimap && (
+                  <div 
+                    className={`absolute ${positionClasses[minimapPosition]} bg-slate-100 dark:bg-slate-700 rounded border border-slate-300 dark:border-slate-600 shadow-lg`}
+                    style={{ width: minimapSize, height: minimapSize * 0.66 }}
+                    data-testid="minimap-container"
+                  >
+                    <svg width="100%" height="100%" viewBox="0 0 300 200">
+                      <rect width="300" height="200" fill="#f1f5f9" />
+                      <rect x="50" y="50" width="80" height="50" rx="4" fill="#3b82f6" opacity="0.5" />
+                      <rect x="180" y="80" width="80" height="50" rx="4" fill="#22c55e" opacity="0.5" />
+                      <rect x="100" y="150" width="80" height="50" rx="4" fill="#f59e0b" opacity="0.5" />
+                      <rect 
+                        x={panX} 
+                        y={panY} 
+                        width={300 * (100/zoom)} 
+                        height={200 * (100/zoom)} 
+                        fill="none" 
+                        stroke="#3b82f6" 
+                        strokeWidth="2"
+                        rx="2"
+                      />
+                    </svg>
+                  </div>
+                )}
+              </div>
+            </div>
+          </DemoPreview>
+        </div>
+        
+        <div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Props</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PropControl label="Show Minimap" type="boolean" value={showMinimap} onChange={setShowMinimap} />
+              <PropControl 
+                label="Position" 
+                type="select" 
+                value={minimapPosition} 
+                onChange={(v) => setMinimapPosition(v as 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left')}
+                options={[
+                  { value: 'bottom-right', label: 'Bottom Right' },
+                  { value: 'bottom-left', label: 'Bottom Left' },
+                  { value: 'top-right', label: 'Top Right' },
+                  { value: 'top-left', label: 'Top Left' },
+                ]}
+              />
+              <PropControl label="Minimap Size" type="number" value={minimapSize} onChange={setMinimapSize} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Code className="w-4 h-4" />
+            Generated Code
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CodeBlock code={codeSnippet} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function PluginHooksDemo() {
+  const [activeHooks, setActiveHooks] = useState<string[]>(['onNodeClick', 'onEdgeCreate']);
+  const [eventLog, setEventLog] = useState<string[]>([]);
+  const [showEventLog, setShowEventLog] = useState(true);
+  
+  const hooks = [
+    { id: 'onNodeClick', label: 'onNodeClick', description: 'Fired when a node is clicked' },
+    { id: 'onNodeDrag', label: 'onNodeDrag', description: 'Fired during node drag' },
+    { id: 'onNodeDrop', label: 'onNodeDrop', description: 'Fired when node drag ends' },
+    { id: 'onEdgeCreate', label: 'onEdgeCreate', description: 'Fired when edge is created' },
+    { id: 'onEdgeDelete', label: 'onEdgeDelete', description: 'Fired when edge is deleted' },
+    { id: 'onCanvasClick', label: 'onCanvasClick', description: 'Fired on canvas background click' },
+    { id: 'onSelectionChange', label: 'onSelectionChange', description: 'Fired when selection changes' },
+    { id: 'onZoomChange', label: 'onZoomChange', description: 'Fired when zoom level changes' },
+  ];
+  
+  const toggleHook = (hookId: string) => {
+    setActiveHooks(prev => 
+      prev.includes(hookId) ? prev.filter(h => h !== hookId) : [...prev, hookId]
+    );
+  };
+  
+  const simulateEvent = (hookId: string) => {
+    if (activeHooks.includes(hookId)) {
+      const timestamp = new Date().toLocaleTimeString();
+      setEventLog(prev => [`[${timestamp}] ${hookId} triggered`, ...prev.slice(0, 9)]);
+    }
+  };
+  
+  const codeSnippet = `// Register plugin hooks
+useKiteFramePlugin({
+  id: 'my-plugin',
+  hooks: {
+${activeHooks.map(h => `    ${h}: (event) => {
+      console.log('${h}', event);
+    },`).join('\n')}
+  }
+});
+
+// Or use the event emitter directly
+kiteframe.on('${activeHooks[0] || 'onNodeClick'}', (event) => {
+  // Handle event
+});`;
+
+  return (
+    <div className="space-y-6" data-testid="demo-plugin-hooks">
+      <h2 className="text-2xl font-bold mb-4">Plugin Hooks</h2>
+      
+      <p className="text-muted-foreground mb-4">
+        Extend KiteFrame functionality with plugin hooks. Subscribe to events and add custom behavior.
+      </p>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <DemoPreview title="Event System Demo">
+            <div className="flex flex-col h-[300px]">
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                {hooks.slice(0, 4).map(hook => (
+                  <Button 
+                    key={hook.id}
+                    size="sm" 
+                    variant={activeHooks.includes(hook.id) ? 'default' : 'outline'}
+                    onClick={() => simulateEvent(hook.id)}
+                    className="text-xs"
+                    data-testid={`button-trigger-${hook.id}`}
+                  >
+                    {hook.label}
+                  </Button>
+                ))}
+              </div>
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                {hooks.slice(4).map(hook => (
+                  <Button 
+                    key={hook.id}
+                    size="sm" 
+                    variant={activeHooks.includes(hook.id) ? 'default' : 'outline'}
+                    onClick={() => simulateEvent(hook.id)}
+                    className="text-xs"
+                    data-testid={`button-trigger-${hook.id}`}
+                  >
+                    {hook.label}
+                  </Button>
+                ))}
+              </div>
+              
+              {showEventLog && (
+                <div className="flex-1 overflow-auto bg-slate-900 text-green-400 rounded-lg p-3 font-mono text-sm">
+                  <div className="text-xs text-slate-500 mb-2">Event Log</div>
+                  {eventLog.length === 0 ? (
+                    <div className="text-slate-500">Click hooks above to simulate events...</div>
+                  ) : (
+                    eventLog.map((log, i) => (
+                      <div key={i} className="opacity-90" data-testid={`event-log-${i}`}>{log}</div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </DemoPreview>
+        </div>
+        
+        <div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Active Hooks</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {hooks.map(hook => (
+                <label 
+                  key={hook.id} 
+                  className="flex items-center gap-2 text-sm cursor-pointer"
+                  data-testid={`label-hook-${hook.id}`}
+                >
+                  <input 
+                    type="checkbox" 
+                    checked={activeHooks.includes(hook.id)}
+                    onChange={() => toggleHook(hook.id)}
+                    className="rounded"
+                    data-testid={`input-hook-${hook.id}`}
+                  />
+                  <span className={activeHooks.includes(hook.id) ? 'font-medium' : 'text-muted-foreground'}>
+                    {hook.label}
+                  </span>
+                </label>
+              ))}
+              <Separator className="my-2" />
+              <PropControl label="Show Event Log" type="boolean" value={showEventLog} onChange={setShowEventLog} />
             </CardContent>
           </Card>
         </div>
@@ -3444,6 +4046,10 @@ const NodeComponent = React.memo(function NodeComponent({
               <div><strong>Node Types:</strong> Explore all 6 node types with customizable props</div>
               <div><strong>Edge Styling:</strong> Configure edge types, colors, and animations</div>
               <div><strong>Auto-Layout:</strong> Test the 5 layout algorithms</div>
+              <div><strong>Undo/Redo:</strong> Command history and state management</div>
+              <div><strong>Selection:</strong> Multi-select, box selection, keyboard shortcuts</div>
+              <div><strong>Minimap & Navigation:</strong> Zoom/pan controls and minimap</div>
+              <div><strong>Plugin Hooks:</strong> Event system and extension points</div>
             </CardContent>
           </Card>
           
@@ -3464,6 +4070,18 @@ const NodeComponent = React.memo(function NodeComponent({
       
     case 'demo-layouts':
       return <AutoLayoutDemo />;
+      
+    case 'demo-undo':
+      return <UndoRedoDemo />;
+      
+    case 'demo-selection':
+      return <SelectionDemo />;
+      
+    case 'demo-minimap':
+      return <MinimapDemo />;
+      
+    case 'demo-plugins':
+      return <PluginHooksDemo />;
       
     default:
       return (
