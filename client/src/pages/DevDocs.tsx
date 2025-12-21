@@ -1,6 +1,4 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getQueryFn } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -56,10 +54,6 @@ import {
   HYBRID_SYSTEM_PROMPT
 } from '@/ai/systemPrompts';
 
-interface AuthUser {
-  id: string;
-  isAdmin?: boolean;
-}
 
 interface DocSection {
   id: string;
@@ -4099,11 +4093,17 @@ export default function DevDocs() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSection, setActiveSection] = useState('overview');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overview', 'tech-stack', 'architecture']));
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
   
-  const { data: user, isLoading: userLoading } = useQuery<AuthUser | null>({
-    queryKey: ['/api/auth/user'],
-    queryFn: getQueryFn({ on401: 'returnNull' }),
-  });
+  // Check for admin token in sessionStorage (same as AdminCodes page)
+  useEffect(() => {
+    const savedToken = sessionStorage.getItem('adminToken');
+    if (savedToken) {
+      setIsAdmin(true);
+    }
+    setIsChecking(false);
+  }, []);
   
   const filteredSections = useMemo(() => {
     if (!searchQuery.trim()) return docSections;
@@ -4139,7 +4139,7 @@ export default function DevDocs() {
     }
   }, [activeSection]);
   
-  if (userLoading) {
+  if (isChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -4147,7 +4147,7 @@ export default function DevDocs() {
     );
   }
   
-  if (!user?.isAdmin) {
+  if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="max-w-md">
@@ -4156,12 +4156,12 @@ export default function DevDocs() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">
-              This documentation is only available to admin users.
+              This documentation is only available to admin users. Please log in via the admin panel first.
             </p>
-            <Link href="/app">
+            <Link href="/internal/x9k7m2p4">
               <Button variant="outline">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to App
+                Go to Admin Login
               </Button>
             </Link>
           </CardContent>
