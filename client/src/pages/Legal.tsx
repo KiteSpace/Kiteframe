@@ -122,7 +122,7 @@ Users must comply with their organization's data and IP rules.
 
 Data retained only as long as necessary to operate the Service.
 
-Contact: privacy@kiteframe.com`
+Contact: info@kiteframe.space`
   },
   'beta-expectations': {
     title: 'Beta Expectations',
