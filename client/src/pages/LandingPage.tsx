@@ -15,7 +15,9 @@ import {
   Rocket,
   Terminal,
   Play,
+  MessageSquare,
 } from "lucide-react";
+import { BugReportModal } from "@/components/BugReportModal";
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
 import workflowScreenshot from "@assets/Screenshot_2025-12-19_at_3.34.24_PM_1766188467311.png";
@@ -95,6 +97,8 @@ interface AuthUser {
 }
 
 export default function LandingPage() {
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  
   const { data: user } = useQuery<AuthUser | null>({
     queryKey: ["/api/auth/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -144,7 +148,17 @@ export default function LandingPage() {
               Private Beta
             </span>
           </div>
-          <div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowFeedbackModal(true)}
+              className="text-muted-foreground hover:text-foreground"
+              data-testid="button-feedback"
+            >
+              <MessageSquare className="h-4 w-4 mr-1.5" />
+              Feedback
+            </Button>
             {isAuthenticated && user?.isBeta ? (
               <Button
                 onClick={() => (window.location.href = "/app")}
@@ -664,6 +678,10 @@ export default function LandingPage() {
           </div>
         </footer>
       </div>
+
+      {showFeedbackModal && (
+        <BugReportModal onClose={() => setShowFeedbackModal(false)} />
+      )}
     </div>
   );
 }
