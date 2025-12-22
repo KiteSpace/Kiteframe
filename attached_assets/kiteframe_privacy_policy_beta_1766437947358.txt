@@ -1,0 +1,39 @@
+KITEFRAME — PRIVACY POLICY (BETA)
+
+Last edited: 12/22/25
+
+Kiteframe is a product of Kitespace, LLC, a Wyoming limited liability company.
+
+This Privacy Policy explains how Kiteframe handles user information.
+
+---
+1. INFORMATION COLLECTED
+Account info, usage metrics, and user-provided content.
+
+---
+2. DATA USAGE
+Used solely to operate and improve the Service.
+
+---
+3. AI PROCESSING
+User data is not used to train AI models. AI usage follows OpenAI and third-party policies.
+
+---
+4. DATA ACCESS
+Projects are not accessed unless explicitly shared or required for support with consent.
+
+---
+5. SECURITY
+Reasonable safeguards are applied; no system is fully secure.
+
+---
+6. USER RESPONSIBILITY
+Users must comply with their organization’s data and IP rules.
+
+---
+7. DATA RETENTION
+Data retained only as long as necessary to operate the Service.
+
+Contact: privacy@kiteframe.com
+
+END OF PRIVACY POLICY

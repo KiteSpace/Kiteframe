@@ -1,0 +1,43 @@
+KITEFRAME — TERMS AND CONDITIONS (BETA)
+
+Last edited: 12/22/25
+
+Kiteframe is a product of Kitespace, LLC, a Wyoming limited liability company.
+
+These Terms and Conditions (“Terms”) govern your access to and use of Kiteframe (“Kiteframe,” “we,” “us,” or “our”), including the Kiteframe web application, AI-powered features, and related services (the “Service”).
+
+By accessing or using the Service, you agree to be bound by these Terms.
+
+---
+1. BETA SERVICE STATUS
+Kiteframe is offered as a private beta and provided “AS IS” without warranties of any kind.
+
+---
+2. ELIGIBILITY AND ACCESS
+Access is granted at Kiteframe’s sole discretion and may be revoked at any time.
+
+---
+3. ACCEPTABLE USE
+You agree not to violate laws, third‑party rights, or your organization’s data/IP policies.
+
+---
+4. AI-GENERATED CONTENT DISCLAIMER
+AI outputs may be inaccurate and require human review.
+
+---
+5. INTELLECTUAL PROPERTY
+All platform IP remains the property of Kitespace, LLC. Users retain ownership of their content.
+
+---
+6. CONFIDENTIALITY
+The Service and its features are confidential during beta.
+
+---
+7. LIMITATION OF LIABILITY
+Kitespace, LLC shall not be liable for indirect or consequential damages.
+
+---
+8. GOVERNING LAW
+These Terms are governed by the laws of the State of Wyoming.
+
+END OF TERMS
