@@ -180,6 +180,84 @@ const HERO_EDGES: Edge[] = [
   { id: 'edge-kiteai-14', source: '15-kiteai-1766183815176-14', target: '16-kiteai-1766183815176-15', type: 'straight', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, animated: true, interactable: false },
 ];
 
+const HERO_MOBILE_NODES: Node[] = [
+  {
+    id: 'mobile-node-1',
+    type: 'input',
+    position: { x: 278.96, y: -100 },
+    data: {
+      label: 'Business-Critical Initiative',
+      description: "It's go time!",
+      fontSize: 18,
+      bold: true,
+      textAlign: 'center',
+      nodeIcon: '✅',
+      iconVisible: true,
+      colors: { headerBackground: '#64748b', bodyBackground: '#f0f1f3', borderColor: '#64748b', headerTextColor: '#ffffff' }
+    },
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+  },
+  {
+    id: 'mobile-node-2',
+    type: 'process',
+    position: { x: 278.96, y: 35.20 },
+    data: {
+      label: 'Hey KiteAI!',
+      description: 'Hi, how can I help you?',
+      nodeIcon: '💡',
+      iconVisible: true,
+      colors: { headerBackground: '#06b6d4', bodyBackground: '#e6f8fb', borderColor: '#06b6d4', headerTextColor: '#000000' }
+    },
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+  },
+  {
+    id: 'mobile-node-3',
+    type: 'process',
+    position: { x: 278.96, y: 168.91 },
+    data: {
+      label: 'Collaboration Powered by Kite AI',
+      description: 'Clear alignment on scope, roles, and success criteria',
+      nodeIcon: '⚡',
+      iconVisible: true,
+      colors: { headerBackground: '#3b82f6', bodyBackground: '#ebf3fe', borderColor: '#3b82f6', headerTextColor: '#000000' }
+    },
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+  },
+  {
+    id: 'mobile-node-4',
+    type: 'process',
+    position: { x: 278.96, y: 323.57 },
+    data: {
+      label: 'Magic',
+      description: 'Kite AI generates a structured PRD in seconds',
+      nodeIcon: '⭐',
+      iconVisible: true,
+      colors: { headerBackground: '#8b5cf6', bodyBackground: '#f3effe', borderColor: '#8b5cf6', headerTextColor: '#000000' }
+    },
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+  },
+  {
+    id: 'mobile-node-5',
+    type: 'process',
+    position: { x: 278.96, y: 461.94 },
+    data: {
+      label: "Let's go!",
+      description: 'Teams execute with confidence',
+      nodeIcon: '🚀',
+      iconVisible: true,
+      colors: { headerBackground: '#22c55e', bodyBackground: '#e9f9ef', borderColor: '#22c55e', headerTextColor: '#000000' }
+    },
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+  },
+];
+
+const HERO_MOBILE_EDGES: Edge[] = [
+  { id: 'mobile-edge-1', source: 'mobile-node-1', target: 'mobile-node-2', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'mobile-edge-2', source: 'mobile-node-2', target: 'mobile-node-3', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'mobile-edge-3', source: 'mobile-node-3', target: 'mobile-node-4', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'mobile-edge-4', source: 'mobile-node-4', target: 'mobile-node-5', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
+];
+
 const FEATURE_NODES: Node[] = [
   {
     id: 'input',
@@ -485,6 +563,7 @@ function calculateFitViewportForObjects(objects: CanvasObject[], containerWidth:
 
 export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPreviewCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mobileContainerRef = useRef<HTMLDivElement>(null);
   const initialNodes = variant === 'hero' ? HERO_NODES : variant === 'features' ? FEATURE_NODES : [];
   const initialEdges = variant === 'hero' ? HERO_EDGES : variant === 'features' ? FEATURE_EDGES : [];
   const initialObjects = variant === 'objects' ? OBJECTS_DATA : [];
@@ -493,6 +572,7 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
   const [canvasObjects, setCanvasObjects] = useState<CanvasObject[]>(initialObjects);
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
+  const [mobileViewport, setMobileViewport] = useState({ x: 0, y: 0, zoom: 1 });
 
   useEffect(() => {
     if (containerRef.current) {
@@ -504,6 +584,11 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
         const fitViewport = calculateFitViewportForObjects(OBJECTS_DATA, rect.width, rect.height, 30);
         setViewport(fitViewport);
       }
+    }
+    if (variant === 'hero' && mobileContainerRef.current) {
+      const rect = mobileContainerRef.current.getBoundingClientRect();
+      const fitViewport = calculateFitViewport(HERO_MOBILE_NODES, rect.width, rect.height, 20);
+      setMobileViewport(fitViewport);
     }
   }, [variant]);
 
@@ -526,6 +611,23 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
     });
     
     resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, [variant]);
+
+  useEffect(() => {
+    if (variant !== 'hero' || !mobileContainerRef.current) return;
+    
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          const fitViewport = calculateFitViewport(HERO_MOBILE_NODES, width, height, 20);
+          setMobileViewport(fitViewport);
+        }
+      }
+    });
+    
+    resizeObserver.observe(mobileContainerRef.current);
     return () => resizeObserver.disconnect();
   }, [variant]);
 
@@ -563,6 +665,59 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
     '--kiteframe-canvas-bg': 'transparent',
     ...(isReadOnly ? { pointerEvents: 'none' as const } : {}),
   }), [isReadOnly]);
+
+  if (variant === 'hero') {
+    return (
+      <PluginProvider>
+        <div 
+          ref={containerRef}
+          className="hidden md:block"
+          style={canvasStyle}
+          data-testid="landing-canvas-hero-desktop"
+        >
+          <KiteFrameCanvas
+            nodes={HERO_NODES}
+            edges={HERO_EDGES}
+            canvasObjects={[]}
+            viewport={viewport}
+            onNodesChange={() => {}}
+            onEdgesChange={() => {}}
+            onCanvasObjectsChange={() => {}}
+            onViewportChange={() => {}}
+            enablePlugins={false}
+            showMiniMap={false}
+            snapToGrid={false}
+            readOnly={true}
+            disablePan={true}
+            disableWheelZoom={true}
+          />
+        </div>
+        <div 
+          ref={mobileContainerRef}
+          className="block md:hidden"
+          style={canvasStyle}
+          data-testid="landing-canvas-hero-mobile"
+        >
+          <KiteFrameCanvas
+            nodes={HERO_MOBILE_NODES}
+            edges={HERO_MOBILE_EDGES}
+            canvasObjects={[]}
+            viewport={mobileViewport}
+            onNodesChange={() => {}}
+            onEdgesChange={() => {}}
+            onCanvasObjectsChange={() => {}}
+            onViewportChange={() => {}}
+            enablePlugins={false}
+            showMiniMap={false}
+            snapToGrid={false}
+            readOnly={true}
+            disablePan={true}
+            disableWheelZoom={true}
+          />
+        </div>
+      </PluginProvider>
+    );
+  }
 
   return (
     <PluginProvider>
