@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Chrome,
@@ -662,19 +663,31 @@ export default function LandingPage() {
 
         {/* Footer */}
         <footer className="border-t border-slate-200 dark:border-slate-800 py-8">
-          <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-foreground">Kiteframe</span>
-              <span className="text-sm text-muted-foreground">
-                · Private Beta
-              </span>
+          <div className="max-w-7xl mx-auto px-8">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-foreground">Kiteframe</span>
+                <span className="text-sm text-muted-foreground">
+                  · Private Beta
+                </span>
+              </div>
+              <div className="flex items-center gap-4 text-sm">
+                <a href="/legal#terms" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-terms">
+                  Terms
+                </a>
+                <a href="/legal#privacy" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-privacy">
+                  Privacy
+                </a>
+              </div>
             </div>
-            <p
-              className="text-sm text-muted-foreground"
-              data-testid="text-footer"
-            >
-              Currently in private beta. Features may change.
-            </p>
+            <div className="text-center md:text-left border-t border-slate-200 dark:border-slate-800 pt-4">
+              <p className="text-sm text-muted-foreground" data-testid="text-footer">
+                © 2025 Kitespace LLC. All rights reserved.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Kiteframe is a product of Kitespace LLC.
+              </p>
+            </div>
           </div>
         </footer>
       </div>

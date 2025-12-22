@@ -329,6 +329,29 @@ export default function Account() {
         </div>
         </div>
       </div>
+
+      <footer className="border-t border-slate-200 dark:border-slate-800 py-6 mt-auto">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-center sm:text-left">
+              <p className="text-sm text-muted-foreground">
+                © 2025 Kitespace LLC. All rights reserved.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Kiteframe is a product of Kitespace LLC.
+              </p>
+            </div>
+            <div className="flex items-center gap-4 text-sm">
+              <a href="/legal#terms" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-terms">
+                Terms
+              </a>
+              <a href="/legal#privacy" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-privacy">
+                Privacy
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

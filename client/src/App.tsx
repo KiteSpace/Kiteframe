@@ -24,6 +24,7 @@ const MockupCodeDataReference = lazy(() => import("@/pages/mockup-code-data-refe
 const ViewOnlyViewer = lazy(() => import("@/pages/ViewOnlyViewer"));
 const Benchmark = lazy(() => import("@/pages/Benchmark"));
 const DevDocs = lazy(() => import("@/pages/DevDocs"));
+const Legal = lazy(() => import("@/pages/Legal"));
 
 interface AuthUser {
   id: string;
@@ -147,6 +148,7 @@ function Router() {
         <Route path="/mockup/code-data" component={MockupCodeDataReference} />
         <Route path="/view/:shareId" component={ViewOnlyViewer} />
         <Route path="/benchmark" component={Benchmark} />
+        <Route path="/legal" component={Legal} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

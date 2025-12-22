@@ -142,12 +142,18 @@ export default function SignIn() {
                 </div>
               )}
 
-              <div className="pt-4 text-center">
+              <div className="pt-4 text-center space-y-3">
                 <p className="text-sm text-muted-foreground">
                   Don't have access yet?{' '}
                   <Link href="/#waitlist-section" className="text-violet-600 hover:text-violet-700 dark:text-violet-400 font-medium" data-testid="link-request-access">
                     Request beta access
                   </Link>
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  By continuing, you acknowledge that you agree to Kiteframe's{' '}
+                  <a href="/legal#terms" className="text-violet-600 hover:underline" data-testid="link-terms">Terms and Conditions</a>,{' '}
+                  <a href="/legal#privacy" className="text-violet-600 hover:underline" data-testid="link-privacy">Privacy Policy</a>, and{' '}
+                  <a href="/legal#beta-expectations" className="text-violet-600 hover:underline" data-testid="link-beta-terms">Beta Terms</a>.
                 </p>
               </div>
             </CardContent>
