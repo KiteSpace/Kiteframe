@@ -10,7 +10,7 @@ const HERO_NODES: Node[] = [
   {
     id: '1-kiteai-1766183815176-0',
     type: 'input',
-    position: { x: 215.63, y: 254.35 },
+    position: { x: 234.20, y: 232.84 },
     data: {
       label: 'Business-Critical Initiative',
       description: "It's go time!",
@@ -28,7 +28,7 @@ const HERO_NODES: Node[] = [
   {
     id: '3-kiteai-1766183815176-2',
     type: 'process',
-    position: { x: 600, y: 100 },
+    position: { x: 484.40, y: 132.84 },
     data: {
       label: 'Hey KiteAI!',
       description: 'Hi, how can I help you?',
@@ -41,24 +41,11 @@ const HERO_NODES: Node[] = [
   {
     id: '4-kiteai-1766183815176-3',
     type: 'process',
-    position: { x: 847.49, y: 98.75 },
+    position: { x: 715.13, y: 132.84 },
     data: {
       label: 'Collaboration Powered by Kite AI',
-      description: 'All systems go!',
-      nodeIcon: '⚡',
-      iconVisible: true,
-      colors: { headerBackground: '#3b82f6', bodyBackground: '#ebf3fe', borderColor: '#3b82f6', headerTextColor: '#000000' }
-    },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
-  },
-  {
-    id: '5-kiteai-1766183815176-4',
-    type: 'process',
-    position: { x: 1100, y: 98.75 },
-    data: {
-      label: 'Alignment',
       description: 'Clear alignment on scope, roles, and success criteria',
-      nodeIcon: '✅',
+      nodeIcon: '⚡',
       iconVisible: true,
       colors: { headerBackground: '#3b82f6', bodyBackground: '#ebf3fe', borderColor: '#3b82f6', headerTextColor: '#000000' }
     },
@@ -67,7 +54,7 @@ const HERO_NODES: Node[] = [
   {
     id: '6-kiteai-1766183815176-5',
     type: 'process',
-    position: { x: 1347.42, y: 99.96 },
+    position: { x: 947.63, y: 132.84 },
     data: {
       label: 'Magic',
       description: 'Kite AI generates a structured PRD in seconds',
@@ -80,62 +67,75 @@ const HERO_NODES: Node[] = [
   {
     id: '7-kiteai-1766183815176-6',
     type: 'process',
-    position: { x: 1600, y: 100 },
+    position: { x: 1180.43, y: 132.84 },
     data: {
       label: "Let's go!",
       description: 'Teams execute with confidence',
-      nodeIcon: '🎯',
+      nodeIcon: '🚀',
       iconVisible: true,
       colors: { headerBackground: '#06b6d4', bodyBackground: '#e6f8fb', borderColor: '#06b6d4', headerTextColor: '#000000' }
     },
     width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
   },
   {
+    id: 'node-1766184941202-z2uv9om2z',
+    type: 'output',
+    position: { x: 1413.00, y: 132.84 },
+    data: {
+      label: 'Launch Day',
+      description: 'On time and under budget.',
+      nodeIcon: '🎯',
+      iconVisible: true,
+      colors: { headerBackground: '#22c55e', bodyBackground: '#e9f9ef', borderColor: '#22c55e', headerTextColor: '#000000' }
+    },
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+  },
+  {
     id: '9-kiteai-1766183815176-8',
     type: 'process',
-    position: { x: 600, y: 400 },
+    position: { x: 483.40, y: 332.84 },
     data: { label: 'Kickoff', description: 'So are you leading this meeting, or am I?' },
     width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
   },
   {
     id: '10-kiteai-1766183815176-9',
     type: 'process',
-    position: { x: 968.84, y: 521.66 },
+    position: { x: 368.84, y: 498.36 },
     data: { label: 'Scatter', description: 'Everyone get to it!' },
     width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
   },
   {
     id: '11-kiteai-1766183815176-10',
     type: 'process',
-    position: { x: 853.10, y: 338.57 },
+    position: { x: 716.13, y: 320.50 },
     data: { label: 'Requirements doc created', description: 'Hmmmm, this seems incomplete and outdated. Who took notes??' },
     width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
   },
   {
     id: '12-kiteai-1766183815176-11',
     type: 'process',
-    position: { x: 1094.96, y: 289.67 },
+    position: { x: 617.42, y: 653.99 },
     data: { label: 'Design review', description: 'This is what the PRD stated. Did I miss a meeting?' },
     width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
   },
   {
     id: '13-kiteai-1766183815176-12',
     type: 'process',
-    position: { x: 1418.41, y: 570.11 },
+    position: { x: 892.43, y: 631.10 },
     data: { label: 'Engineering questions surface late', description: "We're going to need Craig over in ML Sys dept for this..." },
     width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
   },
   {
     id: '14-kiteai-1766183815176-13',
     type: 'process',
-    position: { x: 1444.65, y: 344.45 },
+    position: { x: 892.43, y: 441.59 },
     data: { label: 'Another meeting scheduled', description: "Well, we're running out sprints. Let's build and we can address the tech debt after release." },
     width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
   },
   {
     id: '15-kiteai-1766183815176-14',
     type: 'process',
-    position: { x: 1716.80, y: 398.44 },
+    position: { x: 986.97, y: 302.60 },
     data: {
       label: 'Scope changes introduced',
       description: "There's no time!",
@@ -146,7 +146,7 @@ const HERO_NODES: Node[] = [
   {
     id: '16-kiteai-1766183815176-15',
     type: 'process',
-    position: { x: 1950.52, y: 398.36 },
+    position: { x: 1180.43, y: 498.66 },
     data: {
       label: 'Launch?',
       description: '¯\\_(ツ)_/¯',
@@ -159,26 +159,12 @@ const HERO_NODES: Node[] = [
     },
     width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
   },
-  {
-    id: 'node-1766184941202-z2uv9om2z',
-    type: 'process',
-    position: { x: 1835.50, y: 100 },
-    data: {
-      label: 'Launch Day',
-      description: 'On time and under budget.',
-      nodeIcon: '🎯',
-      iconVisible: true,
-      colors: { headerBackground: '#22c55e', bodyBackground: '#e9f9ef', borderColor: '#22c55e', headerTextColor: '#000000' }
-    },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
-  },
 ];
 
 const HERO_EDGES: Edge[] = [
   { id: 'edge-1766184325682', source: '1-kiteai-1766183815176-0', target: '3-kiteai-1766183815176-2', type: 'bezier', style: { strokeColor: '#22c55e', strokeWidth: 2 }, interactable: false },
+  { id: 'edge-1766352137830', source: '4-kiteai-1766183815176-3', target: '6-kiteai-1766183815176-5', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, interactable: false },
   { id: 'edge-kiteai-2', source: '3-kiteai-1766183815176-2', target: '4-kiteai-1766183815176-3', type: 'straight', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-kiteai-3', source: '4-kiteai-1766183815176-3', target: '5-kiteai-1766183815176-4', type: 'straight', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-kiteai-4', source: '5-kiteai-1766183815176-4', target: '6-kiteai-1766183815176-5', type: 'straight', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, interactable: false },
   { id: 'edge-kiteai-5', source: '6-kiteai-1766183815176-5', target: '7-kiteai-1766183815176-6', type: 'straight', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, interactable: false },
   { id: 'edge-1766184980436', source: '7-kiteai-1766183815176-6', target: 'node-1766184941202-z2uv9om2z', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, interactable: false },
   { id: 'edge-1766184327845', source: '1-kiteai-1766183815176-0', target: '9-kiteai-1766183815176-8', type: 'bezier', style: { strokeColor: '#eab308', strokeWidth: 2 }, interactable: false },
@@ -191,7 +177,7 @@ const HERO_EDGES: Edge[] = [
   { id: 'edge-1766184454549', source: '14-kiteai-1766183815176-13', target: '13-kiteai-1766183815176-12', type: 'bezier', style: { strokeColor: '#64748b', strokeWidth: 2 }, animated: true, interactable: false },
   { id: 'edge-1766184043755', source: '14-kiteai-1766183815176-13', target: '10-kiteai-1766183815176-9', type: 'step', style: { strokeColor: '#ef4444', strokeWidth: 2 }, animated: true, interactable: false },
   { id: 'edge-kiteai-13', source: '14-kiteai-1766183815176-13', target: '15-kiteai-1766183815176-14', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-kiteai-14', source: '15-kiteai-1766183815176-14', target: '16-kiteai-1766183815176-15', type: 'straight', style: { strokeColor: '#1e293b', strokeWidth: 2 }, interactable: false },
+  { id: 'edge-kiteai-14', source: '15-kiteai-1766183815176-14', target: '16-kiteai-1766183815176-15', type: 'straight', style: { strokeColor: '#1e293b', strokeWidth: 2 }, animated: true, interactable: false },
 ];
 
 const FEATURE_NODES: Node[] = [
