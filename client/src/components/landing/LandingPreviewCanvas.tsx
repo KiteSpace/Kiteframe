@@ -162,22 +162,22 @@ const HERO_NODES: Node[] = [
 ];
 
 const HERO_EDGES: Edge[] = [
-  { id: 'edge-1766184325682', source: '1-kiteai-1766183815176-0', target: '3-kiteai-1766183815176-2', type: 'bezier', style: { strokeColor: '#22c55e', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-1766352137830', source: '4-kiteai-1766183815176-3', target: '6-kiteai-1766183815176-5', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-kiteai-2', source: '3-kiteai-1766183815176-2', target: '4-kiteai-1766183815176-3', type: 'straight', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-kiteai-5', source: '6-kiteai-1766183815176-5', target: '7-kiteai-1766183815176-6', type: 'straight', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-1766184980436', source: '7-kiteai-1766183815176-6', target: 'node-1766184941202-z2uv9om2z', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-1766184327845', source: '1-kiteai-1766183815176-0', target: '9-kiteai-1766183815176-8', type: 'bezier', style: { strokeColor: '#eab308', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-kiteai-8', source: '9-kiteai-1766183815176-8', target: '10-kiteai-1766183815176-9', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-kiteai-9', source: '10-kiteai-1766183815176-9', target: '11-kiteai-1766183815176-10', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-kiteai-10', source: '11-kiteai-1766183815176-10', target: '12-kiteai-1766183815176-11', type: 'straight', style: { strokeColor: '#1e293b', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-1766184048804', source: '10-kiteai-1766183815176-9', target: '12-kiteai-1766183815176-11', type: 'step', style: { strokeColor: '#1e293b', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-1766184029305', source: '12-kiteai-1766183815176-11', target: '14-kiteai-1766183815176-13', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-1766184074938', source: '12-kiteai-1766183815176-11', target: '13-kiteai-1766183815176-12', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-1766184454549', source: '14-kiteai-1766183815176-13', target: '13-kiteai-1766183815176-12', type: 'bezier', style: { strokeColor: '#64748b', strokeWidth: 2 }, animated: true, interactable: false },
-  { id: 'edge-1766184043755', source: '14-kiteai-1766183815176-13', target: '10-kiteai-1766183815176-9', type: 'step', style: { strokeColor: '#ef4444', strokeWidth: 2 }, animated: true, interactable: false },
-  { id: 'edge-kiteai-13', source: '14-kiteai-1766183815176-13', target: '15-kiteai-1766183815176-14', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, interactable: false },
-  { id: 'edge-kiteai-14', source: '15-kiteai-1766183815176-14', target: '16-kiteai-1766183815176-15', type: 'straight', style: { strokeColor: '#1e293b', strokeWidth: 2 }, animated: true, interactable: false },
+  { id: 'edge-1766184325682', source: '1-kiteai-1766183815176-0', target: '3-kiteai-1766183815176-2', type: 'bezier', style: { strokeColor: '#22c55e', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'edge-1766352137830', source: '4-kiteai-1766183815176-3', target: '6-kiteai-1766183815176-5', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'edge-kiteai-2', source: '3-kiteai-1766183815176-2', target: '4-kiteai-1766183815176-3', type: 'straight', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'edge-kiteai-5', source: '6-kiteai-1766183815176-5', target: '7-kiteai-1766183815176-6', type: 'straight', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'edge-1766184980436', source: '7-kiteai-1766183815176-6', target: 'node-1766184941202-z2uv9om2z', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'edge-1766184327845', source: '1-kiteai-1766183815176-0', target: '9-kiteai-1766183815176-8', type: 'bezier', style: { strokeColor: '#eab308', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'edge-kiteai-8', source: '9-kiteai-1766183815176-8', target: '10-kiteai-1766183815176-9', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'edge-kiteai-9', source: '10-kiteai-1766183815176-9', target: '11-kiteai-1766183815176-10', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'edge-kiteai-10', source: '11-kiteai-1766183815176-10', target: '12-kiteai-1766183815176-11', type: 'straight', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'edge-1766184048804', source: '10-kiteai-1766183815176-9', target: '12-kiteai-1766183815176-11', type: 'step', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'edge-1766184029305', source: '12-kiteai-1766183815176-11', target: '14-kiteai-1766183815176-13', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'edge-1766184074938', source: '12-kiteai-1766183815176-11', target: '13-kiteai-1766183815176-12', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'edge-1766184454549', source: '14-kiteai-1766183815176-13', target: '13-kiteai-1766183815176-12', type: 'bezier', style: { strokeColor: '#64748b', strokeWidth: 2 }, markerEnd: true, animated: true, interactable: false },
+  { id: 'edge-1766184043755', source: '14-kiteai-1766183815176-13', target: '10-kiteai-1766183815176-9', type: 'step', style: { strokeColor: '#ef4444', strokeWidth: 2 }, markerEnd: true, animated: true, interactable: false },
+  { id: 'edge-kiteai-13', source: '14-kiteai-1766183815176-13', target: '15-kiteai-1766183815176-14', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'edge-kiteai-14', source: '15-kiteai-1766183815176-14', target: '16-kiteai-1766183815176-15', type: 'straight', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, animated: true, interactable: false },
 ];
 
 const FEATURE_NODES: Node[] = [
