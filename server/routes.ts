@@ -38,7 +38,7 @@ import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter, waitlistRateLimiter, creditUnlockRateLimiter, chatRateLimiter } from "./middleware/rateLimiter";
 import { csrfProtection } from "./middleware/csrf";
 import { logAiUsage, getUserUsageSummary, getUserUsageTimeSeries, getUserUsageEvents, type UsageLogParams } from "./aiUsageService";
-import { sendBetaApprovalEmail } from "./emailService";
+import { sendBetaApprovalEmail, sendContactEmail } from "./emailService";
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
 import { z } from "zod";
 import { registerFigmaRoutes } from "./figmaRoutes";
@@ -2452,6 +2452,46 @@ Respond with only the corrected JSON data:`;
 
   // Bug Report endpoint
   app.post('/api/bug-report', handleBugReport);
+
+  // Contact Form endpoint with honeypot spam protection
+  app.post('/api/contact', waitlistRateLimiter, async (req, res) => {
+    try {
+      const { name, email, message, website } = req.body;
+      
+      // Honeypot check - if website field is filled, it's a bot
+      if (website) {
+        // Silently accept but don't send email (fool the bot)
+        return res.json({ success: true });
+      }
+      
+      // Validate required fields
+      if (!name || !email || !message) {
+        return res.status(400).json({ error: 'Name, email, and message are required' });
+      }
+      
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Invalid email address' });
+      }
+      
+      // Sanitize inputs
+      const sanitizedName = sanitizeText(name.substring(0, 100));
+      const sanitizedEmail = email.substring(0, 255).toLowerCase().trim();
+      const sanitizedMessage = sanitizeText(message.substring(0, 5000));
+      
+      const success = await sendContactEmail(sanitizedEmail, sanitizedName, sanitizedMessage);
+      
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(500).json({ error: 'Failed to send message. Please try again later.' });
+      }
+    } catch (error) {
+      console.error('Contact form error:', error);
+      res.status(500).json({ error: 'An error occurred. Please try again later.' });
+    }
+  });
 
   // Open Graph metadata fetching for link previews
   app.post('/api/og-metadata', async (req, res) => {

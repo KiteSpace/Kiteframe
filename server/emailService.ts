@@ -5,6 +5,8 @@ interface EmailOptions {
   subject: string;
   text: string;
   html?: string;
+  cc?: string;
+  replyTo?: string;
 }
 
 function getTransporter() {
@@ -30,6 +32,8 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     await transporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER || 'info@kiteframe.space',
       to: options.to,
+      cc: options.cc,
+      replyTo: options.replyTo,
       subject: options.subject,
       text: options.text,
       html: options.html || options.text.replace(/\n/g, '<br>'),
@@ -118,6 +122,62 @@ https://kiteframe.space`;
 
   return sendEmail({
     to: userEmail,
+    subject,
+    text,
+    html,
+  });
+}
+
+export async function sendContactEmail(
+  senderEmail: string,
+  senderName: string,
+  message: string
+): Promise<boolean> {
+  const subject = `[Kiteframe Contact] Message from ${senderName}`;
+  
+  const text = `New contact form submission from Kiteframe website:
+
+From: ${senderName}
+Email: ${senderEmail}
+
+Message:
+${message}
+
+---
+This message was sent via the contact form on kiteframe.space`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h2 style="color: #2563eb; margin-bottom: 20px;">New Contact Form Submission</h2>
+  
+  <div style="background-color: #f8fafc; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+    <p style="margin: 0 0 10px 0;"><strong>From:</strong> ${senderName}</p>
+    <p style="margin: 0;"><strong>Email:</strong> <a href="mailto:${senderEmail}">${senderEmail}</a></p>
+  </div>
+  
+  <h3 style="color: #1e40af; margin-bottom: 10px;">Message:</h3>
+  <div style="background-color: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px;">
+    <p style="margin: 0; white-space: pre-wrap;">${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+  </div>
+  
+  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;">
+  
+  <p style="font-size: 12px; color: #94a3b8; text-align: center;">
+    This message was sent via the contact form on kiteframe.space
+  </p>
+</body>
+</html>`;
+
+  return sendEmail({
+    to: 'info@kiteframe.space',
+    cc: 'adaly.design@gmail.com',
+    replyTo: senderEmail,
     subject,
     text,
     html,
