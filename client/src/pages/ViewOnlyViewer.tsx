@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
-import { Loader2, AlertCircle, Radio, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, AlertCircle, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ViewOnlyToolbar } from '@/components/ViewOnlyToolbar';
 import { ProjectPanel } from '@/components/panels/ProjectPanel/ProjectPanel';
@@ -46,7 +46,6 @@ export default function ViewOnlyViewer() {
   const [liveUpdates, setLiveUpdates] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [hasPendingUpdates, setHasPendingUpdates] = useState(false);
-  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const liveUpdatesRef = useRef(liveUpdates);
   
@@ -304,76 +303,34 @@ export default function ViewOnlyViewer() {
   return (
     <AiProvider client={aiClient}>
       <div className="h-screen w-screen flex flex-col bg-background overflow-hidden" data-testid="view-only-viewer">
-        <div 
-          ref={canvasContainerRef}
-          className="flex-1 relative overflow-hidden"
-        >
-          <KiteFrameCanvas
-            nodes={nodes}
-            edges={edges}
-            canvasObjects={canvasObjects}
-            onNodesChange={handleNodesChange}
-            onEdgesChange={noopEdgesChange}
-            onCanvasObjectsChange={noopCanvasObjectsChange}
-            onConnect={noopConnect}
-            viewport={viewport}
-            onViewportChange={setViewport}
-            minZoom={0.1}
-            maxZoom={3}
-            enablePlugins={false}
-            readOnly={true}
-            flowSettings={flowSettings}
-            className="w-full h-full"
-            data-testid="view-only-canvas"
-          />
-          
+        {/* Main Content - flex row with canvas and docked panel */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Canvas Container */}
           <div 
-            className="absolute top-[40px] left-[40px] bottom-[40px] z-50 flex"
-            data-testid="floating-panel-container"
+            ref={canvasContainerRef}
+            className="flex-1 relative overflow-hidden"
           >
-            {!isPanelCollapsed ? (
-              <div 
-                className="h-full bg-card border border-border rounded-lg shadow-xl overflow-hidden flex"
-                style={{ width: '420px' }}
-                data-testid="floating-project-panel"
-              >
-                <ProjectPanel
-                  nodes={nodes}
-                  edges={edges}
-                  canvasObjects={canvasObjects}
-                  projectId={shareId}
-                  projectName={projectName}
-                  isReadOnly={true}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-2 h-7 w-7 z-10"
-                  onClick={() => setIsPanelCollapsed(true)}
-                  data-testid="button-collapse-floating-panel"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-              </div>
-            ) : (
-              <div 
-                className="h-auto bg-card border border-border rounded-lg shadow-xl p-2"
-                data-testid="collapsed-floating-panel"
-              >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setIsPanelCollapsed(false)}
-                  data-testid="button-expand-floating-panel"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-          
-          <div className="absolute top-4 right-4 z-50 flex items-center gap-2" data-testid="status-badges">
+            <KiteFrameCanvas
+              nodes={nodes}
+              edges={edges}
+              canvasObjects={canvasObjects}
+              onNodesChange={handleNodesChange}
+              onEdgesChange={noopEdgesChange}
+              onCanvasObjectsChange={noopCanvasObjectsChange}
+              onConnect={noopConnect}
+              viewport={viewport}
+              onViewportChange={setViewport}
+              minZoom={0.1}
+              maxZoom={3}
+              enablePlugins={false}
+              readOnly={true}
+              flowSettings={flowSettings}
+              className="w-full h-full"
+              data-testid="view-only-canvas"
+            />
+            
+            {/* Status badges - positioned over canvas */}
+            <div className="absolute top-4 left-4 z-50 flex items-center gap-2" data-testid="status-badges">
             <div 
               className="bg-blue-500 text-white text-sm font-medium px-3 py-1.5 rounded-full shadow-md inline-flex items-center gap-1.5"
               data-testid="read-only-badge"
@@ -440,12 +397,23 @@ export default function ViewOnlyViewer() {
                 Pending updates
               </div>
             )}
+            </div>
+
+            <ViewOnlyToolbar
+              onFitView={handleFitView}
+              onReset={handleReset}
+              onGoHome={handleGoHome}
+            />
           </div>
 
-          <ViewOnlyToolbar
-            onFitView={handleFitView}
-            onReset={handleReset}
-            onGoHome={handleGoHome}
+          {/* Project Panel - docked right side */}
+          <ProjectPanel
+            nodes={nodes}
+            edges={edges}
+            canvasObjects={canvasObjects}
+            projectId={shareId}
+            projectName={projectName}
+            isReadOnly={true}
           />
         </div>
       </div>

@@ -500,32 +500,31 @@ export const TextObject: React.FC<TextObjectProps> = ({
                 />
               ) : (
                 <div
-                  className="w-full p-2 whitespace-pre-wrap break-words block hover:underline cursor-pointer"
+                  className="w-full p-2 whitespace-pre-wrap break-words block"
                   style={{...textStyles, color: textStyles.color || '#3b82f6', textDecoration: 'underline'}}
                   onMouseDown={(e) => {
                     dragStartPosRef.current = { x: e.clientX, y: e.clientY };
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Check if mouse moved significantly from mousedown position (drag detection)
-                    if (dragStartPosRef.current) {
-                      const dx = Math.abs(e.clientX - dragStartPosRef.current.x);
-                      const dy = Math.abs(e.clientY - dragStartPosRef.current.y);
-                      if (dx > 5 || dy > 5) {
-                        dragStartPosRef.current = null;
-                        return; // Was a drag, don't open link
-                      }
-                    }
-                    dragStartPosRef.current = null;
-                    const url = object.data.hyperlink?.url;
-                    if (url) {
-                      window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
-                    }
                   }}
                   onDoubleClick={(e) => e.stopPropagation()}
                   data-testid="text-object-link"
                 >
                   {text || object.data.text || 'Type here...'}
+                  <ExternalLink 
+                    size={14} 
+                    className="inline-block ml-1 cursor-pointer hover:text-blue-600"
+                    style={{ color: textStyles.color || '#3b82f6', verticalAlign: 'middle' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const url = object.data.hyperlink?.url;
+                      if (url) {
+                        window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                    data-testid="text-object-open-link"
+                  />
                 </div>
               )}
             </>
@@ -553,20 +552,6 @@ export const TextObject: React.FC<TextObjectProps> = ({
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                // Check if mouse moved significantly from mousedown position (drag detection)
-                if (dragStartPosRef.current) {
-                  const dx = Math.abs(e.clientX - dragStartPosRef.current.x);
-                  const dy = Math.abs(e.clientY - dragStartPosRef.current.y);
-                  if (dx > 5 || dy > 5) {
-                    dragStartPosRef.current = null;
-                    return; // Was a drag, don't open link
-                  }
-                }
-                dragStartPosRef.current = null;
-                const url = object.data.hyperlink?.url;
-                if (url) {
-                  window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
-                }
               }}
               draggable={false}
               onDragStart={(e) => e.preventDefault()}
@@ -611,7 +596,19 @@ export const TextObject: React.FC<TextObjectProps> = ({
                     }
                   })()}
                 </span>
-                <ExternalLink size={12} style={{ color: '#9ca3af', marginLeft: 'auto' }} />
+                <ExternalLink 
+                  size={12} 
+                  className="cursor-pointer hover:text-blue-500"
+                  style={{ color: '#9ca3af', marginLeft: 'auto' }} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const url = object.data.hyperlink?.url;
+                    if (url) {
+                      window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  data-testid="text-object-preview-open-link"
+                />
               </div>
             </div>
           )}
