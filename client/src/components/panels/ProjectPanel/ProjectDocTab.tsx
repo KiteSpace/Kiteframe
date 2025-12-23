@@ -118,6 +118,18 @@ export function ProjectDocTab({
   
   const { isGenerating, updateKey: generationUpdateKey } = usePRDGenerationState(projectId);
 
+  const projectDescription = useMemo(() => {
+    if (!projectId) return undefined;
+    try {
+      const saved = localStorage.getItem(`kiteframe-details-${projectId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.description || undefined;
+      }
+    } catch {}
+    return undefined;
+  }, [projectId]);
+
   const { workflowSummaries, standaloneNodes } = useMemo(() => {
     if (nodes.length === 0) {
       return { workflowSummaries: [], standaloneNodes: [] };
@@ -565,6 +577,7 @@ export function ProjectDocTab({
         onClose={() => setIsExportModalOpen(false)}
         projectId={projectId || 'default'}
         projectName={projectName || 'Untitled Project'}
+        projectDescription={projectDescription}
         workflows={workflowSummaries.map(wf => ({ 
           id: wf.id, 
           name: wf.name,
