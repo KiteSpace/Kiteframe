@@ -2,11 +2,12 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
-import { Loader2, AlertCircle, ChevronDown, ChevronUp, Radio } from 'lucide-react';
+import { Loader2, AlertCircle, Radio, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { ViewOnlyToolbar } from '@/components/ViewOnlyToolbar';
-import { ReadOnlyLayersWidget } from '@/components/layers/ReadOnlyLayersWidget';
+import { ProjectPanel } from '@/components/panels/ProjectPanel/ProjectPanel';
+import { AiProvider } from '../ai/AiProvider';
+import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
 import type { FlowSettingsMap } from '../lib/kiteframe/utils/FlowDetection';
 import '../lib/kiteframe/styles/kiteframe.css';
@@ -41,13 +42,36 @@ export default function ViewOnlyViewer() {
   const [originalCanvasObjects, setOriginalCanvasObjects] = useState<CanvasObject[]>([]);
   const [originalViewport, setOriginalViewport] = useState({ x: 0, y: 0, zoom: 1 });
   
-  const [projectDetailsExpanded, setProjectDetailsExpanded] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [liveUpdates, setLiveUpdates] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [hasPendingUpdates, setHasPendingUpdates] = useState(false);
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const liveUpdatesRef = useRef(liveUpdates);
+  
+  const createAiClient = useCallback(() => {
+    const savedSettings = localStorage.getItem('ai_settings');
+    let baseURL = 'https://api.openai.com/v1';
+    let defaultModel = 'gpt-4o';
+
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        if (settings.baseURL) baseURL = settings.baseURL;
+        if (settings.model) defaultModel = settings.model;
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    return new OpenAICompatClient({
+      baseURL,
+      apiKey: localStorage.getItem('openai_api_key') || '',
+      defaultModel
+    });
+  }, []);
+  const [aiClient] = useState<OpenAICompatClient>(createAiClient);
 
   const { data, isLoading, error, refetch } = useQuery<SharedProjectData>({
     queryKey: ['/api/view', shareId],
@@ -276,35 +300,80 @@ export default function ViewOnlyViewer() {
   }
 
   const projectName = data.projectName || 'Shared Workflow';
-  const projectDescription = data.projectDescription;
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-background overflow-hidden" data-testid="view-only-viewer">
-      <div 
-        ref={canvasContainerRef}
-        className="flex-1 relative overflow-hidden"
-      >
-        <KiteFrameCanvas
-          nodes={nodes}
-          edges={edges}
-          canvasObjects={canvasObjects}
-          onNodesChange={handleNodesChange}
-          onEdgesChange={noopEdgesChange}
-          onCanvasObjectsChange={noopCanvasObjectsChange}
-          onConnect={noopConnect}
-          viewport={viewport}
-          onViewportChange={setViewport}
-          minZoom={0.1}
-          maxZoom={3}
-          enablePlugins={false}
-          readOnly={true}
-          flowSettings={flowSettings}
-          className="w-full h-full"
-          data-testid="view-only-canvas"
-        />
-        
-        <div className="absolute top-4 left-4 z-50 flex flex-col gap-3 max-w-sm" data-testid="overlay-container">
-          <div className="flex items-center gap-2">
+    <AiProvider client={aiClient}>
+      <div className="h-screen w-screen flex flex-col bg-background overflow-hidden" data-testid="view-only-viewer">
+        <div 
+          ref={canvasContainerRef}
+          className="flex-1 relative overflow-hidden"
+        >
+          <KiteFrameCanvas
+            nodes={nodes}
+            edges={edges}
+            canvasObjects={canvasObjects}
+            onNodesChange={handleNodesChange}
+            onEdgesChange={noopEdgesChange}
+            onCanvasObjectsChange={noopCanvasObjectsChange}
+            onConnect={noopConnect}
+            viewport={viewport}
+            onViewportChange={setViewport}
+            minZoom={0.1}
+            maxZoom={3}
+            enablePlugins={false}
+            readOnly={true}
+            flowSettings={flowSettings}
+            className="w-full h-full"
+            data-testid="view-only-canvas"
+          />
+          
+          <div 
+            className="absolute top-[40px] left-[40px] bottom-[40px] z-50 flex"
+            data-testid="floating-panel-container"
+          >
+            {!isPanelCollapsed ? (
+              <div 
+                className="h-full bg-card border border-border rounded-lg shadow-xl overflow-hidden flex"
+                style={{ width: '420px' }}
+                data-testid="floating-project-panel"
+              >
+                <ProjectPanel
+                  nodes={nodes}
+                  edges={edges}
+                  canvasObjects={canvasObjects}
+                  projectId={shareId}
+                  projectName={projectName}
+                  isReadOnly={true}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 h-7 w-7 z-10"
+                  onClick={() => setIsPanelCollapsed(true)}
+                  data-testid="button-collapse-floating-panel"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <div 
+                className="h-auto bg-card border border-border rounded-lg shadow-xl p-2"
+                data-testid="collapsed-floating-panel"
+              >
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setIsPanelCollapsed(false)}
+                  data-testid="button-expand-floating-panel"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          <div className="absolute top-4 right-4 z-50 flex items-center gap-2" data-testid="status-badges">
             <div 
               className="bg-blue-500 text-white text-sm font-medium px-3 py-1.5 rounded-full shadow-md inline-flex items-center gap-1.5"
               data-testid="read-only-badge"
@@ -372,48 +441,14 @@ export default function ViewOnlyViewer() {
               </div>
             )}
           </div>
-          
-          <div 
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-            data-testid="project-details-card"
-          >
-            <button
-              onClick={() => setProjectDetailsExpanded(!projectDetailsExpanded)}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-              data-testid="button-toggle-project-details"
-            >
-              <span className="font-semibold text-gray-900 dark:text-gray-100 truncate pr-2">
-                {projectName}
-              </span>
-              {projectDetailsExpanded ? (
-                <ChevronUp className="w-4 h-4 text-gray-500 flex-shrink-0" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
-              )}
-            </button>
-            
-            {projectDetailsExpanded && projectDescription && (
-              <div className="px-4 pb-3 pt-0 border-t border-gray-100 dark:border-gray-700">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 whitespace-pre-wrap">
-                  {projectDescription}
-                </p>
-              </div>
-            )}
-          </div>
+
+          <ViewOnlyToolbar
+            onFitView={handleFitView}
+            onReset={handleReset}
+            onGoHome={handleGoHome}
+          />
         </div>
-
-        <ReadOnlyLayersWidget 
-          nodes={nodes} 
-          edges={edges} 
-          canvasObjects={canvasObjects}
-        />
-
-        <ViewOnlyToolbar
-          onFitView={handleFitView}
-          onReset={handleReset}
-          onGoHome={handleGoHome}
-        />
       </div>
-    </div>
+    </AiProvider>
   );
 }

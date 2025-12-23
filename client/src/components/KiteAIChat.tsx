@@ -1047,6 +1047,252 @@ function ChatView({
   );
 }
 
+interface DiscussionViewProps {
+  projectId: string;
+  nodes: Node[];
+  edges: Edge[];
+  canvasObjects: CanvasObject[];
+}
+
+function DiscussionView({
+  projectId,
+  nodes,
+  edges,
+  canvasObjects
+}: DiscussionViewProps) {
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [{
+    id: 'discussion-welcome',
+    role: 'assistant',
+    content: "Welcome to the discussion view. I can help you understand this workflow, identify potential edge cases, suggest improvements, or discuss missing steps.\n\nWhat would you like to discuss about this workflow?",
+    timestamp: new Date()
+  }]);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  
+  const { toast } = useToast();
+  const aiClient = useAi();
+  
+  const hasApiKey = Boolean(localStorage.getItem('openai_api_key'));
+  
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  useLayoutEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
+    }
+  }, [inputValue]);
+
+  const buildWorkflowContext = useCallback(() => {
+    const nodeDescriptions = nodes.map(n => {
+      const label = n.data?.label || n.type || 'Node';
+      return `- ${label} (${n.type})`;
+    }).join('\n');
+    
+    const edgeDescriptions = edges.map(e => {
+      const sourceNode = nodes.find(n => n.id === e.source);
+      const targetNode = nodes.find(n => n.id === e.target);
+      const sourceLabel = sourceNode?.data?.label || sourceNode?.type || 'Unknown';
+      const targetLabel = targetNode?.data?.label || targetNode?.type || 'Unknown';
+      return `- ${sourceLabel} → ${targetLabel}`;
+    }).join('\n');
+    
+    return `Current workflow has ${nodes.length} nodes and ${edges.length} connections.
+
+Nodes:
+${nodeDescriptions}
+
+Connections:
+${edgeDescriptions}`;
+  }, [nodes, edges]);
+
+  const handleSend = useCallback(async () => {
+    if (!inputValue.trim() || isLoading) return;
+    
+    const userMessage: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      role: 'user',
+      content: inputValue.trim(),
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
+    setIsLoading(true);
+    
+    try {
+      const workflowContext = buildWorkflowContext();
+      const systemPrompt = `You are a helpful workflow analyst assistant. You are helping someone understand a workflow diagram they are viewing in read-only mode.
+
+IMPORTANT: This is a discussion-only mode. You can:
+- Explain what the workflow does
+- Identify potential edge cases or missing steps
+- Discuss improvements or alternatives
+- Answer questions about the workflow design
+
+You CANNOT:
+- Propose changes to the workflow
+- Generate new workflow nodes or edges
+- Provide JSON workflow data
+
+Always be helpful and constructive in your analysis.
+
+${workflowContext}`;
+
+      const conversationHistory = messages
+        .filter(m => m.role !== 'system' && m.id !== 'discussion-welcome')
+        .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+      
+      conversationHistory.push({ role: 'user', content: userMessage.content });
+      
+      const response = await aiClient.chat({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...conversationHistory
+        ]
+      });
+      
+      const assistantMessage: ChatMessage = {
+        id: `msg-${Date.now()}-response`,
+        role: 'assistant',
+        content: response?.text || "I'm sorry, I couldn't generate a response. Please try again.",
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to get a response. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [inputValue, isLoading, messages, aiClient, buildWorkflowContext, toast]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }, [handleSend]);
+  
+  if (!hasApiKey) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+        <MessageCircle className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />
+        <h3 className="text-lg font-medium mb-2">KiteAI Discussion</h3>
+        <p className="text-sm text-muted-foreground mb-4 max-w-[280px]">
+          To discuss this workflow with KiteAI, you'll need to configure an AI provider in the main editor first.
+        </p>
+        <div className="bg-muted/50 rounded-lg p-4 text-xs text-muted-foreground max-w-[280px]">
+          <p className="font-medium mb-1">To enable AI features:</p>
+          <ol className="list-decimal list-inside space-y-1 text-left">
+            <li>Open the KiteFrame editor</li>
+            <li>Go to KiteAI settings</li>
+            <li>Add your API key</li>
+            <li>Return to this shared view</li>
+          </ol>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full" data-testid="discussion-view">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
+        <Eye className="w-4 h-4 text-blue-500" />
+        <span className="text-sm font-medium">Discussion Mode</span>
+        <Badge variant="secondary" className="text-[10px] ml-auto">Read Only</Badge>
+      </div>
+      
+      <ScrollArea className="flex-1 px-3 py-2">
+        <div className="space-y-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex gap-2 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              {message.role === 'assistant' && (
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Bot className="w-4 h-4 text-white" />
+                </div>
+              )}
+              <div
+                className={`rounded-lg px-3 py-2 max-w-[85%] ${
+                  message.role === 'user'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted'
+                }`}
+              >
+                {message.role === 'assistant' ? (
+                  <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                    <ReactMarkdown>
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                )}
+              </div>
+              {message.role === 'user' && (
+                <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <User className="w-4 h-4 text-primary-foreground" />
+                </div>
+              )}
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex gap-2 justify-start">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0">
+                <Bot className="w-4 h-4 text-white" />
+              </div>
+              <div className="bg-muted rounded-lg px-3 py-2">
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
+      
+      <div className="border-t border-border p-3">
+        <div className="flex gap-2">
+          <Textarea
+            ref={inputRef}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask about the workflow..."
+            className="min-h-[40px] max-h-[120px] resize-none text-sm"
+            disabled={isLoading}
+            data-testid="input-discussion"
+          />
+          <Button
+            onClick={handleSend}
+            disabled={!inputValue.trim() || isLoading}
+            size="icon"
+            className="h-10 w-10 flex-shrink-0"
+            data-testid="button-send-discussion"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <MessageCircle className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface KiteAIChatPanelProps {
   projectId: string;
   nodes: Node[];
@@ -1074,6 +1320,31 @@ export function KiteAIChatPanel({
         canvasObjects={canvasObjects}
         onApplyWorkflow={onApplyWorkflow}
         onPreviewWorkflow={onPreviewWorkflow}
+      />
+    </div>
+  );
+}
+
+interface KiteAIDiscussionPanelProps {
+  projectId: string;
+  nodes: Node[];
+  edges: Edge[];
+  canvasObjects: CanvasObject[];
+}
+
+export function KiteAIDiscussionPanel({
+  projectId,
+  nodes,
+  edges,
+  canvasObjects
+}: KiteAIDiscussionPanelProps) {
+  return (
+    <div className="flex h-full w-full flex-col">
+      <DiscussionView
+        projectId={projectId}
+        nodes={nodes}
+        edges={edges}
+        canvasObjects={canvasObjects}
       />
     </div>
   );
