@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { PromptContextStoreProvider } from "@/contexts/PromptContextStore";
 import { Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
+import { PageViewTracker } from "@/components/PageViewTracker";
 
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const WorkflowEditor = lazy(() => import("@/pages/workflow-editor"));
@@ -114,8 +115,10 @@ function LandingRoute() {
 
 function Router() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
-      <Switch>
+    <>
+      <PageViewTracker />
+      <Suspense fallback={<LoadingFallback />}>
+        <Switch>
         <Route path="/">
           <LandingRoute />
         </Route>
@@ -152,6 +155,7 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
     </Suspense>
+    </>
   );
 }
 

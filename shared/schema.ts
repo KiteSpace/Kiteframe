@@ -405,3 +405,30 @@ export const adminAuditLogs = pgTable("admin_audit_logs", {
 ]);
 
 export type AdminAuditLog = typeof adminAuditLogs.$inferSelect;
+
+// Page view tracking for site analytics (privacy-friendly, no cookies)
+export const pageViews = pgTable("page_views", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  route: varchar("route").notNull(), // Page path like /app, /legal, /
+  visitorHash: varchar("visitor_hash"), // Anonymized visitor identifier (hashed IP + UA)
+  referrer: varchar("referrer"), // Referring URL
+  referrerDomain: varchar("referrer_domain"), // Extracted domain from referrer
+  country: varchar("country"), // Country code from geolocation
+  userAgent: text("user_agent"), // Browser user agent
+  deviceType: varchar("device_type"), // mobile, tablet, desktop
+  isAuthenticated: boolean("is_authenticated").default(false), // Whether user was logged in
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_pageview_route").on(table.route),
+  index("IDX_pageview_created_at").on(table.createdAt),
+  index("IDX_pageview_visitor").on(table.visitorHash),
+  index("IDX_pageview_country").on(table.country),
+]);
+
+export const insertPageViewSchema = createInsertSchema(pageViews).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type PageView = typeof pageViews.$inferSelect;
+export type InsertPageView = z.infer<typeof insertPageViewSchema>;

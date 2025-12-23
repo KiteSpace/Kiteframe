@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Activity, Globe, Key, TrendingUp, Zap, Bot, BarChart3, Info, Sparkles, Search, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
+import { AlertCircle, Activity, Globe, Key, TrendingUp, Zap, Bot, BarChart3, Info, Sparkles, Search, ChevronLeft, ChevronRight, ClipboardList, Eye, Monitor, Smartphone, Tablet } from 'lucide-react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 
@@ -383,6 +383,43 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
   const activityTotal = activityLogData?.total || 0;
   const activityTotalPages = Math.ceil(activityTotal / activityLimit);
 
+  // Page view analytics queries
+  const { data: pageViewsSummaryData, isLoading: pageViewsLoading } = useQuery({
+    queryKey: ['/internal/x9k7m2p4/analytics/pageviews/summary', usageTimeRange],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        periodStart: usageStart.toISOString(),
+        periodEnd: usageEnd.toISOString(),
+      });
+      const response = await fetch(`/internal/x9k7m2p4/analytics/pageviews/summary?${params}`, {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch page views summary');
+      return response.json();
+    },
+    refetchInterval: 30000,
+  });
+
+  const { data: pageViewsTimeSeriesData } = useQuery({
+    queryKey: ['/internal/x9k7m2p4/analytics/pageviews/timeseries', usageTimeRange],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        periodStart: usageStart.toISOString(),
+        periodEnd: usageEnd.toISOString(),
+      });
+      const response = await fetch(`/internal/x9k7m2p4/analytics/pageviews/timeseries?${params}`, {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch page views time series');
+      return response.json();
+    },
+    refetchInterval: 30000,
+  });
+
+  const pageViewsSummary = pageViewsSummaryData?.summary;
+  const pageViewsTimeSeries = pageViewsTimeSeriesData?.timeSeries || [];
+  const pageViewsBucket = pageViewsTimeSeriesData?.bucket || 'day';
+
   const getCountryColor = (countryCode: string) => {
     const activity = geoData?.find(d => d.country === countryCode);
     if (!activity) return '#E5E7EB';
@@ -415,10 +452,14 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview" data-testid="tab-overview">
               <TrendingUp className="w-4 h-4 mr-2" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="traffic" data-testid="tab-traffic">
+              <Eye className="w-4 h-4 mr-2" />
+              Site Traffic
             </TabsTrigger>
             <TabsTrigger value="ai-usage" data-testid="tab-ai-usage">
               <Zap className="w-4 h-4 mr-2" />
@@ -515,6 +556,213 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Site Traffic Tab */}
+          <TabsContent value="traffic" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Site Traffic Analytics</h2>
+              <Select value={usageTimeRange} onValueChange={(v: TimeRange) => setUsageTimeRange(v)}>
+                <SelectTrigger className="w-32" data-testid="traffic-time-range-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24h">Last 24h</SelectItem>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="90d">Last 90 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card data-testid="card-total-views">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Page Views</CardTitle>
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{pageViewsSummary?.totalViews?.toLocaleString() || 0}</div>
+                </CardContent>
+              </Card>
+              <Card data-testid="card-unique-visitors">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Unique Visitors</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{pageViewsSummary?.uniqueVisitors?.toLocaleString() || 0}</div>
+                </CardContent>
+              </Card>
+              <Card data-testid="card-bounce-rate">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Views per Visitor</CardTitle>
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {pageViewsSummary?.uniqueVisitors ? (pageViewsSummary.totalViews / pageViewsSummary.uniqueVisitors).toFixed(1) : '0'}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card data-testid="card-countries">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Countries</CardTitle>
+                  <Globe className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{pageViewsSummary?.countryBreakdown?.length || 0}</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Traffic Time Series Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Traffic Over Time</CardTitle>
+                <CardDescription>Page views and unique visitors</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {pageViewsLoading ? (
+                  <Skeleton className="h-[300px] w-full" />
+                ) : pageViewsTimeSeries.length === 0 ? (
+                  <p className="text-muted-foreground text-sm text-center py-8">No traffic data yet</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={pageViewsTimeSeries}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="timestamp" 
+                        tickFormatter={(v) => formatDate(v, pageViewsBucket)} 
+                        className="text-xs" 
+                      />
+                      <YAxis className="text-xs" />
+                      <RechartsTooltip content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-popover border rounded-lg p-3 shadow-lg">
+                              <p className="text-sm font-medium mb-1">{formatDate(label, pageViewsBucket)}</p>
+                              <p className="text-sm text-blue-500">Views: {payload[0]?.value}</p>
+                              <p className="text-sm text-green-500">Visitors: {payload[1]?.value}</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }} />
+                      <Line type="monotone" dataKey="views" stroke="#3b82f6" strokeWidth={2} dot={false} name="Views" />
+                      <Line type="monotone" dataKey="uniqueVisitors" stroke="#22c55e" strokeWidth={2} dot={false} name="Visitors" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Top Pages & Referrers */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Pages</CardTitle>
+                  <CardDescription>Most visited routes</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {pageViewsLoading ? (
+                    <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
+                  ) : !pageViewsSummary?.topPages?.length ? (
+                    <p className="text-muted-foreground text-sm text-center py-4">No data yet</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {pageViewsSummary.topPages.map((page: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between">
+                          <span className="text-sm font-mono truncate max-w-[200px]">{page.route}</span>
+                          <div className="flex items-center gap-4 text-sm">
+                            <span className="text-muted-foreground">{page.views} views</span>
+                            <span className="text-muted-foreground">{page.uniqueVisitors} visitors</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Referrers</CardTitle>
+                  <CardDescription>Where traffic comes from</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {pageViewsLoading ? (
+                    <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
+                  ) : !pageViewsSummary?.topReferrers?.length ? (
+                    <p className="text-muted-foreground text-sm text-center py-4">No referrer data yet</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {pageViewsSummary.topReferrers.map((ref: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between">
+                          <span className="text-sm truncate max-w-[200px]">{ref.domain || 'Direct'}</span>
+                          <span className="text-sm text-muted-foreground">{ref.views} views</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Device & Country Breakdown */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Devices</CardTitle>
+                  <CardDescription>Traffic by device type</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {pageViewsLoading ? (
+                    <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
+                  ) : !pageViewsSummary?.deviceBreakdown?.length ? (
+                    <p className="text-muted-foreground text-sm text-center py-4">No data yet</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {pageViewsSummary.deviceBreakdown.map((device: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {device.deviceType === 'desktop' && <Monitor className="h-4 w-4 text-muted-foreground" />}
+                            {device.deviceType === 'mobile' && <Smartphone className="h-4 w-4 text-muted-foreground" />}
+                            {device.deviceType === 'tablet' && <Tablet className="h-4 w-4 text-muted-foreground" />}
+                            <span className="text-sm capitalize">{device.deviceType}</span>
+                          </div>
+                          <span className="text-sm text-muted-foreground">{device.views} views</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Countries</CardTitle>
+                  <CardDescription>Traffic by country</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {pageViewsLoading ? (
+                    <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
+                  ) : !pageViewsSummary?.countryBreakdown?.length ? (
+                    <p className="text-muted-foreground text-sm text-center py-4">No data yet</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {pageViewsSummary.countryBreakdown.slice(0, 10).map((country: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between">
+                          <span className="text-sm">{country.country || 'Unknown'}</span>
+                          <span className="text-sm text-muted-foreground">{country.views} views</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="ai-usage" className="space-y-4">

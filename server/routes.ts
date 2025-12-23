@@ -19,7 +19,9 @@ import {
   oauthProviders,
   groupAccessControlsSchema,
   userCredits,
+  pageViews,
 } from "@shared/schema";
+import crypto from 'crypto';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
@@ -2453,6 +2455,78 @@ Respond with only the corrected JSON data:`;
   // Bug Report endpoint
   app.post('/api/bug-report', handleBugReport);
 
+  // Page View tracking endpoint (privacy-friendly, no cookies)
+  app.post('/api/analytics/pageview', async (req, res) => {
+    try {
+      const { route, referrer } = req.body;
+      
+      if (!route || typeof route !== 'string') {
+        return res.status(400).json({ error: 'Route is required' });
+      }
+      
+      // Get IP and user agent for anonymization
+      const ip = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || '';
+      const userAgent = req.headers['user-agent'] || '';
+      
+      // Create anonymized visitor hash (no personal data stored)
+      // Hash IP + UA + daily salt so we can count unique visitors without tracking individuals
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const visitorHash = crypto.createHash('sha256')
+        .update(ip + userAgent + today + (process.env.SESSION_SECRET || 'salt'))
+        .digest('hex')
+        .slice(0, 16); // Short hash is sufficient
+      
+      // Extract referrer domain
+      let referrerDomain = null;
+      if (referrer && typeof referrer === 'string' && referrer.length > 0) {
+        try {
+          const url = new URL(referrer);
+          referrerDomain = url.hostname;
+        } catch {
+          // Invalid URL, ignore
+        }
+      }
+      
+      // Detect device type from user agent
+      let deviceType = 'desktop';
+      if (/mobile/i.test(userAgent)) {
+        deviceType = 'mobile';
+      } else if (/tablet|ipad/i.test(userAgent)) {
+        deviceType = 'tablet';
+      }
+      
+      // Get country from geolocation service
+      let country = null;
+      try {
+        const geoData = await geolocationService.getLocation(ip);
+        country = geoData.country || null;
+      } catch {
+        // Geolocation failed, continue without country
+      }
+      
+      // Check if user is authenticated
+      const isAuthenticated = !!(req as any).user;
+      
+      // Insert page view
+      await db.insert(pageViews).values({
+        route: route.slice(0, 500), // Limit length
+        visitorHash,
+        referrer: referrer?.slice(0, 2000) || null,
+        referrerDomain,
+        country,
+        userAgent: userAgent.slice(0, 500),
+        deviceType,
+        isAuthenticated,
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Page view tracking error:', error);
+      // Silently fail - don't block user experience for analytics
+      res.json({ success: true });
+    }
+  });
+
   // Contact Form endpoint with honeypot spam protection
   app.post('/api/contact', waitlistRateLimiter, async (req, res) => {
     try {
@@ -3415,6 +3489,173 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       console.error('AI usage events analytics error:', error);
       res.status(500).json({ 
         error: 'Failed to fetch AI usage events',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin Analytics: Page View Summary
+  app.get('/internal/x9k7m2p4/analytics/pageviews/summary', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const now = new Date();
+      const defaultStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      const periodStart = req.query.periodStart 
+        ? new Date(req.query.periodStart as string) 
+        : defaultStart;
+      const periodEnd = req.query.periodEnd 
+        ? new Date(req.query.periodEnd as string) 
+        : now;
+      
+      // Get total page views in period
+      const totalViewsResult = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(pageViews)
+        .where(and(
+          gte(pageViews.createdAt, periodStart),
+          lte(pageViews.createdAt, periodEnd)
+        ));
+      
+      // Get unique visitors in period
+      const uniqueVisitorsResult = await db
+        .select({ count: sql<number>`count(distinct ${pageViews.visitorHash})::int` })
+        .from(pageViews)
+        .where(and(
+          gte(pageViews.createdAt, periodStart),
+          lte(pageViews.createdAt, periodEnd)
+        ));
+      
+      // Get top pages
+      const topPages = await db
+        .select({
+          route: pageViews.route,
+          views: sql<number>`count(*)::int`,
+          uniqueVisitors: sql<number>`count(distinct ${pageViews.visitorHash})::int`,
+        })
+        .from(pageViews)
+        .where(and(
+          gte(pageViews.createdAt, periodStart),
+          lte(pageViews.createdAt, periodEnd)
+        ))
+        .groupBy(pageViews.route)
+        .orderBy(desc(sql`count(*)`))
+        .limit(10);
+      
+      // Get top referrers
+      const topReferrers = await db
+        .select({
+          domain: pageViews.referrerDomain,
+          views: sql<number>`count(*)::int`,
+        })
+        .from(pageViews)
+        .where(and(
+          gte(pageViews.createdAt, periodStart),
+          lte(pageViews.createdAt, periodEnd),
+          isNotNull(pageViews.referrerDomain)
+        ))
+        .groupBy(pageViews.referrerDomain)
+        .orderBy(desc(sql`count(*)`))
+        .limit(10);
+      
+      // Get device breakdown
+      const deviceBreakdown = await db
+        .select({
+          deviceType: pageViews.deviceType,
+          views: sql<number>`count(*)::int`,
+        })
+        .from(pageViews)
+        .where(and(
+          gte(pageViews.createdAt, periodStart),
+          lte(pageViews.createdAt, periodEnd)
+        ))
+        .groupBy(pageViews.deviceType)
+        .orderBy(desc(sql`count(*)`));
+      
+      // Get country breakdown
+      const countryBreakdown = await db
+        .select({
+          country: pageViews.country,
+          views: sql<number>`count(*)::int`,
+        })
+        .from(pageViews)
+        .where(and(
+          gte(pageViews.createdAt, periodStart),
+          lte(pageViews.createdAt, periodEnd),
+          isNotNull(pageViews.country)
+        ))
+        .groupBy(pageViews.country)
+        .orderBy(desc(sql`count(*)`))
+        .limit(15);
+      
+      res.json({
+        success: true,
+        summary: {
+          totalViews: totalViewsResult[0]?.count || 0,
+          uniqueVisitors: uniqueVisitorsResult[0]?.count || 0,
+          topPages,
+          topReferrers,
+          deviceBreakdown,
+          countryBreakdown,
+        },
+      });
+    } catch (error: any) {
+      console.error('Page views summary error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch page views summary',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin Analytics: Page View Time Series
+  app.get('/internal/x9k7m2p4/analytics/pageviews/timeseries', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const now = new Date();
+      const defaultStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      const periodStart = req.query.periodStart 
+        ? new Date(req.query.periodStart as string) 
+        : defaultStart;
+      const periodEnd = req.query.periodEnd 
+        ? new Date(req.query.periodEnd as string) 
+        : now;
+      
+      // Determine bucket size based on date range
+      const rangeMs = periodEnd.getTime() - periodStart.getTime();
+      const dayMs = 24 * 60 * 60 * 1000;
+      let bucket: 'hour' | 'day' | 'week' = 'day';
+      let dateTrunc = 'day';
+      if (rangeMs < 2 * dayMs) {
+        bucket = 'hour';
+        dateTrunc = 'hour';
+      } else if (rangeMs > 60 * dayMs) {
+        bucket = 'week';
+        dateTrunc = 'week';
+      }
+      
+      const timeSeries = await db
+        .select({
+          timestamp: sql<string>`date_trunc(${dateTrunc}, ${pageViews.createdAt})::text`,
+          views: sql<number>`count(*)::int`,
+          uniqueVisitors: sql<number>`count(distinct ${pageViews.visitorHash})::int`,
+        })
+        .from(pageViews)
+        .where(and(
+          gte(pageViews.createdAt, periodStart),
+          lte(pageViews.createdAt, periodEnd)
+        ))
+        .groupBy(sql`date_trunc(${dateTrunc}, ${pageViews.createdAt})`)
+        .orderBy(sql`date_trunc(${dateTrunc}, ${pageViews.createdAt})`);
+      
+      res.json({
+        success: true,
+        bucket,
+        timeSeries,
+      });
+    } catch (error: any) {
+      console.error('Page views timeseries error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch page views time series',
         details: error.message 
       });
     }
