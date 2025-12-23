@@ -10097,12 +10097,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               } else if (
                 importedData.nodes ||
                 importedData.edges ||
-                importedData.canvasObjects
+                importedData.canvasObjects ||
+                (importedData.workflows && importedData.workflows.length > 0) ||
+                (importedData.projectData?.workflows && importedData.projectData.workflows.length > 0)
               ) {
                 // Check if this is a multi-workflow project import (AssembledProjectPRD format)
-                if (importedData.projectData?.workflows && importedData.projectData.workflows.length > 0) {
-                  const { projectPRD, workflows, projectName, projectId: importedProjectId } = importedData.projectData;
-                  console.log('[Import] Processing AssembledProjectPRD with', workflows.length, 'workflows');
+                // Support both nested format (projectData.workflows) and flat format (workflows at top level)
+                const hasNestedWorkflows = importedData.projectData?.workflows && importedData.projectData.workflows.length > 0;
+                const hasTopLevelWorkflows = importedData.workflows && importedData.workflows.length > 0;
+                
+                if (hasNestedWorkflows || hasTopLevelWorkflows) {
+                  // Extract data from either nested or flat format
+                  const projectPRD = importedData.projectData?.projectPRD || importedData.projectPRD;
+                  const workflows = importedData.projectData?.workflows || importedData.workflows;
+                  const projectName = importedData.projectData?.projectName || importedData.project?.name || importedData.projectName;
+                  const importedProjectId = importedData.projectData?.projectId || importedData.project?.id;
+                  console.log('[Import] Processing AssembledProjectPRD with', workflows.length, 'workflows (format:', hasNestedWorkflows ? 'nested' : 'flat', ')');
                   
                   // Merge all workflows onto a single canvas (current active tab)
                   // This preserves the original project layout with all workflows together
@@ -10157,10 +10167,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   // Apply merged content to the active tab
                   if (activeTab) {
                     // Update tab name with project name
+                    const projectDescription = importedData.projectData?.project?.description || importedData.project?.description;
                     const updatedMetadata = {
                       ...activeTab.metadata,
                       name: projectName || activeTab.metadata.name,
-                      description: importedData.projectData.project?.description || activeTab.metadata.description,
+                      description: projectDescription || activeTab.metadata.description,
                     };
                     
                     // Reset history with the new imported state
