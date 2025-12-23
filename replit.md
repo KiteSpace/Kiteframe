@@ -56,7 +56,8 @@ Preferred communication style: Simple, everyday language.
 - **Auto-Layout**: Five layout options (Horizontal Flow, Vertical Flow, Grid, Circular, Hierarchical).
 - **Workflow Generation**: AI-generated workflows from text prompts and image analysis.
 - **Image Analysis**: Upload and analyze workflow diagrams (PNG, JPG, GIF) to convert into interactive workflows.
-- **Figma Import**: Import Figma designs as interactive webview nodes.
+- **Figma Import**: Import Figma designs as interactive image nodes with screenshot caching.
+- **Figma Caching**: Figma frames are imported with cached screenshots and `cachedAt` timestamps. Non-authenticated users can view cached frames; refresh button only appears when authenticated with Figma. Calendar icon in node header shows cache date.
 - **Touch Gestures**: The `enableTouchGestures` prop exists but touch pinch-zoom/pan is currently disabled due to conflicts with node drag interactions. Mobile users should use minimap or toolbar controls for zoom/pan.
 
 ### Project Panel

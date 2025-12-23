@@ -4608,6 +4608,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showCloudProjects, setShowCloudProjects] = useState(false);
   const [showPluginTest, setShowPluginTest] = useState(false);
   const [showFigmaModal, setShowFigmaModal] = useState(false);
+  const [isFigmaAuthenticated, setIsFigmaAuthenticated] = useState(false);
   const [figmaImportMode, setFigmaImportMode] = useState<
     "new-project" | "insert-into-project"
   >("new-project");
@@ -4970,6 +4971,26 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       console.error("Failed to save templates to localStorage:", error);
     }
   }, [savedTemplates]);
+
+  // Check Figma authentication status on mount
+  useEffect(() => {
+    fetch('/api/figma/status', { credentials: 'include' })
+      .then(res => {
+        if (!res.ok) {
+          setIsFigmaAuthenticated(false);
+          return null;
+        }
+        return res.json();
+      })
+      .then((data: { connected?: boolean } | null) => {
+        if (data) {
+          setIsFigmaAuthenticated(data.connected === true);
+        }
+      })
+      .catch(() => {
+        setIsFigmaAuthenticated(false);
+      });
+  }, []);
 
   // CRUD operations for templates
   const addTemplate = useCallback((template: SavedCompoundTemplate) => {
@@ -9785,7 +9806,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           return;
                         }
                         
-                        // Update node with new image and metadata (use 'src' field, not 'imageUrl')
+                        // Update node with new image, metadata, and cache timestamp
                         setNodes(prev => prev.map(n => {
                           if (n.id === nodeId) {
                             return {
@@ -9794,6 +9815,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                                 ...n.data,
                                 src: newThumbnail,
                                 figmaLastModified: metadata.lastModified,
+                                cachedAt: new Date().toISOString(),
                               }
                             };
                           }
@@ -9815,6 +9837,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         });
                       }
                     }}
+                    isFigmaAuthenticated={isFigmaAuthenticated}
                   />
                 </>
               ) : (

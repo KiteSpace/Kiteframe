@@ -63,6 +63,7 @@ export function buildFigmaFrameWorkflow(
         originalHeight: frame.height,
         figmaSemantic: figmaSemantic ?? null,
         figmaLastModified: options?.figmaLastModified ?? null,
+        cachedAt: new Date().toISOString(),
       },
       style: {
         width: displayWidth,

@@ -406,6 +406,7 @@ export interface ImageNodeData {
   figmaType?: string;
   figmaPageName?: string;
   figmaFileKey?: string; // Source Figma file key for multi-file tracking
+  figmaNodeId?: string; // Figma node ID for refresh operations
   figmaLastModified?: string; // ISO timestamp from Figma API for delta-aware refresh
   originalWidth?: number;
   originalHeight?: number;
@@ -415,6 +416,8 @@ export interface ImageNodeData {
   isReferenceFrame?: boolean;
   // Import source tracking - identifies where the image originated from
   importedFrom?: 'figma' | 'upload' | 'url' | string;
+  // Screenshot caching - ISO timestamp when the Figma screenshot was last captured
+  cachedAt?: string;
 }
 
 // Table Node Data - extends BasicNodeData with table-specific properties
@@ -444,6 +447,11 @@ export interface WebviewNodeData extends BasicNodeData {
   loadError?: string;        // Error message if iframe fails to load
   showControls?: boolean;    // Show toolbar with refresh, fullscreen, etc.
   sandbox?: string;          // Iframe sandbox attributes
+  // Figma screenshot caching - allows non-authenticated users to view frames
+  cachedScreenshotUrl?: string;  // URL to cached screenshot image
+  cachedAt?: string;             // ISO timestamp when screenshot was cached
+  figmaFileKey?: string;         // Figma file key for refresh operations
+  figmaNodeId?: string;          // Figma node ID for refresh operations
 }
 
 // Data-backed Node Data - nodes created from table rows with data synchronization
@@ -799,6 +807,7 @@ export interface ImageNodeComponentProps extends BaseNodeComponentProps<ImageNod
   onImageUpload?: (nodeId: string, file: File) => Promise<string>;
   onImageUrlSet?: (nodeId: string, url: string) => void;
   onRefreshFigma?: (nodeId: string) => Promise<void>; // Refresh Figma-imported image
+  isFigmaAuthenticated?: boolean; // Whether user can refresh Figma frames
   onStartDrag?: (e: React.MouseEvent, node: Node) => void;
   onClick?: (e: React.MouseEvent, node: Node) => void;
   onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;

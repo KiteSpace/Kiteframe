@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
 import DragPlaceholder from './DragPlaceholder';
-import { Upload, Image as ImageIcon, AlertCircle, Globe, RefreshCw, ExternalLink, Loader2 } from 'lucide-react';
+import { Upload, Image as ImageIcon, AlertCircle, Globe, RefreshCw, ExternalLink, Loader2, Calendar } from 'lucide-react';
 import type { Node, ImageNodeData, ImageNodeComponentProps, ImageFit } from '../types';
 import { getDynamicClassName, getNodeStyleClasses } from '../utils/styles';
 import { sanitizeText } from '../utils/validation';
@@ -19,6 +19,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   onImageUpload,
   onImageUrlSet,
   onRefreshFigma,
+  isFigmaAuthenticated = false,
   onDoubleClick,
   className,
   style,
@@ -169,8 +170,22 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   // Check if this is a Figma-imported or URL-sourced image that can be refreshed/opened
   const isFigmaImport = Boolean(node.data.figmaFileKey && node.data.figmaId);
   const isUrlSource = node.data.sourceType === 'url' && node.data.src;
-  const canRefresh = isFigmaImport;
+  // Only show refresh button for Figma imports when user is authenticated with Figma
+  const canRefresh = isFigmaImport && isFigmaAuthenticated;
   const canOpenExternal = isFigmaImport || isUrlSource;
+  
+  // Format cached date for tooltip
+  const cachedAtFormatted = useMemo(() => {
+    if (!node.data.cachedAt) return null;
+    const date = new Date(node.data.cachedAt);
+    return date.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }, [node.data.cachedAt]);
 
   const handleRefresh = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -412,6 +427,15 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
               data-testid={`reference-badge-${node.id}`}
             >
               Reference
+            </span>
+          )}
+          {isFigmaImport && cachedAtFormatted && (
+            <span
+              className="p-1 text-muted-foreground cursor-default"
+              title={`Cached: ${cachedAtFormatted}`}
+              data-testid={`image-cached-at-${node.id}`}
+            >
+              <Calendar size={12} />
             </span>
           )}
           {canRefresh && (

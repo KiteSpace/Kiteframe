@@ -73,6 +73,7 @@ interface WorkflowCanvasProps {
   onDragWorkflow?: (flowId: string, nodeIds: string[], deltaX: number, deltaY: number, isDragStart?: boolean) => void;
   onLayoutWorkflow?: (flowId: string, nodeIds: string[], layoutType: 'hierarchical' | 'horizontal' | 'vertical') => void;
   onRefreshFigma?: (nodeId: string) => Promise<void>;
+  isFigmaAuthenticated?: boolean; // Whether user can refresh Figma frames
 }
 
 export function WorkflowCanvas({
@@ -138,6 +139,7 @@ export function WorkflowCanvas({
   onDragWorkflow,
   onLayoutWorkflow,
   onRefreshFigma,
+  isFigmaAuthenticated,
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -455,6 +457,7 @@ export function WorkflowCanvas({
         onDragWorkflow={onDragWorkflow}
         onLayoutWorkflow={onLayoutWorkflow}
         onRefreshFigma={onRefreshFigma}
+        isFigmaAuthenticated={isFigmaAuthenticated}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />
