@@ -225,14 +225,19 @@ export function ProjectDocTab({
 
   return (
     <div className="flex flex-col h-full" data-testid="project-doc-tab">
-      <div className="px-4 py-2 border-b border-border flex gap-1 items-center">
+      <div className={cn(
+        "px-4 py-2 border-b border-border flex gap-1 items-center",
+        isGenerating && "opacity-50 pointer-events-none"
+      )}>
         <button
           onClick={() => setDocMode('overview')}
+          disabled={isGenerating}
           className={cn(
             "px-3 py-1.5 text-xs rounded-md transition-colors flex items-center gap-1.5",
             docMode === 'overview' 
               ? "bg-accent text-accent-foreground font-medium" 
-              : "text-muted-foreground hover:bg-accent/50"
+              : "text-muted-foreground hover:bg-accent/50",
+            isGenerating && "cursor-not-allowed"
           )}
           data-testid="mode-overview"
         >
@@ -241,11 +246,13 @@ export function ProjectDocTab({
         </button>
         <button
           onClick={() => setDocMode('project-prd')}
+          disabled={isGenerating}
           className={cn(
             "px-3 py-1.5 text-xs rounded-md transition-colors flex items-center gap-1.5",
             docMode === 'project-prd' 
               ? "bg-accent text-accent-foreground font-medium" 
-              : "text-muted-foreground hover:bg-accent/50"
+              : "text-muted-foreground hover:bg-accent/50",
+            isGenerating && "cursor-not-allowed"
           )}
           data-testid="mode-project-prd"
         >
@@ -254,11 +261,13 @@ export function ProjectDocTab({
         </button>
         <button
           onClick={() => setDocMode('workflow-prd')}
+          disabled={isGenerating}
           className={cn(
             "px-3 py-1.5 text-xs rounded-md transition-colors flex items-center gap-1.5",
             docMode === 'workflow-prd' 
               ? "bg-accent text-accent-foreground font-medium" 
-              : "text-muted-foreground hover:bg-accent/50"
+              : "text-muted-foreground hover:bg-accent/50",
+            isGenerating && "cursor-not-allowed"
           )}
           data-testid="mode-workflow-prd"
         >
@@ -270,6 +279,7 @@ export function ProjectDocTab({
           variant="ghost"
           size="icon"
           onClick={() => setIsExportModalOpen(true)}
+          disabled={isGenerating}
           className="h-7 w-7"
           title="Export"
           data-testid="button-open-export-modal"
@@ -279,7 +289,10 @@ export function ProjectDocTab({
       </div>
 
       <ScrollArea className="flex-1" ref={scrollAreaRef}>
-        <div className="px-4 py-4 space-y-6">
+        <div className={cn(
+          "px-4 py-4 space-y-6",
+          isGenerating && "pointer-events-none"
+        )}>
           {docMode === 'overview' && (
             <>
               {isGenerating && (
