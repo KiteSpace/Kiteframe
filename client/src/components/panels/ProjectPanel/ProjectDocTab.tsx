@@ -128,7 +128,7 @@ export function ProjectDocTab({
       }
     } catch {}
     return undefined;
-  }, [projectId]);
+  }, [projectId, isExportModalOpen]);
 
   const { workflowSummaries, standaloneNodes } = useMemo(() => {
     if (nodes.length === 0) {

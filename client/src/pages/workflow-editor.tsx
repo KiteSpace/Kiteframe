@@ -10259,6 +10259,25 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       console.log('[Import] Saved project PRD with', projectPRD.sections.length, 'sections');
                     }
                     
+                    // Save project overview details to localStorage (for ProjectOverviewSection)
+                    if (projectDescription || projectName) {
+                      const detailsKey = `kiteframe-details-${targetProjectId}`;
+                      try {
+                        const existingDetails = localStorage.getItem(detailsKey);
+                        const details = existingDetails ? JSON.parse(existingDetails) : {};
+                        const updatedDetails = {
+                          ...details,
+                          name: projectName || details.name || '',
+                          description: projectDescription || details.description || '',
+                          updatedAt: Date.now(),
+                        };
+                        localStorage.setItem(detailsKey, JSON.stringify(updatedDetails));
+                        console.log('[Import] Saved project details to localStorage');
+                      } catch (e) {
+                        console.warn('[Import] Failed to save project details:', e);
+                      }
+                    }
+                    
                     toast({
                       title: "Project Imported",
                       description: `Imported "${projectName || 'Project'}" with ${workflows.length} workflow(s) onto a single canvas`,
