@@ -4610,16 +4610,70 @@ export default function DevDocs() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSection, setActiveSection] = useState('overview');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overview', 'tech-stack', 'architecture']));
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const [accessType, setAccessType] = useState<'admin' | 'docs' | null>(null);
+  const [docsEmail, setDocsEmail] = useState<string | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   
-  // Check for admin token in sessionStorage (same as AdminCodes page)
+  // Check authorization: admin token, magic link token, or docs session
   useEffect(() => {
-    const savedToken = sessionStorage.getItem('adminToken');
-    if (savedToken) {
-      setIsAdmin(true);
-    }
-    setIsChecking(false);
+    const checkAuth = async () => {
+      // First check for admin token (existing behavior)
+      const savedToken = sessionStorage.getItem('adminToken');
+      if (savedToken) {
+        setIsAuthorized(true);
+        setAccessType('admin');
+        setIsChecking(false);
+        return;
+      }
+      
+      // Check for magic link token in URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      
+      if (token) {
+        try {
+          const response = await fetch(`/internal/docs/verify?token=${token}`);
+          if (response.ok) {
+            const data = await response.json();
+            setIsAuthorized(true);
+            setAccessType('docs');
+            setDocsEmail(data.email);
+            // Clear token from URL
+            window.history.replaceState({}, '', '/internal/docs');
+            setIsChecking(false);
+            return;
+          } else {
+            const error = await response.json().catch(() => ({ error: 'Invalid token' }));
+            setVerifyError(error.error);
+          }
+        } catch {
+          setVerifyError('Failed to verify access link');
+        }
+      }
+      
+      // Check for existing docs session
+      try {
+        const response = await fetch('/internal/docs/session');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.authenticated) {
+            setIsAuthorized(true);
+            setAccessType('docs');
+            setDocsEmail(data.email);
+            setIsChecking(false);
+            return;
+          }
+        }
+      } catch {
+        // Session check failed, continue to show access denied
+      }
+      
+      setIsChecking(false);
+    };
+    
+    checkAuth();
   }, []);
   
   const filteredSections = useMemo(() => {
@@ -4664,21 +4718,25 @@ export default function DevDocs() {
     );
   }
   
-  if (!isAdmin) {
+  if (!isAuthorized) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="max-w-md">
           <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
+            <CardTitle>{verifyError ? 'Access Link Error' : 'Documentation Access Required'}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground mb-4">
-              This documentation is only available to admin users. Please log in via the admin panel first.
-            </p>
-            <Link href="/internal/x9k7m2p4">
+            {verifyError ? (
+              <p className="text-destructive mb-4">{verifyError}</p>
+            ) : (
+              <p className="text-muted-foreground mb-4">
+                This documentation requires an access link. If you've been granted access, check your email for a login link.
+              </p>
+            )}
+            <Link href="/">
               <Button variant="outline">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Go to Admin Login
+                Back to Home
               </Button>
             </Link>
           </CardContent>
@@ -4692,14 +4750,41 @@ export default function DevDocs() {
       <div className="flex h-screen">
         <aside className="w-72 border-r bg-muted/30 flex flex-col">
           <div className="p-4 border-b">
-            <div className="flex items-center gap-2 mb-4">
-              <Link href="/internal/x9k7m2p4">
-                <Button variant="ghost" size="sm" data-testid="button-back-admin">
-                  <ArrowLeft className="w-4 h-4 mr-1" />
-                  Admin
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                {accessType === 'admin' ? (
+                  <Link href="/internal/x9k7m2p4">
+                    <Button variant="ghost" size="sm" data-testid="button-back-admin">
+                      <ArrowLeft className="w-4 h-4 mr-1" />
+                      Admin
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href="/">
+                    <Button variant="ghost" size="sm" data-testid="button-back-home">
+                      <ArrowLeft className="w-4 h-4 mr-1" />
+                      Home
+                    </Button>
+                  </Link>
+                )}
+              </div>
+              {accessType === 'docs' && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={async () => {
+                    await fetch('/internal/docs/logout', { method: 'POST' });
+                    window.location.href = '/';
+                  }}
+                  data-testid="button-docs-logout"
+                >
+                  Logout
                 </Button>
-              </Link>
+              )}
             </div>
+            {docsEmail && (
+              <p className="text-xs text-muted-foreground mb-2">{docsEmail}</p>
+            )}
             <h1 className="text-lg font-bold mb-2">Developer Docs</h1>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

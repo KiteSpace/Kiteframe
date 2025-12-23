@@ -20,6 +20,7 @@ import {
   groupAccessControlsSchema,
   userCredits,
   pageViews,
+  docAccessGrants,
 } from "@shared/schema";
 import crypto from 'crypto';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte } from "drizzle-orm";
@@ -3659,6 +3660,249 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         details: error.message 
       });
     }
+  });
+
+  // ============= DOCS ACCESS MANAGEMENT (Admin) =============
+  
+  // Admin: List all docs access grants
+  app.get('/internal/x9k7m2p4/docs-access', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const grants = await db
+        .select()
+        .from(docAccessGrants)
+        .orderBy(desc(docAccessGrants.grantedAt));
+      
+      res.json({
+        success: true,
+        grants: grants.map(g => ({
+          ...g,
+          isActive: !g.revokedAt,
+        })),
+      });
+    } catch (error: any) {
+      console.error('Docs access list error:', error);
+      res.status(500).json({ error: 'Failed to fetch docs access grants' });
+    }
+  });
+  
+  // Admin: Grant docs access to an email
+  app.post('/internal/x9k7m2p4/docs-access', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return res.status(400).json({ error: 'Valid email required' });
+      }
+      
+      const normalizedEmail = email.toLowerCase().trim();
+      
+      // Check if grant already exists
+      const existing = await db
+        .select()
+        .from(docAccessGrants)
+        .where(eq(docAccessGrants.email, normalizedEmail))
+        .limit(1);
+      
+      if (existing.length > 0) {
+        // If revoked, reactivate it
+        if (existing[0].revokedAt) {
+          await db
+            .update(docAccessGrants)
+            .set({ revokedAt: null, grantedAt: new Date() })
+            .where(eq(docAccessGrants.id, existing[0].id));
+          
+          return res.json({ success: true, message: 'Access reactivated', grantId: existing[0].id });
+        }
+        return res.status(400).json({ error: 'Email already has docs access' });
+      }
+      
+      // Create new grant
+      const [newGrant] = await db
+        .insert(docAccessGrants)
+        .values({
+          email: normalizedEmail,
+          grantedByAdminId: (req as any).adminUsername || 'admin',
+        })
+        .returning();
+      
+      res.json({ success: true, grant: newGrant });
+    } catch (error: any) {
+      console.error('Docs access grant error:', error);
+      res.status(500).json({ error: 'Failed to grant docs access' });
+    }
+  });
+  
+  // Admin: Revoke docs access
+  app.post('/internal/x9k7m2p4/docs-access/:grantId/revoke', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { grantId } = req.params;
+      
+      const [updated] = await db
+        .update(docAccessGrants)
+        .set({ revokedAt: new Date() })
+        .where(eq(docAccessGrants.id, grantId))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: 'Grant not found' });
+      }
+      
+      res.json({ success: true, message: 'Access revoked' });
+    } catch (error: any) {
+      console.error('Docs access revoke error:', error);
+      res.status(500).json({ error: 'Failed to revoke docs access' });
+    }
+  });
+  
+  // Admin: Send/resend login link
+  app.post('/internal/x9k7m2p4/docs-access/:grantId/send-link', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { grantId } = req.params;
+      
+      const [grant] = await db
+        .select()
+        .from(docAccessGrants)
+        .where(eq(docAccessGrants.id, grantId))
+        .limit(1);
+      
+      if (!grant) {
+        return res.status(404).json({ error: 'Grant not found' });
+      }
+      
+      if (grant.revokedAt) {
+        return res.status(400).json({ error: 'Cannot send link to revoked grant' });
+      }
+      
+      // Generate magic link token
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      
+      await db
+        .update(docAccessGrants)
+        .set({
+          loginToken: hashedToken,
+          tokenExpiresAt: expiresAt,
+        })
+        .where(eq(docAccessGrants.id, grantId));
+      
+      // Build the login link
+      const baseUrl = process.env.REPL_SLUG 
+        ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER?.toLowerCase()}.repl.co`
+        : 'https://kiteframe.space';
+      const loginLink = `${baseUrl}/internal/docs?token=${rawToken}`;
+      
+      // Send email with the link
+      const sgMail = await import('@sendgrid/mail');
+      sgMail.default.setApiKey(process.env.SENDGRID_API_KEY!);
+      
+      await sgMail.default.send({
+        to: grant.email,
+        from: 'info@kiteframe.space',
+        subject: 'Your Kiteframe Developer Documentation Access',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Developer Documentation Access</h2>
+            <p>You've been granted access to Kiteframe's internal developer documentation.</p>
+            <p>Click the link below to access the docs:</p>
+            <p><a href="${loginLink}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Access Documentation</a></p>
+            <p style="color: #666; font-size: 14px;">This link expires in 24 hours. After clicking, you'll stay logged in for 30 days.</p>
+            <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
+          </div>
+        `,
+      });
+      
+      res.json({ success: true, message: 'Login link sent' });
+    } catch (error: any) {
+      console.error('Docs access send link error:', error);
+      res.status(500).json({ error: 'Failed to send login link' });
+    }
+  });
+
+  // ============= DOCS ACCESS AUTHENTICATION =============
+  
+  // Check docs session
+  app.get('/internal/docs/session', async (req, res) => {
+    const session = req.session as any;
+    if (session?.docsAccess && session?.docsEmail) {
+      // Verify the grant is still active
+      const [grant] = await db
+        .select()
+        .from(docAccessGrants)
+        .where(and(
+          eq(docAccessGrants.email, session.docsEmail),
+          isNull(docAccessGrants.revokedAt)
+        ))
+        .limit(1);
+      
+      if (grant) {
+        return res.json({ 
+          authenticated: true, 
+          email: session.docsEmail 
+        });
+      }
+      // Grant was revoked, clear session
+      session.docsAccess = false;
+      session.docsEmail = null;
+    }
+    res.json({ authenticated: false });
+  });
+  
+  // Verify magic link token
+  app.get('/internal/docs/verify', async (req, res) => {
+    try {
+      const { token } = req.query;
+      
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ error: 'Token required' });
+      }
+      
+      const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+      
+      const [grant] = await db
+        .select()
+        .from(docAccessGrants)
+        .where(and(
+          eq(docAccessGrants.loginToken, hashedToken),
+          isNull(docAccessGrants.revokedAt)
+        ))
+        .limit(1);
+      
+      if (!grant) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+      
+      if (grant.tokenExpiresAt && new Date() > grant.tokenExpiresAt) {
+        return res.status(401).json({ error: 'Token expired' });
+      }
+      
+      // Clear the token (single use) and update last login
+      await db
+        .update(docAccessGrants)
+        .set({
+          loginToken: null,
+          tokenExpiresAt: null,
+          lastLoginAt: new Date(),
+        })
+        .where(eq(docAccessGrants.id, grant.id));
+      
+      // Set session
+      const session = req.session as any;
+      session.docsAccess = true;
+      session.docsEmail = grant.email;
+      
+      res.json({ success: true, email: grant.email });
+    } catch (error: any) {
+      console.error('Docs verify error:', error);
+      res.status(500).json({ error: 'Failed to verify token' });
+    }
+  });
+  
+  // Docs logout
+  app.post('/internal/docs/logout', (req, res) => {
+    const session = req.session as any;
+    session.docsAccess = false;
+    session.docsEmail = null;
+    res.json({ success: true });
   });
 
   // ============= ADMIN AUTH ENDPOINTS =============

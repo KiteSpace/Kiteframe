@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Key, Shield, Ban, RotateCcw, BarChart3, Users, FolderTree, Upload, Search, Plus, Trash2, Edit, UserPlus, Download, ChevronLeft, ChevronRight, Star, UserMinus, ClipboardList, Check, X, ExternalLink } from 'lucide-react';
+import { Copy, Key, Shield, Ban, RotateCcw, BarChart3, Users, FolderTree, Upload, Search, Plus, Trash2, Edit, UserPlus, Download, ChevronLeft, ChevronRight, Star, UserMinus, ClipboardList, Check, X, ExternalLink, FileText, Send } from 'lucide-react';
 import { Link } from 'wouter';
 import AdminAnalytics from './AdminAnalytics';
 
@@ -1381,6 +1381,204 @@ function BetaUsersTab({ authHeader }: { authHeader: string }) {
   );
 }
 
+interface DocAccessGrant {
+  id: string;
+  email: string;
+  grantedByAdminId: string | null;
+  grantedAt: string;
+  revokedAt: string | null;
+  lastLoginAt: string | null;
+  isActive: boolean;
+}
+
+function DocsAccessTab({ authHeader }: { authHeader: string }) {
+  const { toast } = useToast();
+  const [newEmail, setNewEmail] = useState('');
+
+  const { data: grantsData, isLoading } = useQuery({
+    queryKey: ['/internal/x9k7m2p4/docs-access'],
+    queryFn: async () => {
+      const response = await fetch('/internal/x9k7m2p4/docs-access', {
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to fetch docs access grants');
+      return response.json();
+    },
+  });
+
+  const grantMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await fetch('/internal/x9k7m2p4/docs-access', {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Failed to grant access' }));
+        throw new Error(err.error);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/internal/x9k7m2p4/docs-access'] });
+      setNewEmail('');
+      toast({ title: 'Access granted', description: 'Send a login link to complete setup.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: async (grantId: string) => {
+      const response = await fetch(`/internal/x9k7m2p4/docs-access/${grantId}/revoke`, {
+        method: 'POST',
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) throw new Error('Failed to revoke access');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/internal/x9k7m2p4/docs-access'] });
+      toast({ title: 'Access revoked' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const sendLinkMutation = useMutation({
+    mutationFn: async (grantId: string) => {
+      const response = await fetch(`/internal/x9k7m2p4/docs-access/${grantId}/send-link`, {
+        method: 'POST',
+        headers: { 'Authorization': authHeader },
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Failed to send link' }));
+        throw new Error(err.error);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Login link sent', description: 'The user will receive an email with access instructions.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const grants: DocAccessGrant[] = grantsData?.grants || [];
+  const activeGrants = grants.filter(g => g.isActive);
+  const revokedGrants = grants.filter(g => !g.isActive);
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Grant Docs Access</CardTitle>
+          <CardDescription>
+            Give someone access to the internal developer documentation without admin privileges.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="user@example.com"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && newEmail && grantMutation.mutate(newEmail)}
+              data-testid="input-docs-access-email"
+            />
+            <Button
+              onClick={() => grantMutation.mutate(newEmail)}
+              disabled={!newEmail || grantMutation.isPending}
+              data-testid="button-grant-docs-access"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Grant Access
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Active Access ({activeGrants.length})</CardTitle>
+          <CardDescription>
+            Users who can currently access the developer documentation.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          ) : activeGrants.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No active grants</p>
+          ) : (
+            <div className="space-y-3">
+              {activeGrants.map((grant) => (
+                <div key={grant.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">{grant.email}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Granted: {new Date(grant.grantedAt).toLocaleDateString()}
+                      {grant.lastLoginAt && ` • Last login: ${new Date(grant.lastLoginAt).toLocaleDateString()}`}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => sendLinkMutation.mutate(grant.id)}
+                      disabled={sendLinkMutation.isPending}
+                      data-testid={`button-send-link-${grant.id}`}
+                    >
+                      <Send className="w-4 h-4 mr-1" />
+                      Send Link
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => revokeMutation.mutate(grant.id)}
+                      disabled={revokeMutation.isPending}
+                      data-testid={`button-revoke-${grant.id}`}
+                    >
+                      <Ban className="w-4 h-4 mr-1" />
+                      Revoke
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {revokedGrants.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Revoked Access ({revokedGrants.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {revokedGrants.map((grant) => (
+                <div key={grant.id} className="flex items-center justify-between p-2 border rounded-lg opacity-60">
+                  <div>
+                    <p className="font-medium line-through">{grant.email}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Revoked: {grant.revokedAt && new Date(grant.revokedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 function CSVImportTab({ authHeader }: { authHeader: string }) {
   const { toast } = useToast();
   const [csvContent, setCsvContent] = useState('');
@@ -1865,7 +2063,7 @@ export default function AdminCodes() {
         </div>
 
         <Tabs defaultValue="waitlist" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="waitlist" data-testid="tab-waitlist-management">
               <ClipboardList className="w-4 h-4 mr-2" />
               Waitlist
@@ -1885,6 +2083,10 @@ export default function AdminCodes() {
             <TabsTrigger value="groups" data-testid="tab-groups-management">
               <FolderTree className="w-4 h-4 mr-2" />
               Groups
+            </TabsTrigger>
+            <TabsTrigger value="docs-access" data-testid="tab-docs-access">
+              <FileText className="w-4 h-4 mr-2" />
+              Docs
             </TabsTrigger>
             <TabsTrigger value="import" data-testid="tab-csv-import">
               <Upload className="w-4 h-4 mr-2" />
@@ -2105,6 +2307,10 @@ export default function AdminCodes() {
 
           <TabsContent value="groups" className="mt-6">
             <GroupsTab authHeader={authHeader} />
+          </TabsContent>
+
+          <TabsContent value="docs-access" className="mt-6">
+            <DocsAccessTab authHeader={authHeader} />
           </TabsContent>
 
           <TabsContent value="import" className="mt-6">

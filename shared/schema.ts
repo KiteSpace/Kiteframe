@@ -432,3 +432,26 @@ export const insertPageViewSchema = createInsertSchema(pageViews).omit({
 
 export type PageView = typeof pageViews.$inferSelect;
 export type InsertPageView = z.infer<typeof insertPageViewSchema>;
+
+// Docs access grants - allows access to internal developer documentation without admin privileges
+export const docAccessGrants = pgTable("doc_access_grants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").notNull().unique(),
+  grantedByAdminId: varchar("granted_by_admin_id"), // Admin who granted access
+  grantedAt: timestamp("granted_at").defaultNow(),
+  revokedAt: timestamp("revoked_at"), // Null if active, timestamp if revoked
+  lastLoginAt: timestamp("last_login_at"), // Track when they last accessed docs
+  loginToken: varchar("login_token"), // Hashed magic link token (single-use)
+  tokenExpiresAt: timestamp("token_expires_at"), // Token expiration time
+}, (table) => [
+  index("IDX_doc_access_email").on(table.email),
+  index("IDX_doc_access_revoked").on(table.revokedAt),
+]);
+
+export const insertDocAccessGrantSchema = createInsertSchema(docAccessGrants).omit({
+  id: true,
+  grantedAt: true,
+});
+
+export type DocAccessGrant = typeof docAccessGrants.$inferSelect;
+export type InsertDocAccessGrant = z.infer<typeof insertDocAccessGrantSchema>;
