@@ -114,6 +114,7 @@ Preferred communication style: Simple, everyday language.
 - **Distribution**: TypeScript source files, MIT License.
 - **Documentation**: Comprehensive `README.md`, `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`.
 - **Demo Website**: Interactive demo at `/demo` route showcasing features, installation, and API examples.
+- **Internal Developer Docs**: Live interactive examples at `/internal/docs` (requires docs access, separate from admin access).
 - **Free Features**: All core functionality, including 6 node types, 6 edge types, 5 auto-layout algorithms, undo/redo, and plugin architecture.
 
 ## External Dependencies

@@ -147,7 +147,7 @@ function Router() {
         <Route path="/internal/x9k7m2p4" component={AdminCodes} />
         <Route path="/internal/x9k7m2p4/users/:userId" component={AdminUserDetails} />
         <Route path="/internal/x9k7m2p4/groups/:groupId" component={AdminGroupDetails} />
-        <Route path="/internal/x9k7m2p4/docs" component={DevDocs} />
+        <Route path="/internal/docs" component={DevDocs} />
         <Route path="/mockup/code-data" component={MockupCodeDataReference} />
         <Route path="/view/:shareId" component={ViewOnlyViewer} />
         <Route path="/benchmark" component={Benchmark} />

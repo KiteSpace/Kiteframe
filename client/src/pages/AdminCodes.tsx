@@ -1838,7 +1838,7 @@ export default function AdminCodes() {
             Admin Panel
           </h1>
           <div className="flex items-center gap-2">
-            <Link href="/internal/x9k7m2p4/docs">
+            <Link href="/internal/docs">
               <Button variant="outline" data-testid="button-dev-docs">
                 Developer Docs
               </Button>
