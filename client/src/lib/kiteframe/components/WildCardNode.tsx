@@ -204,7 +204,11 @@ export const WildCardNode: React.FC<WildCardNodeComponentProps> = ({
         node.hidden ? 'opacity-0 pointer-events-none' : '',
         className,
       )}
-      style={nodeStyles}
+      style={{
+        ...nodeStyles,
+        width: 300,
+        height: 300,
+      }}
       onMouseDown={handleMouseDown}
       onClick={(e) => onClick?.(e, node)}
       onDoubleClick={handleDoubleClick}
