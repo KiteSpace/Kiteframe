@@ -132,12 +132,62 @@ export type Edge = {
   meta?: EdgeMeta; // Metadata for speculative edges, AI generation, etc.
 };
 
-export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview' | 'code' | 'render' | 'wildcard';
+export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview' | 'code' | 'render' | 'wildcard' | 'experiment';
 
-// Wild Card mode types for speculative branching
+// ============= EXPERIMENT NODE TYPES =============
+// Experiment node for speculative branch authoring (What-If / Risk / Enhancement / Prompt)
+
+export type ExperimentMode = 'whatif' | 'risk' | 'enhancement' | 'prompt';
+
+export interface ExperimentOption {
+  id: string;
+  label: string;
+  description?: string;
+  tags?: string[];
+  requires?: string[];
+}
+
+export interface ExperimentAnchor {
+  workflowId: string;
+  anchorNodeId?: string;
+  anchorEdgeId?: string;
+}
+
+export interface ExperimentGeneration {
+  status: 'idle' | 'generating' | 'generated' | 'error';
+  lastGeneratedAt?: number;
+  errorMessage?: string;
+  generatedNodeIds: string[];
+  generatedEdgeIds: string[];
+  model?: string;
+  promptHash?: string;
+  confidence?: number;
+}
+
+export interface ExperimentUI {
+  preview: boolean;
+  badge?: 'Preview' | 'Speculative';
+}
+
+export interface ExperimentNodeData extends BaseNodeData {
+  label: string;
+  mode: ExperimentMode;
+  selectedOptionId?: string;
+  selectedOptionLabel?: string;
+  userPrompt?: string;
+  anchor: ExperimentAnchor;
+  generation: ExperimentGeneration;
+  ui: ExperimentUI;
+}
+
+// ============= DEPRECATED: WILDCARD TYPES =============
+// These are kept for backward compatibility. New code should use Experiment types.
+// Type "wildcard" is treated as an alias for "experiment" during import/render.
+
+/** @deprecated Use ExperimentMode instead */
 export type WildCardMode = 'whatif' | 'risk' | 'enhancement' | 'prompt';
 
-// Wild Card node data structure
+/** @deprecated Use ExperimentNodeData instead */
 export interface WildCardNodeData extends BaseNodeData {
   label: string;
   mode: WildCardMode;
@@ -152,6 +202,7 @@ export interface WildCardNodeData extends BaseNodeData {
   generationError?: string;
   generatedIds?: string[];
   summary?: string;
+  incomingEdgesCount?: number;
 }
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 

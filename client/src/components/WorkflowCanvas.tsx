@@ -77,6 +77,10 @@ interface WorkflowCanvasProps {
   onWildcardGenerateBranch?: (nodeId: string) => void;
   onWildcardAdoptBranch?: (nodeId: string) => void;
   onWildcardDiscardBranch?: (nodeId: string) => void;
+  onExperimentGenerateBranch?: (nodeId: string) => void;
+  onExperimentAdoptBranch?: (nodeId: string) => void;
+  onExperimentDiscardBranch?: (nodeId: string) => void;
+  experimentPredictiveOptions?: import('@/lib/kiteframe/types').ExperimentOption[];
 }
 
 export function WorkflowCanvas({
@@ -146,6 +150,10 @@ export function WorkflowCanvas({
   onWildcardGenerateBranch,
   onWildcardAdoptBranch,
   onWildcardDiscardBranch,
+  onExperimentGenerateBranch,
+  onExperimentAdoptBranch,
+  onExperimentDiscardBranch,
+  experimentPredictiveOptions,
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -467,6 +475,10 @@ export function WorkflowCanvas({
         onWildcardGenerateBranch={onWildcardGenerateBranch}
         onWildcardAdoptBranch={onWildcardAdoptBranch}
         onWildcardDiscardBranch={onWildcardDiscardBranch}
+        onExperimentGenerateBranch={onExperimentGenerateBranch}
+        onExperimentAdoptBranch={onExperimentAdoptBranch}
+        onExperimentDiscardBranch={onExperimentDiscardBranch}
+        experimentPredictiveOptions={experimentPredictiveOptions}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

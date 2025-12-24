@@ -147,8 +147,9 @@ import { prdNodeLinkStore, type PRDNodeLink } from "@/stores/prdNodeLinkStore";
 import { usePromptContextStoreOptional } from "@/contexts/PromptContextStore";
 import { generateWorkflowPRD } from "@/ai/prdEngine";
 import { generateWildCardBranch } from "@/ai/workflow/generateWildCardBranch";
-import type { WildCardNodeData } from "@/lib/kiteframe/types";
+import type { WildCardNodeData, ExperimentNodeData } from "@/lib/kiteframe/types";
 import { extractSemanticWorkflowModel } from "@/lib/kiteframe/utils/extractSemanticWorkflowModel";
+import { normalizeNodesForExperiment, markGeneratedEdgesAsPreview, normalizeNodeForMutation, clearPreviewFlags, clearEdgePreviewFlags } from "@/lib/kiteframe/utils/experimentNormalizer";
 import {
   saveWorkflowPRD,
   saveWorkflowPRDVersion,
@@ -8184,6 +8185,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             changes[0].type === "table" ||
                             changes[0].type === "shape" ||
                             changes[0].type === "wildcard" ||
+                            changes[0].type === "experiment" ||
                             changes[0].type === "code" ||
                             changes[0].type === "render" ||
                             changes[0].type === "text" ||
@@ -8597,8 +8599,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           if (!isDraggingRef.current) {
                             setSelectedNodeId(node.id);
 
-                            // Skip linear toolbar for wildcard nodes - they have their own UI
-                            if (node.type === "wildcard") {
+                            // Skip linear toolbar for wildcard/experiment nodes - they have their own UI
+                            if (node.type === "wildcard" || node.type === "experiment") {
                               setLinearToolbar(null);
                               clickDelayTimeoutRef.current = null;
                               return;
@@ -8674,8 +8676,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       part?: "header" | "body",
                     ) => {
                       // Skip inline text editing for code nodes (they have their own CodeMirror editor)
-                      // Skip for wildcard nodes (they have their own UI)
-                      if (node.type === "code" || node.type === "wildcard") {
+                      // Skip for wildcard/experiment nodes (they have their own UI)
+                      if (node.type === "code" || node.type === "wildcard" || node.type === "experiment") {
                         return;
                       }
                       // Double-click triggers inline text editing for specific part
@@ -10030,6 +10032,235 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       toast({
                         title: "Branch discarded",
                         description: "The speculative branch has been removed.",
+                      });
+                    }}
+                    onExperimentGenerateBranch={async (nodeId: string) => {
+                      const rawNode = nodes.find(n => n.id === nodeId);
+                      if (!rawNode || (rawNode.type !== 'experiment' && rawNode.type !== 'wildcard')) return;
+                      
+                      const node = normalizeNodeForMutation(rawNode, activeTab?.id || 'default');
+                      const data = node.data as ExperimentNodeData;
+                      
+                      setNodes(prev => prev.map(n => 
+                        n.id === nodeId 
+                          ? { 
+                              ...node,
+                              data: { 
+                                ...data, 
+                                generation: { 
+                                  ...data.generation, 
+                                  status: 'generating' as const,
+                                  errorMessage: undefined 
+                                } 
+                              } 
+                            }
+                          : n
+                      ));
+                      
+                      try {
+                        const promptContent = data.userPrompt || data.selectedOptionLabel || '';
+                        const legacyWildcardNode = {
+                          ...rawNode,
+                          type: 'wildcard' as const,
+                          data: {
+                            label: data.label,
+                            mode: data.mode,
+                            content: promptContent,
+                          }
+                        };
+                        const result = await generateWildCardBranch(
+                          ai,
+                          {
+                            wildcardNode: legacyWildcardNode,
+                            allNodes: nodes,
+                            allEdges: edges,
+                            workflowId: activeTab?.id || 'default',
+                            workflowName: activeTab?.name || 'Workflow',
+                          }
+                        );
+                        
+                        if (result.success && result.branch) {
+                          const branch = result.branch;
+                          const generatedNodeIds = branch.nodes.map(n => n.id);
+                          const generatedEdgeIds = branch.edges.map(e => e.id);
+                          
+                          const previewNodes = branch.nodes.map(n => ({
+                            ...n,
+                            meta: { ...n.meta, speculative: true, generatedFrom: { nodeId, ts: Date.now() } },
+                            data: { ...n.data, ui: { ...n.data?.ui, preview: true } }
+                          }));
+                          const previewEdges = branch.edges.map(e => ({
+                            ...e,
+                            meta: { ...e.meta, speculative: true, generatedFrom: { nodeId, ts: Date.now() } },
+                            style: { ...e.style, strokeDasharray: '5 5', strokeOpacity: 0.7 }
+                          }));
+                          
+                          setNodes(prev => [
+                            ...prev.map(n => 
+                              n.id === nodeId 
+                                ? { 
+                                    ...node, 
+                                    data: { 
+                                      ...data, 
+                                      generation: { 
+                                        status: 'generated' as const,
+                                        lastGeneratedAt: Date.now(),
+                                        generatedNodeIds,
+                                        generatedEdgeIds,
+                                      },
+                                    } 
+                                  }
+                                : n
+                            ),
+                            ...previewNodes
+                          ]);
+                          setEdges(prev => [...prev, ...previewEdges]);
+                          
+                          toast({
+                            title: "Branch generated",
+                            description: `Created ${branch.nodes.length} preview nodes. Review and adopt or discard.`,
+                          });
+                        } else {
+                          setNodes(prev => prev.map(n => 
+                            n.id === nodeId 
+                              ? { 
+                                  ...node, 
+                                  data: { 
+                                    ...data, 
+                                    generation: { 
+                                      ...data.generation,
+                                      status: 'error' as const,
+                                      errorMessage: result.error || 'Generation failed',
+                                      generatedNodeIds: [],
+                                      generatedEdgeIds: [],
+                                    } 
+                                  } 
+                                }
+                              : n
+                          ));
+                          toast({
+                            title: "Generation failed",
+                            description: result.error || "Could not generate branch.",
+                            variant: "destructive",
+                          });
+                        }
+                      } catch (error) {
+                        console.error('Error generating experiment branch:', error);
+                        setNodes(prev => prev.map(n => 
+                          n.id === nodeId 
+                            ? { 
+                                ...node, 
+                                data: { 
+                                  ...data, 
+                                  generation: { 
+                                    ...data.generation,
+                                    status: 'error' as const,
+                                    errorMessage: 'An error occurred',
+                                    generatedNodeIds: [],
+                                    generatedEdgeIds: [],
+                                  } 
+                                } 
+                              }
+                            : n
+                        ));
+                        toast({
+                          title: "Generation failed",
+                          description: "An error occurred while generating the branch.",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    onExperimentAdoptBranch={(nodeId: string) => {
+                      const rawNode = nodes.find(n => n.id === nodeId);
+                      if (!rawNode || (rawNode.type !== 'experiment' && rawNode.type !== 'wildcard')) return;
+                      
+                      const node = normalizeNodeForMutation(rawNode, activeTab?.id || 'default');
+                      const data = node.data as ExperimentNodeData;
+                      const generatedNodeIds = data.generation?.generatedNodeIds || [];
+                      const generatedEdgeIds = data.generation?.generatedEdgeIds || [];
+                      
+                      if (generatedNodeIds.length === 0 && generatedEdgeIds.length === 0) return;
+                      
+                      const nodeIdSet = new Set(generatedNodeIds);
+                      const edgeIdSet = new Set(generatedEdgeIds);
+                      
+                      const modeLabels: Record<string, string> = {
+                        whatif: 'What If',
+                        risk: 'Risk Analysis',
+                        enhancement: 'Enhancement',
+                        prompt: 'AI Prompt',
+                      };
+                      
+                      setNodes(prev => prev.map(n => {
+                        if (nodeIdSet.has(n.id)) {
+                          return clearPreviewFlags(n);
+                        }
+                        if (n.id === nodeId) {
+                          const experimentContent = data.userPrompt || data.selectedOptionLabel || '';
+                          const experimentMode = data.mode || 'whatif';
+                          return {
+                            ...n,
+                            type: 'process' as const,
+                            data: { 
+                              label: modeLabels[experimentMode] || 'Adopted Node',
+                              description: experimentContent,
+                            }
+                          };
+                        }
+                        return n;
+                      }));
+                      
+                      setEdges(prev => prev.map(e => {
+                        if (edgeIdSet.has(e.id)) {
+                          return clearEdgePreviewFlags(e);
+                        }
+                        return e;
+                      }));
+                      
+                      saveToHistory("Adopt speculative branch");
+                      
+                      toast({
+                        title: "Branch adopted",
+                        description: "The experiment has been converted and the branch is now permanent.",
+                      });
+                    }}
+                    onExperimentDiscardBranch={(nodeId: string) => {
+                      const rawNode = nodes.find(n => n.id === nodeId);
+                      if (!rawNode || (rawNode.type !== 'experiment' && rawNode.type !== 'wildcard')) return;
+                      
+                      const node = normalizeNodeForMutation(rawNode, activeTab?.id || 'default');
+                      const data = node.data as ExperimentNodeData;
+                      const generatedNodeIds = data.generation?.generatedNodeIds || [];
+                      const generatedEdgeIds = data.generation?.generatedEdgeIds || [];
+                      
+                      if (generatedNodeIds.length === 0 && generatedEdgeIds.length === 0) return;
+                      
+                      const nodeIdSet = new Set(generatedNodeIds);
+                      const edgeIdSet = new Set(generatedEdgeIds);
+                      
+                      setNodes(prev => prev
+                        .filter(n => !nodeIdSet.has(n.id))
+                        .map(n => n.id === nodeId 
+                          ? { 
+                              ...n, 
+                              data: { 
+                                ...n.data, 
+                                generation: {
+                                  status: 'idle' as const,
+                                  generatedNodeIds: [],
+                                  generatedEdgeIds: [],
+                                }
+                              } 
+                            }
+                          : n
+                        )
+                      );
+                      
+                      setEdges(prev => prev.filter(e => !edgeIdSet.has(e.id)));
+                      
+                      toast({
+                        title: "Branch discarded",
+                        description: "The preview branch has been removed.",
                       });
                     }}
                   />

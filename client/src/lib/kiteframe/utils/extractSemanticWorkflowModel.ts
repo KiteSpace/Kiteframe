@@ -1,5 +1,6 @@
 import type { Node, Edge } from '../types';
 import { extractSemanticNodeData, extractSemanticEdgeData } from './semanticHash';
+import { normalizeNodesForExperiment, markGeneratedEdgesAsPreview } from './experimentNormalizer';
 
 export interface SemanticNode {
   id: string;
@@ -149,16 +150,21 @@ export function extractSemanticWorkflowModel(
   edges: Edge[],
   options?: { includeSpeculative?: boolean }
 ): SemanticWorkflowModel {
-  // Filter out speculative nodes and wildcard nodes by default (they're not committed to the workflow)
+  // Normalize nodes and edges to ensure experiment-aware data (handles legacy wildcard payloads)
+  const normalizedNodes = normalizeNodesForExperiment(nodes, workflowId);
+  const normalizedEdges = markGeneratedEdgesAsPreview(edges);
+  
+  // Filter out speculative nodes and wildcard/experiment nodes by default (they're not committed to the workflow)
   const includeSpeculative = options?.includeSpeculative ?? false;
-  const filteredNodes = nodes.filter(node => {
-    // Always filter out wildcard nodes from semantic model - they're just UI containers
-    if (node.type === 'wildcard') return false;
-    // Filter out speculative nodes unless explicitly included
+  const filteredNodes = normalizedNodes.filter(node => {
+    // Always filter out wildcard/experiment nodes from semantic model - they're just UI containers
+    if (node.type === 'wildcard' || node.type === 'experiment') return false;
+    // Filter out speculative nodes unless explicitly included (check both meta.speculative and data.ui.preview)
     if (!includeSpeculative && node.meta?.speculative) return false;
+    if (!includeSpeculative && node.data?.ui?.preview === true) return false;
     return true;
   });
-  const filteredEdges = edges.filter(edge => {
+  const filteredEdges = normalizedEdges.filter(edge => {
     // Filter out speculative edges
     if (!includeSpeculative && edge.meta?.speculative) return false;
     // Filter out edges connected to filtered-out nodes

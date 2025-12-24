@@ -10,6 +10,7 @@ export { ImageNode } from './components/ImageNode';
 export { WebviewNode } from './components/WebviewNode';
 export { TableNode, createTableNode } from './components/TableNode';
 export { WildCardNode } from './components/WildCardNode';
+export { ExperimentNode } from './components/ExperimentNode';
 export { TablePanel } from './components/TablePanel';
 export { FormNode, createFormNode } from './components/FormNode';
 export { default as CodeNode, createCodeNode } from './components/CodeNode';
@@ -59,6 +60,12 @@ export type {
   AdvancedSelectionConfig,
   VersionControlConfig,
   NodeType,
+  ExperimentMode,
+  ExperimentOption,
+  ExperimentAnchor,
+  ExperimentGeneration,
+  ExperimentUI,
+  ExperimentNodeData,
   WildCardMode,
   WildCardNodeData,
   DataTable,
@@ -86,6 +93,22 @@ export type {
 
 // Utilities
 export { getBounds } from './utils/flowUtils';
+export { 
+  isSpeculativeNode, 
+  isSpeculativeEdge, 
+  filterOutSpeculativeNodes, 
+  filterOutSpeculativeEdges 
+} from './utils/speculativeFilter';
+export { 
+  normalizeWildCardToExperiment, 
+  ensureExperimentDefaults,
+  normalizeNodesForExperiment,
+  markGeneratedNodesAsPreview,
+  markGeneratedEdgesAsPreview,
+  normalizeNodeForMutation,
+  clearPreviewFlags,
+  clearEdgePreviewFlags
+} from './utils/experimentNormalizer';
 export { clientToWorld, zoomAroundPoint, clamp } from './utils/geometry';
 
 // Plugin system
