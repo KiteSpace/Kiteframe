@@ -95,7 +95,8 @@ export const WildCardNode: React.FC<WildCardNodeComponentProps> = ({
   
   const contentLength = (editContentValue || node.data.content || '').trim().length;
   const hasMinContent = contentLength >= 20;
-  const canGenerate = hasMinContent && !isGenerating && !hasGeneratedBranch;
+  const hasIncomingEdges = (node.data.incomingEdgesCount || 0) > 0;
+  const canGenerate = hasMinContent && !isGenerating && !hasGeneratedBranch && hasIncomingEdges;
 
   useEffect(() => {
     setEditContentValue(node.data.content || '');
@@ -176,8 +177,8 @@ export const WildCardNode: React.FC<WildCardNodeComponentProps> = ({
     onDiscardBranch?.(node.id);
   }, [node.id, onDiscardBranch, readOnly]);
 
-  const nodeWidth = node.style?.width || node.width || 280;
-  const nodeHeight = node.style?.height || node.height || 180;
+  const nodeWidth = node.style?.width || node.width || 300;
+  const nodeHeight = node.style?.height || node.height || 300;
 
   const nodeStyles: React.CSSProperties = {
     position: 'absolute',
@@ -229,6 +230,7 @@ export const WildCardNode: React.FC<WildCardNodeComponentProps> = ({
             )}
             data-testid="wildcard-mode-select"
           >
+            <Zap className="w-3.5 h-3.5 text-amber-500" />
             <span>{MODE_LABELS[mode]}</span>
             {!readOnly && <ChevronDown className="w-4 h-4 text-gray-400" />}
           </button>
@@ -340,6 +342,7 @@ export const WildCardNode: React.FC<WildCardNodeComponentProps> = ({
               : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
           )}
           title={
+            !hasIncomingEdges ? "Connect an input node first to provide context" :
             !hasMinContent ? "Enter at least 20 characters" :
             isGenerating ? "Generating..." :
             hasGeneratedBranch ? "Branch already generated" :
