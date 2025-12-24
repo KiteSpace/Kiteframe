@@ -1,0 +1,405 @@
+KITEFRAME — WILD CARD / “WHAT IF” NODE (V1) — REPLIT IMPLEMENTATION SPEC
+Last updated: 2025-12-24
+
+GOAL
+Implement a new node type that enables speculative branching with AI assistance, without polluting the “committed” workflow / PRD / export unless the user explicitly adopts it.
+
+Naming (V1)
+- User-facing label: “What If”
+- Internal node type key: 'wildcard' (keep stable even if UX label changes)
+- Mode selector in header (V1 supports 4 modes; AI generation only required for What If):
+  1) What If (primary)
+  2) Risk
+  3) Enhancement
+  4) Prompt
+NOTE: V1 may ship with only “What If” enabled for AI generation; other modes can be UI-only fields with identical behavior.
+
+Non-goals (V1)
+- No risk library picker
+- No ghost/overlay render layer separate from graph
+- No multi-user collab nuance beyond normal node sync behavior
+- No confidence sliders or simulations
+- No PDF/Docs exports changes beyond filtering speculative nodes
+
+
+--------------------------------------------------------------------------------
+SECTION 0 — DEFINITIONS & REQUIRED BEHAVIORS
+
+Definitions
+- “Speculative node”: a node with meta.speculative === true. (Do NOT rely on node.type alone for filtering.)
+- “Preview branch”: any nodes/edges created by Wild Card generation should be speculative by default.
+- “Adopt”: Converts a speculative subgraph into committed by setting meta.speculative=false on nodes/edges and ensuring they persist in exports/PRD.
+- “Discard”: Removes speculative subgraph entirely from canvas and does NOT create an undo history step.
+
+Required user behaviors
+1) User can add a What If node from the node type picker (popout) like other nodes.
+2) Node has header selector for mode (What If/Risk/Enhancement/Prompt).
+3) Node body is content that matches the mode:
+   - What If: “Scenario” (1–2 sentences) + optional “Constraints” line
+   - Risk: “Risk description” + optional “Impact/mitigation”
+   - Enhancement: “Enhancement idea” + optional “Success metric”
+   - Prompt: freeform instruction text
+4) Node has a lightning button (⚡) in header:
+   - Enabled only when mode === 'whatif' AND scenario text has >= 20 chars.
+   - Click triggers AI generation of a speculative branch connected to this node.
+5) After generation, show inline CTA row inside the node:
+   - “Adopt branch” (primary)
+   - “Discard” (secondary)
+6) Speculative nodes must be visually distinct:
+   - Dashed border style (CSS border-style: dashed) + small “Speculative” chip in header.
+7) Speculative nodes and edges must be excluded from:
+   - PRD semantic model extraction
+   - Project PRD assembly
+   - Export/serialization (unless adopted)
+   - Layout operations (recommended for V1: layout should ignore speculative nodes)
+8) Undo/Redo behavior:
+   - Adopt creates a single undo step (batch command).
+   - Discard does not create an undo step; it simply removes speculative nodes/edges immediately.
+   - Normal operations for committed nodes remain undoable.
+9) AI context:
+   - AI request must include: full committed workflow semantic context + the What If node scenario text.
+   - AI output must be constrained to: create a branch with at least 2 edges and at least 1 failure/loop/detour if applicable.
+   - AI must mark all created items with meta.speculative=true and meta.source='ai'.
+
+
+--------------------------------------------------------------------------------
+SECTION 1 — DATA MODEL CHANGES (TYPES)
+
+1.1 Add node type
+File: client/src/lib/kiteframe/types.ts
+- Extend NodeType union to include 'wildcard'
+  export type NodeType = ... | 'wildcard';
+
+1.2 Extend node meta conventions
+Wherever BaseNodeData / Node meta type is defined:
+- Add meta.speculative?: boolean (do not rename)
+- Add meta.generatedFrom?: { nodeId: string; ts: number; } (optional but recommended)
+- Add meta.mode?: 'whatif'|'risk'|'enhancement'|'prompt' (optional, can live in data instead)
+
+IMPORTANT: Keep meta additions backward-compatible and optional.
+
+1.3 Edge meta speculative
+If Edge type includes meta, add:
+- edge.meta?.speculative?: boolean
+If edge meta does not exist, add a safe optional meta object to Edge type.
+
+
+--------------------------------------------------------------------------------
+SECTION 2 — NODE FACTORY + REGISTRATION
+
+2.1 Create the factory function
+File: client/src/lib/kiteframe/factory/NodeFactory.ts
+
+Add a factory:
+- createWildCardNode(position, data?)
+Defaults:
+- type: 'wildcard'
+- width: 260
+- height: 160 (auto grows if your node components support it)
+- data:
+  - label: 'What If'
+  - mode: 'whatif'
+  - content: '' (scenario text)
+  - optional fields: constraints, impact, mitigation, metric
+- meta:
+  - speculative: false (for manually created wildcard nodes; speculative will be used for generated branches)
+  - source: 'user'
+
+Then register with nodeRegistry.register({ type:'wildcard', factory: createWildCardNode, template:..., displayName:'What If', description:'Speculative branch generator', category:'custom' or 'basic' (pick one consistently) }).
+
+2.2 Add to node type picker
+Wherever the node types popout lists available types (NodeTypesPopout.tsx or registry-driven UI):
+- Ensure 'wildcard' appears with label “What If” and an icon (spark / bolt).
+- Category: put near condition/process.
+
+
+--------------------------------------------------------------------------------
+SECTION 3 — RENDERER COMPONENT
+
+3.1 Add component
+Create: client/src/lib/kiteframe/nodes/WildCardNode.tsx (or follow existing node folder conventions)
+
+Component requirements
+Header:
+- Left: node label (editable like other nodes if supported)
+- Right:
+  - Mode selector (dropdown)
+  - ⚡ action icon button
+  - Speculative chip visible when node.meta.speculative === true
+
+Body:
+- Render mode-specific fields as click-to-edit “doc-like” inputs:
+  - No visible textarea borders by default.
+  - On click, switch to editing state; on blur/Enter, commit.
+  - Use the same “DocSection” treatment style if available, but local to node.
+
+Footer/inline actions (only after branch generation):
+- Adopt branch button
+- Discard button
+- Show “Generated branch preview” text
+
+Visual style:
+- If meta.speculative true:
+  - dashed border
+  - subtle tinted background (use existing theme tokens, do not invent new palette)
+- Otherwise normal.
+
+3.2 Register renderer mapping
+Where node renderers are mapped (nodeRenderers hook or switch):
+- Map type 'wildcard' -> WildCardNode component
+
+3.3 Add test IDs for automation
+Add data-testid attributes:
+- wildcard-mode-select
+- wildcard-generate-btn
+- wildcard-adopt-btn
+- wildcard-discard-btn
+
+
+--------------------------------------------------------------------------------
+SECTION 4 — AI GENERATION PIPELINE FOR WILD CARD
+
+V1 approach: add a dedicated helper that calls existing AiProvider chat, reusing the same “workflow generation JSON parsing” utilities you already have, but with a stricter contract.
+
+4.1 Add a function to generate a speculative branch
+Create: client/src/ai/wildcard/generateWildCardBranch.ts (or similar)
+
+Inputs:
+- projectId
+- workflowId (connected component id if available; if not, compute for this node)
+- full graph: nodes, edges
+- wildcardNodeId
+- wildcardScenarioText
+- mode ('whatif' only for v1)
+
+Outputs:
+- newNodes: Node[]
+- newEdges: Edge[]
+All outputs MUST set:
+- node.meta.speculative = true
+- node.meta.source = 'ai'
+- node.meta.generatedFrom = { nodeId: wildcardNodeId, ts: Date.now() }
+- edge.meta.speculative = true
+- edge.meta.source = 'ai'
+
+AI prompt contract
+System intent:
+- “You are generating a speculative workflow branch in a product workflow diagram tool.”
+- “Return STRICT JSON only with nodes[] and edges[] using our schema.”
+- “Do not modify existing nodes. Only add new nodes/edges.”
+- “Connect the branch to the wildcard node by creating at least one edge from wildcardNodeId -> firstGeneratedNodeId.”
+- “Branch must contain >= 2 edges.”
+- “Include at least one failure/loop/detour if scenario implies risk or uncertainty.”
+
+Context to include:
+- A condensed semantic model of committed nodes only (filter meta.speculative !== true)
+- The wildcard scenario text
+- Any nearby nodes (optional: immediate neighbors) for better relevance
+
+Parsing:
+- Reuse your existing JSON extraction/repair logic (the robust one used in homepage generator).
+- Validate outputs:
+  - IDs unique and not conflicting with existing ids
+  - edges reference valid ids
+  - >= 2 edges
+  - no nodes outside allowed NodeType union (map unknown to 'process' or reject)
+
+4.2 Wire into UI click (⚡)
+In WildCardNode.tsx, on click:
+- Call a node action handler passed from canvas/editor level (do NOT call AI directly inside node component if architecture prefers centralization).
+- Editor handler should:
+  1) set “generating” UI state on that node (node.data.generating=true)
+  2) call generateWildCardBranch()
+  3) apply additions as speculative nodes/edges
+  4) set node.data.hasGeneratedBranch=true
+  5) store list of generated ids somewhere for adopt/discard:
+     - node.meta.generatedIds?: { nodeIds: string[], edgeIds: string[] }
+
+IMPORTANT: If you already have a centralized AI action bus, integrate there instead of creating a parallel pathway.
+
+4.3 Adopt / Discard implementation
+Adopt:
+- Convert generated speculative nodes/edges to committed:
+  - set meta.speculative=false for those ids
+- Wrap as ONE undoable command batch via UndoRedoManager:
+  - before state: meta.speculative=true
+  - after state: meta.speculative=false
+- After adopt, remove the Adopt/Discard UI and mark node as “Branch adopted”.
+
+Discard:
+- Remove the generated nodes/edges from state immediately.
+- Do NOT create history entry.
+- Clear node.meta.generatedIds and node.data.hasGeneratedBranch.
+
+4.4 Error states
+If AI generation fails:
+- Show inline error text in node (non-modal).
+- Keep node content unchanged.
+- Clear generating state.
+
+
+--------------------------------------------------------------------------------
+SECTION 5 — FILTERING SPECULATIVE NODES (PRD, EXPORT, LAYOUT)
+
+This is required to prevent speculative artifacts from polluting core outputs.
+
+5.1 Semantic model extraction filter
+File: client/src/lib/.../extractSemanticWorkflowModel.ts
+- At the top where nodes/edges are iterated, filter:
+  nodes = nodes.filter(n => !n.meta?.speculative)
+  edges = edges.filter(e => !e.meta?.speculative)
+
+5.2 Project PRD assembly filter
+File: client/src/lib/.../assembleProjectPRD.ts
+- Ensure it calls the filtered semantic extraction.
+- If it has its own iteration over nodes/edges, filter similarly.
+
+5.3 Export filter
+Files: client/src/lib/export/*
+- For “export kiteframe project” or workflow export:
+  - Default behavior: exclude speculative nodes/edges.
+  - Add an optional flag exportIncludeSpeculative=false to override later.
+
+5.4 Layout filter (recommended V1)
+File: client/src/lib/kiteframe/plugins/basic/LayoutPlugin.ts
+- Before running layout on a set of nodes/edges:
+  - remove speculative nodes/edges from the layout input set
+- If user selects a mixture:
+  - layout acts only on committed selection and ignores speculative ones
+
+
+--------------------------------------------------------------------------------
+SECTION 6 — EDGE VALIDATION / SMART CONNECT / PLUGINS
+
+6.1 Edge validation whitelist
+If there is a whitelist of allowed node types for edges:
+- Ensure 'wildcard' is included.
+
+6.2 SmartConnect plugin
+Verify that:
+- Connecting from/to wildcard behaves like a normal node.
+- Generated speculative edges are rendered like normal edges but may optionally be slightly translucent (optional).
+
+6.3 Decision tree requirement
+Do NOT enforce “decision node” requirement at canvas validation layer for wildcard branches.
+Instead:
+- enforce branch structure in AI validator for v1 (>=2 edges)
+- optionally require a condition node only when scenario includes branching keywords (future)
+
+
+--------------------------------------------------------------------------------
+SECTION 7 — ACCEPTANCE TESTS (REQUIRED)
+
+Add tests in existing AI/acceptance test suite OR component tests.
+
+7.1 Unit tests
+- generateWildCardBranch validates:
+  - rejects invalid JSON
+  - enforces >=2 edges
+  - assigns meta.speculative to all generated nodes/edges
+
+7.2 Integration tests
+Scenario A: Create wildcard node
+- Add wildcard node
+- Select mode “What If”
+- Enter scenario
+- Click ⚡
+- Ensure new nodes/edges appear with meta.speculative=true
+- Ensure Adopt/Discard appears
+
+Scenario B: Discard
+- Click Discard
+- Generated nodes/edges removed
+- No undo history step created
+
+Scenario C: Adopt
+- Click Adopt
+- Generated nodes/edges remain and meta.speculative=false
+- One undo step created
+- Undo returns meta.speculative=true (or removes nodes if you prefer; pick one and keep consistent)
+- Redo reapplies adopt
+
+Scenario D: PRD generation excludes speculative
+- Create speculative branch but do not adopt
+- Generate PRD
+- Ensure PRD content does not reference speculative nodes
+
+Scenario E: Export excludes speculative
+- Export project
+- Ensure speculative nodes not present in exported JSON
+
+
+--------------------------------------------------------------------------------
+SECTION 8 — UI COPY (EXACT)
+
+Node label default:
+- “What If”
+
+Mode dropdown labels:
+- What If
+- Risk
+- Enhancement
+- Prompt
+
+Placeholder text by mode:
+- What If: “Describe the edge case or alternative path you want to explore…”
+- Risk: “Describe the risk and where it occurs…”
+- Enhancement: “Describe the improvement and expected impact…”
+- Prompt: “Write a prompt for what should be generated…”
+
+Adopt/Discard row:
+- Title: “Generated branch preview”
+- Buttons:
+  - Primary: “Adopt branch”
+  - Secondary: “Discard”
+
+Error message:
+- “Could not generate a branch. Please refine the scenario and try again.”
+
+
+--------------------------------------------------------------------------------
+SECTION 9 — IMPLEMENTATION ORDER (DO THIS EXACTLY)
+
+Step 1 — Add types/meta support
+- NodeType union
+- meta.speculative
+- edge meta
+
+Step 2 — Node factory + registration + picker
+- createWildCardNode
+- nodeRegistry.register
+- show in NodeTypesPopout
+
+Step 3 — WildCardNode renderer
+- UI, mode selector, dashed border, ⚡ button, adopt/discard UI
+
+Step 4 — AI generator function
+- generateWildCardBranch()
+- strict JSON contract + validation + speculative tagging
+
+Step 5 — Editor wiring
+- handler for ⚡
+- adopt/discard actions
+- ensure undo behavior correct
+
+Step 6 — Filtering
+- semantic model extraction
+- PRD assembly
+- export
+- layout
+
+Step 7 — Tests
+- unit + integration
+
+
+--------------------------------------------------------------------------------
+SECTION 10 — QUESTIONS YOU MUST ANSWER BEFORE CODING (DO NOT GUESS)
+
+Answer these in-thread and paste links to code lines:
+1) Where is the node renderer map/switch for node types?
+2) Where is the node type picker list sourced from?
+3) What is the canonical place to store node-level transient UI state (generating, error)?
+4) Which export functions are used for Kiteframe PRD/project export today?
+5) Which PRD generation entry points are called after workflow creation?
+
+END OF SPEC
