@@ -255,7 +255,7 @@ interface Node {
 // - status?: 'todo' | 'inprogress' | 'done'
 ```
 
-**Built-in node types:** `input`, `process`, `condition`, `output`, `ai`, `image`, `table`, `form`, `compound`, `webview`, `code`, `render`
+**Built-in node types:** `input`, `process`, `condition`, `output`, `ai`, `image`, `table`, `form`, `compound`, `webview`, `code`, `render`, `wildcard`
 
 > **Note:** The `data` field is typed as `any` for flexibility. Each built-in node type expects specific data properties - see individual node documentation for details.
 

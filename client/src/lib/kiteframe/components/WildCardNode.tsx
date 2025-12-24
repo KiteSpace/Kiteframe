@@ -205,6 +205,7 @@ export const WildCardNode: React.FC<WildCardNodeComponentProps> = ({
 
   const handleModeSelect = useCallback((newMode: WildCardMode) => {
     setShowModeDropdown(false);
+    if (readOnly) return;
     if (newMode !== mode) {
       onUpdate?.(node.id, {
         data: {
@@ -214,24 +215,27 @@ export const WildCardNode: React.FC<WildCardNodeComponentProps> = ({
         }
       });
     }
-  }, [mode, node.id, node.data, onUpdate]);
+  }, [mode, node.id, node.data, onUpdate, readOnly]);
 
   const handleGenerateClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    if (readOnly) return;
     if (canGenerate && !isGenerating && !hasGeneratedBranch) {
       onGenerateBranch?.(node.id);
     }
-  }, [canGenerate, isGenerating, hasGeneratedBranch, node.id, onGenerateBranch]);
+  }, [canGenerate, isGenerating, hasGeneratedBranch, node.id, onGenerateBranch, readOnly]);
 
   const handleAdoptClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    if (readOnly) return;
     onAdoptBranch?.(node.id);
-  }, [node.id, onAdoptBranch]);
+  }, [node.id, onAdoptBranch, readOnly]);
 
   const handleDiscardClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    if (readOnly) return;
     onDiscardBranch?.(node.id);
-  }, [node.id, onDiscardBranch]);
+  }, [node.id, onDiscardBranch, readOnly]);
 
   const nodeWidth = node.style?.width || node.width || 260;
   const nodeHeight = node.style?.height || node.height || 160;

@@ -8,10 +8,15 @@ export const DEFAULT_EDGE_VALIDATION_RULES: EdgeValidationRules = {
       allowedSources: ['form', 'table'],
     },
     output: {
-      allowedSources: ['input', 'process', 'condition', 'ai', 'code', 'form', 'table'],
+      allowedSources: ['input', 'process', 'condition', 'ai', 'code', 'form', 'table', 'wildcard'],
     },
     condition: {
-      allowedSources: ['input', 'process', 'ai', 'code', 'form', 'table'],
+      allowedSources: ['input', 'process', 'ai', 'code', 'form', 'table', 'wildcard'],
+    },
+    wildcard: {
+      // Wildcard nodes can connect to/from any workflow node type (including media nodes)
+      allowedSources: ['input', 'process', 'condition', 'ai', 'code', 'form', 'table', 'wildcard', 'image', 'webview', 'render', 'compound', 'output'],
+      allowedTargets: ['input', 'process', 'condition', 'ai', 'output', 'code', 'form', 'table', 'wildcard', 'image', 'webview', 'render', 'compound'],
     },
   },
 };

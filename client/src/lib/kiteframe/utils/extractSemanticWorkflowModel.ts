@@ -146,9 +146,28 @@ export function extractSemanticWorkflowModel(
   workflowId: string,
   workflowName: string,
   nodes: Node[],
-  edges: Edge[]
+  edges: Edge[],
+  options?: { includeSpeculative?: boolean }
 ): SemanticWorkflowModel {
-  const semanticNodes: SemanticNode[] = nodes.map(node => {
+  // Filter out speculative nodes and wildcard nodes by default (they're not committed to the workflow)
+  const includeSpeculative = options?.includeSpeculative ?? false;
+  const filteredNodes = nodes.filter(node => {
+    // Always filter out wildcard nodes from semantic model - they're just UI containers
+    if (node.type === 'wildcard') return false;
+    // Filter out speculative nodes unless explicitly included
+    if (!includeSpeculative && node.meta?.speculative) return false;
+    return true;
+  });
+  const filteredEdges = edges.filter(edge => {
+    // Filter out speculative edges
+    if (!includeSpeculative && edge.meta?.speculative) return false;
+    // Filter out edges connected to filtered-out nodes
+    const sourceExists = filteredNodes.some(n => n.id === edge.source);
+    const targetExists = filteredNodes.some(n => n.id === edge.target);
+    return sourceExists && targetExists;
+  });
+  
+  const semanticNodes: SemanticNode[] = filteredNodes.map(node => {
     const extracted = extractSemanticNodeData(node);
     return {
       id: extracted.id,
@@ -159,7 +178,7 @@ export function extractSemanticWorkflowModel(
     };
   });
   
-  const semanticEdges: SemanticEdge[] = edges.map(edge => {
+  const semanticEdges: SemanticEdge[] = filteredEdges.map(edge => {
     const extracted = extractSemanticEdgeData(edge);
     return {
       id: extracted.id,
@@ -173,15 +192,15 @@ export function extractSemanticWorkflowModel(
   return {
     workflowId,
     name: workflowName,
-    nodeCount: nodes.length,
+    nodeCount: filteredNodes.length,
     nodes: semanticNodes,
     edges: semanticEdges,
-    forms: extractForms(nodes),
-    screens: extractScreens(nodes),
-    primaryActions: extractPrimaryActions(nodes, edges),
-    errorPaths: extractErrorPaths(nodes, edges),
+    forms: extractForms(filteredNodes),
+    screens: extractScreens(filteredNodes),
+    primaryActions: extractPrimaryActions(filteredNodes, filteredEdges),
+    errorPaths: extractErrorPaths(filteredNodes, filteredEdges),
     assumptions: [],
-    entryPoints: findEntryPoints(nodes, edges),
-    exitPoints: findExitPoints(nodes, edges)
+    entryPoints: findEntryPoints(filteredNodes, filteredEdges),
+    exitPoints: findExitPoints(filteredNodes, filteredEdges)
   };
 }

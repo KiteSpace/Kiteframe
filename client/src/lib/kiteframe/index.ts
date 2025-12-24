@@ -9,6 +9,7 @@ export { NodeHandles } from './components/NodeHandles';
 export { ImageNode } from './components/ImageNode';
 export { WebviewNode } from './components/WebviewNode';
 export { TableNode, createTableNode } from './components/TableNode';
+export { WildCardNode } from './components/WildCardNode';
 export { TablePanel } from './components/TablePanel';
 export { FormNode, createFormNode } from './components/FormNode';
 export { default as CodeNode, createCodeNode } from './components/CodeNode';
