@@ -4898,7 +4898,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               // Fallback to default rendering for unregistered node types
               // Check if border should be hidden
               const hasNoBorder = n.data?.noStroke === true;
-              const borderStyleValue = n.data?.borderStyle || 'solid';
+              const isSpeculative = n.meta?.speculative === true;
+              const borderStyleValue = isSpeculative ? 'dashed' : (n.data?.borderStyle || 'solid');
               // Use consistent border radius - container should match header/body corners
               // When using 2px border, the inner content radius should be slightly smaller
               const cornerRadius = 10; // Match the visual appearance
@@ -4908,7 +4909,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   key={n.id}
                   ref={(el) => registerNodeRef(n.id, el)}
                   data-node-id={n.id}
-                  className={`kiteframe-node group ${n.selected ? "selected" : ""}`}
+                  className={`kiteframe-node group ${n.selected ? "selected" : ""} ${isSpeculative ? "speculative-node" : ""}`}
                   style={{
                     left: n.position.x,
                     top: n.position.y,
@@ -4918,13 +4919,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       ? { minHeight: h, height: 'auto' } 
                       : { height: h }),
                     // Use real CSS border (like StickyNoteObject) instead of box-shadow
-                    borderWidth: hasNoBorder ? '0px' : '2px',
+                    borderWidth: hasNoBorder ? '0px' : (isSpeculative ? '3px' : '2px'),
                     borderStyle: hasNoBorder ? 'none' : borderStyleValue,
-                    borderColor: hasNoBorder ? 'transparent' : border,
+                    borderColor: hasNoBorder ? 'transparent' : (isSpeculative ? '#a855f7' : border),
                     borderRadius: `${cornerRadius}px`,
                     // Selection indicator using box-shadow to respect border-radius
                     boxShadow: n.selected ? '0 0 0 2px #3b82f6' : 'none',
-                    background: "transparent", // Remove default background since we'll use separate header/body
+                    background: isSpeculative ? "rgba(168, 85, 247, 0.05)" : "transparent", // Tinted background for speculative
                     display: "flex",
                     flexDirection: "column",
                     zIndex: n.zIndex || 0,

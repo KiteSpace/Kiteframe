@@ -74,6 +74,9 @@ interface WorkflowCanvasProps {
   onLayoutWorkflow?: (flowId: string, nodeIds: string[], layoutType: 'hierarchical' | 'horizontal' | 'vertical') => void;
   onRefreshFigma?: (nodeId: string) => Promise<void>;
   isFigmaAuthenticated?: boolean; // Whether user can refresh Figma frames
+  onWildcardGenerateBranch?: (nodeId: string) => void;
+  onWildcardAdoptBranch?: (nodeId: string) => void;
+  onWildcardDiscardBranch?: (nodeId: string) => void;
 }
 
 export function WorkflowCanvas({
@@ -140,6 +143,9 @@ export function WorkflowCanvas({
   onLayoutWorkflow,
   onRefreshFigma,
   isFigmaAuthenticated,
+  onWildcardGenerateBranch,
+  onWildcardAdoptBranch,
+  onWildcardDiscardBranch,
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -458,6 +464,9 @@ export function WorkflowCanvas({
         onLayoutWorkflow={onLayoutWorkflow}
         onRefreshFigma={onRefreshFigma}
         isFigmaAuthenticated={isFigmaAuthenticated}
+        onWildcardGenerateBranch={onWildcardGenerateBranch}
+        onWildcardAdoptBranch={onWildcardAdoptBranch}
+        onWildcardDiscardBranch={onWildcardDiscardBranch}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

@@ -147,8 +147,11 @@ export interface WildCardNodeData extends BaseNodeData {
   mitigation?: string;
   metric?: string;
   generating?: boolean;
+  isGenerating?: boolean;
   hasGeneratedBranch?: boolean;
   generationError?: string;
+  generatedIds?: string[];
+  summary?: string;
 }
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 

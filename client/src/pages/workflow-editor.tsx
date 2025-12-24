@@ -146,6 +146,8 @@ import { resetLayersState } from "@/stores/layersStateManager";
 import { prdNodeLinkStore, type PRDNodeLink } from "@/stores/prdNodeLinkStore";
 import { usePromptContextStoreOptional } from "@/contexts/PromptContextStore";
 import { generateWorkflowPRD } from "@/ai/prdEngine";
+import { generateWildCardBranch } from "@/ai/workflow/generateWildCardBranch";
+import type { WildCardNodeData } from "@/lib/kiteframe/types";
 import { extractSemanticWorkflowModel } from "@/lib/kiteframe/utils/extractSemanticWorkflowModel";
 import {
   saveWorkflowPRD,
@@ -9838,6 +9840,173 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     }}
                     isFigmaAuthenticated={isFigmaAuthenticated}
+                    onWildcardGenerateBranch={async (nodeId: string) => {
+                      const node = nodes.find(n => n.id === nodeId);
+                      if (!node || node.type !== 'wildcard') return;
+                      
+                      const data = node.data as WildCardNodeData;
+                      
+                      setNodes(prev => prev.map(n => 
+                        n.id === nodeId 
+                          ? { ...n, data: { ...n.data, isGenerating: true } }
+                          : n
+                      ));
+                      
+                      try {
+                        const result = await generateWildCardBranch(
+                          ai,
+                          {
+                            wildcardNode: node,
+                            allNodes: nodes,
+                            allEdges: edges,
+                            workflowId: activeTab?.id || 'default',
+                            workflowName: activeTab?.name || 'Workflow',
+                          }
+                        );
+                        
+                        if (result.success && result.branch) {
+                          const branch = result.branch;
+                          const generatedIds = [
+                            ...branch.nodes.map(n => n.id),
+                            ...branch.edges.map(e => e.id)
+                          ];
+                          
+                          setNodes(prev => [
+                            ...prev.map(n => 
+                              n.id === nodeId 
+                                ? { 
+                                    ...n, 
+                                    data: { 
+                                      ...n.data, 
+                                      isGenerating: false,
+                                      generatedIds,
+                                      summary: branch.summary || ''
+                                    } 
+                                  }
+                                : n
+                            ),
+                            ...branch.nodes
+                          ]);
+                          setEdges(prev => [...prev, ...branch.edges]);
+                          
+                          toast({
+                            title: "Branch generated",
+                            description: `Created ${branch.nodes.length} speculative nodes. Review and adopt or discard.`,
+                          });
+                        } else {
+                          setNodes(prev => prev.map(n => 
+                            n.id === nodeId 
+                              ? { ...n, data: { ...n.data, isGenerating: false } }
+                              : n
+                          ));
+                          toast({
+                            title: "Generation failed",
+                            description: result.error || "Could not generate branch.",
+                            variant: "destructive",
+                          });
+                        }
+                      } catch (error) {
+                        console.error('Error generating wildcard branch:', error);
+                        setNodes(prev => prev.map(n => 
+                          n.id === nodeId 
+                            ? { ...n, data: { ...n.data, isGenerating: false } }
+                            : n
+                        ));
+                        toast({
+                          title: "Generation failed",
+                          description: "An error occurred while generating the branch.",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    onWildcardAdoptBranch={(nodeId: string) => {
+                      const node = nodes.find(n => n.id === nodeId);
+                      if (!node || node.type !== 'wildcard') return;
+                      
+                      const data = node.data as WildCardNodeData;
+                      const generatedIds = data.generatedIds || [];
+                      
+                      if (generatedIds.length === 0) return;
+                      
+                      const generatedIdSet = new Set(generatedIds);
+                      
+                      setNodes(prev => prev.map(n => {
+                        if (generatedIdSet.has(n.id)) {
+                          const { speculative, generatedFrom, ...restMeta } = n.meta || {};
+                          return {
+                            ...n,
+                            meta: Object.keys(restMeta).length > 0 ? restMeta : undefined
+                          };
+                        }
+                        if (n.id === nodeId) {
+                          return {
+                            ...n,
+                            data: { 
+                              ...n.data, 
+                              generatedIds: [], 
+                              summary: '',
+                              isGenerating: false,
+                              hasGeneratedBranch: false
+                            }
+                          };
+                        }
+                        return n;
+                      }));
+                      
+                      setEdges(prev => prev.map(e => {
+                        if (generatedIdSet.has(e.id)) {
+                          const { speculative, generatedFrom, ...restMeta } = e.meta || {};
+                          return {
+                            ...e,
+                            style: { ...e.style, strokeDasharray: undefined },
+                            meta: Object.keys(restMeta).length > 0 ? restMeta : undefined
+                          };
+                        }
+                        return e;
+                      }));
+                      
+                      saveToHistory("Adopt speculative branch");
+                      
+                      toast({
+                        title: "Branch adopted",
+                        description: "The speculative branch has been made permanent.",
+                      });
+                    }}
+                    onWildcardDiscardBranch={(nodeId: string) => {
+                      const node = nodes.find(n => n.id === nodeId);
+                      if (!node || node.type !== 'wildcard') return;
+                      
+                      const data = node.data as WildCardNodeData;
+                      const generatedIds = data.generatedIds || [];
+                      
+                      if (generatedIds.length === 0) return;
+                      
+                      const generatedIdSet = new Set(generatedIds);
+                      
+                      setNodes(prev => prev
+                        .filter(n => !generatedIdSet.has(n.id))
+                        .map(n => n.id === nodeId 
+                          ? { 
+                              ...n, 
+                              data: { 
+                                ...n.data, 
+                                generatedIds: [], 
+                                summary: '',
+                                isGenerating: false,
+                                hasGeneratedBranch: false
+                              } 
+                            }
+                          : n
+                        )
+                      );
+                      
+                      setEdges(prev => prev.filter(e => !generatedIdSet.has(e.id)));
+                      
+                      toast({
+                        title: "Branch discarded",
+                        description: "The speculative branch has been removed.",
+                      });
+                    }}
                   />
                 </>
               ) : (
