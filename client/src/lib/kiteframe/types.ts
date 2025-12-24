@@ -32,8 +32,18 @@ export interface BaseNodeData {
 export interface NodeMeta {
   beta?: boolean;
   visionGenerated?: boolean;
-  source?: 'heuristic' | 'vision' | 'user';
+  source?: 'heuristic' | 'vision' | 'user' | 'ai';
   confidence?: 'low' | 'medium' | 'high';
+  speculative?: boolean;
+  generatedFrom?: { nodeId: string; ts: number };
+  generatedIds?: { nodeIds: string[]; edgeIds: string[] };
+  mode?: 'whatif' | 'risk' | 'enhancement' | 'prompt';
+}
+
+export interface EdgeMeta {
+  speculative?: boolean;
+  source?: 'heuristic' | 'vision' | 'user' | 'ai';
+  generatedFrom?: { nodeId: string; ts: number };
 }
 
 export type Node = {
@@ -119,9 +129,27 @@ export type Edge = {
   reconnectable?: boolean; // Pro feature: enable endpoint reconnection
   zIndex?: number; // Z-index for edge layering
   data?: any; // Keep for backward compatibility
+  meta?: EdgeMeta; // Metadata for speculative edges, AI generation, etc.
 };
 
-export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview' | 'code' | 'render';
+export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview' | 'code' | 'render' | 'wildcard';
+
+// Wild Card mode types for speculative branching
+export type WildCardMode = 'whatif' | 'risk' | 'enhancement' | 'prompt';
+
+// Wild Card node data structure
+export interface WildCardNodeData extends BaseNodeData {
+  label: string;
+  mode: WildCardMode;
+  content: string;
+  constraints?: string;
+  impact?: string;
+  mitigation?: string;
+  metric?: string;
+  generating?: boolean;
+  hasGeneratedBranch?: boolean;
+  generationError?: string;
+}
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 
 // ============= COMPOUND NODE TYPES =============

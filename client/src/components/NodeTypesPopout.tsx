@@ -6,6 +6,7 @@ import {
   Layers,
   Table2,
   Code2,
+  Sparkles,
 } from "lucide-react";
 import { clientToWorld } from "@/lib/kiteframe/utils/geometry";
 
@@ -43,6 +44,7 @@ export function NodeTypesPopout({
     { type: "form", icon: FileText, color: "text-indigo-500", label: "Form" },
     { type: "compound", icon: Layers, color: "text-emerald-500", label: "Compound" },
     { type: "code", icon: Code2, color: "text-orange-500", label: "Code" },
+    { type: "wildcard", icon: Sparkles, color: "text-purple-500", label: "What If" },
   ];
 
   // Drag and drop handlers

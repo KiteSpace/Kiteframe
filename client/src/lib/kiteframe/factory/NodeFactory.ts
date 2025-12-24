@@ -8,6 +8,7 @@ import type {
   CodeNodeData,
   ImageNode,
   CodeNode,
+  WildCardNodeData,
 } from '../types';
 import { createCodeNode } from '../components/CodeNode';
 
@@ -293,6 +294,71 @@ nodeRegistry.register({
   },
   displayName: 'Code Node',
   description: 'Execute JavaScript or Python code with inputs from connected Form/Table nodes',
+  category: 'core'
+});
+
+// Wild Card node type - for speculative branching with AI
+export type WildCardNode = Node & { type: 'wildcard'; data: WildCardNodeData };
+
+export const createWildCardNode = (
+  id: string,
+  position: Position,
+  data: Partial<WildCardNodeData> = {}
+): WildCardNode => ({
+  id,
+  type: 'wildcard',
+  position,
+  data: {
+    label: data.label || 'What If',
+    mode: data.mode || 'whatif',
+    content: data.content || '',
+    constraints: data.constraints,
+    impact: data.impact,
+    mitigation: data.mitigation,
+    metric: data.metric,
+    generating: false,
+    hasGeneratedBranch: false,
+    colors: data.colors || {
+      headerBackground: '#8b5cf6',
+      bodyBackground: '#faf5ff',
+      headerTextColor: '#ffffff',
+    }
+  },
+  width: 260,
+  height: 160,
+  draggable: true,
+  selectable: true,
+  doubleClickable: true,
+  resizable: true,
+  showHandles: true,
+  meta: {
+    speculative: false,
+    source: 'user'
+  }
+});
+
+nodeRegistry.register({
+  type: 'wildcard',
+  factory: createWildCardNode,
+  template: {
+    type: 'wildcard',
+    defaultData: {
+      label: 'What If',
+      mode: 'whatif' as const,
+      content: '',
+      generating: false,
+      hasGeneratedBranch: false,
+      colors: {
+        headerBackground: '#8b5cf6',
+        bodyBackground: '#faf5ff',
+        headerTextColor: '#ffffff',
+      }
+    },
+    defaultStyle: { width: 260, height: 160 },
+    defaultPosition: { x: 0, y: 0 }
+  },
+  displayName: 'What If',
+  description: 'Speculative branch generator for exploring alternative scenarios',
   category: 'core'
 });
 

@@ -42,6 +42,7 @@ import { FormNode } from "./FormNode";
 import { CompoundNode } from "./CompoundNode";
 import { WebviewNode } from "./WebviewNode";
 import CodeNodeComponent from "./CodeNode";
+import { WildCardNode } from "./WildCardNode";
 import RenderNodeComponent, { createRenderNode } from "./RenderNode";
 import { generateNodeId } from "../factory/NodeFactory";
 import { DataLinkPicker } from "./DataLinkPicker";
@@ -1299,6 +1300,11 @@ type Props = {
   
   // Read-only mode: hides connection handles but allows node dragging for viewing
   readOnly?: boolean;
+  
+  // Wild Card node callbacks for speculative branch generation
+  onWildcardGenerateBranch?: (nodeId: string) => void;
+  onWildcardAdoptBranch?: (nodeId: string) => void;
+  onWildcardDiscardBranch?: (nodeId: string) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -4672,6 +4678,70 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showDragPlaceholder={draggingNodeId === n.id}
                     isAnyDragActive={!!draggingNodeId}
                     isStatusEnabled={isStatusEnabled}
+                    style={{
+                      position: "absolute",
+                      left: n.position.x,
+                      top: n.position.y,
+                      zIndex: n.zIndex || 0,
+                    }}
+                    className={n.selected ? "selected" : ""}
+                  />
+                );
+              }
+
+              // Handle wildcard nodes
+              if (n.type === "wildcard") {
+                return (
+                  <WildCardNode
+                    key={n.id}
+                    node={n as any}
+                    onUpdate={(nodeId: string, updates: any) => {
+                      const updated = props.nodes.map((node) =>
+                        node.id === nodeId ? { ...node, ...updates } : node,
+                      );
+                      props.onNodesChange?.(updated);
+                    }}
+                    onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
+                    showHandles={!props.readOnly && n.showHandles !== false}
+                    showResizeHandle={n.resizable !== false}
+                    readOnly={props.readOnly}
+                    onStartDrag={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      if (!containerRef.current) return;
+                      const rect = containerRef.current.getBoundingClientRect();
+                      const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
+
+                      const selectedNodes = props.nodes.filter((node) => node.selected === true);
+                      const selectedCanvasObjects = (props.canvasObjects || []).filter((obj) => obj.selected === true);
+                      const totalSelected = selectedNodes.length + selectedCanvasObjects.length;
+                      const isGroupDrag = totalSelected > 1 && n.selected === true;
+
+                      const origins = isGroupDrag
+                        ? selectedNodes.map((node) => ({ id: node.id, origin: { ...node.position } }))
+                        : [{ id: n.id, origin: { ...n.position } }];
+
+                      const canvasObjectOrigins = isGroupDrag
+                        ? selectedCanvasObjects.map((obj) => ({ id: obj.id, origin: { ...obj.position } }))
+                        : [];
+
+                      dragInfo.current = {
+                        id: n.id,
+                        start: wp,
+                        origin: { ...n.position },
+                        origins: origins,
+                        canvasObjectOrigins: canvasObjectOrigins,
+                        isGroupDrag: isGroupDrag,
+                      };
+                    }}
+                    onClick={(e: React.MouseEvent) => {
+                      props.onNodeClick?.(e, n);
+                    }}
+                    viewport={viewport}
+                    showDragPlaceholder={draggingNodeId === n.id}
+                    isAnyDragActive={!!draggingNodeId}
+                    onGenerateBranch={props.onWildcardGenerateBranch}
+                    onAdoptBranch={props.onWildcardAdoptBranch}
+                    onDiscardBranch={props.onWildcardDiscardBranch}
                     style={{
                       position: "absolute",
                       left: n.position.x,

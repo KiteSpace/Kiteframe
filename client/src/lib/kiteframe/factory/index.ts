@@ -6,8 +6,11 @@ export {
   generateNodeId,
   createProcessNode,
   createImageNode,
-  createWebviewNode
+  createWebviewNode,
+  createWildCardNode
 } from './NodeFactory.ts';
+
+export type { WildCardNode } from './NodeFactory.ts';
 
 // Export factory types
 export type {
