@@ -9939,14 +9939,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           };
                         }
                         if (n.id === nodeId) {
+                          const modeLabels: Record<string, string> = {
+                            whatif: 'What If',
+                            risk: 'Risk Analysis',
+                            enhancement: 'Enhancement',
+                            prompt: 'AI Prompt',
+                          };
+                          const wildcardContent = data.content || '';
+                          const wildcardMode = data.mode || 'whatif';
                           return {
                             ...n,
+                            type: 'process' as const,
                             data: { 
-                              ...n.data, 
-                              generatedIds: [], 
-                              summary: '',
-                              isGenerating: false,
-                              hasGeneratedBranch: false
+                              label: modeLabels[wildcardMode] || 'Adopted Node',
+                              description: wildcardContent,
                             }
                           };
                         }
@@ -9969,7 +9975,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       
                       toast({
                         title: "Branch adopted",
-                        description: "The speculative branch has been made permanent.",
+                        description: "The wildcard node has been converted and the branch is now permanent.",
                       });
                     }}
                     onWildcardDiscardBranch={(nodeId: string) => {
