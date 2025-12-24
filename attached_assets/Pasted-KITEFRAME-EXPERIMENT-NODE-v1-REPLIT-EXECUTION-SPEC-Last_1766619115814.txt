@@ -1,0 +1,411 @@
+KITEFRAME — “EXPERIMENT” NODE (v1) — REPLIT EXECUTION SPEC
+Last edited: 2025-12-24
+
+PURPOSE
+Experiment is a speculative-branch authoring node that lets users explore What-If / Risk / Enhancement / Prompt branches without polluting the committed workflow until they explicitly Adopt. Generated branches are visible to all collaborators but excluded from PRDs/exports by default until adopted.
+
+KEY PRODUCT GOALS
+- Reduce cognitive load: never start users with a blank prompt unless they choose Prompt mode.
+- Preserve trust: speculative content must be visually distinct, easily discardable, and never silently “committed.”
+- Drive higher-quality branches: AI generation must be grounded in workflow context and stage-aware.
+- Collaboration-first: all collaborators see speculative branches and can discuss before adoption.
+
+NON-GOALS (v1)
+- Live “risk library” ingestion from external tools (Jira/Linear/Notion)
+- Auto-adopt / auto-merge / auto-regeneration
+- Multi-user permissions (owner-only adopt, etc.)
+- Diff/compare simulation, cost/time modeling, Monte Carlo
+- Cross-workflow (project semantic) branch generation
+
+
+============================================================
+1) FINAL “EXPERIMENT” NODE V1 SPEC (READY FOR REPLIT)
+============================================================
+
+1.1 Node naming + type key
+- User-facing name: “Experiment”
+- Internal node.type: "experiment" (replace/alias existing "wildcard" as needed)
+  - If "wildcard" already exists in persisted projects, keep backward compatibility:
+    - Treat type "wildcard" as deprecated alias of "experiment" during import/render.
+
+1.2 Modes (same node type, mode in node.data)
+Modes supported (v1):
+- whatif
+- risk
+- enhancement
+- prompt
+
+Node data shape (TypeScript)
+- Add/confirm in: client/src/lib/kiteframe/types.ts
+
+export type ExperimentMode = 'whatif' | 'risk' | 'enhancement' | 'prompt';
+
+export type ExperimentOption = {
+  id: string;                 // stable key for analytics + persistence
+  label: string;              // short, actionable label
+  description?: string;       // 1-line helper
+  tags?: string[];            // e.g. ["scope", "handoff", "alignment"]
+  requires?: string[];        // missing-dimension hints (optional)
+};
+
+export type ExperimentNodeData = BaseNodeData & {
+  mode: ExperimentMode;
+
+  // user-selected option (for whatif/risk/enhancement) OR custom prompt (prompt mode)
+  selectedOptionId?: string;
+  selectedOptionLabel?: string;
+  userPrompt?: string;        // only meaningful in prompt mode, or as refinement for options
+
+  // stage-aware context (set automatically)
+  anchor: {
+    workflowId: string;
+    anchorNodeId?: string;    // node the experiment is “about” (optional)
+    anchorEdgeId?: string;    // edge the experiment is “about” (optional)
+  };
+
+  // generation state
+  generation: {
+    status: 'idle' | 'generating' | 'generated' | 'error';
+    lastGeneratedAt?: number;
+    errorMessage?: string;
+
+    // ids produced by generation (must be removable as a set on discard)
+    generatedNodeIds: string[];
+    generatedEdgeIds: string[];
+
+    // metadata to help debug + analytics
+    model?: string;
+    promptHash?: string;
+    confidence?: number;      // 0-1, optional, returned by AI pipeline
+  };
+
+  // UI flags
+  ui: {
+    preview: boolean;         // true for speculative generated content and the Experiment node itself
+    badge?: 'Preview' | 'Speculative';
+  };
+};
+
+1.3 Visual treatment requirements (C: yes to all)
+- Experiment node (and generated branch nodes/edges) must appear as “Preview”:
+  - Dashed border
+  - “Preview” badge in header
+  - Muted color palette (subtle)
+- Generated nodes/edges: use the same Preview styling until Adopted.
+- Preview styling should be applied via node.data.meta or node.data.ui.preview (prefer ui.preview), not via global theme tokens.
+
+1.4 Collaboration scope (D: all collaborators)
+- All collaborators see Experiment nodes and their generated preview branches in real time.
+- If collaboration is not active, behavior remains the same for single-user.
+
+1.5 Preview branch lifecycle
+States:
+A) Idle (no branch generated yet)
+B) Generated (preview branch exists on canvas)
+C) Adopted (preview branch becomes committed)
+D) Discarded (preview branch removed from canvas)
+
+Rules:
+- Generate:
+  - Creates preview nodes/edges (ui.preview = true) connected at the anchor point.
+  - Stores all created IDs in ExperimentNodeData.generation.generatedNodeIds / generatedEdgeIds.
+  - Must NOT trigger PRD regeneration automatically in v1.
+- Discard:
+  - Removes all preview nodes/edges created by this Experiment (by ID list).
+  - Resets generation state to idle (or keeps a “generated before” timestamp, optional).
+  - Must NOT create an undo step (Discard is “cancel” not “edit history”).
+- Adopt:
+  - Converts preview nodes/edges to committed:
+    - Set ui.preview = false on each generated node/edge
+    - Remove any meta/speculative flags
+  - Optionally: Convert the Experiment node itself into:
+    - (Preferred) a normal “process” node labeled “Experiment adopted” OR
+    - (Simpler v1) keep Experiment node but set its ui.preview=false and lock generation controls
+  - Adopt MUST be a single undo step (one history entry).
+  - After adopt, PRD/export filtering should include adopted nodes normally.
+
+1.6 PRD/export behavior (A: exclude speculative by default; adopted becomes normal)
+- By default, nodes/edges where ui.preview === true are excluded from:
+  - Workflow PRD generation (semantic extraction)
+  - Project PRD generation
+  - Exports (Kiteframe JSON export, PRD export bundles, etc.)
+- Adopt toggles preview=false, so they are included as normal.
+- IMPORTANT: If “wildcard” nodes currently appear in PRD, fix by applying the above filter in:
+  - extractSemanticWorkflowModel.ts
+  - assembleProjectPRD.ts / assembleWorkflowPRD.ts
+  - export serializers (wherever nodes/edges are written)
+
+Filtering helper (single source of truth)
+Create a helper:
+client/src/lib/kiteframe/utils/speculativeFilter.ts
+
+export function isSpeculativeNode(n: any): boolean {
+  return !!(n?.data?.ui?.preview) || !!(n?.meta?.preview) || n?.type === 'wildcard';
+}
+export function isSpeculativeEdge(e: any): boolean {
+  return !!(e?.data?.ui?.preview) || !!(e?.meta?.preview);
+}
+
+Then use this everywhere PRDs/exports are derived.
+
+1.7 NodeFactory + rendering registration
+- Ensure the Experiment node is registered in NodeFactoryRegistry:
+  - client/src/lib/kiteframe/factory/NodeFactory.ts
+- Ensure KiteFrameCanvas renders experiment node type:
+  - client/src/lib/kiteframe/components/KiteFrameCanvas.tsx
+
+1.8 Delete behavior cleanup (remove hacks)
+- Replace any _deleted flag hack with proper delete callback paths:
+  - If Experiment currently uses _deleted workaround, remove it.
+  - Ensure deleting an Experiment node also deletes its preview branch nodes/edges if generation.status === 'generated' (prompt user “Delete also removes preview branch”).
+
+1.9 UX layout
+Experiment node UI includes:
+- Header: “Experiment” + mode selector (dropdown)
+- Body:
+  - For whatif/risk/enhancement: predictive option list (chips/rows) + “Refine” textbox (optional)
+  - For prompt: primary textbox + optional suggestion chips
+- Footer:
+  - Primary action: “Generate”
+  - If generated: “Adopt” (primary) + “Discard” (secondary)
+- Constraints:
+  - Avoid overwhelming: show 6–10 options max, ranked.
+  - Always show 1 “Custom…” option that opens the refine textbox.
+
+1.10 Where Experiment nodes can attach
+- Experiment can connect anywhere; recommended behaviors:
+  - If anchored to a node: generated branch attaches as additional outgoing path from that node.
+  - If anchored to an edge: split edge (insert a decision or junction node) OR attach a parallel sub-branch with a small connector node.
+- For v1: choose ONE consistent rule to minimize complexity:
+  - Recommended v1: anchor to a node only. If user connects to an edge, resolve anchor to the edge.target node.
+
+1.11 Analytics (optional but recommended)
+Track events:
+- experiment_created
+- experiment_option_selected (optionId)
+- experiment_generate_started / succeeded / failed
+- experiment_adopted / discarded
+Include:
+- mode
+- optionId (if any)
+- workflowId
+- projectId
+
+
+============================================================
+2) EXACT AI PROMPT TEMPLATES PER MODE
+============================================================
+
+GENERAL AI CONTRACT (ALL MODES)
+- Input: workflow context + anchor point + mode + selectedOption + userRefinement
+- Output MUST be strict JSON (no prose) with:
+  - nodes: [{ id?, type, position?, data }]
+  - edges: [{ id?, source, target, type?, data? }]
+  - attach: { anchorNodeId, strategy }  // describes how to attach branch
+  - summary: { title, rationale, keyRisks?, assumptions?, successCriteria? }
+  - confidence: number 0..1
+- The AI must NOT modify existing nodes/edges. It only proposes NEW ones.
+- All returned nodes/edges MUST include ui.preview=true in their data/meta so they are speculative by default.
+- Keep branch size bounded:
+  - Default: 5–10 nodes max
+  - Hard limit: 14 nodes max
+- Always include at least:
+  - One decision/condition node OR a failure/detour path if appropriate
+  - A terminal node for the branch (output or process end)
+- Avoid linear checklists. This must be a branch with at least 2 edges.
+
+SYSTEM MESSAGE (BASE, USED FOR ALL MODES)
+You are Kiteframe’s “Experiment Branch Generator.” You generate speculative workflow branches.
+Rules:
+1) Output ONLY valid JSON matching the schema provided. No commentary.
+2) Do NOT change or reference internal secrets.
+3) Do NOT edit existing nodes/edges. Only create new nodes/edges.
+4) All proposed nodes/edges MUST be marked preview/speculative: set data.ui.preview=true and data.ui.badge="Preview".
+5) Keep the branch minimal but meaningful (5–10 nodes, max 14).
+6) Must include at least one decision point or alternative path where appropriate.
+7) Use the user’s vocabulary and the workflow’s domain language.
+8) If insufficient context, return a JSON with empty nodes/edges and confidence < 0.4 and include clarificationQuestions[].
+
+JSON SCHEMA (include in prompt)
+{
+  "confidence": 0.0,
+  "clarificationQuestions": [],
+  "attach": { "anchorNodeId": "", "strategy": "add_outgoing_branch" },
+  "summary": {
+    "title": "",
+    "rationale": "",
+    "assumptions": [],
+    "keyRisks": [],
+    "successCriteria": []
+  },
+  "nodes": [
+    {
+      "type": "process|condition|output|input|ai|image|table|form|compound|webview|code|render",
+      "data": {
+        "label": "",
+        "body": "",
+        "ui": { "preview": true, "badge": "Preview" }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "",
+      "target": "",
+      "type": "bezier|straight|step|smoothstep|curved|orthogonal",
+      "data": { "ui": { "preview": true } }
+    }
+  ]
+}
+
+USER MESSAGE TEMPLATE (COMMON)
+Context:
+- Project title: {{projectTitle}}
+- Workflow title: {{workflowTitle}}
+- Anchor node: {{anchorNodeLabel}} (id={{anchorNodeId}}, type={{anchorNodeType}})
+- Nearby nodes (upstream): {{upstreamNodes}}
+- Nearby nodes (downstream): {{downstreamNodes}}
+- Workflow summary (semantic): {{workflowSemanticSummary}}
+- Existing constraints: {{constraints}}
+Task:
+Generate an Experiment branch for mode="{{mode}}".
+Selected option: {{selectedOptionLabel}} (id={{selectedOptionId}})
+User refinement: {{userRefinementText}}
+
+Return JSON per schema.
+
+------------------------------------------------------------
+MODE-SPECIFIC INSTRUCTIONS (append to the USER message)
+------------------------------------------------------------
+
+MODE: whatif
+Add:
+- This is an edge case or diversion from the anchor step.
+- The branch should represent a plausible alternative flow that the primary workflow should handle.
+- Include a rejoin strategy if appropriate (e.g., merge back after resolving).
+- Ensure the branch clarifies “trigger → handling → outcome”.
+
+MODE: risk
+Add:
+- This is a risk/failure mode at the anchor step.
+- The branch should show detection, mitigation, escalation, and a fail-safe outcome.
+- Must include at least one decision node.
+- Favor operational realism over generic statements (ownership, signals, handoffs).
+
+MODE: enhancement
+Add:
+- This is an improvement to reduce cycles, improve quality, or increase speed.
+- The branch should introduce a step or tool that removes friction (alignment, automation, async review).
+- Include measurable success criteria in summary.successCriteria (2–4 bullets).
+
+MODE: prompt
+Add:
+- The user has a specific idea. Interpret it literally and integrate it at the anchor.
+- If ambiguous, ask 2–4 clarification questions and return low confidence without generating nodes.
+
+Implementation note:
+- Put these prompts in: client/src/ai/prompts/experiment/
+  - experiment.base.system.txt
+  - experiment.whatif.user.txt
+  - experiment.risk.user.txt
+  - experiment.enhancement.user.txt
+  - experiment.prompt.user.txt
+- Ensure the API call includes the schema + mode instructions every time to prevent drift.
+
+
+============================================================
+3) PREDICTIVE OPTION RANKING LOGIC (HYBRID)
+============================================================
+
+GOAL
+For whatif/risk/enhancement modes, show 6–10 predictive options ranked for the anchor stage.
+Approach: deterministic heuristics generate candidates + AI optionally reranks and rewrites labels/descriptions.
+
+3.1 Candidate generation (heuristics)
+Inputs:
+- anchorNodeType, anchorNodeLabel/body
+- upstream/downstream labels
+- outgoingEdgesCount, incomingEdgesCount
+- workflowSemanticSummary (if available)
+- maturity (draft/reviewed/stable) if available
+- domain keywords (ex: onboarding, payments, auth, approvals)
+
+Heuristic buckets (always include at least 2 from each when possible):
+A) Governance / Alignment
+- missing stakeholder, unclear decision-maker, unclear acceptance criteria
+B) Requirements / Scope
+- scope creep, late requirement change, ambiguous requirement
+C) Execution / Delivery
+- dependency blocked, handoff failure, timeline risk, tech feasibility unknown
+D) Quality / Risk
+- security/privacy, data loss, edge case handling, monitoring missing
+E) User experience
+- confusion, error recovery, accessibility, latency, trust
+F) Ops / Support
+- escalation path, support runbook missing, on-call burden
+
+Output: list of ExperimentOption[] with stable IDs.
+
+3.2 Scoring (local ranking)
+Define a simple score = sum(weighted matches):
+- label/body keyword overlap with anchor context (0..3)
+- if node.type === 'condition' then boost whatif/risk ( +1 )
+- if outgoingEdgesCount >= 2 then boost “misalignment / branching complexity” items (+1)
+- if near start of workflow (input upstream) boost “requirements unclear” (+1)
+- if near end (output downstream) boost “launch readiness / monitoring” (+1)
+- if maturity === stable then boost “regression / change mgmt” (+1)
+
+Return top 10.
+
+3.3 AI rerank (optional, gated)
+Only invoke AI rerank when:
+- workflowSemanticSummary exists AND
+- user is authenticated AND
+- network ok AND
+- cost gate passes (beta unlimited, but still rate-limit)
+
+AI rerank task:
+- Input: top 10 options + context
+- Output: reordered options + refined labels/descriptions (no new categories)
+- If AI fails: fall back to heuristic ranking.
+
+3.4 UX behavior by mode
+- whatif: show “Edge case” phrasing, emphasize rejoin or containment.
+- risk: show “Failure mode” phrasing, emphasize detection + mitigation.
+- enhancement: show “Optimization” phrasing, emphasize measurable impact.
+- prompt: show 3 small chips like:
+  - “Add acceptance criteria”
+  - “Add failure handling”
+  - “Add data + privacy constraints”
+These chips just help the user write a better prompt.
+
+3.5 Persistence
+- Store selectedOptionId + userRefinementText in node.data so it survives:
+  - Undo/redo
+  - Save/load
+  - Export/import
+
+3.6 Implementation checklist (where to build)
+Client:
+- client/src/lib/kiteframe/components/ExperimentNode.tsx (rename from WildCardNode.tsx)
+- client/src/lib/kiteframe/experiment/options.ts (heuristic option catalogs + IDs)
+- client/src/lib/kiteframe/experiment/rank.ts (local scoring)
+- client/src/ai/experiment/rerank.ts (optional AI rerank)
+- client/src/ai/prompts/experiment/* (prompt files)
+- client/src/lib/kiteframe/utils/speculativeFilter.ts (PRD/export exclusion)
+
+Server:
+- No new server endpoints required if existing /api/ai/chat is used.
+- If you want AI rerank to share token accounting, reuse the same aiClient.
+
+3.7 Acceptance criteria (QA)
+- Experiment node renders and mode selection persists.
+- Predictive options appear for whatif/risk/enhancement (no blank state).
+- Generate produces preview nodes/edges with ui.preview=true and badge visible.
+- Discard removes all generated nodes/edges; no undo entry created.
+- Adopt converts all preview nodes/edges to committed; single undo step.
+- PRD generation excludes preview nodes/edges by default; adopted ones appear.
+- Export excludes preview nodes/edges by default; adopted ones included.
+- All collaborators see preview branches.
+
+END OF SPEC
