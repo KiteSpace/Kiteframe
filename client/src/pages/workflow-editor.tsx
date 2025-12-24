@@ -8160,7 +8160,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     connectionPreview={connectionPreview}
                     onNodesChange={(changes) => {
                       // Handle both array of changes and direct node array updates
-                      if (Array.isArray(changes) && changes.length > 0) {
+                      if (Array.isArray(changes)) {
+                        // Handle empty array (e.g., all nodes deleted)
+                        if (changes.length === 0) {
+                          setNodes([]);
+                          saveToHistory("Delete all nodes");
+                          return;
+                        }
                         // Check if it's a direct nodes array update (from drag operations or node updates)
                         // Nodes have a 'type' property that is the node type ('input', 'ai', etc.)
                         // Changes have a 'type' property that is the change type ('position', 'select', etc.)
@@ -8591,6 +8597,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           if (!isDraggingRef.current) {
                             setSelectedNodeId(node.id);
 
+                            // Skip linear toolbar for wildcard nodes - they have their own UI
+                            if (node.type === "wildcard") {
+                              setLinearToolbar(null);
+                              clickDelayTimeoutRef.current = null;
+                              return;
+                            }
+
                             // Don't overwrite toolbar if we're editing a hyperlink or in link submenu
                             setLinearToolbar((prev) => {
                               if (
@@ -8661,7 +8674,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       part?: "header" | "body",
                     ) => {
                       // Skip inline text editing for code nodes (they have their own CodeMirror editor)
-                      if (node.type === "code") {
+                      // Skip for wildcard nodes (they have their own UI)
+                      if (node.type === "code" || node.type === "wildcard") {
                         return;
                       }
                       // Double-click triggers inline text editing for specific part

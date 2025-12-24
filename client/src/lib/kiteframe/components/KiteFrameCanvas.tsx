@@ -4691,10 +4691,19 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
               // Handle wildcard nodes
               if (n.type === "wildcard") {
+                // Compute incoming edges count for generate button logic
+                const incomingEdgesCount = (props.edges || []).filter(edge => edge.target === n.id).length;
+                const wildcardNodeData = {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    incomingEdgesCount,
+                  }
+                };
                 return (
                   <WildCardNode
                     key={n.id}
-                    node={n as any}
+                    node={wildcardNodeData as any}
                     onUpdate={(nodeId: string, updates: any) => {
                       if (updates.data?._deleted) {
                         props.onNodesChange?.(props.nodes.filter(node => node.id !== nodeId));
