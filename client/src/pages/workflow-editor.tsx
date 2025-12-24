@@ -8176,8 +8176,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             changes[0].type === "form" ||
                             changes[0].type === "compound" ||
                             changes[0].type === "table" ||
-                            changes[0].type === "shape");
-
+                            changes[0].type === "shape" ||
+                            changes[0].type === "wildcard" ||
+                            changes[0].type === "code" ||
+                            changes[0].type === "render" ||
+                            changes[0].type === "text" ||
+                            changes[0].type === "webview");
+                        
                         if (isNodeArray) {
                           // Direct nodes array from KiteFrameCanvas drag operations
 
