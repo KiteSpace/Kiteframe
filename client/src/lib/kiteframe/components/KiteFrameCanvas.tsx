@@ -4696,6 +4696,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     key={n.id}
                     node={n as any}
                     onUpdate={(nodeId: string, updates: any) => {
+                      if (updates.data?._deleted) {
+                        props.onNodesChange?.(props.nodes.filter(node => node.id !== nodeId));
+                        return;
+                      }
                       const updated = props.nodes.map((node) =>
                         node.id === nodeId ? { ...node, ...updates } : node,
                       );
