@@ -2,6 +2,7 @@ import type { Node, Edge, WildCardMode, WildCardNodeData } from '../../lib/kitef
 import type { AiClient, AiMessage } from '../types';
 import { extractSemanticWorkflowModel } from '../../lib/kiteframe/utils/extractSemanticWorkflowModel';
 import { generateNodeId } from '../../lib/kiteframe/factory/NodeFactory';
+import { probeAvailableSpace, applySpaceProbeResult } from '../../lib/kiteframe/utils/SpaceProbe';
 
 export interface WildCardGenerationInput {
   wildcardNode: Node;
@@ -137,7 +138,8 @@ Generate a speculative branch (2-5 nodes) exploring this scenario.`;
 
 function parseGeneratedBranch(
   response: string,
-  wildcardNode: Node
+  wildcardNode: Node,
+  allNodes: Node[]
 ): GeneratedSpeculativeBranch | null {
   let cleanedResponse = response
     .replace(/^```json\s?|```$/g, '')
@@ -157,23 +159,20 @@ function parseGeneratedBranch(
       return null;
     }
 
-    const baseX = wildcardNode.position.x + 300;
-    const baseY = wildcardNode.position.y;
-    const nodeWidth = 180;
-    const nodeGap = 100;
-    const spacing = nodeWidth + nodeGap; // 280px between node origins
+    const nodeCount = parsed.nodes.length;
+    const origin = { x: wildcardNode.position.x, y: wildcardNode.position.y };
+    const probeResult = probeAvailableSpace(origin, allNodes, nodeCount);
+    const positions = applySpaceProbeResult(origin, nodeCount, probeResult);
     
     const generationTimestamp = Date.now();
 
     const generatedNodes: Node[] = parsed.nodes.map((n: any, index: number) => {
       const nodeId = generateNodeId();
+      const pos = positions[index] || { x: origin.x + 300 + (index * 280), y: origin.y };
       return {
         id: nodeId,
         type: n.type || 'process',
-        position: {
-          x: baseX + (index * spacing),
-          y: baseY + (index % 2 === 0 ? 0 : 120)
-        },
+        position: pos,
         data: {
           label: n.label || `Step ${index + 1}`,
           description: n.description || '',
@@ -298,7 +297,7 @@ export async function generateWildCardBranch(
       maxTokens: 1500
     });
 
-    const branch = parseGeneratedBranch(response.text, wildcardNode);
+    const branch = parseGeneratedBranch(response.text, wildcardNode, input.allNodes);
     
     if (!branch) {
       return {

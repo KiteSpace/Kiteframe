@@ -27,6 +27,22 @@ export interface BaseNodeData {
   prdRefs?: PRDRef[];
 }
 
+// ============= EXPERIMENT METADATA =============
+// Persisted experiment data for Edit-after-accept functionality
+export interface ExperimentMeta {
+  experimentId: string;
+  originNodeId: string;
+  mode: 'whatif' | 'risk' | 'enhancement' | 'prompt';
+  selectedOptionId?: string;
+  selectedOptionLabel?: string;
+  selectedOptionDescription?: string;
+  userPrompt?: string;
+  generatedNodeIds: string[];
+  generatedEdgeIds: string[];
+  generatedAt: number;
+  acceptedAt?: number;
+}
+
 // Node type uses 'any' for backward compatibility
 // Use TypedNode or specific node types (BasicNode, TableNode, etc.) for type-safe code
 export interface NodeMeta {
@@ -35,13 +51,16 @@ export interface NodeMeta {
   source?: 'heuristic' | 'vision' | 'user' | 'ai';
   confidence?: 'low' | 'medium' | 'high';
   speculative?: boolean;
+  experimentId?: string;
   generatedFrom?: { nodeId: string; ts: number };
   generatedIds?: { nodeIds: string[]; edgeIds: string[] };
   mode?: 'whatif' | 'risk' | 'enhancement' | 'prompt';
+  experiment?: ExperimentMeta;
 }
 
 export interface EdgeMeta {
   speculative?: boolean;
+  experimentId?: string;
   source?: 'heuristic' | 'vision' | 'user' | 'ai';
   generatedFrom?: { nodeId: string; ts: number };
 }

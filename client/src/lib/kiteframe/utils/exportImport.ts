@@ -163,6 +163,7 @@ function calculateChecksum(data: any): string {
 
 /**
  * Sanitize and validate workflow data before export
+ * Filters out speculative/preview nodes and edges (experiment branches that haven't been accepted)
  */
 function sanitizeWorkflowData(data: {
   nodes: Node[];
@@ -170,8 +171,24 @@ function sanitizeWorkflowData(data: {
   canvasObjects?: CanvasObject[];
   viewport?: { x: number; y: number; zoom: number };
 }): typeof data {
+  // Filter out speculative nodes (experiment branches) and experiment node containers
+  const committedNodes = data.nodes.filter(node => {
+    if (node.type === 'wildcard' || node.type === 'experiment') return false;
+    if (node.meta?.speculative === true) return false;
+    if (node.data?.ui?.preview === true) return false;
+    return true;
+  });
+  
+  const committedNodeIds = new Set(committedNodes.map(n => n.id));
+  
+  // Filter out speculative edges and edges connected to filtered nodes
+  const committedEdges = data.edges.filter(edge => {
+    if (edge.meta?.speculative === true) return false;
+    return committedNodeIds.has(edge.source) && committedNodeIds.has(edge.target);
+  });
+  
   // Sanitize nodes
-  const sanitizedNodes = data.nodes.map(node => ({
+  const sanitizedNodes = committedNodes.map(node => ({
     ...node,
     data: {
       ...node.data,
@@ -194,8 +211,8 @@ function sanitizeWorkflowData(data: {
     }
   }));
 
-  // Sanitize edges
-  const sanitizedEdges = data.edges.map(edge => ({
+  // Sanitize edges (using committedEdges which already filters speculative)
+  const sanitizedEdges = committedEdges.map(edge => ({
     ...edge,
     label: edge.label ? sanitizeText(edge.label) : undefined
   }));

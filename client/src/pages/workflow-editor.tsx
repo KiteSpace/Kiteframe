@@ -150,7 +150,7 @@ import { generateWorkflowPRD } from "@/ai/prdEngine";
 import { generateWildCardBranch } from "@/ai/workflow/generateWildCardBranch";
 import type { WildCardNodeData, ExperimentNodeData } from "@/lib/kiteframe/types";
 import { extractSemanticWorkflowModel } from "@/lib/kiteframe/utils/extractSemanticWorkflowModel";
-import { normalizeNodesForExperiment, markGeneratedEdgesAsPreview, normalizeNodeForMutation, clearPreviewFlags, clearEdgePreviewFlags } from "@/lib/kiteframe/utils/experimentNormalizer";
+import { normalizeNodesForExperiment, markGeneratedEdgesAsPreview, normalizeNodeForMutation, clearPreviewFlags, clearEdgePreviewFlags, ensureExperimentDefaults } from "@/lib/kiteframe/utils/experimentNormalizer";
 import {
   saveWorkflowPRD,
   saveWorkflowPRDVersion,
@@ -10141,28 +10141,56 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           const branch = result.branch;
                           const generatedNodeIds = branch.nodes.map(n => n.id);
                           const generatedEdgeIds = branch.edges.map(e => e.id);
+                          const experimentId = `exp-${nodeId}-${Date.now()}`;
+                          const generatedAt = Date.now();
                           
                           const previewNodes = branch.nodes.map(n => ({
                             ...n,
-                            meta: { ...n.meta, speculative: true, generatedFrom: { nodeId, ts: Date.now() } },
+                            meta: { 
+                              ...n.meta, 
+                              speculative: true, 
+                              experimentId,
+                              generatedFrom: { nodeId, ts: generatedAt } 
+                            },
                             data: { ...n.data, ui: { ...n.data?.ui, preview: true } }
                           }));
                           const previewEdges = branch.edges.map(e => ({
                             ...e,
-                            meta: { ...e.meta, speculative: true, generatedFrom: { nodeId, ts: Date.now() } },
-                            style: { ...e.style, strokeOpacity: 0.8 } // solid stroke, slightly transparent
+                            meta: { 
+                              ...e.meta, 
+                              speculative: true, 
+                              experimentId,
+                              generatedFrom: { nodeId, ts: generatedAt } 
+                            },
+                            style: { ...e.style, strokeOpacity: 0.8 }
                           }));
                           
                           setNodes(prev => [
                             ...prev.map(n => 
                               n.id === nodeId 
                                 ? { 
-                                    ...node, 
+                                    ...node,
+                                    meta: {
+                                      ...node.meta,
+                                      experimentId,
+                                      experiment: {
+                                        experimentId,
+                                        originNodeId: nodeId,
+                                        mode: data.mode,
+                                        selectedOptionId: data.selectedOptionId,
+                                        selectedOptionLabel: data.selectedOptionLabel,
+                                        selectedOptionDescription: data.selectedOptionDescription,
+                                        userPrompt: data.userPrompt,
+                                        generatedNodeIds,
+                                        generatedEdgeIds,
+                                        generatedAt,
+                                      },
+                                    },
                                     data: { 
                                       ...data, 
                                       generation: { 
                                         status: 'generated' as const,
-                                        lastGeneratedAt: Date.now(),
+                                        lastGeneratedAt: generatedAt,
                                         generatedNodeIds,
                                         generatedEdgeIds,
                                       },
@@ -10251,11 +10279,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       
                       const processNodeDefaults = { width: 180, height: 100, measuredWidth: 180, measuredHeight: 100 };
                       
+                      const acceptedAt = Date.now();
+                      const experimentMeta = node.meta?.experiment;
+                      const experimentId = node.meta?.experimentId;
+                      
                       setNodes(prev => prev.map(n => {
                         if (nodeIdSet.has(n.id)) {
                           const cleared = clearPreviewFlags(n);
                           return {
                             ...cleared,
+                            meta: {
+                              ...cleared.meta,
+                              experimentId,
+                              speculative: false,
+                            },
                             width: cleared.width || processNodeDefaults.width,
                             height: cleared.height || processNodeDefaults.height,
                             measuredWidth: cleared.measuredWidth || processNodeDefaults.measuredWidth,
@@ -10272,6 +10309,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             height: processNodeDefaults.height,
                             measuredWidth: processNodeDefaults.measuredWidth,
                             measuredHeight: processNodeDefaults.measuredHeight,
+                            meta: {
+                              ...n.meta,
+                              experimentId,
+                              speculative: false,
+                              experiment: experimentMeta ? {
+                                ...experimentMeta,
+                                acceptedAt,
+                              } : undefined,
+                            },
                             data: { 
                               label: modeLabels[experimentMode] || 'Adopted Node',
                               description: experimentContent,
@@ -10286,6 +10332,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           const cleared = clearEdgePreviewFlags(e);
                           return {
                             ...cleared,
+                            meta: {
+                              ...cleared.meta,
+                              experimentId,
+                              speculative: false,
+                            },
                             markerEnd: cleared.markerEnd !== undefined ? cleared.markerEnd : true,
                             style: {
                               ...cleared.style,
@@ -10354,6 +10405,91 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }}
                     onExperimentGenerateOptionsForMode={(nodeId: string, mode: import('../lib/kiteframe/types').ExperimentMode) => {
                       generateExperimentOptionsForNode(nodeId, mode);
+                    }}
+                    onExperimentRegenerate={(nodeId: string, mode: import('../lib/kiteframe/types').ExperimentMode) => {
+                      const node = nodes.find(n => n.id === nodeId);
+                      if (!node) return;
+                      
+                      const existingMeta = node.meta?.experiment as import('../lib/kiteframe/types').ExperimentMeta | undefined;
+                      if (!existingMeta) return;
+                      
+                      saveToHistory("Regenerate experiment from adopted node");
+                      
+                      invalidateExperimentNode(nodeId);
+                      
+                      const workflowId = activeTab?.id || 'default';
+                      const newExperimentId = `exp-${nodeId}-${Date.now()}`;
+                      const generatedAt = Date.now();
+                      
+                      const updatedExperimentMeta: import('../lib/kiteframe/types').ExperimentMeta = {
+                        experimentId: newExperimentId,
+                        originNodeId: existingMeta.originNodeId || nodeId,
+                        mode: mode,
+                        userPrompt: existingMeta.userPrompt,
+                        selectedOptionId: undefined,
+                        selectedOptionLabel: undefined,
+                        selectedOptionDescription: undefined,
+                        generatedNodeIds: [],
+                        generatedEdgeIds: [],
+                        generatedAt,
+                      };
+                      
+                      setNodes(prev => prev.map(n => {
+                        if (n.id === nodeId) {
+                          const { experiment: _oldExp, acceptedAt: _oldAccepted, speculative: _oldSpec, ...preservedMeta } = (n.meta || {}) as any;
+                          
+                          const incomingEdges = edges.filter(e => e.target === nodeId);
+                          const anchorNodeId = incomingEdges.length > 0 ? incomingEdges[0].source : existingMeta.originNodeId;
+                          
+                          const convertedNode: Node = {
+                            ...n,
+                            type: 'experiment' as const,
+                            width: 320,
+                            height: 480,
+                            measuredWidth: 320,
+                            measuredHeight: 480,
+                            data: {
+                              label: mode === 'whatif' ? 'What-If' : mode === 'risk' ? 'Risk' : mode === 'enhancement' ? 'Enhancement' : 'Experiment',
+                              mode: mode,
+                              userPrompt: existingMeta.userPrompt || '',
+                              anchor: {
+                                workflowId,
+                                anchorNodeId,
+                              },
+                              generation: {
+                                status: 'idle' as const,
+                                generatedNodeIds: [],
+                                generatedEdgeIds: [],
+                              },
+                              ui: {
+                                preview: false,
+                                expanded: true,
+                              },
+                            },
+                            meta: {
+                              ...preservedMeta,
+                              experimentId: newExperimentId,
+                              speculative: false,
+                              experiment: updatedExperimentMeta,
+                            },
+                          };
+                          
+                          const normalized = ensureExperimentDefaults(convertedNode, workflowId);
+                          return normalized;
+                        }
+                        return n;
+                      }));
+                      
+                      toast({
+                        title: "Experiment mode restored",
+                        description: `Node converted back to ${mode} experiment. Select an option and generate.`,
+                      });
+                      
+                      if (mode !== 'prompt') {
+                        setTimeout(() => {
+                          generateExperimentOptionsForNode(nodeId, mode);
+                        }, 100);
+                      }
                     }}
                   />
                 </>

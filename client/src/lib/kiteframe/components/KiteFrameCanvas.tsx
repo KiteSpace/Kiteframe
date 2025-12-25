@@ -49,6 +49,9 @@ import { generateNodeId } from "../factory/NodeFactory";
 import { DataLinkPicker } from "./DataLinkPicker";
 import { FlowDetection, Flow, FlowSettings } from "../utils/FlowDetection";
 import { WorkflowHeader } from "./WorkflowHeader";
+import { ExperimentBranchHeader } from "./ExperimentBranchHeader";
+import { ExperimentEditButton } from "./ExperimentEditButton";
+import type { ExperimentMeta, ExperimentMode } from "../types";
 import { StatusBadge } from "./StatusBadge";
 import { TextObject } from "./TextObject";
 import { StickyNoteObject } from "./StickyNoteObject";
@@ -1318,6 +1321,7 @@ type Props = {
   }>;
   onExperimentRefreshOptions?: (nodeId: string) => void;
   onExperimentGenerateOptionsForMode?: (nodeId: string, mode: import('../types').ExperimentMode) => void;
+  onExperimentRegenerate?: (nodeId: string, mode: import('../types').ExperimentMode) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -3726,6 +3730,67 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               />
             );
           })}
+
+          {/* Experiment Branch Headers - show for nodes with active preview branches */}
+          {(() => {
+            const activeExperiments = props.nodes.filter(n => {
+              const experimentMeta = n.meta?.experiment as ExperimentMeta | undefined;
+              if (!experimentMeta?.experimentId) return false;
+              const hasPreviewNodes = props.nodes.some(
+                pn => pn.meta?.experimentId === experimentMeta.experimentId && pn.meta?.speculative === true
+              );
+              return hasPreviewNodes;
+            });
+            
+            return activeExperiments.map(originNode => {
+              const experimentMeta = originNode.meta?.experiment as ExperimentMeta;
+              return (
+                <ExperimentBranchHeader
+                  key={`experiment-header-${experimentMeta.experimentId}`}
+                  experimentId={experimentMeta.experimentId}
+                  mode={experimentMeta.mode}
+                  originNodeId={originNode.id}
+                  position={{ x: originNode.position.x, y: originNode.position.y }}
+                  scale={viewport.zoom}
+                  onAccept={() => props.onExperimentAdoptBranch?.(originNode.id)}
+                  onReject={() => props.onExperimentDiscardBranch?.(originNode.id)}
+                  onDragAll={(experimentId, deltaX, deltaY, isDragStart) => {
+                    const experimentNodes = props.nodes.filter(
+                      n => n.meta?.experimentId === experimentId || n.id === originNode.id
+                    );
+                    const nodeIds = experimentNodes.map(n => n.id);
+                    props.onDragWorkflow?.(experimentId, nodeIds, deltaX, deltaY, isDragStart);
+                  }}
+                  readOnly={false}
+                />
+              );
+            });
+          })()}
+
+          {/* Experiment Edit Buttons for adopted experiment nodes */}
+          {props.onExperimentRegenerate && visibleNodes
+            .filter(n => {
+              if (n.type !== 'process') return false;
+              const experimentMeta = n.meta?.experiment as ExperimentMeta | undefined;
+              if (!experimentMeta?.experimentId || !experimentMeta?.acceptedAt) return false;
+              return true;
+            })
+            .map(n => {
+              const experimentMeta = n.meta?.experiment as ExperimentMeta;
+              const w = n.style?.width ?? n.width ?? 200;
+              return (
+                <ExperimentEditButton
+                  key={`experiment-edit-${n.id}`}
+                  nodeId={n.id}
+                  experimentMeta={experimentMeta}
+                  position={{ x: n.position.x, y: n.position.y }}
+                  nodeWidth={w}
+                  scale={viewport.zoom}
+                  onRegenerateExperiment={props.onExperimentRegenerate}
+                />
+              );
+            })
+          }
 
           {/* Nodes */}
           {visibleNodes
