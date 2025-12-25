@@ -559,9 +559,17 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/login", authRateLimiter, (req, res, next) => {
     const strategyName = ensureStrategy(req.hostname);
+    
+    // Encode the origin domain in state so we can redirect back after OAuth
+    // This is needed because Replit OAuth callback uses replit.app domain
+    // but we want to redirect users back to their original domain (e.g., kiteframe.space)
+    const originDomain = req.hostname;
+    const stateData = Buffer.from(JSON.stringify({ originDomain })).toString('base64url');
+    
     passport.authenticate(strategyName, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
+      state: stateData,
     })(req, res, next);
   });
 
@@ -569,8 +577,23 @@ export async function setupAuth(app: Express) {
     const hostname = req.hostname;
     const strategyName = ensureStrategy(hostname);
     
+    // Decode the origin domain from state parameter
+    let originDomain = hostname; // fallback to callback domain
+    try {
+      const stateParam = req.query.state as string;
+      if (stateParam) {
+        const stateData = JSON.parse(Buffer.from(stateParam, 'base64url').toString());
+        if (stateData.originDomain) {
+          originDomain = stateData.originDomain;
+        }
+      }
+    } catch (e) {
+      console.warn('[AUTH] Failed to parse state parameter:', e);
+    }
+    
     console.log('[AUTH] Replit callback started:', {
       hostname,
+      originDomain,
       strategyName,
       protocol: req.protocol,
       originalUrl: req.originalUrl,
@@ -593,27 +616,30 @@ export async function setupAuth(app: Express) {
       
       if (err) {
         console.error('[AUTH] Replit auth error:', err);
-        return res.redirect('/?error=replit_auth_error');
+        return res.redirect(`https://${originDomain}/?error=replit_auth_error`);
       }
       if (!user) {
         console.error('[AUTH] Replit auth no user returned, info:', info);
-        return res.redirect('/?error=replit_auth_no_user');
+        return res.redirect(`https://${originDomain}/?error=replit_auth_no_user`);
       }
       req.logIn(user, (loginErr) => {
         if (loginErr) {
           console.error('[AUTH] Replit logIn error:', loginErr);
-          return res.redirect('/?error=replit_login_error');
+          return res.redirect(`https://${originDomain}/?error=replit_login_error`);
         }
         
         const isAdmin = isAdminEmail(user?.email);
         const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist';
-        const redirectTarget = `/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
+        
+        // Redirect back to the origin domain (e.g., kiteframe.space instead of kiteframe.replit.app)
+        const redirectTarget = `https://${originDomain}/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
         
         console.log('[AUTH] Replit callback success:', {
           userId: user?.id,
           email: user?.email,
           isBeta: user?.isBeta,
           isAdmin,
+          originDomain,
           sessionId: req.sessionID,
           isAuthenticated: req.isAuthenticated?.(),
           finalDestination,
