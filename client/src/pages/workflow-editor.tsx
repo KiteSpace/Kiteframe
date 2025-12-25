@@ -7256,8 +7256,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         return {
                           label: "Experiment",
                           mode: 'whatif' as const,
-                          content: '',
-                          anchor: null,
+                          anchor: {
+                            workflowId: activeTab?.id || 'default',
+                          },
                           generation: {
                             status: 'idle' as const,
                             generatedNodeIds: [],
@@ -7510,8 +7511,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         return {
                           label: "Experiment",
                           mode: 'whatif' as const,
-                          content: '',
-                          anchor: null,
+                          anchor: {
+                            workflowId: activeTab?.id || 'default',
+                          },
                           generation: {
                             status: 'idle' as const,
                             generatedNodeIds: [],
