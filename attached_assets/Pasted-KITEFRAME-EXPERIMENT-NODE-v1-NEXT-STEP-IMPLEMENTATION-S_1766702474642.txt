@@ -1,0 +1,343 @@
+KITEFRAME — EXPERIMENT NODE v1
+NEXT-STEP IMPLEMENTATION SPEC (BASED ON REPLIT STATUS REPORT)
+Owner: Replit
+Goal: Close the remaining gaps (layout intelligence, branch header UX, silent reject, edit-after-accept, PRD/export filtering) without destabilizing the existing working generation + preview system.
+
+========================================
+0) CURRENT BASELINE (DO NOT BREAK)
+Already working (must remain working):
+- ExperimentNode UI, mode switching, option generation on first connect + mode change
+- Branch generation via AiProvider (same as KiteAI chat)
+- Generated nodes/edges created immediately with preview flags (meta.speculative + data.ui.preview)
+- Adopt converts experiment → process (currently loses mode/selection)
+- Discard removes generated ids (but currently adds undo history)
+- experimentId exists (stable) and generated nodes carry meta.experimentId (or generatedFrom mapping)
+
+Non-negotiable v1 behavior:
+- Preview nodes MUST be excluded from PRD/export/semantic model.
+- Accepted nodes MUST be included in PRD/export/semantic model.
+- “Edit” must work after accept (without converting node type back to experiment).
+
+========================================
+1) DATA MODEL FIXES (FOUNDATIONAL)
+1.1 Add/standardize metadata fields
+Files:
+- client/src/lib/kiteframe/types.ts
+- client/src/lib/kiteframe/utils/experimentNormalizer.ts
+
+Implement:
+A) Ensure node.meta.speculative is consistently used for preview nodes.
+- Preview nodes: node.meta.speculative = true
+- Accepted nodes: node.meta.speculative removed or set false
+
+B) Ensure experimentId is consistently applied.
+- All nodes and edges created as part of the branch MUST have:
+  node.meta.experimentId = <experimentId>
+  edge.meta.experimentId = <experimentId> (add if edges support meta; if not, include in edge.data.meta)
+
+C) Preserve experiment details after accept (Edit needs this).
+- On accept, origin node becomes process but retains:
+  node.meta.experiment = ExperimentMeta (defined below)
+- The origin node should NOT lose mode/selection/prompt after accept.
+
+ExperimentMeta (final):
+interface ExperimentMeta {
+  experimentId: string;
+  originNodeId: string;              // the original experiment node id
+  mode: 'what-if' | 'risk' | 'enhancement' | 'prompt';
+  selectedOptionId?: string;
+  selectedOptionLabel?: string;
+  selectedOptionDescription?: string;
+  userPrompt?: string;
+  generatedNodeIds: string[];
+  generatedEdgeIds: string[];
+  generatedAt: number;
+  acceptedAt?: number;
+}
+
+Acceptance:
+- After accept, the origin process node still has node.meta.experiment with full state.
+- All branch nodes/edges have meta.experimentId.
+
+========================================
+2) SPACEPROBE: SMART LAYOUT THAT AVOIDS OVERLAP
+Problem:
+parseGeneratedBranch() lays out right-to-left with constant spacing and can overlap existing nodes.
+
+Deliverable:
+A new lightweight utility that chooses direction (horizontal/vertical) and offsets to avoid collisions.
+
+2.1 Create SpaceProbe utility
+New file:
+- client/src/lib/kiteframe/utils/SpaceProbe.ts
+
+Functions:
+A) getNodeRect(node): returns a bounding rect in world coords
+- Use node.position.x/y and node dimensions.
+- If width/height are stored in node.style or node.data.style, normalize in one place.
+- Assume defaults if missing: width=200 height=120 (or whatever your real node default is)
+
+B) rectsOverlap(a, b): boolean
+C) scorePlacement(candidateRects, existingRects): number
+- score = total overlap count (primary)
+- tie-breaker = total overlap area (optional)
+- tie-breaker = distance from origin (optional)
+
+D) probeAvailableSpace(origin, existingNodes, nodeCount, axisPreference?): returns:
+{
+  direction: 'right'|'left'|'down'|'up',
+  startOffset: {x,y},
+  spacing: {x,y},        // vector spacing
+  laneOffset: {x,y}      // secondary offset when collision persists
+}
+
+2.2 Implement direction sampling
+Within probeAvailableSpace:
+- Candidate directions: right, left, down, up
+- For each direction:
+  - generate candidate rects for N nodes using baseline spacing:
+    - horizontal: dx=280 dy=0
+    - vertical: dx=0 dy=200–260 (pick sane default)
+  - compute score vs existingRects
+- Choose lowest score direction.
+
+2.3 Collision fallback strategy (required)
+If best candidate still overlaps:
+1) Increase spacing (1.5x)
+2) Try switching axis
+3) Apply laneOffset diagonal (e.g., +120,+120) and rescore
+
+2.4 Integrate SpaceProbe into branch generation layout
+Files:
+- client/src/ai/workflow/generateWildCardBranch.ts (parseGeneratedBranch)
+- OR the workflow-editor.tsx positioning layer if parseGeneratedBranch only parses AI JSON
+
+Change:
+- Stop hardcoding right-to-left positions.
+- Use SpaceProbe result to compute node positions before setNodes().
+
+Acceptance:
+- Generating branches near dense areas does not overlay existing nodes in typical cases.
+- At minimum, collision rate is dramatically reduced and visibly better than today.
+- Direction is chosen sensibly:
+  - If right side is crowded, it flips to vertical or left.
+
+Instrumentation (required):
+Add a console log (guarded by dev flag) on generate:
+[ExperimentLayout] experimentId=... direction=... score=... fallbackUsed=...
+
+========================================
+3) EXPERIMENT BRANCH HEADER (PURPLE) + ACCEPT/REJECT + DRAG-ALL
+Problem:
+WorkflowHeader is tied to flowId (connected components), but experiment branch needs a branch-scoped header.
+
+Approach:
+Create a separate overlay component anchored by experimentId.
+
+3.1 Build ExperimentBranchHeader component
+New file:
+- client/src/lib/kiteframe/components/ExperimentBranchHeader.tsx
+
+Props:
+- experimentId: string
+- mode: 'what-if'|'risk'|'enhancement'|'prompt'
+- originNodeId: string
+- onAccept(experimentId)
+- onReject(experimentId)
+- onEdit(experimentId)
+- onDragAll(experimentId, delta)  (or reuse existing drag handler signature)
+
+UI requirements:
+- Purple styling variant (use theme tokens)
+- Title: "{Mode Label} Experiment" (e.g., "Risk Experiment")
+- Buttons: Accept, Reject (primary/secondary)
+- Dropdown: Edit
+- Drag handle: same grip icon as WorkflowHeader
+
+Placement logic:
+- Header anchors above the origin node (the node that was the experiment node OR the converted process node after accept).
+- Compute origin node bounding rect and position header at y - headerHeight - 8px.
+
+Where to render:
+- In workflow-editor.tsx render layer where WorkflowHeader is rendered.
+- For each “active experiment branch” render an ExperimentBranchHeader.
+
+3.2 Define “active experiment branch” state
+We need an unambiguous definition:
+Active branch = preview branch exists (nodes with meta.speculative=true and meta.experimentId=E) AND origin node has meta.experiment.experimentId=E.
+
+Implementation:
+- Derive experiments list by scanning nodes:
+  - Find origin nodes containing node.meta.experiment
+  - Determine if branch is preview by checking any nodes with experimentId and speculative=true
+- Render header if preview branch exists OR if in “review step” state.
+
+3.3 Implement drag-all by experimentId
+Reuse existing drag logic:
+- Node set = nodes.filter(n => n.meta?.experimentId === experimentId || n.id === originNodeId)
+- Apply delta to all nodes in that set.
+
+Acceptance:
+- Dragging header moves the entire experiment branch + origin node together.
+- It does not move unrelated nodes.
+
+========================================
+4) SILENT REJECT (NO UNDO NOISE) + BATCHED ACCEPT
+Problem:
+Reject currently adds history; Accept needs single undo entry.
+
+4.1 Add “saveToHistory: false” capability (preferred)
+File:
+- client/src/pages/workflow-editor.tsx
+- and/or UndoRedoManager integration point
+
+Option A (preferred): add a utility state mutator wrapper:
+applyStateUpdate(label, fn, { recordHistory: boolean })
+- If recordHistory=false, skip saveToHistory entirely.
+
+Use this for Reject only.
+
+4.2 Batched accept
+When Accept happens:
+- Ensure:
+  - meta.speculative removed from all generated nodes
+  - origin node converts to process (if not already)
+  - origin node.meta.experiment persists
+  - Any “preview ui” flags removed (data.ui.preview)
+- Wrap all mutations in a single batch so it becomes ONE undo step:
+"Accept experiment branch"
+
+Acceptance:
+- Reject does not change historyIndex/historyLength.
+- Accept creates exactly one history entry.
+- Undo after accept reverts the accept state (restores speculative or removes accepted nodes depending on your intended undo semantics; pick one and be consistent).
+
+========================================
+5) EDIT AFTER ACCEPT (NO TYPE REVERT)
+Problem:
+After accept, origin node is process and experiment UI is lost. We need edit.
+
+Approach:
+Do NOT convert the node back to experiment type.
+Instead, allow opening an Experiment Editor popover for any process node with node.meta.experiment.
+
+5.1 Add ExperimentEditorPopover
+File options:
+- client/src/lib/kiteframe/components/ExperimentEditorPopover.tsx (new)
+- invoked from ExperimentBranchHeader “Edit”
+- attaches to the origin node or header
+
+Behavior:
+- Shows same controls as ExperimentNode:
+  - mode dropdown
+  - suggestions list
+  - prompt input (for prompt mode)
+  - “Regenerate branch” button
+  - “Cancel” closes without changes
+- On “Regenerate”:
+  - If an existing accepted branch exists, generate new preview branch with speculative=true (new generated ids)
+  - Header goes back into review (Accept/Reject)
+
+Data handling:
+- Update node.meta.experiment with latest selection/prompt + new generated ids.
+- Keep experimentId stable for the same origin, OR mint new experimentId on each edit.
+  - v1 recommendation: mint NEW experimentId each regenerate, store previous in history if needed.
+  - If you mint new, ensure header uses current experimentId from node.meta.experiment.
+
+Acceptance:
+- After accept, clicking Edit reopens controls and allows regenerating a new branch.
+- The previous branch remains until user accepts/rejects the newly generated preview (decide behavior; simplest: keep old branch until accept then replace).
+
+========================================
+6) PRD / EXPORT / SEMANTIC MODEL FILTERING (MUST FIX)
+Problem:
+Preview/speculative nodes should not pollute PRDs or exports.
+
+6.1 Add filter to extractSemanticWorkflowModel.ts
+File:
+- client/src/lib/semantic/extractSemanticWorkflowModel.ts (or actual path)
+
+Rule:
+- Exclude any node where node.meta?.speculative === true
+- Exclude edges connected to excluded nodes (or edges meta.speculative)
+
+6.2 Add filter to PRD generation pipeline
+Files (likely):
+- client/src/lib/prd/assembleProjectPRD.ts
+- workflow PRD assembly utilities
+
+Rule:
+- Ensure PRD includes accepted experiment branches but excludes preview.
+
+6.3 Add filter to exports
+Files:
+- client/src/lib/export/*
+
+Rule:
+- For Kiteframe JSON exports, decide:
+  - Either exclude preview nodes by default
+  - Or provide a checkbox “Include preview branches” default OFF
+For v1, default OFF and omit preview.
+
+Acceptance:
+- Generate preview branch → PRD/Export ignores it.
+- Accept branch → PRD/Export includes it.
+
+========================================
+7) UI DETAILS + STATES
+7.1 Loading states
+- When generating suggestions: show skeleton rows in suggestions list
+- When generating branch: disable Generate button and show spinner + “Generating…”
+
+7.2 Empty states
+- If suggestions fail: show “No suggestions found. Try Refresh” (once refresh exists) or “Switch to Prompt mode”.
+
+7.3 Consistency
+- Use Kiteframe UI components, same typography and button variants as current panels.
+
+========================================
+8) TASK ORDER (DO IN THIS ORDER)
+Task 1: Metadata + experimentId standardization (Section 1)
+Task 2: PRD/Export/Semantic filtering for speculative nodes (Section 6)  [this prevents product regressions]
+Task 3: SpaceProbe utility + integrate into layout (Section 2)
+Task 4: ExperimentBranchHeader overlay + drag-all (Section 3)
+Task 5: Silent reject + batched accept (Section 4)
+Task 6: Edit-after-accept via popover editor (Section 5)
+Task 7: UI polish (loading/empty) (Section 7)
+
+========================================
+9) ACCEPTANCE CHECKLIST (QA SCRIPT)
+Run this exact QA flow:
+
+A) Generate branch near crowded nodes
+- Add a dense cluster of nodes near an origin.
+- Create experiment → Generate.
+Expected:
+- Branch appears without overlapping existing nodes (or minimal overlap with fallback).
+- Console log shows chosen direction.
+
+B) Reject branch
+- Click Reject.
+Expected:
+- Generated nodes/edges removed.
+- historyIndex/historyLength unchanged.
+
+C) Accept branch
+- Click Accept.
+Expected:
+- Branch nodes lose meta.speculative.
+- PRD generation includes them.
+- Exactly one undo step is created.
+
+D) Edit after accept
+- Click Edit in header dropdown.
+- Change mode/selection and regenerate preview branch.
+Expected:
+- Preview branch appears.
+- Header returns to Accept/Reject state.
+
+E) PRD/export filter
+- Before accept: export PRD/JSON and verify preview nodes absent.
+- After accept: export and verify included.
+
+END
