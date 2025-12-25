@@ -10247,9 +10247,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         prompt: 'AI Prompt',
                       };
                       
+                      const processNodeDefaults = { width: 180, height: 100, measuredWidth: 180, measuredHeight: 100 };
+                      
                       setNodes(prev => prev.map(n => {
                         if (nodeIdSet.has(n.id)) {
-                          return clearPreviewFlags(n);
+                          const cleared = clearPreviewFlags(n);
+                          return {
+                            ...cleared,
+                            width: cleared.width || processNodeDefaults.width,
+                            height: cleared.height || processNodeDefaults.height,
+                            measuredWidth: cleared.measuredWidth || processNodeDefaults.measuredWidth,
+                            measuredHeight: cleared.measuredHeight || processNodeDefaults.measuredHeight,
+                          };
                         }
                         if (n.id === nodeId) {
                           const experimentContent = data.userPrompt || data.selectedOptionDescription || data.selectedOptionLabel || '';
@@ -10257,6 +10266,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           return {
                             ...n,
                             type: 'process' as const,
+                            width: processNodeDefaults.width,
+                            height: processNodeDefaults.height,
+                            measuredWidth: processNodeDefaults.measuredWidth,
+                            measuredHeight: processNodeDefaults.measuredHeight,
                             data: { 
                               label: modeLabels[experimentMode] || 'Adopted Node',
                               description: experimentContent,
@@ -10268,7 +10281,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       
                       setEdges(prev => prev.map(e => {
                         if (edgeIdSet.has(e.id)) {
-                          return clearEdgePreviewFlags(e);
+                          const cleared = clearEdgePreviewFlags(e);
+                          return {
+                            ...cleared,
+                            markerEnd: cleared.markerEnd !== undefined ? cleared.markerEnd : true,
+                            style: {
+                              ...cleared.style,
+                              strokeColor: cleared.style?.strokeColor || '#64748b',
+                            },
+                          };
                         }
                         return e;
                       }));

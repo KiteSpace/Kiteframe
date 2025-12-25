@@ -207,6 +207,7 @@ function parseGeneratedBranch(
             source: sourceId,
             target: targetId,
             label: e.label,
+            markerEnd: true,
             style: {
               strokeDasharray: '5,5',
               strokeColor: '#9ca3af',
@@ -225,6 +226,7 @@ function parseGeneratedBranch(
         id: generateEdgeId(),
         source: wildcardNode.id,
         target: generatedNodes[0].id,
+        markerEnd: true,
         style: {
           strokeDasharray: '5,5',
           strokeColor: '#9ca3af',
@@ -240,6 +242,7 @@ function parseGeneratedBranch(
           id: generateEdgeId(),
           source: generatedNodes[i].id,
           target: generatedNodes[i + 1].id,
+          markerEnd: true,
           style: {
             strokeDasharray: '5,5',
             strokeColor: '#9ca3af',

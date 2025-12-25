@@ -182,18 +182,26 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
     }
   }, [incomingEdgesCount, mode, optionsLoading, predictiveOptions.length, node.id, onGenerateOptionsForMode]);
   
-  // Sync node dimensions to model for accurate edge connection alignment
+  // Sync node dimensions to model for accurate edge connection and hit detection
   useEffect(() => {
-    const storedWidth = node.measuredWidth ?? node.width ?? 0;
-    const storedHeight = node.measuredHeight ?? node.height ?? 0;
+    const storedWidth = node.width ?? 0;
+    const storedHeight = node.height ?? 0;
+    const storedMeasuredWidth = node.measuredWidth ?? 0;
+    const storedMeasuredHeight = node.measuredHeight ?? 0;
     
-    if (Math.abs(storedWidth - NODE_WIDTH) > 2 || Math.abs(storedHeight - NODE_HEIGHT) > 2) {
+    // Set both width/height (for hit detection) and measuredWidth/measuredHeight (for edge alignment)
+    const needsWidthUpdate = Math.abs(storedWidth - NODE_WIDTH) > 2 || Math.abs(storedMeasuredWidth - NODE_WIDTH) > 2;
+    const needsHeightUpdate = Math.abs(storedHeight - NODE_HEIGHT) > 2 || Math.abs(storedMeasuredHeight - NODE_HEIGHT) > 2;
+    
+    if (needsWidthUpdate || needsHeightUpdate) {
       onUpdate?.(node.id, {
+        width: NODE_WIDTH,
+        height: NODE_HEIGHT,
         measuredWidth: NODE_WIDTH,
         measuredHeight: NODE_HEIGHT,
       });
     }
-  }, [node.id, node.measuredWidth, node.measuredHeight, node.width, node.height, onUpdate]);
+  }, [node.id, node.width, node.height, node.measuredWidth, node.measuredHeight, onUpdate]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
