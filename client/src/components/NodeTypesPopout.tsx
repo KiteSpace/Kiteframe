@@ -44,7 +44,7 @@ export function NodeTypesPopout({
     { type: "form", icon: FileText, color: "text-indigo-500", label: "Form" },
     { type: "compound", icon: Layers, color: "text-emerald-500", label: "Compound" },
     { type: "code", icon: Code2, color: "text-orange-500", label: "Code" },
-    { type: "wildcard", icon: Sparkles, color: "text-purple-500", label: "What If" },
+    { type: "experiment", icon: Sparkles, color: "text-purple-500", label: "Experiment" },
   ];
 
   // Drag and drop handlers
