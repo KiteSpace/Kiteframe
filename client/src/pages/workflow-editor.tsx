@@ -7248,9 +7248,24 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     const isTableNode = type === "table";
                     const isFormNode = type === "form";
                     const isCompoundNode = type === "compound";
+                    const isExperimentNode = type === "experiment";
                     const tableId = isTableNode ? `table-${nodeId}` : undefined;
 
                     const getNodeData = () => {
+                      if (isExperimentNode) {
+                        return {
+                          label: "Experiment",
+                          mode: 'whatif' as const,
+                          content: '',
+                          anchor: null,
+                          generation: {
+                            status: 'idle' as const,
+                            generatedNodeIds: [],
+                            generatedEdgeIds: [],
+                          },
+                          ui: { preview: false },
+                        };
+                      }
                       if (isTableNode) {
                         return {
                           label: "Table",
@@ -7487,9 +7502,24 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     const isCompoundNode = type === "compound";
                     const isImageNode = type === "image";
                     const isCodeNode = type === "code";
+                    const isExperimentNode = type === "experiment";
                     const tableId = isTableNode ? `table-${nodeId}` : undefined;
 
                     const getNodeData = () => {
+                      if (isExperimentNode) {
+                        return {
+                          label: "Experiment",
+                          mode: 'whatif' as const,
+                          content: '',
+                          anchor: null,
+                          generation: {
+                            status: 'idle' as const,
+                            generatedNodeIds: [],
+                            generatedEdgeIds: [],
+                          },
+                          ui: { preview: false },
+                        };
+                      }
                       if (isTableNode) {
                         return {
                           label: "Table",
