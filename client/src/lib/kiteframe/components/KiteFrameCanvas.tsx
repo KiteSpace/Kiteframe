@@ -1311,7 +1311,13 @@ type Props = {
   onExperimentGenerateBranch?: (nodeId: string) => void;
   onExperimentAdoptBranch?: (nodeId: string) => void;
   onExperimentDiscardBranch?: (nodeId: string) => void;
-  experimentPredictiveOptions?: import('../types').ExperimentOption[];
+  experimentOptionsMap?: Map<string, {
+    options: import('../types').ExperimentOption[];
+    loading: boolean;
+    error: string | null;
+  }>;
+  onExperimentRefreshOptions?: (nodeId: string) => void;
+  onExperimentGenerateOptionsForMode?: (nodeId: string, mode: import('../types').ExperimentMode) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -4826,7 +4832,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     onGenerateBranch={props.onExperimentGenerateBranch || props.onWildcardGenerateBranch}
                     onAdoptBranch={props.onExperimentAdoptBranch || props.onWildcardAdoptBranch}
                     onDiscardBranch={props.onExperimentDiscardBranch || props.onWildcardDiscardBranch}
-                    predictiveOptions={props.experimentPredictiveOptions}
+                    predictiveOptions={props.experimentOptionsMap?.get(n.id)?.options || []}
+                    optionsLoading={props.experimentOptionsMap?.get(n.id)?.loading || false}
+                    optionsError={props.experimentOptionsMap?.get(n.id)?.error || null}
+                    onRefreshOptions={props.onExperimentRefreshOptions}
+                    onGenerateOptionsForMode={props.onExperimentGenerateOptionsForMode}
                     style={{
                       position: "absolute",
                       left: n.position.x,

@@ -1,0 +1,285 @@
+KITEFRAME — EXPERIMENT NODE (WILD CARD) v1
+FINAL IMPLEMENTATION INSTRUCTIONS (LOCKED)
+
+This document finalizes behavior, AI prompts, UX states, and system boundaries for the Experiment node.
+Deviations from this spec must be explicitly approved.
+
+⸻
+
+DEFINITIONS
+
+Experiment Node
+A speculative node attached to a workflow node that allows users to explore alternate paths without committing them.
+
+Modes (v1):
+	•	what_if
+	•	risk
+	•	enhancement
+	•	prompt
+
+Core principle: Exploration before commitment. Nothing auto-commits.
+
+⸻
+
+SECTION 1 — AI PROVIDER & MODEL SELECTION
+
+REQUIRED:
+	•	Option generation MUST use the same AI provider and model selected by the user.
+	•	Respect provider, model, and temperature settings.
+
+DISALLOWED:
+	•	Fixed provider usage
+	•	Silent model switching
+	•	Using cheaper models for options
+
+⸻
+
+SECTION 2 — AI TRIGGER TIMING
+
+DO NOT generate options:
+	•	On node creation
+	•	On canvas load
+	•	On workflow load
+
+GENERATE options ONLY when:
+	1.	Experiment node is connected to a workflow node
+	2.	User selects a mode (what_if, risk, enhancement)
+	3.	No cached options exist for that node + mode + anchor
+
+MANUAL CONTROL:
+	•	Provide a Refresh Suggestions button
+	•	Refresh clears cache and reruns AI
+	•	Refresh does NOT affect adopted branches
+
+⸻
+
+SECTION 3 — CONTEXT SOURCE (CRITICAL)
+
+DO NOT use extractSemanticWorkflowModel().
+
+REQUIRED lightweight context builder:
+
+buildExperimentContext({
+anchorNodeId,
+anchorNodeLabel,
+anchorNodeType,
+upstreamNodes (max 2 hops),
+downstreamNodes (max 1 hop),
+workflowName
+})
+
+Rules:
+	•	Exclude Experiment nodes
+	•	Exclude speculative branches
+	•	No PRD context
+	•	No full workflow traversal
+
+⸻
+
+SECTION 4 — AI CALL STRATEGY
+
+REQUIRED:
+	•	One AI call per mode per Experiment node
+
+DISALLOWED:
+	•	Single call returning multiple mode outputs
+	•	Pre-generating all modes
+
+⸻
+
+SECTION 5 — CACHING RULES
+
+Cache key:
+experimentNodeId + mode + anchorNodeId
+
+Invalidate cache when:
+	•	Anchor node changes
+	•	User clicks Refresh
+	•	Experiment node is deleted
+
+Cache persists across:
+	•	Mode switching
+	•	Node repositioning
+
+Cache does NOT persist across workflows.
+
+⸻
+
+SECTION 6 — UX FLOW
+
+Default state:
+	•	Mode selector visible
+	•	Empty state message
+	•	Generate ideas CTA
+
+After AI runs:
+	•	Ranked suggestion list
+	•	Each suggestion includes title, description, Generate Branch button
+
+User actions:
+	•	Generate branch (preview)
+	•	Edit prompt manually
+	•	Discard
+
+⸻
+
+SECTION 7 — UX STATES
+
+Loading:
+	•	Skeleton rows (3–5)
+	•	Text: “Exploring possibilities…”
+
+Empty:
+	•	“No strong suggestions found at this point in the workflow.”
+	•	Actions: switch mode or use prompt
+
+Error:
+	•	“Couldn’t generate ideas. Try refreshing.”
+	•	No auto-retry
+
+⸻
+
+SECTION 8 — PROMPT MODE (ESCAPE HATCH)
+
+Rules:
+	•	No pre-generated options
+	•	Textarea primary input
+	•	Generate Branch button required
+
+Context:
+	•	Same lightweight context builder
+	•	User text passed verbatim
+
+⸻
+
+SECTION 9 — PREVIEW / ADOPT / DISCARD
+
+Generated branch nodes must include:
+meta: {
+speculative: true,
+experimentId,
+mode
+}
+
+Adopt:
+	•	Remove speculative flag
+	•	Convert to normal nodes
+	•	One batched undo step
+
+Discard:
+	•	Remove preview nodes immediately
+	•	No undo history
+
+⸻
+
+SECTION 10 — FILTERING RULES
+
+Speculative nodes MUST be excluded from:
+	•	PRD generation
+	•	Export
+	•	Semantic workflow model
+	•	Maturity scoring
+
+Filtering required in:
+	•	extractSemanticWorkflowModel.ts
+	•	assembleProjectPRD.ts
+	•	Export utilities
+
+⸻
+
+SECTION 11 — FINAL AI PROMPTS
+
+WHAT IF MODE PROMPT
+
+You are helping explore alternate paths in a workflow.
+
+Context:
+	•	Workflow: {{workflowName}}
+	•	Current step: {{anchorNodeLabel}} ({{anchorNodeType}})
+	•	Nearby steps: {{upstreamSummary}} → {{downstreamSummary}}
+
+Task:
+Generate 3 to 5 plausible what-if branches that represent edge cases or deviations.
+
+Rules:
+	•	Actionable
+	•	No vague statements
+	•	Do not restate existing flow
+
+Return JSON array with title, description, confidence.
+
+⸻
+
+RISK MODE PROMPT
+
+You are identifying risks in a workflow.
+
+Context:
+	•	Workflow: {{workflowName}}
+	•	Current step: {{anchorNodeLabel}}
+	•	Adjacent steps: {{upstreamSummary}} → {{downstreamSummary}}
+
+Task:
+Identify 3 to 5 meaningful risks that could cause delay, misalignment, or rework.
+
+Rules:
+	•	Specific risks only
+	•	No generic project risks
+
+Return JSON array with title, description, severity.
+
+⸻
+
+ENHANCEMENT MODE PROMPT
+
+You are suggesting improvements to a workflow.
+
+Context:
+	•	Workflow: {{workflowName}}
+	•	Current step: {{anchorNodeLabel}}
+
+Task:
+Suggest 3 to 5 enhancements that improve speed, clarity, or alignment.
+
+Rules:
+	•	No extra meetings
+	•	No scope creep
+
+Return JSON array with title, description, impact.
+
+⸻
+
+PROMPT MODE PROMPT
+
+You are generating a speculative workflow branch.
+
+Context:
+{{lightweightContext}}
+
+User request:
+{{userPrompt}}
+
+Rules:
+	•	Coherent branch
+	•	Contained scope
+	•	Valid workflow subgraph output
+
+⸻
+
+SECTION 12 — NON-GOALS
+
+Do NOT implement:
+	•	Risk libraries
+	•	Confidence sliders
+	•	Time or cost simulation
+	•	Auto-adoption
+	•	Cross-experiment comparison
+	•	Ghost preview animations
+
+⸻
+
+SECTION 13 — SUCCESS CRITERIA
+	•	Lower cognitive load
+	•	Safe exploration without commitment
+	•	Predictable AI costs
+	•	Clean, authoritative PRDs

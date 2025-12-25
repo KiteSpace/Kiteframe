@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { FlaskConical, Check, Trash2, ChevronDown, Loader2, AlertCircle, X } from 'lucide-react';
+import { FlaskConical, Check, Trash2, ChevronDown, Loader2, AlertCircle, X, RefreshCw } from 'lucide-react';
 import type { Node, ExperimentNodeData, ExperimentMode, ExperimentOption, WildCardNodeData } from '../types';
 import { sanitizeText } from '../utils/validation';
 
@@ -28,6 +28,10 @@ export interface ExperimentNodeComponentProps {
   readOnly?: boolean;
   predictiveOptions?: ExperimentOption[];
   incomingEdgesCount?: number;
+  optionsLoading?: boolean;
+  optionsError?: string | null;
+  onRefreshOptions?: (nodeId: string) => void;
+  onGenerateOptionsForMode?: (nodeId: string, mode: ExperimentMode) => void;
 }
 
 const MODE_CONFIG: Record<ExperimentMode, { label: string; placeholder: string; icon?: string }> = {
@@ -113,6 +117,10 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
   readOnly = false,
   predictiveOptions = [],
   incomingEdgesCount = 0,
+  optionsLoading = false,
+  optionsError = null,
+  onRefreshOptions,
+  onGenerateOptionsForMode,
 }) => {
   const [showModeDropdown, setShowModeDropdown] = useState(false);
   const [userPromptValue, setUserPromptValue] = useState('');
@@ -189,8 +197,12 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
           }
         });
       }
+      
+      if (newMode !== 'prompt' && hasIncomingEdges) {
+        onGenerateOptionsForMode?.(node.id, newMode);
+      }
     }
-  }, [mode, node.id, data, onUpdate, readOnly]);
+  }, [mode, node.id, data, onUpdate, readOnly, hasIncomingEdges, onGenerateOptionsForMode]);
 
   const handleOptionSelect = useCallback((option: ExperimentOption) => {
     if (readOnly) return;
@@ -399,9 +411,63 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
         ) : (
           /* For other modes: show predictive options */
           <div className="flex-1 min-h-0 flex flex-col gap-2">
-            {predictiveOptions.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {predictiveOptions.slice(0, 8).map((option) => (
+            {/* Header with refresh button */}
+            {hasIncomingEdges && !optionsLoading && (
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wide">
+                  Suggestions
+                </span>
+                {onRefreshOptions && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRefreshOptions(node.id);
+                    }}
+                    disabled={readOnly || optionsLoading}
+                    className={cn(
+                      "p-1 rounded text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-colors",
+                      optionsLoading ? "animate-spin" : ""
+                    )}
+                    title="Refresh suggestions"
+                    data-testid="experiment-refresh-options-btn"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
+            
+            {/* Loading skeleton */}
+            {optionsLoading ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-amber-600 italic mb-1">Exploring possibilities…</p>
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-8 bg-gray-100 rounded-md w-full" />
+                  </div>
+                ))}
+              </div>
+            ) : optionsError ? (
+              /* Error state */
+              <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center p-2">
+                <AlertCircle className="w-5 h-5 text-red-400" />
+                <p className="text-xs text-red-600">{optionsError}</p>
+                {onRefreshOptions && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRefreshOptions(node.id);
+                    }}
+                    className="text-xs text-amber-600 hover:text-amber-700 underline"
+                  >
+                    Try refreshing
+                  </button>
+                )}
+              </div>
+            ) : predictiveOptions.length > 0 ? (
+              /* Options list */
+              <div className="flex flex-col gap-1.5 overflow-y-auto max-h-32">
+                {predictiveOptions.slice(0, 5).map((option) => (
                   <button
                     key={option.id}
                     onClick={(e) => {
@@ -410,19 +476,33 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                     }}
                     disabled={readOnly || isGenerating}
                     className={cn(
-                      "px-2.5 py-1.5 text-xs rounded-full border transition-colors",
+                      "text-left px-2.5 py-2 text-xs rounded-md border transition-colors",
                       selectedOption?.id === option.id
-                        ? "bg-amber-100 border-amber-400 text-amber-800 font-medium"
-                        : "bg-white border-gray-200 text-gray-600 hover:border-amber-300 hover:bg-amber-50",
+                        ? "bg-amber-100 border-amber-400 text-amber-800"
+                        : "bg-white border-gray-200 text-gray-700 hover:border-amber-300 hover:bg-amber-50",
                       (readOnly || isGenerating) ? "opacity-50 cursor-not-allowed" : ""
                     )}
-                    title={option.description}
+                    data-testid={`experiment-option-${option.id}`}
                   >
-                    {option.label}
+                    <span className="font-medium block">{option.label}</span>
+                    {option.description && (
+                      <span className="text-[10px] text-gray-500 line-clamp-1">{option.description}</span>
+                    )}
                   </button>
                 ))}
               </div>
+            ) : hasIncomingEdges ? (
+              /* Empty state - connected but no suggestions */
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-2">
+                <p className="text-xs text-gray-500 italic">
+                  No strong suggestions found at this point in the workflow.
+                </p>
+                <p className="text-[10px] text-gray-400 mt-1">
+                  Try switching mode or use Prompt mode.
+                </p>
+              </div>
             ) : (
+              /* Not connected state */
               <div className="flex-1 flex items-center justify-center text-gray-400 text-sm italic">
                 Connect to a workflow node to see suggestions
               </div>

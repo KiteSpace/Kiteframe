@@ -80,7 +80,13 @@ interface WorkflowCanvasProps {
   onExperimentGenerateBranch?: (nodeId: string) => void;
   onExperimentAdoptBranch?: (nodeId: string) => void;
   onExperimentDiscardBranch?: (nodeId: string) => void;
-  experimentPredictiveOptions?: import('@/lib/kiteframe/types').ExperimentOption[];
+  experimentOptionsMap?: Map<string, {
+    options: import('@/lib/kiteframe/types').ExperimentOption[];
+    loading: boolean;
+    error: string | null;
+  }>;
+  onExperimentRefreshOptions?: (nodeId: string) => void;
+  onExperimentGenerateOptionsForMode?: (nodeId: string, mode: import('@/lib/kiteframe/types').ExperimentMode) => void;
 }
 
 export function WorkflowCanvas({
@@ -153,7 +159,9 @@ export function WorkflowCanvas({
   onExperimentGenerateBranch,
   onExperimentAdoptBranch,
   onExperimentDiscardBranch,
-  experimentPredictiveOptions,
+  experimentOptionsMap,
+  onExperimentRefreshOptions,
+  onExperimentGenerateOptionsForMode,
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -478,7 +486,9 @@ export function WorkflowCanvas({
         onExperimentGenerateBranch={onExperimentGenerateBranch}
         onExperimentAdoptBranch={onExperimentAdoptBranch}
         onExperimentDiscardBranch={onExperimentDiscardBranch}
-        experimentPredictiveOptions={experimentPredictiveOptions}
+        experimentOptionsMap={experimentOptionsMap}
+        onExperimentRefreshOptions={onExperimentRefreshOptions}
+        onExperimentGenerateOptionsForMode={onExperimentGenerateOptionsForMode}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

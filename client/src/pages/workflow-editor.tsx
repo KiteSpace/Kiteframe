@@ -51,6 +51,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useCreditsGate } from "../hooks/useCreditsGate";
 import { useCloudProjects } from "../hooks/useCloudProjects";
 import { useSubscription } from "../hooks/useSubscription";
+import { useExperimentOptions } from "../hooks/useExperimentOptions";
 import type {
   Node,
   Edge,
@@ -1598,6 +1599,29 @@ function WorkflowEditorContent({
   const viewport = activeTab?.viewport || { x: 0, y: 0, zoom: 1 };
   const selectedNodeId = activeTab?.selectedNodeId || "";
   const selectedEdgeId = activeTab?.selectedEdgeId || "";
+
+  // Experiment options for predictive AI suggestions
+  const {
+    getOptionsForNode,
+    generateOptions: generateExperimentOptionsForNode,
+    refreshOptions: refreshExperimentOptions,
+    invalidateNode: invalidateExperimentNode,
+  } = useExperimentOptions(nodes, edges, activeTab?.name || 'Workflow', ai);
+
+  // Build experiment options map for canvas
+  const experimentOptionsMap = useMemo(() => {
+    const map = new Map<string, { options: import('../lib/kiteframe/types').ExperimentOption[]; loading: boolean; error: string | null }>();
+    const experimentNodes = nodes.filter(n => n.type === 'experiment' || n.type === 'wildcard');
+    for (const node of experimentNodes) {
+      const state = getOptionsForNode(node.id);
+      map.set(node.id, {
+        options: state.options,
+        loading: state.loading,
+        error: state.error,
+      });
+    }
+    return map;
+  }, [nodes, getOptionsForNode]);
 
   // Derive selected canvas objects from active tab state
   const selectedCanvasObjects = useMemo(
@@ -10262,6 +10286,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         title: "Branch discarded",
                         description: "The preview branch has been removed.",
                       });
+                    }}
+                    experimentOptionsMap={experimentOptionsMap}
+                    onExperimentRefreshOptions={(nodeId: string) => {
+                      const node = nodes.find(n => n.id === nodeId);
+                      if (!node) return;
+                      const data = node.data as any;
+                      const mode = data.mode || 'whatif';
+                      if (mode !== 'prompt') {
+                        refreshExperimentOptions(nodeId, mode);
+                      }
+                    }}
+                    onExperimentGenerateOptionsForMode={(nodeId: string, mode: import('../lib/kiteframe/types').ExperimentMode) => {
+                      generateExperimentOptionsForNode(nodeId, mode);
                     }}
                   />
                 </>

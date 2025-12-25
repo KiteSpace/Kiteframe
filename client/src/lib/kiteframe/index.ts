@@ -109,6 +109,14 @@ export {
   clearPreviewFlags,
   clearEdgePreviewFlags
 } from './utils/experimentNormalizer';
+export {
+  buildExperimentContext,
+  formatContextForPrompt,
+  getAnchorNodeId,
+  type ExperimentContext,
+  type ContextNode,
+  type BuildExperimentContextInput
+} from './utils/experimentContext';
 export { clientToWorld, zoomAroundPoint, clamp } from './utils/geometry';
 
 // Plugin system
