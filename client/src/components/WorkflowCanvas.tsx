@@ -77,7 +77,7 @@ interface WorkflowCanvasProps {
   onWildcardGenerateBranch?: (nodeId: string) => void;
   onWildcardAdoptBranch?: (nodeId: string) => void;
   onWildcardDiscardBranch?: (nodeId: string) => void;
-  onExperimentGenerateBranch?: (nodeId: string) => void;
+  onExperimentGenerateBranch?: (nodeId: string, currentDescription?: string) => void;
   onExperimentAdoptBranch?: (nodeId: string) => void;
   onExperimentDiscardBranch?: (nodeId: string) => void;
   experimentOptionsMap?: Map<string, {

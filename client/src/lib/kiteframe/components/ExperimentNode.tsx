@@ -33,7 +33,7 @@ export interface ExperimentNodeComponentProps {
   viewport?: { x: number; y: number; zoom: number };
   showDragPlaceholder?: boolean;
   isAnyDragActive?: boolean;
-  onGenerateBranch?: (nodeId: string) => void;
+  onGenerateBranch?: (nodeId: string, currentDescription?: string) => void;
   onAdoptBranch?: (nodeId: string) => void;
   onDiscardBranch?: (nodeId: string) => void;
   readOnly?: boolean;
@@ -288,8 +288,12 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
   const handleGenerateClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (readOnly || !canGenerate) return;
-    onGenerateBranch?.(node.id);
-  }, [canGenerate, node.id, onGenerateBranch, readOnly]);
+    // Pass current local state to avoid race condition with async state updates
+    const currentDescription = mode === 'prompt' 
+      ? userPromptValue 
+      : (selectedOption?.description || selectedOption?.label || '');
+    onGenerateBranch?.(node.id, currentDescription);
+  }, [canGenerate, node.id, onGenerateBranch, readOnly, mode, userPromptValue, selectedOption]);
 
   const handleAdoptClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

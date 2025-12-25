@@ -10090,7 +10090,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         description: "The speculative branch has been removed.",
                       });
                     }}
-                    onExperimentGenerateBranch={async (nodeId: string) => {
+                    onExperimentGenerateBranch={async (nodeId: string, currentDescription?: string) => {
                       const rawNode = nodes.find(n => n.id === nodeId);
                       if (!rawNode || (rawNode.type !== 'experiment' && rawNode.type !== 'wildcard')) return;
                       
@@ -10114,7 +10114,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       ));
                       
                       try {
-                        const promptContent = data.userPrompt || data.selectedOptionDescription || data.selectedOptionLabel || '';
+                        // Use currentDescription passed from component (avoids race condition)
+                        // Fall back to stored data if not provided
+                        const promptContent = currentDescription || data.userPrompt || data.selectedOptionDescription || data.selectedOptionLabel || '';
                         const legacyWildcardNode = {
                           ...rawNode,
                           type: 'wildcard' as const,

@@ -1308,7 +1308,7 @@ type Props = {
   onWildcardDiscardBranch?: (nodeId: string) => void;
   
   // Experiment node callbacks for speculative branch generation (new)
-  onExperimentGenerateBranch?: (nodeId: string) => void;
+  onExperimentGenerateBranch?: (nodeId: string, currentDescription?: string) => void;
   onExperimentAdoptBranch?: (nodeId: string) => void;
   onExperimentDiscardBranch?: (nodeId: string) => void;
   experimentOptionsMap?: Map<string, {
