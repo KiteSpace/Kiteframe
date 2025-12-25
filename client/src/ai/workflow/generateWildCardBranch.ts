@@ -270,10 +270,10 @@ export async function generateWildCardBranch(
   const { wildcardNode } = input;
   const data = wildcardNode.data as WildCardNodeData;
   
-  if (!data.content || data.content.length < 20) {
+  if (!data.content || data.content.trim().length < 3) {
     return {
       success: false,
-      error: 'Scenario description must be at least 20 characters'
+      error: 'Please provide a scenario description'
     };
   }
 
