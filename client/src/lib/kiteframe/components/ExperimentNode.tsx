@@ -223,6 +223,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
             label: MODE_LABELS[newMode],
             selectedOptionId: undefined,
             selectedOptionLabel: undefined,
+            selectedOptionDescription: undefined,
             userPrompt: '',
           }
         });
@@ -253,6 +254,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
           ...data,
           selectedOptionId: option.id,
           selectedOptionLabel: option.label,
+          selectedOptionDescription: option.description,
         }
       });
     }

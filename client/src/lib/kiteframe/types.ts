@@ -174,6 +174,7 @@ export interface ExperimentNodeData extends BaseNodeData {
   mode: ExperimentMode;
   selectedOptionId?: string;
   selectedOptionLabel?: string;
+  selectedOptionDescription?: string;
   userPrompt?: string;
   anchor: ExperimentAnchor;
   generation: ExperimentGeneration;

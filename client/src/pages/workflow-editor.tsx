@@ -10114,7 +10114,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       ));
                       
                       try {
-                        const promptContent = data.userPrompt || data.selectedOptionLabel || '';
+                        const promptContent = data.userPrompt || data.selectedOptionDescription || data.selectedOptionLabel || '';
                         const legacyWildcardNode = {
                           ...rawNode,
                           type: 'wildcard' as const,
@@ -10252,7 +10252,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           return clearPreviewFlags(n);
                         }
                         if (n.id === nodeId) {
-                          const experimentContent = data.userPrompt || data.selectedOptionLabel || '';
+                          const experimentContent = data.userPrompt || data.selectedOptionDescription || data.selectedOptionLabel || '';
                           const experimentMode = data.mode || 'whatif';
                           return {
                             ...n,
