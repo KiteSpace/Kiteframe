@@ -4,8 +4,19 @@ import { FlaskConical, Check, Trash2, ChevronDown, Loader2, AlertCircle, X, Refr
 import type { Node, ExperimentNodeData, ExperimentMode, ExperimentOption, WildCardNodeData } from '../types';
 import { sanitizeText } from '../utils/validation';
 
-const HEADER_H = 40;
-const FOOTER_H = 44;
+const HEADER_H = 44;
+const FOOTER_H = 48;
+const NODE_HEIGHT = 480;
+const NODE_WIDTH = 320;
+
+// Purple theme colors
+const PURPLE = {
+  stroke: '#9333ea', // purple-600
+  header: '#f3e8ff', // purple-100
+  footer: '#f3e8ff', // purple-100
+  accent: '#a855f7', // purple-500
+  dark: '#7c3aed', // purple-600 darker
+};
 
 export interface ExperimentNodeComponentProps {
   node: Node & { data: ExperimentNodeData | WildCardNodeData };
@@ -145,6 +156,9 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
     : !!selectedOption;
   const canGenerate = hasContent && !isGenerating && !hasGenerated && hasIncomingEdges;
 
+  // Track previous incoming edges count for auto-trigger
+  const prevIncomingEdgesRef = useRef<number>(incomingEdgesCount);
+  
   useEffect(() => {
     if (isExperimentNodeData(data)) {
       setUserPromptValue(data.userPrompt || '');
@@ -155,6 +169,31 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
       setUserPromptValue(data.content || '');
     }
   }, [data]);
+  
+  // Auto-trigger AI suggestions when an edge is connected (not in prompt mode)
+  useEffect(() => {
+    const wasDisconnected = prevIncomingEdgesRef.current === 0;
+    const isNowConnected = incomingEdgesCount > 0;
+    prevIncomingEdgesRef.current = incomingEdgesCount;
+    
+    // Auto-trigger only when: edge just connected, not prompt mode, not already loading, no cached options
+    if (wasDisconnected && isNowConnected && mode !== 'prompt' && !optionsLoading && predictiveOptions.length === 0) {
+      onGenerateOptionsForMode?.(node.id, mode);
+    }
+  }, [incomingEdgesCount, mode, optionsLoading, predictiveOptions.length, node.id, onGenerateOptionsForMode]);
+  
+  // Sync node dimensions to model for accurate edge connection alignment
+  useEffect(() => {
+    const storedWidth = node.measuredWidth ?? node.width ?? 0;
+    const storedHeight = node.measuredHeight ?? node.height ?? 0;
+    
+    if (Math.abs(storedWidth - NODE_WIDTH) > 2 || Math.abs(storedHeight - NODE_HEIGHT) > 2) {
+      onUpdate?.(node.id, {
+        measuredWidth: NODE_WIDTH,
+        measuredHeight: NODE_HEIGHT,
+      });
+    }
+  }, [node.id, node.measuredWidth, node.measuredHeight, node.width, node.height, onUpdate]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -264,15 +303,12 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
     }
   }, [node.id, data, onUpdate, onDelete, readOnly]);
 
-  const nodeWidth = node.style?.width || node.width || 320;
-  const nodeHeight = node.style?.height || node.height || 340;
-
   const nodeStyles: React.CSSProperties = {
     position: 'absolute',
     left: node.position.x,
     top: node.position.y,
-    width: nodeWidth,
-    height: nodeHeight,
+    width: NODE_WIDTH,
+    height: NODE_HEIGHT,
     ...style,
   };
 
@@ -285,16 +321,15 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
         'kiteframe-node kiteframe-experiment-node group',
         'rounded-lg shadow-sm transition-all duration-200',
         'hover:shadow-md cursor-move overflow-hidden',
-        'border-2 border-dashed',
-        isPreview ? 'border-amber-400 bg-amber-50/50' : 'border-gray-300 bg-white',
-        node.selected ? 'ring-2 ring-blue-500 shadow-md' : '',
+        'border-2',
+        node.selected ? 'ring-2 ring-purple-400 shadow-md' : '',
         node.hidden ? 'opacity-0 pointer-events-none' : '',
         className,
       )}
       style={{
         ...nodeStyles,
-        width: 320,
-        height: 340,
+        backgroundColor: '#ffffff',
+        borderColor: PURPLE.stroke,
       }}
       onMouseDown={handleMouseDown}
       onClick={(e) => onClick?.(e, node)}
@@ -303,20 +338,15 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
     >
       {/* Header */}
       <div
-        className={cn(
-          "flex items-center justify-between px-3 border-b",
-          isPreview ? "bg-amber-100/80 border-amber-200" : "bg-gray-50 border-gray-200"
-        )}
-        style={{ height: HEADER_H, minHeight: HEADER_H }}
+        className="flex items-center justify-between px-3"
+        style={{ 
+          height: HEADER_H, 
+          minHeight: HEADER_H,
+          backgroundColor: PURPLE.header,
+          borderBottom: `1px solid ${PURPLE.stroke}`,
+        }}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {/* Preview badge */}
-          {isPreview && (
-            <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-amber-200 text-amber-800 rounded">
-              Preview
-            </span>
-          )}
-          
           {/* Mode selector */}
           <div className="relative">
             <button
@@ -326,7 +356,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
               }}
               className={cn(
                 "flex items-center gap-1.5 text-sm font-medium py-1 px-2 rounded transition-colors",
-                isPreview ? "text-amber-800 hover:bg-amber-200/50" : "text-gray-700 hover:bg-gray-100",
+                "text-purple-800 hover:bg-purple-200/50",
                 readOnly ? "opacity-50 cursor-default" : ""
               )}
               data-testid="experiment-mode-select"
@@ -349,7 +379,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                       }}
                       className={cn(
                         "w-full px-3 py-2 text-left text-sm hover:bg-gray-50",
-                        m === mode ? "bg-amber-50 text-amber-700 font-medium" : "text-gray-700"
+                        m === mode ? "bg-purple-50 text-purple-700 font-medium" : "text-gray-700"
                       )}
                     >
                       {MODE_LABELS[m]}
@@ -365,12 +395,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
         {!readOnly && (
           <button
             onClick={handleDeleteClick}
-            className={cn(
-              "p-1.5 rounded-md transition-colors",
-              isPreview 
-                ? "text-amber-600 hover:text-red-500 hover:bg-red-100" 
-                : "text-gray-400 hover:text-red-500 hover:bg-red-50"
-            )}
+            className="p-1.5 rounded-md transition-colors text-purple-600 hover:text-red-500 hover:bg-red-100"
             title="Delete experiment"
             data-testid="experiment-delete-btn"
           >
@@ -397,9 +422,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
               className={cn(
                 "w-full h-full text-sm border rounded-md px-3 py-2 resize-none outline-none transition-colors",
                 "placeholder:text-gray-400 placeholder:italic",
-                isPreview 
-                  ? "bg-white border-amber-200 focus:border-amber-400 focus:ring-1 focus:ring-amber-200"
-                  : "bg-gray-50 border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-100",
+                "bg-white border-purple-200 focus:border-purple-400 focus:ring-1 focus:ring-purple-200",
                 (readOnly || isGenerating) ? "opacity-60 cursor-not-allowed" : ""
               )}
               onClick={(e) => e.stopPropagation()}
@@ -425,7 +448,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                     }}
                     disabled={readOnly || optionsLoading}
                     className={cn(
-                      "p-1 rounded text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-colors",
+                      "p-1 rounded text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors",
                       optionsLoading ? "animate-spin" : ""
                     )}
                     title="Refresh suggestions"
@@ -440,7 +463,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
             {/* Loading skeleton */}
             {optionsLoading ? (
               <div className="flex flex-col gap-2">
-                <p className="text-xs text-amber-600 italic mb-1">Exploring possibilities…</p>
+                <p className="text-xs text-purple-600 italic mb-1">Exploring possibilities…</p>
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i} className="animate-pulse">
                     <div className="h-8 bg-gray-100 rounded-md w-full" />
@@ -458,16 +481,16 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                       e.stopPropagation();
                       onRefreshOptions(node.id);
                     }}
-                    className="text-xs text-amber-600 hover:text-amber-700 underline"
+                    className="text-xs text-purple-600 hover:text-purple-700 underline"
                   >
                     Try refreshing
                   </button>
                 )}
               </div>
             ) : predictiveOptions.length > 0 ? (
-              /* Options list */
-              <div className="flex flex-col gap-1.5 overflow-y-auto max-h-32">
-                {predictiveOptions.slice(0, 5).map((option) => (
+              /* Options list - scrollable area */
+              <div className="flex flex-col gap-1.5 overflow-y-auto flex-1 min-h-0">
+                {predictiveOptions.map((option) => (
                   <button
                     key={option.id}
                     onClick={(e) => {
@@ -476,10 +499,10 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                     }}
                     disabled={readOnly || isGenerating}
                     className={cn(
-                      "text-left px-2.5 py-2 text-xs rounded-md border transition-colors",
+                      "text-left px-2.5 py-2 text-xs rounded-md border transition-colors flex-shrink-0",
                       selectedOption?.id === option.id
-                        ? "bg-amber-100 border-amber-400 text-amber-800"
-                        : "bg-white border-gray-200 text-gray-700 hover:border-amber-300 hover:bg-amber-50",
+                        ? "bg-purple-100 border-purple-400 text-purple-800"
+                        : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50",
                       (readOnly || isGenerating) ? "opacity-50 cursor-not-allowed" : ""
                     )}
                     data-testid={`experiment-option-${option.id}`}
@@ -510,12 +533,12 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
 
             {/* Selected option display */}
             {selectedOption && (
-              <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+              <div className="mt-2 p-2 bg-purple-50 border border-purple-200 rounded-md flex-shrink-0">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-medium text-amber-800">{selectedOption.label}</p>
+                    <p className="text-sm font-medium text-purple-800">{selectedOption.label}</p>
                     {selectedOption.description && (
-                      <p className="text-xs text-amber-600 mt-0.5">{selectedOption.description}</p>
+                      <p className="text-xs text-purple-600 mt-0.5">{selectedOption.description}</p>
                     )}
                   </div>
                   {!readOnly && !isGenerating && (
@@ -524,7 +547,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                         e.stopPropagation();
                         setSelectedOption(null);
                       }}
-                      className="p-0.5 text-amber-500 hover:text-amber-700"
+                      className="p-0.5 text-purple-500 hover:text-purple-700"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -547,9 +570,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                 className={cn(
                   "w-full h-12 text-xs border rounded-md px-2 py-1.5 resize-none outline-none transition-colors",
                   "placeholder:text-gray-400",
-                  isPreview 
-                    ? "bg-white border-amber-200 focus:border-amber-400"
-                    : "bg-gray-50 border-gray-200 focus:border-blue-400",
+                  "bg-white border-purple-200 focus:border-purple-400",
                   (readOnly || isGenerating) ? "opacity-50 cursor-not-allowed" : ""
                 )}
                 onClick={(e) => e.stopPropagation()}
@@ -569,11 +590,13 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
 
       {/* Footer */}
       <div
-        className={cn(
-          "flex items-center justify-between px-3 border-t",
-          isPreview ? "bg-amber-100/50 border-amber-200" : "bg-gray-50 border-gray-200"
-        )}
-        style={{ height: FOOTER_H, minHeight: FOOTER_H }}
+        className="flex items-center justify-between px-3"
+        style={{ 
+          height: FOOTER_H, 
+          minHeight: FOOTER_H,
+          backgroundColor: PURPLE.header,
+          borderTop: `1px solid ${PURPLE.stroke}`,
+        }}
       >
         {/* Generate button */}
         <button
@@ -582,7 +605,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
             canGenerate && !readOnly
-              ? "bg-amber-500 text-white hover:bg-amber-600 shadow-sm"
+              ? "bg-purple-600 text-white hover:bg-purple-700 shadow-sm"
               : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
           )}
           title={

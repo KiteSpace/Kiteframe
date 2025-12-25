@@ -105,6 +105,19 @@ export class EdgeValidator {
       }
     }
 
+    // Experiment nodes can only have ONE incoming edge
+    if (targetNode.type === 'experiment' || targetNode.type === 'wildcard') {
+      const incomingEdges = existingEdges.filter(
+        e => e.target === edge.target && e.id !== edge.id
+      );
+      if (incomingEdges.length >= 1) {
+        return {
+          isValid: false,
+          error: 'Experiment nodes can only have one incoming connection'
+        };
+      }
+    }
+
     // Check node type restrictions
     if (this.rules.nodeTypeRestrictions && sourceNode.type && targetNode.type) {
       const sourceRestrictions = this.rules.nodeTypeRestrictions[sourceNode.type];

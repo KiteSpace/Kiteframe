@@ -11979,6 +11979,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 linearToolbar.edge)
               : undefined
           }
+          edgeTargetNodeType={
+            linearToolbar.edge
+              ? nodes.find((n) => n.id === linearToolbar.edge!.target)?.type
+              : undefined
+          }
           canvasObject={
             linearToolbar.canvasObject
               ? (canvasObjects.find(

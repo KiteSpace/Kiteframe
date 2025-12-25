@@ -123,6 +123,7 @@ interface LinearToolbarProps {
     metadata?: OgMetadata;
   } | null) => void; // Callback for text object hyperlink changes
   onOpenComponentMenu?: () => void; // Callback for compound nodes to open component menu
+  edgeTargetNodeType?: string; // Type of node that edge targets (for special toolbar behavior)
 }
 
 type EndpointType = 'none' | 'arrow' | 'circle' | 'diamond';
@@ -232,7 +233,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   inlineEditingPart,
   initialSubmenu = null,
   onTextObjectHyperlinkChange,
-  onOpenComponentMenu
+  onOpenComponentMenu,
+  edgeTargetNodeType
 }) => {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(initialSubmenu);
   const [iconVisible, setIconVisible] = useState(node?.data?.iconVisible ?? true);
@@ -550,6 +552,22 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       return baseButtons;
     } else if (isEdgeTarget) {
       const isDataLink = edge?.data?.isDataLink === true;
+      const isExperimentEdge = edgeTargetNodeType === 'experiment' || edgeTargetNodeType === 'wildcard';
+      
+      // For edges targeting experiment nodes, only show delete button
+      if (isExperimentEdge) {
+        return [
+          {
+            id: 'delete',
+            icon: <Trash2 size={18} />,
+            label: 'Delete',
+            color: 'bg-red-500',
+            hoverColor: 'hover:bg-red-600',
+            onClick: () => { onDelete?.(); onClose(); }
+          }
+        ];
+      }
+      
       const edgeButtons: ToolbarButton[] = [
         {
           id: 'color',

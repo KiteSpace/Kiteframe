@@ -282,14 +282,19 @@ export const ConnectionEdge: React.FC<{
 }> = ({ edge, sourceNode, targetNode, onEdgeClick }) => {
   const s = anchor(sourceNode, targetNode);
   const t = anchor(targetNode, sourceNode);
-  const type = edge.type ?? 'bezier';
+  
+  // Check if target is an experiment node - apply special styling
+  const isExperimentTarget = targetNode.type === 'experiment' || targetNode.type === 'wildcard';
+  
+  // For experiment targets: force straight, dashed, grey
+  const type = isExperimentTarget ? 'straight' : (edge.type ?? 'bezier');
   
   // Get styling from edge.style with fallbacks to edge.data for backward compatibility
   const style = edge.style || {};
-  const strokeColor = style.strokeColor || style.stroke || edge.data?.color || '#64748b';
+  const strokeColor = isExperimentTarget ? '#9ca3af' : (style.strokeColor || style.stroke || edge.data?.color || '#64748b');
   const strokeWidth = style.strokeWidth ?? edge.data?.strokeWidth ?? 2;
   const strokeOpacity = style.strokeOpacity ?? 1;
-  const strokeDasharray = style.strokeDasharray || (edge.animated ? '6 4' : undefined);
+  const strokeDasharray = isExperimentTarget ? '8 4' : (style.strokeDasharray || (edge.animated ? '6 4' : undefined));
   const strokeLinecap = style.strokeLinecap || 'butt';
   
   // Determine markers - support both legacy edge.markers and new markerStart/markerEnd
