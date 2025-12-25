@@ -129,8 +129,7 @@ export function markGeneratedEdgesAsPreview(edges: Edge[]): Edge[] {
         ...edge,
         style: {
           ...edge.style,
-          strokeDasharray: '5 5',
-          strokeOpacity: 0.7,
+          strokeOpacity: 0.8, // solid stroke, slightly transparent
         },
       };
     }

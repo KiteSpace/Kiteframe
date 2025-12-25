@@ -159,7 +159,9 @@ function parseGeneratedBranch(
 
     const baseX = wildcardNode.position.x + 300;
     const baseY = wildcardNode.position.y;
-    const spacing = 200;
+    const nodeWidth = 180;
+    const nodeGap = 100;
+    const spacing = nodeWidth + nodeGap; // 280px between node origins
     
     const generationTimestamp = Date.now();
 
@@ -170,14 +172,15 @@ function parseGeneratedBranch(
         type: n.type || 'process',
         position: {
           x: baseX + (index * spacing),
-          y: baseY + (index % 2 === 0 ? 0 : 100)
+          y: baseY + (index % 2 === 0 ? 0 : 120)
         },
         data: {
           label: n.label || `Step ${index + 1}`,
           description: n.description || '',
           colors: {
-            headerBackground: '#6b7280',
-            bodyBackground: '#f3f4f6',
+            headerBackground: '#e5e7eb', // light grey header
+            bodyBackground: '#f9fafb', // very light grey body
+            stroke: '#9ca3af', // grey solid border
           }
         },
         width: 180,
@@ -209,8 +212,8 @@ function parseGeneratedBranch(
             label: e.label,
             markerEnd: true,
             style: {
-              strokeDasharray: '5,5',
-              strokeColor: '#9ca3af',
+              strokeColor: '#9ca3af', // solid grey stroke
+              strokeOpacity: 0.8,
             },
             meta: {
               speculative: true,
@@ -228,8 +231,8 @@ function parseGeneratedBranch(
         target: generatedNodes[0].id,
         markerEnd: true,
         style: {
-          strokeDasharray: '5,5',
-          strokeColor: '#9ca3af',
+          strokeColor: '#9ca3af', // solid grey stroke
+          strokeOpacity: 0.8,
         },
         meta: {
           speculative: true,

@@ -10150,7 +10150,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           const previewEdges = branch.edges.map(e => ({
                             ...e,
                             meta: { ...e.meta, speculative: true, generatedFrom: { nodeId, ts: Date.now() } },
-                            style: { ...e.style, strokeDasharray: '5 5', strokeOpacity: 0.7 }
+                            style: { ...e.style, strokeOpacity: 0.8 } // solid stroke, slightly transparent
                           }));
                           
                           setNodes(prev => [
