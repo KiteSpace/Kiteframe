@@ -8404,9 +8404,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                       
                       // Check if this is a direct edges array (from paste operations)
-                      // Edges have 'source' and 'target' properties
-                      // Changes have a 'type' property that is the change type ('select', 'remove', etc.)
-                      const isEdgesArray = changes[0].source && changes[0].target && !changes[0].type;
+                      // Edges have 'source' and 'target' properties, and their 'type' is edge rendering type
+                      // Changes have a 'type' property that is one of: 'select', 'remove', 'add', etc.
+                      const firstItem = changes[0];
+                      const isChangeObject = firstItem.type === 'select' || 
+                                             firstItem.type === 'remove' || 
+                                             firstItem.type === 'add' ||
+                                             firstItem.type === 'reset';
+                      const isEdgesArray = firstItem.source && firstItem.target && !isChangeObject;
+                      
+                      console.log('[EDGES CHANGE DEBUG] detection:', {
+                        hasSource: !!firstItem.source,
+                        hasTarget: !!firstItem.target,
+                        type: firstItem.type,
+                        isChangeObject,
+                        isEdgesArray
+                      });
                       
                       if (isEdgesArray) {
                         // Direct edges array from paste operation
