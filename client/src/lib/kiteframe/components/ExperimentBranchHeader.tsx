@@ -128,20 +128,6 @@ export function ExperimentBranchHeader({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem
-              data-testid={`experiment-accept-menu-${experimentId}`}
-              onClick={() => onAccept(experimentId)}
-            >
-              <Check className="w-3 h-3 mr-2 text-green-600" />
-              Accept Branch
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              data-testid={`experiment-reject-menu-${experimentId}`}
-              onClick={() => onReject(experimentId)}
-            >
-              <X className="w-3 h-3 mr-2 text-red-600" />
-              Reject Branch
-            </DropdownMenuItem>
             {onEdit && (
               <DropdownMenuItem
                 data-testid={`experiment-edit-${experimentId}`}

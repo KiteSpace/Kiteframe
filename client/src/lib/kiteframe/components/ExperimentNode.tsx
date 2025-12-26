@@ -6,7 +6,7 @@ import { sanitizeText } from '../utils/validation';
 
 const HEADER_H = 44;
 const FOOTER_H = 48;
-const NODE_HEIGHT = 480;
+const NODE_HEIGHT = 360;
 const NODE_WIDTH = 320;
 
 // Purple theme colors
@@ -384,7 +384,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
               <>
                 <div className="fixed inset-0 z-50" onClick={() => setShowModeDropdown(false)} />
                 <div className="absolute left-0 top-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50 min-w-[140px]">
-                  {(Object.keys(MODE_LABELS) as ExperimentMode[]).map((m) => (
+                  {(Object.keys(MODE_LABELS) as ExperimentMode[]).filter(m => m !== 'prompt').map((m) => (
                     <button
                       key={m}
                       onClick={(e) => {
@@ -574,26 +574,6 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
               </div>
             )}
 
-            {/* Refinement textarea for non-prompt modes */}
-            <div className="mt-auto">
-              <label className="text-[10px] text-gray-500 mb-1 block font-medium uppercase tracking-wide">
-                Refine (optional)
-              </label>
-              <textarea
-                value={userPromptValue}
-                onChange={handlePromptChange}
-                onBlur={handlePromptBlur}
-                placeholder="Add additional context or constraints..."
-                disabled={readOnly || isGenerating}
-                className={cn(
-                  "w-full h-12 text-xs border rounded-md px-2 py-1.5 resize-none outline-none transition-colors",
-                  "placeholder:text-gray-400",
-                  "bg-white border-purple-200 focus:border-purple-400",
-                  (readOnly || isGenerating) ? "opacity-50 cursor-not-allowed" : ""
-                )}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
           </div>
         )}
 
@@ -643,28 +623,6 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
           <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
         </button>
 
-        {/* Adopt/Discard buttons (shown after generation) */}
-        {hasGenerated && !readOnly && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleAdoptClick}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-green-500 text-white rounded-md hover:bg-green-600 shadow-sm transition-colors"
-              title="Adopt branch - make it permanent"
-              data-testid="experiment-adopt-btn"
-            >
-              <Check className="w-3.5 h-3.5" />
-              <span>Adopt</span>
-            </button>
-            <button
-              onClick={handleDiscardClick}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-white text-red-600 rounded-md hover:bg-red-50 border border-red-200 transition-colors"
-              title="Discard branch"
-              data-testid="experiment-discard-btn"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

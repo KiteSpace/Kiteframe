@@ -10387,6 +10387,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       };
                       
                       const processNodeDefaults = { width: 180, height: 100, measuredWidth: 180, measuredHeight: 100 };
+                      const defaultNodeStyle = {
+                        headerBackground: '#4f46e5',
+                        headerText: '#ffffff',
+                        bodyBackground: '#eef2ff',
+                        bodyText: '#334155',
+                        border: '#4f46e5',
+                      };
                       
                       const acceptedAt = Date.now();
                       const experimentMeta = node.meta?.experiment;
@@ -10406,6 +10413,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             height: cleared.height || processNodeDefaults.height,
                             measuredWidth: cleared.measuredWidth || processNodeDefaults.measuredWidth,
                             measuredHeight: cleared.measuredHeight || processNodeDefaults.measuredHeight,
+                            style: {
+                              ...cleared.style,
+                              ...defaultNodeStyle,
+                            },
                           };
                         }
                         if (n.id === nodeId) {
@@ -10425,6 +10436,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                                 ...experimentMeta,
                                 acceptedAt,
                               } : undefined,
+                            },
+                            style: {
+                              ...n.style,
+                              ...defaultNodeStyle,
                             },
                             data: { 
                               label: modeLabels[experimentMode] || 'Adopted Node',
