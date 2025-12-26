@@ -8216,6 +8216,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     connectionAnimationConfig={connectionAnimationConfig}
                     connectionPreview={connectionPreview}
                     onNodesChange={(changes) => {
+                      console.log('[NODES CHANGE DEBUG] received changes:', {
+                        isArray: Array.isArray(changes),
+                        length: changes?.length,
+                        firstItem: changes?.[0],
+                        firstType: changes?.[0]?.type
+                      });
                       // Handle both array of changes and direct node array updates
                       if (Array.isArray(changes)) {
                         // Handle empty array (e.g., all nodes deleted)
@@ -8246,6 +8252,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             changes[0].type === "render" ||
                             changes[0].type === "text" ||
                             changes[0].type === "webview");
+                        console.log('[NODES CHANGE DEBUG] isNodeArray:', isNodeArray);
                         
                         if (isNodeArray) {
                           // Direct nodes array from KiteFrameCanvas drag operations

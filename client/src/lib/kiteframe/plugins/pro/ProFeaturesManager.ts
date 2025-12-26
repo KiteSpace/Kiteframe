@@ -201,17 +201,29 @@ export class ProFeaturesManager {
       { offsetDistance: this.config.copyPaste?.offsetDistance ?? 50 }
     );
 
+    console.log('[PASTE DEBUG] paste result:', { 
+      nodesCount: result.nodes.length, 
+      canvasObjectsCount: result.canvasObjects.length,
+      edgesCount: result.edges.length,
+      currentNodesCount: this.nodes.length
+    });
+
     if (result.nodes.length > 0 || result.canvasObjects.length > 0 || result.edges.length > 0) {
-      // Update nodes
+      // Update nodes - always update internal cache, then notify via callback
       if (result.nodes.length > 0) {
         const updatedNodes = [...this.nodes, ...result.nodes];
+        console.log('[PASTE DEBUG] calling onNodesChange with', updatedNodes.length, 'nodes');
+        this.updateNodes(updatedNodes); // Keep internal cache current
         this.onNodesChange(updatedNodes);
       }
 
-      // Update canvas objects
-      if (result.canvasObjects.length > 0 && this.onCanvasObjectsChange) {
+      // Update canvas objects - always update internal cache, then notify via callback
+      if (result.canvasObjects.length > 0) {
         const updatedCanvasObjects = [...this.canvasObjects, ...result.canvasObjects];
-        this.onCanvasObjectsChange(updatedCanvasObjects);
+        this.updateCanvasObjects(updatedCanvasObjects); // Keep internal cache current
+        if (this.onCanvasObjectsChange) {
+          this.onCanvasObjectsChange(updatedCanvasObjects);
+        }
       }
 
       // Update edges - always update internal cache, optionally notify via callback
