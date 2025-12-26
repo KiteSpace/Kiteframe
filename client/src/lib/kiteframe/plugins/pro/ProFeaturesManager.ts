@@ -229,9 +229,18 @@ export class ProFeaturesManager {
       // Update edges - always update internal cache, optionally notify via callback
       if (result.edges.length > 0) {
         const updatedEdges = [...this.edges, ...result.edges];
+        console.log('[PASTE DEBUG] updating edges:', {
+          resultEdgesCount: result.edges.length,
+          currentEdgesCount: this.edges.length,
+          updatedEdgesCount: updatedEdges.length,
+          hasOnEdgesChange: !!this.onEdgesChange
+        });
         this.updateEdges(updatedEdges); // Keep internal cache current
         if (this.onEdgesChange) {
+          console.log('[PASTE DEBUG] calling onEdgesChange with', updatedEdges.length, 'edges');
           this.onEdgesChange(updatedEdges);
+        } else {
+          console.log('[PASTE DEBUG] onEdgesChange is not defined, edges will not be added to state');
         }
       }
 
