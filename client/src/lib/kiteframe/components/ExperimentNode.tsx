@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { FlaskConical, Check, Trash2, ChevronDown, Loader2, AlertCircle, X, RefreshCw } from 'lucide-react';
 import type { Node, ExperimentNodeData, ExperimentMode, ExperimentOption, WildCardNodeData } from '../types';
 import { sanitizeText } from '../utils/validation';
+import { useScrollIsolation } from '../hooks/useScrollIsolation';
 
 const HEADER_H = 44;
 const FOOTER_H = 48;
@@ -140,6 +141,10 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
 
   const nodeRef = useRef<HTMLDivElement>(null);
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  
+  // Prevent canvas zoom from intercepting scroll events on the body content
+  useScrollIsolation(bodyRef);
 
   const data = node.data as ExperimentNodeData | WildCardNodeData;
   const mode: ExperimentMode = data.mode || 'whatif';
@@ -444,12 +449,9 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
 
       {/* Body */}
       <div
+        ref={bodyRef}
         className="flex flex-col gap-2 p-3 overflow-y-auto"
         style={{ height: bodyHeight }}
-        onWheel={(e) => {
-          // Disable canvas zoom when hovering/scrolling over the node
-          e.stopPropagation();
-        }}
       >
         {/* Simplified view when hasGenerated - show headline and description */}
         {hasGenerated ? (
@@ -552,7 +554,6 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
               /* Options list - scrollable area */
               <div 
                 className="flex flex-col gap-1.5 overflow-y-auto flex-1 min-h-0"
-                onWheel={(e) => e.stopPropagation()}
               >
                 {predictiveOptions.map((option) => (
                   <button
