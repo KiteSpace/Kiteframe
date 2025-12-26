@@ -21,6 +21,7 @@ interface WorkflowCanvasProps {
   onNodeClick?: (e: React.MouseEvent, node: Node) => void;
   onNodeDoubleClick?: (e: React.MouseEvent, node: Node, part?: 'header' | 'body') => void;
   onEdgeClick?: (edge: Edge) => void;
+  onEdgeDoubleClick?: (edge: Edge) => void;
   onCanvasClick?: () => void;
   onNodeRightClick?: (e: React.MouseEvent, node: Node) => void;
   onCanvasObjectClick?: (e: React.MouseEvent, canvasObject: CanvasObject) => void;
@@ -48,6 +49,7 @@ interface WorkflowCanvasProps {
   connectionPreview?: { source: string; target: string } | null;
   inlineEditing?: { nodeId?: string; edgeId?: string; part: 'header' | 'body' | 'edgeLabel' } | null;
   onInlineEditingSave?: (nodeId: string, part: 'header' | 'body', value: string) => void;
+  onEdgeLabelSave?: (edgeId: string, newLabel: string) => void;
   onInlineEditingCancel?: () => void;
   onTextSelectionChange?: (selectedText: string) => void;
   onHyperlinkEdit?: (nodeId: string, hyperlinkId: string) => void;
@@ -100,6 +102,7 @@ export function WorkflowCanvas({
   onNodeClick,
   onNodeDoubleClick,
   onEdgeClick,
+  onEdgeDoubleClick,
   onCanvasClick,
   onNodeRightClick,
   onCanvasObjectClick,
@@ -127,6 +130,7 @@ export function WorkflowCanvas({
   connectionPreview,
   inlineEditing,
   onInlineEditingSave,
+  onEdgeLabelSave,
   onInlineEditingCancel,
   onTextSelectionChange,
   onHyperlinkEdit,
@@ -432,6 +436,7 @@ export function WorkflowCanvas({
         onNodeClick={onNodeClick}
         onNodeDoubleClick={onNodeDoubleClick}
         onEdgeClick={(e, edge) => onEdgeClick?.(edge)}
+        onEdgeDoubleClick={(e, edge) => onEdgeDoubleClick?.(edge)}
         onCanvasClick={onCanvasClick}
         onNodeRightClick={onNodeRightClick}
         onCanvasObjectClick={onCanvasObjectClick}
@@ -454,6 +459,7 @@ export function WorkflowCanvas({
         connectionPreview={connectionPreview}
         inlineEditing={inlineEditing}
         onInlineEditingSave={onInlineEditingSave}
+        onEdgeLabelSave={onEdgeLabelSave}
         onInlineEditingCancel={onInlineEditingCancel}
         onTextSelectionChange={onTextSelectionChange}
         onHyperlinkEdit={onHyperlinkEdit}

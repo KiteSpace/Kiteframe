@@ -8868,6 +8868,46 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         clickDelayTimeoutRef.current = null;
                       }, 150); // 150ms delay
                     }}
+                    onEdgeDoubleClick={(edge: Edge) => {
+                      // Double-click on edge label triggers inline editing
+                      setSelectedEdgeId(edge.id);
+                      setInlineEditing({
+                        edgeId: edge.id,
+                        part: 'edgeLabel',
+                      });
+                      // Show the linear toolbar with text style options for edge label
+                      const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+                      const containerLeft = containerRect?.left ?? 0;
+                      const containerTop = containerRect?.top ?? 0;
+                      
+                      const sourceNode = nodes.find((n) => n.id === edge.source);
+                      const targetNode = nodes.find((n) => n.id === edge.target);
+                      if (sourceNode && targetNode) {
+                        const sourceX = sourceNode.position.x + (sourceNode.width ?? 200) / 2;
+                        const sourceY = sourceNode.position.y + (sourceNode.height ?? 100) / 2;
+                        const targetX = targetNode.position.x + (targetNode.width ?? 200) / 2;
+                        const targetY = targetNode.position.y + (targetNode.height ?? 100) / 2;
+                        
+                        const midX = (sourceX + targetX) / 2;
+                        const midY = (sourceY + targetY) / 2;
+                        
+                        const screenX = midX * viewport.zoom + viewport.x + containerLeft;
+                        const screenY = midY * viewport.zoom + viewport.y + containerTop;
+                        
+                        setLinearToolbar({
+                          x: screenX,
+                          y: screenY - 40,
+                          nodeRect: {
+                            top: screenY - 20,
+                            bottom: screenY + 20,
+                            left: screenX - 50,
+                            right: screenX + 50,
+                            width: 100,
+                          },
+                          edge,
+                        });
+                      }
+                    }}
                     onCanvasClick={(e?: React.MouseEvent) => {
                       // Don't deselect during drag operations to keep properties card open
                       if (
@@ -9110,6 +9150,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       setInlineEditing(null);
                       setSelectedText("");
                       saveToHistory("Edit node text");
+                    }}
+                    onEdgeLabelSave={(edgeId: string, newLabel: string) => {
+                      setEdges((prev) =>
+                        prev.map((edge) => {
+                          if (edge.id === edgeId) {
+                            return { ...edge, label: newLabel };
+                          }
+                          return edge;
+                        }),
+                      );
+                      setInlineEditing(null);
+                      saveToHistory("Edit edge label");
                     }}
                     onInlineEditingCancel={() => {
                       setInlineEditing(null);

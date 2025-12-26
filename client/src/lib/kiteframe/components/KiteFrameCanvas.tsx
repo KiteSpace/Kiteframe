@@ -1210,6 +1210,7 @@ type Props = {
     canvasObject: CanvasObject,
   ) => void;
   onEdgeClick?: (e: React.MouseEvent, edge: Edge) => void;
+  onEdgeDoubleClick?: (e: React.MouseEvent, edge: Edge) => void;
   onNodeResize?: (id: string, w: number, h: number) => void;
   onImageButtonClick?: (nodeId: string) => void;
   onEdgeReconnect?: (
@@ -1260,6 +1261,7 @@ type Props = {
     part: 'header' | 'body' | 'edgeLabel';
   } | null;
   onInlineEditingSave?: (nodeId: string, part: 'header' | 'body', value: string) => void;
+  onEdgeLabelSave?: (edgeId: string, newLabel: string) => void;
   onInlineEditingCancel?: () => void;
   onTextSelectionChange?: (selectedText: string) => void;
   
@@ -3515,6 +3517,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 const s = props.nodes.find((n) => n.id === e.source);
                 const t = props.nodes.find((n) => n.id === e.target);
                 if (!s || !t) return null;
+                const isEditingThisEdge = props.inlineEditing?.edgeId === e.id && props.inlineEditing?.part === 'edgeLabel';
                 return (
                   <ConnectionEdge
                     key={e.id}
@@ -3522,6 +3525,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     sourceNode={s}
                     targetNode={t}
                     onEdgeClick={(edge) => props.onEdgeClick?.(e as any, edge)}
+                    onEdgeDoubleClick={(edge) => props.onEdgeDoubleClick?.(e as any, edge)}
+                    isEditing={isEditingThisEdge}
+                    onLabelSave={(edgeId, newLabel) => props.onEdgeLabelSave?.(edgeId, newLabel)}
+                    onLabelCancel={() => props.onInlineEditingCancel?.()}
                   />
                 );
               });

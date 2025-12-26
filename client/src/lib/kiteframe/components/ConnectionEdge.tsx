@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Edge, Node, EdgeStyle, EdgeMarker } from '../types';
 
 // Direction type for edge anchor points
@@ -274,12 +274,89 @@ function createMarker(
   }
 }
 
+// Inline editor component for edge labels
+const EdgeLabelEditor: React.FC<{
+  edge: Edge;
+  x: number;
+  y: number;
+  strokeColor: string;
+  backgroundColor: string;
+  textColor: string;
+  onSave: (newLabel: string) => void;
+  onCancel: () => void;
+}> = ({ edge, x, y, strokeColor, backgroundColor, textColor, onSave, onCancel }) => {
+  const [value, setValue] = useState(edge.label || '');
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  useEffect(() => {
+    // Focus input when mounted
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, []);
+  
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onSave(value);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onCancel();
+    }
+  };
+  
+  const handleBlur = () => {
+    onSave(value);
+  };
+  
+  const inputWidth = Math.max(80, value.length * 8 + 24);
+  
+  return (
+    <foreignObject
+      x={x - inputWidth / 2}
+      y={y - 12}
+      width={inputWidth}
+      height={24}
+      style={{ overflow: 'visible' }}
+    >
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          height: '100%',
+          padding: '2px 8px',
+          fontSize: '11px',
+          fontWeight: 500,
+          textAlign: 'center',
+          border: `1.5px solid ${strokeColor}`,
+          borderRadius: '4px',
+          backgroundColor,
+          color: textColor,
+          outline: 'none',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+        }}
+        placeholder="Enter label..."
+        data-testid="edge-label-input"
+      />
+    </foreignObject>
+  );
+};
+
 export const ConnectionEdge: React.FC<{ 
   edge: Edge; 
   sourceNode: Node; 
   targetNode: Node;
   onEdgeClick?: (edge: Edge) => void;
-}> = ({ edge, sourceNode, targetNode, onEdgeClick }) => {
+  onEdgeDoubleClick?: (edge: Edge) => void;
+  isEditing?: boolean;
+  onLabelSave?: (edgeId: string, newLabel: string) => void;
+  onLabelCancel?: () => void;
+}> = ({ edge, sourceNode, targetNode, onEdgeClick, onEdgeDoubleClick, isEditing, onLabelSave, onLabelCancel }) => {
   const s = anchor(sourceNode, targetNode);
   const t = anchor(targetNode, sourceNode);
   
@@ -451,32 +528,53 @@ export const ConnectionEdge: React.FC<{
       )}
       
       {/* Edge label with enhanced styling */}
-      {edge.label && (
-        <g style={{ zIndex: 100 }}>
-          {/* Label background with source node body color and edge-colored border */}
-          <rect
-            x={(s.x + t.x) / 2 - (edge.label.length * 4 + 6)}
-            y={(s.y + t.y) / 2 - 10}
-            width={edge.label.length * 8 + 12}
-            height={20}
-            fill={sourceNode.data?.colors?.bodyBackground || edge.labelStyle?.backgroundColor || '#ffffff'}
-            stroke={strokeColor}
-            strokeWidth={1.5}
-            rx={edge.labelStyle?.borderRadius || 4}
-            style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }}
-          />
-          <text 
-            x={(s.x + t.x) / 2} 
-            y={(s.y + t.y) / 2} 
-            textAnchor="middle" 
-            dominantBaseline="middle"
-            fontSize={edge.labelStyle?.fontSize || 11}
-            fill={sourceNode.data?.colors?.bodyTextColor || edge.labelStyle?.fontColor || '#64748b'}
-            fontWeight={edge.labelStyle?.fontWeight || '500'}
-            style={{ userSelect: 'none' }}
-          >
-            {edge.label}
-          </text>
+      {(edge.label || isEditing) && (
+        <g 
+          style={{ zIndex: 100, cursor: 'pointer' }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onEdgeDoubleClick?.(edge);
+          }}
+        >
+          {isEditing ? (
+            <EdgeLabelEditor
+              edge={edge}
+              x={(s.x + t.x) / 2}
+              y={(s.y + t.y) / 2}
+              strokeColor={strokeColor}
+              backgroundColor={sourceNode.data?.colors?.bodyBackground || edge.labelStyle?.backgroundColor || '#ffffff'}
+              textColor={sourceNode.data?.colors?.bodyTextColor || edge.labelStyle?.fontColor || '#64748b'}
+              onSave={(newLabel) => onLabelSave?.(edge.id, newLabel)}
+              onCancel={() => onLabelCancel?.()}
+            />
+          ) : (
+            <>
+              {/* Label background with source node body color and edge-colored border */}
+              <rect
+                x={(s.x + t.x) / 2 - ((edge.label?.length || 0) * 4 + 6)}
+                y={(s.y + t.y) / 2 - 10}
+                width={(edge.label?.length || 0) * 8 + 12}
+                height={20}
+                fill={sourceNode.data?.colors?.bodyBackground || edge.labelStyle?.backgroundColor || '#ffffff'}
+                stroke={strokeColor}
+                strokeWidth={1.5}
+                rx={edge.labelStyle?.borderRadius || 4}
+                style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))', pointerEvents: 'auto' }}
+              />
+              <text 
+                x={(s.x + t.x) / 2} 
+                y={(s.y + t.y) / 2} 
+                textAnchor="middle" 
+                dominantBaseline="middle"
+                fontSize={edge.labelStyle?.fontSize || 11}
+                fill={sourceNode.data?.colors?.bodyTextColor || edge.labelStyle?.fontColor || '#64748b'}
+                fontWeight={edge.labelStyle?.fontWeight || '500'}
+                style={{ userSelect: 'none', pointerEvents: 'auto' }}
+              >
+                {edge.label}
+              </text>
+            </>
+          )}
         </g>
       )}
     </g>
