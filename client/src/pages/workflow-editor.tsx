@@ -10442,8 +10442,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               ...defaultNodeStyle,
                             },
                             data: { 
-                              label: modeLabels[experimentMode] || 'Adopted Node',
-                              description: experimentContent,
+                              label: data.selectedOptionLabel || modeLabels[experimentMode] || 'Adopted Node',
+                              description: data.selectedOptionDescription || experimentContent,
                             }
                           };
                         }

@@ -168,7 +168,11 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
     if (isExperimentNodeData(data)) {
       setUserPromptValue(data.userPrompt || '');
       if (data.selectedOptionId && data.selectedOptionLabel) {
-        setSelectedOption({ id: data.selectedOptionId, label: data.selectedOptionLabel });
+        setSelectedOption({ 
+          id: data.selectedOptionId, 
+          label: data.selectedOptionLabel,
+          description: data.selectedOptionDescription 
+        });
       }
     } else {
       setUserPromptValue(data.content || '');
@@ -447,14 +451,23 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
           e.stopPropagation();
         }}
       >
-        {/* Simplified view when hasGenerated - just show selected content */}
+        {/* Simplified view when hasGenerated - show headline and description */}
         {hasGenerated ? (
           <div className="flex-1 flex flex-col">
             <p className="text-xs text-gray-500 font-medium mb-1">Selected:</p>
-            <div className="flex-1 bg-purple-50 border border-purple-200 rounded-md p-3">
-              <p className="text-sm text-purple-800 leading-relaxed">
-                {selectedContent || 'No content selected'}
-              </p>
+            <div className="flex-1 bg-purple-50 border border-purple-200 rounded-md p-3 overflow-y-auto">
+              {selectedOption ? (
+                <>
+                  <p className="text-sm font-medium text-purple-800">{selectedOption.label}</p>
+                  {selectedOption.description && (
+                    <p className="text-xs text-purple-600 mt-1 leading-relaxed">{selectedOption.description}</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-purple-800 leading-relaxed">
+                  {userPromptValue || 'No content selected'}
+                </p>
+              )}
             </div>
           </div>
         ) : mode === 'prompt' ? (
@@ -537,7 +550,10 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
               </div>
             ) : predictiveOptions.length > 0 ? (
               /* Options list - scrollable area */
-              <div className="flex flex-col gap-1.5 overflow-y-auto flex-1 min-h-0">
+              <div 
+                className="flex flex-col gap-1.5 overflow-y-auto flex-1 min-h-0"
+                onWheel={(e) => e.stopPropagation()}
+              >
                 {predictiveOptions.map((option) => (
                   <button
                     key={option.id}
