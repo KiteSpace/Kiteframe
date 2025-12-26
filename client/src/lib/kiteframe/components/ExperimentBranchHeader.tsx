@@ -80,15 +80,21 @@ export function ExperimentBranchHeader({
 
   const modeLabel = MODE_LABELS[mode] || 'Experiment';
 
-  const offsetAboveNode = 40;
+  // Position header directly above the node in canvas coordinates
+  // The header is inside kiteframe-world which has the transform applied.
+  // With inverse scaling (scale(1/zoom)), the header renders at constant screen size.
+  // Using fixed 48 canvas unit offset with bottom-left origin (same as WorkflowHeader)
+  const headerOffset = 48;
 
   return (
     <div
       data-testid={`experiment-branch-header-${experimentId}`}
       className="absolute flex items-center gap-1 px-3 py-1 rounded-full shadow-md select-none z-50"
       style={{
+        position: 'absolute',
         left: position.x,
-        top: position.y - offsetAboveNode / scale,
+        top: position.y - headerOffset,
+        zIndex: 1000,
         transform: `scale(${1 / scale})`,
         transformOrigin: 'bottom left',
         backgroundColor: '#f3e8ff',
