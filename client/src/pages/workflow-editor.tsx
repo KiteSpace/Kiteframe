@@ -8255,30 +8255,51 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         console.log('[NODES CHANGE DEBUG] isNodeArray:', isNodeArray);
                         
                         if (isNodeArray) {
-                          // Direct nodes array from KiteFrameCanvas drag operations
+                          // Direct nodes array from KiteFrameCanvas drag operations or paste
+                          const incomingNodes = changes as Node[];
+                          
+                          // Detect if this is a paste operation (nodes were added)
+                          // by comparing incoming count to current count
+                          const currentNodeCount = nodes.length;
+                          const incomingNodeCount = incomingNodes.length;
+                          const nodesWereAdded = incomingNodeCount > currentNodeCount;
+                          
+                          console.log('[NODES CHANGE DEBUG] paste detection:', { 
+                            currentNodeCount, 
+                            incomingNodeCount, 
+                            nodesWereAdded 
+                          });
 
-                          // Mark as dragging to prevent properties panel from opening
-                          isDraggingRef.current = true;
+                          if (nodesWereAdded) {
+                            // This is a paste operation - save to history
+                            const addedCount = incomingNodeCount - currentNodeCount;
+                            setNodes(incomingNodes);
+                            saveToHistory(`Paste ${addedCount} node${addedCount > 1 ? 's' : ''}`);
+                          } else {
+                            // This is a drag operation - handle normally
+                            // Mark as dragging to prevent properties panel from opening
+                            isDraggingRef.current = true;
 
-                          // Hide linear toolbar during drag for performance
-                          setLinearToolbar(null);
+                            // Hide linear toolbar during drag for performance
+                            setLinearToolbar(null);
 
-                          // Cancel any pending click delay timer since we're now dragging
-                          if (clickDelayTimeoutRef.current) {
-                            clearTimeout(clickDelayTimeoutRef.current);
-                            clickDelayTimeoutRef.current = null;
+                            // Cancel any pending click delay timer since we're now dragging
+                            if (clickDelayTimeoutRef.current) {
+                              clearTimeout(clickDelayTimeoutRef.current);
+                              clickDelayTimeoutRef.current = null;
+                            }
+
+                            // Reset drag state after a delay (when user stops dragging)
+                            if (dragResetTimeoutRef.current) {
+                              clearTimeout(dragResetTimeoutRef.current);
+                            }
+                            dragResetTimeoutRef.current = setTimeout(() => {
+                              isDraggingRef.current = false;
+                            }, 200); // Reset after 200ms of no drag activity
+
+                            setNodes(incomingNodes);
+                            // Don't save to history on every drag move, only on drag end
                           }
-
-                          // Reset drag state after a delay (when user stops dragging)
-                          if (dragResetTimeoutRef.current) {
-                            clearTimeout(dragResetTimeoutRef.current);
-                          }
-                          dragResetTimeoutRef.current = setTimeout(() => {
-                            isDraggingRef.current = false;
-                          }, 200); // Reset after 200ms of no drag activity
-
-                          setNodes(changes as Node[]);
-                          // Don't save to history on every drag move, only on drag end
                         } else {
                           // Change-based updates
 
@@ -8377,6 +8398,34 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     }}
                     onEdgesChange={(changes: any[]) => {
+                      // Handle empty array
+                      if (!Array.isArray(changes) || changes.length === 0) {
+                        return;
+                      }
+                      
+                      // Check if this is a direct edges array (from paste operations)
+                      // Edges have 'source' and 'target' properties
+                      // Changes have a 'type' property that is the change type ('select', 'remove', etc.)
+                      const isEdgesArray = changes[0].source && changes[0].target && !changes[0].type;
+                      
+                      if (isEdgesArray) {
+                        // Direct edges array from paste operation
+                        const incomingEdges = changes as Edge[];
+                        const currentEdgeCount = edges.length;
+                        const incomingEdgeCount = incomingEdges.length;
+                        const edgesWereAdded = incomingEdgeCount > currentEdgeCount;
+                        
+                        console.log('[EDGES CHANGE DEBUG] paste detection:', { 
+                          currentEdgeCount, 
+                          incomingEdgeCount, 
+                          edgesWereAdded 
+                        });
+                        
+                        setEdges(incomingEdges);
+                        // Note: History is saved by onNodesChange when nodes are pasted along with edges
+                        return;
+                      }
+                      
                       // Separate changes by type for individual history tracking
                       const selectionChanges = changes.filter(
                         (c) => c.type === "select",
