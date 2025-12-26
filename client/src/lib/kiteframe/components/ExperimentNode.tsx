@@ -422,6 +422,10 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
       <div
         className="flex flex-col gap-2 p-3 overflow-y-auto"
         style={{ height: bodyHeight }}
+        onWheel={(e) => {
+          // Disable canvas zoom when hovering/scrolling over the node
+          e.stopPropagation();
+        }}
       >
         {/* For prompt mode: show text input */}
         {mode === 'prompt' ? (
