@@ -5066,7 +5066,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               // Check if border should be hidden
               const hasNoBorder = n.data?.noStroke === true;
               const isSpeculative = n.meta?.speculative === true;
-              const borderStyleValue = isSpeculative ? 'dashed' : (n.data?.borderStyle || 'solid');
+              const borderStyleValue = n.data?.borderStyle || 'solid'; // Solid borders for all nodes including speculative
               // Use consistent border radius - container should match header/body corners
               // When using 2px border, the inner content radius should be slightly smaller
               const cornerRadius = 10; // Match the visual appearance
@@ -5205,8 +5205,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     <div
                       className="title"
                       style={{
-                        backgroundColor: headerBg,
-                        color: headerText,
+                        backgroundColor: isSpeculative ? '#4f46e5' : headerBg, // Default indigo for speculative nodes
+                        color: isSpeculative ? '#ffffff' : headerText, // White text for speculative nodes
                         borderBottom: `1px solid ${border}`,
                         cursor: props.inlineEditing?.nodeId === n.id && props.inlineEditing?.part === 'header' ? 'text' : 'grab',
                         overflow: 'hidden',
