@@ -1656,12 +1656,28 @@ function WorkflowEditorContent({
   const [generatingWireframe, setGeneratingWireframe] = useState(false);
 
   // Direct AI workflow generation (for home screen prompt)
+  // Args object ensures projectId is passed explicitly to avoid race conditions with React state
+  interface GenerateWorkflowDirectlyArgs {
+    prompt: string;
+    tabId: string;
+    generatePRDFlag?: boolean;
+    projectId: string;  // REQUIRED - must be passed from caller, not looked up from state
+  }
   const generateWorkflowDirectly = useCallback(
-    async (prompt: string, tabId: string, generatePRDFlag?: boolean) => {
-      console.log(
-        "[KiteAI] generateWorkflowDirectly called with generatePRDFlag:",
+    async (args: GenerateWorkflowDirectlyArgs) => {
+      const { prompt, tabId, generatePRDFlag, projectId: passedProjectId } = args;
+      
+      // Runtime guard: projectId is required for correct PRD storage
+      if (!passedProjectId) {
+        console.error('[PRD] Missing projectId in generateWorkflowDirectly args');
+        throw new Error('[PRD] Missing projectId in generateWorkflowDirectly args');
+      }
+      
+      console.log('[PRD][GWD_ENTER]', {
+        tabId,
+        projectId: passedProjectId,
         generatePRDFlag,
-      );
+      });
       if (isOutOfCredits) {
         toast({
           title: "Out of credits",
@@ -1833,24 +1849,15 @@ Position nodes 250px apart horizontally.`;
             processedNodes.length,
           );
 
-          // Get the effective projectId - must match what gets stored in the tab
-          // The tab will use: tab.projectUuid || projectUuid (line above)
-          // So we need to check if the current tab already has a projectUuid
-          // Note: tabs state may not have the new tab yet if this was called right after createBlankTab
-          const currentTabData = tabs.find((t) => t.id === tabId);
-          const effectiveProjectId = currentTabData?.projectUuid || projectUuid;
-          // Use the workflowGroupId for PRD storage to match how SpecsTab loads PRDs
-          console.log(
-            "[KiteAI] Using projectId:",
-            effectiveProjectId,
-            "workflowId:",
-            workflowGroupId,
-            "(currentTabData:",
-            !!currentTabData,
-            "rootNodeId:",
+          // Use the projectId passed directly from the caller (avoids React state race condition)
+          // This is the stable projectId from newTab.projectUuid at call time
+          const effectiveProjectId = passedProjectId;
+          console.log('[PRD][AFTER_WORKFLOW_CREATION]', {
+            projectId: effectiveProjectId,
+            workflowId: workflowGroupId,
+            prdKey: `prd-workflow-${effectiveProjectId}-${workflowGroupId}`,
             rootNodeId,
-            ")",
-          );
+          });
 
           // Signal that PRD generation is starting
           const prdGenerationStarted = shouldGeneratePRD;
@@ -5991,16 +5998,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             }}
             onGenerateWorkflow={(prompt, generatePRD) => {
-              console.log(
-                "[KiteAI] onGenerateWorkflow received generatePRD:",
-                generatePRD,
-              );
               const newTab = createBlankTab();
+              console.log('[PRD][TAB_CREATE]', {
+                tabId: newTab.id,
+                newTabProjectUuid: newTab.projectUuid,
+                generatePRD,
+              });
               setTabs((prev) => [...prev, newTab]);
               setActiveTabId(newTab.id);
               // Directly generate workflow without opening modal
-              // Pass generatePRD directly to avoid context store timing issues
-              generateWorkflowDirectly(prompt, newTab.id, generatePRD);
+              // Pass projectId directly to avoid React state race condition
+              generateWorkflowDirectly({
+                prompt,
+                tabId: newTab.id,
+                generatePRDFlag: generatePRD,
+                projectId: newTab.projectUuid!,  // Pass directly - don't look up from state
+              });
             }}
             onCreateBlankWorkflow={createNewTab}
             onLoadTemplate={(templateType) => {

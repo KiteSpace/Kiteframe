@@ -223,7 +223,9 @@ export function WorkflowPRDSection({
 
   const loadFromStorage = useCallback(() => {
     if (projectId && workflowId) {
+      console.log('[PRD][LOAD_ATTEMPT]', { projectId, workflowId, key: `prd-workflow-${projectId}-${workflowId}` });
       const loaded = loadWorkflowPRD(projectId, workflowId);
+      console.log('[PRD][LOAD_RESULT]', { found: !!loaded, length: loaded?.sections?.length ?? 0 });
       if (loaded) {
         setPrd(loaded);
         const stale = isWorkflowStale(projectId, workflowId, nodes, edges);
