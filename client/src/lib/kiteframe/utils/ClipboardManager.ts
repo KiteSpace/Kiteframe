@@ -14,6 +14,7 @@ export interface ClipboardItem {
 
 export interface ClipboardData {
   items: ClipboardItem[];
+  edges: Edge[];
   timestamp: number;
   selectionBounds?: {
     minX: number;
@@ -53,7 +54,8 @@ export class ClipboardManager {
    */
   public copy(
     selectedNodes: Node[] = [],
-    selectedCanvasObjects: CanvasObject[] = []
+    selectedCanvasObjects: CanvasObject[] = [],
+    allEdges: Edge[] = []
   ): boolean {
     const items: ClipboardItem[] = [];
 
@@ -79,11 +81,20 @@ export class ClipboardManager {
       return false;
     }
 
+    // Get set of selected node IDs for filtering edges
+    const selectedNodeIds = new Set(selectedNodes.map(n => n.id));
+    
+    // Filter edges to only include those where BOTH source and target are in selection
+    const internalEdges = allEdges.filter(edge => 
+      selectedNodeIds.has(edge.source) && selectedNodeIds.has(edge.target)
+    ).map(edge => ({ ...edge }));
+
     // Calculate selection bounds for smart positioning
     const selectionBounds = this.calculateSelectionBounds(items);
 
     const clipboardData: ClipboardData = {
       items,
+      edges: internalEdges,
       timestamp: Date.now(),
       selectionBounds
     };
@@ -110,16 +121,20 @@ export class ClipboardManager {
   ): {
     nodes: Node[];
     canvasObjects: CanvasObject[];
+    edges: Edge[];
     newNodeIds: string[];
     newCanvasObjectIds: string[];
+    newEdgeIds: string[];
   } {
     const clipboardData = this.getClipboardData();
     if (!clipboardData || clipboardData.items.length === 0) {
       return {
         nodes: [],
         canvasObjects: [],
+        edges: [],
         newNodeIds: [],
-        newCanvasObjectIds: []
+        newCanvasObjectIds: [],
+        newEdgeIds: []
       };
     }
 
@@ -131,8 +146,13 @@ export class ClipboardManager {
 
     const newNodes: Node[] = [];
     const newCanvasObjects: CanvasObject[] = [];
+    const newEdges: Edge[] = [];
     const newNodeIds: string[] = [];
     const newCanvasObjectIds: string[] = [];
+    const newEdgeIds: string[] = [];
+    
+    // Map from original node ID to new node ID for edge remapping
+    const nodeIdMap = new Map<string, string>();
 
     // Calculate paste position
     const pastePosition = this.calculatePastePosition(
@@ -156,6 +176,9 @@ export class ClipboardManager {
           generateNewIds
         );
         
+        // Track ID mapping for edge remapping
+        nodeIdMap.set(originalNode.id, newNode.id);
+        
         newNodes.push(newNode);
         newNodeIds.push(newNode.id);
       } else if (item.type === 'canvas-object') {
@@ -174,11 +197,32 @@ export class ClipboardManager {
       }
     });
 
+    // Process edges - remap source/target IDs to new node IDs
+    const clipboardEdges = clipboardData.edges || [];
+    clipboardEdges.forEach(originalEdge => {
+      const newSourceId = nodeIdMap.get(originalEdge.source);
+      const newTargetId = nodeIdMap.get(originalEdge.target);
+      
+      // Only create edge if both nodes were pasted
+      if (newSourceId && newTargetId) {
+        const newEdge: Edge = {
+          ...originalEdge,
+          id: generateNewIds ? this.generateEdgeId() : originalEdge.id,
+          source: newSourceId,
+          target: newTargetId
+        };
+        newEdges.push(newEdge);
+        newEdgeIds.push(newEdge.id);
+      }
+    });
+
     return {
       nodes: newNodes,
       canvasObjects: newCanvasObjects,
+      edges: newEdges,
       newNodeIds,
-      newCanvasObjectIds
+      newCanvasObjectIds,
+      newEdgeIds
     };
   }
 
@@ -239,6 +283,10 @@ export class ClipboardManager {
       const stored = localStorage.getItem(this.STORAGE_KEY);
       if (stored) {
         const data = JSON.parse(stored) as ClipboardData;
+        // Handle legacy clipboard entries that lack edges field
+        if (!data.edges) {
+          data.edges = [];
+        }
         this.clipboard = data;
         return data;
       }
@@ -398,6 +446,10 @@ export class ClipboardManager {
 
   private generateCanvasObjectId(): string {
     return `obj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private generateEdgeId(): string {
+    return `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 }
 

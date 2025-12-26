@@ -165,7 +165,8 @@ export class ProFeaturesManager {
       return false;
     }
 
-    const success = clipboardManager.copy(selectedNodes, selectedCanvasObjects);
+    // Pass all edges so ClipboardManager can filter for internal edges
+    const success = clipboardManager.copy(selectedNodes, selectedCanvasObjects, this.edges);
     
     // Call custom handler if provided
     if (success && this.config.copyPaste?.onCopy) {
@@ -179,14 +180,15 @@ export class ProFeaturesManager {
   pasteFromClipboard(): { 
     newNodes: Node[];
     newCanvasObjects: CanvasObject[];
+    newEdges: Edge[];
     success: boolean;
   } {
     if (!this.isCopyPasteEnabled()) {
-      return { newNodes: [], newCanvasObjects: [], success: false };
+      return { newNodes: [], newCanvasObjects: [], newEdges: [], success: false };
     }
 
     if (!clipboardManager.hasData()) {
-      return { newNodes: [], newCanvasObjects: [], success: false };
+      return { newNodes: [], newCanvasObjects: [], newEdges: [], success: false };
     }
 
     // Calculate viewport center for paste position
@@ -199,7 +201,7 @@ export class ProFeaturesManager {
       { offsetDistance: this.config.copyPaste?.offsetDistance ?? 50 }
     );
 
-    if (result.nodes.length > 0 || result.canvasObjects.length > 0) {
+    if (result.nodes.length > 0 || result.canvasObjects.length > 0 || result.edges.length > 0) {
       // Update nodes
       if (result.nodes.length > 0) {
         const updatedNodes = [...this.nodes, ...result.nodes];
@@ -210,6 +212,15 @@ export class ProFeaturesManager {
       if (result.canvasObjects.length > 0 && this.onCanvasObjectsChange) {
         const updatedCanvasObjects = [...this.canvasObjects, ...result.canvasObjects];
         this.onCanvasObjectsChange(updatedCanvasObjects);
+      }
+
+      // Update edges - always update internal cache, optionally notify via callback
+      if (result.edges.length > 0) {
+        const updatedEdges = [...this.edges, ...result.edges];
+        this.updateEdges(updatedEdges); // Keep internal cache current
+        if (this.onEdgesChange) {
+          this.onEdgesChange(updatedEdges);
+        }
       }
 
       // Call custom handlers if provided
@@ -226,18 +237,20 @@ export class ProFeaturesManager {
       return { 
         newNodes: result.nodes, 
         newCanvasObjects: result.canvasObjects, 
+        newEdges: result.edges,
         success: true 
       };
     }
 
-    return { newNodes: [], newCanvasObjects: [], success: false };
+    return { newNodes: [], newCanvasObjects: [], newEdges: [], success: false };
   }
 
   // Legacy methods for backward compatibility
   copyNode(node: Node): void {
     if (!this.isCopyPasteEnabled()) return;
     
-    clipboardManager.copy([node], []);
+    // Single node copy - no edges since there's only one node
+    clipboardManager.copy([node], [], []);
     
     if (this.config.copyPaste?.onCopy) {
       this.config.copyPaste.onCopy(node);
@@ -307,10 +320,10 @@ export class ProFeaturesManager {
     const cmdKey = isMac ? event.metaKey : event.ctrlKey;
 
     if (cmdKey && event.key === 'c') {
-      // Copy selected items (nodes and/or canvas objects)
+      // Copy selected items (nodes and/or canvas objects) along with their edges
       const hasSelection = selectedNodes.length > 0 || selectedCanvasObjects.length > 0;
       if (hasSelection) {
-        const success = clipboardManager.copy(selectedNodes, selectedCanvasObjects);
+        const success = clipboardManager.copy(selectedNodes, selectedCanvasObjects, this.edges);
         if (success) {
           event.preventDefault();
           return true;
