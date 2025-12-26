@@ -22,10 +22,10 @@ export interface ExperimentBranchHeaderProps {
 }
 
 const MODE_LABELS: Record<string, string> = {
-  whatif: 'What-If Experiment',
-  risk: 'Risk Experiment',
-  enhancement: 'Enhancement Experiment',
-  prompt: 'AI Experiment',
+  whatif: 'What-If',
+  risk: 'Risk',
+  enhancement: 'Enhancement',
+  prompt: 'Prompt',
 };
 
 export function ExperimentBranchHeader({
@@ -80,18 +80,18 @@ export function ExperimentBranchHeader({
 
   const modeLabel = MODE_LABELS[mode] || 'Experiment';
 
+  const offsetAboveNode = 40;
+
   return (
     <div
       data-testid={`experiment-branch-header-${experimentId}`}
-      className="absolute flex items-center gap-1 px-2 py-1.5 rounded-lg shadow-lg border-2 select-none z-50"
+      className="absolute flex items-center gap-1 px-3 py-1 rounded-full shadow-md select-none z-50"
       style={{
         left: position.x,
-        top: position.y - 48,
-        transform: `scale(${scale})`,
-        transformOrigin: 'top left',
+        top: position.y - offsetAboveNode / scale,
+        transform: `scale(${1 / scale})`,
+        transformOrigin: 'bottom left',
         backgroundColor: '#f3e8ff',
-        borderColor: '#9333ea',
-        minWidth: '200px',
       }}
     >
       {!readOnly && onDragAll && (
@@ -105,19 +105,57 @@ export function ExperimentBranchHeader({
       )}
 
       <span 
-        className="text-sm font-medium text-purple-800 flex-1 truncate"
+        className="text-sm font-medium text-purple-800 flex-shrink-0"
         data-testid={`experiment-mode-label-${experimentId}`}
       >
         {modeLabel}
       </span>
 
-      <div className="flex items-center gap-1">
+      {!readOnly && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              data-testid={`experiment-options-${experimentId}`}
+              className="flex items-center justify-center w-5 h-5 rounded-full hover:bg-purple-200 transition-colors"
+            >
+              <ChevronDown className="w-3.5 h-3.5 text-purple-600" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem
+              data-testid={`experiment-accept-menu-${experimentId}`}
+              onClick={() => onAccept(experimentId)}
+            >
+              <Check className="w-3 h-3 mr-2 text-green-600" />
+              Accept Branch
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              data-testid={`experiment-reject-menu-${experimentId}`}
+              onClick={() => onReject(experimentId)}
+            >
+              <X className="w-3 h-3 mr-2 text-red-600" />
+              Reject Branch
+            </DropdownMenuItem>
+            {onEdit && (
+              <DropdownMenuItem
+                data-testid={`experiment-edit-${experimentId}`}
+                onClick={() => onEdit(experimentId)}
+              >
+                <Pencil className="w-3 h-3 mr-2" />
+                Edit
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+
+      <div className="flex items-center gap-1 ml-auto">
         <Button
           variant="ghost"
           size="sm"
           data-testid={`experiment-accept-${experimentId}`}
           onClick={() => onAccept(experimentId)}
-          className="h-6 px-2 text-xs bg-purple-600 hover:bg-purple-700 text-white"
+          className="h-6 px-2 text-xs rounded-full bg-purple-600 hover:bg-purple-700 text-white"
           disabled={readOnly}
         >
           <Check className="w-3 h-3 mr-1" />
@@ -129,37 +167,12 @@ export function ExperimentBranchHeader({
           size="sm"
           data-testid={`experiment-reject-${experimentId}`}
           onClick={() => onReject(experimentId)}
-          className="h-6 px-2 text-xs bg-white hover:bg-gray-100 text-gray-700 border border-gray-300"
+          className="h-6 px-2 text-xs rounded-full bg-white hover:bg-gray-100 text-gray-700"
           disabled={readOnly}
         >
           <X className="w-3 h-3 mr-1" />
           Reject
         </Button>
-
-        {onEdit && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                data-testid={`experiment-more-${experimentId}`}
-                className="h-6 px-1 text-xs text-purple-700 hover:bg-purple-200"
-                disabled={readOnly}
-              >
-                <ChevronDown className="w-3 h-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                data-testid={`experiment-edit-${experimentId}`}
-                onClick={() => onEdit(experimentId)}
-              >
-                <Pencil className="w-3 h-3 mr-2" />
-                Edit
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
       </div>
     </div>
   );
