@@ -5205,7 +5205,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     <div
                       className="title"
                       style={{
-                        backgroundColor: isSpeculative ? '#4f46e5' : headerBg, // Default indigo for speculative nodes
+                        backgroundColor: isSpeculative ? '#a855f7' : headerBg, // Purple for speculative nodes (matches border)
                         color: isSpeculative ? '#ffffff' : headerText, // White text for speculative nodes
                         borderBottom: `1px solid ${border}`,
                         cursor: props.inlineEditing?.nodeId === n.id && props.inlineEditing?.part === 'header' ? 'text' : 'grab',
