@@ -28,6 +28,8 @@ import {
   addSource,
   getAggregatedVisionSignals,
   updateSourceSignals,
+  shouldForceExecution,
+  markExecutionTriggered,
 } from '@/ai/kiteaiState';
 import {
   getSystemPrompt,
@@ -77,6 +79,20 @@ export interface UseKiteAIConversationResult {
    * Used to enrich sources with AI-extracted signals after analysis.
    */
   updateVisionSignals: (sourceType: ConversationSourceType, signals: VisionExtractedSignals) => void;
+  /**
+   * Check if user's message should trigger immediate workflow execution.
+   * Returns true if in execution-ready state and user sent a confirmation phrase.
+   */
+  checkForceExecution: (message: string) => boolean;
+  /**
+   * Mark execution as triggered. Call this immediately before generating workflow.
+   * This is a one-way latch that prevents duplicate generation.
+   */
+  triggerExecution: () => void;
+  /**
+   * Check if execution has already been triggered.
+   */
+  isExecutionTriggered: () => boolean;
 }
 
 export interface ProcessInputResult {
@@ -86,6 +102,11 @@ export interface ProcessInputResult {
   stateChanged: boolean;
   canProceed: boolean;
   guidancePrompt: string;
+  /**
+   * True if user confirmed execution and workflow should be generated immediately.
+   * When true, skip AI response and trigger workflow generation directly.
+   */
+  forceExecution: boolean;
 }
 
 const STATE_LABELS: Record<KiteAIState, string> = {
@@ -100,6 +121,34 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
   );
 
   const processUserInput = useCallback((input: string): ProcessInputResult => {
+    // CRITICAL: Check for forced execution FIRST (confirmation phrase in execution-ready state)
+    // If user confirms, we should NOT send to AI - just trigger workflow generation immediately
+    const forceExec = shouldForceExecution(context, input);
+    
+    if (forceExec) {
+      console.log('[KiteAI] FORCE EXECUTION detected - user confirmed with:', input);
+      // Return immediately with forceExecution flag - caller should trigger workflow generation
+      // Use the last actionability result since we're not re-computing
+      const lastActionability: ActionabilityResult = context.lastActionability ?? {
+        score: 5,
+        confidence: 1.0,
+        present: ['actor', 'trigger', 'goal', 'scope', 'flowSignal'] as (keyof import('@/ai/actionability').ActionabilityDimensions)[],
+        missing: [] as (keyof import('@/ai/actionability').ActionabilityDimensions)[],
+        dimensions: { actor: true, trigger: true, goal: true, scope: true, flowSignal: true },
+        isActionable: true,
+      };
+      
+      return {
+        actionability: lastActionability,
+        previousState: 'execution-ready',
+        newState: 'execution-ready',
+        stateChanged: false,
+        canProceed: true,
+        guidancePrompt: '',
+        forceExecution: true,
+      };
+    }
+    
     // Get aggregated vision signals from all image/Figma sources
     const visionSignals = getAggregatedVisionSignals(context);
     const hasVisionSources = context.sources.some(
@@ -152,6 +201,7 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
       stateChanged: transition.from !== transition.to,
       canProceed: transition.to === 'execution-ready',
       guidancePrompt,
+      forceExecution: false,
     };
   }, [context]);
 
@@ -227,6 +277,27 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
     setContext(prev => updateSourceSignals(prev, sourceType, signals));
   }, []);
 
+  /**
+   * Check if user's message should trigger immediate workflow execution.
+   */
+  const checkForceExecution = useCallback((message: string): boolean => {
+    return shouldForceExecution(context, message);
+  }, [context]);
+
+  /**
+   * Mark execution as triggered. One-way latch.
+   */
+  const triggerExecution = useCallback(() => {
+    setContext(prev => markExecutionTriggered(prev));
+  }, []);
+
+  /**
+   * Check if execution has already been triggered.
+   */
+  const isExecutionTriggered = useCallback((): boolean => {
+    return context.executionTriggered;
+  }, [context.executionTriggered]);
+
   const state = useMemo((): KiteAIConversationState => {
     const lastActionability = context.lastActionability;
     const score = lastActionability?.score ?? 0;
@@ -270,6 +341,9 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
     getSources,
     getVisionSignals,
     updateVisionSignals,
+    checkForceExecution,
+    triggerExecution,
+    isExecutionTriggered,
   };
 }
 

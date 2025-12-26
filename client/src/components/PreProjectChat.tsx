@@ -243,7 +243,12 @@ export function PreProjectChat({
     addConversationSource,
     getSources,
     updateVisionSignals,
+    triggerExecution,
+    isExecutionTriggered,
   } = useKiteAIConversation('base');
+  
+  // Track if we're in the process of generating a workflow (prevents duplicate generation)
+  const [isExecuting, setIsExecuting] = useState(false);
 
   const hasUploadedFiles = useMemo(() => {
     const filesFromStore = promptContext.attachments.filter(a => a.file).length;
@@ -301,6 +306,7 @@ export function PreProjectChat({
       setActionButtonsDismissed(false);
       setCurrentRole('brainstorm');
       setEscalationOptions([]);
+      setIsExecuting(false); // Reset execution state
       resetConversation();
       clearStore();
     }
@@ -325,8 +331,32 @@ export function PreProjectChat({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  // MOVED ABOVE handleSendMessage to support forceExecution flow
+  const handleCreateProject = useCallback((generatePRD: boolean) => {
+    const summary = getAccumulatedSummary();
+    
+    const userMessages = messages.filter(m => m.role === 'user');
+    const lastUserIntent = userMessages.length > 0 
+      ? userMessages[userMessages.length - 1].content 
+      : initialPrompt;
+
+    const fullSummary = userMessages.length > 1
+      ? `${summary}\n\nLatest request: ${lastUserIntent}`
+      : lastUserIntent || 'Create a new workflow';
+
+    console.log('[KiteAI] Creating project with summary:', fullSummary, 'generatePRD:', generatePRD);
+    onCreateProject(fullSummary, generatePRD);
+  }, [messages, initialPrompt, onCreateProject, getAccumulatedSummary]);
+
   const handleSendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || isLoading) return;
+    if (!content.trim() || isLoading || isExecuting) return;
+    
+    // CRITICAL: Block all messages if execution has already been triggered
+    // This is the conversation lockdown after confirmation
+    if (isExecutionTriggered()) {
+      console.log('[PreProjectChat] Execution already triggered - blocking message');
+      return;
+    }
 
     // Get all image/Figma previews for display in first message
     const allPreviews: string[] = [];
@@ -346,7 +376,6 @@ export function PreProjectChat({
     };
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
-    setIsLoading(true);
     setEscalationOptions([]);
     
     if (actionButtonsDismissed) {
@@ -357,6 +386,31 @@ export function PreProjectChat({
     setCurrentRole(inferredRole);
 
     const processResult = processUserInput(content);
+
+    // CRITICAL: If forceExecution is true, trigger workflow generation immediately
+    // Skip AI response entirely - this is the execution confirmation
+    if (processResult.forceExecution) {
+      console.log('[PreProjectChat] FORCE EXECUTION - triggering workflow generation immediately');
+      setIsExecuting(true);
+      triggerExecution(); // Mark execution latch
+      
+      // Add a brief "Creating your workflow..." message
+      const executionMessage: Message = {
+        role: 'assistant',
+        content: 'Creating your workflow now...'
+      };
+      setMessages(prev => [...prev, executionMessage]);
+      
+      // Trigger workflow generation with the accumulated summary
+      // Use a small delay to ensure the message is visible
+      setTimeout(() => {
+        handleCreateProject(true); // Auto-generate PRD
+      }, 100);
+      
+      return; // Exit early - don't send to AI
+    }
+    
+    setIsLoading(true);
 
     try {
       const systemPrompt = getSystemPrompt('base');
@@ -533,7 +587,7 @@ export function PreProjectChat({
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [messages, isLoading, aiClient, actionButtonsDismissed, hasUploadedFiles, processUserInput, addAssistantMessage, context, convertFilesToBase64, promptContext.attachments, addConversationSource, getSources, updateVisionSignals]);
+  }, [messages, isLoading, isExecuting, aiClient, actionButtonsDismissed, hasUploadedFiles, processUserInput, addAssistantMessage, context, convertFilesToBase64, promptContext.attachments, addConversationSource, getSources, updateVisionSignals, isExecutionTriggered, triggerExecution, handleCreateProject]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -541,22 +595,6 @@ export function PreProjectChat({
       handleSendMessage(inputValue);
     }
   }, [inputValue, handleSendMessage]);
-
-  const handleCreateProject = useCallback((generatePRD: boolean) => {
-    const summary = getAccumulatedSummary();
-    
-    const userMessages = messages.filter(m => m.role === 'user');
-    const lastUserIntent = userMessages.length > 0 
-      ? userMessages[userMessages.length - 1].content 
-      : initialPrompt;
-
-    const fullSummary = userMessages.length > 1
-      ? `${summary}\n\nLatest request: ${lastUserIntent}`
-      : lastUserIntent || 'Create a new workflow';
-
-    console.log('[KiteAI] Creating project with summary:', fullSummary, 'generatePRD:', generatePRD);
-    onCreateProject(fullSummary, generatePRD);
-  }, [messages, initialPrompt, onCreateProject, getAccumulatedSummary]);
 
   const handleKeepBrainstorming = useCallback(() => {
     setShowActionButtons(false);
@@ -734,18 +772,18 @@ export function PreProjectChat({
             <div className="flex items-end gap-3">
               <Textarea
                 ref={inputRef}
-                placeholder="Describe what you want to build..."
+                placeholder={isExecuting ? "Creating your workflow..." : "Describe what you want to build..."}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 className="min-h-[50px] max-h-[200px] resize-none"
-                disabled={isLoading}
+                disabled={isLoading || isExecuting}
                 data-testid="input-chat-message"
               />
               <ChatSendButton
                 onClick={() => handleSendMessage(inputValue)}
-                disabled={!inputValue.trim()}
-                isLoading={isLoading}
+                disabled={!inputValue.trim() || isExecuting}
+                isLoading={isLoading || isExecuting}
                 className="h-[50px] w-[50px] shrink-0"
                 data-testid="button-send-message"
               />

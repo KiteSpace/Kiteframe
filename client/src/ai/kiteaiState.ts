@@ -50,6 +50,16 @@ export interface ConversationContext {
   conversationHistory: ConversationMessage[];
   accumulatedContext: AccumulatedContext;
   sources: ConversationSource[];
+  /**
+   * Set to true when user has confirmed execution (e.g., "yes", "go ahead").
+   * This is a one-way latch - once true, it never reverts.
+   */
+  hasUserConfirmedExecution: boolean;
+  /**
+   * Set to true when workflow generation has been triggered.
+   * This is a one-way latch - prevents duplicate generation.
+   */
+  executionTriggered: boolean;
 }
 
 export interface ConversationMessage {
@@ -95,6 +105,163 @@ export function createInitialContext(mode: KiteAIMode = 'base'): ConversationCon
     conversationHistory: [],
     accumulatedContext: {},
     sources: [],
+    hasUserConfirmedExecution: false,
+    executionTriggered: false,
+  };
+}
+
+/**
+ * CONFIRMATION PHRASES - Case-insensitive detection for execution confirmation.
+ * When user says any of these in execution-ready state, we force immediate workflow generation.
+ */
+const CONFIRMATION_PHRASES = [
+  'yes',
+  'yep', 
+  'yeah',
+  'ok',
+  'okay',
+  'looks good',
+  'sounds good',
+  'go ahead',
+  'do it',
+  'create the workflow',
+  'generate it',
+  'that works',
+  'confirm',
+  'create it',
+  'build it',
+  'let\'s do it',
+  'let\'s go',
+  'proceed',
+  'sure',
+  'perfect',
+  'great',
+  'good',
+  'start',
+  'begin',
+];
+
+/**
+ * NEGATIVE QUALIFIERS - These indicate the user wants to continue refining, not confirm.
+ * If any of these appear in the message, it's NOT a confirmation.
+ */
+const NEGATIVE_QUALIFIERS = [
+  'but', 'however', 'although', 'except', 'unless', 'instead',
+  'wait', 'hold on', 'actually', 'hmm', 'one more', 'also add',
+  'can you', 'could you', 'would you', 'please add', 'add a', 'add one',
+  'change', 'modify', 'update', 'edit', 'remove', 'delete', 'with',
+  'first', 'before', 'what about', 'how about', 'should we', 'maybe',
+  'i think', 'let me', 'let\'s also', 'don\'t forget', 'make sure',
+  'include', 'excluding', 'more', 'less', 'another', 'different',
+];
+
+/**
+ * STANDALONE ACK WORDS - These can be ignored when checking if message is ONLY a confirmation.
+ * E.g., "yes please" or "okay thanks" should still be confirmations.
+ */
+const ACK_SUFFIXES = ['please', 'thanks', 'thank you', 'now', 'let\'s go', '!', '.', ','];
+
+/**
+ * Detect if user message is a confirmation phrase.
+ * Used to force EXECUTE_WORKFLOW intent when in execution-ready state.
+ * 
+ * STRICT RULES:
+ * 1. Must be a short message (under 100 chars)
+ * 2. Must NOT contain any negative qualifiers
+ * 3. Must match or start with a confirmation phrase
+ * 4. If there's text after the confirmation phrase, it must be trivial (ack suffix or punctuation)
+ */
+export function isConfirmationPhrase(message: string): boolean {
+  const normalized = message.toLowerCase().trim();
+  
+  // Rule 1: Message too long to be a simple confirmation
+  if (normalized.length > 100) {
+    return false;
+  }
+  
+  // Rule 2: Check for negative qualifiers - if any found, it's NOT a confirmation
+  const hasNegativeQualifier = NEGATIVE_QUALIFIERS.some(qualifier => 
+    normalized.includes(qualifier)
+  );
+  if (hasNegativeQualifier) {
+    console.log('[KiteAI] Confirmation rejected - contains qualifier:', normalized);
+    return false;
+  }
+  
+  // Rule 3: Strip common ack suffixes to get the core message
+  let core = normalized;
+  for (const suffix of ACK_SUFFIXES) {
+    if (core.endsWith(suffix)) {
+      core = core.slice(0, -suffix.length).trim();
+    }
+  }
+  // Strip leading/trailing punctuation
+  core = core.replace(/^[.,!?\s]+|[.,!?\s]+$/g, '');
+  
+  // Rule 4: Core message should match a confirmation phrase exactly
+  // OR start with a confirmation phrase and be followed only by trivial content
+  const isMatch = CONFIRMATION_PHRASES.some(phrase => {
+    // Exact match of core
+    if (core === phrase) return true;
+    
+    // Core starts with phrase and remaining is trivial (1-2 words max)
+    if (core.startsWith(phrase)) {
+      const remainder = core.slice(phrase.length).trim();
+      // Allow empty remainder or very short ack words
+      if (remainder === '' || remainder.length <= 10) {
+        // Check remainder doesn't contain substantive content
+        const remainderWords = remainder.split(/\s+/).filter(w => w.length > 0);
+        if (remainderWords.length <= 2) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  });
+  
+  if (isMatch) {
+    console.log('[KiteAI] Confirmation phrase detected:', normalized);
+  }
+  
+  return isMatch;
+}
+
+/**
+ * Check if we should force execution based on confirmation phrase in execution-ready state.
+ */
+export function shouldForceExecution(
+  context: ConversationContext, 
+  userMessage: string
+): boolean {
+  // Already triggered - don't trigger again
+  if (context.executionTriggered) {
+    return false;
+  }
+  
+  // Must be in execution-ready state
+  if (context.state !== 'execution-ready') {
+    return false;
+  }
+  
+  // Check if message is a confirmation phrase
+  return isConfirmationPhrase(userMessage);
+}
+
+/**
+ * Mark execution as triggered. This is a one-way latch.
+ */
+export function markExecutionTriggered(context: ConversationContext): ConversationContext {
+  if (context.executionTriggered) {
+    console.log('[KiteAI] Execution already triggered, ignoring duplicate');
+    return context;
+  }
+  
+  console.log('[KiteAI] EXECUTION TRIGGERED - workflow generation will start immediately');
+  return {
+    ...context,
+    hasUserConfirmedExecution: true,
+    executionTriggered: true,
   };
 }
 
