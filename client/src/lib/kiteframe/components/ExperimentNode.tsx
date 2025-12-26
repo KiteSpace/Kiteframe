@@ -8,6 +8,7 @@ const HEADER_H = 44;
 const FOOTER_H = 48;
 const NODE_HEIGHT = 360;
 const NODE_WIDTH = 320;
+const SIMPLIFIED_NODE_HEIGHT = 140;
 
 // Purple theme colors
 const PURPLE = {
@@ -154,7 +155,11 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
   const hasContent = mode === 'prompt' 
     ? userPromptValue.trim().length >= 20
     : !!selectedOption;
+  // Generate button is always available in full view (disabled when no content/edges, but visible)
   const canGenerate = hasContent && !isGenerating && !hasGenerated && hasIncomingEdges;
+  
+  // Determine current node height based on state
+  const currentNodeHeight = hasGenerated ? SIMPLIFIED_NODE_HEIGHT : NODE_HEIGHT;
 
   // Track previous incoming edges count for auto-trigger
   const prevIncomingEdgesRef = useRef<number>(incomingEdgesCount);
@@ -191,17 +196,17 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
     
     // Set both width/height (for hit detection) and measuredWidth/measuredHeight (for edge alignment)
     const needsWidthUpdate = Math.abs(storedWidth - NODE_WIDTH) > 2 || Math.abs(storedMeasuredWidth - NODE_WIDTH) > 2;
-    const needsHeightUpdate = Math.abs(storedHeight - NODE_HEIGHT) > 2 || Math.abs(storedMeasuredHeight - NODE_HEIGHT) > 2;
+    const needsHeightUpdate = Math.abs(storedHeight - currentNodeHeight) > 2 || Math.abs(storedMeasuredHeight - currentNodeHeight) > 2;
     
     if (needsWidthUpdate || needsHeightUpdate) {
       onUpdate?.(node.id, {
         width: NODE_WIDTH,
-        height: NODE_HEIGHT,
+        height: currentNodeHeight,
         measuredWidth: NODE_WIDTH,
-        measuredHeight: NODE_HEIGHT,
+        measuredHeight: currentNodeHeight,
       });
     }
-  }, [node.id, node.width, node.height, node.measuredWidth, node.measuredHeight, onUpdate]);
+  }, [node.id, node.width, node.height, node.measuredWidth, node.measuredHeight, onUpdate, currentNodeHeight]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -322,11 +327,19 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
     left: node.position.x,
     top: node.position.y,
     width: NODE_WIDTH,
-    height: NODE_HEIGHT,
+    height: currentNodeHeight,
     ...style,
   };
 
-  const bodyHeight = `calc(100% - ${HEADER_H}px - ${FOOTER_H}px)`;
+  // In simplified view, no footer, so body takes remaining height after header
+  const bodyHeight = hasGenerated 
+    ? `calc(100% - ${HEADER_H}px)` 
+    : `calc(100% - ${HEADER_H}px - ${FOOTER_H}px)`;
+  
+  // Get the selected content to display in simplified view
+  const selectedContent = mode === 'prompt' 
+    ? userPromptValue 
+    : (selectedOption?.description || selectedOption?.label || '');
 
   return (
     <div
@@ -361,52 +374,59 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
         }}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {/* Mode selector */}
-          <div className="relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!readOnly) setShowModeDropdown(!showModeDropdown);
-              }}
-              className={cn(
-                "flex items-center gap-1.5 text-sm font-medium py-1 px-2 rounded transition-colors",
-                "text-purple-800 hover:bg-purple-200/50",
-                readOnly ? "opacity-50 cursor-default" : ""
-              )}
-              data-testid="experiment-mode-select"
-            >
+          {/* Mode selector - simplified when hasGenerated (just label, no dropdown) */}
+          {hasGenerated ? (
+            <div className="flex items-center gap-1.5 text-sm font-medium py-1 px-2 text-purple-800">
               <FlaskConical className="w-3.5 h-3.5" />
               <span className="truncate">{MODE_LABELS[mode]}</span>
-              {!readOnly && <ChevronDown className="w-3.5 h-3.5 opacity-60" />}
-            </button>
-            
-            {showModeDropdown && (
-              <>
-                <div className="fixed inset-0 z-50" onClick={() => setShowModeDropdown(false)} />
-                <div className="absolute left-0 top-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50 min-w-[140px]">
-                  {(Object.keys(MODE_LABELS) as ExperimentMode[]).filter(m => m !== 'prompt').map((m) => (
-                    <button
-                      key={m}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleModeSelect(m);
-                      }}
-                      className={cn(
-                        "w-full px-3 py-2 text-left text-sm hover:bg-gray-50",
-                        m === mode ? "bg-purple-50 text-purple-700 font-medium" : "text-gray-700"
-                      )}
-                    >
-                      {MODE_LABELS[m]}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!readOnly) setShowModeDropdown(!showModeDropdown);
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 text-sm font-medium py-1 px-2 rounded transition-colors",
+                  "text-purple-800 hover:bg-purple-200/50",
+                  readOnly ? "opacity-50 cursor-default" : ""
+                )}
+                data-testid="experiment-mode-select"
+              >
+                <FlaskConical className="w-3.5 h-3.5" />
+                <span className="truncate">{MODE_LABELS[mode]}</span>
+                {!readOnly && <ChevronDown className="w-3.5 h-3.5 opacity-60" />}
+              </button>
+              
+              {showModeDropdown && (
+                <>
+                  <div className="fixed inset-0 z-50" onClick={() => setShowModeDropdown(false)} />
+                  <div className="absolute left-0 top-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50 min-w-[140px]">
+                    {(Object.keys(MODE_LABELS) as ExperimentMode[]).filter(m => m !== 'prompt').map((m) => (
+                      <button
+                        key={m}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleModeSelect(m);
+                        }}
+                        className={cn(
+                          "w-full px-3 py-2 text-left text-sm hover:bg-gray-50",
+                          m === mode ? "bg-purple-50 text-purple-700 font-medium" : "text-gray-700"
+                        )}
+                      >
+                        {MODE_LABELS[m]}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Delete button */}
-        {!readOnly && (
+        {/* Delete button - only show in full view */}
+        {!readOnly && !hasGenerated && (
           <button
             onClick={handleDeleteClick}
             className="p-1.5 rounded-md transition-colors text-purple-600 hover:text-red-500 hover:bg-red-100"
@@ -427,8 +447,18 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
           e.stopPropagation();
         }}
       >
-        {/* For prompt mode: show text input */}
-        {mode === 'prompt' ? (
+        {/* Simplified view when hasGenerated - just show selected content */}
+        {hasGenerated ? (
+          <div className="flex-1 flex flex-col">
+            <p className="text-xs text-gray-500 font-medium mb-1">Selected:</p>
+            <div className="flex-1 bg-purple-50 border border-purple-200 rounded-md p-3">
+              <p className="text-sm text-purple-800 leading-relaxed">
+                {selectedContent || 'No content selected'}
+              </p>
+            </div>
+          </div>
+        ) : mode === 'prompt' ? (
+          /* For prompt mode: show text input */
           <div className="flex-1 min-h-0">
             <textarea
               ref={promptTextareaRef}
@@ -586,44 +616,44 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
         )}
       </div>
 
-      {/* Footer */}
-      <div
-        className="flex items-center justify-between px-3"
-        style={{ 
-          height: FOOTER_H, 
-          minHeight: FOOTER_H,
-          backgroundColor: PURPLE.header,
-          borderTop: `1px solid ${PURPLE.stroke}`,
-        }}
-      >
-        {/* Generate button */}
-        <button
-          onClick={handleGenerateClick}
-          disabled={!canGenerate || readOnly}
-          className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-            canGenerate && !readOnly
-              ? "bg-purple-600 text-white hover:bg-purple-700 shadow-sm"
-              : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-          )}
-          title={
-            !hasIncomingEdges ? "Connect to a workflow node first" :
-            !hasContent ? (mode === 'prompt' ? "Enter at least 20 characters" : "Select an option") :
-            isGenerating ? "Generating..." :
-            hasGenerated ? "Branch already generated" :
-            "Generate speculative branch"
-          }
-          data-testid="experiment-generate-btn"
+      {/* Footer - only show in full view (not when hasGenerated) */}
+      {!hasGenerated && (
+        <div
+          className="flex items-center justify-between px-3"
+          style={{ 
+            height: FOOTER_H, 
+            minHeight: FOOTER_H,
+            backgroundColor: PURPLE.header,
+            borderTop: `1px solid ${PURPLE.stroke}`,
+          }}
         >
-          {isGenerating ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <FlaskConical className="w-3.5 h-3.5" />
-          )}
-          <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
-        </button>
-
-      </div>
+          {/* Generate button - always visible in full view */}
+          <button
+            onClick={handleGenerateClick}
+            disabled={!canGenerate || readOnly}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+              canGenerate && !readOnly
+                ? "bg-purple-600 text-white hover:bg-purple-700 shadow-sm"
+                : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+            )}
+            title={
+              !hasIncomingEdges ? "Connect to a workflow node first" :
+              !hasContent ? (mode === 'prompt' ? "Enter at least 20 characters" : "Select an option") :
+              isGenerating ? "Generating..." :
+              "Generate speculative branch"
+            }
+            data-testid="experiment-generate-btn"
+          >
+            {isGenerating ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FlaskConical className="w-3.5 h-3.5" />
+            )}
+            <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

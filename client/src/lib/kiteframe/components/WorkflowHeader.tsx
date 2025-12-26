@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronDown, GripVertical, Palette, Trash2, LayoutGrid, Shuffle, ArrowRight, ArrowDown } from 'lucide-react';
+import { GripVertical, Palette, Trash2, LayoutGrid, Shuffle, ArrowRight, ArrowDown } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { FlowSettings, Flow } from '../utils/FlowDetection';
 import { useWorkflowNames } from '../../../stores/workflowNameStore';
@@ -245,10 +245,6 @@ export function WorkflowHeader({
               className="opacity-60"
             />
           </span>
-          <ChevronDown
-            size={14}
-            className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          />
           {isEditingName ? (
             <input
               ref={inputRef}
