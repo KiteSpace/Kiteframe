@@ -10222,7 +10222,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             generatedNodeIds,
                             generatedEdgeIds,
                             generatedAt,
-                            experimentId
+                            experimentId,
+                            promptContent
                           });
                           
                           setNodes(prev => [
@@ -10238,9 +10239,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                                         originNodeId: nodeId,
                                         mode: data.mode,
                                         selectedOptionId: data.selectedOptionId,
-                                        selectedOptionLabel: data.selectedOptionLabel,
-                                        selectedOptionDescription: data.selectedOptionDescription,
-                                        userPrompt: data.userPrompt,
+                                        selectedOptionLabel: data.selectedOptionLabel || promptContent,
+                                        selectedOptionDescription: data.selectedOptionDescription || promptContent,
+                                        userPrompt: promptContent,
                                         generatedNodeIds,
                                         generatedEdgeIds,
                                         generatedAt,
@@ -10248,6 +10249,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                                     },
                                     data: { 
                                       ...data, 
+                                      userPrompt: promptContent,
                                       generation: { 
                                         status: 'generated' as const,
                                         lastGeneratedAt: generatedAt,
