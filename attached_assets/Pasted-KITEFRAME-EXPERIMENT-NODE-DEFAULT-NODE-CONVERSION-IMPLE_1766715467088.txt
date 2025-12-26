@@ -1,0 +1,127 @@
+KITEFRAME — EXPERIMENT NODE → DEFAULT NODE CONVERSION
+IMPLEMENTATION DIAGNOSTIC QUESTIONS FOR REPLIT
+
+Goal:
+Diagnose why the Experiment node is NOT reliably converting into a default (process) node with the selected option or prompt content after branch generation.
+
+Please answer each section explicitly and reference file names + line numbers where possible.
+
+========================================
+SECTION 1 — EXPECTED CONVERSION CONTRACT
+1. What is the exact intended moment of conversion?
+   - ☐ Immediately after clicking “Generate”
+   - ☐ Only after clicking “Accept”
+   - ☐ Partially after Generate, finalized after Accept
+
+2. What does “conversion” mean in code today?
+   - ☐ node.type changes from 'experiment' → 'process'
+   - ☐ node.data is rewritten with selected option/prompt content
+   - ☐ node.meta.experiment is persisted
+   - ☐ UI toolbar / header switches to default node behavior
+
+3. Which of the above are currently implemented vs missing?
+
+========================================
+SECTION 2 — CURRENT IMPLEMENTATION TRACE
+4. Where does conversion logic live?
+   - File:
+   - Function name:
+   - Trigger (event handler):
+
+5. Is conversion logic executed:
+   - ☐ In onWildcardGenerateBranch
+   - ☐ In onExperimentAdoptBranch
+   - ☐ Somewhere else (specify)
+
+6. Please confirm whether this function is actually being called at runtime
+   - Add console.log confirmation if needed
+   - Is it skipped due to an early return or conditional?
+
+========================================
+SECTION 3 — NODE TYPE & DATA MUTATION
+7. When conversion runs, what fields are mutated?
+   - node.type
+   - node.data.label / title / description
+   - node.data.content
+   - node.meta.experiment
+   - node.meta.speculative
+
+8. Is the node mutation:
+   - ☐ Immutable (new object returned)
+   - ☐ In-place mutation
+
+9. After conversion runs, does the node in React state still have:
+   - type === 'experiment'? (YES / NO)
+   - old ExperimentNode-specific fields still present? (YES / NO)
+
+10. Is there any normalization step (e.g., experimentNormalizer) that might overwrite or strip fields after conversion?
+
+========================================
+SECTION 4 — STATE UPDATE & RACE CONDITIONS
+11. Are multiple setNodes() calls happening during generate/accept?
+   - If yes, list them in order.
+
+12. Could a later setNodes() overwrite the converted node with stale state?
+   - For example:
+     - setNodes(prev => …experiment conversion…)
+     - followed by another setNodes(prev => …branch insertion…)
+
+13. Is saveToHistory or withUndo wrapping the conversion?
+   - If yes, does the conversion occur before or after snapshot capture?
+
+========================================
+SECTION 5 — MODE / SELECTION DATA FLOW
+14. Where is the selected option stored prior to conversion?
+   - node.data.selectedOptionId?
+   - component local state?
+   - meta.experiment?
+
+15. At conversion time, is the selected option guaranteed to exist?
+   - What happens if selectedOptionId is undefined?
+
+16. For Prompt mode:
+   - Where is userPrompt stored?
+   - Is it reliably available at conversion time?
+
+========================================
+SECTION 6 — UI RENDERING & COMPONENT SWITCH
+17. After conversion, which component is supposed to render?
+   - ProcessNode?
+   - GenericNode?
+   - Something else?
+
+18. Does KiteFrameCanvas switch rendering based on node.type?
+   - If yes, is the new type recognized in the render switch?
+
+19. Is there any memoization (React.memo, useMemo) that could prevent re-render after type change?
+
+========================================
+SECTION 7 — ACCEPT VS GENERATE CONFUSION
+20. Is Replit assuming conversion only happens on Accept, while the product intent expects partial conversion on Generate?
+   - If yes, confirm which behavior is currently implemented.
+
+21. Should the Experiment node visually persist after Generate, or immediately become a default node with the selected content?
+   - Confirm which behavior the current code assumes.
+
+========================================
+SECTION 8 — DEBUGGING REQUEST
+22. Please add temporary logs for:
+   - Before conversion: node snapshot
+   - After conversion: node snapshot
+   - After final setNodes(): full nodes array
+
+23. Provide a short timeline log for:
+   - Generate clicked
+   - AI response received
+   - Branch nodes created
+   - Conversion attempted
+   - Accept clicked (if applicable)
+
+========================================
+SECTION 9 — CONFIRMATION
+24. In one sentence, explain:
+   “Why does the Experiment node currently remain an Experiment node after Generate?”
+
+25. What change is required to make the conversion deterministic and reliable?
+
+END
