@@ -1,0 +1,149 @@
+KITEFRAME — AUTO-GENERATED PRD NOT POPULATING
+DIAGNOSTIC QUESTIONS FOR REPLIT
+
+ISSUE SUMMARY
+When a workflow is generated from the KiteAI prompt chat with “Generate PRD” enabled:
+- The workflow nodes ARE created
+- BUT:
+  - Project overview is blank
+  - Workflow PRD is blank
+  - Project-level PRD sections are blank
+
+This indicates the AI generation step may be running, but the persistence or wiring is failing.
+
+-----------------------------------------
+SECTION 1 — CONFIRM THE GENERATE-PRD FLAG PIPELINE
+1. Please confirm, with line references, that the generatePRD flag is:
+   a) Set in the prompt chat UI
+   b) Passed through:
+      PreProjectChat → HomeScreen → workflow-editor
+   c) Received as generatePRDFlag === true inside generateWorkflowDirectly()
+
+2. Add a log at the top of generateWorkflowDirectly():
+   console.log('[PRD] generateWorkflowDirectly called', { generatePRDFlag });
+
+Does this log confirm the flag is TRUE for affected runs?
+
+-----------------------------------------
+SECTION 2 — CONFIRM PRD GENERATION IS INVOKED
+3. In generateWorkflowDirectly(), where is generateWorkflowPRD() called?
+   - File + line number
+   - Is it conditionally guarded by generatePRDFlag?
+
+4. Add logs immediately before and after generateWorkflowPRD():
+   console.log('[PRD] Starting PRD generation');
+   console.log('[PRD] Finished PRD generation', prdResult);
+
+Is this function actually invoked for failing cases?
+
+-----------------------------------------
+SECTION 3 — WHAT DOES generateWorkflowPRD() RETURN?
+5. What is the exact return shape of generateWorkflowPRD()?
+   Please paste the TypeScript type or interface.
+
+6. Does it return:
+   - projectOverview?
+   - projectPRD?
+   - workflowPRD?
+   - OR only raw text?
+
+7. Add a log inside generateWorkflowPRD() right before return:
+   console.log('[PRD] PRD payload', prd);
+
+Does the payload contain real content or empty strings?
+
+-----------------------------------------
+SECTION 4 — PRD SAVE PATH (MOST LIKELY FAILURE)
+8. Where is the PRD persisted after generation?
+   Please list:
+   - saveProjectOverview() location
+   - saveProjectPRD() location
+   - saveWorkflowPRD() location
+
+9. Confirm the identifiers used for saving:
+   - projectId
+   - workflowId
+   - tabId (if any)
+
+10. Verify key consistency:
+   a) What key does saveWorkflowPRD() write to?
+   b) What key does the PRD panel use to read from?
+
+We previously found a mismatch:
+   saveWorkflowPRD(tabId, tabId, ...)
+   vs
+   loadWorkflowPRD(projectId, workflowId)
+
+Has this been fully corrected for ALL PRD saves?
+
+-----------------------------------------
+SECTION 5 — READ PATH CONFIRMATION
+11. Where does the UI read PRD content from?
+   - File(s) + function(s)
+   - State store or localStorage keys used
+
+12. Add a log where the PRD is loaded for display:
+   console.log('[PRD] Loaded PRD', prd);
+
+Is this:
+   - null?
+   - undefined?
+   - empty object?
+   - populated but not rendered?
+
+-----------------------------------------
+SECTION 6 — ASYNC / RACE CONDITIONS
+13. Is PRD generation async relative to workflow creation?
+   - Does navigation to the editor happen BEFORE PRD save completes?
+
+14. Is there a possibility that:
+   - The project/workflow is created
+   - UI renders PRD tabs
+   - PRD save happens AFTER initial render
+   - But no re-fetch occurs?
+
+If yes:
+   - Is there a missing invalidation or refresh trigger?
+
+-----------------------------------------
+SECTION 7 — FILTERING / EXCLUSION LOGIC
+15. Is PRD generation filtered by:
+   - speculative nodes?
+   - empty workflows?
+   - minimum node count?
+
+16. Does extractSemanticWorkflowModel() exclude nodes generated during initial creation due to flags like:
+   - meta.speculative
+   - visionGenerated
+   - draft
+
+If so, PRD generation may be running on an empty semantic model.
+
+-----------------------------------------
+SECTION 8 — SINGLE SOURCE OF TRUTH CHECK
+17. After generation completes, please log:
+   - Project record
+   - Workflow record
+   - PRD storage entries
+
+Specifically confirm:
+   - PRD exists in storage
+   - Keys match what UI expects
+   - Content is non-empty
+
+-----------------------------------------
+LIKELY ROOT CAUSES (BASED ON PATTERN)
+- generateWorkflowPRD() runs but saves under wrong keys
+- PRD is generated but never persisted
+- PRD is persisted but UI reads different key
+- PRD save completes after navigation with no re-fetch
+- Semantic model is empty due to speculative filtering
+
+-----------------------------------------
+NEXT STEP REQUEST
+Please respond with:
+1) Logs from sections 1–4
+2) Confirmation of PRD save/load key consistency
+3) Whether PRD content exists anywhere in storage after generation
+
+Once we have those, we can issue a precise fix instead of guessing.

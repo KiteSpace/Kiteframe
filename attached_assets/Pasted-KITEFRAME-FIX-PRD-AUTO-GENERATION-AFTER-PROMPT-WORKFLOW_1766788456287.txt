@@ -1,0 +1,147 @@
+KITEFRAME — FIX PRD AUTO-GENERATION AFTER PROMPT WORKFLOW (PROJECT ID RACE)
+
+SUMMARY (CONFIRMED)
+PRD generation and save functions run, but the PRD is saved under the wrong projectId due to a race condition:
+- generateWorkflowDirectly() tries to derive effectiveProjectId via tabs.find(tabId)
+- Immediately after createBlankTab(), setTabs() has not committed yet, so tabs.find(...) returns undefined
+- Fallback projectUuid from route params may be undefined or not equal to the new tab’s UUID
+- PRD is persisted under prd-workflow-${wrongProjectId}-${workflowId}
+- ProjectPanel later loads using activeTab.projectUuid (correct) and cannot find the saved PRD
+
+GOAL
+Make PRD save/load keys stable and identical by ensuring generateWorkflowDirectly() receives the correct projectId at call time (no lookup via async React state).
+
+----------------------------------------------------------------------------------------------------
+PART 1 — REQUIRED CODE CHANGE (NO GUESSING)
+Change the call chain so generateWorkflowDirectly receives projectId explicitly.
+
+A) In workflow-editor.tsx (or where new tab is created before calling generateWorkflowDirectly)
+1) When creating the new tab, you already have newTab.projectUuid (or equivalent).
+2) Pass it directly into generateWorkflowDirectly.
+
+BEFORE (current pattern)
+generateWorkflowDirectly(prompt, newTab.id, generatePRD);
+
+AFTER (fix)
+generateWorkflowDirectly({
+  prompt,
+  tabId: newTab.id,
+  generatePRDFlag: generatePRD,
+  projectId: newTab.projectUuid,     // REQUIRED
+  cloudProjectId: newTab.cloudProjectId, // OPTIONAL if used anywhere in storage keys
+});
+
+B) Update generateWorkflowDirectly signature to accept an object
+In workflow-editor.tsx:
+- Replace function signature:
+  async function generateWorkflowDirectly(prompt, tabId, generatePRDFlag) { ... }
+
+With:
+  type GenerateWorkflowDirectlyArgs = {
+    prompt: string;
+    tabId: string;
+    generatePRDFlag: boolean;
+    projectId: string;              // REQUIRED — must be stable
+    cloudProjectId?: string | number; // OPTIONAL
+  };
+
+  async function generateWorkflowDirectly(args: GenerateWorkflowDirectlyArgs) {
+    const { prompt, tabId, generatePRDFlag, projectId } = args;
+
+    // HARD RULE:
+    // Do not call tabs.find(...) to derive projectId.
+    // projectId MUST come from args.projectId.
+  }
+
+C) Remove / disable the unstable projectId resolution logic
+Delete or bypass:
+  const currentTabData = tabs.find((t) => t.id === tabId);
+  const effectiveProjectId = currentTabData?.projectUuid || projectUuid;
+
+Replace with:
+  const effectiveProjectId = projectId;
+
+If projectUuid from route params is needed for legacy flows, ONLY use it when projectId is missing.
+But per this fix, projectId should never be missing for prompt-based creation.
+
+----------------------------------------------------------------------------------------------------
+PART 2 — ENSURE PRD SAVE USES THE SAME IDs AS UI LOAD
+A) Confirm the save call uses:
+- projectId: effectiveProjectId (now stable from args.projectId)
+- workflowId: workflowGroupId (whatever is used consistently by FlowDetection & display)
+Example:
+  saveWorkflowPRD(effectiveProjectId, workflowGroupId, prd);
+
+B) Confirm the read path uses the exact same:
+  loadWorkflowPRD(projectId, workflowId);
+
+C) Confirm ProjectPanel passes projectId === activeTab.projectUuid (preferred)
+If ProjectPanel falls back to activeTabId, only do so if there is no projectUuid.
+For prompt-based creation, projectUuid MUST exist.
+
+----------------------------------------------------------------------------------------------------
+PART 3 — ADD DIAGNOSTIC LOGS (KEEP UNTIL VERIFIED)
+Add these logs. Do not remove until QA confirms.
+
+1) When creating the new tab (right before generateWorkflowDirectly call)
+console.log('[PRD][TAB_CREATE]', {
+  tabId: newTab.id,
+  newTabProjectUuid: newTab.projectUuid,
+  newTabCloudProjectId: newTab.cloudProjectId,
+  generatePRD,
+});
+
+2) At the top of generateWorkflowDirectly
+console.log('[PRD][GWD_ENTER]', {
+  tabId,
+  projectId: effectiveProjectId,
+  generatePRDFlag,
+});
+
+3) In afterWorkflowCreation (or wherever PRD is produced and saved)
+console.log('[PRD][AFTER_WORKFLOW_CREATION]', {
+  projectId: effectiveProjectId,
+  workflowId: workflowGroupId,
+  prdKey: `prd-workflow-${effectiveProjectId}-${workflowGroupId}`,
+  hasWorkflowPRD: !!workflowPRD && (workflowPRD.length ?? 0) > 0,
+  hasProjectOverview: !!projectOverview && (projectOverview.length ?? 0) > 0,
+});
+
+4) In WorkflowPRDSection (before calling loadWorkflowPRD)
+console.log('[PRD][LOAD_ATTEMPT]', { projectId, workflowId, key: `prd-workflow-${projectId}-${workflowId}` });
+
+5) After loadWorkflowPRD returns
+console.log('[PRD][LOAD_RESULT]', { found: !!prd, length: prd?.length ?? 0 });
+
+----------------------------------------------------------------------------------------------------
+PART 4 — QA REPRO CHECKLIST
+1) Start unauthenticated → authenticate → go to Home.
+2) In prompt chat:
+   - Create workflow from prompt
+   - Check “Generate first draft PRD”
+   - Click Start Project / Generate
+3) Verify console logs:
+   - [PRD][TAB_CREATE] shows newTabProjectUuid populated
+   - [PRD][GWD_ENTER] projectId equals newTabProjectUuid
+   - [PRD][AFTER_WORKFLOW_CREATION] shows correct key
+   - [PRD][LOAD_ATTEMPT] matches exact same key
+4) Verify UI:
+   - Project Overview is populated
+   - Project PRD sections are populated (if applicable)
+   - Workflow PRD is populated for the created workflow
+
+----------------------------------------------------------------------------------------------------
+PART 5 — OPTIONAL HARDENING (RECOMMENDED)
+1) Add a runtime guard:
+if (!projectId) throw new Error('[PRD] Missing projectId in generateWorkflowDirectly args');
+
+2) Make createBlankTab return a fully-formed tab object with projectUuid always present.
+3) Add a unit test:
+- Create new tab
+- Call generateWorkflowDirectly immediately
+- Assert saveWorkflowPRD called with projectUuid (not route param and not undefined)
+
+DONE CRITERIA
+- PRD is visible immediately after generation without refresh
+- Save/load keys match consistently across refreshes
+- No fallback to activeTabId is required for new projects
