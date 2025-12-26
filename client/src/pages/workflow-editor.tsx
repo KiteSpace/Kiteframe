@@ -10217,6 +10217,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             style: { ...e.style, strokeOpacity: 0.8 }
                           }));
                           
+                          console.log('[EXPERIMENT] Generation storing IDs', {
+                            nodeId,
+                            generatedNodeIds,
+                            generatedEdgeIds,
+                            generatedAt,
+                            experimentId
+                          });
+                          
                           setNodes(prev => [
                             ...prev.map(n => 
                               n.id === nodeId 
@@ -10253,6 +10261,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             ...previewNodes
                           ]);
                           setEdges(prev => [...prev, ...previewEdges]);
+                          
+                          console.log('[EXPERIMENT] Generation complete - IDs stored in node.data.generation and node.meta.experiment');
                           
                           toast({
                             title: "Branch generated",
@@ -10309,15 +10319,60 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     }}
                     onExperimentAdoptBranch={(nodeId: string) => {
+                      console.log('[EXPERIMENT] Adopt handler fired', { nodeId });
+                      
                       const rawNode = nodes.find(n => n.id === nodeId);
-                      if (!rawNode || (rawNode.type !== 'experiment' && rawNode.type !== 'wildcard')) return;
+                      console.log('[EXPERIMENT] Raw node lookup', { 
+                        found: !!rawNode, 
+                        type: rawNode?.type,
+                        hasGeneration: !!(rawNode?.data as any)?.generation,
+                        rawNodeSnapshot: rawNode ? JSON.stringify({
+                          id: rawNode.id,
+                          type: rawNode.type,
+                          dataKeys: Object.keys(rawNode.data || {}),
+                          generation: (rawNode.data as any)?.generation,
+                          metaExperiment: rawNode.meta?.experiment
+                        }) : null
+                      });
+                      
+                      if (!rawNode || (rawNode.type !== 'experiment' && rawNode.type !== 'wildcard')) {
+                        console.log('[EXPERIMENT] Early return: node not found or wrong type');
+                        return;
+                      }
                       
                       const node = normalizeNodeForMutation(rawNode, activeTab?.id || 'default');
                       const data = node.data as ExperimentNodeData;
                       const generatedNodeIds = data.generation?.generatedNodeIds || [];
                       const generatedEdgeIds = data.generation?.generatedEdgeIds || [];
                       
-                      if (generatedNodeIds.length === 0 && generatedEdgeIds.length === 0) return;
+                      console.log('[EXPERIMENT] Adopt precheck', {
+                        nodeId,
+                        genNodes: generatedNodeIds.length,
+                        genEdges: generatedEdgeIds.length,
+                        generationStatus: data.generation?.status,
+                        userPrompt: data.userPrompt,
+                        selectedOptionLabel: data.selectedOptionLabel,
+                        selectedOptionDescription: data.selectedOptionDescription
+                      });
+                      
+                      if (generatedNodeIds.length === 0 && generatedEdgeIds.length === 0) {
+                        console.log('[EXPERIMENT] Early return: no generated nodes/edges');
+                        toast({
+                          title: "No branch to adopt",
+                          description: "Generate a branch first before accepting.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      
+                      const experimentContent = data.userPrompt || data.selectedOptionDescription || data.selectedOptionLabel || '';
+                      if (!experimentContent.trim()) {
+                        console.log('[EXPERIMENT] Warning: experimentContent is empty', {
+                          userPrompt: data.userPrompt,
+                          selectedOptionDescription: data.selectedOptionDescription,
+                          selectedOptionLabel: data.selectedOptionLabel
+                        });
+                      }
                       
                       const nodeIdSet = new Set(generatedNodeIds);
                       const edgeIdSet = new Set(generatedEdgeIds);
@@ -10352,7 +10407,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           };
                         }
                         if (n.id === nodeId) {
-                          const experimentContent = data.userPrompt || data.selectedOptionDescription || data.selectedOptionLabel || '';
                           const experimentMode = data.mode || 'whatif';
                           return {
                             ...n,
@@ -10400,6 +10454,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }));
                       
                       saveToHistory("Adopt speculative branch");
+                      
+                      console.log('[EXPERIMENT] Conversion completed', { 
+                        nodeId, 
+                        expectedType: 'process',
+                        experimentContent: data.userPrompt || data.selectedOptionDescription || data.selectedOptionLabel || ''
+                      });
+                      
+                      requestAnimationFrame(() => {
+                        const postNode = nodes.find(n => n.id === nodeId);
+                        console.log('[EXPERIMENT] Post-RAF node snapshot', {
+                          nodeId,
+                          type: postNode?.type,
+                          dataLabel: (postNode?.data as any)?.label,
+                          dataDescription: (postNode?.data as any)?.description,
+                          metaAcceptedAt: postNode?.meta?.experiment?.acceptedAt
+                        });
+                      });
                       
                       toast({
                         title: "Branch adopted",
