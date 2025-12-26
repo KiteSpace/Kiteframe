@@ -14,8 +14,9 @@ const SIMPLIFIED_NODE_HEIGHT = 140;
 // Purple theme colors
 const PURPLE = {
   stroke: '#9333ea', // purple-600
-  header: '#f3e8ff', // purple-100
-  footer: '#f3e8ff', // purple-100
+  header: '#9333ea', // purple-600 (solid purple for consistency)
+  footer: '#9333ea', // purple-600 (solid purple for consistency)
+  body: '#faf5ff', // purple-50 (light purple body)
   accent: '#a855f7', // purple-500
   dark: '#7c3aed', // purple-600 darker
 };
@@ -364,7 +365,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
       )}
       style={{
         ...nodeStyles,
-        backgroundColor: '#ffffff',
+        backgroundColor: PURPLE.body,
         borderColor: PURPLE.stroke,
       }}
       onMouseDown={handleMouseDown}
@@ -385,7 +386,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {/* Mode selector - simplified when hasGenerated (just label, no dropdown) */}
           {hasGenerated ? (
-            <div className="flex items-center gap-1.5 text-sm font-medium py-1 px-2 text-purple-800">
+            <div className="flex items-center gap-1.5 text-sm font-medium py-1 px-2 text-white">
               <FlaskConical className="w-3.5 h-3.5" />
               <span className="truncate">{MODE_LABELS[mode]}</span>
             </div>
@@ -398,7 +399,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                 }}
                 className={cn(
                   "flex items-center gap-1.5 text-sm font-medium py-1 px-2 rounded transition-colors",
-                  "text-purple-800 hover:bg-purple-200/50",
+                  "text-white hover:bg-white/20",
                   readOnly ? "opacity-50 cursor-default" : ""
                 )}
                 data-testid="experiment-mode-select"
@@ -438,7 +439,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
         {!readOnly && !hasGenerated && (
           <button
             onClick={handleDeleteClick}
-            className="p-1.5 rounded-md transition-colors text-purple-600 hover:text-red-500 hover:bg-red-100"
+            className="p-1.5 rounded-md transition-colors text-white/80 hover:text-red-300 hover:bg-white/10"
             title="Delete experiment"
             data-testid="experiment-delete-btn"
           >
@@ -640,7 +641,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
           style={{ 
             height: FOOTER_H, 
             minHeight: FOOTER_H,
-            backgroundColor: PURPLE.header,
+            backgroundColor: PURPLE.footer,
             borderTop: `1px solid ${PURPLE.stroke}`,
           }}
         >
@@ -651,8 +652,8 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
               canGenerate && !readOnly
-                ? "bg-purple-600 text-white hover:bg-purple-700 shadow-sm"
-                : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                ? "bg-white text-purple-700 hover:bg-purple-50 shadow-sm"
+                : "bg-white/20 text-white/50 cursor-not-allowed"
             )}
             title={
               !hasIncomingEdges ? "Connect to a workflow node first" :
