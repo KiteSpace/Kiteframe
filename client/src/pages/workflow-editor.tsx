@@ -8216,12 +8216,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     connectionAnimationConfig={connectionAnimationConfig}
                     connectionPreview={connectionPreview}
                     onNodesChange={(changes) => {
-                      console.log('[NODES CHANGE DEBUG] received changes:', {
-                        isArray: Array.isArray(changes),
-                        length: changes?.length,
-                        firstItem: changes?.[0],
-                        firstType: changes?.[0]?.type
-                      });
                       // Handle both array of changes and direct node array updates
                       if (Array.isArray(changes)) {
                         // Handle empty array (e.g., all nodes deleted)
@@ -8252,7 +8246,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             changes[0].type === "render" ||
                             changes[0].type === "text" ||
                             changes[0].type === "webview");
-                        console.log('[NODES CHANGE DEBUG] isNodeArray:', isNodeArray);
                         
                         if (isNodeArray) {
                           // Direct nodes array from KiteFrameCanvas drag operations or paste
@@ -8263,12 +8256,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           const currentNodeCount = nodes.length;
                           const incomingNodeCount = incomingNodes.length;
                           const nodesWereAdded = incomingNodeCount > currentNodeCount;
-                          
-                          console.log('[NODES CHANGE DEBUG] paste detection:', { 
-                            currentNodeCount, 
-                            incomingNodeCount, 
-                            nodesWereAdded 
-                          });
 
                           if (nodesWereAdded) {
                             // This is a paste operation - save to history
@@ -8413,26 +8400,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                                              firstItem.type === 'reset';
                       const isEdgesArray = firstItem.source && firstItem.target && !isChangeObject;
                       
-                      console.log('[EDGES CHANGE DEBUG] detection:', {
-                        hasSource: !!firstItem.source,
-                        hasTarget: !!firstItem.target,
-                        type: firstItem.type,
-                        isChangeObject,
-                        isEdgesArray
-                      });
-                      
                       if (isEdgesArray) {
                         // Direct edges array from paste operation
                         const incomingEdges = changes as Edge[];
                         const currentEdgeCount = edges.length;
                         const incomingEdgeCount = incomingEdges.length;
                         const edgesWereAdded = incomingEdgeCount > currentEdgeCount;
-                        
-                        console.log('[EDGES CHANGE DEBUG] paste detection:', { 
-                          currentEdgeCount, 
-                          incomingEdgeCount, 
-                          edgesWereAdded 
-                        });
                         
                         setEdges(incomingEdges);
                         // Note: History is saved by onNodesChange when nodes are pasted along with edges

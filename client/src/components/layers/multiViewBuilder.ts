@@ -56,8 +56,8 @@ export function buildMultiViewTrees(
       (nodeIds as string[]).includes(e.target)
     );
     
-    // Only create workflow if >= 2 internal edges
-    if (internalEdges.length < 2) {
+    // Only create workflow if >= 1 internal edge (2+ connected nodes)
+    if (internalEdges.length < 1) {
       // Add all nodes to standalone bucket
       standaloneNodeIds.push(...(nodeIds as string[]));
       continue;

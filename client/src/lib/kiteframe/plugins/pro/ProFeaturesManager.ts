@@ -201,18 +201,10 @@ export class ProFeaturesManager {
       { offsetDistance: this.config.copyPaste?.offsetDistance ?? 50 }
     );
 
-    console.log('[PASTE DEBUG] paste result:', { 
-      nodesCount: result.nodes.length, 
-      canvasObjectsCount: result.canvasObjects.length,
-      edgesCount: result.edges.length,
-      currentNodesCount: this.nodes.length
-    });
-
     if (result.nodes.length > 0 || result.canvasObjects.length > 0 || result.edges.length > 0) {
       // Update nodes - always update internal cache, then notify via callback
       if (result.nodes.length > 0) {
         const updatedNodes = [...this.nodes, ...result.nodes];
-        console.log('[PASTE DEBUG] calling onNodesChange with', updatedNodes.length, 'nodes');
         this.updateNodes(updatedNodes); // Keep internal cache current
         this.onNodesChange(updatedNodes);
       }
@@ -229,18 +221,9 @@ export class ProFeaturesManager {
       // Update edges - always update internal cache, optionally notify via callback
       if (result.edges.length > 0) {
         const updatedEdges = [...this.edges, ...result.edges];
-        console.log('[PASTE DEBUG] updating edges:', {
-          resultEdgesCount: result.edges.length,
-          currentEdgesCount: this.edges.length,
-          updatedEdgesCount: updatedEdges.length,
-          hasOnEdgesChange: !!this.onEdgesChange
-        });
         this.updateEdges(updatedEdges); // Keep internal cache current
         if (this.onEdgesChange) {
-          console.log('[PASTE DEBUG] calling onEdgesChange with', updatedEdges.length, 'edges');
           this.onEdgesChange(updatedEdges);
-        } else {
-          console.log('[PASTE DEBUG] onEdgesChange is not defined, edges will not be added to state');
         }
       }
 
