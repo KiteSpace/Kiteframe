@@ -1,0 +1,238 @@
+KITEFRAME — REPLIT IMPLEMENTATION TASK FILE
+FAST PATH + GUIDED MODE FIX (PERMANENT)
+
+GOAL
+Eliminate AI clarification loops and enforce a clear separation between:
+- Guided clarification mode
+- Fast-path execution mode
+
+User intent (UI actions + confirmations) MUST override AI uncertainty.
+Once execution is requested, the system must generate immediately.
+
+This applies to:
+- Prompt chat workflow generation
+- Image / Figma upload flows
+- Experiment node branch generation
+
+--------------------------------------------------
+SECTION 0 — DEFINITIONS (SOURCE OF TRUTH)
+--------------------------------------------------
+
+Conversation state machine lives in:
+client/src/ai/kiteaiState.ts
+
+States:
+- 'initial'
+- 'clarifying'
+- 'execution_ready'
+- 'executing'
+- 'done'
+
+Actionability scoring lives in:
+client/src/ai/actionability.ts
+
+Fast path = execution without clarification, regardless of confidence score.
+
+--------------------------------------------------
+SECTION 1 — ADD HARD CLARIFICATION CAP
+--------------------------------------------------
+
+FILE:
+client/src/ai/kiteaiState.ts
+
+TASK:
+Add a hard cap on clarification turns.
+
+IMPLEMENTATION:
+
+1. Add constant at top of file:
+   const MAX_CLARIFICATION_TURNS = 2;
+
+2. In advanceState(context):
+   - If context.turnCount >= MAX_CLARIFICATION_TURNS
+   - Force state to 'execution_ready'
+   - Do NOT ask further questions
+
+PSEUDO:
+
+if (
+  context.state === 'clarifying' &&
+  context.turnCount >= MAX_CLARIFICATION_TURNS
+) {
+  return {
+    ...context,
+    state: 'execution_ready'
+  };
+}
+
+ACCEPTANCE CRITERIA:
+- AI never asks more than 2 clarification turns
+- No repeated scope/trigger/goal questions
+
+--------------------------------------------------
+SECTION 2 — CENTRALIZE FAST PATH DECISION
+--------------------------------------------------
+
+FILE:
+client/src/ai/kiteaiState.ts
+
+TASK:
+Create a single authoritative fast-path gate.
+
+ADD FUNCTION:
+
+export function shouldExecuteFastPath(
+  context: ConversationContext,
+  trigger: 'button' | 'phrase' | 'experiment' | 'image'
+): boolean {
+  if (trigger === 'button') return true;
+  if (trigger === 'experiment') return true;
+  if (trigger === 'image') return true;
+  if (trigger === 'phrase' && isConfirmationPhrase(context.lastUserMessage)) {
+    return true;
+  }
+  if (context.executionTriggered) return true;
+  return false;
+}
+
+NOTES:
+- This function is the ONLY place allowed to bypass clarification
+- Confidence score MUST NOT override this
+
+--------------------------------------------------
+SECTION 3 — ENFORCE FAST PATH IN CHAT FLOW
+--------------------------------------------------
+
+FILES:
+client/src/hooks/useKiteAIConversation.ts
+client/src/pages/PreProjectChat.tsx
+
+TASKS:
+
+1. When Generate button is clicked:
+   - Call shouldExecuteFastPath(context, 'button')
+   - If true:
+     - Skip clarification
+     - Immediately transition to 'executing'
+
+2. When confirmation phrases are detected:
+   - Use shouldExecuteFastPath(context, 'phrase')
+
+REMOVE:
+- Any conditional that blocks execution due to low confidence
+- Any logic that re-enters 'clarifying' after executionTriggered = true
+
+ACCEPTANCE CRITERIA:
+- Clicking Generate ALWAYS generates
+- Saying "generate", "looks good", "make assumptions" ALWAYS generates
+- No additional questions after confirmation
+
+--------------------------------------------------
+SECTION 4 — IMAGE / FIGMA UPLOAD FAST PATH
+--------------------------------------------------
+
+FILES:
+client/src/pages/PreProjectChat.tsx
+client/src/ai/imageUploadFlow.ts (or equivalent)
+
+TASK:
+Image/Figma upload + Generate must be fast-path.
+
+IMPLEMENTATION:
+- When user uploads an image or Figma frame AND clicks Generate:
+  - Call shouldExecuteFastPath(context, 'image')
+  - Do NOT route through clarification logic
+  - Generate workflow immediately
+
+ACCEPTANCE CRITERIA:
+- No "I can’t analyze attachments" message
+- No clarification questions after image preview is visible
+- Image analysis directly produces workflow
+
+--------------------------------------------------
+SECTION 5 — EXPERIMENT NODE FAST PATH
+--------------------------------------------------
+
+FILES:
+client/src/ai/workflow/experimentBranchService.ts
+client/src/pages/workflow-editor.tsx
+
+TASK:
+Experiment nodes must ALWAYS execute in fast-path mode.
+
+IMPLEMENTATION:
+
+1. In generateExperimentBranch():
+   - Pass trigger = 'experiment'
+   - Call shouldExecuteFastPath(context, 'experiment')
+   - Bypass ALL clarification logic
+
+2. Remove any logic that:
+   - Asks follow-up questions
+   - Checks confidence thresholds
+   - Re-enters guided mode
+
+RULE:
+Experiment flow is:
+Select option or prompt → Generate → Preview → Accept / Reject
+
+ACCEPTANCE CRITERIA:
+- Experiment Generate NEVER asks questions
+- Branch is always generated immediately
+- Accept/Reject is the only decision point
+
+--------------------------------------------------
+SECTION 6 — PREVENT BACKWARD STATE TRANSITIONS
+--------------------------------------------------
+
+FILE:
+client/src/ai/kiteaiState.ts
+
+TASK:
+Once executionTriggered is true:
+- State must NEVER return to 'clarifying'
+
+IMPLEMENTATION:
+- Ensure advanceState() checks executionTriggered
+- Block backward transitions
+
+ACCEPTANCE CRITERIA:
+- No execution_ready → clarifying regression
+- No loops after execution begins
+
+--------------------------------------------------
+SECTION 7 — DIAGNOSTIC LOGGING
+--------------------------------------------------
+
+FILES:
+kiteaiState.ts
+useKiteAIConversation.ts
+experimentBranchService.ts
+
+ADD LOGGING:
+console.log('[KiteAI]', {
+  state,
+  trigger,
+  confidence,
+  fastPath: shouldExecuteFastPath(...)
+});
+
+PURPOSE:
+- Verify fast-path enforcement
+- Detect regressions early
+
+--------------------------------------------------
+SECTION 8 — FINAL BEHAVIOR CONTRACT
+--------------------------------------------------
+
+CONFIRMED RULES:
+
+- UI actions override AI uncertainty
+- Guided mode must terminate
+- Fast path is mandatory for power users
+- Asking questions after confirmation is a BUG
+- Execution is reversible via editing, so over-caution is unnecessary
+
+--------------------------------------------------
+END OF TASK FILE
+--------------------------------------------------

@@ -1,0 +1,130 @@
+KITEFRAME — QUESTIONS FOR REPLIT
+Guided vs Fast Path AI Behavior (Pre-Implementation)
+
+GOAL
+Before providing final implementation instructions, we need to align on how guided behavior and fast-path execution should function across KiteAI, workflow generation, and Experiment nodes. The current system exhibits looping, over-clarification, and failure to respect user intent.
+
+Please answer the questions below so instructions can be written precisely and without ambiguity.
+
+--------------------------------------------------
+SECTION 1 — INTENT DETECTION & STATE MACHINE
+--------------------------------------------------
+
+1. Does KiteAI currently maintain an explicit conversational state machine?
+   (e.g. clarification → execution-ready → execution → done)
+   - If yes:
+     a) Where is this state stored?
+     b) What logic allows transitions backward (execution-ready → clarification)?
+   - If no:
+     a) What heuristic currently decides whether to ask questions vs execute?
+
+2. Is there a single, authoritative definition of “execution-ready”?
+   - Where is it implemented?
+   - Can it be overridden explicitly by user action?
+
+3. When the user explicitly says:
+   - “Generate”
+   - “Create the workflow”
+   - “Looks good”
+   - “Make assumptions”
+   
+   Is there currently *any* code path that still forces clarification?
+   - If yes, where and why?
+
+--------------------------------------------------
+SECTION 2 — FAST PATH TRIGGERS
+--------------------------------------------------
+
+4. Which user actions are currently treated as *hard intent*?
+   (i.e. must trigger execution without further questions)
+
+   Please confirm whether the following should be treated as fast-path triggers:
+   - Clicking a Generate button
+   - Selecting an Experiment option and clicking Generate
+   - Uploading an image and clicking Generate
+   - Pasting structured text (PRD, user stories, steps)
+   - Explicit phrases like “just generate” or “make assumptions”
+
+5. Is there any technical constraint that prevents bypassing clarification once a fast-path trigger occurs?
+
+6. Do you agree that **UI actions should override AI uncertainty**?
+   (i.e. clicking Generate is stronger than low confidence)
+
+--------------------------------------------------
+SECTION 3 — GUIDED MODE BOUNDARIES
+--------------------------------------------------
+
+7. What is the *maximum* number of clarification turns KiteAI is allowed before it must:
+   a) Execute with assumptions, or
+   b) Ask for a single blocking decision?
+
+8. Is there currently a loop-detection mechanism?
+   - If yes: where?
+   - If no: are you open to a hard cap (e.g. 2 clarification turns max)?
+
+9. Should guided mode ever repeat the *same class of question*?
+   (e.g. asking for scope multiple times after it’s been answered once)
+
+--------------------------------------------------
+SECTION 4 — CONFIDENCE & BLOCKING LOGIC
+--------------------------------------------------
+
+10. How is confidence currently calculated?
+    - Is it token-based, heuristic, or model-reported?
+
+11. Can low confidence block execution even when the user explicitly requests generation?
+    - If yes: is that intentional?
+
+12. Do you agree with this rule:
+    “Confidence can slow execution, but explicit user intent cannot be blocked by it.”
+
+--------------------------------------------------
+SECTION 5 — WORKFLOW GENERATION CONTRACT
+--------------------------------------------------
+
+13. When the user confirms or clicks Generate, should the system:
+    a) Generate immediately
+    b) Generate and allow later edits
+    c) Ever re-ask questions before generating
+
+14. Is there any scenario where the AI should refuse to generate a workflow entirely?
+    - If yes, what are the explicit criteria?
+
+--------------------------------------------------
+SECTION 6 — EXPERIMENT NODE ALIGNMENT
+--------------------------------------------------
+
+15. Should Experiment nodes ALWAYS operate in fast-path mode once Generate is clicked?
+    - No clarification
+    - No confidence gating
+    - Preview → Accept / Reject only
+
+16. Is there any reason Experiment nodes should re-enter guided mode after generation?
+
+--------------------------------------------------
+SECTION 7 — IMPLEMENTATION CONSTRAINTS
+--------------------------------------------------
+
+17. Are there architectural constraints that would prevent:
+    - A fast-path override flag
+    - A “no-questions” execution mode
+    - A hard clarification cap
+
+18. Is AI behavior centralized enough that these rules can be enforced in one place,
+    or will this require changes in multiple components?
+
+--------------------------------------------------
+SECTION 8 — AGREEMENT CHECK
+--------------------------------------------------
+
+Please confirm or reject the following statements:
+
+- Fast path is required for power users
+- UI actions must override AI uncertainty
+- Guided mode must have a termination condition
+- Asking “one more question” after confirmation is a bug
+- Execution is always reversible via undo/edit, so over-caution is unnecessary
+
+--------------------------------------------------
+END
+--------------------------------------------------
