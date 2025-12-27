@@ -1,0 +1,1152 @@
+# Kiteframe Workflow Diagnostics System - Implementation Documentation
+# ====================================================================
+# 
+# This document contains the complete implementation of the deterministic
+# diagnostics system for detecting workflow issues in Kiteframe.
+#
+# Features:
+# - Detects 5 types of workflow issues:
+#   1. Missing end states
+#   2. Dead-end nodes
+#   3. Disconnected subgraphs
+#   4. Incomplete/orphan decisions
+#   5. Infinite loops (cycles without exit)
+#
+# - Visual badge indicators on nodes
+# - Diagnostics panel in Project Panel
+# - Click-to-navigate: zoom and focus on nodes
+# - Acknowledge/unacknowledge issues
+# - Edge threshold: only shows for workflows with 3+ edges
+# - Zoom threshold: badges hidden when zoomed out (< 0.6)
+#
+# ====================================================================
+
+
+## FILE: client/src/lib/kiteframe/utils/diagnostics/types.ts
+## ---------------------------------------------------------------
+
+```typescript
+export type DiagnosticSeverity = 'info' | 'warn' | 'risk' | 'critical';
+
+export type DiagnosticStatus = 'new' | 'acknowledged' | 'resolved';
+
+export type DiagnosticType = 
+  | 'missing-end-state'
+  | 'dead-end-node'
+  | 'disconnected-subgraph'
+  | 'orphan-decision'
+  | 'loop-without-exit';
+
+export interface DiagnosticIssue {
+  id: string;
+  projectId: string;
+  workflowId?: string;
+  nodeId?: string;
+  edgeId?: string;
+  
+  type: DiagnosticType;
+  title: string;
+  description: string;
+  severity: DiagnosticSeverity;
+  status: DiagnosticStatus;
+  
+  createdAt: number;
+  updatedAt: number;
+  acknowledgedAt?: number;
+  resolvedAt?: number;
+  
+  recommendedAction?: {
+    kind: 'create-experiment' | 'navigate' | 'noop';
+    experimentMode?: 'whatif' | 'risk' | 'enhancement' | 'prompt';
+  };
+  
+  fingerprint: string;
+}
+
+export const SEVERITY_CONFIG: Record<DiagnosticSeverity, { color: string; glyph: string; priority: number }> = {
+  info: { color: 'grey', glyph: '•', priority: 0 },
+  warn: { color: 'yellow', glyph: '!', priority: 1 },
+  risk: { color: 'orange', glyph: '!!', priority: 2 },
+  critical: { color: 'red', glyph: '⚠', priority: 3 },
+};
+
+export function getSeverityPriority(severity: DiagnosticSeverity): number {
+  return SEVERITY_CONFIG[severity].priority;
+}
+
+export function getHighestSeverity(issues: DiagnosticIssue[]): DiagnosticSeverity | null {
+  if (issues.length === 0) return null;
+  return issues.reduce((highest, issue) => {
+    return getSeverityPriority(issue.severity) > getSeverityPriority(highest.severity) ? issue : highest;
+  }, issues[0]).severity;
+}
+```
+
+
+## FILE: client/src/lib/kiteframe/utils/diagnostics/DiagnosticsEngine.ts
+## ---------------------------------------------------------------
+
+```typescript
+import type { Node, Edge } from '../../types';
+import type { DiagnosticIssue, DiagnosticType, DiagnosticSeverity } from './types';
+
+interface GraphInput {
+  nodes: Node[];
+  edges: Edge[];
+  projectId: string;
+  workflowId?: string;
+}
+
+interface AdjacencyMaps {
+  outgoing: Map<string, string[]>;
+  incoming: Map<string, string[]>;
+  nodeMap: Map<string, Node>;
+}
+
+function generateFingerprint(
+  projectId: string,
+  workflowId: string | undefined,
+  type: DiagnosticType,
+  nodeId?: string,
+  edgeId?: string,
+  extra?: string
+): string {
+  const parts = [projectId, workflowId || 'global', type, nodeId || '', edgeId || '', extra || ''];
+  let hash = 0;
+  const str = parts.join('|');
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return `diag_${Math.abs(hash).toString(36)}`;
+}
+
+function createIssue(
+  input: GraphInput,
+  type: DiagnosticType,
+  title: string,
+  description: string,
+  severity: DiagnosticSeverity,
+  nodeId?: string,
+  edgeId?: string,
+  experimentMode?: 'whatif' | 'risk' | 'enhancement' | 'prompt',
+  extra?: string
+): DiagnosticIssue {
+  const fingerprint = generateFingerprint(input.projectId, input.workflowId, type, nodeId, edgeId, extra);
+  const now = Date.now();
+  
+  return {
+    id: fingerprint,
+    projectId: input.projectId,
+    workflowId: input.workflowId,
+    nodeId,
+    edgeId,
+    type,
+    title,
+    description,
+    severity,
+    status: 'new',
+    createdAt: now,
+    updatedAt: now,
+    fingerprint,
+    recommendedAction: experimentMode ? {
+      kind: 'create-experiment',
+      experimentMode,
+    } : { kind: 'navigate' },
+  };
+}
+
+function buildAdjacencyMaps(nodes: Node[], edges: Edge[]): AdjacencyMaps {
+  const outgoing = new Map<string, string[]>();
+  const incoming = new Map<string, string[]>();
+  const nodeMap = new Map<string, Node>();
+  
+  for (const node of nodes) {
+    nodeMap.set(node.id, node);
+    outgoing.set(node.id, []);
+    incoming.set(node.id, []);
+  }
+  
+  for (const edge of edges) {
+    const sourceList = outgoing.get(edge.source);
+    const targetList = incoming.get(edge.target);
+    if (sourceList) sourceList.push(edge.target);
+    if (targetList) targetList.push(edge.source);
+  }
+  
+  return { outgoing, incoming, nodeMap };
+}
+
+function isTerminalNode(node: Node): boolean {
+  const terminalTypes = ['output', 'end'];
+  return terminalTypes.includes(node.type || '');
+}
+
+function isStartNode(node: Node): boolean {
+  const startTypes = ['input', 'start'];
+  return startTypes.includes(node.type || '');
+}
+
+function isDecisionNode(node: Node): boolean {
+  const decisionTypes = ['condition', 'decision'];
+  return decisionTypes.includes(node.type || '');
+}
+
+function isCanvasObject(node: Node): boolean {
+  const objectTypes = ['sticky-note', 'shape', 'text'];
+  return objectTypes.includes(node.type || '');
+}
+
+function findConnectedComponents(nodes: Node[], adjacency: AdjacencyMaps): string[][] {
+  const visited = new Set<string>();
+  const components: string[][] = [];
+  
+  function dfs(nodeId: string, component: string[]) {
+    if (visited.has(nodeId)) return;
+    visited.add(nodeId);
+    component.push(nodeId);
+    
+    const outNeighbors = adjacency.outgoing.get(nodeId) || [];
+    const inNeighbors = adjacency.incoming.get(nodeId) || [];
+    
+    for (const neighbor of [...outNeighbors, ...inNeighbors]) {
+      dfs(neighbor, component);
+    }
+  }
+  
+  for (const node of nodes) {
+    if (!visited.has(node.id)) {
+      const component: string[] = [];
+      dfs(node.id, component);
+      if (component.length > 0) {
+        components.push(component);
+      }
+    }
+  }
+  
+  return components;
+}
+
+function detectMissingEndState(input: GraphInput, adjacency: AdjacencyMaps): DiagnosticIssue[] {
+  const issues: DiagnosticIssue[] = [];
+  const nodes = Array.from(adjacency.nodeMap.values());
+  
+  const hasTerminal = nodes.some(n => isTerminalNode(n));
+  if (hasTerminal) return issues;
+  
+  const workflowNodes = nodes.filter(n => !isCanvasObject(n));
+  if (workflowNodes.length === 0) return issues;
+  
+  const hasAnyEdges = workflowNodes.some(n => {
+    const out = adjacency.outgoing.get(n.id) || [];
+    const inc = adjacency.incoming.get(n.id) || [];
+    return out.length > 0 || inc.length > 0;
+  });
+  
+  if (!hasAnyEdges && workflowNodes.length <= 1) return issues;
+  
+  issues.push(createIssue(
+    input,
+    'missing-end-state',
+    'Missing end state',
+    'This workflow has no terminal (output/end) node. Add an output node to complete the flow.',
+    'warn',
+    undefined,
+    undefined,
+    'whatif'
+  ));
+  
+  return issues;
+}
+
+function detectDeadEndNodes(input: GraphInput, adjacency: AdjacencyMaps): DiagnosticIssue[] {
+  const issues: DiagnosticIssue[] = [];
+  
+  for (const [nodeId, node] of Array.from(adjacency.nodeMap.entries())) {
+    if (isTerminalNode(node) || isCanvasObject(node)) continue;
+    
+    const outgoing = adjacency.outgoing.get(nodeId) || [];
+    const incoming = adjacency.incoming.get(nodeId) || [];
+    
+    if (outgoing.length === 0 && incoming.length > 0) {
+      const label = (node.data as { label?: string })?.label || node.type;
+      issues.push(createIssue(
+        input,
+        'dead-end-node',
+        'Dead-end node',
+        `"${label}" has no outgoing connections. It should either connect to another node or be marked as an output.`,
+        'warn',
+        nodeId,
+        undefined,
+        'whatif'
+      ));
+    }
+  }
+  
+  return issues;
+}
+
+function detectDisconnectedSubgraphs(input: GraphInput, adjacency: AdjacencyMaps): DiagnosticIssue[] {
+  const issues: DiagnosticIssue[] = [];
+  
+  const workflowNodes = Array.from(adjacency.nodeMap.values()).filter(n => !isCanvasObject(n));
+  if (workflowNodes.length <= 1) return issues;
+  
+  const components = findConnectedComponents(workflowNodes, adjacency);
+  
+  if (components.length > 1) {
+    const sortedComponents = components.sort((a, b) => b.length - a.length);
+    
+    for (let i = 1; i < sortedComponents.length; i++) {
+      const component = sortedComponents[i];
+      const representativeNodeId = component[0];
+      const node = adjacency.nodeMap.get(representativeNodeId);
+      const label = node ? ((node.data as { label?: string })?.label || node.type) : 'Unknown';
+      
+      issues.push(createIssue(
+        input,
+        'disconnected-subgraph',
+        'Disconnected flow',
+        `"${label}" and ${component.length - 1} other node(s) are not connected to the main workflow.`,
+        'info',
+        representativeNodeId,
+        undefined,
+        'enhancement',
+        `component-${i}`
+      ));
+    }
+  }
+  
+  return issues;
+}
+
+function detectOrphanDecisions(input: GraphInput, adjacency: AdjacencyMaps): DiagnosticIssue[] {
+  const issues: DiagnosticIssue[] = [];
+  
+  for (const [nodeId, node] of Array.from(adjacency.nodeMap.entries())) {
+    if (!isDecisionNode(node)) continue;
+    
+    const outgoing = adjacency.outgoing.get(nodeId) || [];
+    
+    if (outgoing.length === 1) {
+      const label = (node.data as { label?: string })?.label || 'Decision';
+      issues.push(createIssue(
+        input,
+        'orphan-decision',
+        'Incomplete decision',
+        `"${label}" only has one outgoing path. Decision nodes typically need at least two branches (e.g., Yes/No).`,
+        'risk',
+        nodeId,
+        undefined,
+        'whatif'
+      ));
+    } else if (outgoing.length === 0) {
+      const incoming = adjacency.incoming.get(nodeId) || [];
+      if (incoming.length > 0) {
+        const label = (node.data as { label?: string })?.label || 'Decision';
+        issues.push(createIssue(
+          input,
+          'orphan-decision',
+          'Decision without paths',
+          `"${label}" has no outgoing paths. Add branches for different outcomes.`,
+          'risk',
+          nodeId,
+          undefined,
+          'whatif'
+        ));
+      }
+    }
+  }
+  
+  return issues;
+}
+
+function findStronglyConnectedComponents(adjacency: AdjacencyMaps): string[][] {
+  const nodeIds = Array.from(adjacency.nodeMap.keys());
+  const index = new Map<string, number>();
+  const lowlink = new Map<string, number>();
+  const onStack = new Set<string>();
+  const stack: string[] = [];
+  const sccs: string[][] = [];
+  let currentIndex = 0;
+  
+  function strongConnect(nodeId: string) {
+    index.set(nodeId, currentIndex);
+    lowlink.set(nodeId, currentIndex);
+    currentIndex++;
+    stack.push(nodeId);
+    onStack.add(nodeId);
+    
+    const neighbors = adjacency.outgoing.get(nodeId) || [];
+    for (const neighbor of neighbors) {
+      if (!index.has(neighbor)) {
+        strongConnect(neighbor);
+        lowlink.set(nodeId, Math.min(lowlink.get(nodeId)!, lowlink.get(neighbor)!));
+      } else if (onStack.has(neighbor)) {
+        lowlink.set(nodeId, Math.min(lowlink.get(nodeId)!, index.get(neighbor)!));
+      }
+    }
+    
+    if (lowlink.get(nodeId) === index.get(nodeId)) {
+      const scc: string[] = [];
+      let w: string;
+      do {
+        w = stack.pop()!;
+        onStack.delete(w);
+        scc.push(w);
+      } while (w !== nodeId);
+      sccs.push(scc);
+    }
+  }
+  
+  for (const nodeId of nodeIds) {
+    if (!index.has(nodeId)) {
+      strongConnect(nodeId);
+    }
+  }
+  
+  return sccs;
+}
+
+function hasSelfLoop(nodeId: string, adjacency: AdjacencyMaps): boolean {
+  const outgoing = adjacency.outgoing.get(nodeId) || [];
+  return outgoing.includes(nodeId);
+}
+
+function detectLoopsWithoutExit(input: GraphInput, adjacency: AdjacencyMaps): DiagnosticIssue[] {
+  const issues: DiagnosticIssue[] = [];
+  const processedCycles = new Set<string>();
+  
+  const sccs = findStronglyConnectedComponents(adjacency);
+  
+  for (const scc of sccs) {
+    const isSingleNodeCycle = scc.length === 1 && hasSelfLoop(scc[0], adjacency);
+    if (scc.length < 2 && !isSingleNodeCycle) continue;
+    
+    const sccSet = new Set(scc);
+    let hasExitFromScc = false;
+    
+    for (const nodeId of scc) {
+      const node = adjacency.nodeMap.get(nodeId);
+      if (node && isTerminalNode(node)) {
+        hasExitFromScc = true;
+        break;
+      }
+      
+      const outNeighbors = adjacency.outgoing.get(nodeId) || [];
+      for (const neighbor of outNeighbors) {
+        if (!sccSet.has(neighbor)) {
+          hasExitFromScc = true;
+          break;
+        }
+      }
+      if (hasExitFromScc) break;
+    }
+    
+    if (!hasExitFromScc) {
+      const cycleKey = [...scc].sort().join(',');
+      if (processedCycles.has(cycleKey)) continue;
+      processedCycles.add(cycleKey);
+      
+      const firstNodeId = scc[0];
+      const node = adjacency.nodeMap.get(firstNodeId);
+      const label = node ? ((node.data as { label?: string })?.label || node.type) : 'Unknown';
+      
+      issues.push(createIssue(
+        input,
+        'loop-without-exit',
+        'Infinite loop detected',
+        `"${label}" is part of a loop with no exit path. Add a condition or branch to break out of the cycle.`,
+        'critical',
+        firstNodeId,
+        undefined,
+        'risk',
+        cycleKey
+      ));
+    }
+  }
+  
+  return issues;
+}
+
+export class DiagnosticsEngine {
+  private filterSpeculative(nodes: Node[], edges: Edge[]): { nodes: Node[]; edges: Edge[] } {
+    const filteredNodes = nodes.filter(n => !(n.meta as { speculative?: boolean })?.speculative);
+    const nodeIds = new Set(filteredNodes.map(n => n.id));
+    const filteredEdges = edges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target));
+    return { nodes: filteredNodes, edges: filteredEdges };
+  }
+  
+  analyze(input: GraphInput): DiagnosticIssue[] {
+    const { nodes, edges } = this.filterSpeculative(input.nodes, input.edges);
+    
+    if (nodes.length === 0) return [];
+    
+    const adjacency = buildAdjacencyMaps(nodes, edges);
+    const issues: DiagnosticIssue[] = [];
+    
+    issues.push(...detectMissingEndState(input, adjacency));
+    issues.push(...detectDeadEndNodes(input, adjacency));
+    issues.push(...detectDisconnectedSubgraphs(input, adjacency));
+    issues.push(...detectOrphanDecisions(input, adjacency));
+    issues.push(...detectLoopsWithoutExit(input, adjacency));
+    
+    return issues;
+  }
+  
+  getIssuesForNode(issues: DiagnosticIssue[], nodeId: string): DiagnosticIssue[] {
+    return issues.filter(i => i.nodeId === nodeId);
+  }
+  
+  getActiveIssues(issues: DiagnosticIssue[]): DiagnosticIssue[] {
+    return issues.filter(i => i.status !== 'resolved');
+  }
+  
+  getNewIssues(issues: DiagnosticIssue[]): DiagnosticIssue[] {
+    return issues.filter(i => i.status === 'new');
+  }
+}
+
+export const diagnosticsEngine = new DiagnosticsEngine();
+```
+
+
+## FILE: client/src/lib/kiteframe/hooks/useDiagnostics.ts
+## ---------------------------------------------------------------
+
+```typescript
+import { useState, useCallback, useEffect, useRef } from 'react';
+import type { Node, Edge } from '../types';
+import type { DiagnosticIssue } from '../utils/diagnostics/types';
+import { diagnosticsEngine } from '../utils/diagnostics/DiagnosticsEngine';
+import { diagnosticsStore } from '../utils/diagnostics/DiagnosticsStore';
+
+interface UseDiagnosticsOptions {
+  projectId: string;
+  workflowId?: string;
+  enabled?: boolean;
+  debounceMs?: number;
+  minEdges?: number;
+}
+
+const DEFAULT_MIN_EDGES = 3;
+
+interface UseDiagnosticsResult {
+  issues: DiagnosticIssue[];
+  activeIssues: DiagnosticIssue[];
+  newIssues: DiagnosticIssue[];
+  resolvedIssues: DiagnosticIssue[];
+  getIssuesForNode: (nodeId: string) => DiagnosticIssue[];
+  acknowledge: (issueId: string) => void;
+  unacknowledge: (issueId: string) => void;
+  acknowledgeAll: () => void;
+  refresh: () => void;
+  isLoading: boolean;
+}
+
+export function useDiagnostics(
+  nodes: Node[],
+  edges: Edge[],
+  options: UseDiagnosticsOptions
+): UseDiagnosticsResult {
+  const { projectId, workflowId, enabled = true, debounceMs = 300, minEdges = DEFAULT_MIN_EDGES } = options;
+  
+  const meetsEdgeThreshold = edges.length >= minEdges;
+  
+  const [issues, setIssues] = useState<DiagnosticIssue[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastNodesRef = useRef<string>('');
+  const lastEdgesRef = useRef<string>('');
+  
+  const runDetection = useCallback(() => {
+    if (!enabled || !projectId || !meetsEdgeThreshold) {
+      setIssues([]);
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const freshIssues = diagnosticsEngine.analyze({
+        nodes,
+        edges,
+        projectId,
+        workflowId,
+      });
+      
+      const storedIssues = diagnosticsStore.load(projectId);
+      const mergedIssues = diagnosticsStore.merge(storedIssues, freshIssues);
+      
+      diagnosticsStore.save(projectId, mergedIssues);
+      setIssues(mergedIssues);
+    } catch (e) {
+      console.error('[useDiagnostics] Detection failed:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [nodes, edges, projectId, workflowId, enabled, meetsEdgeThreshold]);
+  
+  useEffect(() => {
+    if (!enabled) {
+      setIssues([]);
+      return;
+    }
+    
+    const nodesKey = JSON.stringify(nodes.map(n => ({ id: n.id, type: n.type })));
+    const edgesKey = JSON.stringify(edges.map(e => ({ source: e.source, target: e.target })));
+    
+    if (nodesKey === lastNodesRef.current && edgesKey === lastEdgesRef.current) {
+      return;
+    }
+    
+    lastNodesRef.current = nodesKey;
+    lastEdgesRef.current = edgesKey;
+    
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    debounceRef.current = setTimeout(runDetection, debounceMs);
+    
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [nodes, edges, enabled, debounceMs, runDetection]);
+  
+  useEffect(() => {
+    if (enabled && projectId && meetsEdgeThreshold) {
+      const stored = diagnosticsStore.load(projectId);
+      if (stored.length > 0) {
+        setIssues(stored);
+      }
+    } else if (!meetsEdgeThreshold) {
+      setIssues([]);
+    }
+  }, [projectId, enabled, meetsEdgeThreshold]);
+  
+  const acknowledge = useCallback((fingerprint: string) => {
+    diagnosticsStore.acknowledge(projectId, fingerprint);
+    setIssues(diagnosticsStore.load(projectId));
+  }, [projectId]);
+  
+  const unacknowledge = useCallback((fingerprint: string) => {
+    diagnosticsStore.unacknowledge(projectId, fingerprint);
+    setIssues(diagnosticsStore.load(projectId));
+  }, [projectId]);
+  
+  const acknowledgeAll = useCallback(() => {
+    diagnosticsStore.acknowledgeAll(projectId);
+    setIssues(diagnosticsStore.load(projectId));
+  }, [projectId]);
+  
+  const getIssuesForNode = useCallback((nodeId: string) => {
+    return issues.filter(i => i.nodeId === nodeId && i.status !== 'resolved');
+  }, [issues]);
+  
+  const refresh = useCallback(() => {
+    runDetection();
+  }, [runDetection]);
+  
+  const activeIssues = issues.filter(i => i.status !== 'resolved');
+  const newIssues = issues.filter(i => i.status === 'new');
+  const resolvedIssues = issues.filter(i => i.status === 'resolved');
+  
+  return {
+    issues,
+    activeIssues,
+    newIssues,
+    resolvedIssues,
+    getIssuesForNode,
+    acknowledge,
+    unacknowledge,
+    acknowledgeAll,
+    refresh,
+    isLoading,
+  };
+}
+```
+
+
+## FILE: client/src/lib/kiteframe/components/DiagnosticBadge.tsx
+## ---------------------------------------------------------------
+
+```tsx
+import { memo, useState } from 'react';
+import { cn } from '@/lib/utils';
+import { AlertTriangle, AlertCircle, Info, XCircle, Check, ChevronRight, ExternalLink } from 'lucide-react';
+import type { DiagnosticIssue, DiagnosticSeverity } from '../utils/diagnostics/types';
+import { getHighestSeverity } from '../utils/diagnostics/types';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+
+interface DiagnosticBadgeProps {
+  issues: DiagnosticIssue[];
+  onAcknowledge?: (fingerprint: string) => void;
+  onUnacknowledge?: (fingerprint: string) => void;
+  onCreateExperiment?: (issue: DiagnosticIssue) => void;
+  onViewInPanel?: (issue: DiagnosticIssue) => void;
+  position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  className?: string;
+}
+
+const SEVERITY_STYLES: Record<DiagnosticSeverity, { bg: string; text: string; border: string; icon: typeof AlertTriangle }> = {
+  critical: {
+    bg: 'bg-red-500',
+    text: 'text-white',
+    border: 'border-red-600',
+    icon: XCircle,
+  },
+  risk: {
+    bg: 'bg-orange-500',
+    text: 'text-white',
+    border: 'border-orange-600',
+    icon: AlertTriangle,
+  },
+  warn: {
+    bg: 'bg-yellow-500',
+    text: 'text-yellow-900',
+    border: 'border-yellow-600',
+    icon: AlertCircle,
+  },
+  info: {
+    bg: 'bg-gray-400',
+    text: 'text-white',
+    border: 'border-gray-500',
+    icon: Info,
+  },
+};
+
+const POSITION_STYLES: Record<NonNullable<DiagnosticBadgeProps['position']>, string> = {
+  'top-left': '-top-2 -left-2',
+  'top-right': '-top-2 -right-2',
+  'bottom-left': '-bottom-2 -left-2',
+  'bottom-right': '-bottom-2 -right-2',
+};
+
+export const DiagnosticBadge = memo(function DiagnosticBadge({
+  issues,
+  onAcknowledge,
+  onUnacknowledge,
+  onCreateExperiment,
+  onViewInPanel,
+  position = 'top-right',
+  className,
+}: DiagnosticBadgeProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const activeIssues = issues.filter(i => i.status !== 'resolved');
+  const newIssues = activeIssues.filter(i => i.status === 'new');
+  
+  if (activeIssues.length === 0) return null;
+  
+  const highestSeverity = getHighestSeverity(newIssues) || getHighestSeverity(activeIssues) || 'info';
+  const styles = SEVERITY_STYLES[highestSeverity];
+  
+  const allAcknowledged = newIssues.length === 0;
+  
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            'absolute z-50 flex items-center justify-center',
+            'w-5 h-5 rounded-full border shadow-sm',
+            'transition-all duration-200 hover:scale-110',
+            allAcknowledged && 'opacity-60',
+            styles.bg,
+            styles.text,
+            styles.border,
+            POSITION_STYLES[position],
+            className,
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen(!isOpen);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          data-testid="diagnostic-badge"
+          title={`${activeIssues.length} issue${activeIssues.length !== 1 ? 's' : ''}`}
+        >
+          <span className="text-[10px] font-bold">{activeIssues.length}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-72 p-0 shadow-lg"
+        side="right"
+        align="start"
+        sideOffset={8}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {/* Popover content with issue list */}
+      </PopoverContent>
+    </Popover>
+  );
+});
+```
+
+
+## FILE: client/src/lib/kiteframe/components/DiagnosticOverlay.tsx
+## ---------------------------------------------------------------
+
+```tsx
+import { memo, useMemo, useCallback } from 'react';
+import type { Node } from '../types';
+import type { DiagnosticIssue } from '../utils/diagnostics/types';
+import { DiagnosticBadge } from './DiagnosticBadge';
+
+interface DiagnosticOverlayProps {
+  nodes: Node[];
+  viewport: { x: number; y: number; zoom: number };
+  issues?: DiagnosticIssue[];
+  onAcknowledge?: (fingerprint: string) => void;
+  onUnacknowledge?: (fingerprint: string) => void;
+  onViewInPanel?: (issue: DiagnosticIssue) => void;
+  onCreateExperiment?: (issue: DiagnosticIssue) => void;
+  minZoom?: number;
+}
+
+const MIN_ZOOM_THRESHOLD = 0.6;
+
+export const DiagnosticOverlay = memo(function DiagnosticOverlay({
+  nodes,
+  viewport,
+  issues = [],
+  onAcknowledge,
+  onUnacknowledge,
+  onViewInPanel,
+  onCreateExperiment,
+  minZoom = MIN_ZOOM_THRESHOLD,
+}: DiagnosticOverlayProps) {
+  // Hide badges when zoomed out too far
+  if (viewport.zoom < minZoom) return null;
+  
+  const getIssuesForNode = useCallback((nodeId: string) => {
+    return issues.filter(i => i.nodeId === nodeId && i.status !== 'resolved');
+  }, [issues]);
+  
+  const nodesWithIssues = useMemo(() => {
+    return nodes
+      .filter(node => !node.meta?.speculative)
+      .map(node => ({
+        node,
+        issues: getIssuesForNode(node.id),
+      }))
+      .filter(({ issues }) => issues.length > 0);
+  }, [nodes, getIssuesForNode]);
+  
+  if (nodesWithIssues.length === 0) return null;
+  
+  return (
+    <div 
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+      style={{ zIndex: 45 }}
+      data-testid="diagnostic-overlay"
+    >
+      {nodesWithIssues.map(({ node, issues: nodeIssues }) => {
+        const nodeWidth = node.style?.width || node.width || 220;
+        const screenX = (node.position.x + nodeWidth) * viewport.zoom + viewport.x;
+        const screenY = node.position.y * viewport.zoom + viewport.y;
+        
+        return (
+          <div
+            key={node.id}
+            className="pointer-events-auto absolute"
+            style={{
+              left: screenX - 8,
+              top: screenY - 8,
+              transform: `scale(${Math.min(1, viewport.zoom + 0.3)})`,
+              transformOrigin: 'top right',
+              willChange: 'left, top, transform',
+            }}
+            data-testid={`diagnostic-overlay-${node.id}`}
+          >
+            <DiagnosticBadge
+              issues={nodeIssues}
+              onAcknowledge={onAcknowledge}
+              onUnacknowledge={onUnacknowledge}
+              onCreateExperiment={onCreateExperiment}
+              onViewInPanel={onViewInPanel}
+              position="top-right"
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+```
+
+
+## FILE: client/src/components/panels/ProjectPanel/DiagnosticsTab.tsx
+## ---------------------------------------------------------------
+
+```tsx
+import { memo, useEffect, useRef } from 'react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, AlertCircle, Info, XCircle, Check, ChevronRight, RefreshCw, CheckCheck, Focus } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { DiagnosticIssue, DiagnosticSeverity } from '@/lib/kiteframe/utils/diagnostics/types';
+
+interface DiagnosticsTabProps {
+  issues: DiagnosticIssue[];
+  isLoading: boolean;
+  onAcknowledge: (fingerprint: string) => void;
+  onUnacknowledge: (fingerprint: string) => void;
+  onAcknowledgeAll: () => void;
+  onRefresh: () => void;
+  onCreateExperiment?: (issue: DiagnosticIssue) => void;
+  onNavigateToNode?: (nodeId: string) => void;
+  focusedFingerprint?: string | null;
+}
+
+const SEVERITY_STYLES: Record<DiagnosticSeverity, { bg: string; text: string; icon: typeof AlertTriangle; label: string }> = {
+  critical: {
+    bg: 'bg-red-100 dark:bg-red-900/30',
+    text: 'text-red-600 dark:text-red-400',
+    icon: XCircle,
+    label: 'Critical',
+  },
+  risk: {
+    bg: 'bg-orange-100 dark:bg-orange-900/30',
+    text: 'text-orange-600 dark:text-orange-400',
+    icon: AlertTriangle,
+    label: 'Risk',
+  },
+  warn: {
+    bg: 'bg-yellow-100 dark:bg-yellow-900/30',
+    text: 'text-yellow-700 dark:text-yellow-400',
+    icon: AlertCircle,
+    label: 'Warning',
+  },
+  info: {
+    bg: 'bg-gray-100 dark:bg-gray-800',
+    text: 'text-gray-600 dark:text-gray-400',
+    icon: Info,
+    label: 'Info',
+  },
+};
+
+export const DiagnosticsTab = memo(function DiagnosticsTab({
+  issues,
+  isLoading,
+  onAcknowledge,
+  onUnacknowledge,
+  onAcknowledgeAll,
+  onRefresh,
+  onCreateExperiment,
+  onNavigateToNode,
+  focusedFingerprint,
+}: DiagnosticsTabProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const focusedRowRef = useRef<HTMLDivElement>(null);
+  
+  const activeIssues = issues.filter(i => i.status !== 'resolved');
+  const newIssues = activeIssues.filter(i => i.status === 'new');
+  
+  // Scroll focused issue into view
+  useEffect(() => {
+    if (focusedFingerprint && focusedRowRef.current) {
+      focusedRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [focusedFingerprint]);
+  
+  // Empty state
+  if (activeIssues.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+        <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
+          <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+          No Issues Found
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs">
+          Your workflow looks good! All diagnostic checks passed.
+        </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRefresh}
+          className="mt-4"
+          disabled={isLoading}
+        >
+          <RefreshCw className={cn('w-4 h-4 mr-2', isLoading && 'animate-spin')} />
+          Refresh
+        </Button>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header with actions */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-medium">Issues</h3>
+          <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 dark:bg-red-900/30 text-red-600">
+            {newIssues.length} new
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={onAcknowledgeAll} disabled={newIssues.length === 0}>
+            <CheckCheck className="w-3.5 h-3.5 mr-1" />
+            Acknowledge All
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onRefresh} disabled={isLoading}>
+            <RefreshCw className={cn('w-3.5 h-3.5', isLoading && 'animate-spin')} />
+          </Button>
+        </div>
+      </div>
+      
+      {/* Issue list - click to navigate */}
+      <ScrollArea className="flex-1">
+        <div className="divide-y divide-border">
+          {activeIssues.map((issue) => {
+            const styles = SEVERITY_STYLES[issue.severity];
+            const Icon = styles.icon;
+            const isAcknowledged = issue.status === 'acknowledged';
+            const isFocused = focusedFingerprint === issue.fingerprint;
+            
+            return (
+              <div
+                key={issue.fingerprint}
+                ref={isFocused ? focusedRowRef : undefined}
+                className={cn(
+                  'px-4 py-3 transition-colors cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50',
+                  isAcknowledged && 'opacity-60',
+                  isFocused && 'bg-purple-50 dark:bg-purple-900/20 ring-1 ring-purple-400',
+                )}
+                onClick={() => issue.nodeId && onNavigateToNode?.(issue.nodeId)}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={cn('mt-0.5 p-1.5 rounded', styles.bg)}>
+                    <Icon className={cn('w-4 h-4', styles.text)} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={cn('text-xs font-medium', styles.text)}>
+                        {styles.label}
+                      </span>
+                      {issue.nodeId && (
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <Focus className="w-3 h-3" />
+                          Node: {issue.nodeId.slice(0, 8)}...
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-sm font-medium mb-1">{issue.title}</h4>
+                    <p className="text-xs text-gray-500 line-clamp-2 mb-2">{issue.description}</p>
+                    <div className="flex items-center gap-2">
+                      {isAcknowledged ? (
+                        <Button variant="ghost" size="sm" onClick={() => onUnacknowledge(issue.fingerprint)}>
+                          <Check className="w-3 h-3 mr-1" />
+                          Acknowledged
+                        </Button>
+                      ) : (
+                        <Button variant="ghost" size="sm" onClick={() => onAcknowledge(issue.fingerprint)}>
+                          <Check className="w-3 h-3 mr-1" />
+                          Acknowledge
+                        </Button>
+                      )}
+                      {issue.recommendedAction?.kind === 'create-experiment' && onCreateExperiment && (
+                        <Button variant="ghost" size="sm" onClick={() => onCreateExperiment(issue)}>
+                          <ChevronRight className="w-3 h-3 mr-1" />
+                          Explore Fix
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+});
+```
+
+
+## USAGE IN WORKFLOW EDITOR
+## ---------------------------------------------------------------
+
+The diagnostics system is integrated in workflow-editor.tsx:
+
+```tsx
+// 1. Import the hook and components
+import {
+  useDiagnostics,
+  DiagnosticOverlay,
+} from '@/lib/kiteframe';
+
+// 2. Use the hook with nodes and edges
+const diagnostics = useDiagnostics(nodes, edges, {
+  projectId: activeTab?.projectUuid || activeTabId,
+  workflowId: activeTab?.id,
+  enabled: true,
+  minEdges: 3, // Only run diagnostics when workflow has 3+ edges
+});
+
+// 3. Render the overlay on the canvas
+<DiagnosticOverlay
+  nodes={nodes}
+  viewport={viewport}
+  issues={diagnostics.issues}
+  onAcknowledge={diagnostics.acknowledge}
+  onUnacknowledge={diagnostics.unacknowledge}
+  onViewInPanel={(issue) => {
+    setFocusedDiagnosticFingerprint(issue.fingerprint);
+    setForcePanelTab('diagnostics');
+  }}
+  onCreateExperiment={(issue) => {
+    console.log('[Diagnostics] Create experiment for:', issue.nodeId);
+  }}
+/>
+
+// 4. Pass diagnostics to ProjectPanel
+<ProjectPanel
+  diagnosticsIssues={diagnostics.issues}
+  diagnosticsLoading={diagnostics.isLoading}
+  onDiagnosticsAcknowledge={diagnostics.acknowledge}
+  onDiagnosticsUnacknowledge={diagnostics.unacknowledge}
+  onDiagnosticsAcknowledgeAll={diagnostics.acknowledgeAll}
+  onDiagnosticsRefresh={diagnostics.refresh}
+  onDiagnosticsNavigateToNode={focusOnNode}
+  focusedDiagnosticFingerprint={focusedDiagnosticFingerprint}
+  forceTab={forcePanelTab}
+/>
+```
+
+
+## DESIGN DECISIONS
+## ---------------------------------------------------------------
+
+1. **Edge Threshold (3+)**: Diagnostics only run when edges.length >= 3
+   - Prevents noise on simple/early workflows
+   - Respects threshold when hydrating from localStorage
+
+2. **Zoom Threshold (0.6)**: Badges hidden when zoom < 0.6
+   - Reduces visual clutter when zoomed out
+   - Badges reappear when zoomed in sufficiently
+
+3. **Badge Display**: Count only (no severity icons)
+   - Cleaner, minimal visual footprint
+   - Color indicates highest severity
+
+4. **Z-Index (45)**: Above nodes (~10-20), below UI elements (~100+)
+   - Badges don't interfere with header/toolbar
+   - Still visible above workflow nodes
+
+5. **Click-to-Navigate**: Clicking issue in panel focuses node
+   - Uses focusOnNode() to zoom and center
+   - Selects the node for visibility
