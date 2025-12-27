@@ -44,6 +44,7 @@ export { useKeyboardShortcuts, defaultKeyboardShortcuts } from './hooks/useKeybo
 export type { KeyboardShortcut } from './hooks/useKeyboardShortcuts';
 export { useUndoRedo } from './hooks/useUndoRedo';
 export type { UseUndoRedoOptions, UseUndoRedoCallbacks } from './hooks/useUndoRedo';
+export { useDiagnostics } from './hooks/useDiagnostics';
 
 // Types
 export type { 
@@ -254,6 +255,8 @@ export {
 export {
   DiagnosticsEngine,
   diagnosticsEngine,
+  DiagnosticsStore,
+  diagnosticsStore,
   SEVERITY_CONFIG,
   getSeverityPriority,
   getHighestSeverity
