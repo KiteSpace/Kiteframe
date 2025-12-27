@@ -83,7 +83,7 @@ export const DiagnosticBadge = memo(function DiagnosticBadge({
             'absolute z-50 flex items-center justify-center',
             'w-5 h-5 rounded-full border shadow-sm',
             'transition-all duration-200 hover:scale-110',
-            allAcknowledged ? 'opacity-60' : 'animate-pulse',
+            allAcknowledged && 'opacity-60',
             styles.bg,
             styles.text,
             styles.border,

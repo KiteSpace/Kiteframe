@@ -36,8 +36,6 @@ export const DiagnosticOverlay = memo(function DiagnosticOverlay({
       .filter(({ issues }) => issues.length > 0);
   }, [nodes, getIssuesForNode]);
   
-  console.log('[DiagnosticOverlay] Issues:', issues.length, 'Nodes with issues:', nodesWithIssues.length);
-  
   if (nodesWithIssues.length === 0) return null;
   
   const handleViewInPanel = (issue: DiagnosticIssue) => {
@@ -68,6 +66,7 @@ export const DiagnosticOverlay = memo(function DiagnosticOverlay({
               top: screenY - 8,
               transform: `scale(${Math.min(1, viewport.zoom + 0.3)})`,
               transformOrigin: 'top right',
+              willChange: 'left, top, transform',
             }}
             data-testid={`diagnostic-overlay-${node.id}`}
           >
