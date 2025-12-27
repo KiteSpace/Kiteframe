@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2024-12-27
+
+### Added
+- **Workflow Diagnostics System**: Deterministic detection of workflow issues with 5 v1 detectors
+  - Missing end state: Workflows without terminal nodes
+  - Dead-end nodes: Non-output nodes with no outgoing edges
+  - Disconnected subgraphs: Nodes unreachable from entry points
+  - Orphan decisions: Condition nodes missing yes/no branches
+  - Loops without exit: Cycles with no escape path (uses Tarjan's SCC algorithm)
+- **DiagnosticsEngine**: Graph analysis utilities with adjacency maps and connected component detection
+- **DiagnosticsStore**: localStorage persistence with merge logic preserving acknowledged status across recomputation
+- **useDiagnostics hook**: React hook with debounced detection (300ms) and fingerprint-based issue tracking
+- **DiagnosticBadge component**: Visual indicator on nodes with severity-based colors (red/orange/yellow/grey)
+- **DiagnosticPopover**: Issue summary with Acknowledge, Create Experiment, and View in Panel actions
+- **Fingerprint system**: Stable issue identity using deterministic hash of projectId + workflowId + type + nodeId
+
+### Technical Details
+- Speculative node filtering: Excludes nodes with `meta.speculative === true` from diagnostics
+- Semantic severity levels: info, warn, risk, critical with SEVERITY_CONFIG color mappings
+- Status lifecycle: new → acknowledged → resolved with timestamps
+
 ## [1.2.0] - 2024-12-27
 
 ### Added
