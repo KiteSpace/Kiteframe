@@ -299,10 +299,17 @@ export function shouldExecuteFastPath(
     return true;
   }
   
-  // UI actions ALWAYS override AI uncertainty
+  // Button clicks require at least some context OR execution-ready state
   if (trigger === 'button') {
-    console.log('[KiteAI] Fast path: Generate button clicked - bypassing clarification');
-    return true;
+    const hasConversation = context.conversationHistory.length > 0;
+    const isExecutionReady = context.state === 'execution-ready';
+    
+    if (hasConversation || isExecutionReady) {
+      console.log('[KiteAI] Fast path: Generate button with context - bypassing clarification');
+      return true;
+    }
+    console.log('[KiteAI] Fast path: Generate button - no context yet, allowing first turn');
+    return false;
   }
   
   if (trigger === 'experiment') {
@@ -311,8 +318,19 @@ export function shouldExecuteFastPath(
   }
   
   if (trigger === 'image') {
-    console.log('[KiteAI] Fast path: Image/Figma upload with Generate - bypassing clarification');
-    return true;
+    // Image/Figma uploads: only fast-path after max turns OR if already execution-ready
+    const hasVisionSources = context.sources.some(
+      s => s.type === 'image' || s.type === 'figma-frame'
+    );
+    const maxTurnsReached = hasReachedMaxClarificationTurns(context);
+    const isExecutionReady = context.state === 'execution-ready';
+    
+    if (hasVisionSources && (maxTurnsReached || isExecutionReady)) {
+      console.log('[KiteAI] Fast path: Image/Figma with max turns or execution-ready - bypassing clarification');
+      return true;
+    }
+    console.log('[KiteAI] Fast path: Image/Figma - not ready yet (turns:', getClarificationTurnCount(context), '/', MAX_CLARIFICATION_TURNS, ')');
+    return false;
   }
   
   // Phrase trigger requires message check

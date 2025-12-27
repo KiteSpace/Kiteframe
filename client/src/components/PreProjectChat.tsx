@@ -402,14 +402,15 @@ export function PreProjectChat({
     });
     
     // Check fast-path for image/Figma uploads (trigger: 'image')
+    // The gate now includes max turns check internally
     const imageFastPath = hasUploadedFiles && checkFastPath('image', content);
     if (imageFastPath) {
-      console.log('[KiteAI Fast-Path] IMAGE FAST-PATH triggered - vision content with sufficient turns');
+      console.log('[KiteAI Fast-Path] IMAGE FAST-PATH triggered - vision content with sufficient context');
     }
 
     // CRITICAL: If forceExecution is true OR image fast-path triggers, generate immediately
     // Skip AI response entirely - this is the execution confirmation
-    if (processResult.forceExecution || (imageFastPath && hasReachedMaxTurns())) {
+    if (processResult.forceExecution || imageFastPath) {
       console.log('[PreProjectChat] FORCE EXECUTION - triggering workflow generation immediately');
       setIsExecuting(true);
       triggerExecution(); // Mark execution latch
