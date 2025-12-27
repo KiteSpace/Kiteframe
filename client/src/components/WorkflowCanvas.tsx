@@ -214,20 +214,21 @@ export function WorkflowCanvas({
       }
     });
     
-    // Build new hidden map - remove workflow groups AND their child nodes
-    const newHidden: Record<string, boolean> = {};
-    Object.entries(hidden).forEach(([id, isHidden]) => {
-      // Skip workflow groups (unhide them)
-      if (id.startsWith('wf:')) return;
-      // Skip nodes that belong to hidden workflows (unhide them)
-      if (nodeIdsInHiddenWorkflows.has(id)) return;
-      // Keep everything else
-      if (isHidden) {
-        newHidden[id] = isHidden;
-      }
+    // VLStore.set MERGES values, so we must explicitly set false for items to unhide
+    const hiddenUpdates: Record<string, boolean> = {};
+    
+    // Set all workflow groups to false (unhide them)
+    hiddenWorkflowIds.forEach(id => {
+      hiddenUpdates[id] = false;
     });
-    VLStore.set({ hidden: newHidden, locked });
-  }, [hidden, locked]);
+    
+    // Set all child nodes of hidden workflows to false (unhide them)
+    nodeIdsInHiddenWorkflows.forEach(id => {
+      hiddenUpdates[id] = false;
+    });
+    
+    VLStore.set({ hidden: hiddenUpdates });
+  }, [hidden]);
   
   const onNodesChangeGuarded = useCallback((newNodes: Node[]) => {
     // Guard against position changes and deletions for locked nodes
