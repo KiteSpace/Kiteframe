@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
 import { FloatingToolbar } from './FloatingToolbar';
 import type { Node, Edge, CanvasObject, ProFeaturesConfig, TextNodeData, ShapeNodeData, StickyNoteData, DataTable, SavedCompoundTemplate } from '../lib/kiteframe/types';
@@ -7,8 +7,9 @@ import type { WorkflowTheme } from '../lib/themes';
 import { VLStore } from '@/components/layers/visibilityLockStore';
 import { AncestorsStore } from '@/components/layers/ancestorsStore';
 import { isEffectivelyOn } from '@/components/layers/triStateUtils';
-import { Undo, Redo, ZoomIn, Maximize2, LayoutGrid, ChevronRight } from 'lucide-react';
+import { Undo, Redo, ZoomIn, Maximize2, LayoutGrid, ChevronRight, EyeOff } from 'lucide-react';
 import { focusBus, type FocusEvent } from '@/stores/focusBus';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface WorkflowCanvasProps {
   nodes: Node[];
@@ -187,14 +188,142 @@ export function WorkflowCanvas({
   const visibleEdges = edges.filter((e:any) => !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target));
 
   const isLocked = (id:string) => isEffectivelyOn(id, ancestorsForId(id), locked);
-  const onNodesChangeGuarded = useCallback((changes:any[])=>{
-    const filtered = changes.filter(ch => !(ch.type==='position' && isLocked(ch.id)));
-    onNodesChange?.(filtered);
-  }, [onNodesChange, locked]);
+  
+  // Count hidden workflows (workflow group IDs start with 'wf:')
+  const hiddenWorkflowCount = useMemo(() => {
+    return Object.entries(hidden).filter(([id, isHidden]) => 
+      isHidden && id.startsWith('wf:')
+    ).length;
+  }, [hidden]);
+  
+  // Unhide all workflows (clears workflow group flags AND their child nodes)
+  const unhideAllWorkflows = useCallback(() => {
+    // Get all hidden workflow IDs
+    const hiddenWorkflowIds = Object.entries(hidden)
+      .filter(([id, isHidden]) => isHidden && id.startsWith('wf:'))
+      .map(([id]) => id);
+    
+    // Get all child node IDs for hidden workflows from ancestors store
+    const ancestors = AncestorsStore.get();
+    const nodeIdsInHiddenWorkflows = new Set<string>();
+    
+    Object.entries(ancestors).forEach(([nodeId, ancestorIds]) => {
+      // If any ancestor is a hidden workflow, mark this node for unhiding
+      if (ancestorIds.some(ancestorId => hiddenWorkflowIds.includes(ancestorId))) {
+        nodeIdsInHiddenWorkflows.add(nodeId);
+      }
+    });
+    
+    // Build new hidden map - remove workflow groups AND their child nodes
+    const newHidden: Record<string, boolean> = {};
+    Object.entries(hidden).forEach(([id, isHidden]) => {
+      // Skip workflow groups (unhide them)
+      if (id.startsWith('wf:')) return;
+      // Skip nodes that belong to hidden workflows (unhide them)
+      if (nodeIdsInHiddenWorkflows.has(id)) return;
+      // Keep everything else
+      if (isHidden) {
+        newHidden[id] = isHidden;
+      }
+    });
+    VLStore.set({ hidden: newHidden, locked });
+  }, [hidden, locked]);
+  
+  const onNodesChangeGuarded = useCallback((newNodes: Node[]) => {
+    // Guard against position changes and deletions for locked nodes
+    // KiteFrameCanvas sends full Node[] arrays, not change objects
+    
+    // Create a map of current node positions for locked nodes
+    const lockedNodePositions = new Map<string, { x: number; y: number }>();
+    const lockedNodeIds = new Set<string>();
+    
+    nodes.forEach(node => {
+      if (isLocked(node.id)) {
+        lockedNodePositions.set(node.id, { ...node.position });
+        lockedNodeIds.add(node.id);
+      }
+    });
+    
+    // Check if any locked nodes were removed
+    const newNodeIds = new Set(newNodes.map(n => n.id));
+    const removedLockedNodes = nodes.filter(n => lockedNodeIds.has(n.id) && !newNodeIds.has(n.id));
+    
+    // Restore positions for locked nodes that were dragged
+    let finalNodes = newNodes.map(node => {
+      if (lockedNodePositions.has(node.id)) {
+        const originalPos = lockedNodePositions.get(node.id)!;
+        // Restore position if it changed
+        if (node.position.x !== originalPos.x || node.position.y !== originalPos.y) {
+          return { ...node, position: originalPos };
+        }
+      }
+      return node;
+    });
+    
+    // Re-add any locked nodes that were removed
+    if (removedLockedNodes.length > 0) {
+      finalNodes = [...finalNodes, ...removedLockedNodes];
+    }
+    
+    onNodesChange?.(finalNodes);
+  }, [onNodesChange, nodes, locked]);
   const onConnectGuarded = useCallback((conn:any)=>{
     if (isLocked(conn.source) || isLocked(conn.target)) return;
     onConnect?.(conn);
   }, [onConnect, locked]);
+  
+  // Guard node double-click (inline editing) for locked nodes
+  const onNodeDoubleClickGuarded = useCallback((e: React.MouseEvent, node: Node, part?: 'header' | 'body') => {
+    if (isLocked(node.id)) return;
+    onNodeDoubleClick?.(e, node, part);
+  }, [onNodeDoubleClick, locked]);
+  
+  // Guard node right-click (context menu) for locked nodes
+  const onNodeRightClickGuarded = useCallback((e: React.MouseEvent, node: Node) => {
+    if (isLocked(node.id)) {
+      e.preventDefault();
+      return;
+    }
+    onNodeRightClick?.(e, node);
+  }, [onNodeRightClick, locked]);
+  
+  // Guard edge double-click (label editing) for locked edges
+  const onEdgeDoubleClickGuarded = useCallback((edge: Edge) => {
+    if (isLocked(edge.source) || isLocked(edge.target)) return;
+    onEdgeDoubleClick?.(edge);
+  }, [onEdgeDoubleClick, locked]);
+  
+  // Guard edge label save for locked edges
+  const onEdgeLabelSaveGuarded = useCallback((edgeId: string, newLabel: string) => {
+    const edge = edges.find(e => e.id === edgeId);
+    if (edge && (isLocked(edge.source) || isLocked(edge.target))) return;
+    onEdgeLabelSave?.(edgeId, newLabel);
+  }, [onEdgeLabelSave, edges, locked]);
+  
+  // Guard edges change for locked edges
+  const onEdgesChangeGuarded = useCallback((newEdges: Edge[]) => {
+    // Prevent deletion of edges connected to locked nodes
+    const currentEdgeIds = new Set(edges.map(e => e.id));
+    const newEdgeIds = new Set(newEdges.map(e => e.id));
+    
+    // Check if any locked edges are being removed
+    const removedEdges = edges.filter(e => !newEdgeIds.has(e.id));
+    const hasLockedRemoval = removedEdges.some(e => isLocked(e.source) || isLocked(e.target));
+    
+    if (hasLockedRemoval) {
+      // Restore the locked edges that were removed
+      const lockedEdges = removedEdges.filter(e => isLocked(e.source) || isLocked(e.target));
+      onEdgesChange?.([...newEdges, ...lockedEdges]);
+    } else {
+      onEdgesChange?.(newEdges);
+    }
+  }, [onEdgesChange, edges, locked]);
+  
+  // Guard inline editing save for locked nodes
+  const onInlineEditingSaveGuarded = useCallback((nodeId: string, part: 'header' | 'body', value: string) => {
+    if (isLocked(nodeId)) return;
+    onInlineEditingSave?.(nodeId, part, value);
+  }, [onInlineEditingSave, locked]);
 
   // Canvas container ref for accurate dimensions
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -430,15 +559,15 @@ export function WorkflowCanvas({
         edges={visibleEdges}
         canvasObjects={canvasObjects}
         onNodesChange={onNodesChangeGuarded}
-        onEdgesChange={onEdgesChange}
+        onEdgesChange={onEdgesChangeGuarded}
         onCanvasObjectsChange={onCanvasObjectsChange}
         onConnect={onConnectGuarded}
         onNodeClick={onNodeClick}
-        onNodeDoubleClick={onNodeDoubleClick}
+        onNodeDoubleClick={onNodeDoubleClickGuarded}
         onEdgeClick={(e, edge) => onEdgeClick?.(edge)}
-        onEdgeDoubleClick={(e, edge) => onEdgeDoubleClick?.(edge)}
+        onEdgeDoubleClick={(e, edge) => onEdgeDoubleClickGuarded?.(edge)}
         onCanvasClick={onCanvasClick}
-        onNodeRightClick={onNodeRightClick}
+        onNodeRightClick={onNodeRightClickGuarded}
         onCanvasObjectClick={onCanvasObjectClick}
         onCanvasObjectRightClick={onCanvasObjectRightClick}
         onImageButtonClick={onImageButtonClick}
@@ -458,8 +587,8 @@ export function WorkflowCanvas({
         connectionAnimationConfig={connectionAnimationConfig}
         connectionPreview={connectionPreview}
         inlineEditing={inlineEditing}
-        onInlineEditingSave={onInlineEditingSave}
-        onEdgeLabelSave={onEdgeLabelSave}
+        onInlineEditingSave={onInlineEditingSaveGuarded}
+        onEdgeLabelSave={onEdgeLabelSaveGuarded}
         onInlineEditingCancel={onInlineEditingCancel}
         onTextSelectionChange={onTextSelectionChange}
         onHyperlinkEdit={onHyperlinkEdit}
@@ -509,6 +638,26 @@ export function WorkflowCanvas({
         canRedo={canRedo}
       />
 
+      {/* Hidden Workflows Chip */}
+      {hiddenWorkflowCount > 0 && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={unhideAllWorkflows}
+                className="absolute top-3 right-14 flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-xs font-medium rounded-full shadow-lg hover:bg-gray-800 dark:hover:bg-gray-700 transition-colors z-50"
+                data-testid="button-unhide-workflows"
+              >
+                <EyeOff size={12} />
+                <span>{hiddenWorkflowCount}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="bg-gray-900 text-white text-xs">
+              Unhide workflows
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
 
       {/* Minimap removed to improve performance */}
     </div>

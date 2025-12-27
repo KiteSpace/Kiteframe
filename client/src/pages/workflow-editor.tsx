@@ -73,6 +73,9 @@ import {
 } from "../lib/kiteframe/utils/FlowDetection";
 import { DEFAULT_SHAPE_NODE_DATA } from "../lib/kiteframe/constants/defaults";
 import { recalculateAllEdgeZIndexes } from "../lib/kiteframe/utils/edgeZIndex";
+import { VLStore } from "@/components/layers/visibilityLockStore";
+import { AncestorsStore } from "@/components/layers/ancestorsStore";
+import { isEffectivelyOn } from "@/components/layers/triStateUtils";
 import {
   applyThemeToNode,
   applyThemeToEdge,
@@ -3924,27 +3927,51 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
       // Delete key handler (Delete or Backspace)
       if (e.key === "Delete" || e.key === "Backspace") {
+        // Get lock state from VLStore to check if items are locked
+        const { locked } = VLStore.get();
+        const ancestors = AncestorsStore.get();
+        const isNodeLocked = (nodeId: string) => 
+          isEffectivelyOn(nodeId, ancestors[nodeId] ?? [], locked);
+        const isEdgeLocked = (edge: Edge) => 
+          isNodeLocked(edge.source) || isNodeLocked(edge.target);
+        
         const selectedNodesList = nodes.filter((n) => n.selected);
         const selectedEdgesList = edges.filter((edge) => edge.selected);
         const hasSelectedObjects = selectedCanvasObjects.length > 0;
+        
+        // Filter out locked items - only delete unlocked ones
+        const deletableNodes = selectedNodesList.filter((n) => !isNodeLocked(n.id));
+        const deletableEdges = selectedEdgesList.filter((e) => !isEdgeLocked(e));
+        const lockedNodesCount = selectedNodesList.length - deletableNodes.length;
+        const lockedEdgesCount = selectedEdgesList.length - deletableEdges.length;
 
         // Track what was deleted for the label
         const deletedItems: string[] = [];
 
-        if (selectedNodesList.length > 0) {
+        if (deletableNodes.length > 0) {
           e.preventDefault();
-          setNodes((prev) => prev.filter((n) => !n.selected));
-          setSelectedNodeId("");
-          setLinearToolbar(null);
-          deletedItems.push(`${selectedNodesList.length} node(s)`);
+          const deletableNodeIds = new Set(deletableNodes.map((n) => n.id));
+          setNodes((prev) => prev.filter((n) => !deletableNodeIds.has(n.id)));
+          deletedItems.push(`${deletableNodes.length} node(s)`);
+          
+          // Only clear selection if ALL selected nodes were deleted
+          if (lockedNodesCount === 0) {
+            setSelectedNodeId("");
+            setLinearToolbar(null);
+          }
         }
 
-        if (selectedEdgesList.length > 0) {
+        if (deletableEdges.length > 0) {
           e.preventDefault();
-          setEdges((prev) => prev.filter((edge) => !edge.selected));
-          setSelectedEdgeId("");
-          setLinearToolbar(null);
-          deletedItems.push(`${selectedEdgesList.length} edge(s)`);
+          const deletableEdgeIds = new Set(deletableEdges.map((e) => e.id));
+          setEdges((prev) => prev.filter((edge) => !deletableEdgeIds.has(edge.id)));
+          deletedItems.push(`${deletableEdges.length} edge(s)`);
+          
+          // Only clear selection if ALL selected edges were deleted
+          if (lockedEdgesCount === 0) {
+            setSelectedEdgeId("");
+            setLinearToolbar(null);
+          }
         }
 
         // Delete selected canvas objects
