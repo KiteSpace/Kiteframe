@@ -11,7 +11,10 @@ interface DiagnosticOverlayProps {
   onUnacknowledge?: (fingerprint: string) => void;
   onViewInPanel?: (issue: DiagnosticIssue) => void;
   onCreateExperiment?: (issue: DiagnosticIssue) => void;
+  minZoom?: number;
 }
+
+const MIN_ZOOM_THRESHOLD = 0.6;
 
 export const DiagnosticOverlay = memo(function DiagnosticOverlay({
   nodes,
@@ -21,7 +24,9 @@ export const DiagnosticOverlay = memo(function DiagnosticOverlay({
   onUnacknowledge,
   onViewInPanel,
   onCreateExperiment,
+  minZoom = MIN_ZOOM_THRESHOLD,
 }: DiagnosticOverlayProps) {
+  if (viewport.zoom < minZoom) return null;
   const getIssuesForNode = useCallback((nodeId: string) => {
     return issues.filter(i => i.nodeId === nodeId && i.status !== 'resolved');
   }, [issues]);
@@ -49,7 +54,7 @@ export const DiagnosticOverlay = memo(function DiagnosticOverlay({
   return (
     <div 
       className="pointer-events-none absolute inset-0 overflow-hidden"
-      style={{ zIndex: 9999 }}
+      style={{ zIndex: 45 }}
       data-testid="diagnostic-overlay"
     >
       {nodesWithIssues.map(({ node, issues: nodeIssues }) => {

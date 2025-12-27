@@ -98,11 +98,7 @@ export const DiagnosticBadge = memo(function DiagnosticBadge({
           data-testid="diagnostic-badge"
           title={`${activeIssues.length} issue${activeIssues.length !== 1 ? 's' : ''}`}
         >
-          {activeIssues.length > 1 ? (
-            <span className="text-[10px] font-bold">{activeIssues.length}</span>
-          ) : (
-            <Icon size={12} />
-          )}
+          <span className="text-[10px] font-bold">{activeIssues.length}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent

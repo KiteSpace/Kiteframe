@@ -9,7 +9,10 @@ interface UseDiagnosticsOptions {
   workflowId?: string;
   enabled?: boolean;
   debounceMs?: number;
+  minEdges?: number;
 }
+
+const DEFAULT_MIN_EDGES = 3;
 
 interface UseDiagnosticsResult {
   issues: DiagnosticIssue[];
@@ -29,7 +32,9 @@ export function useDiagnostics(
   edges: Edge[],
   options: UseDiagnosticsOptions
 ): UseDiagnosticsResult {
-  const { projectId, workflowId, enabled = true, debounceMs = 300 } = options;
+  const { projectId, workflowId, enabled = true, debounceMs = 300, minEdges = DEFAULT_MIN_EDGES } = options;
+  
+  const meetsEdgeThreshold = edges.length >= minEdges;
   
   const [issues, setIssues] = useState<DiagnosticIssue[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -38,7 +43,7 @@ export function useDiagnostics(
   const lastEdgesRef = useRef<string>('');
   
   const runDetection = useCallback(() => {
-    if (!enabled || !projectId) {
+    if (!enabled || !projectId || !meetsEdgeThreshold) {
       setIssues([]);
       return;
     }
@@ -63,7 +68,7 @@ export function useDiagnostics(
     } finally {
       setIsLoading(false);
     }
-  }, [nodes, edges, projectId, workflowId, enabled]);
+  }, [nodes, edges, projectId, workflowId, enabled, meetsEdgeThreshold]);
   
   useEffect(() => {
     if (!enabled) {
@@ -95,13 +100,15 @@ export function useDiagnostics(
   }, [nodes, edges, enabled, debounceMs, runDetection]);
   
   useEffect(() => {
-    if (enabled && projectId) {
+    if (enabled && projectId && meetsEdgeThreshold) {
       const stored = diagnosticsStore.load(projectId);
       if (stored.length > 0) {
         setIssues(stored);
       }
+    } else if (!meetsEdgeThreshold) {
+      setIssues([]);
     }
-  }, [projectId, enabled]);
+  }, [projectId, enabled, meetsEdgeThreshold]);
   
   const acknowledge = useCallback((fingerprint: string) => {
     diagnosticsStore.acknowledge(projectId, fingerprint);
