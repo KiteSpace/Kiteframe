@@ -245,6 +245,9 @@ export function PreProjectChat({
     updateVisionSignals,
     triggerExecution,
     isExecutionTriggered,
+    checkFastPath,
+    getTurnCount,
+    hasReachedMaxTurns,
   } = useKiteAIConversation('base');
   
   // Track if we're in the process of generating a workflow (prevents duplicate generation)

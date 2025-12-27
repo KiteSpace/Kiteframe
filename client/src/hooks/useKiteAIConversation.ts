@@ -20,6 +20,7 @@ import {
   ConversationSource,
   ConversationSourceType,
   VisionExtractedSignals,
+  FastPathTrigger,
   createInitialContext,
   computeNextState,
   applyTransition,
@@ -28,8 +29,11 @@ import {
   addSource,
   getAggregatedVisionSignals,
   updateSourceSignals,
-  shouldForceExecution,
+  shouldForceExecution as shouldForceExecutionLegacy,
+  shouldExecuteFastPath,
   markExecutionTriggered,
+  getClarificationTurnCount,
+  hasReachedMaxClarificationTurns,
 } from '@/ai/kiteaiState';
 import {
   getSystemPrompt,
@@ -85,6 +89,12 @@ export interface UseKiteAIConversationResult {
    */
   checkForceExecution: (message: string) => boolean;
   /**
+   * Check if fast-path should be used based on trigger type.
+   * This is the centralized gate for bypassing clarification.
+   * Trigger types: 'button', 'phrase', 'experiment', 'image'
+   */
+  checkFastPath: (trigger: FastPathTrigger, message?: string) => boolean;
+  /**
    * Mark execution as triggered. Call this immediately before generating workflow.
    * This is a one-way latch that prevents duplicate generation.
    */
@@ -93,6 +103,14 @@ export interface UseKiteAIConversationResult {
    * Check if execution has already been triggered.
    */
   isExecutionTriggered: () => boolean;
+  /**
+   * Get the current clarification turn count.
+   */
+  getTurnCount: () => number;
+  /**
+   * Check if max clarification turns have been reached.
+   */
+  hasReachedMaxTurns: () => boolean;
 }
 
 export interface ProcessInputResult {
@@ -123,7 +141,7 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
   const processUserInput = useCallback((input: string): ProcessInputResult => {
     // CRITICAL: Check for forced execution FIRST (confirmation phrase in execution-ready state)
     // If user confirms, we should NOT send to AI - just trigger workflow generation immediately
-    const forceExec = shouldForceExecution(context, input);
+    const forceExec = shouldForceExecutionLegacy(context, input);
     
     if (forceExec) {
       console.log('[KiteAI] FORCE EXECUTION detected - user confirmed with:', input);
@@ -281,7 +299,29 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
    * Check if user's message should trigger immediate workflow execution.
    */
   const checkForceExecution = useCallback((message: string): boolean => {
-    return shouldForceExecution(context, message);
+    return shouldForceExecutionLegacy(context, message);
+  }, [context]);
+
+  /**
+   * Check if fast-path should be used based on trigger type.
+   * This is the centralized gate for bypassing clarification.
+   */
+  const checkFastPath = useCallback((trigger: FastPathTrigger, message?: string): boolean => {
+    return shouldExecuteFastPath(context, trigger, message);
+  }, [context]);
+
+  /**
+   * Get the current clarification turn count.
+   */
+  const getTurnCount = useCallback((): number => {
+    return getClarificationTurnCount(context);
+  }, [context]);
+
+  /**
+   * Check if max clarification turns have been reached.
+   */
+  const hasReachedMaxTurns = useCallback((): boolean => {
+    return hasReachedMaxClarificationTurns(context);
   }, [context]);
 
   /**
@@ -342,8 +382,11 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
     getVisionSignals,
     updateVisionSignals,
     checkForceExecution,
+    checkFastPath,
     triggerExecution,
     isExecutionTriggered,
+    getTurnCount,
+    hasReachedMaxTurns,
   };
 }
 

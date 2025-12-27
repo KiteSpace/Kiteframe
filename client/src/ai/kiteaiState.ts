@@ -96,6 +96,21 @@ export type ConfidenceLevel = 'silent' | 'clarify' | 'proposeAssumptions' | 'exe
 const ACTIONABILITY_THRESHOLD = 3;
 const VAGUE_REPLY_LIMIT = 2;
 
+/**
+ * HARD CAP: Maximum clarification turns before forcing execution-ready.
+ * After this many turns, we generate with assumptions rather than ask more questions.
+ */
+const MAX_CLARIFICATION_TURNS = 2;
+
+/**
+ * Fast path trigger types:
+ * - 'button': User clicked a Generate button (always fast-path)
+ * - 'phrase': User said a confirmation phrase (e.g., "yes", "go ahead")
+ * - 'experiment': Experiment node Generate (always fast-path)
+ * - 'image': Image/Figma upload + Generate (always fast-path)
+ */
+export type FastPathTrigger = 'button' | 'phrase' | 'experiment' | 'image';
+
 export function createInitialContext(mode: KiteAIMode = 'base'): ConversationContext {
   return {
     state: 'clarification',
@@ -263,6 +278,71 @@ export function markExecutionTriggered(context: ConversationContext): Conversati
     hasUserConfirmedExecution: true,
     executionTriggered: true,
   };
+}
+
+/**
+ * CENTRALIZED FAST PATH GATE
+ * 
+ * This is the SINGLE authoritative function for determining if we should bypass clarification.
+ * UI actions and explicit user commands override confidence scores.
+ * 
+ * Returns true if workflow should be generated immediately without further questions.
+ */
+export function shouldExecuteFastPath(
+  context: ConversationContext,
+  trigger: FastPathTrigger,
+  userMessage?: string
+): boolean {
+  // Already triggered - fast path is already in effect
+  if (context.executionTriggered) {
+    console.log('[KiteAI] Fast path: execution already triggered');
+    return true;
+  }
+  
+  // UI actions ALWAYS override AI uncertainty
+  if (trigger === 'button') {
+    console.log('[KiteAI] Fast path: Generate button clicked - bypassing clarification');
+    return true;
+  }
+  
+  if (trigger === 'experiment') {
+    console.log('[KiteAI] Fast path: Experiment node - bypassing clarification');
+    return true;
+  }
+  
+  if (trigger === 'image') {
+    console.log('[KiteAI] Fast path: Image/Figma upload with Generate - bypassing clarification');
+    return true;
+  }
+  
+  // Phrase trigger requires message check
+  if (trigger === 'phrase' && userMessage && isConfirmationPhrase(userMessage)) {
+    console.log('[KiteAI] Fast path: Confirmation phrase detected:', userMessage);
+    return true;
+  }
+  
+  // MAX_CLARIFICATION_TURNS cap: After 2 turns, force execution
+  const turnCount = context.conversationHistory.filter(m => m.role === 'user').length;
+  if (turnCount >= MAX_CLARIFICATION_TURNS && context.state !== 'execution-ready') {
+    console.log(`[KiteAI] Fast path: Max clarification turns (${MAX_CLARIFICATION_TURNS}) reached - forcing execution`);
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Get the current clarification turn count.
+ */
+export function getClarificationTurnCount(context: ConversationContext): number {
+  return context.conversationHistory.filter(m => m.role === 'user').length;
+}
+
+/**
+ * Check if max clarification turns have been reached.
+ */
+export function hasReachedMaxClarificationTurns(context: ConversationContext): boolean {
+  return getClarificationTurnCount(context) >= MAX_CLARIFICATION_TURNS;
 }
 
 /**
@@ -444,8 +524,31 @@ export function computeNextState(
   actionability: ActionabilityResult
 ): StateTransition {
   const currentState = context.state;
+  const turnCount = getClarificationTurnCount(context);
 
-  // HARD GATE: If confidence < 0.4, stay in current state or escalate (never proceed to execution)
+  // HARD GATE 1: Once executionTriggered is true, NEVER go back to clarification
+  if (context.executionTriggered) {
+    console.log('[KiteAI] Execution triggered - blocking any backward transition');
+    return {
+      from: currentState,
+      to: 'execution-ready',
+      reason: 'Execution triggered - state locked at execution-ready',
+      actionability,
+    };
+  }
+
+  // HARD GATE 2: After MAX_CLARIFICATION_TURNS, force execution-ready
+  if (turnCount >= MAX_CLARIFICATION_TURNS && currentState !== 'execution-ready') {
+    console.log(`[KiteAI] MAX_CLARIFICATION_TURNS (${MAX_CLARIFICATION_TURNS}) reached - forcing execution-ready`);
+    return {
+      from: currentState,
+      to: 'execution-ready',
+      reason: `Max clarification turns (${MAX_CLARIFICATION_TURNS}) reached - generating with assumptions`,
+      actionability,
+    };
+  }
+
+  // HARD GATE 3: If confidence < 0.4, stay in current state or escalate (never proceed to execution)
   if (isLowConfidence(actionability)) {
     console.log(`[KiteAI] LOW CONFIDENCE (${actionability.confidence}) - blocking progress`);
     
