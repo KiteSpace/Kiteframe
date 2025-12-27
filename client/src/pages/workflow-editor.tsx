@@ -73,7 +73,7 @@ import {
 } from "../lib/kiteframe/utils/FlowDetection";
 import { DEFAULT_SHAPE_NODE_DATA } from "../lib/kiteframe/constants/defaults";
 import { recalculateAllEdgeZIndexes } from "../lib/kiteframe/utils/edgeZIndex";
-import { VLStore } from "@/components/layers/visibilityLockStore";
+import { VLStore } from "@/stores/layersStateManager";
 import { AncestorsStore } from "@/components/layers/ancestorsStore";
 import { isEffectivelyOn } from "@/components/layers/triStateUtils";
 import {

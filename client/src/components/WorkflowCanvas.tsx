@@ -4,7 +4,7 @@ import { FloatingToolbar } from './FloatingToolbar';
 import type { Node, Edge, CanvasObject, ProFeaturesConfig, TextNodeData, ShapeNodeData, StickyNoteData, DataTable, SavedCompoundTemplate } from '../lib/kiteframe/types';
 import type { FlowSettings, FlowSettingsMap } from '../lib/kiteframe/utils/FlowDetection';
 import type { WorkflowTheme } from '../lib/themes';
-import { VLStore } from '@/components/layers/visibilityLockStore';
+import { VLStore } from '@/stores/layersStateManager';
 import { AncestorsStore } from '@/components/layers/ancestorsStore';
 import { isEffectivelyOn } from '@/components/layers/triStateUtils';
 import { Undo, Redo, ZoomIn, Maximize2, LayoutGrid, ChevronRight, EyeOff } from 'lucide-react';
