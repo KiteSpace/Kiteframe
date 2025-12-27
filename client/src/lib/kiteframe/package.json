@@ -1,6 +1,6 @@
 {
   "name": "@kiteline/core",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "A powerful, extensible React canvas library for building workflow editors and node-based UIs",
   "main": "./index.ts",
   "types": "./index.ts",

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2024-12-27
+
+### Added
+- **Layer visibility controls**: Hide/show individual nodes, workflows, or groups from the canvas via Layers panel
+- **Layer lock controls**: Lock nodes and workflows to prevent accidental editing, dragging, or deletion
+- **Copy-paste edge preservation**: Copy-paste now includes connected edges between selected nodes, maintaining workflow structure
+- **Improved clipboard management**: Enhanced ClipboardManager with proper ID remapping for pasted edges
+- **Undo/redo for visibility/lock**: All visibility and lock state changes are tracked in command history
+
+### Changed
+- Visibility state persisted in localStorage for session continuity
+- Lock enforcement guards prevent all modifications to locked items (position, deletion, property changes)
+
+### Fixed
+- Copy-paste no longer loses edge connections between copied nodes
+
 ## [1.1.0] - 2024-12-16
 
 ### Added
