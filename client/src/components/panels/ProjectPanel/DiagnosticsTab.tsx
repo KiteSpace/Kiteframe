@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, AlertCircle, Info, XCircle, Check, ChevronRight, RefreshCw, CheckCheck } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Info, XCircle, Check, ChevronRight, RefreshCw, CheckCheck, Focus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DiagnosticIssue, DiagnosticSeverity } from '@/lib/kiteframe/utils/diagnostics/types';
 
@@ -13,6 +13,7 @@ interface DiagnosticsTabProps {
   onAcknowledgeAll: () => void;
   onRefresh: () => void;
   onCreateExperiment?: (issue: DiagnosticIssue) => void;
+  onNavigateToNode?: (nodeId: string) => void;
   focusedFingerprint?: string | null;
 }
 
@@ -53,6 +54,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   onAcknowledgeAll,
   onRefresh,
   onCreateExperiment,
+  onNavigateToNode,
   focusedFingerprint,
 }: DiagnosticsTabProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -152,10 +154,11 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                 key={issue.fingerprint}
                 ref={isFocused ? focusedRowRef : undefined}
                 className={cn(
-                  'px-4 py-3 transition-colors',
+                  'px-4 py-3 transition-colors cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50',
                   isAcknowledged && 'opacity-60',
                   isFocused && 'bg-purple-50 dark:bg-purple-900/20 ring-1 ring-purple-400',
                 )}
+                onClick={() => issue.nodeId && onNavigateToNode?.(issue.nodeId)}
                 data-testid={`diagnostics-issue-${issue.fingerprint}`}
               >
                 <div className="flex items-start gap-3">
@@ -168,7 +171,8 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                         {styles.label}
                       </span>
                       {issue.nodeId && (
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <Focus className="w-3 h-3" />
                           Node: {issue.nodeId.slice(0, 8)}...
                         </span>
                       )}

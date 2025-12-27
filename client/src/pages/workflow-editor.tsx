@@ -10881,6 +10881,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 onDiagnosticsUnacknowledge={diagnostics.unacknowledge}
                 onDiagnosticsAcknowledgeAll={diagnostics.acknowledgeAll}
                 onDiagnosticsRefresh={diagnostics.refresh}
+                onDiagnosticsNavigateToNode={focusOnNode}
                 focusedDiagnosticFingerprint={focusedDiagnosticFingerprint}
                 forceTab={forcePanelTab}
               />

@@ -34,6 +34,7 @@ interface ProjectPanelProps {
   onDiagnosticsUnacknowledge?: (fingerprint: string) => void;
   onDiagnosticsAcknowledgeAll?: () => void;
   onDiagnosticsRefresh?: () => void;
+  onDiagnosticsNavigateToNode?: (nodeId: string) => void;
   focusedDiagnosticFingerprint?: string | null;
   forceTab?: ProjectPanelTab | null;
 }
@@ -63,6 +64,7 @@ export function ProjectPanel({
   onDiagnosticsUnacknowledge,
   onDiagnosticsAcknowledgeAll,
   onDiagnosticsRefresh,
+  onDiagnosticsNavigateToNode,
   focusedDiagnosticFingerprint,
   forceTab
 }: ProjectPanelProps) {
@@ -328,6 +330,7 @@ export function ProjectPanel({
             onUnacknowledge={onDiagnosticsUnacknowledge || (() => {})}
             onAcknowledgeAll={onDiagnosticsAcknowledgeAll || (() => {})}
             onRefresh={onDiagnosticsRefresh || (() => {})}
+            onNavigateToNode={onDiagnosticsNavigateToNode}
             focusedFingerprint={focusedDiagnosticFingerprint}
           />
         </TabsContent>
