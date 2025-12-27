@@ -249,3 +249,18 @@ export {
   executeCodeInSandbox,
   cleanupSandbox
 } from './utils/sandboxExecutor';
+
+// Diagnostics Engine
+export {
+  DiagnosticsEngine,
+  diagnosticsEngine,
+  SEVERITY_CONFIG,
+  getSeverityPriority,
+  getHighestSeverity
+} from './utils/diagnostics';
+export type {
+  DiagnosticIssue,
+  DiagnosticSeverity,
+  DiagnosticStatus,
+  DiagnosticType
+} from './utils/diagnostics';
