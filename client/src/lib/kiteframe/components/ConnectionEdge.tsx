@@ -481,6 +481,10 @@ export const ConnectionEdge: React.FC<{
           e.stopPropagation();
           onEdgeClick?.(edge);
         }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          onEdgeDoubleClick?.(edge);
+        }}
       />
       
       {/* Main edge path */}
