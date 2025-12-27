@@ -3,14 +3,16 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ListTree, ClipboardList, ChevronLeft, ChevronRight, Sparkles, StickyNote } from 'lucide-react';
+import { ListTree, ClipboardList, ChevronLeft, ChevronRight, Sparkles, StickyNote, AlertTriangle } from 'lucide-react';
 import { KiteAITab } from './KiteAITab';
 import { ProjectDocTab } from './ProjectDocTab';
 import { LayersTab } from './LayersTab';
 import { NotesTab } from './NotesTab';
+import { DiagnosticsTab } from './DiagnosticsTab';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
+import type { DiagnosticIssue } from '@/lib/kiteframe/utils/diagnostics/types';
 
-export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers' | 'notes';
+export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers' | 'notes' | 'diagnostics';
 
 const PANEL_COLLAPSED_KEY = 'kiteframe-project-panel-collapsed';
 const PANEL_ACTIVE_TAB_KEY = 'kiteframe-project-panel-active-tab';
@@ -26,13 +28,22 @@ interface ProjectPanelProps {
   onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   isReadOnly?: boolean;
+  diagnosticsIssues?: DiagnosticIssue[];
+  diagnosticsLoading?: boolean;
+  onDiagnosticsAcknowledge?: (fingerprint: string) => void;
+  onDiagnosticsUnacknowledge?: (fingerprint: string) => void;
+  onDiagnosticsAcknowledgeAll?: () => void;
+  onDiagnosticsRefresh?: () => void;
+  focusedDiagnosticFingerprint?: string | null;
+  forceTab?: ProjectPanelTab | null;
 }
 
 const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string }[] = [
   { id: 'kite-ai', icon: Sparkles, label: 'KiteAI' },
   { id: 'project', icon: ClipboardList, label: 'Project' },
   { id: 'layers', icon: ListTree, label: 'Layers' },
-  { id: 'notes', icon: StickyNote, label: 'Notes' }
+  { id: 'notes', icon: StickyNote, label: 'Notes' },
+  { id: 'diagnostics', icon: AlertTriangle, label: 'Issues' }
 ];
 
 export function ProjectPanel({ 
@@ -45,7 +56,15 @@ export function ProjectPanel({
   onProjectNameChange,
   onApplyWorkflow,
   onPreviewWorkflow,
-  isReadOnly = false
+  isReadOnly = false,
+  diagnosticsIssues = [],
+  diagnosticsLoading = false,
+  onDiagnosticsAcknowledge,
+  onDiagnosticsUnacknowledge,
+  onDiagnosticsAcknowledgeAll,
+  onDiagnosticsRefresh,
+  focusedDiagnosticFingerprint,
+  forceTab
 }: ProjectPanelProps) {
   const resizeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -112,6 +131,18 @@ export function ProjectPanel({
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isResizing]);
+
+  useEffect(() => {
+    if (forceTab) {
+      setActiveTab(forceTab);
+      if (isCollapsed) {
+        setIsCollapsed(false);
+      }
+    }
+  }, [forceTab]);
+
+  const activeIssueCount = diagnosticsIssues.filter(i => i.status !== 'resolved').length;
+  const newIssueCount = diagnosticsIssues.filter(i => i.status === 'new').length;
 
   if (isCollapsed) {
     return (
@@ -224,6 +255,19 @@ export function ProjectPanel({
                 <StickyNote size={14} />
                 Notes
               </TabsTrigger>
+              <TabsTrigger 
+                value="diagnostics" 
+                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background relative" 
+                data-testid="tab-diagnostics"
+              >
+                <AlertTriangle size={14} className={newIssueCount > 0 ? 'text-orange-500' : ''} />
+                Issues
+                {newIssueCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 text-[10px] font-medium rounded-full bg-red-500 text-white flex items-center justify-center">
+                    {newIssueCount > 9 ? '9+' : newIssueCount}
+                  </span>
+                )}
+              </TabsTrigger>
             </TabsList>
             <ScrollBar orientation="horizontal" className="h-1.5" />
           </ScrollArea>
@@ -272,6 +316,19 @@ export function ProjectPanel({
             key={projectId || 'default'}
             projectId={projectId}
             isReadOnly={isReadOnly}
+          />
+        </TabsContent>
+        
+        <TabsContent value="diagnostics" className="flex-1 m-0 overflow-hidden">
+          <DiagnosticsTab
+            key={projectId || 'default'}
+            issues={diagnosticsIssues}
+            isLoading={diagnosticsLoading}
+            onAcknowledge={onDiagnosticsAcknowledge || (() => {})}
+            onUnacknowledge={onDiagnosticsUnacknowledge || (() => {})}
+            onAcknowledgeAll={onDiagnosticsAcknowledgeAll || (() => {})}
+            onRefresh={onDiagnosticsRefresh || (() => {})}
+            focusedFingerprint={focusedDiagnosticFingerprint}
           />
         </TabsContent>
       </Tabs>

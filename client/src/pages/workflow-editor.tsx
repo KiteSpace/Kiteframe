@@ -13,7 +13,10 @@ import {
   consolePlugin,
   testPlugin,
   advancedInteractionsPlugin,
+  useDiagnostics,
+  DiagnosticOverlay,
 } from "@/lib/kiteframe";
+import type { ProjectPanelTab } from "@/components/panels/ProjectPanel";
 import { PluginTestButton } from "@/components/PluginTestButton";
 import { PluginTestPanel } from "@/components/PluginTestPanel";
 import { Sidebar } from "@/components/Sidebar";
@@ -1625,6 +1628,30 @@ function WorkflowEditorContent({
     }
     return map;
   }, [nodes, getOptionsForNode]);
+
+  // Diagnostics system for workflow issues
+  const [focusedDiagnosticFingerprint, setFocusedDiagnosticFingerprint] = useState<string | null>(null);
+  const [forcePanelTab, setForcePanelTab] = useState<ProjectPanelTab | null>(null);
+  
+  const projectIdentifier = activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId || 'default';
+  
+  const diagnostics = useDiagnostics(nodes, edges, {
+    projectId: projectIdentifier,
+    workflowId: activeTabId,
+    enabled: openTabs.length > 0,
+  });
+
+  const handleOpenDiagnosticsPanel = useCallback(() => {
+    setForcePanelTab('diagnostics');
+  }, []);
+
+  // Reset forceTab after it's been applied
+  useEffect(() => {
+    if (forcePanelTab) {
+      const timer = setTimeout(() => setForcePanelTab(null), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [forcePanelTab]);
 
   // Derive selected canvas objects from active tab state
   const selectedCanvasObjects = useMemo(
@@ -10711,6 +10738,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     }}
                   />
+                  
+                  {/* Diagnostic badges overlay */}
+                  <DiagnosticOverlay
+                    nodes={nodes}
+                    viewport={viewport}
+                    issues={diagnostics.issues}
+                    onAcknowledge={diagnostics.acknowledge}
+                    onUnacknowledge={diagnostics.unacknowledge}
+                    onViewInPanel={(issue) => {
+                      setFocusedDiagnosticFingerprint(issue.fingerprint);
+                      setForcePanelTab('diagnostics');
+                    }}
+                    onCreateExperiment={(issue) => {
+                      console.log('[Diagnostics] Create experiment for:', issue.nodeId, issue.fingerprint);
+                    }}
+                  />
                 </>
               ) : (
                 <BlankCanvasState
@@ -10832,6 +10875,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   });
                 }}
                 isReadOnly={isReadOnly}
+                diagnosticsIssues={diagnostics.issues}
+                diagnosticsLoading={diagnostics.isLoading}
+                onDiagnosticsAcknowledge={diagnostics.acknowledge}
+                onDiagnosticsUnacknowledge={diagnostics.unacknowledge}
+                onDiagnosticsAcknowledgeAll={diagnostics.acknowledgeAll}
+                onDiagnosticsRefresh={diagnostics.refresh}
+                focusedDiagnosticFingerprint={focusedDiagnosticFingerprint}
+                forceTab={forcePanelTab}
               />
             )}
           </>
