@@ -85,7 +85,7 @@ export function GroupRow({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(label);
   const { toast } = useToast();
-  const EyeGlyph = triHidden==='mixed' ? MinusSquare : (triHidden==='on' ? Eye : EyeOff);
+  const EyeGlyph = triHidden==='mixed' ? MinusSquare : (triHidden==='on' ? EyeOff : Eye);
   const LockGlyph = triLocked==='mixed' ? MinusSquare : (triLocked==='on' ? Lock : Unlock);
   const handleNameSubmit = () => {
     if (onNameChange && editValue.trim()) {
@@ -208,7 +208,7 @@ export function GroupRow({
         <button 
           data-testid={`button-visibility-${id}`}
           onClick={onToggleHidden} 
-          title={`visibility: ${triHidden}`}
+          title={triHidden === 'on' ? 'Hidden' : triHidden === 'off' ? 'Visible' : 'Mixed visibility'}
           className="hover:bg-gray-200 dark:hover:bg-gray-700 p-0.5 rounded transition-colors duration-150 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
         >
           <EyeGlyph size={14}/>

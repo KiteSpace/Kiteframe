@@ -3,7 +3,7 @@ import {
   Undo2, Redo2, ZoomIn, LayoutGrid, GripVertical, Camera, History, Maximize2,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical, 
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
-  AlignVerticalSpaceBetween, AlignHorizontalSpaceBetween
+  AlignVerticalSpaceBetween, AlignHorizontalSpaceBetween, EyeOff
 } from 'lucide-react';
 
 interface FloatingToolbarProps {
@@ -13,6 +13,8 @@ interface FloatingToolbarProps {
   onAutoLayout: (layoutType: string | { eventId: string; spacing: number }) => void;
   canUndo: boolean;
   canRedo: boolean;
+  hiddenWorkflowCount?: number;
+  onUnhideAll?: () => void;
 }
 
 export function FloatingToolbar({
@@ -22,6 +24,8 @@ export function FloatingToolbar({
   onAutoLayout,
   canUndo,
   canRedo,
+  hiddenWorkflowCount = 0,
+  onUnhideAll,
 }: FloatingToolbarProps) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -312,6 +316,21 @@ export function FloatingToolbar({
           )}
         </div>
 
+        {/* Hidden Workflows Button - only show when there are hidden workflows */}
+        {hiddenWorkflowCount > 0 && onUnhideAll && (
+          <>
+            <div className="w-px h-6 bg-border mx-1" />
+            <button
+              className="h-8 flex items-center gap-1.5 px-2 text-foreground hover:bg-accent rounded-full transition-colors"
+              onClick={onUnhideAll}
+              title="Unhide all workflows"
+              data-testid="button-unhide-workflows"
+            >
+              <EyeOff size={16} />
+              <span className="text-sm font-medium">{hiddenWorkflowCount}</span>
+            </button>
+          </>
+        )}
 
       </div>
 

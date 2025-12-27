@@ -7,7 +7,7 @@ import type { WorkflowTheme } from '../lib/themes';
 import { VLStore } from '@/stores/layersStateManager';
 import { AncestorsStore } from '@/components/layers/ancestorsStore';
 import { isEffectivelyOn } from '@/components/layers/triStateUtils';
-import { Undo, Redo, ZoomIn, Maximize2, LayoutGrid, ChevronRight, EyeOff } from 'lucide-react';
+import { Undo, Redo, ZoomIn, Maximize2, LayoutGrid, ChevronRight } from 'lucide-react';
 import { focusBus, type FocusEvent } from '@/stores/focusBus';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -636,28 +636,9 @@ export function WorkflowCanvas({
         onAutoLayout={onAutoLayout}
         canUndo={canUndo}
         canRedo={canRedo}
+        hiddenWorkflowCount={hiddenWorkflowCount}
+        onUnhideAll={unhideAllWorkflows}
       />
-
-      {/* Hidden Workflows Chip */}
-      {hiddenWorkflowCount > 0 && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={unhideAllWorkflows}
-                className="absolute top-3 right-14 flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-xs font-medium rounded-full shadow-lg hover:bg-gray-800 dark:hover:bg-gray-700 transition-colors z-50"
-                data-testid="button-unhide-workflows"
-              >
-                <EyeOff size={12} />
-                <span>{hiddenWorkflowCount}</span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="bg-gray-900 text-white text-xs">
-              Unhide workflows
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
 
       {/* Minimap removed to improve performance */}
     </div>
