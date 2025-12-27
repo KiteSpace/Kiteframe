@@ -1,0 +1,338 @@
+KITEFRAME — NODE DIAGNOSTICS INDICATORS + ALERTS PANEL (v1)
+Reddit/Implementation Instructions (copy/paste)
+Owner: Replit agent
+Goal: Add non-blocking node-level “Diagnostics” indicators + a Diagnostics panel that lists issues, supports dismissal states, and can spawn an Experiment node pre-populated with suggestions.
+
+========================================
+0) PRODUCT INTENT (NON-NEGOTIABLE)
+========================================
+- This is NOT an “error system” and must NOT block editing.
+- The feature provides guidance: missing paths, risks, unclear flow, unhandled branches.
+- Diagnostics must have lifecycle and resolution so it doesn’t become noise.
+
+Core UX:
+- Node shows a small indicator badge when one or more diagnostics apply.
+- Hovering the indicator reveals a mini-toolbar with:
+  1) Type + severity
+  2) Dismiss/Acknowledge
+  3) “Create Experiment” action (auto-create + auto-connect + suggestions)
+  4) “Open Diagnostics panel” action
+- Project panel gets a new tab: “Diagnostics” (or “Alerts”) listing all diagnostics.
+
+========================================
+1) DEFINITIONS / DATA MODEL
+========================================
+Create a persistent model for diagnostics. Store per-project (and optionally per-workflow) in the same persistence mechanism used for PRDs and other panel content.
+
+1.1 Diagnostic Severity
+Use BOTH color + glyph (do not rely on color only):
+- severity: 'info' | 'warn' | 'risk' | 'critical'
+- color: grey | yellow | orange | red
+- glyph inside badge: '•' | '!' | '!!' | '⚠' (or equivalent)
+
+Mapping:
+- info => grey + •
+- warn => yellow + !
+- risk => orange + !!
+- critical => red + ⚠
+
+1.2 Diagnostic State (three states)
+- status: 'new' | 'acknowledged' | 'resolved'
+Rules:
+- NEW: bright badge, appears in “Only New”
+- ACKNOWLEDGED: greyed-out (muted) but remains visible
+- RESOLVED: auto-resolved when issue no longer applies; hidden by default but viewable (optional)
+
+1.3 Diagnostic Record
+Add a new type: DiagnosticIssue
+
+Minimum schema:
+{
+  id: string; // stable per issue (hash)
+  projectId: string;
+  workflowId?: string; // optional, but recommended
+  nodeId?: string;
+  edgeId?: string;
+
+  type: string; // e.g., 'missing-branch', 'orphan-node', etc.
+  title: string; // short label shown in hover + panel
+  description: string; // user-facing explanation
+  severity: 'info'|'warn'|'risk'|'critical';
+  status: 'new'|'acknowledged'|'resolved';
+
+  createdAt: number;
+  updatedAt: number;
+  acknowledgedAt?: number;
+  resolvedAt?: number;
+
+  // optional but recommended for UX
+  recommendedAction?: {
+    kind: 'create-experiment' | 'navigate' | 'noop';
+    experimentMode?: 'whatif'|'risk'|'enhancement'|'prompt';
+  };
+
+  // “resolution key” to know when it should resolve
+  resolutionFingerprint: string; // derived from graph structure relevant to this issue
+
+  // do not store large payloads here
+}
+
+1.4 Identity / Stability
+Issue IDs must be stable across refreshes.
+Recommendation:
+- id = hash(projectId + workflowId + type + nodeId/edgeId + resolutionFingerprint)
+- This prevents duplicates and enables state persistence.
+
+========================================
+2) DIAGNOSTIC DETECTION ENGINE (v1 SCOPE)
+========================================
+Implement a synchronous, local detector (no AI required for v1).
+Run detection on:
+- debounced graph changes (nodes/edges/canvasObjects changes)
+- explicit “Recheck” button in panel (manual)
+- on workflow load
+
+2.1 v1 Diagnostic Types (keep it small)
+Implement these first (low false positives):
+A) Missing branch on decision node:
+- Condition/decision node with only 1 outgoing edge => missing-path
+Severity: warn or risk depending on context (default warn)
+
+B) Orphan node:
+- Node with no incoming and no outgoing edges (excluding input/output rules) => orphan-node
+Severity: info
+
+C) Dead-end path:
+- Node with outgoing=0 that is not an output/end node => dead-end
+Severity: warn
+
+D) Disconnected subgraph:
+- Multiple connected components in same canvas => disconnected-flow
+Severity: info/warn
+
+E) Edge missing label / unclear semantics (optional if you have edge labels):
+- Edge exists but no label when label is expected => unclear-edge
+Severity: info
+
+Do NOT add semantic “risk” detection in v1 unless it’s already in your workflow-generation spec and is deterministic.
+
+2.2 Resolution rule
+Each issue must be recalculated.
+- If issue no longer applies, mark as RESOLVED (don’t delete).
+- If it still applies, preserve status (new/ack).
+
+2.3 “Solved means disappears” rule
+Issue should disappear from the active list only when resolved, not when dismissed.
+
+========================================
+3) NODE-LEVEL INDICATOR UI
+========================================
+3.1 Badge Placement
+- Render a small circular badge on node chrome (top-right or near header controls).
+- Badge shows:
+  - color for highest severity among active (new/ack) issues
+  - glyph (•/!/!!/⚠) matching that severity
+
+If multiple issues:
+- show count as small superscript or badge tooltip text “3 issues”.
+
+3.2 Hover Interaction
+On hover/click (choose one; recommend click for mobile safety):
+Open a compact popover with:
+- Title: “Diagnostics”
+- Top row per issue (most severe first):
+  - [severity chip] [title]
+  - small status label: NEW / ACK / RESOLVED (resolved hidden by default)
+- Actions per issue:
+  1) “Acknowledge” (rename from X; tooltip “Mark as reviewed”)
+  2) “Create Experiment” (only when recommendedAction supports it)
+  3) “View in panel” (opens Diagnostics tab and scrolls to issue)
+- Global actions (footer):
+  - “Open Diagnostics panel”
+
+3.3 Acknowledge behavior
+Clicking Acknowledge sets status='acknowledged' and sets acknowledgedAt.
+Badge becomes muted (or slightly desaturated) but remains visible if any active issues still exist.
+If all issues are acknowledged, badge becomes greyed (still visible).
+
+3.4 Disable indicators (visibility)
+If user disables canvas indicators:
+- do not render badges on nodes
+- Diagnostics panel still works unless disabled separately
+
+========================================
+4) DIAGNOSTICS PANEL (PROJECT TAB)
+========================================
+4.1 Add new tab in project panel
+- Tab name: “Diagnostics”
+- Shows list grouped by:
+  - Status (New, Acknowledged, Resolved (collapsed))
+  - Severity (critical → info)
+Optionally group by workflow.
+
+4.2 Panel Row contents
+Each row shows:
+- Node label (or “Edge” / “Workflow”)
+- Issue title
+- Issue description (1–2 lines)
+- Severity chip (color + icon)
+- Status chip
+
+Row actions:
+- “Go to” (focus node/edge in canvas)
+- “Create Experiment” (if applicable)
+- “Acknowledge” / “Unacknowledge” (optional)
+- “Dismiss all / Mark all reviewed” (top-level action)
+
+4.3 Filters
+- Toggle: “Only New”
+- Dropdown: Severity (All / critical / risk / warn / info)
+- Search: node name / issue text
+- Time range (optional in v1; can defer)
+
+4.4 Dismiss All semantics
+Label: “Mark all as reviewed”
+- sets all NEW to ACKNOWLEDGED
+- does NOT delete or hide
+- resolved logic still applies
+
+4.5 Resolution semantics
+- Only resolved issues disappear from active list.
+- Resolved list can be toggled visible.
+
+========================================
+5) “CREATE EXPERIMENT” INTEGRATION
+========================================
+When user clicks “Create Experiment” from:
+- node hover
+- diagnostics panel row action
+
+Do:
+1) Create an Experiment node (type='experiment') near the target node.
+2) Auto-connect:
+   - incoming from target node OR
+   - attach as outgoing branch from target node (choose consistent rule)
+Recommended default:
+- Connect target node -> Experiment node as outgoing edge (branch)
+- If target is a condition node missing a branch: connect from condition node, label edge as “Explore”
+3) Pre-populate Experiment mode:
+- Map issue types to experiment modes:
+  - missing-branch => whatif (default)
+  - dead-end => risk (or whatif)
+  - orphan-node => enhancement (or whatif)
+  - disconnected-flow => enhancement
+4) Pre-populate suggestions:
+- Use existing experiment suggestions generator.
+- If not available or fails, add 3 static suggestions templates so UX never blank:
+  - “Add an exception path”
+  - “Add a fallback handling step”
+  - “Add validation and recovery”
+
+IMPORTANT:
+- This must use FAST PATH for Experiment generation (no clarification loops).
+- Suggestions should load with skeleton state and recover gracefully.
+
+========================================
+6) SETTINGS (GLOBAL + PER-PROJECT OVERRIDE)
+========================================
+Create global setting defaults:
+- Settings → Diagnostics:
+  - Enable Diagnostics Panel (on/off) [default ON]
+  - Show node indicators (on/off) [default ON]
+
+Per project override:
+- Project settings:
+  - “Enable diagnostics for this project” (toggle)
+Rules:
+- project override wins over global
+- panel-level toggles only filter, do NOT change detection
+
+========================================
+7) TECHNICAL IMPLEMENTATION NOTES (KITEFRAME-SPECIFIC)
+========================================
+7.1 Where to compute
+- Prefer computing diagnostics in workflow-editor (where nodes/edges live).
+- Debounce detection (e.g. 300ms) to avoid thrashing.
+- Always compute against “committed graph” (exclude speculative experiment preview nodes):
+  - filter node.meta?.speculative === true
+  - filter edges connected to speculative nodes
+
+7.2 Persistence
+- Store diagnostic issues per projectId and workflowId.
+- Must preserve user status (ack) across recomputes.
+Approach:
+- compute “fresh issues” from graph (without status)
+- merge with existing stored issues by id
+- update status/resolution timestamps
+- save merged set
+
+7.3 Focusing nodes/edges
+- Use focusBus.focusNodes() for nodes.
+- Add focusBus.focusEdges(edgeId) if missing.
+- Panel “Go to” must:
+  - set selection
+  - fitView or pan to node/edge
+  - briefly highlight target (pulse outline)
+
+7.4 Performance
+- v1 detection must be O(n + e).
+- No deep equality comparisons on every render.
+- Only recompute on meaningful graph change.
+
+========================================
+8) QA / ACCEPTANCE TESTS
+========================================
+A) Missing branch:
+- Create a condition node with one outgoing edge => badge appears (warn).
+- Add second outgoing edge => issue becomes RESOLVED, badge updates/disappears if no other issues.
+
+B) Acknowledge:
+- Acknowledge issue => becomes greyed, no longer counted in “Only New”.
+- Remove issue cause => moves to Resolved automatically.
+
+C) Panel actions:
+- “Go to” focuses node.
+- “Create Experiment” spawns experiment node connected to source.
+- “Mark all as reviewed” acknowledges all NEW.
+
+D) Settings:
+- Disable indicators => no badges, but panel still lists issues.
+- Disable project diagnostics => no detection, panel tab hidden (or shows disabled state).
+
+========================================
+9) OPEN QUESTIONS FOR REPLIT (ANSWER BEFORE BUILD)
+========================================
+Please answer these so implementation is precise:
+
+1) Persistence location: Where should DiagnosticIssue records live?
+   - localStorage (keys) like PRDs?
+   - cloud DB?
+   - both (offline-first)?
+   Provide the recommended pattern for project-level metadata today.
+
+2) Node labeling: What is the canonical “node display name” field?
+   - node.data.label?
+   - node.data.title?
+   Confirm so panel rows are consistent.
+
+3) Selection + focus: Is there an existing “select node + pan + highlight” utility?
+   - If not, confirm where to implement a reusable helper.
+
+4) Flow scoping: Should diagnostics run per connected component workflowId or across entire canvas?
+   Recommendation: per workflowId + global disconnected-flow.
+   Confirm desired behavior.
+
+5) Speculative filtering: Confirm current flags used for speculative experiment branch nodes/edges.
+   - node.meta.speculative?
+   - data.ui.preview?
+   Provide exact fields so detector excludes previews.
+
+6) Experiment creation API: What’s the cleanest way to programmatically create an experiment node + edge?
+   - existing factory functions?
+   - nodeRegistry factory?
+   Provide the correct call path and defaults (size, theme).
+
+7) Performance constraints: Any known large-canvas thresholds where frequent detection is risky?
+   If yes, confirm target debounce / throttle.
+
+END
