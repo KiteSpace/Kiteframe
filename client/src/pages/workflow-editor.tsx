@@ -5773,7 +5773,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Header */}
+      {/* Header with Tabs */}
       <Toolbar
         onOpenAiSettings={() => setShowAiModal(true)}
         isDarkMode={isDarkMode}
@@ -5782,10 +5782,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         onEditorSettingsChange={setEditorSettings}
         onOpenBugReport={() => setShowBugReportModal(true)}
         isReadOnly={isReadOnly}
-      />
-
-      {/* Tab Bar */}
-      <div className="flex items-center bg-card border-b border-border px-4 py-2 h-12">
+      >
         <ScrollArea className="flex-1 min-w-0">
           <div className="flex items-center space-x-1 w-max">
             {/* Read Only Badge */}
@@ -5928,7 +5925,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           </div>
           <ScrollBar orientation="horizontal" className="h-1" />
         </ScrollArea>
-      </div>
+      </Toolbar>
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">

@@ -33,6 +33,7 @@ interface ToolbarProps {
   onEditorSettingsChange?: (settings: EditorSettings) => void;
   onOpenBugReport?: () => void;
   isReadOnly?: boolean;
+  children?: React.ReactNode;
 }
 
 interface CreditsResponse {
@@ -51,6 +52,7 @@ export function Toolbar({
   onEditorSettingsChange,
   onOpenBugReport,
   isReadOnly,
+  children,
 }: ToolbarProps) {
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const settingsDropdownRef = useRef<HTMLDivElement>(null);
@@ -89,22 +91,14 @@ export function Toolbar({
 
   return (
     <header
-      className="h-16 px-4 py-2 flex items-center justify-between bg-card border-border shadow-sm"
+      className="h-12 px-4 flex items-center bg-card border-b border-border"
       data-testid="toolbar"
     >
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <img src={kiteframeIcon} alt="Kiteframe" className="w-6 h-6" />
-          <h1 className="text-2xl font-semibold">Kiteframe</h1>
-          <span
-            className="px-2 py-0.5 text-xs font-medium text-white rounded"
-            style={{ backgroundColor: "#2b313d" }}
-          >
-            Beta
-          </span>
-        </div>
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <img src={kiteframeIcon} alt="Kiteframe" className="w-6 h-6 flex-shrink-0" />
+        {children}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-shrink-0">
         {/* Authentication */}
         <AuthButton />
 
