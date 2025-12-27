@@ -267,3 +267,6 @@ export type {
   DiagnosticStatus,
   DiagnosticType
 } from './utils/diagnostics';
+
+// Diagnostics UI Components
+export { DiagnosticBadge } from './components/DiagnosticBadge';
