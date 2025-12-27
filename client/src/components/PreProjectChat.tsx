@@ -389,10 +389,27 @@ export function PreProjectChat({
     setCurrentRole(inferredRole);
 
     const processResult = processUserInput(content);
+    
+    // Diagnostic logging for fast-path enforcement
+    console.log('[KiteAI Fast-Path] Turn count:', getTurnCount());
+    console.log('[KiteAI Fast-Path] Has reached max turns:', hasReachedMaxTurns());
+    console.log('[KiteAI Fast-Path] Has vision sources:', hasUploadedFiles);
+    console.log('[KiteAI Fast-Path] ProcessResult:', {
+      forceExecution: processResult.forceExecution,
+      newState: processResult.newState,
+      score: processResult.actionability.score,
+      confidence: processResult.actionability.confidence,
+    });
+    
+    // Check fast-path for image/Figma uploads (trigger: 'image')
+    const imageFastPath = hasUploadedFiles && checkFastPath('image', content);
+    if (imageFastPath) {
+      console.log('[KiteAI Fast-Path] IMAGE FAST-PATH triggered - vision content with sufficient turns');
+    }
 
-    // CRITICAL: If forceExecution is true, trigger workflow generation immediately
+    // CRITICAL: If forceExecution is true OR image fast-path triggers, generate immediately
     // Skip AI response entirely - this is the execution confirmation
-    if (processResult.forceExecution) {
+    if (processResult.forceExecution || (imageFastPath && hasReachedMaxTurns())) {
       console.log('[PreProjectChat] FORCE EXECUTION - triggering workflow generation immediately');
       setIsExecuting(true);
       triggerExecution(); // Mark execution latch
