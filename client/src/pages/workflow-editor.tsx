@@ -10898,8 +10898,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                                 meta: { ...e.meta, speculative: true, experimentId: currentTool.meta.experimentId },
                               }));
                               
-                              setNodes(prev => [...prev, ...speculativeNodes]);
-                              setEdges(prev => recalculateAllEdgeZIndexes([...prev, ...speculativeEdges], [...nodes, ...speculativeNodes]));
+                              setNodes(prev => {
+                                const newNodes = [...prev, ...speculativeNodes];
+                                setEdges(prevEdges => recalculateAllEdgeZIndexes([...prevEdges, ...speculativeEdges], newNodes));
+                                return newNodes;
+                              });
                               
                               setWorkflowTools(prev => prev.map(t => 
                                 t.id === toolId ? { 
@@ -10930,22 +10933,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           const currentTool = workflowTools.find(t => t.id === toolId);
                           if (!currentTool?.generated) return;
                           
-                          withUndo("Accept experiment branch", saveToHistory, () => {
-                            setNodes(prev => prev.map(n => {
-                              if (currentTool.generated?.nodeIds.includes(n.id)) {
-                                const { speculative, experimentId, generatedFrom, ...restMeta } = n.meta || {};
-                                return { ...n, meta: Object.keys(restMeta).length > 0 ? restMeta : undefined };
-                              }
-                              return n;
-                            }));
-                            setEdges(prev => prev.map(e => {
-                              if (currentTool.generated?.edgeIds.includes(e.id)) {
-                                const { speculative, experimentId, generatedFrom, ...restMeta } = e.meta || {};
-                                return { ...e, meta: Object.keys(restMeta).length > 0 ? restMeta : undefined };
-                              }
-                              return e;
-                            }));
-                          });
+                          saveToHistory();
+                          
+                          setNodes(prev => prev.map(n => {
+                            if (currentTool.generated?.nodeIds.includes(n.id)) {
+                              const { speculative, experimentId, generatedFrom, ...restMeta } = n.meta || {};
+                              return { ...n, meta: Object.keys(restMeta).length > 0 ? restMeta : undefined };
+                            }
+                            return n;
+                          }));
+                          setEdges(prev => prev.map(e => {
+                            if (currentTool.generated?.edgeIds.includes(e.id)) {
+                              const { speculative, experimentId, generatedFrom, ...restMeta } = e.meta || {};
+                              return { ...e, meta: Object.keys(restMeta).length > 0 ? restMeta : undefined };
+                            }
+                            return e;
+                          }));
                           
                           setWorkflowTools(prev => prev.filter(t => t.id !== toolId));
                           
