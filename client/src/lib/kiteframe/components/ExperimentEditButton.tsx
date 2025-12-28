@@ -27,16 +27,14 @@ export interface ExperimentEditButtonProps {
 
 const MODE_LABELS: Record<ExperimentMode, string> = {
   whatif: 'What-If Scenario',
-  risk: 'Risk Analysis',
   enhancement: 'Enhancement',
-  prompt: 'Custom Prompt',
+  open_exploration: 'Open Exploration',
 };
 
 const MODE_DESCRIPTIONS: Record<ExperimentMode, string> = {
   whatif: 'Explore alternative paths and scenarios',
-  risk: 'Identify potential failure points',
   enhancement: 'Suggest improvements and optimizations',
-  prompt: 'Generate based on your custom description',
+  open_exploration: 'Generate based on your custom description',
 };
 
 export function ExperimentEditButton({

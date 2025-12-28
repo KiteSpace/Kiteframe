@@ -3768,30 +3768,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
             });
           })()}
 
-          {/* Experiment Edit Buttons for adopted experiment nodes */}
-          {props.onExperimentRegenerate && visibleNodes
-            .filter(n => {
-              if (n.type !== 'process') return false;
-              const experimentMeta = n.meta?.experiment as ExperimentMeta | undefined;
-              if (!experimentMeta?.experimentId || !experimentMeta?.acceptedAt) return false;
-              return true;
-            })
-            .map(n => {
-              const experimentMeta = n.meta?.experiment as ExperimentMeta;
-              const w = n.style?.width ?? n.width ?? 200;
-              return (
-                <ExperimentEditButton
-                  key={`experiment-edit-${n.id}`}
-                  nodeId={n.id}
-                  experimentMeta={experimentMeta}
-                  position={{ x: n.position.x, y: n.position.y }}
-                  nodeWidth={w}
-                  scale={viewport.zoom}
-                  onRegenerateExperiment={props.onExperimentRegenerate}
-                />
-              );
-            })
-          }
+          {/* Experiment Edit Buttons for adopted experiment nodes - DISABLED: badges hidden per user request */}
 
           {/* Nodes */}
           {visibleNodes

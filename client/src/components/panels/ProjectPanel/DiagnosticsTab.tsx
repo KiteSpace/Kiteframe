@@ -1,10 +1,18 @@
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { AlertTriangle, AlertCircle, Info, XCircle, Check, ChevronRight, RefreshCw, CheckCheck, Focus, Eye, EyeOff } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Info, XCircle, Check, ChevronRight, RefreshCw, CheckCheck, Focus, Filter } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { DiagnosticIssue, DiagnosticSeverity } from '@/lib/kiteframe/utils/diagnostics/types';
+
+type ListFilterMode = 'active' | 'all';
 
 interface DiagnosticsTabProps {
   issues: DiagnosticIssue[];
@@ -16,8 +24,8 @@ interface DiagnosticsTabProps {
   onCreateExperiment?: (issue: DiagnosticIssue) => void;
   onNavigateToNode?: (nodeId: string) => void;
   focusedFingerprint?: string | null;
-  showBadges?: boolean;
-  onToggleBadges?: (show: boolean) => void;
+  showAcknowledgedBadges?: boolean;
+  onToggleAcknowledgedBadges?: (show: boolean) => void;
 }
 
 const SEVERITY_STYLES: Record<DiagnosticSeverity, { bg: string; text: string; icon: typeof AlertTriangle; label: string }> = {
@@ -59,16 +67,21 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   onCreateExperiment,
   onNavigateToNode,
   focusedFingerprint,
-  showBadges = true,
-  onToggleBadges,
+  showAcknowledgedBadges = false,
+  onToggleAcknowledgedBadges,
 }: DiagnosticsTabProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const focusedRowRef = useRef<HTMLDivElement>(null);
+  const [listFilterMode, setListFilterMode] = useState<ListFilterMode>('active');
   
   const activeIssues = issues.filter(i => i.status !== 'resolved');
   const newIssues = activeIssues.filter(i => i.status === 'new');
   
-  const sortedIssues = [...activeIssues].sort((a, b) => {
+  const filteredIssues = listFilterMode === 'active' 
+    ? activeIssues.filter(i => i.status === 'new')
+    : activeIssues;
+  
+  const sortedIssues = [...filteredIssues].sort((a, b) => {
     const statusOrder = { new: 0, acknowledged: 1, resolved: 2 };
     const statusDiff = statusOrder[a.status] - statusOrder[b.status];
     if (statusDiff !== 0) return statusDiff;
@@ -143,18 +156,45 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
           >
             <RefreshCw className={cn('w-3.5 h-3.5', isLoading && 'animate-spin')} />
           </Button>
-          {onToggleBadges && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onToggleBadges(!showBadges)}
-              className={cn('h-7 w-7', !showBadges && 'text-muted-foreground')}
-              title={showBadges ? 'Hide badges on nodes' : 'Show badges on nodes'}
-              data-testid="diagnostics-toggle-badges"
-            >
-              {showBadges ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-            </Button>
-          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                data-testid="diagnostics-filter-dropdown"
+              >
+                <Filter className="w-3.5 h-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onClick={() => setListFilterMode('active')}
+                className="flex items-center justify-between"
+                data-testid="filter-active"
+              >
+                <span>Active</span>
+                {listFilterMode === 'active' && <Check className="w-4 h-4" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setListFilterMode('all')}
+                className="flex items-center justify-between"
+                data-testid="filter-all"
+              >
+                <span>All</span>
+                {listFilterMode === 'all' && <Check className="w-4 h-4" />}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onToggleAcknowledgedBadges?.(!showAcknowledgedBadges)}
+                className="flex items-center justify-between"
+                data-testid="filter-show-acknowledged-badges"
+              >
+                <span>Show acknowledged badges</span>
+                {showAcknowledgedBadges && <Check className="w-4 h-4" />}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       

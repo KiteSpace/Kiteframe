@@ -389,7 +389,7 @@ function WorkflowEditorContent({
       const defaults = {
         nodeAutoConnect: false,
         snapToGuides: false,
-        showDiagnosticBadges: true,
+        showAcknowledgedBadges: false,
       };
       return saved
         ? { ...defaults, ...JSON.parse(saved) }
@@ -398,7 +398,7 @@ function WorkflowEditorContent({
       return {
         nodeAutoConnect: false,
         snapToGuides: false,
-        showDiagnosticBadges: true,
+        showAcknowledgedBadges: false,
       };
     }
   });
@@ -10584,7 +10584,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     issues={diagnostics.issues}
                     onAcknowledge={diagnostics.acknowledge}
                     onUnacknowledge={diagnostics.unacknowledge}
-                    hidden={!editorSettings.showDiagnosticBadges || projectBadgeVisibility[projectIdentifier] === false}
+                    showAcknowledgedBadges={editorSettings.showAcknowledgedBadges}
                     onViewInPanel={(issue) => {
                       setFocusedDiagnosticFingerprint(issue.fingerprint);
                       setForcePanelTab('diagnostics');
@@ -10906,13 +10906,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 onDiagnosticsNavigateToNode={focusOnNode}
                 focusedDiagnosticFingerprint={focusedDiagnosticFingerprint}
                 forceTab={forcePanelTab}
-                showDiagnosticBadges={editorSettings.showDiagnosticBadges && projectBadgeVisibility[projectIdentifier] !== false}
-                onToggleDiagnosticBadges={editorSettings.showDiagnosticBadges ? (show) => {
-                  setProjectBadgeVisibility(prev => ({
+                showAcknowledgedBadges={editorSettings.showAcknowledgedBadges}
+                onToggleAcknowledgedBadges={(show) => {
+                  setEditorSettings(prev => ({
                     ...prev,
-                    [projectIdentifier]: show,
+                    showAcknowledgedBadges: show,
                   }));
-                } : undefined}
+                }}
               />
             )}
           </>
