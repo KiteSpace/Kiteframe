@@ -1,0 +1,108 @@
+User Journey Workflow
+
+Feature: Collaborative Commenting on Workflow Steps
+
+High-level intent
+
+Enable team members to leave contextual comments on workflow steps so that discussion, clarification, and decisions live alongside the work rather than in external tools.
+
+Workflow: Collaborative Step Comments
+1. User opens a project
+
+The user navigates to an existing Kiteframe project containing one or more workflows.
+
+User intent: Review or refine a workflow
+
+System state: Project and workflows are loaded
+
+2. User selects a workflow step
+
+The user clicks on a specific step within a workflow canvas.
+
+User intent: Focus on a particular part of the process
+
+System behavior: Step becomes active and visually highlighted
+
+3. User notices discussion context is missing
+
+The user realizes that feedback or questions about this step are currently happening elsewhere (Slack, comments in a doc, verbal discussion).
+
+User intent: Add context or ask a question
+
+Pain point: No obvious place to capture discussion inline
+
+4. User initiates “Add comment”
+
+The user clicks a comment icon or contextual action attached to the selected step.
+
+User intent: Leave a note, question, or suggestion
+
+System behavior: Comment input UI appears anchored to the step
+
+5. User writes and submits a comment
+
+The user types a short message (question, concern, or suggestion) and submits it.
+
+User intent: Capture thinking or feedback
+
+System behavior:
+
+Comment is saved
+
+Comment is associated with the step
+
+Visual indicator appears on the step
+
+6. Another collaborator views the workflow
+
+A second user opens the same project and workflow.
+
+User intent: Review the workflow
+
+System behavior:
+
+Existing comments are visible
+
+Comment indicators signal discussion hotspots
+
+7. Collaborator replies to the comment
+
+The collaborator opens the comment thread and adds a response.
+
+User intent: Clarify, agree, or push back
+
+System behavior:
+
+Threaded reply is added
+
+Activity is reflected in the UI
+
+8. Comment leads to a workflow adjustment
+
+Based on the discussion, the original user edits the workflow step (text, order, or structure).
+
+User intent: Improve accuracy or clarity
+
+System behavior:
+
+Workflow updates are saved
+
+Comment remains as historical context
+
+9. Discussion is resolved
+
+The user marks the comment as resolved (or equivalent).
+
+User intent: Signal closure
+
+System behavior:
+
+Comment thread is visually deemphasized
+
+Workflow appears “cleaner” but retains history
+
+10. Workflow continues to evolve
+
+The team continues iterating, using comments as lightweight collaboration rather than external tools.
+
+Outcome: Shared understanding is embedded in the workflow itself

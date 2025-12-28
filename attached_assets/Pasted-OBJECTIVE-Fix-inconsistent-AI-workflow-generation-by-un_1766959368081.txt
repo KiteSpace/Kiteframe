@@ -1,0 +1,289 @@
+OBJECTIVE
+
+Fix inconsistent AI workflow generation by unifying graph contracts, prompts, and post-processing between:
+
+KiteAI Chat (inside projects)
+
+Home Prompt → generateWorkflowDirectly
+
+After this task:
+
+All AI-generated workflows must always render as connected graphs
+
+No code path may trust raw AI edges
+
+Both paths must share the same normalization logic
+
+GLOBAL RULES (NON-NEGOTIABLE)
+
+AI output is never authoritative for graph topology
+
+The app must guarantee valid, connected graphs
+
+Prompts and post-processing must be consistent across paths
+
+Any missing or invalid edges must be auto-repaired
+
+There must be exactly one normalization function
+
+If any rule is violated, the task is FAILED.
+
+STEP 1 — CREATE SHARED GRAPH NORMALIZATION UTILITY
+1.1 Create new file
+
+Path
+
+client/src/utils/normalizeWorkflowGraph.ts
+
+1.2 Implement normalization function (EXACT BEHAVIOR)
+type NormalizeInput = {
+  nodes: any[]
+  edges: any[]
+  timestamp: number
+}
+
+export function normalizeWorkflowGraph({
+  nodes,
+  edges,
+  timestamp,
+}: NormalizeInput) {
+  if (!Array.isArray(nodes)) {
+    throw new Error('normalizeWorkflowGraph: nodes must be an array')
+  }
+
+  // Ensure nodes have stable IDs
+  const normalizedNodes = nodes.map((node, index) => ({
+    ...node,
+    id: node.id || `node-${index + 1}`,
+  }))
+
+  const nodeIds = new Set(normalizedNodes.map((n) => n.id))
+
+  // Filter invalid edges
+  let normalizedEdges = Array.isArray(edges)
+    ? edges.filter(
+        (edge) =>
+          edge &&
+          edge.source &&
+          edge.target &&
+          nodeIds.has(edge.source) &&
+          nodeIds.has(edge.target),
+      )
+    : []
+
+  // Auto-generate sequential edges if missing or empty
+  if (normalizedEdges.length === 0 && normalizedNodes.length > 1) {
+    normalizedEdges = []
+    for (let i = 0; i < normalizedNodes.length - 1; i++) {
+      normalizedEdges.push({
+        id: `auto-edge-${timestamp}-${i}`,
+        source: normalizedNodes[i].id,
+        target: normalizedNodes[i + 1].id,
+        type: 'bezier',
+        style: {
+          strokeColor: 'hsl(221.2, 83.2%, 53.3%)',
+          strokeWidth: 2,
+        },
+        markers: { type: 'arrow', position: 'end' },
+      })
+    }
+  }
+
+  // Normalize remaining edge properties
+  normalizedEdges = normalizedEdges.map((edge, index) => ({
+    ...edge,
+    id: edge.id || `edge-${timestamp}-${index}`,
+    type: edge.type || 'bezier',
+    style: edge.style || {
+      strokeColor: 'hsl(221.2, 83.2%, 53.3%)',
+      strokeWidth: 2,
+    },
+    markers: edge.markers || { type: 'arrow', position: 'end' },
+  }))
+
+  return {
+    nodes: normalizedNodes,
+    edges: normalizedEdges,
+  }
+}
+
+STEP 2 — CANONICALIZE THE AI SYSTEM PROMPT
+2.1 Create shared prompt constant
+
+Path
+
+client/src/constants/aiWorkflowPrompt.ts
+
+export const AI_WORKFLOW_SYSTEM_PROMPT = `
+ONLY return JSON. No text before or after.
+
+Format:
+{
+  "nodes": [
+    {
+      "id": "node-1",
+      "type": "input | process | condition | output",
+      "data": { "label": "Step name" }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1-2",
+      "source": "node-1",
+      "target": "node-2",
+      "type": "bezier"
+    }
+  ]
+}
+
+IMPORTANT RULES:
+- Always include edges connecting nodes in logical sequence
+- Every edge MUST have source and target
+- Edge type MUST be "bezier"
+- Do NOT return empty edges if more than one node exists
+`
+
+STEP 3 — FIX PATH 1 (KiteAI Chat) TO USE SHARED LOGIC
+3.1 Update AiWorkflowGenerator.tsx
+
+File
+
+client/src/components/AiWorkflowGenerator.tsx
+
+REQUIRED CHANGES
+
+Replace inline system prompt with import:
+
+import { AI_WORKFLOW_SYSTEM_PROMPT } from '@/constants/aiWorkflowPrompt'
+
+
+Replace any local edge validation or auto-generation logic with:
+
+import { normalizeWorkflowGraph } from '@/utils/normalizeWorkflowGraph'
+
+const { nodes, edges } = normalizeWorkflowGraph({
+  nodes: workflowData.nodes,
+  edges: workflowData.edges,
+  timestamp: Date.now(),
+})
+
+
+❌ Do not duplicate logic
+❌ Do not leave old repair code in place
+
+STEP 4 — FIX PATH 2 (HOME PROMPT) — CORE BUG
+4.1 Update system prompt (MANDATORY)
+
+File
+
+client/src/pages/workflow-editor.tsx
+
+
+REMOVE the existing system prompt example showing:
+
+"edges": []
+
+
+REPLACE WITH:
+
+import { AI_WORKFLOW_SYSTEM_PROMPT } from '@/constants/aiWorkflowPrompt'
+
+
+Use the shared prompt verbatim.
+
+4.2 Replace edge processing logic
+
+REMOVE existing edge mapping logic:
+
+const processedEdges = workflowData.edges.map(...)
+
+4.3 Apply shared normalization (MANDATORY)
+import { normalizeWorkflowGraph } from '@/utils/normalizeWorkflowGraph'
+
+const { nodes, edges } = normalizeWorkflowGraph({
+  nodes: workflowData.nodes,
+  edges: workflowData.edges,
+  timestamp,
+})
+
+
+Use nodes and edges returned from this function exclusively.
+
+❌ Do not render raw AI output
+❌ Do not map edges manually afterward
+
+STEP 5 — DELETE DUPLICATE LOGIC (IMPORTANT)
+
+Search the codebase for:
+
+Edge auto-generation
+
+Edge validation
+
+Edge normalization
+
+If it exists outside normalizeWorkflowGraph, remove it.
+
+There must be one source of truth.
+
+STEP 6 — REGRESSION TEST CASES (MANUAL)
+
+Replit must verify the following:
+
+Test 1 — Home prompt
+
+Prompt: “Create a simple onboarding workflow”
+
+Result:
+
+≥ 2 nodes
+
+≥ 1 edge
+
+Nodes connected sequentially
+
+No orphan nodes
+
+Test 2 — KiteAI chat
+
+Same prompt
+
+Same guarantees
+
+Test 3 — AI returns edges with invalid node IDs
+
+App repairs graph
+
+No crashes
+
+Connected result
+
+ACCEPTANCE CHECKLIST (MUST PASS)
+
+ Home prompt workflows always have edges
+
+ KiteAI chat workflows always have edges
+
+ No code path trusts raw AI edges
+
+ One normalization function exists
+
+ System prompt is shared
+
+ Empty edge arrays never render disconnected graphs
+
+ Visual style of edges is consistent
+
+FAILURE CONDITIONS
+
+This task FAILS if:
+
+Disconnected nodes appear
+
+Path 1 and Path 2 behave differently
+
+Edge logic is duplicated
+
+Empty edges render with multiple nodes
+
+Prompt examples show "edges": []
