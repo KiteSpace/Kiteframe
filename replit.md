@@ -61,16 +61,17 @@ Preferred communication style: Simple, everyday language.
 - **Touch Gestures**: The `enableTouchGestures` prop exists but touch pinch-zoom/pan is currently disabled due to conflicts with node drag interactions. Mobile users should use minimap or toolbar controls for zoom/pan.
 
 ### Experiment Node System
-- **Purpose**: AI-powered speculative branch authoring for exploring what-if scenarios, risks, and enhancements.
-- **Modes**: whatif (alternative paths), risk (failure analysis), enhancement (improvements), prompt (freeform).
+- **Purpose**: AI-powered speculative branch authoring for exploring what-if scenarios and enhancements.
+- **Modes**: whatif (alternative paths), enhancement (improvements), open_exploration (freeform).
 - **ExperimentMeta**: Stores experimentId, originNodeId, mode, userPrompt, selectedOption, generatedNodeIds/EdgeIds, generatedAt, acceptedAt.
 - **Speculative Preview**: Generated branches marked with `meta.speculative=true`, styled with dashed edges and opacity, excluded from exports/PRD.
 - **SpaceProbe**: Intelligent layout positioning (right/left/down/up) with collision detection and overlap scoring algorithm.
 - **ExperimentBranchHeader**: Purple overlay component anchored above origin node with Accept/Reject buttons and drag-all functionality.
 - **Edit-After-Accept**: ExperimentEditButton popover appears on process nodes with `meta.experiment.acceptedAt`, allowing mode selection and regeneration.
 - **Silent Reject / Batched Accept**: Discard doesn't save history; Accept saves once with "Adopt speculative branch" label.
-- **Normalizers**: `ensureExperimentDefaults` fills anchor, generation, ui fields; `normalizeWildCardToExperiment` converts legacy wildcard nodes.
+- **Normalizers**: `ensureExperimentDefaults` fills anchor, generation, ui fields for experiment nodes.
 - **Key Files**: `types.ts` (ExperimentMeta, ExperimentNodeData), `SpaceProbe.ts`, `ExperimentBranchHeader.tsx`, `ExperimentEditButton.tsx`, `experimentNormalizer.ts`.
+- **Note**: Legacy 'wildcard' node type has been completely removed from codebase (Dec 2025). Only 'experiment' nodes exist for speculative branching.
 
 ### Project Panel
 - **Tabs**: KiteAI (AI assistant), Project (unified document), Layers (canvas hierarchy).

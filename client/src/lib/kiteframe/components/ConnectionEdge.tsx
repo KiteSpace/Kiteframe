@@ -361,7 +361,7 @@ export const ConnectionEdge: React.FC<{
   const t = anchor(targetNode, sourceNode);
   
   // Check if target is an experiment node - apply special styling
-  const isExperimentTarget = targetNode.type === 'experiment' || targetNode.type === 'wildcard';
+  const isExperimentTarget = targetNode.type === 'experiment';
   
   // For experiment targets: force straight, dashed, grey
   const type = isExperimentTarget ? 'straight' : (edge.type ?? 'bezier');

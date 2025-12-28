@@ -81,8 +81,8 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
   
   // Quick-add is only enabled for basic node types (step, input, process, condition, output, ai)
   // Note: Code nodes have handles for connections but NOT quick-add
-  // Note: Wildcard nodes are for speculative branching and don't use quick-add
-  const quickAddDisabledNodeTypes = ['image', 'table', 'form', 'compound', 'code', 'wildcard'];
+  // Note: Experiment nodes are for speculative branching and don't use quick-add
+  const quickAddDisabledNodeTypes = ['image', 'table', 'form', 'compound', 'code', 'experiment'];
   const isQuickAddEnabled = proFeatures?.quickAdd?.enabled !== false && !quickAddDisabledNodeTypes.includes(node.type || '');
   
   const handlePositions = {

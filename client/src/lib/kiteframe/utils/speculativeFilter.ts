@@ -11,9 +11,6 @@ export function isSpeculativeNode(node: Node): boolean {
     const data = node.data as ExperimentNodeData;
     return data?.ui?.preview === true;
   }
-  if (node.type === 'wildcard') {
-    return true;
-  }
   return false;
 }
 

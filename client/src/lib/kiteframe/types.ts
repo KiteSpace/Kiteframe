@@ -151,7 +151,7 @@ export type Edge = {
   meta?: EdgeMeta; // Metadata for speculative edges, AI generation, etc.
 };
 
-export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview' | 'code' | 'render' | 'wildcard' | 'experiment';
+export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview' | 'code' | 'render' | 'experiment';
 
 // ============= EXPERIMENT NODE TYPES =============
 // Experiment node for user-initiated speculative branch authoring
@@ -257,31 +257,6 @@ export interface ExperimentNodeData extends BaseNodeData {
   ui: ExperimentUI;
 }
 
-// ============= DEPRECATED: WILDCARD TYPES =============
-// These are kept for backward compatibility. New code should use Experiment types.
-// Type "wildcard" is treated as an alias for "experiment" during import/render.
-// NOTE: 'risk' and 'prompt' are legacy modes - migrate to open_exploration
-
-/** @deprecated Use ExperimentMode instead */
-export type WildCardMode = 'whatif' | 'risk' | 'enhancement' | 'prompt' | 'open_exploration';
-
-/** @deprecated Use ExperimentNodeData instead */
-export interface WildCardNodeData extends BaseNodeData {
-  label: string;
-  mode: WildCardMode;
-  content: string;
-  constraints?: string;
-  impact?: string;
-  mitigation?: string;
-  metric?: string;
-  generating?: boolean;
-  isGenerating?: boolean;
-  hasGeneratedBranch?: boolean;
-  generationError?: string;
-  generatedIds?: string[];
-  summary?: string;
-  incomingEdgesCount?: number;
-}
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
 
 // ============= COMPOUND NODE TYPES =============

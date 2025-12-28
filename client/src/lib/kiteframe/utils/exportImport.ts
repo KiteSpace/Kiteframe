@@ -173,7 +173,7 @@ function sanitizeWorkflowData(data: {
 }): typeof data {
   // Filter out speculative nodes (experiment branches) and experiment node containers
   const committedNodes = data.nodes.filter(node => {
-    if (node.type === 'wildcard' || node.type === 'experiment') return false;
+    if (node.type === 'experiment') return false;
     if (node.meta?.speculative === true) return false;
     if (node.data?.ui?.preview === true) return false;
     return true;

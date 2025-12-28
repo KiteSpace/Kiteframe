@@ -1,7 +1,15 @@
-import type { Node, Edge, ExperimentNodeData, WildCardNodeData, ExperimentGeneration, ExperimentUI, ExperimentAnchor } from '../types';
+import type { Node, Edge, ExperimentNodeData, ExperimentGeneration, ExperimentUI, ExperimentAnchor, ExperimentMode } from '../types';
 
-function isWildCardData(data: any): data is WildCardNodeData {
-  return data && typeof data.content === 'string' && !data.generation;
+const VALID_EXPERIMENT_MODES: ExperimentMode[] = ['whatif', 'enhancement', 'open_exploration'];
+
+function coerceLegacyMode(mode: string | undefined): ExperimentMode {
+  if (!mode) return 'whatif';
+  if (VALID_EXPERIMENT_MODES.includes(mode as ExperimentMode)) {
+    return mode as ExperimentMode;
+  }
+  if (mode === 'risk') return 'whatif';
+  if (mode === 'prompt') return 'open_exploration';
+  return 'whatif';
 }
 
 function createDefaultGeneration(): ExperimentGeneration {
@@ -25,50 +33,6 @@ function createDefaultAnchor(workflowId: string = 'default'): ExperimentAnchor {
   };
 }
 
-export function normalizeWildCardToExperiment(node: Node, workflowId: string = 'default'): Node {
-  if (node.type !== 'wildcard') return node;
-  
-  const oldData = node.data as WildCardNodeData;
-  
-  let generationStatus: ExperimentGeneration['status'] = 'idle';
-  let generatedNodeIds: string[] = [];
-  let generatedEdgeIds: string[] = [];
-  
-  if (oldData.generating || oldData.isGenerating) {
-    generationStatus = 'generating';
-  } else if (oldData.hasGeneratedBranch || (oldData.generatedIds && oldData.generatedIds.length > 0)) {
-    generationStatus = 'generated';
-    generatedNodeIds = (oldData.generatedIds || []).filter(id => !id.includes('-edge-'));
-    generatedEdgeIds = (oldData.generatedIds || []).filter(id => id.includes('-edge-'));
-  } else if (oldData.generationError) {
-    generationStatus = 'error';
-  }
-  
-  const newData: ExperimentNodeData = {
-    label: oldData.label || 'Experiment',
-    mode: oldData.mode || 'whatif',
-    userPrompt: oldData.content || '',
-    colors: oldData.colors,
-    reactions: oldData.reactions,
-    status: oldData.status,
-    prdRefs: oldData.prdRefs,
-    anchor: createDefaultAnchor(workflowId),
-    generation: {
-      status: generationStatus,
-      generatedNodeIds,
-      generatedEdgeIds,
-      errorMessage: oldData.generationError,
-    },
-    ui: createDefaultUI(false),
-  };
-  
-  return {
-    ...node,
-    type: 'experiment',
-    data: newData,
-  };
-}
-
 export function ensureExperimentDefaults(node: Node, workflowId: string = 'default'): Node {
   if (node.type !== 'experiment') return node;
   
@@ -76,7 +40,7 @@ export function ensureExperimentDefaults(node: Node, workflowId: string = 'defau
   
   const normalizedData: ExperimentNodeData = {
     label: data.label || 'Experiment',
-    mode: data.mode || 'whatif',
+    mode: coerceLegacyMode(data.mode as string | undefined),
     userPrompt: data.userPrompt,
     selectedOptionId: data.selectedOptionId,
     selectedOptionLabel: data.selectedOptionLabel,
@@ -97,9 +61,6 @@ export function ensureExperimentDefaults(node: Node, workflowId: string = 'defau
 
 export function normalizeNodesForExperiment(nodes: Node[], workflowId: string = 'default'): Node[] {
   return nodes.map(node => {
-    if (node.type === 'wildcard') {
-      return normalizeWildCardToExperiment(node, workflowId);
-    }
     if (node.type === 'experiment') {
       return ensureExperimentDefaults(node, workflowId);
     }
@@ -129,7 +90,7 @@ export function markGeneratedEdgesAsPreview(edges: Edge[]): Edge[] {
         ...edge,
         style: {
           ...edge.style,
-          strokeOpacity: 0.8, // solid stroke, slightly transparent
+          strokeOpacity: 0.8,
         },
       };
     }
@@ -138,9 +99,6 @@ export function markGeneratedEdgesAsPreview(edges: Edge[]): Edge[] {
 }
 
 export function normalizeNodeForMutation(node: Node, workflowId: string = 'default'): Node {
-  if (node.type === 'wildcard') {
-    return normalizeWildCardToExperiment(node, workflowId);
-  }
   if (node.type === 'experiment') {
     return ensureExperimentDefaults(node, workflowId);
   }

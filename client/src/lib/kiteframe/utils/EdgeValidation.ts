@@ -106,7 +106,7 @@ export class EdgeValidator {
     }
 
     // Experiment nodes can only have ONE incoming edge
-    if (targetNode.type === 'experiment' || targetNode.type === 'wildcard') {
+    if (targetNode.type === 'experiment') {
       const incomingEdges = existingEdges.filter(
         e => e.target === edge.target && e.id !== edge.id
       );

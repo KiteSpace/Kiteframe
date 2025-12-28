@@ -123,7 +123,7 @@ export function probeAvailableSpace(
   axisPreference?: 'horizontal' | 'vertical'
 ): SpaceProbeResult {
   const existingRects = existingNodes
-    .filter(n => n.type !== 'wildcard' && n.type !== 'experiment')
+    .filter(n => n.type !== 'experiment')
     .map(getNodeRect);
   
   const directions: ('right' | 'left' | 'down' | 'up')[] = axisPreference === 'vertical'

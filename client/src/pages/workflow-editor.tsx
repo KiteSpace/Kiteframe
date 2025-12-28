@@ -153,11 +153,9 @@ import { resetLayersState } from "@/stores/layersStateManager";
 import { prdNodeLinkStore, type PRDNodeLink } from "@/stores/prdNodeLinkStore";
 import { usePromptContextStoreOptional } from "@/contexts/PromptContextStore";
 import { generateWorkflowPRD } from "@/ai/prdEngine";
-import { generateWildCardBranch } from "@/ai/workflow/generateWildCardBranch";
-import type { WildCardNodeData, ExperimentNodeData, WorkflowTool, ExperimentMode } from "@/lib/kiteframe/types";
+import type { ExperimentNodeData, WorkflowTool, ExperimentMode } from "@/lib/kiteframe/types";
 import { ExperimentTool } from "@/lib/kiteframe/components/ExperimentTool";
 import { extractSemanticWorkflowModel } from "@/lib/kiteframe/utils/extractSemanticWorkflowModel";
-import { createWildCardNode } from "@/lib/kiteframe/factory/NodeFactory";
 import { probeAvailableSpace, applySpaceProbeResult } from "@/lib/kiteframe/utils/SpaceProbe";
 import { normalizeNodesForExperiment, markGeneratedEdgesAsPreview, normalizeNodeForMutation, clearPreviewFlags, clearEdgePreviewFlags, ensureExperimentDefaults } from "@/lib/kiteframe/utils/experimentNormalizer";
 import { withUndo } from "@/lib/kiteframe/utils/withUndo";
@@ -1624,7 +1622,7 @@ function WorkflowEditorContent({
   // Build experiment options map for canvas
   const experimentOptionsMap = useMemo(() => {
     const map = new Map<string, { options: import('../lib/kiteframe/types').ExperimentOption[]; loading: boolean; error: string | null }>();
-    const experimentNodes = nodes.filter(n => n.type === 'experiment' || n.type === 'wildcard');
+    const experimentNodes = nodes.filter(n => n.type === 'experiment');
     for (const node of experimentNodes) {
       const state = getOptionsForNode(node.id);
       map.set(node.id, {
@@ -8313,7 +8311,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             changes[0].type === "compound" ||
                             changes[0].type === "table" ||
                             changes[0].type === "shape" ||
-                            changes[0].type === "wildcard" ||
                             changes[0].type === "experiment" ||
                             changes[0].type === "code" ||
                             changes[0].type === "render" ||
@@ -8770,8 +8767,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           if (!isDraggingRef.current) {
                             setSelectedNodeId(node.id);
 
-                            // Skip linear toolbar for wildcard/experiment nodes - they have their own UI
-                            if (node.type === "wildcard" || node.type === "experiment") {
+                            // Skip linear toolbar for experiment nodes - they have their own UI
+                            if (node.type === "experiment") {
                               setLinearToolbar(null);
                               clickDelayTimeoutRef.current = null;
                               return;
@@ -8847,8 +8844,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       part?: "header" | "body",
                     ) => {
                       // Skip inline text editing for code nodes (they have their own CodeMirror editor)
-                      // Skip for wildcard/experiment nodes (they have their own UI)
-                      if (node.type === "code" || node.type === "wildcard" || node.type === "experiment") {
+                      // Skip for experiment nodes (they have their own UI)
+                      if (node.type === "code" || node.type === "experiment") {
                         return;
                       }
                       // Double-click triggers inline text editing for specific part
@@ -10084,182 +10081,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     }}
                     isFigmaAuthenticated={isFigmaAuthenticated}
-                    onWildcardGenerateBranch={async (nodeId: string) => {
-                      const node = nodes.find(n => n.id === nodeId);
-                      if (!node || node.type !== 'wildcard') return;
-                      
-                      const data = node.data as WildCardNodeData;
-                      
-                      setNodes(prev => prev.map(n => 
-                        n.id === nodeId 
-                          ? { ...n, data: { ...n.data, isGenerating: true } }
-                          : n
-                      ));
-                      
-                      try {
-                        const result = await generateWildCardBranch(
-                          ai,
-                          {
-                            wildcardNode: node,
-                            allNodes: nodes,
-                            allEdges: edges,
-                            workflowId: activeTab?.id || 'default',
-                            workflowName: activeTab?.name || 'Workflow',
-                          }
-                        );
-                        
-                        if (result.success && result.branch) {
-                          const branch = result.branch;
-                          const generatedIds = [
-                            ...branch.nodes.map(n => n.id),
-                            ...branch.edges.map(e => e.id)
-                          ];
-                          
-                          setNodes(prev => [
-                            ...prev.map(n => 
-                              n.id === nodeId 
-                                ? { 
-                                    ...n, 
-                                    data: { 
-                                      ...n.data, 
-                                      isGenerating: false,
-                                      generatedIds,
-                                      summary: branch.summary || ''
-                                    } 
-                                  }
-                                : n
-                            ),
-                            ...branch.nodes
-                          ]);
-                          setEdges(prev => [...prev, ...branch.edges]);
-                          
-                          toast({
-                            title: "Branch generated",
-                            description: `Created ${branch.nodes.length} speculative nodes. Review and adopt or discard.`,
-                          });
-                        } else {
-                          setNodes(prev => prev.map(n => 
-                            n.id === nodeId 
-                              ? { ...n, data: { ...n.data, isGenerating: false } }
-                              : n
-                          ));
-                          toast({
-                            title: "Generation failed",
-                            description: result.error || "Could not generate branch.",
-                            variant: "destructive",
-                          });
-                        }
-                      } catch (error) {
-                        console.error('Error generating wildcard branch:', error);
-                        setNodes(prev => prev.map(n => 
-                          n.id === nodeId 
-                            ? { ...n, data: { ...n.data, isGenerating: false } }
-                            : n
-                        ));
-                        toast({
-                          title: "Generation failed",
-                          description: "An error occurred while generating the branch.",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                    onWildcardAdoptBranch={(nodeId: string) => {
-                      const node = nodes.find(n => n.id === nodeId);
-                      if (!node || node.type !== 'wildcard') return;
-                      
-                      const data = node.data as WildCardNodeData;
-                      const generatedIds = data.generatedIds || [];
-                      
-                      if (generatedIds.length === 0) return;
-                      
-                      const generatedIdSet = new Set(generatedIds);
-                      
-                      setNodes(prev => prev.map(n => {
-                        if (generatedIdSet.has(n.id)) {
-                          const { speculative, generatedFrom, ...restMeta } = n.meta || {};
-                          return {
-                            ...n,
-                            meta: Object.keys(restMeta).length > 0 ? restMeta : undefined
-                          };
-                        }
-                        if (n.id === nodeId) {
-                          const modeLabels: Record<string, string> = {
-                            whatif: 'What If',
-                            risk: 'Risk Analysis',
-                            enhancement: 'Enhancement',
-                            prompt: 'AI Prompt',
-                          };
-                          const wildcardContent = data.content || '';
-                          const wildcardMode = data.mode || 'whatif';
-                          return {
-                            ...n,
-                            type: 'process' as const,
-                            data: { 
-                              label: modeLabels[wildcardMode] || 'Adopted Node',
-                              description: wildcardContent,
-                            }
-                          };
-                        }
-                        return n;
-                      }));
-                      
-                      setEdges(prev => prev.map(e => {
-                        if (generatedIdSet.has(e.id)) {
-                          const { speculative, generatedFrom, ...restMeta } = e.meta || {};
-                          return {
-                            ...e,
-                            style: { ...e.style, strokeDasharray: undefined },
-                            meta: Object.keys(restMeta).length > 0 ? restMeta : undefined
-                          };
-                        }
-                        return e;
-                      }));
-                      
-                      saveToHistory("Adopt speculative branch");
-                      
-                      toast({
-                        title: "Branch adopted",
-                        description: "The wildcard node has been converted and the branch is now permanent.",
-                      });
-                    }}
-                    onWildcardDiscardBranch={(nodeId: string) => {
-                      const node = nodes.find(n => n.id === nodeId);
-                      if (!node || node.type !== 'wildcard') return;
-                      
-                      const data = node.data as WildCardNodeData;
-                      const generatedIds = data.generatedIds || [];
-                      
-                      if (generatedIds.length === 0) return;
-                      
-                      const generatedIdSet = new Set(generatedIds);
-                      
-                      setNodes(prev => prev
-                        .filter(n => !generatedIdSet.has(n.id))
-                        .map(n => n.id === nodeId 
-                          ? { 
-                              ...n, 
-                              data: { 
-                                ...n.data, 
-                                generatedIds: [], 
-                                summary: '',
-                                isGenerating: false,
-                                hasGeneratedBranch: false
-                              } 
-                            }
-                          : n
-                        )
-                      );
-                      
-                      setEdges(prev => prev.filter(e => !generatedIdSet.has(e.id)));
-                      
-                      toast({
-                        title: "Branch discarded",
-                        description: "The speculative branch has been removed.",
-                      });
-                    }}
                     onExperimentGenerateBranch={async (nodeId: string, currentDescription?: string) => {
                       const rawNode = nodes.find(n => n.id === nodeId);
-                      if (!rawNode || (rawNode.type !== 'experiment' && rawNode.type !== 'wildcard')) return;
+                      if (!rawNode || rawNode.type !== 'experiment') return;
                       
                       const node = normalizeNodeForMutation(rawNode, activeTab?.id || 'default');
                       const data = node.data as ExperimentNodeData;
@@ -10281,28 +10105,33 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       ));
                       
                       try {
-                        // Use currentDescription passed from component (avoids race condition)
-                        // Fall back to stored data if not provided
                         const promptContent = currentDescription || data.userPrompt || data.selectedOptionDescription || data.selectedOptionLabel || '';
-                        const legacyWildcardNode = {
-                          ...rawNode,
-                          type: 'wildcard' as const,
-                          data: {
-                            label: data.label,
-                            mode: data.mode,
-                            content: promptContent,
-                          }
-                        };
-                        const result = await generateWildCardBranch(
-                          ai,
-                          {
-                            wildcardNode: legacyWildcardNode,
-                            allNodes: nodes,
-                            allEdges: edges,
-                            workflowId: activeTab?.id || 'default',
-                            workflowName: activeTab?.name || 'Workflow',
-                          }
-                        );
+                        const experimentId = `exp-${nodeId}-${Date.now()}`;
+                        const generatedAt = Date.now();
+                        
+                        toast({
+                          title: "Experiment generation",
+                          description: "Experiment branch generation is being refactored. Please try again later.",
+                        });
+                        
+                        setNodes(prev => prev.map(n => 
+                          n.id === nodeId 
+                            ? { 
+                                ...node, 
+                                data: { 
+                                  ...data, 
+                                  generation: { 
+                                    ...data.generation,
+                                    status: 'idle' as const,
+                                    generatedNodeIds: [],
+                                    generatedEdgeIds: [],
+                                  } 
+                                } 
+                              }
+                            : n
+                        ));
+                        
+                        const result = { success: false, error: 'Experiment generation is being refactored', branch: null };
                         
                         if (result.success && result.branch) {
                           const branch = result.branch;
@@ -10452,7 +10281,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         }) : null
                       });
                       
-                      if (!rawNode || (rawNode.type !== 'experiment' && rawNode.type !== 'wildcard')) {
+                      if (!rawNode || rawNode.type !== 'experiment') {
                         console.log('[EXPERIMENT] Early return: node not found or wrong type');
                         return;
                       }
@@ -10611,7 +10440,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }}
                     onExperimentDiscardBranch={(nodeId: string) => {
                       const rawNode = nodes.find(n => n.id === nodeId);
-                      if (!rawNode || (rawNode.type !== 'experiment' && rawNode.type !== 'wildcard')) return;
+                      if (!rawNode || rawNode.type !== 'experiment') return;
                       
                       const node = normalizeNodeForMutation(rawNode, activeTab?.id || 'default');
                       const data = node.data as ExperimentNodeData;
@@ -10872,87 +10701,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               userPrompt: currentTool.userPrompt,
                             });
                             
-                            const virtualWildcardId = `virtual-wildcard-${currentTool.id}`;
-                            const virtualWildcardNode: Node = {
-                              id: virtualWildcardId,
-                              type: 'wildcard',
-                              position: {
-                                x: anchorNodeData.position.x + (anchorNodeData.width || 200) + 50,
-                                y: anchorNodeData.position.y,
-                              },
-                              data: {
-                                label: currentTool.mode,
-                                mode: currentTool.mode,
-                                content: description,
-                              },
-                            };
-                            
-                            const result = await generateWildCardBranch(
-                              ai,
-                              {
-                                wildcardNode: virtualWildcardNode,
-                                allNodes: nodes,
-                                allEdges: edges,
-                                workflowId: activeTab?.id || 'default',
-                                workflowName: activeTab?.name || 'Workflow',
-                              }
-                            );
-                            
-                            console.log('[ExperimentTool] Generation result:', {
-                              success: result.success,
-                              error: result.error,
-                              branchNodes: result.branch?.nodes.map(n => ({ id: n.id, type: n.type, label: (n.data as any)?.label })),
-                              branchEdges: result.branch?.edges.map(e => ({ id: e.id, source: e.source, target: e.target, label: e.label })),
-                              summary: result.branch?.summary,
+                            toast({
+                              title: "Experiment generation",
+                              description: "Experiment tool generation is being refactored. Please try again later.",
                             });
                             
-                            if (result.success && result.branch && (result.branch.nodes.length > 0 || result.branch.edges.length > 0)) {
-                              const speculativeNodes = result.branch.nodes.map((n: Node) => ({
-                                ...n,
-                                meta: { ...n.meta, speculative: true, experimentId: currentTool.meta.experimentId },
-                              }));
-                              const speculativeEdges = result.branch.edges.map((e: Edge) => ({
-                                ...e,
-                                source: e.source === virtualWildcardId ? currentTool.anchorNodeId : e.source,
-                                meta: { ...e.meta, speculative: true, experimentId: currentTool.meta.experimentId },
-                              }));
-                              
-                              console.log('[ExperimentTool] Processed edges:', speculativeEdges.map(e => ({ 
-                                id: e.id, 
-                                source: e.source, 
-                                target: e.target,
-                                label: e.label 
-                              })));
-                              
-                              // Add nodes and edges separately to avoid React batching issues
-                              setNodes(prev => [...prev, ...speculativeNodes]);
-                              
-                              // Add edges in a separate state update - using nodes array from outer scope
-                              // since we need the new nodes for z-index calculation
-                              const allNodesWithNew = [...nodes, ...speculativeNodes];
-                              setEdges(prevEdges => {
-                                const newEdges = [...prevEdges, ...speculativeEdges];
-                                console.log('[ExperimentTool] Adding edges to state:', {
-                                  prevCount: prevEdges.length,
-                                  newCount: newEdges.length,
-                                  addedEdges: speculativeEdges.length,
-                                });
-                                return recalculateAllEdgeZIndexes(newEdges, allNodesWithNew);
-                              });
-                              
-                              setWorkflowTools(prev => prev.map(t => 
-                                t.id === toolId ? { 
-                                  ...t, 
-                                  state: 'preview' as const,
-                                  generated: {
-                                    nodeIds: speculativeNodes.map(n => n.id),
-                                    edgeIds: speculativeEdges.map(e => e.id),
-                                  },
-                                } : t
-                              ));
-                            } else {
-                              throw new Error(result.error || 'No nodes generated');
-                            }
+                            setWorkflowTools(prev => prev.map(t => 
+                              t.id === toolId ? { ...t, state: 'idle' as const } : t
+                            ));
+                            
+                            console.log('[ExperimentTool] Generation disabled - function removed');
                           } catch (error) {
                             console.error('[ExperimentTool] Generation failed:', error);
                             setWorkflowTools(prev => prev.map(t => 

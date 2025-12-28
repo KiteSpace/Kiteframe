@@ -42,7 +42,6 @@ import { FormNode } from "./FormNode";
 import { CompoundNode } from "./CompoundNode";
 import { WebviewNode } from "./WebviewNode";
 import CodeNodeComponent from "./CodeNode";
-import { WildCardNode } from "./WildCardNode";
 import { ExperimentNode } from "./ExperimentNode";
 import RenderNodeComponent, { createRenderNode } from "./RenderNode";
 import { generateNodeId } from "../factory/NodeFactory";
@@ -1307,12 +1306,7 @@ type Props = {
   // Read-only mode: hides connection handles but allows node dragging for viewing
   readOnly?: boolean;
   
-  // Wild Card node callbacks for speculative branch generation (deprecated - use experiment callbacks)
-  onWildcardGenerateBranch?: (nodeId: string) => void;
-  onWildcardAdoptBranch?: (nodeId: string) => void;
-  onWildcardDiscardBranch?: (nodeId: string) => void;
-  
-  // Experiment node callbacks for speculative branch generation (new)
+  // Experiment node callbacks for speculative branch generation
   onExperimentGenerateBranch?: (nodeId: string, currentDescription?: string) => void;
   onExperimentAdoptBranch?: (nodeId: string) => void;
   onExperimentDiscardBranch?: (nodeId: string) => void;
@@ -4774,79 +4768,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 );
               }
 
-              // Handle wildcard nodes (deprecated alias for experiment)
-              if (n.type === "wildcard") {
-                const incomingEdgesCount = (props.edges || []).filter(edge => edge.target === n.id).length;
-                const wildcardNodeData = {
-                  ...n,
-                  data: {
-                    ...n.data,
-                    incomingEdgesCount,
-                  }
-                };
-                return (
-                  <WildCardNode
-                    key={n.id}
-                    node={wildcardNodeData as any}
-                    onUpdate={(nodeId: string, updates: any) => {
-                      if (updates.data?._deleted) {
-                        props.onNodesChange?.(props.nodes.filter(node => node.id !== nodeId));
-                        return;
-                      }
-                      const updated = props.nodes.map((node) =>
-                        node.id === nodeId ? { ...node, ...updates } : node,
-                      );
-                      props.onNodesChange?.(updated);
-                    }}
-                    onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
-                    showHandles={!props.readOnly && n.showHandles !== false}
-                    showResizeHandle={n.resizable !== false}
-                    readOnly={props.readOnly}
-                    onStartDrag={(e: React.MouseEvent) => {
-                      e.stopPropagation();
-                      if (!containerRef.current) return;
-                      const rect = containerRef.current.getBoundingClientRect();
-                      const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
-                      const selectedNodes = props.nodes.filter((node) => node.selected === true);
-                      const selectedCanvasObjects = (props.canvasObjects || []).filter((obj) => obj.selected === true);
-                      const totalSelected = selectedNodes.length + selectedCanvasObjects.length;
-                      const isGroupDrag = totalSelected > 1 && n.selected === true;
-                      const origins = isGroupDrag
-                        ? selectedNodes.map((node) => ({ id: node.id, origin: { ...node.position } }))
-                        : [{ id: n.id, origin: { ...n.position } }];
-                      const canvasObjectOrigins = isGroupDrag
-                        ? selectedCanvasObjects.map((obj) => ({ id: obj.id, origin: { ...obj.position } }))
-                        : [];
-                      dragInfo.current = {
-                        id: n.id,
-                        start: wp,
-                        origin: { ...n.position },
-                        origins: origins,
-                        canvasObjectOrigins: canvasObjectOrigins,
-                        isGroupDrag: isGroupDrag,
-                      };
-                    }}
-                    onClick={(e: React.MouseEvent) => {
-                      props.onNodeClick?.(e, n);
-                    }}
-                    viewport={viewport}
-                    showDragPlaceholder={draggingNodeId === n.id}
-                    isAnyDragActive={!!draggingNodeId}
-                    onGenerateBranch={props.onExperimentGenerateBranch || props.onWildcardGenerateBranch}
-                    onAdoptBranch={props.onExperimentAdoptBranch || props.onWildcardAdoptBranch}
-                    onDiscardBranch={props.onExperimentDiscardBranch || props.onWildcardDiscardBranch}
-                    style={{
-                      position: "absolute",
-                      left: n.position.x,
-                      top: n.position.y,
-                      zIndex: n.zIndex || 0,
-                    }}
-                    className={n.selected ? "selected" : ""}
-                  />
-                );
-              }
-
-              // Handle experiment nodes (new speculative branch authoring)
+              // Handle experiment nodes (speculative branch authoring)
               if (n.type === "experiment") {
                 const incomingEdgesCount = (props.edges || []).filter(edge => edge.target === n.id).length;
                 return (
@@ -4901,9 +4823,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     viewport={viewport}
                     showDragPlaceholder={draggingNodeId === n.id}
                     isAnyDragActive={!!draggingNodeId}
-                    onGenerateBranch={props.onExperimentGenerateBranch || props.onWildcardGenerateBranch}
-                    onAdoptBranch={props.onExperimentAdoptBranch || props.onWildcardAdoptBranch}
-                    onDiscardBranch={props.onExperimentDiscardBranch || props.onWildcardDiscardBranch}
+                    onGenerateBranch={props.onExperimentGenerateBranch}
+                    onAdoptBranch={props.onExperimentAdoptBranch}
+                    onDiscardBranch={props.onExperimentDiscardBranch}
                     predictiveOptions={props.experimentOptionsMap?.get(n.id)?.options || []}
                     optionsLoading={props.experimentOptionsMap?.get(n.id)?.loading || false}
                     optionsError={props.experimentOptionsMap?.get(n.id)?.error || null}

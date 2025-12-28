@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { Node, Edge, ExperimentMode, ExperimentOption, ExperimentNodeData, WildCardNodeData } from '@/lib/kiteframe/types';
+import type { Node, Edge, ExperimentMode, ExperimentOption, ExperimentNodeData } from '@/lib/kiteframe/types';
 import type { AiClient } from '@/ai/types';
 import { buildExperimentContext, getAnchorNodeId } from '@/lib/kiteframe/utils/experimentContext';
 import { generateExperimentOptions } from '@/ai/workflow/generateExperimentOptions';
@@ -233,11 +233,11 @@ export function useExperimentOptions(
 
   useEffect(() => {
     const experimentNodes = nodes.filter(n => 
-      n.type === 'experiment' || n.type === 'wildcard'
+      n.type === 'experiment'
     );
     
     for (const node of experimentNodes) {
-      const data = node.data as ExperimentNodeData | WildCardNodeData;
+      const data = node.data as ExperimentNodeData;
       const mode = data.mode || 'whatif';
       
       // Skip open_exploration mode - no AI suggestions for freeform

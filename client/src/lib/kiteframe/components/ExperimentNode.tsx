@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { FlaskConical, Check, Trash2, ChevronDown, Loader2, AlertCircle, X, RefreshCw } from 'lucide-react';
-import type { Node, ExperimentNodeData, ExperimentMode, ExperimentOption, WildCardNodeData } from '../types';
+import type { Node, ExperimentNodeData, ExperimentMode, ExperimentOption } from '../types';
 import { sanitizeText } from '../utils/validation';
 import { useScrollIsolation } from '../hooks/useScrollIsolation';
 
@@ -22,7 +22,7 @@ const PURPLE = {
 };
 
 export interface ExperimentNodeComponentProps {
-  node: Node & { data: ExperimentNodeData | WildCardNodeData };
+  node: Node & { data: ExperimentNodeData };
   onUpdate?: (nodeId: string, updates: Partial<Node>) => void;
   onDelete?: (nodeId: string) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
@@ -72,40 +72,22 @@ const MODE_LABELS: Record<ExperimentMode, string> = {
   open_exploration: 'Open Exploration',
 };
 
-function isExperimentNodeData(data: any): data is ExperimentNodeData {
-  return data && typeof data.generation === 'object' && typeof data.ui === 'object';
+function getGenerationStatus(data: ExperimentNodeData): 'idle' | 'generating' | 'generated' | 'error' {
+  return data.generation?.status || 'idle';
 }
 
-function getGenerationStatus(data: ExperimentNodeData | WildCardNodeData): 'idle' | 'generating' | 'generated' | 'error' {
-  if (isExperimentNodeData(data)) {
-    return data.generation.status;
-  }
-  if (data.generating || data.isGenerating) return 'generating';
-  if (data.hasGeneratedBranch || (data.generatedIds && data.generatedIds.length > 0)) return 'generated';
-  if (data.generationError) return 'error';
-  return 'idle';
+function getGenerationError(data: ExperimentNodeData): string | undefined {
+  return data.generation?.errorMessage;
 }
 
-function getGenerationError(data: ExperimentNodeData | WildCardNodeData): string | undefined {
-  if (isExperimentNodeData(data)) {
-    return data.generation.errorMessage;
-  }
-  return data.generationError;
+function hasGeneratedContent(data: ExperimentNodeData): boolean {
+  const gen = data.generation;
+  return gen?.status === 'generated' && 
+    ((gen.generatedNodeIds?.length || 0) > 0 || (gen.generatedEdgeIds?.length || 0) > 0);
 }
 
-function hasGeneratedContent(data: ExperimentNodeData | WildCardNodeData): boolean {
-  if (isExperimentNodeData(data)) {
-    return data.generation.status === 'generated' && 
-      (data.generation.generatedNodeIds.length > 0 || data.generation.generatedEdgeIds.length > 0);
-  }
-  return data.hasGeneratedBranch === true || !!(data.generatedIds && data.generatedIds.length > 0);
-}
-
-function isPreviewMode(data: ExperimentNodeData | WildCardNodeData): boolean {
-  if (isExperimentNodeData(data)) {
-    return data.ui.preview;
-  }
-  return true;
+function isPreviewMode(data: ExperimentNodeData): boolean {
+  return data.ui?.preview ?? true;
 }
 
 export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
@@ -145,10 +127,10 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
   // Prevent canvas zoom from intercepting scroll events on the body content
   useScrollIsolation(bodyRef);
 
-  const data = node.data as ExperimentNodeData | WildCardNodeData;
-  // Coerce legacy modes ('risk' -> 'whatif', 'prompt' -> 'open_exploration')
+  const data = node.data as ExperimentNodeData;
+  // Coerce any legacy modes to valid ExperimentMode
   const rawMode = data.mode || 'whatif';
-  const mode: ExperimentMode = rawMode === 'risk' ? 'whatif' : rawMode === 'prompt' ? 'open_exploration' : rawMode as ExperimentMode;
+  const mode: ExperimentMode = (rawMode as string) === 'risk' ? 'whatif' : (rawMode as string) === 'prompt' ? 'open_exploration' : rawMode as ExperimentMode;
   const modeConfig = MODE_CONFIG[mode];
   
   const generationStatus = getGenerationStatus(data);
@@ -171,17 +153,13 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
   const prevIncomingEdgesRef = useRef<number>(incomingEdgesCount);
   
   useEffect(() => {
-    if (isExperimentNodeData(data)) {
-      setUserPromptValue(data.userPrompt || '');
-      if (data.selectedOptionId && data.selectedOptionLabel) {
-        setSelectedOption({ 
-          id: data.selectedOptionId, 
-          label: data.selectedOptionLabel,
-          description: data.selectedOptionDescription 
-        });
-      }
-    } else {
-      setUserPromptValue(data.content || '');
+    setUserPromptValue(data.userPrompt || '');
+    if (data.selectedOptionId && data.selectedOptionLabel) {
+      setSelectedOption({ 
+        id: data.selectedOptionId, 
+        label: data.selectedOptionLabel,
+        description: data.selectedOptionDescription 
+      });
     }
   }, [data]);
   
@@ -238,28 +216,17 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
       setSelectedOption(null);
       setUserPromptValue('');
       
-      if (isExperimentNodeData(data)) {
-        onUpdate?.(node.id, {
-          data: {
-            ...data,
-            mode: newMode,
-            label: MODE_LABELS[newMode],
-            selectedOptionId: undefined,
-            selectedOptionLabel: undefined,
-            selectedOptionDescription: undefined,
-            userPrompt: '',
-          }
-        });
-      } else {
-        onUpdate?.(node.id, {
-          data: {
-            ...data,
-            mode: newMode,
-            label: MODE_LABELS[newMode],
-            content: '',
-          }
-        });
-      }
+      onUpdate?.(node.id, {
+        data: {
+          ...data,
+          mode: newMode,
+          label: MODE_LABELS[newMode],
+          selectedOptionId: undefined,
+          selectedOptionLabel: undefined,
+          selectedOptionDescription: undefined,
+          userPrompt: '',
+        }
+      });
       
       if (newMode !== 'open_exploration' && hasIncomingEdges) {
         onGenerateOptionsForMode?.(node.id, newMode);
@@ -271,16 +238,14 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
     if (readOnly) return;
     setSelectedOption(option);
     
-    if (isExperimentNodeData(data)) {
-      onUpdate?.(node.id, {
-        data: {
-          ...data,
-          selectedOptionId: option.id,
-          selectedOptionLabel: option.label,
-          selectedOptionDescription: option.description,
-        }
-      });
-    }
+    onUpdate?.(node.id, {
+      data: {
+        ...data,
+        selectedOptionId: option.id,
+        selectedOptionLabel: option.label,
+        selectedOptionDescription: option.description,
+      }
+    });
   }, [node.id, data, onUpdate, readOnly]);
 
   const handlePromptChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -289,14 +254,8 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
 
   const handlePromptBlur = useCallback(() => {
     const sanitized = sanitizeText(userPromptValue.trim());
-    if (isExperimentNodeData(data)) {
-      if (sanitized !== data.userPrompt) {
-        onUpdate?.(node.id, { data: { ...data, userPrompt: sanitized } });
-      }
-    } else {
-      if (sanitized !== data.content) {
-        onUpdate?.(node.id, { data: { ...data, content: sanitized } });
-      }
+    if (sanitized !== data.userPrompt) {
+      onUpdate?.(node.id, { data: { ...data, userPrompt: sanitized } });
     }
   }, [userPromptValue, node.id, data, onUpdate]);
 

@@ -445,20 +445,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         ];
       }
       
-      // Wildcard nodes only get delete button (they have their own built-in UI with generate/adopt/discard)
-      if (node?.type === 'wildcard') {
-        return [
-          {
-            id: 'delete',
-            icon: <Trash2 size={18} />,
-            label: 'Delete',
-            color: 'bg-red-500',
-            hoverColor: 'hover:bg-red-600',
-            onClick: () => { onDelete?.(); onClose(); }
-          }
-        ];
-      }
-      
       // Render nodes (HTML preview) only get color palette and delete
       if (node?.type === 'render') {
         return [
@@ -552,7 +538,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       return baseButtons;
     } else if (isEdgeTarget) {
       const isDataLink = edge?.data?.isDataLink === true;
-      const isExperimentEdge = edgeTargetNodeType === 'experiment' || edgeTargetNodeType === 'wildcard';
+      const isExperimentEdge = edgeTargetNodeType === 'experiment';
       
       // For edges targeting experiment nodes, only show delete button
       if (isExperimentEdge) {
@@ -2386,8 +2372,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             );
           })}
           
-          {/* Wireframe button - only for Basic nodes and Compound nodes (not for image/table/form/code/wildcard nodes) */}
-          {isNodeTarget && node?.type !== 'image' && node?.type !== 'table' && node?.type !== 'form' && node?.type !== 'code' && node?.type !== 'output' && node?.type !== 'wildcard' && !isInlineEditing && (
+          {/* Wireframe button - only for Basic nodes and Compound nodes (not for image/table/form/code/experiment nodes) */}
+          {isNodeTarget && node?.type !== 'image' && node?.type !== 'table' && node?.type !== 'form' && node?.type !== 'code' && node?.type !== 'output' && node?.type !== 'experiment' && !isInlineEditing && (
             <button
               className={cn(
                 "h-9 px-3 rounded-full flex items-center gap-1.5 text-sm font-medium shadow-md transition-all duration-200",

@@ -9,7 +9,6 @@ export { NodeHandles } from './components/NodeHandles';
 export { ImageNode } from './components/ImageNode';
 export { WebviewNode } from './components/WebviewNode';
 export { TableNode, createTableNode } from './components/TableNode';
-export { WildCardNode } from './components/WildCardNode';
 export { ExperimentNode } from './components/ExperimentNode';
 export { ExperimentTool } from './components/ExperimentTool';
 export { TablePanel } from './components/TablePanel';
@@ -72,8 +71,6 @@ export type {
   ExperimentGeneration,
   ExperimentUI,
   ExperimentNodeData,
-  WildCardMode,
-  WildCardNodeData,
   WorkflowTool,
   WorkflowToolType,
   WorkflowToolState,
@@ -112,7 +109,6 @@ export {
   filterOutSpeculativeEdges 
 } from './utils/speculativeFilter';
 export { 
-  normalizeWildCardToExperiment, 
   ensureExperimentDefaults,
   normalizeNodesForExperiment,
   markGeneratedNodesAsPreview,

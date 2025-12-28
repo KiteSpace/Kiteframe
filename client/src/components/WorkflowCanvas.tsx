@@ -77,9 +77,6 @@ interface WorkflowCanvasProps {
   onLayoutWorkflow?: (flowId: string, nodeIds: string[], layoutType: 'hierarchical' | 'horizontal' | 'vertical') => void;
   onRefreshFigma?: (nodeId: string) => Promise<void>;
   isFigmaAuthenticated?: boolean; // Whether user can refresh Figma frames
-  onWildcardGenerateBranch?: (nodeId: string) => void;
-  onWildcardAdoptBranch?: (nodeId: string) => void;
-  onWildcardDiscardBranch?: (nodeId: string) => void;
   onExperimentGenerateBranch?: (nodeId: string, currentDescription?: string) => void;
   onExperimentAdoptBranch?: (nodeId: string) => void;
   onExperimentDiscardBranch?: (nodeId: string) => void;
@@ -159,9 +156,6 @@ export function WorkflowCanvas({
   onLayoutWorkflow,
   onRefreshFigma,
   isFigmaAuthenticated,
-  onWildcardGenerateBranch,
-  onWildcardAdoptBranch,
-  onWildcardDiscardBranch,
   onExperimentGenerateBranch,
   onExperimentAdoptBranch,
   onExperimentDiscardBranch,
@@ -618,9 +612,6 @@ export function WorkflowCanvas({
         onLayoutWorkflow={onLayoutWorkflow}
         onRefreshFigma={onRefreshFigma}
         isFigmaAuthenticated={isFigmaAuthenticated}
-        onWildcardGenerateBranch={onWildcardGenerateBranch}
-        onWildcardAdoptBranch={onWildcardAdoptBranch}
-        onWildcardDiscardBranch={onWildcardDiscardBranch}
         onExperimentGenerateBranch={onExperimentGenerateBranch}
         onExperimentAdoptBranch={onExperimentAdoptBranch}
         onExperimentDiscardBranch={onExperimentDiscardBranch}

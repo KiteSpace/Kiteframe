@@ -66,7 +66,7 @@ function getUpstreamNodes(
       if (!sourceNode || isSpeculativeNode(sourceNode)) continue;
       if (visited.has(sourceNode.id)) continue;
       
-      if (sourceNode.type !== 'experiment' && sourceNode.type !== 'wildcard') {
+      if (sourceNode.type !== 'experiment') {
         result.push({
           id: sourceNode.id,
           label: sourceNode.data?.label || sourceNode.type || 'Unknown',
@@ -111,7 +111,7 @@ function getDownstreamNodes(
       if (!targetNode || isSpeculativeNode(targetNode)) continue;
       if (visited.has(targetNode.id)) continue;
       
-      if (targetNode.type !== 'experiment' && targetNode.type !== 'wildcard') {
+      if (targetNode.type !== 'experiment') {
         result.push({
           id: targetNode.id,
           label: targetNode.data?.label || targetNode.type || 'Unknown',
