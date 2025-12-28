@@ -1,0 +1,278 @@
+KITEFRAME — EXPORT SYSTEM REFACTOR
+
+Machine-Executable Replit Task File
+
+OBJECTIVE
+
+Refactor the Project Export modal to support:
+
+À-la-carte exports (single artifacts)
+
+Bundle exports (multi-file, opinionated sets)
+
+Multi-select export via checkboxes
+
+Clear, user-facing descriptions of contents
+
+Accurate naming (no PRD-only language)
+
+This task replaces the existing single-select “Export Format” behavior.
+
+GLOBAL RULES (NON-NEGOTIABLE)
+
+Users must be able to select multiple exports at once
+
+Bundles and individual files must coexist
+
+No export option may be ambiguous about what files it produces
+
+UI labels must match actual output exactly
+
+No “Bundle” suffix in bundle option names
+
+No references to “Export PRD” anywhere
+
+STEP 1 — MODAL TITLE & ENTRY POINT
+1.1 Modal title
+
+REPLACE
+
+Export Project PRD
+
+
+WITH
+
+Export Project
+
+1.2 Project panel entry
+
+Ensure the Project Panel uses:
+
+⬇︎ Export
+
+
+Icon + text (icon alone is not acceptable).
+
+STEP 2 — EXPORT SELECTION MODEL (DATA)
+
+Replace any single-select export model with a multi-select array.
+
+type ExportOption =
+  | 'prd_document'
+  | 'prototype_prompt'
+  | 'figma_make_prompt'
+  | 'jira_csv'
+  | 'kiteframe_project'
+  | 'bundle_builder'
+  | 'bundle_design'
+  | 'bundle_project'
+  | 'bundle_ai_agent'
+
+type ExportSelection = ExportOption[]
+
+
+Export is valid when:
+
+selection.length > 0
+
+STEP 3 — UI STRUCTURE (REQUIRED)
+Section header
+Select what you want to export
+
+SECTION 1 — À-la-carte exports
+
+Label
+
+Individual Files
+
+
+Each option MUST use a checkbox (not radio buttons).
+
+Options (exact)
+
+PRD Document
+
+Product requirements document generated from selected workflows
+
+Prototype Prompt
+
+Structured prompt for generating prototypes with AI tools
+
+Figma Make Prompt
+
+Prompt optimized for Figma Make and design-focused AI tools
+
+JIRA CSV
+
+CSV file for importing epics, stories, or tasks into Jira
+
+Kiteframe Project
+
+Complete project file for reimporting into Kiteframe
+
+SECTION 2 — Bundles
+
+Label
+
+Bundles
+
+Options (exact)
+
+Design
+
+Prototype prompt and workflow outline for design exploration
+
+Builder
+
+Prototype prompt, build instructions, and workflow outline
+
+Project
+
+PRD, Jira CSV, workflow diagram, and Kiteframe project file
+
+AI Agent
+
+System prompt, workflow context, constraints, and expectations for an AI agent
+
+STEP 4 — BUNDLE CONTENT DEFINITIONS (STRICT)
+
+These mappings must be hard-coded and testable.
+
+4.1 Design bundle
+bundle_design = [
+  'prototype_prompt',
+  'workflow_markdown_outline'
+]
+
+4.2 Builder bundle
+bundle_builder = [
+  'prototype_prompt',
+  'ai_build_instructions',
+  'workflow_markdown_outline'
+]
+
+4.3 Project bundle
+bundle_project = [
+  'prd_document',
+  'jira_csv',
+  'workflow_diagram',
+  'kiteframe_project'
+]
+
+4.4 AI Agent bundle
+bundle_ai_agent = [
+  'agent_system_prompt',
+  'workflow_markdown_outline',
+  'constraints_and_non_goals',
+  'expected_outputs'
+]
+
+STEP 5 — MULTI-SELECT BEHAVIOR RULES
+5.1 Checkbox behavior
+
+Users may select any combination of:
+
+Individual files
+
+Bundles
+
+Selecting a bundle does not disable individual options
+
+5.2 Deduplication rule
+
+If the same artifact appears in multiple selections:
+
+Export it once
+
+Do not duplicate files in the final export
+
+Example:
+
+User selects Builder + Prototype Prompt
+
+Prototype Prompt is exported once
+
+5.3 Export packaging
+
+If multiple files are selected:
+
+Export as a single ZIP
+
+Use clear filenames and folders
+
+Example:
+
+/export/
+  /bundles/
+    builder/
+  /files/
+    prd.md
+    jira.csv
+
+
+Exact structure is flexible, clarity is not.
+
+STEP 6 — EMPTY / DISABLED STATES
+6.1 No selection
+
+Export button disabled
+
+Helper text:
+
+Select at least one item to export.
+
+6.2 Missing prerequisites
+
+If an export requires unavailable data:
+
+Show inline warning on that option
+
+Do NOT block the entire modal
+
+Example:
+
+PRD Document (requires generated PRD)
+
+STEP 7 — ANALYTICS (INTERNAL)
+
+Track:
+
+event: 'export_selected'
+properties: {
+  selections: ExportOption[]
+}
+
+
+Do NOT expose analytics terms in UI copy.
+
+STEP 8 — ACCEPTANCE CHECKLIST (MUST PASS)
+
+ Modal title is “Export Project”
+
+ Users can select multiple exports at once
+
+ Bundles and individual files are clearly separated
+
+ Every option has a description
+
+ Bundle contents match definitions exactly
+
+ No duplicate files in output
+
+ No mention of “Export PRD” anywhere
+
+ “Bundle” does not appear in bundle option labels
+
+FAILURE CONDITIONS
+
+This task is FAILED if:
+
+Only one export can be selected
+
+Bundles obscure or replace individual exports
+
+Descriptions are missing or vague
+
+PRD language appears in modal title
+
+Bundle contents drift from spec
