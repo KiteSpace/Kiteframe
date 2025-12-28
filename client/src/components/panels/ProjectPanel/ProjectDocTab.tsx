@@ -17,7 +17,7 @@ import {
 } from './sections';
 import { loadProjectPRD } from '@/lib/kiteframe/utils/prdStorage';
 import type { PRDSection } from '@/ai/prdEngine';
-import { ExportPRDModal } from '@/components/ExportPRDModal';
+import { ExportProjectModal } from '@/components/ExportProjectModal';
 
 type DocMode = 'overview' | 'project-prd' | 'workflow-prd';
 
@@ -277,14 +277,14 @@ export function ProjectDocTab({
         <div className="flex-1" />
         <Button
           variant="ghost"
-          size="icon"
+          size="sm"
           onClick={() => setIsExportModalOpen(true)}
           disabled={isGenerating}
-          className="h-7 w-7"
-          title="Export"
+          className="h-7 text-xs"
           data-testid="button-open-export-modal"
         >
-          <Download size={14} />
+          <Download size={14} className="mr-1" />
+          Export
         </Button>
       </div>
 
@@ -585,7 +585,7 @@ export function ProjectDocTab({
         </div>
       </ScrollArea>
 
-      <ExportPRDModal
+      <ExportProjectModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         projectId={projectId || 'default'}
