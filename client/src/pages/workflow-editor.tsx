@@ -91,6 +91,8 @@ import {
   isPureWhite,
   getOppositeTextColor,
 } from "../lib/kiteframe/utils/colorUtils";
+import { AI_WORKFLOW_SYSTEM_PROMPT } from "@/constants/aiWorkflowPrompt";
+import { normalizeWorkflowGraph } from "@/utils/normalizeWorkflowGraph";
 import "../lib/kiteframe/styles/kiteframe.css";
 import {
   X,
@@ -1742,19 +1744,9 @@ function WorkflowEditorContent({
       });
 
       try {
-        const systemPrompt = `ONLY return JSON. No text before or after. Just JSON.
-
-Format:
-{"nodes":[{"id":"node-1","type":"input","position":{"x":300,"y":250},"data":{"label":"Start","description":"Begin","icon":"ArrowRight","iconColor":"text-blue-500"},"width":200,"height":100}],"edges":[]}
-
-Types: input, process, output, condition
-Icons: input=ArrowRight, process=Cog, output=ArrowLeft, condition=HelpCircle
-Colors: input=text-blue-500, process=text-green-500, output=text-red-500, condition=text-yellow-500
-Position nodes 250px apart horizontally.`;
-
         const response = await ai.chat({
           messages: [
-            { role: "system", content: systemPrompt },
+            { role: "system", content: AI_WORKFLOW_SYSTEM_PROMPT },
             { role: "user", content: `Create workflow: ${prompt}` },
           ],
           temperature: 0.1,
@@ -1801,10 +1793,18 @@ Position nodes 250px apart horizontally.`;
           workflowData = JSON.parse(fixedResponse);
         }
 
-        if (workflowData.nodes && workflowData.edges) {
-          // Add unique IDs with timestamp prefix
+        if (workflowData.nodes && Array.isArray(workflowData.nodes)) {
           const timestamp = Date.now();
-          const processedNodes = workflowData.nodes.map(
+          
+          // Use shared normalization for consistent graph topology
+          const { nodes: normalizedNodes, edges: normalizedEdges } = normalizeWorkflowGraph({
+            nodes: workflowData.nodes,
+            edges: workflowData.edges || [],
+            timestamp,
+          });
+          
+          // Add unique IDs with kiteai prefix for tracking
+          const processedNodes = normalizedNodes.map(
             (node: any, index: number) => ({
               ...node,
               id: `${index + 1}-kiteai-${timestamp}-${index}`,
@@ -1813,23 +1813,19 @@ Position nodes 250px apart horizontally.`;
             }),
           );
 
+          // Create mapping from normalized IDs to processed IDs
           const nodeIdMap: Record<string, string> = {};
-          workflowData.nodes.forEach((node: any, index: number) => {
+          normalizedNodes.forEach((node: any, index: number) => {
             nodeIdMap[node.id] = `${index + 1}-kiteai-${timestamp}-${index}`;
           });
 
-          const processedEdges = workflowData.edges.map(
+          // Update edge references to use new node IDs
+          const processedEdges = normalizedEdges.map(
             (edge: any, index: number) => ({
               ...edge,
               id: `edge-kiteai-${timestamp}-${index}`,
               source: nodeIdMap[edge.source] || edge.source,
               target: nodeIdMap[edge.target] || edge.target,
-              type: edge.type || "bezier",
-              style: edge.style || {
-                strokeColor: "hsl(221.2, 83.2%, 53.3%)",
-                strokeWidth: 2,
-              },
-              markers: edge.markers || { type: "arrow", position: "end" },
             }),
           );
 

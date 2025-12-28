@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
 import type { Node, Edge } from '../lib/kiteframe/types';
 import { Sparkles, Loader2, Image, Upload, FileImage, CheckCircle, AlertTriangle, MessageSquare } from 'lucide-react';
+import { AI_WORKFLOW_SYSTEM_PROMPT } from '@/constants/aiWorkflowPrompt';
+import { normalizeWorkflowGraph } from '@/utils/normalizeWorkflowGraph';
 
 interface ImageAnalysisResult {
   success: boolean;
@@ -183,20 +185,9 @@ export function AiWorkflowGenerator({ onClose, onGenerate, initialPrompt = '' }:
 
     setIsGenerating(true);
     try {
-      const systemPrompt = `ONLY return JSON. No text before or after. Just JSON.
-
-Format:
-{"nodes":[{"id":"node-1","type":"input","position":{"x":100,"y":250},"data":{"label":"Start","description":"Begin workflow","icon":"ArrowRight","iconColor":"text-blue-500"},"width":200,"height":100},{"id":"node-2","type":"process","position":{"x":350,"y":250},"data":{"label":"Process","description":"Main step","icon":"Cog","iconColor":"text-green-500"},"width":200,"height":100},{"id":"node-3","type":"output","position":{"x":600,"y":250},"data":{"label":"End","description":"Complete","icon":"ArrowLeft","iconColor":"text-red-500"},"width":200,"height":100}],"edges":[{"id":"e1-2","source":"node-1","target":"node-2","type":"bezier"},{"id":"e2-3","source":"node-2","target":"node-3","type":"bezier"}]}
-
-IMPORTANT: Always include edges to connect nodes in sequence. Each edge needs id, source, target, and type:"bezier".
-Node types: input, process, output
-Icons: input=ArrowRight, process=Cog, output=ArrowLeft
-Colors: input=text-blue-500, process=text-green-500, output=text-red-500
-Position nodes 250px apart horizontally.`;
-
       const response = await aiClient.chat({
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'system', content: AI_WORKFLOW_SYSTEM_PROMPT },
           { role: 'user', content: `Create workflow: ${prompt}` }
         ],
         temperature: 0.1,
@@ -364,54 +355,24 @@ Position nodes 250px apart horizontally.`;
       }
 
       if (workflowData.nodes && Array.isArray(workflowData.nodes)) {
-        const nodes = workflowData.nodes;
-        let edges = workflowData.edges || [];
-        
-        const nodeIds = new Set(nodes.map((n: any) => n.id));
-        
-        edges = edges.filter((edge: any) => 
-          edge.id && edge.source && edge.target && 
-          nodeIds.has(edge.source) && nodeIds.has(edge.target)
-        );
-        
-        if (edges.length === 0 && nodes.length > 1) {
-          console.log('⚠️ No valid edges found, auto-generating sequential connections');
-          edges = [];
-          for (let i = 0; i < nodes.length - 1; i++) {
-            edges.push({
-              id: `auto-edge-${i + 1}`,
-              source: nodes[i].id,
-              target: nodes[i + 1].id,
-              type: 'bezier',
-              style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
-              markers: { type: 'arrow', position: 'end' }
-            });
-          }
-        }
-        
-        const normalizedEdges = edges.map((edge: any) => ({
-          ...edge,
-          type: edge.type || 'bezier',
-          style: edge.style || { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 },
-          markers: edge.markers || { type: 'arrow', position: 'end' }
-        }));
-        
-        const normalizedWorkflow = {
-          nodes: nodes,
-          edges: normalizedEdges
-        };
-        
-        console.log('🤖 AI GENERATED WORKFLOW:', { 
-          nodeCount: normalizedWorkflow.nodes.length, 
-          edgeCount: normalizedWorkflow.edges.length,
-          nodes: normalizedWorkflow.nodes,
-          edges: normalizedWorkflow.edges
+        const timestamp = Date.now();
+        const { nodes, edges } = normalizeWorkflowGraph({
+          nodes: workflowData.nodes,
+          edges: workflowData.edges || [],
+          timestamp,
         });
         
-        onGenerate(normalizedWorkflow);
+        console.log('🤖 AI GENERATED WORKFLOW:', { 
+          nodeCount: nodes.length, 
+          edgeCount: edges.length,
+          nodes,
+          edges
+        });
+        
+        onGenerate({ nodes, edges });
         toast({
           title: "Workflow Generated",
-          description: `Created ${normalizedWorkflow.nodes.length} nodes and ${normalizedWorkflow.edges.length} connections.`,
+          description: `Created ${nodes.length} nodes and ${edges.length} connections.`,
           variant: "default"
         });
         onClose();
