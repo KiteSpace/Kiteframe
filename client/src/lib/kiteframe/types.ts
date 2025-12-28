@@ -1316,6 +1316,8 @@ export interface WorkflowToolMeta {
   experimentId: string;
   source: 'diagnostic' | 'user';
   createdAt: number;
+  issueTitle?: string;
+  issueDescription?: string;
 }
 
 export interface WorkflowTool {

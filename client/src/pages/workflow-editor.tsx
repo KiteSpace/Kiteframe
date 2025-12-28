@@ -10809,6 +10809,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           experimentId: crypto.randomUUID(),
                           source: 'diagnostic',
                           createdAt: Date.now(),
+                          issueTitle: issue.title,
+                          issueDescription: issue.description,
                         },
                       };
                       
@@ -10863,8 +10865,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               currentTool.selectedOption?.label || 
                               currentTool.userPrompt || '';
                             
+                            console.log('[ExperimentTool] Generation started:', {
+                              alertTitle: (anchorNodeData.data as any)?.label || anchorNodeData.type,
+                              alertDescription: currentTool.meta.issueDescription || 'No description',
+                              fixType: currentTool.mode,
+                              selectedSuggestion: currentTool.selectedOption,
+                              userPrompt: currentTool.userPrompt,
+                            });
+                            
+                            const virtualWildcardId = `virtual-wildcard-${currentTool.id}`;
                             const virtualWildcardNode: Node = {
-                              id: `virtual-wildcard-${currentTool.id}`,
+                              id: virtualWildcardId,
                               type: 'wildcard',
                               position: {
                                 x: anchorNodeData.position.x + (anchorNodeData.width || 200) + 50,
@@ -10888,6 +10899,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               }
                             );
                             
+                            console.log('[ExperimentTool] Generation result:', {
+                              success: result.success,
+                              error: result.error,
+                              branchNodes: result.branch?.nodes.map(n => ({ id: n.id, type: n.type, label: (n.data as any)?.label })),
+                              branchEdges: result.branch?.edges.map(e => ({ id: e.id, source: e.source, target: e.target, label: e.label })),
+                              summary: result.branch?.summary,
+                            });
+                            
                             if (result.success && result.branch && (result.branch.nodes.length > 0 || result.branch.edges.length > 0)) {
                               const speculativeNodes = result.branch.nodes.map((n: Node) => ({
                                 ...n,
@@ -10895,8 +10914,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               }));
                               const speculativeEdges = result.branch.edges.map((e: Edge) => ({
                                 ...e,
+                                source: e.source === virtualWildcardId ? currentTool.anchorNodeId : e.source,
                                 meta: { ...e.meta, speculative: true, experimentId: currentTool.meta.experimentId },
                               }));
+                              
+                              console.log('[ExperimentTool] Processed edges:', speculativeEdges.map(e => ({ 
+                                id: e.id, 
+                                source: e.source, 
+                                target: e.target,
+                                label: e.label 
+                              })));
                               
                               setNodes(prev => {
                                 const newNodes = [...prev, ...speculativeNodes];
@@ -10918,7 +10945,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               throw new Error(result.error || 'No nodes generated');
                             }
                           } catch (error) {
-                            console.error('Experiment generation failed:', error);
+                            console.error('[ExperimentTool] Generation failed:', error);
                             setWorkflowTools(prev => prev.map(t => 
                               t.id === toolId ? { ...t, state: 'idle' as const } : t
                             ));
