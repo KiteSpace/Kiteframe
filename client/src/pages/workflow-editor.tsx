@@ -159,6 +159,7 @@ import { extractSemanticWorkflowModel } from "@/lib/kiteframe/utils/extractSeman
 import { createWildCardNode } from "@/lib/kiteframe/factory/NodeFactory";
 import { probeAvailableSpace, applySpaceProbeResult } from "@/lib/kiteframe/utils/SpaceProbe";
 import { normalizeNodesForExperiment, markGeneratedEdgesAsPreview, normalizeNodeForMutation, clearPreviewFlags, clearEdgePreviewFlags, ensureExperimentDefaults } from "@/lib/kiteframe/utils/experimentNormalizer";
+import { withUndo } from "@/lib/kiteframe/utils/withUndo";
 import {
   saveWorkflowPRD,
   saveWorkflowPRDVersion,
@@ -10817,8 +10818,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         style: { stroke: '#8b5cf6', strokeDasharray: '4 4' },
                       };
                       
-                      setNodes(prev => [...prev, normalizedNode]);
-                      setEdges(prev => recalculateAllEdgeZIndexes([...prev, newEdge], [...nodes, normalizedNode]));
+                      withUndo("Create experiment from diagnostic", saveToHistory, () => {
+                        setNodes(prev => [...prev, normalizedNode]);
+                        setEdges(prev => recalculateAllEdgeZIndexes([...prev, newEdge], [...nodes, normalizedNode]));
+                      });
                       
                       setTimeout(() => {
                         focusOnNode(experimentId);

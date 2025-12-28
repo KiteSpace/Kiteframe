@@ -19,28 +19,32 @@ interface DiagnosticBadgeProps {
   className?: string;
 }
 
-const SEVERITY_STYLES: Record<DiagnosticSeverity, { bg: string; text: string; border: string; icon: typeof AlertTriangle }> = {
+const SEVERITY_STYLES: Record<DiagnosticSeverity, { bg: string; text: string; iconColor: string; border: string; icon: typeof AlertTriangle }> = {
   critical: {
     bg: 'bg-red-500',
     text: 'text-white',
+    iconColor: 'text-red-600',
     border: 'border-red-600',
     icon: XCircle,
   },
   risk: {
     bg: 'bg-orange-500',
     text: 'text-white',
+    iconColor: 'text-orange-600',
     border: 'border-orange-600',
     icon: AlertTriangle,
   },
   warn: {
     bg: 'bg-yellow-500',
     text: 'text-yellow-900',
+    iconColor: 'text-yellow-600',
     border: 'border-yellow-600',
     icon: AlertCircle,
   },
   info: {
     bg: 'bg-gray-400',
     text: 'text-white',
+    iconColor: 'text-gray-600',
     border: 'border-gray-500',
     icon: Info,
   },
@@ -97,7 +101,7 @@ export const DiagnosticBadge = memo(function DiagnosticBadge({
           data-testid="diagnostic-badge"
           title={`${activeIssues.length} issue${activeIssues.length !== 1 ? 's' : ''}`}
         >
-          <Icon size={12} className={styles.text} />
+          <Icon size={12} className={allAcknowledged ? styles.iconColor : styles.text} />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -212,8 +216,8 @@ function DiagnosticIssueRow({
       data-testid={`diagnostic-issue-${issue.fingerprint}`}
     >
       <div className="flex items-start gap-2">
-        <div className={cn('mt-0.5 p-1 rounded', styles.bg)}>
-          <Icon size={12} className={styles.text} />
+        <div className={cn('mt-0.5 p-1 rounded', isAcknowledged ? 'bg-gray-300 dark:bg-gray-600' : styles.bg)}>
+          <Icon size={12} className={isAcknowledged ? styles.iconColor : styles.text} />
         </div>
         <div className="flex-1 min-w-0">
           <p className={cn(
