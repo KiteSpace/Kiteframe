@@ -14,7 +14,7 @@ interface DiagnosticOverlayProps {
   minZoom?: number;
 }
 
-const MIN_ZOOM_THRESHOLD = 0.6;
+const MIN_ZOOM_THRESHOLD = 0.35;
 
 export const DiagnosticOverlay = memo(function DiagnosticOverlay({
   nodes,

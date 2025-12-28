@@ -83,10 +83,9 @@ export const DiagnosticBadge = memo(function DiagnosticBadge({
             'absolute z-50 flex items-center justify-center',
             'w-5 h-5 rounded-full border shadow-sm',
             'transition-all duration-200 hover:scale-110',
-            allAcknowledged && 'opacity-60',
-            styles.bg,
-            styles.text,
-            styles.border,
+            allAcknowledged 
+              ? 'bg-gray-300 dark:bg-gray-600 border-gray-400 dark:border-gray-500' 
+              : cn(styles.bg, styles.border),
             POSITION_STYLES[position],
             className,
           )}
@@ -98,7 +97,7 @@ export const DiagnosticBadge = memo(function DiagnosticBadge({
           data-testid="diagnostic-badge"
           title={`${activeIssues.length} issue${activeIssues.length !== 1 ? 's' : ''}`}
         >
-          <span className="text-[10px] font-bold">{activeIssues.length}</span>
+          <Icon size={12} className={styles.text} />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -148,11 +147,6 @@ function DiagnosticPopover({
   
   return (
     <div className="max-h-80 overflow-y-auto" data-testid="diagnostic-popover">
-      <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 py-2">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-          Workflow Issues ({issues.length})
-        </h3>
-      </div>
       <div className="divide-y divide-gray-100 dark:divide-gray-700">
         {sortedIssues.map((issue) => (
           <DiagnosticIssueRow
@@ -213,7 +207,7 @@ function DiagnosticIssueRow({
     <div
       className={cn(
         'px-3 py-2',
-        isAcknowledged && 'opacity-60 bg-gray-50 dark:bg-gray-900/50',
+        isAcknowledged && 'bg-gray-100 dark:bg-gray-800/50',
       )}
       data-testid={`diagnostic-issue-${issue.fingerprint}`}
     >
@@ -222,10 +216,16 @@ function DiagnosticIssueRow({
           <Icon size={12} className={styles.text} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+          <p className={cn(
+            'text-sm font-medium truncate',
+            isAcknowledged ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'
+          )}>
             {issue.title}
           </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+          <p className={cn(
+            'text-xs line-clamp-2',
+            isAcknowledged ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'
+          )}>
             {issue.description}
           </p>
           <div className="flex items-center gap-2 mt-2 flex-wrap">

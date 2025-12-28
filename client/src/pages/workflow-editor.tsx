@@ -156,6 +156,8 @@ import { generateWorkflowPRD } from "@/ai/prdEngine";
 import { generateWildCardBranch } from "@/ai/workflow/generateWildCardBranch";
 import type { WildCardNodeData, ExperimentNodeData } from "@/lib/kiteframe/types";
 import { extractSemanticWorkflowModel } from "@/lib/kiteframe/utils/extractSemanticWorkflowModel";
+import { createWildCardNode } from "@/lib/kiteframe/factory/NodeFactory";
+import { probeAvailableSpace, applySpaceProbeResult } from "@/lib/kiteframe/utils/SpaceProbe";
 import { normalizeNodesForExperiment, markGeneratedEdgesAsPreview, normalizeNodeForMutation, clearPreviewFlags, clearEdgePreviewFlags, ensureExperimentDefaults } from "@/lib/kiteframe/utils/experimentNormalizer";
 import {
   saveWorkflowPRD,
@@ -10751,7 +10753,81 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       setForcePanelTab('diagnostics');
                     }}
                     onCreateExperiment={(issue) => {
-                      console.log('[Diagnostics] Create experiment for:', issue.nodeId, issue.fingerprint);
+                      if (!activeTabId || activeTabId === 'home') {
+                        toast({
+                          title: "Cannot create experiment",
+                          description: "No active workflow selected.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      
+                      if (!issue.nodeId) {
+                        toast({
+                          title: "Cannot create experiment",
+                          description: "This issue is not associated with a specific node.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      
+                      const sourceNode = nodes.find(n => n.id === issue.nodeId);
+                      if (!sourceNode) {
+                        toast({
+                          title: "Node not found",
+                          description: "The affected node could not be found.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      
+                      const experimentMode = issue.recommendedAction?.experimentMode || 'risk';
+                      const modeLabels: Record<string, string> = {
+                        whatif: 'What If',
+                        risk: 'Risk Analysis',
+                        enhancement: 'Enhancement',
+                        prompt: 'Explore',
+                      };
+                      
+                      const probeResult = probeAvailableSpace(
+                        { x: sourceNode.position.x, y: sourceNode.position.y },
+                        nodes,
+                        1
+                      );
+                      const [newPosition] = applySpaceProbeResult(
+                        { x: sourceNode.position.x, y: sourceNode.position.y },
+                        1,
+                        probeResult
+                      );
+                      
+                      const experimentId = `exp-${Date.now()}`;
+                      const rawNode = createWildCardNode(experimentId, newPosition, {
+                        label: modeLabels[experimentMode] || 'Explore Fix',
+                        mode: experimentMode as 'whatif' | 'risk' | 'enhancement' | 'prompt',
+                        content: `Explore solutions for: ${issue.title}\n\n${issue.description}`,
+                      });
+                      
+                      const normalizedNode = ensureExperimentDefaults(rawNode, activeTabId);
+                      
+                      const newEdge: Edge = {
+                        id: `edge-${Date.now()}`,
+                        source: sourceNode.id,
+                        target: experimentId,
+                        type: 'straight',
+                        style: { stroke: '#8b5cf6', strokeDasharray: '4 4' },
+                      };
+                      
+                      setNodes(prev => [...prev, normalizedNode]);
+                      setEdges(prev => recalculateAllEdgeZIndexes([...prev, newEdge], [...nodes, normalizedNode]));
+                      
+                      setTimeout(() => {
+                        focusOnNode(experimentId);
+                      }, 100);
+                      
+                      toast({
+                        title: "Experiment created",
+                        description: `Created a ${modeLabels[experimentMode]} experiment to explore solutions.`,
+                      });
                     }}
                   />
                 </>
