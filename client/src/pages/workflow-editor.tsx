@@ -10968,13 +10968,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 onDiagnosticsNavigateToNode={focusOnNode}
                 focusedDiagnosticFingerprint={focusedDiagnosticFingerprint}
                 forceTab={forcePanelTab}
-                showDiagnosticBadges={projectBadgeVisibility[projectIdentifier] !== false}
-                onToggleDiagnosticBadges={(show) => {
+                showDiagnosticBadges={editorSettings.showDiagnosticBadges && projectBadgeVisibility[projectIdentifier] !== false}
+                onToggleDiagnosticBadges={editorSettings.showDiagnosticBadges ? (show) => {
                   setProjectBadgeVisibility(prev => ({
                     ...prev,
                     [projectIdentifier]: show,
                   }));
-                }}
+                } : undefined}
               />
             )}
           </>
