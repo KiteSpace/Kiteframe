@@ -11,6 +11,7 @@ export { WebviewNode } from './components/WebviewNode';
 export { TableNode, createTableNode } from './components/TableNode';
 export { WildCardNode } from './components/WildCardNode';
 export { ExperimentNode } from './components/ExperimentNode';
+export { ExperimentTool } from './components/ExperimentTool';
 export { TablePanel } from './components/TablePanel';
 export { FormNode, createFormNode } from './components/FormNode';
 export { default as CodeNode, createCodeNode } from './components/CodeNode';
@@ -73,6 +74,12 @@ export type {
   ExperimentNodeData,
   WildCardMode,
   WildCardNodeData,
+  WorkflowTool,
+  WorkflowToolType,
+  WorkflowToolState,
+  WorkflowToolSelectedOption,
+  WorkflowToolGenerated,
+  WorkflowToolMeta,
   DataTable,
   DataTableColumn,
   DataTableRow,

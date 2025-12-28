@@ -1292,3 +1292,40 @@ export interface KiteFrameProps {
   // Pro Features
   proFeatures?: ProFeaturesConfig;
 }
+
+// ============= WORKFLOW TOOL TYPES =============
+// Workflow Tools are floating UI elements that operate ON workflows but are NOT part of them.
+// They never appear in PRD, diagnostics, exports, or layers.
+
+export type WorkflowToolType = 'experiment';
+
+export type WorkflowToolState = 'idle' | 'generating' | 'preview';
+
+export interface WorkflowToolSelectedOption {
+  id: string;
+  label: string;
+  description?: string;
+}
+
+export interface WorkflowToolGenerated {
+  nodeIds: string[];
+  edgeIds: string[];
+}
+
+export interface WorkflowToolMeta {
+  experimentId: string;
+  source: 'diagnostic' | 'user';
+  createdAt: number;
+}
+
+export interface WorkflowTool {
+  id: string;
+  type: WorkflowToolType;
+  anchorNodeId: string;
+  mode: ExperimentMode;
+  state: WorkflowToolState;
+  selectedOption?: WorkflowToolSelectedOption;
+  userPrompt?: string;
+  generated?: WorkflowToolGenerated;
+  meta: WorkflowToolMeta;
+}

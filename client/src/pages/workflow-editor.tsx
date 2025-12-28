@@ -154,7 +154,8 @@ import { prdNodeLinkStore, type PRDNodeLink } from "@/stores/prdNodeLinkStore";
 import { usePromptContextStoreOptional } from "@/contexts/PromptContextStore";
 import { generateWorkflowPRD } from "@/ai/prdEngine";
 import { generateWildCardBranch } from "@/ai/workflow/generateWildCardBranch";
-import type { WildCardNodeData, ExperimentNodeData } from "@/lib/kiteframe/types";
+import type { WildCardNodeData, ExperimentNodeData, WorkflowTool, ExperimentMode } from "@/lib/kiteframe/types";
+import { ExperimentTool } from "@/lib/kiteframe/components/ExperimentTool";
 import { extractSemanticWorkflowModel } from "@/lib/kiteframe/utils/extractSemanticWorkflowModel";
 import { createWildCardNode } from "@/lib/kiteframe/factory/NodeFactory";
 import { probeAvailableSpace, applySpaceProbeResult } from "@/lib/kiteframe/utils/SpaceProbe";
@@ -1639,6 +1640,7 @@ function WorkflowEditorContent({
   const [focusedDiagnosticFingerprint, setFocusedDiagnosticFingerprint] = useState<string | null>(null);
   const [forcePanelTab, setForcePanelTab] = useState<ProjectPanelTab | null>(null);
   const [projectBadgeVisibility, setProjectBadgeVisibility] = useState<Record<string, boolean>>({});
+  const [workflowTools, setWorkflowTools] = useState<WorkflowTool[]>([]);
   
   const projectIdentifier = activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId || 'default';
   
@@ -10787,7 +10789,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         return;
                       }
                       
-                      const experimentMode = issue.recommendedAction?.experimentMode || 'risk';
+                      const experimentMode = (issue.recommendedAction?.experimentMode || 'risk') as ExperimentMode;
                       const modeLabels: Record<string, string> = {
                         whatif: 'What If',
                         risk: 'Risk Analysis',
@@ -10795,49 +10797,188 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         prompt: 'Explore',
                       };
                       
-                      const probeResult = probeAvailableSpace(
-                        { x: sourceNode.position.x, y: sourceNode.position.y },
-                        nodes,
-                        1
-                      );
-                      const [newPosition] = applySpaceProbeResult(
-                        { x: sourceNode.position.x, y: sourceNode.position.y },
-                        1,
-                        probeResult
-                      );
-                      
-                      const experimentId = `exp-${Date.now()}`;
-                      const rawNode = createWildCardNode(experimentId, newPosition, {
-                        label: modeLabels[experimentMode] || 'Explore Fix',
-                        mode: experimentMode as 'whatif' | 'risk' | 'enhancement' | 'prompt',
-                        content: `Explore solutions for: ${issue.title}\n\n${issue.description}`,
-                      });
-                      
-                      const normalizedNode = ensureExperimentDefaults(rawNode, activeTabId);
-                      
-                      const newEdge: Edge = {
-                        id: `edge-${Date.now()}`,
-                        source: sourceNode.id,
-                        target: experimentId,
-                        type: 'straight',
-                        style: { stroke: '#8b5cf6', strokeDasharray: '4 4' },
+                      const toolId = `tool-${Date.now()}`;
+                      const newTool: WorkflowTool = {
+                        id: toolId,
+                        type: 'experiment',
+                        anchorNodeId: issue.nodeId,
+                        mode: experimentMode,
+                        state: 'idle',
+                        userPrompt: `Explore solutions for: ${issue.title}\n\n${issue.description}`,
+                        meta: {
+                          experimentId: crypto.randomUUID(),
+                          source: 'diagnostic',
+                          createdAt: Date.now(),
+                        },
                       };
                       
-                      withUndo("Create experiment from diagnostic", saveToHistory, () => {
-                        setNodes(prev => [...prev, normalizedNode]);
-                        setEdges(prev => recalculateAllEdgeZIndexes([...prev, newEdge], [...nodes, normalizedNode]));
-                      });
+                      setWorkflowTools(prev => [...prev, newTool]);
                       
                       setTimeout(() => {
-                        focusOnNode(experimentId);
+                        focusOnNode(issue.nodeId!);
                       }, 100);
                       
                       toast({
-                        title: "Experiment created",
-                        description: `Created a ${modeLabels[experimentMode]} experiment to explore solutions.`,
+                        title: "Experiment tool opened",
+                        description: `Opened ${modeLabels[experimentMode]} experiment. Select an option and generate.`,
                       });
                     }}
                   />
+                  
+                  {/* Workflow Tools (floating experiment UIs) */}
+                  {workflowTools.map(tool => {
+                    const anchorNode = nodes.find(n => n.id === tool.anchorNodeId);
+                    if (!anchorNode) return null;
+                    
+                    const toolOptionsState = getOptionsForNode(tool.anchorNodeId);
+                    
+                    return (
+                      <ExperimentTool
+                        key={tool.id}
+                        tool={tool}
+                        anchorNode={anchorNode}
+                        viewport={viewport}
+                        predictiveOptions={toolOptionsState?.options || []}
+                        optionsLoading={toolOptionsState?.loading || false}
+                        optionsError={toolOptionsState?.error || null}
+                        readOnly={false}
+                        onUpdate={(toolId, updates) => {
+                          setWorkflowTools(prev => prev.map(t => 
+                            t.id === toolId ? { ...t, ...updates } : t
+                          ));
+                        }}
+                        onGenerate={async (toolId) => {
+                          const currentTool = workflowTools.find(t => t.id === toolId);
+                          if (!currentTool) return;
+                          
+                          setWorkflowTools(prev => prev.map(t => 
+                            t.id === toolId ? { ...t, state: 'generating' as const } : t
+                          ));
+                          
+                          try {
+                            const anchorNodeData = nodes.find(n => n.id === currentTool.anchorNodeId);
+                            if (!anchorNodeData) throw new Error('Anchor node not found');
+                            
+                            const description = currentTool.selectedOption?.description || 
+                              currentTool.selectedOption?.label || 
+                              currentTool.userPrompt || '';
+                            
+                            const virtualWildcardNode: Node = {
+                              id: `virtual-wildcard-${currentTool.id}`,
+                              type: 'wildcard',
+                              position: {
+                                x: anchorNodeData.position.x + (anchorNodeData.width || 200) + 50,
+                                y: anchorNodeData.position.y,
+                              },
+                              data: {
+                                label: currentTool.mode,
+                                mode: currentTool.mode,
+                                content: description,
+                              },
+                            };
+                            
+                            const result = await generateWildCardBranch(
+                              ai,
+                              {
+                                wildcardNode: virtualWildcardNode,
+                                allNodes: nodes,
+                                allEdges: edges,
+                                workflowId: activeTab?.id || 'default',
+                                workflowName: activeTab?.name || 'Workflow',
+                              }
+                            );
+                            
+                            if (result.success && result.branch && (result.branch.nodes.length > 0 || result.branch.edges.length > 0)) {
+                              const speculativeNodes = result.branch.nodes.map((n: Node) => ({
+                                ...n,
+                                meta: { ...n.meta, speculative: true, experimentId: currentTool.meta.experimentId },
+                              }));
+                              const speculativeEdges = result.branch.edges.map((e: Edge) => ({
+                                ...e,
+                                meta: { ...e.meta, speculative: true, experimentId: currentTool.meta.experimentId },
+                              }));
+                              
+                              setNodes(prev => [...prev, ...speculativeNodes]);
+                              setEdges(prev => recalculateAllEdgeZIndexes([...prev, ...speculativeEdges], [...nodes, ...speculativeNodes]));
+                              
+                              setWorkflowTools(prev => prev.map(t => 
+                                t.id === toolId ? { 
+                                  ...t, 
+                                  state: 'preview' as const,
+                                  generated: {
+                                    nodeIds: speculativeNodes.map(n => n.id),
+                                    edgeIds: speculativeEdges.map(e => e.id),
+                                  },
+                                } : t
+                              ));
+                            } else {
+                              throw new Error(result.error || 'No nodes generated');
+                            }
+                          } catch (error) {
+                            console.error('Experiment generation failed:', error);
+                            setWorkflowTools(prev => prev.map(t => 
+                              t.id === toolId ? { ...t, state: 'idle' as const } : t
+                            ));
+                            toast({
+                              title: "Generation failed",
+                              description: error instanceof Error ? error.message : "Failed to generate experiment branch",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        onAccept={(toolId) => {
+                          const currentTool = workflowTools.find(t => t.id === toolId);
+                          if (!currentTool?.generated) return;
+                          
+                          withUndo("Accept experiment branch", saveToHistory, () => {
+                            setNodes(prev => prev.map(n => {
+                              if (currentTool.generated?.nodeIds.includes(n.id)) {
+                                const { speculative, experimentId, generatedFrom, ...restMeta } = n.meta || {};
+                                return { ...n, meta: Object.keys(restMeta).length > 0 ? restMeta : undefined };
+                              }
+                              return n;
+                            }));
+                            setEdges(prev => prev.map(e => {
+                              if (currentTool.generated?.edgeIds.includes(e.id)) {
+                                const { speculative, experimentId, generatedFrom, ...restMeta } = e.meta || {};
+                                return { ...e, meta: Object.keys(restMeta).length > 0 ? restMeta : undefined };
+                              }
+                              return e;
+                            }));
+                          });
+                          
+                          setWorkflowTools(prev => prev.filter(t => t.id !== toolId));
+                          
+                          toast({
+                            title: "Experiment accepted",
+                            description: "The generated branch has been added to your workflow.",
+                          });
+                        }}
+                        onReject={(toolId) => {
+                          const currentTool = workflowTools.find(t => t.id === toolId);
+                          
+                          if (currentTool?.generated) {
+                            setNodes(prev => prev.filter(n => !currentTool.generated?.nodeIds.includes(n.id)));
+                            setEdges(prev => prev.filter(e => !currentTool.generated?.edgeIds.includes(e.id)));
+                          }
+                          
+                          setWorkflowTools(prev => prev.filter(t => t.id !== toolId));
+                        }}
+                        onRefreshOptions={(toolId) => {
+                          const currentTool = workflowTools.find(t => t.id === toolId);
+                          if (currentTool) {
+                            refreshExperimentOptions(currentTool.anchorNodeId, currentTool.mode);
+                          }
+                        }}
+                        onGenerateOptionsForMode={(toolId, mode) => {
+                          const currentTool = workflowTools.find(t => t.id === toolId);
+                          if (currentTool) {
+                            generateExperimentOptionsForNode(currentTool.anchorNodeId, mode);
+                          }
+                        }}
+                      />
+                    );
+                  })}
                 </>
               ) : (
                 <BlankCanvasState
