@@ -1,7 +1,8 @@
 import { memo, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, AlertCircle, Info, XCircle, Check, ChevronRight, RefreshCw, CheckCheck, Focus } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { AlertTriangle, AlertCircle, Info, XCircle, Check, ChevronRight, RefreshCw, CheckCheck, Focus, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DiagnosticIssue, DiagnosticSeverity } from '@/lib/kiteframe/utils/diagnostics/types';
 
@@ -15,6 +16,8 @@ interface DiagnosticsTabProps {
   onCreateExperiment?: (issue: DiagnosticIssue) => void;
   onNavigateToNode?: (nodeId: string) => void;
   focusedFingerprint?: string | null;
+  showBadges?: boolean;
+  onToggleBadges?: (show: boolean) => void;
 }
 
 const SEVERITY_STYLES: Record<DiagnosticSeverity, { bg: string; text: string; icon: typeof AlertTriangle; label: string }> = {
@@ -56,6 +59,8 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   onCreateExperiment,
   onNavigateToNode,
   focusedFingerprint,
+  showBadges = true,
+  onToggleBadges,
 }: DiagnosticsTabProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const focusedRowRef = useRef<HTMLDivElement>(null);
@@ -138,6 +143,18 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
           >
             <RefreshCw className={cn('w-3.5 h-3.5', isLoading && 'animate-spin')} />
           </Button>
+          {onToggleBadges && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onToggleBadges(!showBadges)}
+              className={cn('h-7 w-7', !showBadges && 'text-muted-foreground')}
+              title={showBadges ? 'Hide badges on nodes' : 'Show badges on nodes'}
+              data-testid="diagnostics-toggle-badges"
+            >
+              {showBadges ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+            </Button>
+          )}
         </div>
       </div>
       

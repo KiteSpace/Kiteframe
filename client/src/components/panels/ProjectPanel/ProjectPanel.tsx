@@ -37,6 +37,8 @@ interface ProjectPanelProps {
   onDiagnosticsNavigateToNode?: (nodeId: string) => void;
   focusedDiagnosticFingerprint?: string | null;
   forceTab?: ProjectPanelTab | null;
+  showDiagnosticBadges?: boolean;
+  onToggleDiagnosticBadges?: (show: boolean) => void;
 }
 
 const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string }[] = [
@@ -66,7 +68,9 @@ export function ProjectPanel({
   onDiagnosticsRefresh,
   onDiagnosticsNavigateToNode,
   focusedDiagnosticFingerprint,
-  forceTab
+  forceTab,
+  showDiagnosticBadges = true,
+  onToggleDiagnosticBadges,
 }: ProjectPanelProps) {
   const resizeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -332,6 +336,8 @@ export function ProjectPanel({
             onRefresh={onDiagnosticsRefresh || (() => {})}
             onNavigateToNode={onDiagnosticsNavigateToNode}
             focusedFingerprint={focusedDiagnosticFingerprint}
+            showBadges={showDiagnosticBadges}
+            onToggleBadges={onToggleDiagnosticBadges}
           />
         </TabsContent>
       </Tabs>

@@ -387,16 +387,19 @@ function WorkflowEditorContent({
   const [editorSettings, setEditorSettings] = useState(() => {
     try {
       const saved = localStorage.getItem("kiteframe-editor-settings");
+      const defaults = {
+        nodeAutoConnect: false,
+        snapToGuides: false,
+        showDiagnosticBadges: true,
+      };
       return saved
-        ? JSON.parse(saved)
-        : {
-            nodeAutoConnect: false,
-            snapToGuides: false,
-          };
+        ? { ...defaults, ...JSON.parse(saved) }
+        : defaults;
     } catch {
       return {
         nodeAutoConnect: false,
         snapToGuides: false,
+        showDiagnosticBadges: true,
       };
     }
   });
@@ -1635,6 +1638,7 @@ function WorkflowEditorContent({
   // Diagnostics system for workflow issues
   const [focusedDiagnosticFingerprint, setFocusedDiagnosticFingerprint] = useState<string | null>(null);
   const [forcePanelTab, setForcePanelTab] = useState<ProjectPanelTab | null>(null);
+  const [projectBadgeVisibility, setProjectBadgeVisibility] = useState<Record<string, boolean>>({});
   
   const projectIdentifier = activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId || 'default';
   
@@ -10749,6 +10753,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     issues={diagnostics.issues}
                     onAcknowledge={diagnostics.acknowledge}
                     onUnacknowledge={diagnostics.unacknowledge}
+                    hidden={!editorSettings.showDiagnosticBadges || projectBadgeVisibility[projectIdentifier] === false}
                     onViewInPanel={(issue) => {
                       setFocusedDiagnosticFingerprint(issue.fingerprint);
                       setForcePanelTab('diagnostics');
@@ -10963,6 +10968,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 onDiagnosticsNavigateToNode={focusOnNode}
                 focusedDiagnosticFingerprint={focusedDiagnosticFingerprint}
                 forceTab={forcePanelTab}
+                showDiagnosticBadges={projectBadgeVisibility[projectIdentifier] !== false}
+                onToggleDiagnosticBadges={(show) => {
+                  setProjectBadgeVisibility(prev => ({
+                    ...prev,
+                    [projectIdentifier]: show,
+                  }));
+                }}
               />
             )}
           </>

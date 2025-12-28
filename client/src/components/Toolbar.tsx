@@ -23,6 +23,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 interface EditorSettings {
   nodeAutoConnect: boolean;
   snapToGuides: boolean;
+  showDiagnosticBadges: boolean;
 }
 
 interface ToolbarProps {
@@ -240,6 +241,32 @@ export function Toolbar({
                         })
                       }
                       data-testid="toggle-snap-guides"
+                    />
+                  </div>
+
+                  {/* Show Diagnostic Badges Toggle */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <Label
+                        htmlFor="diagnostic-badges-toggle"
+                        className="text-sm font-medium cursor-pointer"
+                      >
+                        Diagnostic Badges
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Show issue badges on nodes (global)
+                      </p>
+                    </div>
+                    <Switch
+                      id="diagnostic-badges-toggle"
+                      checked={editorSettings.showDiagnosticBadges}
+                      onCheckedChange={(checked) =>
+                        onEditorSettingsChange({
+                          ...editorSettings,
+                          showDiagnosticBadges: checked,
+                        })
+                      }
+                      data-testid="toggle-diagnostic-badges"
                     />
                   </div>
                 </div>

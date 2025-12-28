@@ -12,6 +12,7 @@ interface DiagnosticOverlayProps {
   onViewInPanel?: (issue: DiagnosticIssue) => void;
   onCreateExperiment?: (issue: DiagnosticIssue) => void;
   minZoom?: number;
+  hidden?: boolean;
 }
 
 const MIN_ZOOM_THRESHOLD = 0.35;
@@ -25,8 +26,9 @@ export const DiagnosticOverlay = memo(function DiagnosticOverlay({
   onViewInPanel,
   onCreateExperiment,
   minZoom = MIN_ZOOM_THRESHOLD,
+  hidden = false,
 }: DiagnosticOverlayProps) {
-  if (viewport.zoom < minZoom) return null;
+  if (hidden || viewport.zoom < minZoom) return null;
   const getIssuesForNode = useCallback((nodeId: string) => {
     return issues.filter(i => i.nodeId === nodeId && i.status !== 'resolved');
   }, [issues]);
