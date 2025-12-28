@@ -76,8 +76,16 @@ export function useDiagnostics(
       return;
     }
     
-    const nodesKey = JSON.stringify(nodes.map(n => ({ id: n.id, type: n.type })));
-    const edgesKey = JSON.stringify(edges.map(e => ({ source: e.source, target: e.target })));
+    const nodesKey = JSON.stringify(nodes.map(n => ({ 
+      id: n.id, 
+      type: n.type,
+      speculative: !!(n.meta as { speculative?: boolean })?.speculative,
+    })));
+    const edgesKey = JSON.stringify(edges.map(e => ({ 
+      source: e.source, 
+      target: e.target,
+      speculative: !!(e.meta as { speculative?: boolean })?.speculative,
+    })));
     
     if (nodesKey === lastNodesRef.current && edgesKey === lastEdgesRef.current) {
       return;
