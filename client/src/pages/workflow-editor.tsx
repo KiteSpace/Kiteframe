@@ -10654,7 +10654,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       if (!node) return;
                       const data = node.data as any;
                       const mode = data.mode || 'whatif';
-                      if (mode !== 'prompt') {
+                      if (mode !== 'open_exploration') {
                         refreshExperimentOptions(nodeId, mode);
                       }
                     }}
@@ -10704,7 +10704,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             measuredWidth: 320,
                             measuredHeight: 480,
                             data: {
-                              label: mode === 'whatif' ? 'What-If' : mode === 'risk' ? 'Risk' : mode === 'enhancement' ? 'Enhancement' : 'Experiment',
+                              label: mode === 'whatif' ? 'What-If' : mode === 'enhancement' ? 'Enhancement' : mode === 'open_exploration' ? 'Open Exploration' : 'Experiment',
                               mode: mode,
                               userPrompt: existingMeta.userPrompt || '',
                               anchor: {
@@ -10740,7 +10740,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         description: `Node converted back to ${mode} experiment. Select an option and generate.`,
                       });
                       
-                      if (mode !== 'prompt') {
+                      if (mode !== 'open_exploration') {
                         setTimeout(() => {
                           generateExperimentOptionsForNode(nodeId, mode);
                         }, 100);
@@ -10789,12 +10789,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         return;
                       }
                       
-                      const experimentMode = (issue.recommendedAction?.experimentMode || 'risk') as ExperimentMode;
+                      const experimentMode = (issue.recommendedAction?.experimentMode || 'whatif') as ExperimentMode;
                       const modeLabels: Record<string, string> = {
                         whatif: 'What If',
-                        risk: 'Risk Analysis',
                         enhancement: 'Enhancement',
-                        prompt: 'Explore',
+                        open_exploration: 'Open Exploration',
                       };
                       
                       const toolId = `tool-${Date.now()}`;

@@ -88,6 +88,7 @@ function buildContextPrompt(input: WildCardGenerationInput): string {
   let modePrompt = '';
   switch (mode) {
     case 'whatif':
+    case 'risk': // Legacy - map to whatif
       modePrompt = `SCENARIO: "${data.content || ''}"
 CONSTRAINTS: ${data.constraints || 'None specified'}
 
@@ -95,16 +96,6 @@ Generate an alternative branch that explores this "what if" scenario. Consider:
 - How would the workflow change if this scenario occurred?
 - What additional steps or decisions would be needed?
 - What outcomes are possible?`;
-      break;
-    case 'risk':
-      modePrompt = `RISK: "${data.content || ''}"
-IMPACT: ${data.impact || 'Unknown'}
-MITIGATION: ${data.mitigation || 'None specified'}
-
-Generate a risk mitigation branch that addresses this potential problem. Include:
-- Detection or monitoring steps
-- Response actions
-- Recovery or fallback paths`;
       break;
     case 'enhancement':
       modePrompt = `ENHANCEMENT: "${data.content || ''}"
@@ -115,7 +106,8 @@ Generate an enhancement branch that implements this improvement. Include:
 - Any decision points
 - Measurable outcomes`;
       break;
-    case 'prompt':
+    case 'open_exploration':
+    case 'prompt': // Legacy - map to open_exploration
       modePrompt = `FREEFORM PROMPT: "${data.content || ''}"
 
 Generate a branch based on this prompt. Be creative but stay within workflow conventions.`;

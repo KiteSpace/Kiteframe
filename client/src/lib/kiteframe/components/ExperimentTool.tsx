@@ -19,18 +19,35 @@ const PURPLE = {
   dark: '#7c3aed',
 };
 
-const MODE_CONFIG: Record<ExperimentMode, { label: string; placeholder: string }> = {
-  whatif: { label: 'What If', placeholder: 'Select an edge case or enter a custom scenario...' },
-  risk: { label: 'Risk', placeholder: 'Select a failure mode or describe a risk...' },
-  enhancement: { label: 'Enhancement', placeholder: 'Select an optimization or describe an improvement...' },
-  prompt: { label: 'Prompt', placeholder: 'Enter your specific idea or instruction...' },
+const MODE_CONFIG: Record<ExperimentMode, { label: string; placeholder: string; helper: string }> = {
+  whatif: { 
+    label: 'What If', 
+    placeholder: 'Select an edge case or enter a custom scenario...',
+    helper: 'Explore alternatives or challenge assumptions'
+  },
+  enhancement: { 
+    label: 'Enhancement', 
+    placeholder: 'Select an optimization or describe an improvement...',
+    helper: 'Explore how this could be improved'
+  },
+  open_exploration: { 
+    label: 'Open Exploration', 
+    placeholder: 'Enter your specific idea or instruction...',
+    helper: 'Explore an idea without predefined framing'
+  },
 };
+
+// Helper to coerce legacy modes ('risk', 'prompt') to current equivalents
+function coerceLegacyMode(mode: string | ExperimentMode): ExperimentMode {
+  if (mode === 'risk') return 'whatif';
+  if (mode === 'prompt') return 'open_exploration';
+  return mode as ExperimentMode;
+}
 
 const MODE_LABELS: Record<ExperimentMode, string> = {
   whatif: 'What If',
-  risk: 'Risk',
   enhancement: 'Enhancement',
-  prompt: 'Prompt',
+  open_exploration: 'Open Exploration',
 };
 
 export interface ExperimentToolProps {
@@ -73,12 +90,13 @@ export function ExperimentTool({
   const bodyRef = useRef<HTMLDivElement>(null);
   useScrollIsolation(bodyRef);
 
-  const mode = tool.mode;
+  // Coerce legacy modes ('risk' -> 'whatif', 'prompt' -> 'open_exploration')
+  const mode = coerceLegacyMode(tool.mode);
   const modeConfig = MODE_CONFIG[mode];
   const isGenerating = tool.state === 'generating';
   const hasGenerated = tool.state === 'preview' && tool.generated && (tool.generated.nodeIds.length > 0 || tool.generated.edgeIds.length > 0);
 
-  const hasContent = mode === 'prompt' 
+  const hasContent = mode === 'open_exploration' 
     ? userPromptValue.trim().length >= 20
     : !!selectedOption;
   const canGenerate = hasContent && !isGenerating && !hasGenerated;
@@ -91,7 +109,7 @@ export function ExperimentTool({
   }, [tool.userPrompt, tool.selectedOption]);
 
   useEffect(() => {
-    if (mode !== 'prompt' && !optionsLoading && predictiveOptions.length === 0) {
+    if (mode !== 'open_exploration' && !optionsLoading && predictiveOptions.length === 0) {
       onGenerateOptionsForMode?.(tool.id, mode);
     }
   }, [mode, optionsLoading, predictiveOptions.length, tool.id, onGenerateOptionsForMode]);
@@ -110,7 +128,7 @@ export function ExperimentTool({
     setSelectedOption(null);
     setUserPromptValue('');
     onUpdate(tool.id, { mode: newMode, selectedOption: undefined, userPrompt: '' });
-    if (newMode !== 'prompt') {
+    if (newMode !== 'open_exploration') {
       onGenerateOptionsForMode?.(tool.id, newMode);
     }
   }, [mode, tool.id, onUpdate, readOnly, onGenerateOptionsForMode]);
@@ -203,8 +221,8 @@ export function ExperimentTool({
               {showModeDropdown && (
                 <>
                   <div className="fixed inset-0 z-50" onClick={() => setShowModeDropdown(false)} />
-                  <div className="absolute left-0 top-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50 min-w-[140px]">
-                    {(Object.keys(MODE_LABELS) as ExperimentMode[]).filter(m => m !== 'prompt').map((m) => (
+                  <div className="absolute left-0 top-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50 min-w-[160px]">
+                    {(Object.keys(MODE_LABELS) as ExperimentMode[]).map((m) => (
                       <button
                         key={m}
                         onClick={(e) => { e.stopPropagation(); handleModeSelect(m); }}
@@ -213,7 +231,8 @@ export function ExperimentTool({
                           m === mode ? "bg-purple-50 text-purple-700 font-medium" : "text-gray-700"
                         )}
                       >
-                        {MODE_LABELS[m]}
+                        <span className="font-medium">{MODE_LABELS[m]}</span>
+                        <span className="block text-[10px] text-gray-500 mt-0.5">{MODE_CONFIG[m].helper}</span>
                       </button>
                     ))}
                   </div>
@@ -271,7 +290,7 @@ export function ExperimentTool({
               </button>
             </div>
           </div>
-        ) : mode === 'prompt' ? (
+        ) : mode === 'open_exploration' ? (
           <div className="flex-1 min-h-0">
             <textarea
               value={userPromptValue}

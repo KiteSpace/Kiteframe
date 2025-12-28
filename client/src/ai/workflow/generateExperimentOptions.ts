@@ -3,8 +3,11 @@ import type { ExperimentMode, ExperimentOption } from '../../lib/kiteframe/types
 import type { ExperimentContext } from '../../lib/kiteframe/utils/experimentContext';
 import { formatContextForPrompt } from '../../lib/kiteframe/utils/experimentContext';
 
+// Input mode can include legacy modes for backward compatibility
+type GenerateOptionsMode = ExperimentMode | 'risk' | 'prompt';
+
 export interface GenerateOptionsInput {
-  mode: ExperimentMode;
+  mode: GenerateOptionsMode;
   context: ExperimentContext;
 }
 
@@ -80,16 +83,19 @@ Example format:
 
 Return ONLY valid JSON array, no markdown or explanation.`;
 
-function getPromptForMode(mode: ExperimentMode): string | null {
+function getPromptForMode(mode: ExperimentMode | 'risk' | 'prompt'): string | null {
   switch (mode) {
     case 'whatif':
       return WHAT_IF_PROMPT;
-    case 'risk':
-      return RISK_PROMPT;
     case 'enhancement':
       return ENHANCEMENT_PROMPT;
-    case 'prompt':
+    case 'open_exploration':
       return null;
+    // Legacy modes - kept for backward compatibility
+    case 'risk':
+      return WHAT_IF_PROMPT; // Map risk to whatif
+    case 'prompt':
+      return null; // Map prompt to open_exploration (no AI suggestions)
   }
 }
 
@@ -129,7 +135,8 @@ export async function generateExperimentOptions(
 ): Promise<GenerateOptionsResult> {
   const { mode, context } = input;
   
-  if (mode === 'prompt') {
+  // open_exploration and legacy 'prompt' mode don't get AI suggestions - user provides freeform input
+  if (mode === 'open_exploration' || mode === 'prompt') {
     return { success: true, options: [] };
   }
   

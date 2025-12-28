@@ -71,7 +71,8 @@ export function useExperimentOptions(
       return;
     }
 
-    if (mode === 'prompt') {
+    // open_exploration mode doesn't get AI suggestions - user provides freeform input
+    if (mode === 'open_exploration') {
       setOptionsMap(prev => {
         const next = new Map(prev);
         next.set(nodeId, {
@@ -239,7 +240,8 @@ export function useExperimentOptions(
       const data = node.data as ExperimentNodeData | WildCardNodeData;
       const mode = data.mode || 'whatif';
       
-      if (mode === 'prompt') continue;
+      // Skip open_exploration mode - no AI suggestions for freeform
+      if (mode === 'open_exploration') continue;
       
       const currentAnchorId = getAnchorNodeId(node.id, nodes, edges);
       const state = optionsMap.get(node.id);

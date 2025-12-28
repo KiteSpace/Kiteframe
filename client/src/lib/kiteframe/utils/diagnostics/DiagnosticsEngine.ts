@@ -41,7 +41,7 @@ function createIssue(
   severity: DiagnosticSeverity,
   nodeId?: string,
   edgeId?: string,
-  experimentMode?: 'whatif' | 'risk' | 'enhancement' | 'prompt',
+  experimentMode?: 'whatif' | 'enhancement' | 'open_exploration',
   extra?: string
 ): DiagnosticIssue {
   const fingerprint = generateFingerprint(input.projectId, input.workflowId, type, nodeId, edgeId, extra);
@@ -372,7 +372,7 @@ function detectLoopsWithoutExit(input: GraphInput, adjacency: AdjacencyMaps): Di
         'critical',
         firstNodeId,
         undefined,
-        'risk',
+        'whatif',
         cycleKey
       ));
     }

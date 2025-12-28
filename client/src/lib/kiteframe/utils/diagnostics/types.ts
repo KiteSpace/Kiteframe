@@ -29,7 +29,7 @@ export interface DiagnosticIssue {
   
   recommendedAction?: {
     kind: 'create-experiment' | 'navigate' | 'noop';
-    experimentMode?: 'whatif' | 'risk' | 'enhancement' | 'prompt';
+    experimentMode?: 'whatif' | 'enhancement' | 'open_exploration';
   };
   
   fingerprint: string;

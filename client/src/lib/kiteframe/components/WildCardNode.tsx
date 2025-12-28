@@ -34,29 +34,36 @@ const MODE_CONFIG: Record<WildCardMode, { label: string; placeholder: string; se
     secondaryLabel: 'Constraints',
     secondaryPlaceholder: 'Optional constraints or limitations',
   },
-  risk: {
-    label: 'Risk Description',
-    placeholder: 'Describe a potential risk...',
-    secondaryLabel: 'Impact / Mitigation',
-    secondaryPlaceholder: 'Potential impact and how to mitigate',
-  },
   enhancement: {
     label: 'Enhancement Idea',
     placeholder: 'Describe an improvement...',
     secondaryLabel: 'Success Metric',
     secondaryPlaceholder: 'How will we measure success?',
   },
-  prompt: {
+  open_exploration: {
     label: 'Instruction',
-    placeholder: 'Enter your prompt...',
+    placeholder: 'Enter your freeform prompt...',
+  },
+  // Legacy modes - kept for backward compatibility with existing data
+  risk: {
+    label: 'Scenario', // Maps to whatif behavior
+    placeholder: 'What if users could...',
+    secondaryLabel: 'Constraints',
+    secondaryPlaceholder: 'Optional constraints or limitations',
+  },
+  prompt: {
+    label: 'Instruction', // Maps to open_exploration behavior
+    placeholder: 'Enter your freeform prompt...',
   },
 };
 
 const MODE_LABELS: Record<WildCardMode, string> = {
   whatif: 'What If',
-  risk: 'Risk',
   enhancement: 'Enhancement',
-  prompt: 'Prompt',
+  open_exploration: 'Open Exploration',
+  // Legacy mode labels
+  risk: 'What If', // Legacy label, maps to whatif
+  prompt: 'Open Exploration', // Legacy label, maps to open_exploration
 };
 
 export const WildCardNode: React.FC<WildCardNodeComponentProps> = ({

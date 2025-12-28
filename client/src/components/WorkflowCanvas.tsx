@@ -90,6 +90,7 @@ interface WorkflowCanvasProps {
   }>;
   onExperimentRefreshOptions?: (nodeId: string) => void;
   onExperimentGenerateOptionsForMode?: (nodeId: string, mode: import('@/lib/kiteframe/types').ExperimentMode) => void;
+  onExperimentRegenerate?: (nodeId: string, mode: import('@/lib/kiteframe/types').ExperimentMode) => void;
 }
 
 export function WorkflowCanvas({
@@ -167,6 +168,7 @@ export function WorkflowCanvas({
   experimentOptionsMap,
   onExperimentRefreshOptions,
   onExperimentGenerateOptionsForMode,
+  onExperimentRegenerate,
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -625,6 +627,7 @@ export function WorkflowCanvas({
         experimentOptionsMap={experimentOptionsMap}
         onExperimentRefreshOptions={onExperimentRefreshOptions}
         onExperimentGenerateOptionsForMode={onExperimentGenerateOptionsForMode}
+        onExperimentRegenerate={onExperimentRegenerate}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

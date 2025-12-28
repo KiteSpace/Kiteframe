@@ -10,7 +10,7 @@ import {
 
 export interface ExperimentBranchHeaderProps {
   experimentId: string;
-  mode: 'whatif' | 'risk' | 'enhancement' | 'prompt';
+  mode: 'whatif' | 'enhancement' | 'open_exploration';
   originNodeId: string;
   position: { x: number; y: number };
   scale: number;
@@ -23,9 +23,8 @@ export interface ExperimentBranchHeaderProps {
 
 const MODE_LABELS: Record<string, string> = {
   whatif: 'What-If',
-  risk: 'Risk',
   enhancement: 'Enhancement',
-  prompt: 'Prompt',
+  open_exploration: 'Open Exploration',
 };
 
 export function ExperimentBranchHeader({

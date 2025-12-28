@@ -32,7 +32,7 @@ export interface BaseNodeData {
 export interface ExperimentMeta {
   experimentId: string;
   originNodeId: string;
-  mode: 'whatif' | 'risk' | 'enhancement' | 'prompt';
+  mode: 'whatif' | 'enhancement' | 'open_exploration';
   selectedOptionId?: string;
   selectedOptionLabel?: string;
   selectedOptionDescription?: string;
@@ -54,7 +54,7 @@ export interface NodeMeta {
   experimentId?: string;
   generatedFrom?: { nodeId: string; ts: number };
   generatedIds?: { nodeIds: string[]; edgeIds: string[] };
-  mode?: 'whatif' | 'risk' | 'enhancement' | 'prompt';
+  mode?: 'whatif' | 'enhancement' | 'open_exploration';
   experiment?: ExperimentMeta;
 }
 
@@ -154,9 +154,66 @@ export type Edge = {
 export type NodeType = 'input' | 'output' | 'process' | 'condition' | 'ai' | 'image' | 'table' | 'form' | 'compound' | 'webview' | 'code' | 'render' | 'wildcard' | 'experiment';
 
 // ============= EXPERIMENT NODE TYPES =============
-// Experiment node for speculative branch authoring (What-If / Risk / Enhancement / Prompt)
+// Experiment node for user-initiated speculative branch authoring
+// Modes: What If, Enhancement, Open Exploration
+// NOTE: Risk is NOT an experiment mode - risk detection flows to Explore Solution (system-initiated)
 
-export type ExperimentMode = 'whatif' | 'risk' | 'enhancement' | 'prompt';
+export type ExperimentMode = 'whatif' | 'enhancement' | 'open_exploration';
+
+// ============= CANONICAL DEFINITIONS =============
+// These definitions are the single source of truth for experiment and explore solution behavior
+
+export const EXPERIMENT_NODE_DEFINITION = {
+  purpose: 'User-initiated exploration',
+  characteristics: [
+    'Optional',
+    'Non-blocking',
+    'Non-authoritative',
+    'Exploratory',
+    'Divergent'
+  ],
+  exclusions: [
+    'Risk detection',
+    'System initiation',
+    'Issue resolution',
+    'Required actions'
+  ]
+} as const;
+
+export const EXPLORE_SOLUTION_DEFINITION = {
+  purpose: 'System-led resolution exploration',
+  characteristics: [
+    'Contextual',
+    'Convergent',
+    'Assistive',
+    'Issue-bound'
+  ],
+  exclusions: [
+    'User categorization',
+    'Approach selection',
+    'Open-ended divergence'
+  ]
+} as const;
+
+export const EXPERIMENT_OPTIONS = {
+  whatif: {
+    label: 'What If',
+    helper: 'Explore alternatives or challenge assumptions'
+  },
+  enhancement: {
+    label: 'Enhancement',
+    helper: 'Explore how this could be improved'
+  },
+  open_exploration: {
+    label: 'Open Exploration',
+    helper: 'Explore an idea without predefined framing'
+  }
+} as const;
+
+export const EXPLORATION_EXPLAINER = {
+  experiment: 'Experiments are for exploring ideas, alternatives, and improvements when you want to think broadly or challenge assumptions.',
+  exploreSolution: 'Explore Solution appears when Kiteframe detects something that may need attention and helps you move forward without requiring you to frame the problem.'
+} as const;
 
 export interface ExperimentOption {
   id: string;
@@ -203,9 +260,10 @@ export interface ExperimentNodeData extends BaseNodeData {
 // ============= DEPRECATED: WILDCARD TYPES =============
 // These are kept for backward compatibility. New code should use Experiment types.
 // Type "wildcard" is treated as an alias for "experiment" during import/render.
+// NOTE: 'risk' and 'prompt' are legacy modes - migrate to open_exploration
 
 /** @deprecated Use ExperimentMode instead */
-export type WildCardMode = 'whatif' | 'risk' | 'enhancement' | 'prompt';
+export type WildCardMode = 'whatif' | 'risk' | 'enhancement' | 'prompt' | 'open_exploration';
 
 /** @deprecated Use ExperimentNodeData instead */
 export interface WildCardNodeData extends BaseNodeData {

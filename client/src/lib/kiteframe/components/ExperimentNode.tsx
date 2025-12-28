@@ -48,30 +48,28 @@ export interface ExperimentNodeComponentProps {
   onGenerateOptionsForMode?: (nodeId: string, mode: ExperimentMode) => void;
 }
 
-const MODE_CONFIG: Record<ExperimentMode, { label: string; placeholder: string; icon?: string }> = {
+const MODE_CONFIG: Record<ExperimentMode, { label: string; placeholder: string; helper: string }> = {
   whatif: {
     label: 'What If',
     placeholder: 'Select an edge case or enter a custom scenario...',
-  },
-  risk: {
-    label: 'Risk',
-    placeholder: 'Select a failure mode or describe a risk...',
+    helper: 'Explore alternatives or challenge assumptions',
   },
   enhancement: {
     label: 'Enhancement',
     placeholder: 'Select an optimization or describe an improvement...',
+    helper: 'Explore how this could be improved',
   },
-  prompt: {
-    label: 'Prompt',
+  open_exploration: {
+    label: 'Open Exploration',
     placeholder: 'Enter your specific idea or instruction...',
+    helper: 'Explore an idea without predefined framing',
   },
 };
 
 const MODE_LABELS: Record<ExperimentMode, string> = {
   whatif: 'What If',
-  risk: 'Risk',
   enhancement: 'Enhancement',
-  prompt: 'Prompt',
+  open_exploration: 'Open Exploration',
 };
 
 function isExperimentNodeData(data: any): data is ExperimentNodeData {
@@ -148,7 +146,9 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
   useScrollIsolation(bodyRef);
 
   const data = node.data as ExperimentNodeData | WildCardNodeData;
-  const mode: ExperimentMode = data.mode || 'whatif';
+  // Coerce legacy modes ('risk' -> 'whatif', 'prompt' -> 'open_exploration')
+  const rawMode = data.mode || 'whatif';
+  const mode: ExperimentMode = rawMode === 'risk' ? 'whatif' : rawMode === 'prompt' ? 'open_exploration' : rawMode as ExperimentMode;
   const modeConfig = MODE_CONFIG[mode];
   
   const generationStatus = getGenerationStatus(data);
@@ -158,7 +158,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
   const isPreview = isPreviewMode(data);
   
   const hasIncomingEdges = incomingEdgesCount > 0;
-  const hasContent = mode === 'prompt' 
+  const hasContent = mode === 'open_exploration' 
     ? userPromptValue.trim().length >= 20
     : !!selectedOption;
   // Generate button is always available in full view (disabled when no content/edges, but visible)
@@ -192,7 +192,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
     prevIncomingEdgesRef.current = incomingEdgesCount;
     
     // Auto-trigger only when: edge just connected, not prompt mode, not already loading, no cached options
-    if (wasDisconnected && isNowConnected && mode !== 'prompt' && !optionsLoading && predictiveOptions.length === 0) {
+    if (wasDisconnected && isNowConnected && mode !== 'open_exploration' && !optionsLoading && predictiveOptions.length === 0) {
       onGenerateOptionsForMode?.(node.id, mode);
     }
   }, [incomingEdgesCount, mode, optionsLoading, predictiveOptions.length, node.id, onGenerateOptionsForMode]);
@@ -261,7 +261,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
         });
       }
       
-      if (newMode !== 'prompt' && hasIncomingEdges) {
+      if (newMode !== 'open_exploration' && hasIncomingEdges) {
         onGenerateOptionsForMode?.(node.id, newMode);
       }
     }
@@ -304,7 +304,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
     e.stopPropagation();
     if (readOnly || !canGenerate) return;
     // Pass current local state to avoid race condition with async state updates
-    const currentDescription = mode === 'prompt' 
+    const currentDescription = mode === 'open_exploration' 
       ? userPromptValue 
       : (selectedOption?.description || selectedOption?.label || '');
     onGenerateBranch?.(node.id, currentDescription);
@@ -347,7 +347,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
     : `calc(100% - ${HEADER_H}px - ${FOOTER_H}px)`;
   
   // Get the selected content to display in simplified view
-  const selectedContent = mode === 'prompt' 
+  const selectedContent = mode === 'open_exploration' 
     ? userPromptValue 
     : (selectedOption?.description || selectedOption?.label || '');
 
@@ -412,8 +412,8 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
               {showModeDropdown && (
                 <>
                   <div className="fixed inset-0 z-50" onClick={() => setShowModeDropdown(false)} />
-                  <div className="absolute left-0 top-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50 min-w-[140px]">
-                    {(Object.keys(MODE_LABELS) as ExperimentMode[]).filter(m => m !== 'prompt').map((m) => (
+                  <div className="absolute left-0 top-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50 min-w-[160px]">
+                    {(Object.keys(MODE_LABELS) as ExperimentMode[]).map((m) => (
                       <button
                         key={m}
                         onClick={(e) => {
@@ -425,7 +425,8 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                           m === mode ? "bg-purple-50 text-purple-700 font-medium" : "text-gray-700"
                         )}
                       >
-                        {MODE_LABELS[m]}
+                        <span className="font-medium">{MODE_LABELS[m]}</span>
+                        <span className="block text-[10px] text-gray-500 mt-0.5">{MODE_CONFIG[m].helper}</span>
                       </button>
                     ))}
                   </div>
@@ -473,8 +474,8 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
               )}
             </div>
           </div>
-        ) : mode === 'prompt' ? (
-          /* For prompt mode: show text input */
+        ) : mode === 'open_exploration' ? (
+          /* For open_exploration mode: show text input */
           <div className="flex-1 min-h-0">
             <textarea
               ref={promptTextareaRef}
@@ -657,7 +658,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
             )}
             title={
               !hasIncomingEdges ? "Connect to a workflow node first" :
-              !hasContent ? (mode === 'prompt' ? "Enter at least 20 characters" : "Select an option") :
+              !hasContent ? (mode === 'open_exploration' ? "Enter at least 20 characters" : "Select an option") :
               isGenerating ? "Generating..." :
               "Generate speculative branch"
             }
