@@ -1,0 +1,149 @@
+KITEFRAME — EXPERIMENT TOOL + DIAGNOSTICS
+IMPLEMENTATION CHECKLIST
+
+==================================================
+PHASE 0 — PRE-FLIGHT SAFETY CHECKS
+==================================================
+
+[ ] Confirm no active feature flags depend on node.type === 'experiment'
+[ ] Confirm no exports or PRD logic explicitly reference ExperimentNode.tsx
+[ ] Confirm UndoRedoManager can batch multi-node operations
+
+==================================================
+PHASE 1 — REMOVE EXPERIMENT NODE (CRITICAL)
+==================================================
+
+[ ] Delete ExperimentNode.tsx
+[ ] Remove all imports of ExperimentNode
+[ ] Remove 'experiment' from NodeType union
+[ ] Remove experiment registration from NodeFactoryRegistry
+[ ] Remove any switch/case rendering logic for node.type === 'experiment'
+[ ] Confirm no node.type === 'experiment' can be created anywhere
+
+Validation:
+[ ] Canvas renders correctly without experiment nodes
+[ ] No console warnings for unknown node types
+
+==================================================
+PHASE 2 — ADD WORKFLOW TOOL ARCHITECTURE
+==================================================
+
+[ ] Add WorkflowTool + WorkflowToolType types
+[ ] Add workflowTools state to workflow-editor.tsx
+[ ] Ensure tools are NOT stored in nodes or canvasObjects
+[ ] Ensure tools are excluded from PRD/export paths by default
+
+Validation:
+[ ] workflowTools does not serialize with canvas state
+[ ] Reloading canvas does not break without tools persisted
+
+==================================================
+PHASE 3 — EXPERIMENT TOOL UI
+==================================================
+
+[ ] Create ExperimentTool.tsx component
+[ ] Tool renders anchored to anchorNodeId
+[ ] Tool renders above nodes visually (z-index)
+[ ] Tool supports modes: what-if, risk, enhancement, prompt
+[ ] Tool supports predictive options + freeform prompt
+[ ] Tool has Generate / Accept / Reject / Edit states
+
+Validation:
+[ ] Tool never accepts edges
+[ ] Tool never appears in layers panel
+[ ] Tool cannot be selected like a node
+
+==================================================
+PHASE 4 — EXPLORE SOLUTION FLOW FIX
+==================================================
+
+[ ] Remove createExperimentNodeForIssue()
+[ ] Remove normalizeExperimentNodes() from Explore Solution path
+[ ] Modify handleExploreSolution() to create WorkflowTool only
+[ ] Ensure tool.meta.source is set correctly ('diagnostic' or 'user')
+
+Validation:
+[ ] Clicking “Explore Solution” creates NO nodes
+[ ] Purple Experiment UI appears instead
+[ ] Focus correctly moves to anchor node + tool
+
+==================================================
+PHASE 5 — AI GENERATION VIA TOOL
+==================================================
+
+[ ] Wire Generate button to existing AI workflow generation
+[ ] Generated nodes are real workflow nodes
+[ ] Generated nodes include:
+    meta.speculative === true
+    meta.experimentId === tool.experimentId
+[ ] Generated edges include same metadata
+
+Validation:
+[ ] Generated branches appear visually distinct
+[ ] Generated branches are excluded from PRD/export
+[ ] Multiple experiments can coexist safely
+
+==================================================
+PHASE 6 — ACCEPT / REJECT / EDIT
+==================================================
+
+ACCEPT
+[ ] Remove meta.speculative from generated nodes
+[ ] Preserve nodes + edges
+[ ] Remove ExperimentTool
+[ ] Batch into ONE undo entry
+
+REJECT
+[ ] Remove generated nodes + edges
+[ ] Remove ExperimentTool
+[ ] Do NOT add undo history
+
+EDIT
+[ ] Restore ExperimentTool UI
+[ ] Preserve mode, selected option, prompt
+
+Validation:
+[ ] Ctrl+Z reverts accept cleanly
+[ ] Reject leaves no artifacts
+[ ] Edit works after accept
+
+==================================================
+PHASE 7 — DIAGNOSTIC BADGE FIXES
+==================================================
+
+[ ] Skip speculative nodes in DiagnosticsEngine
+[ ] Skip speculative nodes in DiagnosticOverlay
+[ ] Skip speculative nodes in DiagnosticsTab
+[ ] Add defensive guard against legacy experiment nodes
+
+Validation:
+[ ] No badges appear on preview branches
+[ ] No badges appear near experiment tools
+[ ] Diagnostics panel stays clean during exploration
+
+==================================================
+PHASE 8 — EXPORT / PRD SAFETY
+==================================================
+
+[ ] Filter speculative nodes in extractSemanticWorkflowModel
+[ ] Filter speculative nodes in PRD generation
+[ ] Filter speculative nodes in CSV/JSON exports
+
+Validation:
+[ ] Generated PRDs ignore experiments
+[ ] Accepted solutions appear correctly
+[ ] No ghost content leaks into exports
+
+==================================================
+PHASE 9 — FINAL VERIFICATION
+==================================================
+
+[ ] Explore Solution produces tool, not node
+[ ] Experiment UI is always purple + distinct
+[ ] Diagnostics only apply to committed workflow nodes
+[ ] Experiments are reversible and non-destructive
+[ ] No experiment artifacts persist unexpectedly
+
+==================================================
+DONE
+==================================================

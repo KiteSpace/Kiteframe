@@ -1,0 +1,244 @@
+KITEFRAME — REPLIT IMPLEMENTATION TASK FILE
+EXPERIMENT AS WORKFLOW TOOL + DIAGNOSTIC BADGE FIX
+
+GOAL
+Replace Experiment nodes with a new first-class “Workflow Tool” abstraction.
+Fix incorrect rendering of legacy experiment nodes and prevent diagnostics/badges
+from applying to experiments or speculative artifacts.
+
+This task has TWO parts:
+A) Architecture change: Experiment → Workflow Tool
+B) Bug fixes: old experiment node + badge leakage
+
+--------------------------------------------------
+PART A — EXPERIMENT AS WORKFLOW TOOL (NEW CONCEPT)
+--------------------------------------------------
+
+A1. DEFINE A NEW WORKFLOW TOOL DATA MODEL
+
+Create a new type (DO NOT reuse Node or CanvasObject):
+
+File: client/src/lib/kiteframe/types.ts
+
+Add:
+
+export type WorkflowToolType = 'experiment';
+
+export interface WorkflowTool {
+  id: string;
+  type: 'experiment';
+
+  anchorNodeId: string; // node this tool is attached to
+
+  mode: 'what-if' | 'risk' | 'enhancement' | 'prompt';
+
+  state: 'idle' | 'generating' | 'preview';
+
+  selectedOption?: {
+    id: string;
+    label: string;
+    description?: string;
+  };
+
+  userPrompt?: string;
+
+  generated?: {
+    nodeIds: string[];
+    edgeIds: string[];
+  };
+
+  meta: {
+    experimentId: string;
+    source: 'diagnostic' | 'user';
+    createdAt: number;
+  };
+}
+
+IMPORTANT:
+- WorkflowTool is NOT a Node
+- WorkflowTool is NOT a CanvasObject
+- It must not appear in PRDs, diagnostics, or exports
+
+--------------------------------------------------
+A2. ADD WORKFLOW TOOL STATE TO EDITOR
+
+File: client/src/pages/workflow-editor.tsx
+
+Add new state:
+
+const [workflowTools, setWorkflowTools] = useState<WorkflowTool[]>([]);
+
+DO NOT store tools inside nodes or canvasObjects.
+
+--------------------------------------------------
+A3. CREATE EXPERIMENT TOOL COMPONENT
+
+File: client/src/lib/kiteframe/components/ExperimentTool.tsx (NEW)
+
+Responsibilities:
+- Render floating UI anchored to anchorNodeId position
+- Show mode selector + predictive options
+- Show Generate / Accept / Reject / Edit controls
+- NEVER render as a canvas node
+- NEVER accept edges
+- NEVER be selectable like a node
+
+Positioning:
+- Use anchor node position + offset
+- Z-index above nodes, below global UI
+
+--------------------------------------------------
+A4. UPDATE “EXPLORE SOLUTION” TO CREATE A TOOL (NOT A NODE)
+
+Replace current behavior.
+
+File: workflow-editor.tsx
+Function: handleExploreSolution(issue)
+
+DELETE:
+- createExperimentNodeForIssue()
+- normalizeExperimentNodes() for experiment creation
+
+REPLACE WITH:
+- Create a WorkflowTool object
+- Push into workflowTools state
+
+Example:
+
+setWorkflowTools(prev => [
+  ...prev,
+  {
+    id: crypto.randomUUID(),
+    type: 'experiment',
+    anchorNodeId: issue.nodeId,
+    mode: issue.recommendedAction?.experimentMode ?? 'enhancement',
+    state: 'idle',
+    meta: {
+      experimentId: crypto.randomUUID(),
+      source: 'diagnostic',
+      createdAt: Date.now()
+    }
+  }
+]);
+
+--------------------------------------------------
+A5. GENERATION FLOW (TOOL → SPECULATIVE NODES)
+
+When user clicks Generate in ExperimentTool:
+
+- Call existing AI generation logic
+- Generated nodes MUST be created with:
+  meta: {
+    experimentId,
+    speculative: true
+  }
+
+- Generated nodes ARE real workflow nodes
+- The Experiment tool itself remains separate
+
+--------------------------------------------------
+A6. ACCEPT / REJECT BEHAVIOR
+
+Accept:
+- Remove meta.speculative from generated nodes
+- Preserve nodes and edges
+- Remove ExperimentTool from workflowTools
+- Batch into ONE undo entry
+
+Reject:
+- Remove generated nodes/edges
+- Remove ExperimentTool
+- NO undo history entry
+
+Edit:
+- Reopen ExperimentTool UI
+- Use preserved tool state (mode, option, prompt)
+
+--------------------------------------------------
+A7. REMOVE ALL EXPERIMENT NODE TYPES
+
+Files to clean up:
+- NodeFactory registrations for 'experiment'
+- ExperimentNode.tsx
+- Any rendering branches checking node.type === 'experiment'
+
+IMPORTANT:
+There should be NO experiment nodes left in the system.
+
+--------------------------------------------------
+PART B — BUG FIXES (BADGES + OLD NODE RENDERING)
+--------------------------------------------------
+
+B1. FIX OLD EXPERIMENT NODE RENDERING
+
+Problem:
+Old experiment node type is still being rendered when clicking Explore Solution.
+
+Cause:
+createExperimentNodeForIssue() still returns a node of type 'experiment'.
+
+Fix:
+- That function must be deleted or no-op
+- Explore Solution must ONLY create a WorkflowTool
+
+Verification:
+- No node.type === 'experiment' exists anywhere after change
+
+--------------------------------------------------
+B2. DIAGNOSTIC BADGES MUST NOT APPLY TO EXPERIMENTS
+
+Badges should NEVER appear on:
+- Experiment tools
+- Speculative nodes
+- Generated preview branches
+
+Enforce ALL of the following:
+
+1) Diagnostic engine filters:
+File: DiagnosticsEngine.ts
+
+Before creating an issue, skip nodes where:
+node.meta?.speculative === true
+
+2) DiagnosticOverlay.tsx:
+Add guard:
+if (node.meta?.speculative) return null;
+
+3) Badge rendering:
+Badges only render for:
+- node.type !== 'experiment' (legacy safety)
+- node.meta?.speculative !== true
+
+--------------------------------------------------
+B3. DIAGNOSTICS TAB FILTERING
+
+In DiagnosticsTab.tsx:
+- Do NOT list issues tied to speculative nodes
+- Do NOT list issues originating from experiments
+
+--------------------------------------------------
+B4. EXPORT / PRD SAFETY CHECK
+
+Ensure ALL of the following ignore speculative nodes:
+- extractSemanticWorkflowModel.ts
+- PRD assembly
+- Exports (CSV / JSON)
+
+Rule:
+node.meta?.speculative === true → excluded
+
+--------------------------------------------------
+ACCEPTANCE CRITERIA
+--------------------------------------------------
+
+- Clicking “Explore Solution” NEVER creates a node
+- A floating purple Experiment UI appears instead
+- Diagnostic badges never appear on experiments or preview branches
+- Accept commits nodes cleanly
+- Reject removes everything silently
+- No experiment nodes exist in NodeFactory
+- PRDs and diagnostics remain clean
+
+--------------------------------------------------
+END
+--------------------------------------------------
