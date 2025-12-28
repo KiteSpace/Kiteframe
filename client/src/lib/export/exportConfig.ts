@@ -81,9 +81,9 @@ export const BUNDLE_EXPORTS: ExportOptionConfig[] = [
   {
     id: 'bundle_builder',
     label: 'Builder',
-    description: 'Prototype prompt, build instructions, and workflow outline',
+    description: 'Prototype prompt, Figma Make prompt, build instructions, and workflow outline',
     isBundle: true,
-    artifacts: ['prototype_prompt', 'ai_build_instructions', 'workflow_markdown_outline'],
+    artifacts: ['prototype_prompt', 'figma_make_prompt', 'ai_build_instructions', 'workflow_markdown_outline'],
   },
   {
     id: 'bundle_project',
