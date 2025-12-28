@@ -1,0 +1,311 @@
+KITEFRAME — EXPERIMENT & EXPLORE SOLUTION REFACTOR
+
+Machine-Executable Replit Task File
+
+ROLE
+
+You are a senior product engineer implementing a conceptual + behavioral refactor.
+You must preserve backward compatibility where possible but conceptual correctness takes priority.
+
+You are NOT allowed to:
+
+Invent new paradigms
+
+Leave partially implemented states
+
+Defer decisions back to the user
+
+Follow steps in order.
+
+GLOBAL CONSTRAINTS (READ FIRST)
+
+Risk is no longer user-selectable anywhere
+
+Explore Solution is system-initiated only
+
+Experiments are user-initiated only
+
+No UI may ask the user to classify risk
+
+Open Exploration replaces Wildcard
+
+Explore Solution ≠ Experiment (conceptually and in code)
+
+If any existing abstraction conflicts with these, refactor it.
+
+STEP 1 — UPDATE CORE ENUMS / TYPES
+1.1 ExperimentType enum
+
+FIND any enum / union / constant list similar to:
+
+type ExperimentType = 'what_if' | 'risk' | 'enhancement'
+
+
+REPLACE WITH:
+
+type ExperimentType =
+  | 'what_if'
+  | 'enhancement'
+  | 'open_exploration'
+
+
+❌ Remove risk everywhere
+❌ Do not alias or soft-deprecate
+✅ Hard removal
+
+1.2 NodeKind / NodeType
+
+If you have a generic node type system, ensure:
+
+type NodeKind =
+  | 'workflow'
+  | 'experiment'
+  | 'explore_solution'
+  | ...
+
+
+Explore Solution MUST be its own node kind, not a flag on Experiment.
+
+STEP 2 — REWRITE EXPERIMENT NODE DEFINITION (CODE + COPY)
+2.1 Canonical definition (store centrally)
+
+Create or update a single source of truth:
+
+export const EXPERIMENT_NODE_DEFINITION = {
+  purpose: 'User-initiated exploration',
+  characteristics: [
+    'Optional',
+    'Non-blocking',
+    'Non-authoritative',
+    'Exploratory',
+    'Divergent'
+  ],
+  exclusions: [
+    'Risk detection',
+    'System initiation',
+    'Issue resolution',
+    'Required actions'
+  ]
+}
+
+
+This object must be imported wherever experiment behavior is inferred.
+
+2.2 Enforcement rules (logic)
+
+Wherever experiments are created:
+
+function createExperimentNode(...) {
+  assert(userInitiated === true)
+  assert(experimentType !== 'risk')
+}
+
+
+Fail loudly in dev if violated.
+
+STEP 3 — UPDATE EXPERIMENT UI OPTIONS
+3.1 Visible options (exactly three)
+
+Replace any menu / modal that lists experiment options.
+
+FINAL ORDER (intentional):
+
+What If
+
+Enhancement
+
+Open Exploration
+
+3.2 Labels + helper copy
+const EXPERIMENT_OPTIONS = {
+  what_if: {
+    label: 'What If',
+    helper: 'Explore alternatives or challenge assumptions'
+  },
+  enhancement: {
+    label: 'Enhancement',
+    helper: 'Explore how this could be improved'
+  },
+  open_exploration: {
+    label: 'Open Exploration',
+    helper: 'Explore an idea without predefined framing'
+  }
+}
+
+
+❌ Do not use the word “Wildcard” anywhere
+❌ Do not expose internal enums
+
+3.3 Open Exploration behavior
+
+When open_exploration is selected:
+
+Require a free-form prompt
+
+Do not infer intent
+
+Do not auto-classify
+
+assert(prompt.length > 0)
+
+STEP 4 — INTRODUCE EXPLORE SOLUTION NODE (NEW)
+4.1 Node creation rules (STRICT)
+
+Explore Solution nodes:
+
+❌ Cannot be user-created
+
+❌ Cannot be duplicated manually
+
+✅ Are created ONLY via badge escalation
+
+Enforce in creation API:
+
+function createExploreSolutionNode(context) {
+  assert(context.source === 'system')
+}
+
+4.2 Canonical definition
+export const EXPLORE_SOLUTION_DEFINITION = {
+  purpose: 'System-led resolution exploration',
+  characteristics: [
+    'Contextual',
+    'Convergent',
+    'Assistive',
+    'Issue-bound'
+  ],
+  exclusions: [
+    'User categorization',
+    'Approach selection',
+    'Open-ended divergence'
+  ]
+}
+
+4.3 UI constraints
+
+Explore Solution UI must:
+
+❌ Not show What If / Enhancement / Prompt options
+
+❌ Not look identical to Experiment
+
+✅ Reference detected context
+
+✅ Feel like “help moving forward”
+
+STEP 5 — BADGE → EXPLORE SOLUTION TRIGGER LOGIC
+5.1 Badge metadata
+
+Ensure badges include:
+
+type Badge = {
+  id: string
+  type: 'risk' | 'inconsistency' | 'missing_dependency' | 'ambiguity' | ...
+  severity: 'low' | 'medium' | 'high'
+  systemGenerated: boolean
+  actionable: boolean
+}
+
+5.2 Trigger conditions (ALL required)
+function shouldTriggerExploreSolution(badge: Badge): boolean {
+  return (
+    badge.systemGenerated === true &&
+    badge.actionable === true &&
+    badge.severity !== 'low'
+  )
+}
+
+5.3 UI behavior
+
+If shouldTriggerExploreSolution === true:
+
+Show CTA: Explore solution
+
+On click:
+
+Create Explore Solution node
+
+Anchor it to the originating workflow node
+
+Pass badge context (NOT conclusions)
+
+5.4 Non-triggers
+
+Do NOT trigger Explore Solution for:
+
+Informational badges
+
+User-created annotations
+
+Cosmetic warnings
+
+Low-confidence heuristics
+
+STEP 6 — COPY: EXPLORE SOLUTION VS EXPERIMENT
+6.1 Store explainer text centrally
+export const EXPLORATION_EXPLAINER = {
+  experiment: 'Experiments are for exploring ideas, alternatives, and improvements when you want to think broadly or challenge assumptions.',
+  exploreSolution: 'Explore Solution appears when Kiteframe detects something that may need attention and helps you move forward without requiring you to frame the problem.'
+}
+
+
+Use this consistently in:
+
+Tooltips
+
+Onboarding
+
+Docs
+
+STEP 7 — MIGRATION STRATEGY (REQUIRED)
+
+If existing Experiment nodes have type === 'risk':
+
+Choose ONE and implement explicitly:
+
+Convert to Explore Solution (preferred)
+
+OR mark as deprecated with visible warning
+
+❌ Silent conversion is not allowed
+❌ Silent deletion is not allowed
+
+STEP 8 — ANALYTICS / TELEMETRY UPDATES
+
+Ensure events distinguish:
+
+event: 'experiment_created'
+event: 'explore_solution_triggered'
+
+
+Do NOT merge these.
+
+STEP 9 — ACCEPTANCE CHECKLIST (MUST PASS)
+
+ Risk is not selectable anywhere
+
+ Experiments are always user-initiated
+
+ Explore Solution is always system-initiated
+
+ Open Exploration replaces Wildcard everywhere
+
+ Badges escalate to Explore Solution correctly
+
+ Users are never asked to classify risk
+
+ Experiment and Explore Solution are conceptually distinct in UI and code
+
+FAILURE CONDITIONS
+
+If any of the following occur, the task is FAILED:
+
+Explore Solution can be created manually
+
+Risk appears as an Experiment option
+
+Explore Solution asks for approach selection
+
+Experiment nodes are auto-generated
+
+Copy blurs exploration vs resolution
