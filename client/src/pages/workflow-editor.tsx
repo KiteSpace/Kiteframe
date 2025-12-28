@@ -2438,8 +2438,8 @@ Position nodes 250px apart horizontally.`;
       // screen = world * zoom + viewport
       // viewport = screen - world * zoom
       // For centering: screenCenter = canvasWidth/2, canvasHeight/2
-      // Use half the current zoom for a less zoomed-in view
-      const focusZoom = viewport.zoom * 0.5;
+      // Zoom in to at least 1.0 for good visibility, or keep current if already higher
+      const focusZoom = Math.max(1, viewport.zoom);
       const newX = canvasWidth / 2 - nodeCenterX * focusZoom;
       const newY = canvasHeight / 2 - nodeCenterY * focusZoom;
 
