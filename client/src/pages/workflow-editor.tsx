@@ -10925,10 +10925,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                                 label: e.label 
                               })));
                               
-                              setNodes(prev => {
-                                const newNodes = [...prev, ...speculativeNodes];
-                                setEdges(prevEdges => recalculateAllEdgeZIndexes([...prevEdges, ...speculativeEdges], newNodes));
-                                return newNodes;
+                              // Add nodes and edges separately to avoid React batching issues
+                              setNodes(prev => [...prev, ...speculativeNodes]);
+                              
+                              // Add edges in a separate state update - using nodes array from outer scope
+                              // since we need the new nodes for z-index calculation
+                              const allNodesWithNew = [...nodes, ...speculativeNodes];
+                              setEdges(prevEdges => {
+                                const newEdges = [...prevEdges, ...speculativeEdges];
+                                console.log('[ExperimentTool] Adding edges to state:', {
+                                  prevCount: prevEdges.length,
+                                  newCount: newEdges.length,
+                                  addedEdges: speculativeEdges.length,
+                                });
+                                return recalculateAllEdgeZIndexes(newEdges, allNodesWithNew);
                               });
                               
                               setWorkflowTools(prev => prev.map(t => 
