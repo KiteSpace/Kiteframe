@@ -72,61 +72,30 @@ const TERMINATION_NODE_TYPES = ['end', 'exit', 'terminate', 'complete', 'finish'
 /**
  * Guard 1: Assert Prompt is Actionable
  * 
- * Blocks generation if confidence < 0.70
- * Returns missing dimensions for clarification
+ * IMPORTANT: This guard is now NON-BLOCKING for assertive first-turn generation.
+ * Always passes to enable immediate workflow generation. Confidence and score
+ * are only used to suggest quick actions for optional expansion.
+ * 
+ * @deprecated Confidence gating has been removed. All prompts now pass.
  */
 export function assertPromptActionable(
   prompt: string,
   actionability: ActionabilityResult
 ): PromptActionabilityResult {
-  const { confidence, score, missing, isActionable } = actionability;
+  const { confidence, score, missing } = actionability;
 
-  if (confidence < CONFIDENCE_THRESHOLD_BLOCK) {
-    console.log(`[KiteAI Guard] BLOCKED: Confidence ${confidence} < ${CONFIDENCE_THRESHOLD_BLOCK}`);
-    
-    const missingDescriptions = missing.map(dim => {
-      switch (dim) {
-        case 'actor': return 'Who will use this workflow (user/actor)';
-        case 'trigger': return 'What triggers the workflow (context/event)';
-        case 'goal': return 'What the successful outcome looks like (goal/intent)';
-        case 'scope': return 'What is included or excluded (boundaries/constraints)';
-        case 'flowSignal': return 'The steps or sequence involved (flow/process)';
-        default: return dim;
-      }
-    });
-
-    return {
-      passed: false,
-      reason: `Insufficient actionability (confidence: ${Math.round(confidence * 100)}%, score: ${score}/5)`,
-      missingDimensions: missingDescriptions,
-      confidence,
-      details: [
-        `Prompt needs more specificity in: ${missing.join(', ')}`,
-        'Ask clarifying questions before proceeding',
-      ],
-    };
-  }
-
-  if (score < 3) {
-    console.log(`[KiteAI Guard] BLOCKED: Score ${score} < 3`);
-    return {
-      passed: false,
-      reason: `Actionability score too low (${score}/5)`,
-      missingDimensions: missing,
-      confidence,
-      details: [
-        'Prompt must satisfy at least 3 of 5 dimensions',
-        `Missing: ${missing.join(', ')}`,
-      ],
-    };
-  }
-
-  console.log(`[KiteAI Guard] PASSED: Prompt actionable (confidence: ${confidence}, score: ${score})`);
+  // NON-BLOCKING: Always pass to enable first-turn generation
+  // Confidence/score are now informational only, used for quick action suggestions
+  console.log(`[KiteAI Guard] PASSED (non-blocking): Prompt analyzed (confidence: ${confidence}, score: ${score})`);
+  
   return {
     passed: true,
-    reason: 'Prompt meets actionability threshold',
+    reason: 'First-turn generation enabled (non-blocking)',
     confidence,
-    missingDimensions: [],
+    missingDimensions: missing, // Still report missing dimensions for diagnostics
+    details: score < 3 
+      ? [`Low actionability (${score}/5) - quick actions will suggest refinement`]
+      : undefined,
   };
 }
 
