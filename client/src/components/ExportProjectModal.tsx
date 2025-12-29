@@ -218,13 +218,17 @@ export function ExportProjectModal({
         }
 
         const bundleType = determineBundleType(selection);
-        const manifest = generateBundleManifest({
-          bundleType,
-          projectId,
-          projectName,
-          files: filesInZip,
-        });
-        zip.file('bundle-manifest.json', JSON.stringify(manifest, null, 2));
+        const hasBundle = bundleType !== null;
+        
+        if (hasBundle) {
+          const manifest = generateBundleManifest({
+            bundleType,
+            projectId,
+            projectName,
+            files: filesInZip,
+          });
+          zip.file('bundle-manifest.json', JSON.stringify(manifest, null, 2));
+        }
 
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         const url = URL.createObjectURL(zipBlob);
@@ -237,9 +241,11 @@ export function ExportProjectModal({
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
+        const fileCount = hasBundle ? artifacts.length + 1 : artifacts.length;
+        const manifestNote = hasBundle ? ' (includes manifest)' : '';
         toast({ 
           title: 'Export complete', 
-          description: `Downloaded ${artifacts.length + 1} files as ZIP (includes manifest)` 
+          description: `Downloaded ${fileCount} files as ZIP${manifestNote}` 
         });
       }
 
@@ -478,11 +484,15 @@ interface BundleManifest {
   files: Array<{ path: string; description: string }>;
 }
 
-function determineBundleType(selection: ExportSelection): BundleType {
-  if (selection.includes('bundle_design')) return 'design';
-  if (selection.includes('bundle_builder')) return 'builder';
-  if (selection.includes('bundle_project')) return 'project';
-  if (selection.includes('bundle_ai_agent')) return 'ai_agent';
+function determineBundleType(selection: ExportSelection): BundleType | null {
+  const bundleTypes: BundleType[] = [];
+  if (selection.includes('bundle_design')) bundleTypes.push('design');
+  if (selection.includes('bundle_builder')) bundleTypes.push('builder');
+  if (selection.includes('bundle_project')) bundleTypes.push('project');
+  if (selection.includes('bundle_ai_agent')) bundleTypes.push('ai_agent');
+  
+  if (bundleTypes.length === 0) return null;
+  if (bundleTypes.length === 1) return bundleTypes[0];
   return 'mixed';
 }
 
