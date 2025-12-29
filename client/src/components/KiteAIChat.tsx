@@ -1128,6 +1128,13 @@ function ChatView({
             )}
           </div>
           
+          {/* Diff preview for currentWorkflowDraft */}
+          {showDiffPreview && renderDiffPreview({
+            nodes: currentWorkflowDraft.nodes,
+            edges: currentWorkflowDraft.edges,
+            status: 'pending'
+          })}
+          
           {/* Preview/Create/Reject buttons - always bound to currentWorkflowDraft */}
           <div className="flex gap-2">
             <Button
