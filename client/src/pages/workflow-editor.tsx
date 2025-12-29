@@ -1583,6 +1583,56 @@ function WorkflowEditorContent({
     }
   }, [tabs]);
 
+  // Handle navigation from FullScreenChat with pending workflow draft
+  // When user clicks "Create Workflow" in full-screen chat, the draft is saved
+  // to localStorage and they navigate here with ?fromChat=true
+  const fromChatLoadedRef = useRef(false);
+  useEffect(() => {
+    // Only run once
+    if (fromChatLoadedRef.current) return;
+    
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('fromChat') === 'true') {
+      fromChatLoadedRef.current = true;
+      
+      // Clear the query param from URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+      
+      // Load pending workflow draft from localStorage
+      const draftJson = localStorage.getItem('kiteframe-pending-workflow-draft');
+      if (draftJson) {
+        try {
+          const draft = JSON.parse(draftJson);
+          localStorage.removeItem('kiteframe-pending-workflow-draft');
+          
+          // Create a new tab with the workflow draft
+          const newTab = createBlankTab();
+          newTab.nodes = draft.nodes || [];
+          newTab.edges = draft.edges || [];
+          newTab.canvasObjects = draft.canvasObjects || [];
+          newTab.history = [{
+            nodes: newTab.nodes,
+            edges: newTab.edges,
+            canvasObjects: newTab.canvasObjects,
+            viewport: newTab.viewport,
+          }];
+          newTab.historyIndex = 0;
+          
+          setTabs(prev => [...prev, newTab]);
+          setActiveTabId(newTab.id);
+          
+          toast({
+            title: "Workflow Created",
+            description: `Created workflow with ${draft.nodes?.length || 0} nodes.`
+          });
+        } catch (e) {
+          console.error('Failed to load workflow draft:', e);
+        }
+      }
+    }
+  }, [createBlankTab, toast]);
+
   // Dark mode effects
   useEffect(() => {
     // Apply/remove dark class to document element

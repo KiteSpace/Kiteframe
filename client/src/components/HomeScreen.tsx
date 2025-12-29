@@ -1,4 +1,5 @@
 import { useState, useCallback, lazy, Suspense } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -166,6 +167,7 @@ export function HomeScreen({
   isGenerating = false,
   hasCloudAccess = false,
 }: HomeScreenProps) {
+  const [, navigate] = useLocation();
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [showFeatureUpsell, setShowFeatureUpsell] = useState(false);
@@ -211,8 +213,11 @@ export function HomeScreen({
         return;
       }
 
-      // Directly navigate to workflow editor - KiteAI Chat handles all generation
-      onGenerateWorkflow(prompt);
+      // Navigate to full-screen chat using SPA navigation - NO project creation here
+      // Project is only created when user clicks "Create Workflow" in the chat
+      // SPA navigation preserves PromptContextStore state for attachments
+      const encodedPrompt = encodeURIComponent(prompt);
+      navigate(`/app/chat?prompt=${encodedPrompt}`);
     },
     [
       isOutOfCredits,
@@ -220,7 +225,7 @@ export function HomeScreen({
       openSignup,
       openPricing,
       openCreditsDialog,
-      onGenerateWorkflow,
+      navigate,
     ],
   );
 

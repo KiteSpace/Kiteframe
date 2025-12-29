@@ -1,0 +1,91 @@
+KITEFRAME — CRITICAL HOME PROMPT NAVIGATION REGRESSION (BLOCKING)
+
+PROBLEM
+Submitting a prompt from the Home page is now creating a project immediately
+and routing the conversation into the Project Panel chat.
+
+This is incorrect.
+
+Home Prompt must expand into the FULL-SCREEN CHAT experience.
+Project creation must ONLY happen when the user explicitly chooses
+"Create Workflow".
+
+---------------------------------------------------------------------
+
+NON-NEGOTIABLE RULE
+
+Home Prompt submission MUST NOT:
+- create a project
+- create a workflow tab
+- create a projectId
+- route into the Project Panel
+
+Ever.
+
+---------------------------------------------------------------------
+
+REQUIRED BEHAVIOR
+
+Home Prompt submit → FULL-SCREEN CHAT
+
+- Open the full-screen KiteAI Chat experience
+- Continue the conversation inline
+- NO project context
+- NO canvas
+- NO project panel
+
+Project creation happens ONLY when:
+- User clicks "Create Workflow"
+
+---------------------------------------------------------------------
+
+REQUIRED CODE CHANGES (EXPLICIT)
+
+1. REMOVE project creation from Home Prompt flow
+   - Home Prompt must NOT call:
+     - createNewProject
+     - openNewWorkflowTab
+     - ensureProjectContext
+     - navigateToWorkflowEditor(projectId)
+
+2. SPLIT chat containers clearly
+   - FullScreenChat (no projectId)
+   - ProjectChat (requires projectId)
+
+3. Home Prompt must route to FullScreenChat ONLY
+   - Prompt is injected into FullScreenChat
+   - Same chat logic, same draft logic
+   - Different container
+
+4. Create Workflow is the ONLY place that:
+   - creates a project
+   - creates a workflow tab
+   - moves the user into the Project Panel
+
+---------------------------------------------------------------------
+
+ACCEPTANCE CRITERIA
+
+PASS if:
+- Submitting a Home Prompt expands into a full-screen chat
+- No project is created
+- No project panel is shown
+- Chat continues inline
+
+PASS if:
+- Clicking "Create Workflow" THEN creates a project
+- User is routed into the Project Panel at that moment
+
+FAIL if:
+- Any project is created on Home Prompt submission
+- Chat appears inside the Project Panel immediately
+
+---------------------------------------------------------------------
+
+IMPORTANT
+
+This is a navigation/container bug, not an AI or workflow issue.
+Do not patch around it.
+Fix the routing and container ownership.
+
+END OF TASK FILE

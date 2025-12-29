@@ -26,6 +26,7 @@ const ViewOnlyViewer = lazy(() => import("@/pages/ViewOnlyViewer"));
 const Benchmark = lazy(() => import("@/pages/Benchmark"));
 const DevDocs = lazy(() => import("@/pages/DevDocs"));
 const Legal = lazy(() => import("@/pages/Legal"));
+const FullScreenChat = lazy(() => import("@/pages/FullScreenChat"));
 
 interface AuthUser {
   id: string;
@@ -121,6 +122,9 @@ function Router() {
         <Switch>
         <Route path="/">
           <LandingRoute />
+        </Route>
+        <Route path="/app/chat">
+          <BetaProtectedRoute component={FullScreenChat} />
         </Route>
         <Route path="/app">
           <BetaProtectedRoute component={WorkflowEditor} />

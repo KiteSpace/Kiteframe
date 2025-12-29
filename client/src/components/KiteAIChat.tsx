@@ -132,19 +132,29 @@ function loadMessagesFromStorage(storageKey: string): ChatMessage[] | null {
   return null;
 }
 
-interface ChatViewProps {
+// WorkflowDraft type exported for use by shells
+export interface WorkflowDraft {
+  nodes: Node[];
+  edges: Edge[];
+  canvasObjects?: CanvasObject[];
+  status: 'draft' | 'expanded';
+  originPrompt?: string;
+}
+
+interface KiteAIChatBrainProps {
   projectId?: string;
   nodes: Node[];
   edges: Edge[];
   canvasObjects: CanvasObject[];
   onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
-  mode: 'panel' | 'floating';
+  mode: 'panel' | 'floating' | 'fullscreen';
   initialPrompt?: string;
   onInitialPromptConsumed?: () => void;
+  onCreateWorkflow?: (draft: WorkflowDraft) => void;
 }
 
-function ChatView({ 
+export function KiteAIChatBrain({ 
   projectId,
   nodes: currentNodes, 
   edges: currentEdges, 
@@ -153,8 +163,9 @@ function ChatView({
   onPreviewWorkflow,
   mode,
   initialPrompt,
-  onInitialPromptConsumed
-}: ChatViewProps) {
+  onInitialPromptConsumed,
+  onCreateWorkflow
+}: KiteAIChatBrainProps) {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -171,13 +182,6 @@ function ChatView({
   
   // AUTHORITATIVE WORKFLOW DRAFT - Single source of truth for the current workflow
   // This replaces message-embedded workflow ownership. Preview/Create always use this.
-  interface WorkflowDraft {
-    nodes: Node[];
-    edges: Edge[];
-    canvasObjects?: CanvasObject[];
-    status: 'draft' | 'expanded';
-    originPrompt?: string; // Original user prompt for context in expansion
-  }
   const [currentWorkflowDraft, setCurrentWorkflowDraft] = useState<WorkflowDraft | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -727,8 +731,23 @@ function ChatView({
   };
 
   // UPDATED: Accept uses currentWorkflowDraft (authoritative), not message.workflowProposal
+  // In fullscreen mode, calls onCreateWorkflow to create project and navigate
+  // In panel/floating mode, calls onApplyWorkflow to apply to existing canvas
   const handleAcceptWorkflow = () => {
-    if (!currentWorkflowDraft || !onApplyWorkflow) return;
+    if (!currentWorkflowDraft) return;
+
+    // Fullscreen mode: create project via callback (no canvas exists yet)
+    if (mode === 'fullscreen' && onCreateWorkflow) {
+      onCreateWorkflow(currentWorkflowDraft);
+      // Clear state after handing off to shell
+      setCurrentWorkflowDraft(null);
+      setWorkflowGenState(null);
+      setPendingQuickActions([]);
+      return;
+    }
+
+    // Panel/floating mode: apply to existing canvas
+    if (!onApplyWorkflow) return;
 
     onApplyWorkflow({
       nodes: currentWorkflowDraft.nodes,
@@ -1672,7 +1691,7 @@ export function KiteAIChatPanel({
 }: KiteAIChatPanelProps) {
   return (
     <div className="flex h-full w-full flex-col">
-      <ChatView
+      <KiteAIChatBrain
         mode="panel"
         projectId={projectId}
         nodes={nodes}
@@ -1878,7 +1897,7 @@ export function KiteAIChat({
 
           {!isMinimized && (
             <div className="flex-1 overflow-hidden">
-              <ChatView
+              <KiteAIChatBrain
                 mode="floating"
                 nodes={currentNodes}
                 edges={currentEdges}
