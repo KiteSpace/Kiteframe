@@ -39,6 +39,8 @@ interface ProjectPanelProps {
   forceTab?: ProjectPanelTab | null;
   showAcknowledgedBadges?: boolean;
   onToggleAcknowledgedBadges?: (show: boolean) => void;
+  initialPrompt?: string;
+  onInitialPromptConsumed?: () => void;
 }
 
 const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string }[] = [
@@ -71,6 +73,8 @@ export function ProjectPanel({
   forceTab,
   showAcknowledgedBadges = false,
   onToggleAcknowledgedBadges,
+  initialPrompt,
+  onInitialPromptConsumed,
 }: ProjectPanelProps) {
   const resizeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -289,6 +293,8 @@ export function ProjectPanel({
             onApplyWorkflow={isReadOnly ? undefined : onApplyWorkflow}
             onPreviewWorkflow={isReadOnly ? undefined : onPreviewWorkflow}
             isReadOnly={isReadOnly}
+            initialPrompt={initialPrompt}
+            onInitialPromptConsumed={onInitialPromptConsumed}
           />
         </TabsContent>
         

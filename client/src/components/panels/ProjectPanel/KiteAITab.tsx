@@ -9,6 +9,8 @@ interface KiteAITabProps {
   onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   isReadOnly?: boolean;
+  initialPrompt?: string;
+  onInitialPromptConsumed?: () => void;
 }
 
 export function KiteAITab({ 
@@ -18,7 +20,9 @@ export function KiteAITab({
   canvasObjects,
   onApplyWorkflow,
   onPreviewWorkflow,
-  isReadOnly = false
+  isReadOnly = false,
+  initialPrompt,
+  onInitialPromptConsumed
 }: KiteAITabProps) {
   if (isReadOnly) {
     return (
@@ -42,6 +46,8 @@ export function KiteAITab({
         canvasObjects={canvasObjects}
         onApplyWorkflow={onApplyWorkflow}
         onPreviewWorkflow={onPreviewWorkflow}
+        initialPrompt={initialPrompt}
+        onInitialPromptConsumed={onInitialPromptConsumed}
       />
     </div>
   );

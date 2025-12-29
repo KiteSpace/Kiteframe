@@ -139,6 +139,8 @@ interface ChatViewProps {
   onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   mode: 'panel' | 'floating';
+  initialPrompt?: string;
+  onInitialPromptConsumed?: () => void;
 }
 
 function ChatView({ 
@@ -148,7 +150,9 @@ function ChatView({
   canvasObjects: currentCanvasObjects,
   onApplyWorkflow,
   onPreviewWorkflow,
-  mode
+  mode,
+  initialPrompt,
+  onInitialPromptConsumed
 }: ChatViewProps) {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -272,6 +276,32 @@ function ChatView({
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [mode]);
+
+  // Handle initial prompt injection from Home Prompt
+  // Uses the shared handleSend function to maintain single source of truth
+  const initialPromptProcessedRef = useRef<string | null>(null);
+  useEffect(() => {
+    // Reset processed ref when prompt is cleared (allows subsequent submissions)
+    if (!initialPrompt) {
+      initialPromptProcessedRef.current = null;
+      return;
+    }
+    
+    // Skip if this exact prompt was already processed or if currently loading
+    if (initialPromptProcessedRef.current === initialPrompt || isLoading) {
+      return;
+    }
+    
+    // Mark this prompt as being processed
+    initialPromptProcessedRef.current = initialPrompt;
+    
+    // Call the shared handleSend with the initial prompt
+    // This ensures identical behavior to typing in the chat input
+    // Use finally to guarantee cleanup even on failure
+    handleSend(initialPrompt).finally(() => {
+      onInitialPromptConsumed?.();
+    });
+  }, [initialPrompt, isLoading, onInitialPromptConsumed]);
 
   useLayoutEffect(() => {
     if (inputRef.current) {
@@ -416,8 +446,12 @@ function ChatView({
     return `Current canvas has ${currentNodes.length} nodes (${Object.entries(nodeTypes).map(([t, c]) => `${c} ${t}`).join(', ')}) and ${currentEdges.length} connections. Node labels: ${nodeLabels}`;
   }, [currentNodes, currentEdges]);
 
-  const handleSend = async () => {
-    if (!inputValue.trim() && pendingFiles.length === 0) return;
+  // Shared message sending function - accepts optional message override for programmatic calls
+  const handleSend = async (messageOverride?: string) => {
+    const messageContent = messageOverride ?? inputValue;
+    const hasPendingFiles = pendingFiles.length > 0;
+    
+    if (!messageContent.trim() && !hasPendingFiles) return;
     
     if (isOutOfCredits) {
       toast({
@@ -455,7 +489,7 @@ function ChatView({
     const userMessage: ChatMessage = {
       id: messageId,
       role: 'user',
-      content: inputValue,
+      content: messageContent,
       timestamp: new Date(),
       attachments: attachments.length > 0 ? attachments : undefined
     };
@@ -538,7 +572,7 @@ function ChatView({
       
       const effectiveRole = inferKiteAIRole({
         mode: 'in_project',
-        userMessage: inputValue,
+        userMessage: messageContent,
         projectContext: {
           nodes: currentNodes,
           edges: currentEdges,
@@ -576,7 +610,7 @@ function ChatView({
         messages: [
           { role: 'system', content: enhancedPrompt },
           ...conversationHistory,
-          { role: 'user', content: inputValue }
+          { role: 'user', content: messageContent }
         ],
         temperature: 0.7,
         maxTokens: 3000
@@ -607,7 +641,7 @@ function ChatView({
               nodes: parsed.nodes,
               edges: parsed.edges,
               status: 'draft',
-              originPrompt: inputValue
+              originPrompt: messageContent
             });
             
             // Analyze workflow diagnostics for quick action suggestions
@@ -1602,6 +1636,8 @@ interface KiteAIChatPanelProps {
   canvasObjects: CanvasObject[];
   onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
+  initialPrompt?: string;
+  onInitialPromptConsumed?: () => void;
 }
 
 export function KiteAIChatPanel({
@@ -1610,7 +1646,9 @@ export function KiteAIChatPanel({
   edges,
   canvasObjects,
   onApplyWorkflow,
-  onPreviewWorkflow
+  onPreviewWorkflow,
+  initialPrompt,
+  onInitialPromptConsumed
 }: KiteAIChatPanelProps) {
   return (
     <div className="flex h-full w-full flex-col">
@@ -1622,6 +1660,8 @@ export function KiteAIChatPanel({
         canvasObjects={canvasObjects}
         onApplyWorkflow={onApplyWorkflow}
         onPreviewWorkflow={onPreviewWorkflow}
+        initialPrompt={initialPrompt}
+        onInitialPromptConsumed={onInitialPromptConsumed}
       />
     </div>
   );

@@ -1,0 +1,113 @@
+SECTION 1 — DELETION CONFIRMATION (NO AMBIGUITY)
+
+Can you confirm the modal overlay code in workflow-editor.tsx (~6542–6636) will be fully deleted, not bypassed or hidden?
+
+Please list the exact components/functions that will be removed.
+
+Will the duplicated homeWorkflowDraft state be deleted entirely?
+
+If any of it remains, explain why and where it lives.
+
+Are there any other modal-related components, hooks, or CSS introduced for this flow that must be removed?
+
+Please enumerate them.
+
+SECTION 2 — TRANSITION MECHANISM (CRITICAL)
+
+What exact state change or navigation event will Home Prompt trigger to enter KiteAI Chat?
+
+Route change?
+
+Panel open?
+
+Context switch?
+
+Which component becomes responsible for rendering immediately after Home Prompt submission?
+
+Name the component explicitly.
+
+Is the Home Prompt prompt text injected as the first user message in KiteAI Chat’s conversation state?
+
+If yes, where is that injection handled?
+
+If no, explain the alternative.
+
+SECTION 3 — SHARED STATE GUARANTEE
+
+Can you confirm there will be exactly ONE currentWorkflowDraft in the system after this change?
+
+Where is it defined?
+
+Which provider/context owns it?
+
+Will both Home Prompt–initiated workflows and in-chat workflows update the same currentWorkflowDraft instance?
+
+Yes / No
+
+If no, stop and explain why.
+
+Will all workflow mutations (baseline generation, include edge cases, select edge cases) replace currentWorkflowDraft?
+
+SECTION 4 — UI RENDERING PARITY
+
+Will Home Prompt–initiated workflows render the exact same UI elements as KiteAI Chat?
+
+Same chat message renderer?
+
+Same WorkflowDraftActions component?
+
+Same quick actions?
+
+Is there any conditional logic left that treats “home-initiated” workflows differently from chat-initiated workflows?
+
+If yes, list it.
+
+SECTION 5 — APPLY / PREVIEW BEHAVIOR (FINAL CHECK)
+
+Can you confirm that Preview and Create Workflow buttons are rendered based solely on currentWorkflowDraft !== null?
+
+After an edge/fail case expansion, does Create Workflow operate on the expanded draft without exception?
+
+Is there any remaining coupling between buttons and a specific chat message index or ID?
+
+This should be NO.
+
+SECTION 6 — MANUAL VERIFICATION COMMITMENT
+
+Will you manually test the following exact flow before marking this complete?
+
+Home Prompt → full-screen chat
+
+Baseline workflow generated
+
+Include edge / fail cases
+
+Preview updates
+
+Create Workflow creates the expanded version
+
+Will you confirm parity by repeating the same flow entirely inside KiteAI Chat?
+
+SECTION 7 — PREVENTING REGRESSION
+
+What shared abstraction now guarantees Home Prompt and KiteAI Chat cannot diverge again?
+
+Shared component?
+
+Shared context?
+
+Shared renderer?
+
+If someone later modifies KiteAI Chat, what prevents Home Prompt from drifting again?
+
+WHY THESE QUESTIONS MATTER
+
+These questions do three things:
+
+ensure the modal mistake is fully undone, not patched
+
+ensure Home Prompt truly becomes just another entry point into chat
+
+force Replit to prove shared ownership of state and UI
+
+At this stage, any hesitation or vague answer is a red flag.
