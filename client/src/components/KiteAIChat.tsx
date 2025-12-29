@@ -49,7 +49,13 @@ import {
   isWorkflowValidForCreation,
   type QuickActionType 
 } from '@/utils/workflowDiagnostics';
-import { AI_RESPONSE_TEMPLATES, QUICK_ACTION_LABELS } from '@/constants/aiWorkflowExpansionPrompts';
+import { 
+  AI_RESPONSE_TEMPLATES, 
+  QUICK_ACTION_LABELS,
+  AI_WORKFLOW_EXPAND_EDGE_CASES_PROMPT,
+  AI_WORKFLOW_LIST_EDGE_CASES_PROMPT,
+  AI_WORKFLOW_EXPAND_SELECTED_EDGE_CASES_PROMPT
+} from '@/constants/aiWorkflowExpansionPrompts';
 
 export interface ChatMessage {
   id: string;
@@ -148,6 +154,17 @@ function ChatView({
   const [pendingQuickActions, setPendingQuickActions] = useState<QuickActionType[]>([]);
   const [discussedEdgeCases, setDiscussedEdgeCases] = useState<EdgeCase[]>([]);
   const [showEdgeCaseSelector, setShowEdgeCaseSelector] = useState(false);
+  
+  // AUTHORITATIVE WORKFLOW DRAFT - Single source of truth for the current workflow
+  // This replaces message-embedded workflow ownership. Preview/Create always use this.
+  interface WorkflowDraft {
+    nodes: Node[];
+    edges: Edge[];
+    canvasObjects?: CanvasObject[];
+    status: 'draft' | 'expanded';
+    originPrompt?: string; // Original user prompt for context in expansion
+  }
+  const [currentWorkflowDraft, setCurrentWorkflowDraft] = useState<WorkflowDraft | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -568,12 +585,21 @@ function ChatView({
           
           const parsed = JSON.parse(cleanJson);
           if (parsed.nodes && parsed.edges) {
+            // Keep workflowProposal for message history/display only
             workflowProposal = {
               nodes: parsed.nodes,
               edges: parsed.edges,
               description: 'AI-generated workflow',
               status: 'pending'
             };
+            
+            // SET AUTHORITATIVE WORKFLOW DRAFT - Single source of truth
+            setCurrentWorkflowDraft({
+              nodes: parsed.nodes,
+              edges: parsed.edges,
+              status: 'draft',
+              originPrompt: inputValue
+            });
             
             // Analyze workflow diagnostics for quick action suggestions
             const diagnostics = analyzeWorkflowDiagnostics({
@@ -637,38 +663,44 @@ function ChatView({
     }
   };
 
-  const handleAcceptWorkflow = (messageId: string) => {
-    const message = messages.find(m => m.id === messageId);
-    if (!message?.workflowProposal || !onApplyWorkflow) return;
+  // UPDATED: Accept uses currentWorkflowDraft (authoritative), not message.workflowProposal
+  const handleAcceptWorkflow = () => {
+    if (!currentWorkflowDraft || !onApplyWorkflow) return;
 
     onApplyWorkflow({
-      nodes: message.workflowProposal.nodes,
-      edges: message.workflowProposal.edges,
-      canvasObjects: message.workflowProposal.canvasObjects
+      nodes: currentWorkflowDraft.nodes,
+      edges: currentWorkflowDraft.edges,
+      canvasObjects: currentWorkflowDraft.canvasObjects
     });
 
-    setMessages(prev => prev.map(m => 
-      m.id === messageId && m.workflowProposal
-        ? { ...m, workflowProposal: { ...m.workflowProposal, status: 'accepted' } }
-        : m
-    ));
+    // Clear the draft after applying
+    setCurrentWorkflowDraft(null);
+    setWorkflowGenState(null);
+    setPendingQuickActions([]);
 
     toast({
-      title: "Workflow Applied",
-      description: `Added ${message.workflowProposal.nodes.length} nodes to your canvas.`
+      title: "Workflow Created",
+      description: `Added ${currentWorkflowDraft.nodes.length} nodes to your canvas.`
     });
   };
 
-  const handleRejectWorkflow = (messageId: string) => {
-    setMessages(prev => prev.map(m => 
-      m.id === messageId && m.workflowProposal
-        ? { ...m, workflowProposal: { ...m.workflowProposal, status: 'rejected' } }
-        : m
-    ));
+  // UPDATED: Reject clears currentWorkflowDraft (authoritative)
+  const handleRejectWorkflow = () => {
+    setCurrentWorkflowDraft(null);
+    setWorkflowGenState(null);
+    setPendingQuickActions([]);
+    setDiscussedEdgeCases([]);
+    setShowEdgeCaseSelector(false);
+    
+    toast({
+      title: "Workflow Discarded",
+      description: "The workflow draft has been cleared."
+    });
   };
 
-  const handleQuickAction = useCallback(async (action: QuickActionType, message: ChatMessage) => {
-    if (!message.workflowProposal) return;
+  // UPDATED: Quick actions now use currentWorkflowDraft (authoritative)
+  const handleQuickAction = useCallback(async (action: QuickActionType) => {
+    if (!currentWorkflowDraft) return;
     
     setIsLoading(true);
     
@@ -676,7 +708,6 @@ function ChatView({
       switch (action) {
         case 'HAPPY_PATH_ONLY':
           // User chose to keep happy path only - just confirm and clear quick actions
-          setWorkflowGenState(null);
           setPendingQuickActions([]);
           setMessages(prev => [...prev, {
             id: `system-${Date.now()}`,
@@ -687,38 +718,79 @@ function ChatView({
           break;
           
         case 'INCLUDE_EDGE_CASES':
-          // Request AI to expand with edge cases
+          // Call AI to expand workflow with edge cases
           toast({ title: 'Expanding workflow', description: 'Adding edge and failure cases...' });
-          // TODO: Call AI to expand workflow
-          setWorkflowGenState('EXPANDED_WITH_EDGE_CASES');
-          setPendingQuickActions([]);
-          setMessages(prev => [...prev, {
-            id: `system-${Date.now()}`,
-            role: 'assistant',
-            content: AI_RESPONSE_TEMPLATES.EXPANDED_WITH_EDGE_CASES,
-            timestamp: new Date()
-          }]);
+          
+          const expandResponse = await aiClient.chat({
+            messages: [
+              { role: 'system', content: AI_WORKFLOW_EXPAND_EDGE_CASES_PROMPT },
+              { role: 'user', content: `Original prompt: ${currentWorkflowDraft.originPrompt || 'Workflow expansion'}\n\nCurrent workflow:\n${JSON.stringify({ nodes: currentWorkflowDraft.nodes, edges: currentWorkflowDraft.edges }, null, 2)}` }
+            ],
+            temperature: 0.5,
+            maxTokens: 4000
+          });
+          
+          const expandedJson = expandResponse.text.match(/\{[\s\S]*"nodes"[\s\S]*"edges"[\s\S]*\}/);
+          if (expandedJson) {
+            try {
+              const parsed = JSON.parse(expandedJson[0].replace(/,(\s*[}\]])/g, '$1'));
+              if (parsed.nodes && parsed.edges) {
+                // REPLACE the draft with expanded workflow
+                setCurrentWorkflowDraft({
+                  nodes: parsed.nodes,
+                  edges: parsed.edges,
+                  status: 'expanded',
+                  originPrompt: currentWorkflowDraft.originPrompt
+                });
+                setWorkflowGenState('EXPANDED_WITH_EDGE_CASES');
+                setPendingQuickActions([]);
+                setMessages(prev => [...prev, {
+                  id: `system-${Date.now()}`,
+                  role: 'assistant',
+                  content: AI_RESPONSE_TEMPLATES.EXPANDED_WITH_EDGE_CASES,
+                  timestamp: new Date()
+                }]);
+              }
+            } catch (e) {
+              console.error('Failed to parse expanded workflow:', e);
+              throw new Error('Failed to parse AI response');
+            }
+          }
           break;
           
         case 'DISCUSS_EDGE_CASES':
-          // Request AI to list edge cases for discussion
+          // Call AI to list edge cases for discussion
           toast({ title: 'Analyzing edge cases', description: 'Identifying potential failure paths...' });
-          // TODO: Call AI to list edge cases
-          setWorkflowGenState('DISCUSSING_EDGE_CASES');
-          setPendingQuickActions([]);
-          // Mock edge cases for now - TODO: Get from AI
-          setDiscussedEdgeCases([
-            { id: 'case-1', label: 'Invalid user input' },
-            { id: 'case-2', label: 'Network connection failure' },
-            { id: 'case-3', label: 'Authentication timeout' },
-            { id: 'case-4', label: 'Rate limit exceeded' },
-          ]);
-          setMessages(prev => [...prev, {
-            id: `system-${Date.now()}`,
-            role: 'assistant',
-            content: AI_RESPONSE_TEMPLATES.DISCUSSING_EDGE_CASES,
-            timestamp: new Date()
-          }]);
+          
+          const listResponse = await aiClient.chat({
+            messages: [
+              { role: 'system', content: AI_WORKFLOW_LIST_EDGE_CASES_PROMPT },
+              { role: 'user', content: `Original prompt: ${currentWorkflowDraft.originPrompt || 'Workflow'}\n\nCurrent workflow:\n${JSON.stringify({ nodes: currentWorkflowDraft.nodes, edges: currentWorkflowDraft.edges }, null, 2)}` }
+            ],
+            temperature: 0.5,
+            maxTokens: 1500
+          });
+          
+          const edgeCasesJson = listResponse.text.match(/\{[\s\S]*"edgeCases"[\s\S]*\}/);
+          if (edgeCasesJson) {
+            try {
+              const parsed = JSON.parse(edgeCasesJson[0].replace(/,(\s*[}\]])/g, '$1'));
+              if (parsed.edgeCases && Array.isArray(parsed.edgeCases)) {
+                setDiscussedEdgeCases(parsed.edgeCases);
+                setWorkflowGenState('DISCUSSING_EDGE_CASES');
+                setPendingQuickActions([]);
+                setMessages(prev => [...prev, {
+                  id: `system-${Date.now()}`,
+                  role: 'assistant',
+                  content: AI_RESPONSE_TEMPLATES.DISCUSSING_EDGE_CASES,
+                  timestamp: new Date()
+                }]);
+              }
+            } catch (e) {
+              console.error('Failed to parse edge cases:', e);
+              throw new Error('Failed to parse AI response');
+            }
+          }
           break;
           
         case 'SELECT_EDGE_CASES':
@@ -735,10 +807,11 @@ function ChatView({
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [currentWorkflowDraft, aiClient, toast]);
 
-  const handleEdgeCaseSelection = useCallback(async (selectedIds: string[], message: ChatMessage) => {
-    if (!message.workflowProposal) return;
+  // UPDATED: Edge case selection uses currentWorkflowDraft (authoritative)
+  const handleEdgeCaseSelection = useCallback(async (selectedIds: string[]) => {
+    if (!currentWorkflowDraft) return;
     
     setShowEdgeCaseSelector(false);
     setIsLoading(true);
@@ -750,15 +823,42 @@ function ChatView({
         description: `Adding ${selectedCases.length} edge case${selectedCases.length > 1 ? 's' : ''} to workflow...` 
       });
       
-      // TODO: Call AI to expand with selected edge cases
-      setWorkflowGenState('SELECTED_EDGE_CASES_APPLIED');
-      setDiscussedEdgeCases([]);
-      setMessages(prev => [...prev, {
-        id: `system-${Date.now()}`,
-        role: 'assistant',
-        content: AI_RESPONSE_TEMPLATES.SELECTED_EDGE_CASES_APPLIED,
-        timestamp: new Date()
-      }]);
+      // Call AI to expand with selected edge cases
+      const selectResponse = await aiClient.chat({
+        messages: [
+          { role: 'system', content: AI_WORKFLOW_EXPAND_SELECTED_EDGE_CASES_PROMPT },
+          { role: 'user', content: `Original prompt: ${currentWorkflowDraft.originPrompt || 'Workflow'}\n\nCurrent workflow:\n${JSON.stringify({ nodes: currentWorkflowDraft.nodes, edges: currentWorkflowDraft.edges }, null, 2)}\n\nSelected edge cases to include:\n${selectedCases.map(c => `- ${c.label}`).join('\n')}` }
+        ],
+        temperature: 0.5,
+        maxTokens: 4000
+      });
+      
+      const expandedJson = selectResponse.text.match(/\{[\s\S]*"nodes"[\s\S]*"edges"[\s\S]*\}/);
+      if (expandedJson) {
+        try {
+          const parsed = JSON.parse(expandedJson[0].replace(/,(\s*[}\]])/g, '$1'));
+          if (parsed.nodes && parsed.edges) {
+            // REPLACE the draft with expanded workflow
+            setCurrentWorkflowDraft({
+              nodes: parsed.nodes,
+              edges: parsed.edges,
+              status: 'expanded',
+              originPrompt: currentWorkflowDraft.originPrompt
+            });
+            setWorkflowGenState('SELECTED_EDGE_CASES_APPLIED');
+            setDiscussedEdgeCases([]);
+            setMessages(prev => [...prev, {
+              id: `system-${Date.now()}`,
+              role: 'assistant',
+              content: AI_RESPONSE_TEMPLATES.SELECTED_EDGE_CASES_APPLIED,
+              timestamp: new Date()
+            }]);
+          }
+        } catch (e) {
+          console.error('Failed to parse expanded workflow:', e);
+          throw new Error('Failed to parse AI response');
+        }
+      }
     } catch (error) {
       console.error('Edge case selection error:', error);
       toast({ 
@@ -769,21 +869,22 @@ function ChatView({
     } finally {
       setIsLoading(false);
     }
-  }, [discussedEdgeCases, toast]);
+  }, [currentWorkflowDraft, discussedEdgeCases, aiClient, toast]);
 
-  const handlePreviewWorkflow = (messageId: string) => {
-    const message = messages.find(m => m.id === messageId);
-    if (!message?.workflowProposal) return;
+  // UPDATED: Preview uses currentWorkflowDraft (authoritative)
+  const handlePreviewWorkflow = () => {
+    if (!currentWorkflowDraft) return;
 
-    setShowDiffPreview(showDiffPreview === messageId ? null : messageId);
+    const isCurrentlyPreviewing = showDiffPreview !== null;
+    setShowDiffPreview(isCurrentlyPreviewing ? null : 'draft');
     
     if (onPreviewWorkflow) {
-      if (showDiffPreview === messageId) {
+      if (isCurrentlyPreviewing) {
         onPreviewWorkflow(null);
       } else {
         onPreviewWorkflow({
-          nodes: message.workflowProposal.nodes,
-          edges: message.workflowProposal.edges
+          nodes: currentWorkflowDraft.nodes,
+          edges: currentWorkflowDraft.edges
         });
       }
     }
@@ -965,105 +1066,12 @@ function ChatView({
                     </div>
                   )}
                   
+                  {/* Workflow proposal display (informational only - shows what was generated at this message) */}
                   {message.workflowProposal && (
                     <div className="mt-3 pt-3 border-t border-border/50">
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {message.workflowProposal.nodes.length} nodes, {message.workflowProposal.edges.length} edges
-                        </Badge>
-                        <span className={`text-xs ${
-                          message.workflowProposal.status === 'accepted' 
-                            ? 'text-green-500' 
-                            : message.workflowProposal.status === 'rejected'
-                            ? 'text-red-500'
-                            : 'text-muted-foreground'
-                        }`}>
-                          {message.workflowProposal.status === 'accepted' && '✓ Applied'}
-                          {message.workflowProposal.status === 'rejected' && '✗ Declined'}
-                        </span>
-                      </div>
-                      
-                      {showDiffPreview === message.id && renderDiffPreview(message.workflowProposal)}
-                      
-                      {message.workflowProposal.status === 'pending' && (
-                        <>
-                          <div className="flex gap-2 mt-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handlePreviewWorkflow(message.id)}
-                              className="flex-1 h-8 text-xs"
-                              data-testid={`button-preview-workflow-${message.id}`}
-                            >
-                              <Eye className="w-3 h-3 mr-1" />
-                              {showDiffPreview === message.id ? 'Hide' : 'Preview'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => handleAcceptWorkflow(message.id)}
-                              className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700"
-                              data-testid={`button-accept-workflow-${message.id}`}
-                              disabled={!isWorkflowValidForCreation({ 
-                                nodes: message.workflowProposal.nodes.map(n => ({
-                                  id: n.id,
-                                  type: n.type,
-                                  label: (n.data as any)?.label
-                                })),
-                                edges: message.workflowProposal.edges.map(e => ({
-                                  id: e.id,
-                                  source: e.source,
-                                  target: e.target,
-                                  label: (e.data as any)?.label
-                                }))
-                              })}
-                            >
-                              <Check className="w-3 h-3 mr-1" />
-                              Create Workflow
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleRejectWorkflow(message.id)}
-                              className="h-8 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                              data-testid={`button-reject-workflow-${message.id}`}
-                            >
-                              <XCircle className="w-3 h-3" />
-                            </Button>
-                          </div>
-                          
-                          {/* Quick Actions for workflow expansion */}
-                          {workflowGenState === 'BASELINE_GENERATED' && pendingQuickActions.length > 0 && (
-                            <QuickActions
-                              actions={pendingQuickActions}
-                              onAction={(action) => handleQuickAction(action, message)}
-                              disabled={isLoading}
-                            />
-                          )}
-                          
-                          {/* Discussion mode quick actions */}
-                          {workflowGenState === 'DISCUSSING_EDGE_CASES' && (
-                            <DiscussionQuickActions
-                              onStickWithHappyPath={() => handleQuickAction('HAPPY_PATH_ONLY', message)}
-                              onMapAllEdgeCases={() => handleQuickAction('INCLUDE_EDGE_CASES', message)}
-                              onSelectEdgeCases={() => setShowEdgeCaseSelector(true)}
-                              disabled={isLoading}
-                            />
-                          )}
-                          
-                          {/* Edge case selector */}
-                          {showEdgeCaseSelector && discussedEdgeCases.length > 0 && (
-                            <div className="mt-3">
-                              <EdgeCaseSelector
-                                edgeCases={discussedEdgeCases}
-                                onSubmit={(selectedIds) => handleEdgeCaseSelection(selectedIds, message)}
-                                onCancel={() => setShowEdgeCaseSelector(false)}
-                                disabled={isLoading}
-                              />
-                            </div>
-                          )}
-                        </>
-                      )}
+                      <Badge variant="secondary" className="text-xs">
+                        Generated: {message.workflowProposal.nodes.length} nodes, {message.workflowProposal.edges.length} edges
+                      </Badge>
                     </div>
                   )}
                 </div>
@@ -1097,6 +1105,96 @@ function ChatView({
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
+
+      {/* AUTHORITATIVE WORKFLOW DRAFT ACTIONS - Always visible when draft exists */}
+      {currentWorkflowDraft && (
+        <div className="p-3 border-t border-border bg-muted/30 space-y-3">
+          {/* Draft status badge */}
+          <div className="flex items-center justify-between">
+            <Badge variant={currentWorkflowDraft.status === 'expanded' ? 'default' : 'secondary'} className="text-xs">
+              {currentWorkflowDraft.status === 'expanded' ? '✓ Expanded' : 'Draft'}: {currentWorkflowDraft.nodes.length} nodes, {currentWorkflowDraft.edges.length} edges
+            </Badge>
+            {showDiffPreview && (
+              <span className="text-xs text-muted-foreground">Preview active</span>
+            )}
+          </div>
+          
+          {/* Preview/Create/Reject buttons - always bound to currentWorkflowDraft */}
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handlePreviewWorkflow}
+              className="flex-1 h-8 text-xs"
+              data-testid="button-preview-workflow-draft"
+            >
+              <Eye className="w-3 h-3 mr-1" />
+              {showDiffPreview ? 'Hide Preview' : 'Preview'}
+            </Button>
+            <Button
+              size="sm"
+              variant="default"
+              onClick={handleAcceptWorkflow}
+              className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700"
+              data-testid="button-create-workflow-draft"
+              disabled={!isWorkflowValidForCreation({ 
+                nodes: currentWorkflowDraft.nodes.map(n => ({
+                  id: n.id,
+                  type: n.type || 'process',
+                  label: (n.data as any)?.label
+                })),
+                edges: currentWorkflowDraft.edges.map(e => ({
+                  id: e.id,
+                  source: e.source,
+                  target: e.target,
+                  label: (e.data as any)?.label
+                }))
+              })}
+            >
+              <Check className="w-3 h-3 mr-1" />
+              Create Workflow
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleRejectWorkflow}
+              className="h-8 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10"
+              data-testid="button-reject-workflow-draft"
+            >
+              <XCircle className="w-3 h-3" />
+            </Button>
+          </div>
+          
+          {/* Quick Actions for workflow expansion - uses currentWorkflowDraft */}
+          {workflowGenState === 'BASELINE_GENERATED' && pendingQuickActions.length > 0 && (
+            <QuickActions
+              actions={pendingQuickActions}
+              onAction={handleQuickAction}
+              disabled={isLoading}
+            />
+          )}
+          
+          {/* Discussion mode quick actions */}
+          {workflowGenState === 'DISCUSSING_EDGE_CASES' && (
+            <DiscussionQuickActions
+              onStickWithHappyPath={() => handleQuickAction('HAPPY_PATH_ONLY')}
+              onMapAllEdgeCases={() => handleQuickAction('INCLUDE_EDGE_CASES')}
+              onSelectEdgeCases={() => setShowEdgeCaseSelector(true)}
+              disabled={isLoading}
+            />
+          )}
+          
+          {/* Edge case selector */}
+          {showEdgeCaseSelector && discussedEdgeCases.length > 0 && (
+            <EdgeCaseSelector
+              edgeCases={discussedEdgeCases}
+              onSubmit={handleEdgeCaseSelection}
+              onCancel={() => setShowEdgeCaseSelector(false)}
+              disabled={isLoading}
+            />
+          )}
+        </div>
+      )}
 
       {/* Input Area */}
       <div 
