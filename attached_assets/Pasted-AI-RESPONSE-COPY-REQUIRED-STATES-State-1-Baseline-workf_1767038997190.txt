@@ -1,0 +1,100 @@
+AI RESPONSE COPY — REQUIRED STATES
+State 1: Baseline workflow generated (default)
+
+AI message:
+
+I’ve created a first-pass workflow based on your prompt.
+
+This is a straightforward happy path to get something concrete on the canvas.
+In real systems like this, there are often additional branches or failure cases that are worth mapping, but we can decide how deep to go.
+
+Quick actions to show:
+
+Map only the happy path
+
+Include edge / fail cases
+
+Discuss edge / fail cases
+
+Preview + Create Workflow are enabled.
+
+State 2: Expanded with edge / fail cases
+
+AI message:
+
+I’ve expanded the workflow to include common edge and failure cases.
+
+This version reflects a more realistic system, including decisions and recovery paths.
+You can keep refining this, or create the workflow as-is.
+
+Quick actions to show (optional):
+
+Discuss edge / fail cases
+
+Preview + Create Workflow remain enabled.
+
+State 3: Discussing edge / fail cases (no generation yet)
+
+AI message:
+
+Here are some potential edge and failure cases that commonly show up in flows like this.
+
+You can choose to include all of them, select specific ones, or stick with the happy path.
+
+Below this message, show a checkbox list of cases.
+
+Quick actions:
+
+Stick with the happy path
+
+Map all edge / fail cases
+
+Select which edge / fail cases to include
+
+Preview + Create Workflow remain enabled (happy path version).
+
+State 4: Selected edge cases applied
+
+AI message:
+
+I’ve updated the workflow to include the edge cases you selected.
+
+This keeps the model focused while still accounting for important divergences.
+
+Preview + Create Workflow enabled.
+
+BUTTON LABELS + MICROCOPY (EXACT TEXT)
+
+Primary CTA:
+
+Create Workflow
+
+Secondary:
+
+Preview
+
+Quick action buttons:
+
+Map only the happy path
+
+Include edge / fail cases
+
+Discuss edge / fail cases
+
+Stick with the happy path
+
+Map all edge / fail cases
+
+Select which edge / fail cases to include
+
+Checkbox helper text (above list):
+
+Select any cases you’d like to include. You can always refine this later.
+
+No button should ever say:
+
+“Clarify”
+
+“Answer questions”
+
+“Provide more information”
