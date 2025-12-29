@@ -56,6 +56,7 @@ import {
   AI_WORKFLOW_LIST_EDGE_CASES_PROMPT,
   AI_WORKFLOW_EXPAND_SELECTED_EDGE_CASES_PROMPT
 } from '@/constants/aiWorkflowExpansionPrompts';
+import { usePromptContextStore } from '@/contexts/PromptContextStore';
 
 // Message type categorization for unified workflow draft model
 export type MessageType = 
@@ -185,6 +186,7 @@ function ChatView({
   
   const { toast } = useToast();
   const aiClient = useAi();
+  const promptContextStore = usePromptContextStore();
   const { 
     credits, 
     isOutOfCredits, 
@@ -295,13 +297,30 @@ function ChatView({
     // Mark this prompt as being processed
     initialPromptProcessedRef.current = initialPrompt;
     
-    // Call the shared handleSend with the initial prompt
+    // Consume attachments from PromptContextStore if any
+    // This ensures Home Prompt attachments are carried through to KiteAI Chat
+    let filesToSend: File[] = [];
+    if (promptContextStore) {
+      const storeAttachments = promptContextStore.context.attachments;
+      if (storeAttachments.length > 0) {
+        // Extract File objects from attachments to pass synchronously to handleSend
+        filesToSend = storeAttachments
+          .filter(a => a.file && a.status === 'ready')
+          .map(a => a.file!);
+      }
+    }
+    
+    // Call the shared handleSend with the initial prompt and files
     // This ensures identical behavior to typing in the chat input
     // Use finally to guarantee cleanup even on failure
-    handleSend(initialPrompt).finally(() => {
+    handleSend(initialPrompt, filesToSend.length > 0 ? filesToSend : undefined).finally(() => {
+      // Clear the store after successful consumption
+      if (promptContextStore && filesToSend.length > 0) {
+        promptContextStore.clearStore();
+      }
       onInitialPromptConsumed?.();
     });
-  }, [initialPrompt, isLoading, onInitialPromptConsumed]);
+  }, [initialPrompt, isLoading, onInitialPromptConsumed, promptContextStore]);
 
   useLayoutEffect(() => {
     if (inputRef.current) {
@@ -446,10 +465,11 @@ function ChatView({
     return `Current canvas has ${currentNodes.length} nodes (${Object.entries(nodeTypes).map(([t, c]) => `${c} ${t}`).join(', ')}) and ${currentEdges.length} connections. Node labels: ${nodeLabels}`;
   }, [currentNodes, currentEdges]);
 
-  // Shared message sending function - accepts optional message override for programmatic calls
-  const handleSend = async (messageOverride?: string) => {
+  // Shared message sending function - accepts optional message override and files for programmatic calls
+  const handleSend = async (messageOverride?: string, filesOverride?: File[]) => {
     const messageContent = messageOverride ?? inputValue;
-    const hasPendingFiles = pendingFiles.length > 0;
+    const filesToProcess = filesOverride ?? pendingFiles;
+    const hasPendingFiles = filesToProcess.length > 0;
     
     if (!messageContent.trim() && !hasPendingFiles) return;
     
@@ -468,7 +488,7 @@ function ChatView({
     const messageId = `msg-${Date.now()}`;
     const attachments: ChatMessage['attachments'] = [];
 
-    for (const file of pendingFiles) {
+    for (const file of filesToProcess) {
       if (file.type.startsWith('image/')) {
         const preview = await new Promise<string>((resolve) => {
           const reader = new FileReader();
@@ -526,7 +546,7 @@ function ChatView({
 
       const imageAttachment = attachments.find(a => a.type === 'image');
       if (imageAttachment?.preview) {
-        const file = pendingFiles.find(f => f.type.startsWith('image/'));
+        const file = filesToProcess.find(f => f.type.startsWith('image/'));
         if (file) {
           const formData = new FormData();
           formData.append('image', file);

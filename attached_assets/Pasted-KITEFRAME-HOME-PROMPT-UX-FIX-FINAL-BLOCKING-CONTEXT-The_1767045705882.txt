@@ -1,0 +1,121 @@
+KITEFRAME — HOME PROMPT UX FIX (FINAL, BLOCKING)
+
+CONTEXT
+The backend and chat refactor is correct, but the Home Prompt flow is still rendering
+legacy “Project Kickoff / Brainstorming” UI that contradicts the new chat-first
+workflow generation model.
+
+This is NOT an AI logic issue. This is a UI state leakage issue.
+
+The Home Prompt must behave identically to KiteAI Chat after generation.
+All legacy kickoff UX must be removed.
+
+---------------------------------------------------------------------
+
+NON-NEGOTIABLE UX INVARIANT
+
+IF currentWorkflowDraft !== null
+THEN the ONLY UI that may render is WorkflowDraftActions.
+
+NO confidence gating.
+NO “Start the project”.
+NO “Keep brainstorming”.
+NO PRD auto-generation checkbox.
+NO execution-ready or scoring UI.
+
+---------------------------------------------------------------------
+
+REQUIRED CHANGES (EXPLICIT)
+
+1. DELETE LEGACY “PROJECT KICKOFF” UI
+
+Completely remove or disable the legacy CTA / readiness renderer that shows:
+- “Start the project”
+- “Keep brainstorming”
+- “Generate first draft PRD automatically”
+- Confidence score
+- “Execution Ready” status
+- Any copy implying the user must confirm or has “enough context”
+
+This applies specifically to the Home Prompt → Chat flow.
+
+If this logic still exists, it must NOT render once a workflow draft exists.
+
+---------------------------------------------------------------------
+
+2. ENFORCE SINGLE UX RULE (HARD GUARD)
+
+Implement the following rendering rule:
+
+if (currentWorkflowDraft !== null) {
+  render ONLY WorkflowDraftActions
+} else {
+  render pre-generation chat UI
+}
+
+No other CTA system may render in parallel.
+
+This rule must apply to:
+- Home Prompt → Chat
+- In-chat prompt submission
+
+---------------------------------------------------------------------
+
+3. REMOVE OBSOLETE CTAS AND COPY
+
+The following must be fully removed from the Home Prompt flow:
+- “Start the project”
+- “Keep brainstorming”
+- Any confirmation or gating language
+- Any PRD auto-generation checkbox
+
+Do NOT hide them conditionally.
+Do NOT restyle them.
+DELETE them.
+
+---------------------------------------------------------------------
+
+4. ALIGN POST-GENERATION UX WITH CHAT MODEL
+
+After Home Prompt submission and workflow generation, the user must see:
+- Generated workflow
+- “Create Workflow” (primary CTA)
+- Optional quick actions (e.g. include edge / fail cases)
+
+The user must NEVER see:
+- Project kickoff language
+- Brainstorming prompts
+- Confidence or readiness UI
+
+Home Prompt and KiteAI Chat must be visually and behaviorally identical at this point.
+
+---------------------------------------------------------------------
+
+ACCEPTANCE CRITERIA (PASS / FAIL)
+
+PASS if, after submitting a Home Prompt:
+- Workflow generates immediately
+- “Create Workflow” is visible
+- Edge / fail case actions are visible (if applicable)
+- NO kickoff / brainstorming / confidence UI appears
+
+FAIL if ANY of the following appear:
+- “Start the project”
+- “Keep brainstorming”
+- PRD checkbox
+- Confidence / score / execution-ready UI
+
+---------------------------------------------------------------------
+
+IMPORTANT NOTE
+
+The backend refactor is already correct.
+This task is purely about DELETING the old UX model and enforcing the new one.
+
+Do not introduce new UI concepts.
+Do not reinterpret the flow.
+Delete the obsolete product philosophy from the UI.
+
+---------------------------------------------------------------------
+
+END OF TASK FILE

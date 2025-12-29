@@ -1,0 +1,77 @@
+KITEFRAME — FINAL HOME PROMPT UX CLEANUP (BLOCKING)
+
+ROOT CAUSE
+The legacy PreProjectChat component in HomeScreen.tsx is still mounted and rendering
+obsolete “Project Kickoff / Brainstorming” UI that contradicts the new chat-first
+workflow architecture.
+
+This component must be fully removed.
+
+---------------------------------------------------------------------
+
+REQUIRED CHANGES (EXPLICIT)
+
+1. REMOVE PreProjectChat FROM HomeScreen.tsx
+
+- Fully delete the PreProjectChat component usage from HomeScreen.tsx
+- Home Prompt must NOT render any pre-project or overlay UI
+- Home Prompt submission must ONLY:
+  - Navigate to workflow-editor
+  - Inject the prompt into KiteAI Chat
+
+PreProjectChat must no longer be mounted, hidden, or conditionally rendered.
+
+---------------------------------------------------------------------
+
+2. DELETE LEGACY UI OWNED BY PreProjectChat
+
+Delete or permanently disable the following legacy components and logic:
+
+- ActionButtons (Start the project / Keep brainstorming)
+- StateIndicator / confidence scoring UI
+- PRD auto-generation checkbox
+- Execution-ready or readiness copy
+- Any gating language implying the user must “start” or “confirm” a project
+
+These must NOT exist in the Home Prompt → Chat flow.
+
+---------------------------------------------------------------------
+
+3. ENFORCE WORKFLOW DRAFT UI GUARD IN KITEAI CHAT
+
+Confirm and enforce this rule:
+
+if (currentWorkflowDraft !== null) {
+  render ONLY WorkflowDraftActions
+}
+
+- No legacy CTA systems may render alongside this state
+- This must apply regardless of entry point (Home Prompt or in-chat)
+
+---------------------------------------------------------------------
+
+ACCEPTANCE CRITERIA (PASS / FAIL)
+
+PASS if, after submitting a Home Prompt:
+- The app navigates directly into KiteAI Chat
+- A workflow is generated
+- The user sees:
+  - Create Workflow
+  - Optional edge / fail case actions
+- The user NEVER sees:
+  - Start the project
+  - Keep brainstorming
+  - PRD checkbox
+  - Confidence or execution-ready UI
+
+FAIL if any of the above legacy UI appears.
+
+---------------------------------------------------------------------
+
+IMPORTANT
+
+The backend and workflow draft logic are already correct.
+This task is purely about deleting the legacy UX layer (PreProjectChat)
+so it cannot override the new architecture.
+
+END OF TASK FILE

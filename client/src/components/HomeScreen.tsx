@@ -43,8 +43,6 @@ import { useCreditsGate } from "@/hooks/useCreditsGate";
 import { useSubscription } from "@/hooks/useSubscription";
 import { FeatureUpsellDialog } from "./FeatureUpsellDialog";
 import { HomeHero } from "./HomeHero";
-import { PreProjectChat } from "./PreProjectChat";
-import { usePromptContextStore } from "@/contexts/PromptContextStore";
 
 interface RecentProject {
   id: string;
@@ -63,14 +61,6 @@ interface WorkflowTemplate {
   thumbnail?: string;
   category: string;
   templateType: string;
-}
-
-interface PreProjectContext {
-  prompt: string;
-  uploadedFiles?: File[];
-  aiSummary?: string;
-  isHighConfidence?: boolean;
-  clarifyingQuestions?: string[];
 }
 
 interface HomeScreenProps {
@@ -182,15 +172,9 @@ export function HomeScreen({
   const [featureUpsellType, setFeatureUpsellType] = useState<
     "image" | "wireframe" | "figma"
   >("image");
-  const [isPreProjectChatOpen, setIsPreProjectChatOpen] = useState(false);
-  const [preProjectChatPrompt, setPreProjectChatPrompt] = useState("");
-  const [preProjectContext, setPreProjectContext] =
-    useState<PreProjectContext | null>(null);
-  const [isClassifyingIntent, setIsClassifyingIntent] = useState(false);
 
   const { tier } = useSubscription();
   const projectToDelete = recentProjects.find((p) => p.id === deleteProjectId);
-  const { context: promptContext, setGeneratePRD } = usePromptContextStore();
 
   const {
     credits,
@@ -218,65 +202,6 @@ export function HomeScreen({
     [onLoadTemplate],
   );
 
-  const classifyIntent = useCallback(
-    async (prompt: string) => {
-      if (!prompt.trim()) return;
-
-      setIsClassifyingIntent(true);
-      try {
-        const response = await fetch("/api/ai/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: [
-              {
-                role: "user",
-                content: `Analyze this workflow intent and respond in JSON: "${prompt}"
-            
-Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, "questions": ["Q1", "Q2"] or [], "summary": "brief workflow summary"}`,
-              },
-            ],
-            temperature: 0.5,
-            maxTokens: 200,
-          }),
-        });
-
-        if (!response.ok) throw new Error("Intent classification failed");
-        const data = await response.json();
-
-        const jsonMatch = data.text?.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const result = JSON.parse(jsonMatch[0]);
-          const isHighConfidence =
-            result.confidence === "high" && !result.hasQuestions;
-
-          if (isHighConfidence) {
-            onGenerateWorkflow(prompt);
-          } else {
-            setPreProjectContext({
-              prompt,
-              isHighConfidence: false,
-              clarifyingQuestions: result.questions || [],
-              aiSummary: result.summary,
-            });
-            setPreProjectChatPrompt(prompt);
-            setIsPreProjectChatOpen(true);
-          }
-        } else {
-          setPreProjectChatPrompt(prompt);
-          setIsPreProjectChatOpen(true);
-        }
-      } catch (error) {
-        console.error("Intent classification error:", error);
-        setPreProjectChatPrompt(prompt);
-        setIsPreProjectChatOpen(true);
-      } finally {
-        setIsClassifyingIntent(false);
-      }
-    },
-    [onGenerateWorkflow],
-  );
-
   const handleStartDesigning = useCallback(
     (prompt: string) => {
       if (isOutOfCredits) {
@@ -286,21 +211,8 @@ Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, 
         return;
       }
 
-      // If there are attachments, open pre-project chat for context refinement
-      if (promptContext.attachments.length > 0) {
-        setPreProjectContext({
-          prompt,
-          uploadedFiles: promptContext.attachments
-            .filter((a) => a.file)
-            .map((a) => a.file!),
-          isHighConfidence: false,
-        });
-        setPreProjectChatPrompt(prompt || "Analyze my attached context");
-        setIsPreProjectChatOpen(true);
-        return;
-      }
-
-      classifyIntent(prompt);
+      // Directly navigate to workflow editor - KiteAI Chat handles all generation
+      onGenerateWorkflow(prompt);
     },
     [
       isOutOfCredits,
@@ -308,32 +220,8 @@ Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, 
       openSignup,
       openPricing,
       openCreditsDialog,
-      classifyIntent,
-      promptContext,
+      onGenerateWorkflow,
     ],
-  );
-
-  const handlePreProjectChatClose = useCallback(() => {
-    setIsPreProjectChatOpen(false);
-    setPreProjectChatPrompt("");
-  }, []);
-
-  const handleCreateProjectFromChat = useCallback(
-    (summary: string, generatePRD?: boolean) => {
-      setIsPreProjectChatOpen(false);
-      setPreProjectChatPrompt("");
-      // Also set in context store for backwards compatibility
-      if (generatePRD !== undefined) {
-        setGeneratePRD(generatePRD);
-      }
-      // Pass generatePRD directly through the callback to avoid timing issues
-      console.log(
-        "[KiteAI] handleCreateProjectFromChat - passing generatePRD:",
-        generatePRD,
-      );
-      onGenerateWorkflow(summary, generatePRD);
-    },
-    [onGenerateWorkflow, setGeneratePRD],
   );
 
   const handleUploadImageWithGate = useCallback(
@@ -603,7 +491,7 @@ Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, 
           onStartDesigning={handleStartDesigning}
           onImportFigma={onImportFigma ? handleImportFigmaWithGate : undefined}
           onUploadImage={handleUploadImageWithGate}
-          isGenerating={isGenerating || isClassifyingIntent}
+          isGenerating={isGenerating}
           isDisabled={isOutOfCredits}
         />
 
@@ -779,15 +667,6 @@ Response format: {"confidence": "high"|"medium"|"low", "hasQuestions": boolean, 
           </div>
         </div>
       </div>
-
-      {/* Pre-Project Chat Overlay */}
-      <PreProjectChat
-        isOpen={isPreProjectChatOpen}
-        onClose={handlePreProjectChatClose}
-        onCreateProject={handleCreateProjectFromChat}
-        initialPrompt={preProjectChatPrompt}
-        context={preProjectContext}
-      />
     </div>
   );
 }
