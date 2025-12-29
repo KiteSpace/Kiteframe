@@ -41,6 +41,15 @@ import {
   Anchor,
   AlertCircle
 } from 'lucide-react';
+import { QuickActions, DiscussionQuickActions } from '@/components/QuickActions';
+import { EdgeCaseSelector, type EdgeCase } from '@/components/EdgeCaseSelector';
+import { 
+  analyzeWorkflowDiagnostics, 
+  getSuggestedQuickActions, 
+  isWorkflowValidForCreation,
+  type QuickActionType 
+} from '@/utils/workflowDiagnostics';
+import { AI_RESPONSE_TEMPLATES, QUICK_ACTION_LABELS } from '@/constants/aiWorkflowExpansionPrompts';
 
 export interface ChatMessage {
   id: string;
@@ -132,6 +141,13 @@ function ChatView({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [showDiffPreview, setShowDiffPreview] = useState<string | null>(null);
   const [visionRole, setVisionRole] = useState<VisionRole>('pm');
+  
+  // Workflow generation state for assertive first-turn generation
+  type WorkflowGenState = 'BASELINE_GENERATED' | 'EXPANDED_WITH_EDGE_CASES' | 'DISCUSSING_EDGE_CASES' | 'SELECTED_EDGE_CASES_APPLIED' | null;
+  const [workflowGenState, setWorkflowGenState] = useState<WorkflowGenState>(null);
+  const [pendingQuickActions, setPendingQuickActions] = useState<QuickActionType[]>([]);
+  const [discussedEdgeCases, setDiscussedEdgeCases] = useState<EdgeCase[]>([]);
+  const [showEdgeCaseSelector, setShowEdgeCaseSelector] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -558,9 +574,31 @@ function ChatView({
               description: 'AI-generated workflow',
               status: 'pending'
             };
+            
+            // Analyze workflow diagnostics for quick action suggestions
+            const diagnostics = analyzeWorkflowDiagnostics({
+              nodes: parsed.nodes.map((n: Node) => ({
+                id: n.id,
+                type: n.type,
+                label: (n.data as any)?.label
+              })),
+              edges: parsed.edges.map((e: Edge) => ({
+                id: e.id,
+                source: e.source,
+                target: e.target,
+                label: (e.data as any)?.label
+              }))
+            });
+            
+            // Set workflow generation state and suggested quick actions
+            const suggestedActions = getSuggestedQuickActions(diagnostics);
+            setWorkflowGenState('BASELINE_GENERATED');
+            setPendingQuickActions(suggestedActions);
+            
             responseText = response.text.replace(jsonMatch[0], '').trim();
             if (!responseText) {
-              responseText = `I've created a workflow with ${parsed.nodes.length} nodes and ${parsed.edges.length} connections. Would you like me to apply it to your canvas?`;
+              // Use the AI response template for baseline generation
+              responseText = AI_RESPONSE_TEMPLATES.BASELINE_GENERATED;
             }
           }
         } catch (e) {
@@ -628,6 +666,110 @@ function ChatView({
         : m
     ));
   };
+
+  const handleQuickAction = useCallback(async (action: QuickActionType, message: ChatMessage) => {
+    if (!message.workflowProposal) return;
+    
+    setIsLoading(true);
+    
+    try {
+      switch (action) {
+        case 'HAPPY_PATH_ONLY':
+          // User chose to keep happy path only - just confirm and clear quick actions
+          setWorkflowGenState(null);
+          setPendingQuickActions([]);
+          setMessages(prev => [...prev, {
+            id: `system-${Date.now()}`,
+            role: 'assistant',
+            content: AI_RESPONSE_TEMPLATES.HAPPY_PATH_CONFIRMED,
+            timestamp: new Date()
+          }]);
+          break;
+          
+        case 'INCLUDE_EDGE_CASES':
+          // Request AI to expand with edge cases
+          toast({ title: 'Expanding workflow', description: 'Adding edge and failure cases...' });
+          // TODO: Call AI to expand workflow
+          setWorkflowGenState('EXPANDED_WITH_EDGE_CASES');
+          setPendingQuickActions([]);
+          setMessages(prev => [...prev, {
+            id: `system-${Date.now()}`,
+            role: 'assistant',
+            content: AI_RESPONSE_TEMPLATES.EXPANDED_WITH_EDGE_CASES,
+            timestamp: new Date()
+          }]);
+          break;
+          
+        case 'DISCUSS_EDGE_CASES':
+          // Request AI to list edge cases for discussion
+          toast({ title: 'Analyzing edge cases', description: 'Identifying potential failure paths...' });
+          // TODO: Call AI to list edge cases
+          setWorkflowGenState('DISCUSSING_EDGE_CASES');
+          setPendingQuickActions([]);
+          // Mock edge cases for now - TODO: Get from AI
+          setDiscussedEdgeCases([
+            { id: 'case-1', label: 'Invalid user input' },
+            { id: 'case-2', label: 'Network connection failure' },
+            { id: 'case-3', label: 'Authentication timeout' },
+            { id: 'case-4', label: 'Rate limit exceeded' },
+          ]);
+          setMessages(prev => [...prev, {
+            id: `system-${Date.now()}`,
+            role: 'assistant',
+            content: AI_RESPONSE_TEMPLATES.DISCUSSING_EDGE_CASES,
+            timestamp: new Date()
+          }]);
+          break;
+          
+        case 'SELECT_EDGE_CASES':
+          setShowEdgeCaseSelector(true);
+          break;
+      }
+    } catch (error) {
+      console.error('Quick action error:', error);
+      toast({ 
+        title: 'Error', 
+        description: 'Failed to process quick action',
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  const handleEdgeCaseSelection = useCallback(async (selectedIds: string[], message: ChatMessage) => {
+    if (!message.workflowProposal) return;
+    
+    setShowEdgeCaseSelector(false);
+    setIsLoading(true);
+    
+    try {
+      const selectedCases = discussedEdgeCases.filter(ec => selectedIds.includes(ec.id));
+      toast({ 
+        title: 'Applying edge cases', 
+        description: `Adding ${selectedCases.length} edge case${selectedCases.length > 1 ? 's' : ''} to workflow...` 
+      });
+      
+      // TODO: Call AI to expand with selected edge cases
+      setWorkflowGenState('SELECTED_EDGE_CASES_APPLIED');
+      setDiscussedEdgeCases([]);
+      setMessages(prev => [...prev, {
+        id: `system-${Date.now()}`,
+        role: 'assistant',
+        content: AI_RESPONSE_TEMPLATES.SELECTED_EDGE_CASES_APPLIED,
+        timestamp: new Date()
+      }]);
+    } catch (error) {
+      console.error('Edge case selection error:', error);
+      toast({ 
+        title: 'Error', 
+        description: 'Failed to apply edge cases',
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [discussedEdgeCases, toast]);
 
   const handlePreviewWorkflow = (messageId: string) => {
     const message = messages.find(m => m.id === messageId);
@@ -844,37 +986,83 @@ function ChatView({
                       {showDiffPreview === message.id && renderDiffPreview(message.workflowProposal)}
                       
                       {message.workflowProposal.status === 'pending' && (
-                        <div className="flex gap-2 mt-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handlePreviewWorkflow(message.id)}
-                            className="flex-1 h-8 text-xs"
-                            data-testid={`button-preview-workflow-${message.id}`}
-                          >
-                            <Eye className="w-3 h-3 mr-1" />
-                            {showDiffPreview === message.id ? 'Hide' : 'Preview'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleAcceptWorkflow(message.id)}
-                            className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700"
-                            data-testid={`button-accept-workflow-${message.id}`}
-                          >
-                            <Check className="w-3 h-3 mr-1" />
-                            Create Workflow
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleRejectWorkflow(message.id)}
-                            className="h-8 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                            data-testid={`button-reject-workflow-${message.id}`}
-                          >
-                            <XCircle className="w-3 h-3" />
-                          </Button>
-                        </div>
+                        <>
+                          <div className="flex gap-2 mt-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handlePreviewWorkflow(message.id)}
+                              className="flex-1 h-8 text-xs"
+                              data-testid={`button-preview-workflow-${message.id}`}
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              {showDiffPreview === message.id ? 'Hide' : 'Preview'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleAcceptWorkflow(message.id)}
+                              className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700"
+                              data-testid={`button-accept-workflow-${message.id}`}
+                              disabled={!isWorkflowValidForCreation({ 
+                                nodes: message.workflowProposal.nodes.map(n => ({
+                                  id: n.id,
+                                  type: n.type,
+                                  label: (n.data as any)?.label
+                                })),
+                                edges: message.workflowProposal.edges.map(e => ({
+                                  id: e.id,
+                                  source: e.source,
+                                  target: e.target,
+                                  label: (e.data as any)?.label
+                                }))
+                              })}
+                            >
+                              <Check className="w-3 h-3 mr-1" />
+                              Create Workflow
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleRejectWorkflow(message.id)}
+                              className="h-8 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                              data-testid={`button-reject-workflow-${message.id}`}
+                            >
+                              <XCircle className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          
+                          {/* Quick Actions for workflow expansion */}
+                          {workflowGenState === 'BASELINE_GENERATED' && pendingQuickActions.length > 0 && (
+                            <QuickActions
+                              actions={pendingQuickActions}
+                              onAction={(action) => handleQuickAction(action, message)}
+                              disabled={isLoading}
+                            />
+                          )}
+                          
+                          {/* Discussion mode quick actions */}
+                          {workflowGenState === 'DISCUSSING_EDGE_CASES' && (
+                            <DiscussionQuickActions
+                              onStickWithHappyPath={() => handleQuickAction('HAPPY_PATH_ONLY', message)}
+                              onMapAllEdgeCases={() => handleQuickAction('INCLUDE_EDGE_CASES', message)}
+                              onSelectEdgeCases={() => setShowEdgeCaseSelector(true)}
+                              disabled={isLoading}
+                            />
+                          )}
+                          
+                          {/* Edge case selector */}
+                          {showEdgeCaseSelector && discussedEdgeCases.length > 0 && (
+                            <div className="mt-3">
+                              <EdgeCaseSelector
+                                edgeCases={discussedEdgeCases}
+                                onSubmit={(selectedIds) => handleEdgeCaseSelection(selectedIds, message)}
+                                onCancel={() => setShowEdgeCaseSelector(false)}
+                                disabled={isLoading}
+                              />
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}
