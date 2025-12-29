@@ -6,6 +6,7 @@ import { usePluginSystem } from "@/lib/kiteframe/core/PluginProvider";
 import { WorkflowCanvas } from "@/components/WorkflowCanvas";
 import { ProjectPanel } from "@/components/panels/ProjectPanel";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { BlankCanvasState } from "@/components/BlankCanvasState";
 import {
   PluginProvider,
@@ -171,6 +172,20 @@ import {
   type ProjectDetails,
 } from "@/lib/kiteframe/hooks/afterWorkflowCreation";
 import { prdGenerationBus } from "@/stores/prdGenerationBus";
+import { QuickActions } from "@/components/QuickActions";
+import { DiscussionQuickActions } from "@/components/QuickActions";
+import { EdgeCaseSelector, type EdgeCase } from "@/components/EdgeCaseSelector";
+import { 
+  AI_WORKFLOW_EXPAND_EDGE_CASES_PROMPT, 
+  AI_WORKFLOW_LIST_EDGE_CASES_PROMPT,
+  AI_WORKFLOW_EXPAND_SELECTED_EDGE_CASES_PROMPT,
+  AI_RESPONSE_TEMPLATES 
+} from "@/constants/aiWorkflowExpansionPrompts";
+import { 
+  getSuggestedQuickActions, 
+  analyzeWorkflowDiagnostics,
+  type QuickActionType 
+} from "@/utils/workflowDiagnostics";
 
 // Project metadata types
 interface ProjectLink {
@@ -1483,6 +1498,23 @@ function WorkflowEditorContent({
   // Check if we're on the home screen
   const isOnHomeTab = activeTabId === "home" && !isReadOnly;
 
+  // HOME PROMPT WORKFLOW DRAFT - Holds pending AI workflow before user acceptance
+  // Provides parity with KiteAI Chat quick actions for edge case expansion
+  interface HomeWorkflowDraft {
+    nodes: Node[];
+    edges: Edge[];
+    status: 'baseline' | 'expanded';
+    originPrompt: string;
+    tabId: string; // Target tab for this draft
+    generatePRDFlag?: boolean;
+  }
+  type HomeWorkflowGenState = 'BASELINE_GENERATED' | 'EXPANDED_WITH_EDGE_CASES' | 'DISCUSSING_EDGE_CASES' | 'SELECTED_EDGE_CASES_APPLIED' | null;
+  const [homeWorkflowDraft, setHomeWorkflowDraft] = useState<HomeWorkflowDraft | null>(null);
+  const [homeWorkflowGenState, setHomeWorkflowGenState] = useState<HomeWorkflowGenState>(null);
+  const [homeDraftQuickActions, setHomeDraftQuickActions] = useState<Array<'INCLUDE_EDGE_CASES' | 'DISCUSS_EDGE_CASES' | 'HAPPY_PATH_ONLY'>>([]);
+  const [homeDiscussedEdgeCases, setHomeDiscussedEdgeCases] = useState<Array<{ id: string; label: string; description: string }>>([]);
+  const [showHomeEdgeCaseSelector, setShowHomeEdgeCaseSelector] = useState(false);
+
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem("dark-mode");
@@ -1847,14 +1879,40 @@ function WorkflowEditorContent({
           const workflowName =
             processedNodes[0]?.data?.label || "Generated Workflow";
 
-          // Update the tab with the generated workflow and projectUuid
+          // Set the workflow draft state instead of applying directly
+          // This enables quick actions for edge case expansion (parity with KiteAI Chat)
+          const diagnostics = analyzeWorkflowDiagnostics({
+            nodes: processedNodes.map(n => ({
+              id: n.id,
+              type: n.type || 'process',
+              label: (n.data as any)?.label
+            })),
+            edges: processedEdges.map(e => ({
+              id: e.id,
+              source: e.source,
+              target: e.target,
+              label: (e.data as any)?.label
+            }))
+          });
+          const suggestedActions = getSuggestedQuickActions(diagnostics);
+          
+          setHomeWorkflowDraft({
+            nodes: processedNodes,
+            edges: processedEdges,
+            status: 'baseline',
+            originPrompt: prompt,
+            tabId,
+            generatePRDFlag,
+          });
+          setHomeWorkflowGenState('BASELINE_GENERATED');
+          setHomeDraftQuickActions(suggestedActions as Array<'INCLUDE_EDGE_CASES' | 'DISCUSS_EDGE_CASES' | 'HAPPY_PATH_ONLY'>);
+
+          // Update tab with projectUuid but don't add nodes yet (wait for user acceptance)
           setTabs((prev) =>
             prev.map((tab) =>
               tab.id === tabId
                 ? {
                     ...tab,
-                    nodes: processedNodes,
-                    edges: processedEdges,
                     projectUuid: tab.projectUuid || projectUuid,
                     metadata: {
                       ...tab.metadata,
@@ -1866,121 +1924,12 @@ function WorkflowEditorContent({
           );
 
           toast({
-            title: "Workflow Generated",
-            description: `Created ${processedNodes.length} nodes and ${processedEdges.length} connections.`,
+            title: "Workflow Draft Ready",
+            description: `Created ${processedNodes.length} nodes. Review and expand before applying.`,
           });
-
-          // Use the unified afterWorkflowCreation hook for PRD generation
-          const shouldGeneratePRD =
-            generatePRDFlag ?? promptContextStore?.getGeneratePRD?.() ?? false;
-          console.log(
-            "[KiteAI] PRD generation check - generatePRDFlag:",
-            generatePRDFlag,
-            "shouldGeneratePRD:",
-            shouldGeneratePRD,
-            "processedNodes.length:",
-            processedNodes.length,
-          );
-
-          // Use the projectId passed directly from the caller (avoids React state race condition)
-          // This is the stable projectId from newTab.projectUuid at call time
-          const effectiveProjectId = passedProjectId;
-          console.log('[PRD][AFTER_WORKFLOW_CREATION]', {
-            projectId: effectiveProjectId,
-            workflowId: workflowGroupId,
-            prdKey: `prd-workflow-${effectiveProjectId}-${workflowGroupId}`,
-            rootNodeId,
-          });
-
-          // Signal that PRD generation is starting
-          const prdGenerationStarted = shouldGeneratePRD;
-          if (prdGenerationStarted) {
-            prdGenerationBus.startGeneration(effectiveProjectId);
-          }
-
-          try {
-            const result = await afterWorkflowCreation({
-              projectId: effectiveProjectId,
-              workflows: [
-                {
-                  workflowId: workflowGroupId,
-                  workflowName: workflowName,
-                  nodes: processedNodes,
-                  edges: processedEdges,
-                },
-              ],
-              source: "kiteai",
-              generatePRD: shouldGeneratePRD,
-              aiClient: ai,
-              onPRDGenerated: (workflowId, prd) => {
-                console.log("[KiteAI] PRD generated for workflow:", workflowId);
-                toast({
-                  title: "PRD Generated",
-                  description:
-                    "A first draft PRD has been created for your workflow.",
-                });
-                // Notify the project panel that PRD was updated
-                prdGenerationBus.notifyPRDUpdated(effectiveProjectId, workflowId);
-              },
-              onProjectDetailsGenerated: (details) => {
-                console.log("[KiteAI] Project details generated:", details.title);
-                // Update tab metadata with generated project details
-                setTabs((prev) =>
-                  prev.map((tab) =>
-                    tab.id === tabId
-                      ? {
-                          ...tab,
-                          metadata: {
-                            ...tab.metadata,
-                            name: details.title || tab.metadata?.name,
-                            description:
-                              details.overview || tab.metadata?.description,
-                          },
-                        }
-                      : tab,
-                  ),
-                );
-                // Save project details to localStorage for ProjectOverviewSection
-                const detailsStorageKey = `kiteframe-details-${effectiveProjectId}`;
-                try {
-                  const existingData = localStorage.getItem(detailsStorageKey);
-                  const existing = existingData ? JSON.parse(existingData) : {};
-                  localStorage.setItem(detailsStorageKey, JSON.stringify({
-                    ...existing,
-                    name: details.title || existing.name || '',
-                    description: details.overview || existing.description || '',
-                    updatedAt: Date.now(),
-                    createdAt: existing.createdAt || Date.now(),
-                  }));
-                } catch (e) {
-                  console.warn('[KiteAI] Failed to save project details to localStorage:', e);
-                }
-                // Notify the project panel that project details were updated
-                prdGenerationBus.notifyProjectDetailsUpdated(effectiveProjectId);
-              },
-              onError: (error, context) => {
-                console.error(
-                  "[KiteAI] Error in afterWorkflowCreation:",
-                  context,
-                  error,
-                );
-              },
-            });
-
-            promptContextStore?.setGeneratePRD(false);
-
-            if (result.errors.length > 0) {
-              console.warn(
-                "[KiteAI] afterWorkflowCreation completed with errors:",
-                result.errors,
-              );
-            }
-          } finally {
-            // Signal that PRD generation is complete (always runs even on error)
-            if (prdGenerationStarted) {
-              prdGenerationBus.completeGeneration(effectiveProjectId);
-            }
-          }
+          
+          // PRD generation and afterWorkflowCreation will run when user accepts the draft
+          // This is stored in the draft state for use in handleAcceptHomeDraft
         }
       } catch (error) {
         console.error("Workflow generation error:", error);
@@ -1998,6 +1947,391 @@ function WorkflowEditorContent({
     },
     [ai, generatingWireframe, toast, promptContextStore],
   );
+
+  // Handler: Accept home workflow draft - applies to canvas and triggers PRD generation
+  const handleAcceptHomeDraft = useCallback(async () => {
+    if (!homeWorkflowDraft) return;
+    
+    const { nodes, edges, tabId, generatePRDFlag, originPrompt } = homeWorkflowDraft;
+    
+    // Get the target tab's projectUuid
+    const targetTab = tabs.find(t => t.id === tabId);
+    const effectiveProjectId = targetTab?.projectUuid;
+    
+    if (!effectiveProjectId) {
+      toast({
+        title: "Error",
+        description: "Could not find project to apply workflow to.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Compute workflow metadata
+    let rootNodeId = nodes[0]?.id || "";
+    let minSum = Infinity;
+    nodes.forEach((node: Node) => {
+      const sum = (node.position?.x || 0) + (node.position?.y || 0);
+      if (sum < minSum) {
+        minSum = sum;
+        rootNodeId = node.id;
+      }
+    });
+    const workflowGroupId = `workflow-${rootNodeId}`;
+    const workflowName = (nodes[0]?.data as any)?.label || "Generated Workflow";
+    
+    // Apply workflow to tab
+    setTabs((prev) =>
+      prev.map((tab) =>
+        tab.id === tabId
+          ? { ...tab, nodes, edges }
+          : tab
+      )
+    );
+    
+    // Clear draft state
+    setHomeWorkflowDraft(null);
+    setHomeWorkflowGenState(null);
+    setHomeDraftQuickActions([]);
+    setHomeDiscussedEdgeCases([]);
+    
+    toast({
+      title: "Workflow Created",
+      description: `Added ${nodes.length} nodes and ${edges.length} connections.`,
+    });
+    
+    // Now run PRD generation if enabled
+    const shouldGeneratePRD = generatePRDFlag ?? promptContextStore?.getGeneratePRD?.() ?? false;
+    
+    if (shouldGeneratePRD) {
+      prdGenerationBus.startGeneration(effectiveProjectId);
+    }
+    
+    try {
+      await afterWorkflowCreation({
+        projectId: effectiveProjectId,
+        workflows: [{
+          workflowId: workflowGroupId,
+          workflowName: workflowName,
+          nodes: nodes,
+          edges: edges,
+        }],
+        source: "kiteai",
+        generatePRD: shouldGeneratePRD,
+        aiClient: ai,
+        onPRDGenerated: (wfId, prd) => {
+          toast({
+            title: "PRD Generated",
+            description: "A first draft PRD has been created for your workflow.",
+          });
+          prdGenerationBus.notifyPRDUpdated(effectiveProjectId, wfId);
+        },
+        onProjectDetailsGenerated: (details) => {
+          setTabs((prev) =>
+            prev.map((tab) =>
+              tab.id === tabId
+                ? {
+                    ...tab,
+                    metadata: {
+                      ...tab.metadata,
+                      name: details.title || tab.metadata?.name,
+                      description: details.overview || tab.metadata?.description,
+                    },
+                  }
+                : tab
+            )
+          );
+          prdGenerationBus.notifyProjectDetailsUpdated(effectiveProjectId);
+        },
+        onError: (error, context) => {
+          console.error("[HomeDraft] Error in afterWorkflowCreation:", context, error);
+        },
+      });
+      
+      promptContextStore?.setGeneratePRD(false);
+    } finally {
+      if (shouldGeneratePRD) {
+        prdGenerationBus.completeGeneration(effectiveProjectId);
+      }
+    }
+  }, [homeWorkflowDraft, tabs, toast, ai, promptContextStore]);
+
+  // Handler: Reject home workflow draft
+  const handleRejectHomeDraft = useCallback(() => {
+    setHomeWorkflowDraft(null);
+    setHomeWorkflowGenState(null);
+    setHomeDraftQuickActions([]);
+    setHomeDiscussedEdgeCases([]);
+    toast({
+      title: "Draft Discarded",
+      description: "The workflow draft has been discarded.",
+    });
+  }, [toast]);
+
+  // Handler: Quick actions for home workflow draft
+  const handleHomeQuickAction = useCallback(async (action: QuickActionType) => {
+    if (!homeWorkflowDraft || !ai) return;
+    
+    const { nodes, edges, originPrompt, tabId, generatePRDFlag } = homeWorkflowDraft;
+    
+    if (action === 'HAPPY_PATH_ONLY') {
+      // Just accept as-is
+      handleAcceptHomeDraft();
+      return;
+    }
+    
+    if (action === 'INCLUDE_EDGE_CASES') {
+      // Call AI to expand with edge cases
+      setGeneratingWireframe(true);
+      toast({
+        title: "Expanding workflow...",
+        description: "Adding edge cases and failure paths.",
+      });
+      
+      try {
+        const currentWorkflowJson = JSON.stringify({ nodes, edges });
+        const response = await ai.chat({
+          messages: [
+            { role: "system", content: AI_WORKFLOW_EXPAND_EDGE_CASES_PROMPT },
+            { role: "user", content: `Original prompt: ${originPrompt}\n\nCurrent workflow:\n${currentWorkflowJson}` },
+          ],
+          temperature: 0.1,
+          maxTokens: 4000,
+        });
+        
+        // Parse and normalize the expanded workflow
+        let cleanedResponse = response.text
+          .replace(/^JSON:\s*/i, "")
+          .replace(/```json\s?|```/g, "")
+          .replace(/^[^{]*/, "")
+          .trim();
+        
+        const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          cleanedResponse = jsonMatch[0];
+        }
+        
+        const expandedData = JSON.parse(cleanedResponse);
+        
+        if (expandedData.nodes && Array.isArray(expandedData.nodes)) {
+          const timestamp = Date.now();
+          const { nodes: normalizedNodes, edges: normalizedEdges } = normalizeWorkflowGraph({
+            nodes: expandedData.nodes,
+            edges: expandedData.edges || [],
+            timestamp,
+          });
+          
+          const processedNodes = normalizedNodes.map((node: any, index: number) => ({
+            ...node,
+            id: `${index + 1}-kiteai-expanded-${timestamp}-${index}`,
+            width: node.width || 200,
+            height: node.height || 100,
+          }));
+          
+          const nodeIdMap: Record<string, string> = {};
+          normalizedNodes.forEach((node: any, index: number) => {
+            nodeIdMap[node.id] = `${index + 1}-kiteai-expanded-${timestamp}-${index}`;
+          });
+          
+          const processedEdges = normalizedEdges.map((edge: any, index: number) => ({
+            ...edge,
+            id: `edge-kiteai-expanded-${timestamp}-${index}`,
+            source: nodeIdMap[edge.source] || edge.source,
+            target: nodeIdMap[edge.target] || edge.target,
+          }));
+          
+          // Update draft with expanded workflow
+          setHomeWorkflowDraft({
+            nodes: processedNodes,
+            edges: processedEdges,
+            status: 'expanded',
+            originPrompt,
+            tabId,
+            generatePRDFlag,
+          });
+          setHomeWorkflowGenState('EXPANDED_WITH_EDGE_CASES');
+          setHomeDraftQuickActions([]); // Clear quick actions after expansion
+          
+          toast({
+            title: "Workflow Expanded",
+            description: `Now has ${processedNodes.length} nodes and ${processedEdges.length} connections.`,
+          });
+        }
+      } catch (error) {
+        console.error("Edge case expansion error:", error);
+        toast({
+          title: "Expansion Failed",
+          description: "Could not expand workflow. You can try again or accept the current draft.",
+          variant: "destructive",
+        });
+      } finally {
+        setGeneratingWireframe(false);
+      }
+      return;
+    }
+    
+    if (action === 'DISCUSS_EDGE_CASES') {
+      // Call AI to list edge cases for selection
+      setGeneratingWireframe(true);
+      toast({
+        title: "Analyzing workflow...",
+        description: "Identifying potential edge cases.",
+      });
+      
+      try {
+        const currentWorkflowJson = JSON.stringify({ nodes, edges });
+        const response = await ai.chat({
+          messages: [
+            { role: "system", content: AI_WORKFLOW_LIST_EDGE_CASES_PROMPT },
+            { role: "user", content: `Original prompt: ${originPrompt}\n\nCurrent workflow:\n${currentWorkflowJson}` },
+          ],
+          temperature: 0.1,
+          maxTokens: 1000,
+        });
+        
+        let cleanedResponse = response.text
+          .replace(/^JSON:\s*/i, "")
+          .replace(/```json\s?|```/g, "")
+          .replace(/^[^{]*/, "")
+          .trim();
+        
+        const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          cleanedResponse = jsonMatch[0];
+        }
+        
+        const parsed = JSON.parse(cleanedResponse);
+        const edgeCases = (parsed.edgeCases || []).map((ec: any) => ({
+          id: ec.id,
+          label: ec.label,
+          description: ec.label,
+        }));
+        
+        setHomeDiscussedEdgeCases(edgeCases);
+        setHomeWorkflowGenState('DISCUSSING_EDGE_CASES');
+        setHomeDraftQuickActions([]); // Clear initial quick actions
+        
+        toast({
+          title: "Edge Cases Identified",
+          description: `Found ${edgeCases.length} potential edge cases. Select which to include.`,
+        });
+      } catch (error) {
+        console.error("Edge case discussion error:", error);
+        toast({
+          title: "Analysis Failed",
+          description: "Could not identify edge cases. You can try again or accept the current draft.",
+          variant: "destructive",
+        });
+      } finally {
+        setGeneratingWireframe(false);
+      }
+      return;
+    }
+    
+    if (action === 'SELECT_EDGE_CASES') {
+      setShowHomeEdgeCaseSelector(true);
+    }
+  }, [homeWorkflowDraft, ai, toast, handleAcceptHomeDraft]);
+
+  // Handler: Apply selected edge cases
+  const handleHomeEdgeCaseSelection = useCallback(async (selectedIds: string[]) => {
+    if (!homeWorkflowDraft || !ai || selectedIds.length === 0) {
+      setShowHomeEdgeCaseSelector(false);
+      return;
+    }
+    
+    const { nodes, edges, originPrompt, tabId, generatePRDFlag } = homeWorkflowDraft;
+    
+    // Map selected IDs back to edge case labels
+    const selectedCases = homeDiscussedEdgeCases.filter(ec => selectedIds.includes(ec.id));
+    
+    setShowHomeEdgeCaseSelector(false);
+    setGeneratingWireframe(true);
+    toast({
+      title: "Expanding workflow...",
+      description: `Adding ${selectedCases.length} selected edge cases.`,
+    });
+    
+    try {
+      const currentWorkflowJson = JSON.stringify({ nodes, edges });
+      const selectedLabels = selectedCases.map(c => c.label).join('\n- ');
+      
+      const response = await ai.chat({
+        messages: [
+          { role: "system", content: AI_WORKFLOW_EXPAND_SELECTED_EDGE_CASES_PROMPT },
+          { role: "user", content: `Original prompt: ${originPrompt}\n\nCurrent workflow:\n${currentWorkflowJson}\n\nSelected edge cases to include:\n- ${selectedLabels}` },
+        ],
+        temperature: 0.1,
+        maxTokens: 4000,
+      });
+      
+      let cleanedResponse = response.text
+        .replace(/^JSON:\s*/i, "")
+        .replace(/```json\s?|```/g, "")
+        .replace(/^[^{]*/, "")
+        .trim();
+      
+      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanedResponse = jsonMatch[0];
+      }
+      
+      const expandedData = JSON.parse(cleanedResponse);
+      
+      if (expandedData.nodes && Array.isArray(expandedData.nodes)) {
+        const timestamp = Date.now();
+        const { nodes: normalizedNodes, edges: normalizedEdges } = normalizeWorkflowGraph({
+          nodes: expandedData.nodes,
+          edges: expandedData.edges || [],
+          timestamp,
+        });
+        
+        const processedNodes = normalizedNodes.map((node: any, index: number) => ({
+          ...node,
+          id: `${index + 1}-kiteai-selected-${timestamp}-${index}`,
+          width: node.width || 200,
+          height: node.height || 100,
+        }));
+        
+        const nodeIdMap: Record<string, string> = {};
+        normalizedNodes.forEach((node: any, index: number) => {
+          nodeIdMap[node.id] = `${index + 1}-kiteai-selected-${timestamp}-${index}`;
+        });
+        
+        const processedEdges = normalizedEdges.map((edge: any, index: number) => ({
+          ...edge,
+          id: `edge-kiteai-selected-${timestamp}-${index}`,
+          source: nodeIdMap[edge.source] || edge.source,
+          target: nodeIdMap[edge.target] || edge.target,
+        }));
+        
+        setHomeWorkflowDraft({
+          nodes: processedNodes,
+          edges: processedEdges,
+          status: 'expanded',
+          originPrompt,
+          tabId,
+          generatePRDFlag,
+        });
+        setHomeWorkflowGenState('SELECTED_EDGE_CASES_APPLIED');
+        setHomeDiscussedEdgeCases([]);
+        
+        toast({
+          title: "Edge Cases Added",
+          description: `Workflow now has ${processedNodes.length} nodes.`,
+        });
+      }
+    } catch (error) {
+      console.error("Selected edge case expansion error:", error);
+      toast({
+        title: "Expansion Failed",
+        description: "Could not add selected edge cases.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingWireframe(false);
+    }
+  }, [homeWorkflowDraft, ai, toast]);
 
   // Wireframe generation handler
   useEffect(() => {
@@ -5961,6 +6295,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       <div className="flex-1 flex overflow-hidden">
         {/* Home Screen */}
         {isOnHomeTab ? (
+          <>
           <HomeScreen
             recentProjects={[
               // Local projects from tabs (stored in browser)
@@ -6204,6 +6539,99 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             isGenerating={generatingWireframe}
             hasCloudAccess={hasCloudAccess}
           />
+          
+          {/* Home Workflow Draft Overlay - Shows quick actions for expanding workflows */}
+          {homeWorkflowDraft && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+              <div className="bg-background border border-border rounded-xl shadow-xl p-6 max-w-lg w-full mx-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Workflow className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold text-lg">Workflow Draft Ready</h3>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${homeWorkflowDraft.status === 'expanded' ? 'bg-green-500/20 text-green-600' : 'bg-muted text-muted-foreground'}`}>
+                    {homeWorkflowDraft.status === 'expanded' ? 'Expanded' : 'Baseline'}
+                  </span>
+                </div>
+                
+                <p className="text-sm text-muted-foreground">
+                  {homeWorkflowDraft.status === 'expanded' 
+                    ? AI_RESPONSE_TEMPLATES.EXPANDED_WITH_EDGE_CASES
+                    : AI_RESPONSE_TEMPLATES.BASELINE_GENERATED
+                  }
+                </p>
+                
+                <div className="flex items-center gap-4 py-2 border-t border-b border-border text-sm">
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-medium text-foreground">{homeWorkflowDraft.nodes.length}</span>
+                    <span className="text-muted-foreground">nodes</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-medium text-foreground">{homeWorkflowDraft.edges.length}</span>
+                    <span className="text-muted-foreground">connections</span>
+                  </span>
+                </div>
+                
+                {/* Quick Actions */}
+                {homeWorkflowGenState === 'BASELINE_GENERATED' && homeDraftQuickActions.length > 0 && (
+                  <QuickActions
+                    actions={homeDraftQuickActions}
+                    onAction={handleHomeQuickAction}
+                    disabled={generatingWireframe}
+                  />
+                )}
+                
+                {/* Discussion mode quick actions */}
+                {homeWorkflowGenState === 'DISCUSSING_EDGE_CASES' && (
+                  <DiscussionQuickActions
+                    onStickWithHappyPath={handleAcceptHomeDraft}
+                    onMapAllEdgeCases={() => handleHomeQuickAction('INCLUDE_EDGE_CASES')}
+                    onSelectEdgeCases={() => setShowHomeEdgeCaseSelector(true)}
+                    disabled={generatingWireframe}
+                  />
+                )}
+                
+                {/* Edge case selector */}
+                {showHomeEdgeCaseSelector && homeDiscussedEdgeCases.length > 0 && (
+                  <EdgeCaseSelector
+                    edgeCases={homeDiscussedEdgeCases}
+                    onSubmit={handleHomeEdgeCaseSelection}
+                    onCancel={() => setShowHomeEdgeCaseSelector(false)}
+                    disabled={generatingWireframe}
+                  />
+                )}
+                
+                {/* Main action buttons */}
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    onClick={handleAcceptHomeDraft}
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                    disabled={generatingWireframe}
+                    data-testid="button-accept-home-draft"
+                  >
+                    Create Workflow
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={handleRejectHomeDraft}
+                    className="text-muted-foreground hover:text-red-500"
+                    disabled={generatingWireframe}
+                    data-testid="button-reject-home-draft"
+                  >
+                    Discard
+                  </Button>
+                </div>
+                
+                {generatingWireframe && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    <span>Processing...</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          </>
         ) : (
           <>
             {/* Sidebar - takes no space when collapsed, toolbar floats over canvas */}
