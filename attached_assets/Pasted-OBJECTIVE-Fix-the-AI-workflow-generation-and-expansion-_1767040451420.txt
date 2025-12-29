@@ -1,0 +1,295 @@
+OBJECTIVE
+
+Fix the AI workflow generation and expansion system so that:
+
+There is exactly ONE authoritative workflow draft (currentWorkflowDraft)
+
+Any AI action that generates OR expands a workflow updates that draft
+
+Preview / Create Workflow always operate on the current draft
+
+Quick actions mutate the workflow, not just emit chat messages
+
+Home Prompt and KiteAI Chat share the same workflow draft + rendering behavior
+
+This task explicitly removes message-embedded workflow ownership.
+
+NON-NEGOTIABLE INVARIANTS
+
+A) Workflow state MUST NOT live only on individual chat messages
+B) There MUST be a single currentWorkflowDraft at all times
+C) Preview/Create buttons MUST bind to the draft, not message position
+D) “Include edge / fail cases” MUST call AI and update the draft
+E) Chat messages are commentary; workflow draft is state
+
+If any invariant is violated, the task is FAILED.
+
+PART 1 — INTRODUCE AUTHORITATIVE WORKFLOW DRAFT STATE
+
+1.1 Create shared workflow draft state
+
+Add a top-level state in the chat container (both Home Prompt + KiteAI Chat contexts):
+
+currentWorkflowDraft: {
+  nodes: Node[]
+  edges: Edge[]
+  status: 'draft' | 'expanded'
+} | null
+
+
+Rules:
+
+This state is the ONLY source of truth for the workflow
+
+It starts as null
+
+It is replaced (not appended) whenever AI generates or expands a workflow
+
+1.2 Deprecate message-embedded workflow ownership
+
+ChatMessage.workflowProposal is NO LONGER authoritative.
+
+Allowed usage:
+
+For display/history only
+
+For showing “this is what I generated at that time”
+
+Disallowed usage:
+
+Preview/Create buttons
+
+Workflow mutations
+
+Expansion source of truth
+
+Do NOT remove workflowProposal from messages yet — just stop using it for state.
+
+PART 2 — INITIAL GENERATION MUST SET currentWorkflowDraft
+
+2.1 On first workflow generation (baseline)
+
+When AI returns nodes + edges for the first time:
+
+REQUIRED:
+
+setCurrentWorkflowDraft({
+  nodes,
+  edges,
+  status: 'draft'
+})
+
+
+Then:
+
+Append a chat message referencing that generation (optional workflowProposal copy)
+
+Render Preview/Create buttons based on currentWorkflowDraft, NOT the message
+
+2.2 Preview / Create Workflow buttons
+
+Move Preview/Create rendering OUT of per-message logic.
+
+New rule:
+
+Buttons are shown whenever currentWorkflowDraft !== null
+
+Buttons always operate on currentWorkflowDraft
+
+Delete or ignore logic like:
+
+if (message.workflowProposal.status === 'pending')
+
+
+PART 3 — QUICK ACTIONS MUST MUTATE THE WORKFLOW DRAFT
+
+This is the core fix.
+
+3.1 INCLUDE_EDGE_CASES must call AI and update the draft
+
+Current behavior (WRONG):
+
+Sets flags
+
+Shows toast
+
+Emits chat message
+
+Does NOT call AI
+
+Does NOT update workflow
+
+REQUIRED behavior:
+
+When user clicks “Include edge / fail cases”:
+
+Call AI with:
+
+The EXISTING currentWorkflowDraft (nodes + edges)
+
+Expansion prompt (edge/fail cases)
+
+AI returns NEW nodes + edges
+
+Normalize result
+
+REPLACE the draft:
+
+setCurrentWorkflowDraft({
+  nodes: expandedNodes,
+  edges: expandedEdges,
+  status: 'expanded'
+})
+
+
+Append a chat message confirming expansion (no workflow ownership)
+
+Preview/Create remain visible and now operate on the expanded draft
+
+3.2 DISCUSS_EDGE_CASES does NOT mutate draft
+
+This is the ONLY action that should not immediately change the draft.
+
+Behavior:
+
+AI lists candidate edge/fail cases
+
+UI shows checkbox selector
+
+Draft remains unchanged until user selects cases or maps all
+
+3.3 SELECT_EDGE_CASES must also mutate the draft
+
+When user submits selected edge cases:
+
+Call AI with:
+
+currentWorkflowDraft
+
+selected cases
+
+Replace currentWorkflowDraft with returned expanded workflow
+
+Update preview automatically
+
+PART 4 — MESSAGE TYPES (MINIMAL, REQUIRED)
+
+4.1 Add message.type field
+
+Extend ChatMessage with:
+
+type: 'workflow_generated' | 'workflow_expanded' | 'discussion' | 'system'
+
+
+Rules:
+
+type is informational only
+
+type does NOT control state ownership
+
+type helps rendering copy and tone
+
+PART 5 — HOME PROMPT + KITEAI CHAT PARITY (MANDATORY)
+
+5.1 Shared rendering component
+
+Extract a shared component for:
+
+Chat messages
+
+Quick actions
+
+Preview/Create buttons
+
+Home Prompt MUST use this same component.
+
+No duplicated logic.
+
+5.2 Shared workflow draft context
+
+Home Prompt and KiteAI Chat MUST:
+
+Read from the same currentWorkflowDraft
+
+Update it the same way
+
+Render buttons the same way
+
+Cold start difference is allowed.
+Behavior divergence is NOT.
+
+PART 6 — DELETE / DISABLE BROKEN LOGIC
+
+Explicitly remove or disable:
+
+Any logic that:
+
+Ties Preview/Create to the first message only
+
+Treats expansion as “chat only”
+
+Uses message position as a proxy for state
+
+Emits “expanded” copy without updating workflow
+
+If a function named handleQuickAction:
+
+Does not call AI
+
+Does not update currentWorkflowDraft
+
+Then it is INCOMPLETE and must be rewritten.
+
+PART 7 — ACCEPTANCE TESTS (STRICT)
+
+Test A — Baseline generation
+
+Generate workflow
+
+currentWorkflowDraft is set
+
+Preview/Create visible
+
+Clicking Create uses baseline draft
+
+Test B — Include edge / fail cases
+
+Click button
+
+AI is called
+
+currentWorkflowDraft is replaced
+
+Preview updates
+
+Create uses expanded draft
+
+Test C — Discuss → Select cases
+
+Draft unchanged during discussion
+
+Draft updated after selection
+
+Preview/Create reflect updated draft
+
+Test D — Home Prompt
+
+Same behavior as KiteAI Chat
+
+Same buttons
+
+Same draft logic
+
+FAIL if:
+
+Expanded workflow never replaces baseline
+
+Preview/Create apply wrong version
+
+Expansion produces text only
+
+Home Prompt lacks quick actions
+
+ROOT CAUSE (FOR INTERNAL NOTE)
+
+The system incorrectly treated workflow generation as message-local instead of stateful, causing expansion to be non-authoritative and UI actions to bind to stale data.
