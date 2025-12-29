@@ -14,6 +14,7 @@ import {
   BUNDLE_EXPORTS,
   getArtifactsForSelection,
   ARTIFACT_FILENAMES,
+  ARTIFACT_LABELS,
 } from '@/lib/export/exportConfig';
 import { exportToMarkdown } from '@/lib/prd/exporters/exportToMarkdown';
 import { exportToPrototypingPrompt } from '@/lib/prd/exporters/exportToPrototypingPrompt';
@@ -204,11 +205,26 @@ export function ExportProjectModal({
       } else {
         const zip = new JSZip();
         
+        const filesInZip: Array<{ path: string; description: string }> = [];
+        
         for (const artifact of artifacts) {
           const content = generateArtifactContent(artifact, assembled);
           const filename = ARTIFACT_FILENAMES[artifact];
           zip.file(filename, content);
+          filesInZip.push({
+            path: filename,
+            description: ARTIFACT_LABELS[artifact]
+          });
         }
+
+        const bundleType = determineBundleType(selection);
+        const manifest = generateBundleManifest({
+          bundleType,
+          projectId,
+          projectName,
+          files: filesInZip,
+        });
+        zip.file('bundle-manifest.json', JSON.stringify(manifest, null, 2));
 
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         const url = URL.createObjectURL(zipBlob);
@@ -223,7 +239,7 @@ export function ExportProjectModal({
 
         toast({ 
           title: 'Export complete', 
-          description: `Downloaded ${artifacts.length} files as ZIP` 
+          description: `Downloaded ${artifacts.length + 1} files as ZIP (includes manifest)` 
         });
       }
 
@@ -449,4 +465,52 @@ function getMimeType(artifact: ExportArtifact): string {
   if (artifact === 'kiteframe_project') return 'application/json;charset=utf-8';
   if (artifact.endsWith('_prompt')) return 'text/plain;charset=utf-8';
   return 'text/markdown;charset=utf-8';
+}
+
+type BundleType = 'design' | 'builder' | 'project' | 'ai_agent' | 'mixed';
+
+interface BundleManifest {
+  bundleType: BundleType;
+  createdAt: string;
+  projectId: string | null;
+  projectName: string | null;
+  intendedImports: string[];
+  files: Array<{ path: string; description: string }>;
+}
+
+function determineBundleType(selection: ExportSelection): BundleType {
+  if (selection.includes('bundle_design')) return 'design';
+  if (selection.includes('bundle_builder')) return 'builder';
+  if (selection.includes('bundle_project')) return 'project';
+  if (selection.includes('bundle_ai_agent')) return 'ai_agent';
+  return 'mixed';
+}
+
+const INTENDED_IMPORTS: Record<BundleType, string[]> = {
+  design: ['AI prototyping tools', 'Design review'],
+  builder: ['AI coding assistants', 'Engineering handoff'],
+  project: ['Jira', 'PRD review', 'Kiteframe re-import'],
+  ai_agent: ['AI agent setup', 'Context injection'],
+  mixed: ['Various tools and workflows'],
+};
+
+function generateBundleManifest({
+  bundleType,
+  projectId,
+  projectName,
+  files,
+}: {
+  bundleType: BundleType;
+  projectId: string;
+  projectName: string;
+  files: Array<{ path: string; description: string }>;
+}): BundleManifest {
+  return {
+    bundleType,
+    createdAt: new Date().toISOString(),
+    projectId: projectId || null,
+    projectName: projectName || null,
+    intendedImports: INTENDED_IMPORTS[bundleType],
+    files,
+  };
 }

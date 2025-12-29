@@ -1,0 +1,229 @@
+KITEFRAME — EXPORT BUNDLES: IMPORT-READY FIXES
+REPLIT-READY IMPLEMENTATION TASK FILE (PLAIN TEXT)
+
+OBJECTIVE
+Make exported artifacts import-ready for their intended platforms by:
+	1.	Fixing Jira CSV export so it imports cleanly without Epic linking (Option A)
+	2.	Improving AI prompt artifacts (Prototype Prompt / Figma Make Prompt)
+	3.	Ensuring PRD exports include minimal Success Metrics templates
+	4.	Adding a bundle manifest to all bundle exports
+	5.	Resolving workflow diagram export ambiguity
+
+These changes must apply consistently across à-la-carte exports and bundles.
+
+⸻
+
+GLOBAL RULES (NON-NEGOTIABLE)
+	1.	Jira export must NOT rely on Epic Link or Jira issue keys
+	2.	Generated prompts MUST include role, output framing, and constraints
+	3.	PRD exports MUST include Success Metrics and Definition of Done
+	4.	Every bundle export MUST include bundle-manifest.json
+	5.	Changes must be implemented once and reused across bundles and single exports
+
+⸻
+
+PART A — FIX JIRA CSV EXPORT (OPTION A)
+
+A1. Locate Jira CSV export logic
+Search for code that generates jira-import.csv or includes a column named “Epic Link”.
+
+A2. Change CSV schema
+REMOVE the “Epic Link” column entirely.
+
+Final CSV headers MUST be exactly:
+
+Summary,Description,Issue Type,Labels
+
+No other Jira-specific columns should be included by default.
+
+A3. Remove epic-linking logic
+Delete any logic that sets Epic Link values such as “Open Project”.
+Delete any logic that assumes epics will be created or referenced.
+
+A4. Handle Epic rows safely
+DO NOT export Epic issues at all.
+
+Implementation rule:
+	•	If the exporter currently emits a row with Issue Type = Epic, remove it.
+	•	All remaining issues must have Issue Type = Story.
+	•	If Issue Type is missing, default to Story.
+
+A5. Labels formatting
+If labels are arrays, join them with spaces.
+Example: “kiteframe-export workflow-step”.
+
+A6. Jira CSV acceptance checks
+	•	CSV opens cleanly in spreadsheet tools
+	•	No Epic Link column exists
+	•	No Issue Type = Epic
+	•	Jira import does not require project-specific configuration
+
+⸻
+
+PART B — PROMPT EXPORT IMPROVEMENTS
+
+This applies to:
+	•	Prototype Prompt export
+	•	Figma Make Prompt export
+
+B1. Prototype Prompt header (REQUIRED)
+Prepend the following text to prototype-prompt.txt:
+
+ROLE: You are an AI product designer and prototyper.
+TASK: Produce a low-fidelity interactive prototype plan based on the workflow below.
+OUTPUT: Provide screens or states, interactions, and navigation using structured bullet points.
+CONSTRAINTS:
+	•	Do not create high-fidelity visual design.
+	•	Do not assume a backend unless explicitly stated.
+	•	Call out ambiguities as “Open Questions” instead of inventing details.
+
+B2. Input section (REQUIRED)
+Immediately after the header, include:
+
+INPUT: Workflow Outline (authoritative)
+
+
+B3. Output structure (REQUIRED)
+Append this guidance to the prompt:
+
+RESPONSE FORMAT:
+	1.	Assumptions (max 5)
+	2.	Primary screens or states
+	3.	Key interactions per screen
+	4.	Edge cases and empty states
+	5.	Open Questions
+
+B4. Figma Make Prompt variant (REQUIRED)
+If exporting a Figma Make Prompt, use tighter framing:
+
+ROLE: You are generating a low-fidelity UI concept suitable for Figma Make.
+OUTPUT: Describe frames, components, and interactions.
+CONSTRAINTS:
+	•	Avoid branding and styling
+	•	Use generic components (Button, Input, Panel)
+	•	Do not include engineering or backend instructions
+
+B5. Prompt acceptance checks
+	•	Prompts must not ask for high-fidelity UI
+	•	Prompts must include Open Questions guidance
+	•	Prompts must not reference acceptance criteria unless explicitly provided
+
+⸻
+
+PART C — PRD MINIMAL SUCCESS METRICS
+
+C1. Locate PRD generation logic
+Search for prd.md generation code.
+
+C2. Inject required sections if missing
+Ensure every exported PRD includes the following sections:
+
+Success Metrics
+	•	Adoption: TBD (e.g. % of projects using the feature)
+	•	Efficiency: TBD (e.g. reduced clarification time)
+	•	Quality: TBD (e.g. fewer unresolved questions)
+	•	Satisfaction: TBD (qualitative feedback)
+
+Definition of Done
+	•	Feature works end-to-end for at least one workflow
+	•	Collaboration scenarios validated
+	•	Empty states and basic accessibility covered
+	•	Exported artifacts reflect final behavior
+
+Placeholders are acceptable. These sections must exist.
+
+C3. PRD acceptance checks
+	•	Success Metrics section always present
+	•	Definition of Done section always present
+
+⸻
+
+PART D — BUNDLE MANIFEST (MANDATORY)
+
+D1. Add bundle-manifest.json to every bundle ZIP
+Each Design, Builder, Project, and AI Agent bundle MUST include:
+
+Filename: bundle-manifest.json
+
+D2. Manifest schema (REQUIRED KEYS)
+
+{
+“bundleType”: “design | builder | project | ai_agent”,
+“createdAt”: “ISO-8601 timestamp”,
+“projectId”: “string or null”,
+“projectName”: “string or null”,
+“intendedImports”: [“string”, “string”],
+“files”: [
+{
+“path”: “relative/file/path”,
+“description”: “what this file is for”
+}
+]
+}
+
+D3. Intended import targets
+design: AI prototyping tools, Design review
+builder: AI coding assistants, Engineering handoff
+project: Jira, PRD review, Kiteframe re-import
+ai_agent: AI agent setup, context injection
+
+D4. File list accuracy
+The files array MUST exactly match the files in the ZIP.
+
+Optional: include README.md for humans, but manifest is required.
+
+⸻
+
+PART E — WORKFLOW DIAGRAM CLARITY
+
+E1. Rename workflow diagram export
+Rename workflow-diagram.md to ONE of the following:
+	•	workflow-diagram-reference.md (narrative/reference only)
+OR
+	•	workflow-diagram.mmd (Mermaid source)
+
+Choose one and apply consistently.
+
+E2. If using Markdown + Mermaid
+Wrap diagram content explicitly in Mermaid fences.
+
+⸻
+
+IMPLEMENTATION NOTES
+	•	Do not duplicate logic across bundles
+	•	Update generators once and reuse
+	•	Prompt fixes must affect both single exports and bundles
+
+⸻
+
+ACCEPTANCE CHECKLIST (MUST PASS)
+
+Jira CSV
+	•	Epic Link removed
+	•	No Epic issues exported
+	•	CSV imports without Jira config
+
+Prompts
+	•	Role, task, output framing present
+	•	Open Questions guidance included
+
+PRD
+	•	Success Metrics present
+	•	Definition of Done present
+
+Bundles
+	•	bundle-manifest.json included in every bundle
+	•	Manifest matches ZIP contents
+
+Diagram
+	•	Filename and format are unambiguous
+
+⸻
+
+FAILURE CONDITIONS
+
+This task FAILS if:
+	•	Jira CSV still references Epic Link
+	•	Prompts remain unframed raw text
+	•	PRD lacks Success Metrics or DoD
+	•	Any bundle lacks bundle-manifest.json

@@ -1,8 +1,21 @@
 import type { AssembledProjectPRD, WorkflowCanvasData } from '../assembleProjectPRD';
 
+const FIGMA_MAKE_HEADER = `ROLE: You are generating a low-fidelity UI concept suitable for Figma Make.
+OUTPUT: Describe frames, components, and interactions.
+CONSTRAINTS:
+- Avoid branding and styling
+- Use generic components (Button, Input, Panel)
+- Do not include engineering or backend instructions
+- Call out ambiguities as "Open Questions" instead of inventing details
+
+---
+
+`;
+
 export function exportFigmaMakePrompt(assembled: AssembledProjectPRD): string {
   const lines: string[] = [];
   
+  lines.push(FIGMA_MAKE_HEADER);
   lines.push('# Figma Make Design Prompt');
   lines.push('');
   lines.push(`## Project: ${assembled.project.name}`);

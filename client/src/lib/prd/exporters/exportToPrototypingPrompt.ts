@@ -1,7 +1,34 @@
 import type { AssembledProjectPRD } from '../assembleProjectPRD';
 
+const PROTOTYPE_PROMPT_HEADER = `ROLE: You are an AI product designer and prototyper.
+TASK: Produce a low-fidelity interactive prototype plan based on the workflow below.
+OUTPUT: Provide screens or states, interactions, and navigation using structured bullet points.
+CONSTRAINTS:
+- Do not create high-fidelity visual design.
+- Do not assume a backend unless explicitly stated.
+- Call out ambiguities as "Open Questions" instead of inventing details.
+
+---
+
+INPUT: Workflow Outline (authoritative)
+
+`;
+
+const PROTOTYPE_RESPONSE_FORMAT = `
+---
+
+RESPONSE FORMAT:
+1. Assumptions (max 5)
+2. Primary screens or states
+3. Key interactions per screen
+4. Edge cases and empty states
+5. Open Questions
+`;
+
 export function exportToPrototypingPrompt(assembled: AssembledProjectPRD): string {
   const lines: string[] = [];
+  
+  lines.push(PROTOTYPE_PROMPT_HEADER);
   
   lines.push(`# ${assembled.project.name}`);
   lines.push('');
@@ -50,13 +77,7 @@ export function exportToPrototypingPrompt(assembled: AssembledProjectPRD): strin
     lines.push('');
   }
   
-  lines.push('## Implementation Guidelines');
-  lines.push('');
-  lines.push('Use this PRD to build a prototype that:');
-  lines.push('1. Implements all workflows as described above');
-  lines.push('2. Handles all specified inputs and outputs');
-  lines.push('3. Accounts for failure scenarios and recovery paths');
-  lines.push('4. Meets the acceptance criteria for each workflow');
+  lines.push(PROTOTYPE_RESPONSE_FORMAT);
   lines.push('');
   lines.push(`Generated: ${assembled.generatedAt}`);
   

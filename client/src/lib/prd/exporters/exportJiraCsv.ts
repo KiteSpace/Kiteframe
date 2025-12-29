@@ -3,21 +3,11 @@ import type { AssembledProjectPRD, WorkflowCanvasData } from '../assembleProject
 export function exportJiraCsv(assembled: AssembledProjectPRD): string {
   const rows: string[][] = [];
   
-  rows.push(['Summary', 'Description', 'Issue Type', 'Epic Link', 'Labels']);
+  rows.push(['Summary', 'Description', 'Issue Type', 'Labels']);
   
   for (const workflow of assembled.workflows) {
-    const epicKey = sanitizeEpicKey(workflow.workflowName);
-    
-    rows.push([
-      workflow.workflowName,
-      buildEpicDescription(workflow),
-      'Epic',
-      '',
-      'kiteframe-export'
-    ]);
-    
     if (workflow.canvas) {
-      const stories = extractStories(workflow.canvas, epicKey);
+      const stories = extractStories(workflow.canvas, workflow.workflowName);
       for (const story of stories) {
         rows.push(story);
       }
@@ -27,25 +17,7 @@ export function exportJiraCsv(assembled: AssembledProjectPRD): string {
   return rows.map(row => row.map(escapeCSVField).join(',')).join('\n');
 }
 
-function buildEpicDescription(workflow: any): string {
-  const parts: string[] = [];
-  
-  if (workflow.semanticSummary) {
-    parts.push(workflow.semanticSummary);
-  }
-  
-  if (workflow.prdSections && workflow.prdSections.length > 0) {
-    for (const section of workflow.prdSections) {
-      if (section.content) {
-        parts.push(`\n\n## ${section.title}\n${section.content}`);
-      }
-    }
-  }
-  
-  return parts.join('') || 'Workflow epic generated from Kiteframe';
-}
-
-function extractStories(canvas: WorkflowCanvasData, epicKey: string): string[][] {
+function extractStories(canvas: WorkflowCanvasData, workflowName: string): string[][] {
   const stories: string[][] = [];
   
   if (!canvas.nodes || canvas.nodes.length === 0) {
@@ -72,8 +44,7 @@ function extractStories(canvas: WorkflowCanvasData, epicKey: string): string[][]
             `${label}: ${branchLabel} → ${targetLabel}`,
             buildConditionBranchDescription(node, branch, targetNode),
             'Story',
-            epicKey,
-            'condition-branch'
+            formatLabels(['kiteframe-export', 'condition-branch'])
           ]);
         }
       } else {
@@ -81,8 +52,7 @@ function extractStories(canvas: WorkflowCanvasData, epicKey: string): string[][]
           `Condition: ${label}`,
           buildNodeDescription(node),
           'Story',
-          epicKey,
-          'condition'
+          formatLabels(['kiteframe-export', 'condition'])
         ]);
       }
     } else {
@@ -90,13 +60,16 @@ function extractStories(canvas: WorkflowCanvasData, epicKey: string): string[][]
         label,
         buildNodeDescription(node),
         'Story',
-        epicKey,
-        mapNodeTypeToLabel(nodeType)
+        formatLabels(['kiteframe-export', mapNodeTypeToLabel(nodeType)])
       ]);
     }
   }
   
   return stories;
+}
+
+function formatLabels(labels: string[]): string {
+  return labels.join(' ');
 }
 
 function buildNodeDescription(node: any): string {
@@ -170,13 +143,6 @@ function formatNodeType(type: string): string {
     .replace(/([A-Z])/g, ' $1')
     .trim()
     .replace(/^./, s => s.toUpperCase());
-}
-
-function sanitizeEpicKey(name: string): string {
-  return name
-    .replace(/[^a-zA-Z0-9\s]/g, '')
-    .trim()
-    .substring(0, 50);
 }
 
 function escapeCSVField(field: string): string {

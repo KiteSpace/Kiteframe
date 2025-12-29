@@ -133,7 +133,7 @@ export const ARTIFACT_FILENAMES: Record<ExportArtifact, string> = {
   agent_system_prompt: 'agent-system-prompt.txt',
   constraints_and_non_goals: 'constraints-and-non-goals.md',
   expected_outputs: 'expected-outputs.md',
-  workflow_diagram: 'workflow-diagram.md',
+  workflow_diagram: 'workflow-diagram-reference.md',
 };
 
 export const ARTIFACT_LABELS: Record<ExportArtifact, string> = {

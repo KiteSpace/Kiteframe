@@ -54,6 +54,26 @@ export function exportToMarkdown(assembled: AssembledProjectPRD): string {
   
   lines.push('---');
   lines.push('');
+  lines.push('## Success Metrics');
+  lines.push('');
+  lines.push('- **Adoption:** TBD (e.g. % of projects using the feature)');
+  lines.push('- **Efficiency:** TBD (e.g. reduced clarification time)');
+  lines.push('- **Quality:** TBD (e.g. fewer unresolved questions)');
+  lines.push('- **Satisfaction:** TBD (qualitative feedback)');
+  lines.push('');
+  
+  lines.push('---');
+  lines.push('');
+  lines.push('## Definition of Done');
+  lines.push('');
+  lines.push('- Feature works end-to-end for at least one workflow');
+  lines.push('- Collaboration scenarios validated');
+  lines.push('- Empty states and basic accessibility covered');
+  lines.push('- Exported artifacts reflect final behavior');
+  lines.push('');
+  
+  lines.push('---');
+  lines.push('');
   lines.push(`*Exported from Kiteframe v${assembled.version}*`);
   
   return lines.join('\n');

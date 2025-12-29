@@ -139,7 +139,7 @@ export function downloadWorkflowDiagram(assembled: AssembledProjectPRD): void {
   
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${sanitizeFilename(assembled.project.name)}-workflow-diagram.md`;
+  a.download = `${sanitizeFilename(assembled.project.name)}-workflow-diagram-reference.md`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
