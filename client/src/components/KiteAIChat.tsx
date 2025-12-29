@@ -57,9 +57,18 @@ import {
   AI_WORKFLOW_EXPAND_SELECTED_EDGE_CASES_PROMPT
 } from '@/constants/aiWorkflowExpansionPrompts';
 
+// Message type categorization for unified workflow draft model
+export type MessageType = 
+  | 'user_prompt'
+  | 'workflow_generated'   // First baseline workflow created
+  | 'workflow_expanded'    // Workflow modified via quick action
+  | 'discussion'           // Clarifying questions or edge case listing
+  | 'system';              // Informational system messages
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
+  type?: MessageType;  // Optional for backward compat, default inferred from content
   content: string;
   timestamp: Date;
   attachments?: {
