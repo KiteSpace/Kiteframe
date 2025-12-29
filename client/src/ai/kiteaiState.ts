@@ -506,10 +506,10 @@ export function shouldEscalate(context: ConversationContext, actionability: Acti
 }
 
 export function isExecutionReady(actionability: ActionabilityResult): boolean {
-  return (
-    actionability.score >= ACTIONABILITY_THRESHOLD &&
-    actionability.confidence >= CONFIDENCE_THRESHOLDS.execute
-  );
+  // CHANGED: Removed strict confidence requirement for assertive first-turn generation
+  // Generation should always proceed with score >= 1 (any dimension present)
+  // Confidence is now used only for quick action suggestions, not blocking
+  return actionability.score >= 1;
 }
 
 export function isLowConfidence(actionability: ActionabilityResult): boolean {
@@ -710,7 +710,10 @@ export function logStateTransition(transition: StateTransition, context: Convers
 }
 
 export function canShowStartProject(context: ConversationContext): boolean {
-  return context.state === 'execution-ready';
+  // CHANGED: Always allow starting project for assertive first-turn generation
+  // Quick actions will suggest refinement options, but don't block starting
+  // Previously: return context.state === 'execution-ready';
+  return true;
 }
 
 export function getConfidenceLevel(confidence: number): ConfidenceLevel {

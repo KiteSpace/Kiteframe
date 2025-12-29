@@ -226,36 +226,18 @@ export function assertWorkflowStructure(workflow: WorkflowStructure): WorkflowSt
  * - User accepts AI-proposed assumptions
  */
 export function assertUserConfirmedGeneration(state: GenerationState): GuardResult {
-  const { userConfirmed, assumptionsAccepted, clarificationComplete } = state;
+  // CHANGED: Removed clarification blocking. Generation should always proceed.
+  // Clarification is now optional - first-pass generation happens immediately.
+  // Quick actions suggest refinement options instead of blocking.
+  const { userConfirmed, assumptionsAccepted } = state;
 
-  if (!clarificationComplete) {
-    console.log(`[KiteAI Guard] BLOCKED: Clarification not complete`);
-    return {
-      passed: false,
-      reason: 'Clarification process not complete',
-      details: ['User must answer clarifying questions before project creation'],
-    };
-  }
-
-  if (!userConfirmed && !assumptionsAccepted) {
-    console.log(`[KiteAI Guard] BLOCKED: No user confirmation`);
-    return {
-      passed: false,
-      reason: 'User confirmation required',
-      details: [
-        'User must either:',
-        '- Explicitly confirm readiness to proceed',
-        '- Accept AI-proposed assumptions',
-      ],
-    };
-  }
-
-  console.log(`[KiteAI Guard] PASSED: User confirmed generation`);
+  // Always pass - we generate on first turn regardless of confirmation state
+  // The Create Workflow button is only gated by having a valid graph (nodes >= 2, edges >= 1)
+  console.log(`[KiteAI Guard] PASSED: Generation allowed (no blocking gates)`);
+  
   return {
     passed: true,
-    reason: userConfirmed 
-      ? 'User explicitly confirmed readiness'
-      : 'User accepted proposed assumptions',
+    reason: 'Generation allowed - assertive first-turn generation enabled',
   };
 }
 
