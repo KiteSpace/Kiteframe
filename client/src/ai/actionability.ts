@@ -119,7 +119,9 @@ export function computeActionability(input: string): ActionabilityResult {
   // Combined confidence
   const confidence = Math.min(baseConfidence * 0.6 + patternStrength * 0.3 + lengthBonus, 1);
 
-  const isActionable = score >= 3 && confidence >= 0.75;
+  // CHANGED: Removed confidence requirement. Generation should always proceed.
+  // Confidence is now used only for quick action suggestions.
+  const isActionable = score >= 1;
 
   return {
     score,
@@ -229,7 +231,9 @@ export function computeActionabilityWithVision(
   
   // Enhanced confidence with vision
   const confidence = Math.min(baseResult.confidence + visionBoost, 1);
-  const isActionable = score >= 3 && confidence >= 0.75;
+  // CHANGED: Removed confidence requirement. Generation should always proceed.
+  // Confidence is now used only for quick action suggestions.
+  const isActionable = score >= 1;
   
   console.log('[Actionability] Enhanced with vision:', {
     baseConfidence: baseResult.confidence,

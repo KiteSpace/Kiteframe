@@ -863,7 +863,7 @@ function ChatView({
                             data-testid={`button-accept-workflow-${message.id}`}
                           >
                             <Check className="w-3 h-3 mr-1" />
-                            Apply
+                            Create Workflow
                           </Button>
                           <Button
                             size="sm"

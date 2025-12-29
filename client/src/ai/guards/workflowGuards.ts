@@ -61,7 +61,9 @@ export interface MaturityGatingResult extends GuardResult {
   canFastAction: boolean;
 }
 
-const CONFIDENCE_THRESHOLD_BLOCK = 0.70;
+// DEPRECATED: Confidence no longer blocks generation. Set to 0 for non-blocking behavior.
+// Confidence is now used only to determine quick action suggestions.
+const CONFIDENCE_THRESHOLD_BLOCK = 0;
 
 const DECISION_NODE_TYPES = ['condition', 'decision', 'branch', 'switch', 'gateway'];
 const FAILURE_NODE_TYPES = ['error', 'failure', 'retry', 'reject', 'exit', 'exception'];

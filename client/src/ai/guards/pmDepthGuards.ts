@@ -230,7 +230,7 @@ export function detectNonRetryBranches(workflow: SemanticWorkflow): { detected: 
         const firstSet = allTerminalSets[0];
         const hasDifferentTerminals = allTerminalSets.some((set, i) => {
           if (i === 0) return false;
-          const intersection = [...set].filter(t => firstSet.has(t));
+          const intersection = Array.from(set).filter(t => firstSet.has(t));
           return intersection.length === 0 || intersection.length < Math.min(set.size, firstSet.size);
         });
         
