@@ -7,6 +7,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { Insight, InsightCategory, InsightStatus } from '@/lib/kiteframe/utils/insights/types';
@@ -77,13 +80,29 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   const scrollRef = useRef<HTMLDivElement>(null);
   const focusedRowRef = useRef<HTMLDivElement>(null);
   const [listFilterMode, setListFilterMode] = useState<ListFilterMode>('new');
+  const [categoryFilter, setCategoryFilter] = useState<Set<InsightCategory>>(new Set(['observation', 'suggestion', 'note']));
+  
+  const toggleCategory = (category: InsightCategory) => {
+    setCategoryFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        if (next.size > 1) {
+          next.delete(category);
+        }
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
   
   const activeInsights = insights.filter(i => i.status !== 'dismissed');
   const newInsights = activeInsights.filter(i => i.status === 'new');
   
-  const filteredInsights = listFilterMode === 'new' 
+  const filteredInsights = (listFilterMode === 'new' 
     ? activeInsights.filter(i => i.status === 'new')
-    : activeInsights;
+    : activeInsights
+  ).filter(i => categoryFilter.has(i.category));
   
   const sortedInsights = [...filteredInsights].sort((a, b) => {
     const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
@@ -173,6 +192,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel className="text-xs text-gray-500">Status</DropdownMenuLabel>
               <DropdownMenuItem
                 onClick={() => setListFilterMode('new')}
                 className="flex items-center justify-between"
@@ -189,6 +209,32 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                 <span>All</span>
                 {listFilterMode === 'all' && <Check className="w-4 h-4" />}
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs text-gray-500">Categories</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={categoryFilter.has('observation')}
+                onCheckedChange={() => toggleCategory('observation')}
+                data-testid="filter-observation"
+              >
+                <Eye className="w-3.5 h-3.5 mr-2 text-purple-500" />
+                Observations
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={categoryFilter.has('suggestion')}
+                onCheckedChange={() => toggleCategory('suggestion')}
+                data-testid="filter-suggestion"
+              >
+                <Info className="w-3.5 h-3.5 mr-2 text-blue-500" />
+                Suggestions
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={categoryFilter.has('note')}
+                onCheckedChange={() => toggleCategory('note')}
+                data-testid="filter-note"
+              >
+                <Info className="w-3.5 h-3.5 mr-2 text-gray-500" />
+                Notes
+              </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
