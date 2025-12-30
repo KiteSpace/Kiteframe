@@ -1306,6 +1306,9 @@ type Props = {
   // Read-only mode: hides connection handles but allows node dragging for viewing
   readOnly?: boolean;
   
+  // Highlighted nodes - subtle glow for insight hover (no viewport change)
+  highlightedNodeIds?: string[];
+  
   // Experiment node callbacks for speculative branch generation
   onExperimentGenerateBranch?: (nodeId: string, currentDescription?: string) => void;
   onExperimentAdoptBranch?: (nodeId: string) => void;
