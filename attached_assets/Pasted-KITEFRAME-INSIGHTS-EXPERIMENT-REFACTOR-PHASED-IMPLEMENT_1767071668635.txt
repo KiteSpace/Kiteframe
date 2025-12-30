@@ -1,0 +1,267 @@
+KITEFRAME — INSIGHTS / EXPERIMENT REFACTOR
+PHASED IMPLEMENTATION INSTRUCTIONS (NON-NEGOTIABLE)
+
+PURPOSE
+Refactor diagnostics, experiments, and insights so that:
+- The canvas is judgment-free
+- Analysis is opt-in
+- Experiments are explicit, user-initiated exploration tools
+- “Explore Solution” is eliminated as a separate concept
+- PRD generation remains non-actionable and clean
+
+DO NOT introduce new auto-analysis, badges, or system-created experiments.
+
+=====================================================================
+GLOBAL INVARIANTS (MUST HOLD AT ALL TIMES)
+=====================================================================
+
+1. Diagnostics NEVER auto-run.
+2. The canvas NEVER shows judgmental indicators (badges, warnings, risk icons).
+3. Experiments are ALWAYS explicitly created by user intent.
+4. Insights may suggest exploration but NEVER mutate the workflow.
+5. PRDs NEVER auto-include risks or diagnostics.
+6. Deletions come before additions.
+
+=====================================================================
+PHASE 1 — REMOVAL & CONTAINMENT (STOP THE BLEEDING)
+=====================================================================
+
+Goal: Remove aggressive UX and auto-analysis without changing core logic.
+
+1. DISABLE AUTO-RUN DIAGNOSTICS
+--------------------------------
+File: client/src/lib/kiteframe/hooks/useDiagnostics.ts
+
+- REMOVE the useEffect block at lines ~73–108 that auto-runs diagnostics on
+  node/edge changes.
+- Set diagnostics to be DISABLED by default.
+- Diagnostics must only run via an explicit function call (manual trigger).
+
+DO NOT delete DiagnosticsEngine.ts.
+DO NOT change diagnostics logic yet.
+
+2. DELETE NODE-LEVEL BADGES ENTIRELY
+-----------------------------------
+DELETE FILE:
+- client/src/lib/kiteframe/components/DiagnosticBadge.tsx
+
+REMOVE ALL REFERENCES TO BADGES:
+- KiteFrameCanvas.tsx
+- Any node renderer injecting DiagnosticBadge
+- Any CSS positioning for node issue indicators
+
+LEAVE diagnostics data intact for now.
+The canvas must render ZERO diagnostic UI.
+
+3. REMOVE CANVAS DIAGNOSTIC OVERLAYS
+-----------------------------------
+DELETE or disable:
+- client/src/lib/kiteframe/components/DiagnosticOverlay.tsx
+- Any overlay mounting logic
+
+4. RENAME “ISSUES” → “INSIGHTS” (UI ONLY)
+-----------------------------------------
+File:
+- client/src/components/panels/ProjectPanel/DiagnosticsTab.tsx
+
+Changes:
+- Rename component to InsightsTab.tsx
+- Update headers, labels, copy:
+  - “Issues” → “Insights”
+  - Remove severity language (“Critical”, “Risk”, etc.)
+- NO behavior change yet.
+- Still display passed-in data.
+
+END PHASE 1 CHECK:
+- No badges on canvas
+- No diagnostics auto-run
+- App compiles cleanly
+
+=====================================================================
+PHASE 2 — INSIGHT OWNERSHIP & LIFECYCLE
+=====================================================================
+
+Goal: Establish Insights as the ONLY surface for analysis output.
+
+1. DEFINE A SINGLE INSIGHT MODEL
+--------------------------------
+Create or extend an Insight type with:
+- id
+- title
+- description
+- relatedNodeIds: string[]
+- source: 'diagnostic' | 'ai' | 'user'
+- status: 'new' | 'acknowledged' | 'dismissed' | 'promoted'
+- createdAt
+
+Diagnostics output MUST be converted into Insight objects.
+
+2. ROUTE DIAGNOSTICS OUTPUT INTO INSIGHTS
+-----------------------------------------
+- DiagnosticsEngine.analyze() remains pure.
+- REMOVE automatic saving to DiagnosticsStore/localStorage.
+- On manual run, convert DiagnosticIssue[] → Insight[].
+- Store Insights in memory (project-scoped).
+  (Use aiInsightStore.ts pattern or equivalent.)
+
+DiagnosticsStore persistence is no longer authoritative.
+
+3. UPDATE INSIGHTS TAB BEHAVIOR
+-------------------------------
+InsightsTab must:
+- Render Insight objects
+- Support hover → highlight related node(s)
+  (NO viewport movement on hover)
+- Support click → focus viewport on related node(s)
+
+Use existing onNavigateToNode patterns.
+Do NOT refocus viewport on hover.
+
+END PHASE 2 CHECK:
+- Diagnostics produce Insights
+- Insights tab is the only place they appear
+- Canvas remains clean
+
+=====================================================================
+PHASE 3 — TEST FLIGHT (EXPLICIT ANALYSIS TRIGGER)
+=====================================================================
+
+Goal: Make analysis intentional and user-invoked.
+
+1. ADD “TEST FLIGHT” ACTION
+---------------------------
+Location:
+- Insights tab header OR project toolbar
+
+Label:
+- “Test Flight” or “Run Analysis”
+
+2. IMPLEMENT TEST FLIGHT LOGIC
+------------------------------
+On click:
+- Run DiagnosticsEngine.analyze()
+- Convert results → Insight objects
+- Replace existing diagnostic Insights
+- Do NOT:
+  - modify canvas
+  - create Experiments
+  - change viewport focus
+
+3. REMOVE ANY OTHER DIAGNOSTIC TRIGGERS
+--------------------------------------
+Ensure:
+- No diagnostics run on load
+- No diagnostics run on edit
+- No diagnostics run on AI generation
+
+END PHASE 3 CHECK:
+- Analysis only runs via Test Flight
+- Insights update only when triggered
+
+=====================================================================
+PHASE 4 — EXPERIMENT SIMPLIFICATION & OWNERSHIP
+=====================================================================
+
+Goal: One Experiment object, always user-initiated.
+
+1. REMOVE “EXPLORE SOLUTION” CONCEPT
+-----------------------------------
+DELETE:
+- EXPLORE_SOLUTION_DEFINITION references
+- meta.source: 'diagnostic' branching
+- DiagnosticBadge → onCreateExperiment path (already deleted)
+
+Keep:
+- Experiment as the ONLY exploration object
+
+2. EXPERIMENT CREATION RULES
+----------------------------
+Experiments may be created ONLY by:
+- User placing Experiment tool and connecting it to a node
+- User clicking “Explore” on an Insight
+
+NO automatic creation.
+
+3. MODE SELECTION
+-----------------
+- Mode selection may be deferred or defaulted.
+- Do NOT require users to classify approach up front.
+- Keep internal mode if needed, but do not block generation.
+
+END PHASE 4 CHECK:
+- No system-created Experiments
+- Explore Solution no longer exists as a concept
+
+=====================================================================
+PHASE 5 — INSIGHT → EXPERIMENT BRIDGE
+=====================================================================
+
+Goal: Allow Insights to suggest exploration without automation.
+
+1. ADD “EXPLORE” ACTION TO INSIGHTS
+----------------------------------
+In InsightsTab:
+- Add action: “Explore”
+
+2. EXPLORE ACTION BEHAVIOR
+-------------------------
+On click:
+- Create a new Experiment
+- Anchor it to the Insight’s related node
+- Pre-fill context (Insight title + description)
+- Place Experiment visually adjacent to the node
+- Do NOT change workflow structure
+
+3. MAINTAIN CONSISTENCY
+----------------------
+- Experiment created from Insight must be identical to one placed manually.
+- No special casing beyond pre-filled context.
+
+END PHASE 5 CHECK:
+- Insights can spawn Experiments
+- No workflow mutation without acceptance
+
+=====================================================================
+PHASE 6 — PRD INTEGRATION (LIGHT, OPTIONAL)
+=====================================================================
+
+Goal: Keep PRD clean and user-controlled.
+
+1. REMOVE ALL RISK / ISSUE AUTO-INCLUSION
+-----------------------------------------
+PRD generation must:
+- Continue ignoring diagnostics by default
+- Include assumptions only
+
+2. OPTIONAL: PROMOTE INSIGHT TO PRD
+-----------------------------------
+Add Insight action:
+- “Add to PRD”
+
+Behavior:
+- Copies Insight into PRD as “Future consideration” or “Open question”
+- Does NOT create workflow actions
+- Explicit user action only
+
+END PHASE 6 CHECK:
+- PRDs contain only what the user chose to include
+
+=====================================================================
+FINAL VALIDATION CHECKLIST
+=====================================================================
+
+PASS ONLY IF ALL ARE TRUE:
+
+- Canvas shows ZERO diagnostic UI
+- Diagnostics never auto-run
+- Insights are the only analysis surface
+- Test Flight is the only analysis trigger
+- Experiments are always explicit
+- Insights suggest, never act
+- PRDs remain narrative, not operational
+
+DO NOT MERGE PARTIAL PHASES.
+DO NOT REINTRODUCE BADGES.
+DO NOT AUTO-ESCALATE ANYTHING.
+
+END OF TASK FILE
