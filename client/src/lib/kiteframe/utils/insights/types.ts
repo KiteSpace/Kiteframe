@@ -1,6 +1,6 @@
 export type InsightCategory = 'observation' | 'suggestion' | 'note';
 
-export type InsightStatus = 'new' | 'viewed' | 'explored' | 'dismissed';
+export type InsightStatus = 'new' | 'viewed' | 'explored' | 'dismissed' | 'deferred' | 'promoted';
 
 export type InsightSource = 'test-flight' | 'user';
 
@@ -22,6 +22,8 @@ export interface Insight {
   viewedAt?: number;
   exploredAt?: number;
   dismissedAt?: number;
+  deferredAt?: number;
+  promotedAt?: number;
   
   explorationContext?: {
     suggestedMode: 'whatif' | 'enhancement' | 'open_exploration';

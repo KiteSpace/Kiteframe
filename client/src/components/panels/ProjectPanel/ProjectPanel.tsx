@@ -35,6 +35,10 @@ interface ProjectPanelProps {
   onDismissAllInsights?: () => void;
   onMarkInsightViewed?: (insightId: string) => void;
   onMarkInsightExplored?: (insightId: string) => void;
+  onDeferInsight?: (insightId: string) => void;
+  onPromoteInsight?: (insightId: string) => void;
+  onExploreInsight?: (insight: Insight) => void;
+  onHoverInsight?: (insightId: string | null) => void;
   onInsightNavigateToNode?: (nodeId: string) => void;
   focusedInsightId?: string | null;
   forceTab?: ProjectPanelTab | null;
@@ -68,6 +72,10 @@ export function ProjectPanel({
   onDismissAllInsights,
   onMarkInsightViewed,
   onMarkInsightExplored,
+  onDeferInsight,
+  onPromoteInsight,
+  onExploreInsight,
+  onHoverInsight,
   onInsightNavigateToNode,
   focusedInsightId,
   forceTab,
@@ -338,7 +346,11 @@ export function ProjectPanel({
             onDismiss={onDismissInsight || (() => {})}
             onDismissAll={onDismissAllInsights || (() => {})}
             onMarkViewed={onMarkInsightViewed || (() => {})}
+            onDefer={onDeferInsight || (() => {})}
+            onPromote={onPromoteInsight || (() => {})}
+            onExplore={onExploreInsight || (() => {})}
             onNavigateToNode={onInsightNavigateToNode}
+            onHoverInsight={onHoverInsight}
             focusedInsightId={focusedInsightId}
           />
         </TabsContent>

@@ -1720,6 +1720,72 @@ function WorkflowEditorContent({
   const handleOpenInsightsPanel = useCallback(() => {
     setForcePanelTab('diagnostics');
   }, []);
+  
+  // Hover state for insight-related node highlighting (no viewport change on hover)
+  const [hoveredInsightNodeIds, setHoveredInsightNodeIds] = useState<string[]>([]);
+  
+  const handleHoverInsight = useCallback((insightId: string | null) => {
+    if (!insightId) {
+      setHoveredInsightNodeIds([]);
+      return;
+    }
+    const insight = insights.insights.find(i => i.id === insightId);
+    if (insight) {
+      setHoveredInsightNodeIds(insight.relatedNodeIds);
+    }
+  }, [insights.insights]);
+  
+  // Explore insight - creates experiment anchored to related nodes without auto-mutating workflow
+  const handleExploreInsight = useCallback((insight: import('@/lib/kiteframe/utils/insights/types').Insight) => {
+    if (!insight.explorationContext || insight.relatedNodeIds.length === 0) {
+      toast({
+        title: "Cannot explore",
+        description: "This insight doesn't have exploration context or related nodes.",
+      });
+      return;
+    }
+    
+    // Mark the insight as explored
+    insights.markExplored(insight.id);
+    
+    // Get the anchor node (first related node)
+    const anchorNodeId = insight.explorationContext.anchorNodeId || insight.relatedNodeIds[0];
+    const anchorNode = nodes.find(n => n.id === anchorNodeId);
+    
+    if (!anchorNode) {
+      toast({
+        title: "Cannot explore",
+        description: "Related node not found on canvas.",
+      });
+      return;
+    }
+    
+    // Create a new WorkflowTool (experiment) anchored to the insight's related nodes
+    // This does NOT auto-generate nodes - user must explicitly accept speculative output
+    const newTool: WorkflowTool = {
+      id: `experiment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: 'experiment',
+      anchorNodeId,
+      mode: insight.explorationContext.suggestedMode,
+      userPrompt: insight.explorationContext.prefilledPrompt || '',
+      position: {
+        x: anchorNode.position.x + (anchorNode.width || 200) + 80,
+        y: anchorNode.position.y,
+      },
+      status: 'idle',
+      createdAt: Date.now(),
+    };
+    
+    setWorkflowTools(prev => [...prev, newTool]);
+    
+    // Focus on the anchor node so user sees the context
+    focusOnNode(anchorNodeId);
+    
+    toast({
+      title: "Exploration started",
+      description: `Created experiment anchored to "${anchorNode.data?.label || 'node'}". Select a mode to generate options.`,
+    });
+  }, [insights, nodes, focusOnNode, toast]);
 
   // Reset forceTab after it's been applied
   useEffect(() => {
@@ -10585,6 +10651,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 onDismissAllInsights={insights.dismissAll}
                 onMarkInsightViewed={insights.markViewed}
                 onMarkInsightExplored={insights.markExplored}
+                onDeferInsight={insights.defer}
+                onPromoteInsight={insights.promote}
+                onExploreInsight={handleExploreInsight}
+                onHoverInsight={handleHoverInsight}
                 onInsightNavigateToNode={focusOnNode}
                 focusedInsightId={focusedInsightId}
                 forceTab={forcePanelTab}

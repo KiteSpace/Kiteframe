@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Rocket, Info, Check, Eye, Focus, Filter, X } from 'lucide-react';
+import { Rocket, Info, Check, Eye, Focus, Filter, X, Clock, FileText, Compass } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import type { Insight, InsightCategory } from '@/lib/kiteframe/utils/insights/types';
+import type { Insight, InsightCategory, InsightStatus } from '@/lib/kiteframe/utils/insights/types';
 
 type ListFilterMode = 'new' | 'all';
 
@@ -20,7 +20,11 @@ interface DiagnosticsTabProps {
   onDismiss: (insightId: string) => void;
   onDismissAll: () => void;
   onMarkViewed: (insightId: string) => void;
+  onDefer: (insightId: string) => void;
+  onPromote: (insightId: string) => void;
+  onExplore: (insight: Insight) => void;
   onNavigateToNode?: (nodeId: string) => void;
+  onHoverInsight?: (insightId: string | null) => void;
   focusedInsightId?: string | null;
 }
 
@@ -47,6 +51,15 @@ const CATEGORY_STYLES: Record<InsightCategory, { bg: string; text: string; icon:
 
 const CATEGORY_ORDER: InsightCategory[] = ['observation', 'suggestion', 'note'];
 
+const STATUS_ORDER: Record<InsightStatus, number> = {
+  new: 0,
+  viewed: 1,
+  deferred: 2,
+  explored: 3,
+  promoted: 4,
+  dismissed: 5,
+};
+
 export const DiagnosticsTab = memo(function DiagnosticsTab({
   insights,
   isLoading,
@@ -54,7 +67,11 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   onDismiss,
   onDismissAll,
   onMarkViewed,
+  onDefer,
+  onPromote,
+  onExplore,
   onNavigateToNode,
+  onHoverInsight,
   focusedInsightId,
 }: DiagnosticsTabProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -69,8 +86,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
     : activeInsights;
   
   const sortedInsights = [...filteredInsights].sort((a, b) => {
-    const statusOrder = { new: 0, viewed: 1, explored: 2, dismissed: 3 };
-    const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+    const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
     if (statusDiff !== 0) return statusDiff;
     
     const categoryDiff = CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
@@ -183,9 +199,12 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
           {sortedInsights.map((insight) => {
             const styles = CATEGORY_STYLES[insight.category];
             const Icon = styles.icon;
-            const isViewed = insight.status === 'viewed' || insight.status === 'explored';
+            const isViewed = insight.status === 'viewed' || insight.status === 'explored' || insight.status === 'deferred';
+            const isPromoted = insight.status === 'promoted';
+            const isDeferred = insight.status === 'deferred';
             const isFocused = focusedInsightId === insight.id;
             const primaryNodeId = insight.relatedNodeIds[0];
+            const hasExplorationContext = !!insight.explorationContext;
             
             return (
               <div
@@ -193,7 +212,9 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                 ref={isFocused ? focusedRowRef : undefined}
                 className={cn(
                   'px-4 py-3 transition-colors cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50',
-                  isViewed && 'opacity-60',
+                  isViewed && !isPromoted && 'opacity-60',
+                  isPromoted && 'bg-green-50 dark:bg-green-900/10 border-l-2 border-green-500',
+                  isDeferred && 'bg-yellow-50 dark:bg-yellow-900/10 border-l-2 border-yellow-500',
                   isFocused && 'bg-purple-50 dark:bg-purple-900/20 ring-1 ring-purple-400',
                 )}
                 onClick={() => {
@@ -202,6 +223,8 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                     onNavigateToNode?.(primaryNodeId);
                   }
                 }}
+                onMouseEnter={() => onHoverInsight?.(insight.id)}
+                onMouseLeave={() => onHoverInsight?.(null)}
                 data-testid={`insight-${insight.id}`}
               >
                 <div className="flex items-start gap-3">
@@ -213,7 +236,19 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                       <span className={cn('text-xs font-medium', styles.text)}>
                         {styles.label}
                       </span>
-                      {primaryNodeId && (
+                      {isPromoted && (
+                        <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                          <FileText className="w-3 h-3" />
+                          In PRD
+                        </span>
+                      )}
+                      {isDeferred && (
+                        <span className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Deferred
+                        </span>
+                      )}
+                      {primaryNodeId && !isPromoted && !isDeferred && (
                         <span className="text-xs text-gray-400 flex items-center gap-1">
                           <Focus className="w-3 h-3" />
                           {primaryNodeId.slice(0, 8)}...
@@ -226,7 +261,52 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                     <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">
                       {insight.description}
                     </p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {hasExplorationContext && insight.status !== 'explored' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onExplore(insight);
+                          }}
+                          className="h-6 text-xs text-purple-600 hover:text-purple-700 border-purple-300 hover:border-purple-400"
+                          data-testid={`btn-explore-${insight.id}`}
+                        >
+                          <Compass className="w-3 h-3 mr-1" />
+                          Explore
+                        </Button>
+                      )}
+                      {!isPromoted && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPromote(insight.id);
+                          }}
+                          className="h-6 text-xs text-green-600 hover:text-green-700"
+                          data-testid={`btn-promote-${insight.id}`}
+                        >
+                          <FileText className="w-3 h-3 mr-1" />
+                          Add to PRD
+                        </Button>
+                      )}
+                      {!isDeferred && insight.status !== 'explored' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDefer(insight.id);
+                          }}
+                          className="h-6 text-xs text-yellow-600 hover:text-yellow-700"
+                          data-testid={`btn-defer-${insight.id}`}
+                        >
+                          <Clock className="w-3 h-3 mr-1" />
+                          Defer
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
