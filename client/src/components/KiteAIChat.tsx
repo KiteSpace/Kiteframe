@@ -1372,7 +1372,7 @@ export function KiteAIChatBrain({
                 data-testid="input-kiteai-message"
               />
               <ChatSendButton
-                onClick={handleSend}
+                onClick={() => handleSend()}
                 disabled={!inputValue.trim() && pendingFiles.length === 0}
                 isLoading={isLoading}
                 className="flex-shrink-0"
