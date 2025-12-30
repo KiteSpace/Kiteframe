@@ -81,7 +81,15 @@ Preferred communication style: Simple, everyday language.
 - **Insight Type**: Unified `Insight` model in `client/src/lib/kiteframe/utils/insights/types.ts`.
 - **useInsights Hook**: Session-based insight management (no persistent storage), replaces useDiagnostics for UI.
 - **Test Flight**: Runs diagnostics engine on demand, converts results to Insights.
-- **Key Files**: `useInsights.ts`, `insightConverter.ts`, `types.ts` (insights), `DiagnosticsTab.tsx`.
+- **Insight Lifecycle**: Status progression: new → viewed → deferred → explored → promoted → dismissed.
+- **Insight Actions**:
+  - **Explore**: Creates an Experiment node anchored to related nodes (explicit user action only, never auto-generated).
+  - **Defer**: Marks insight for later review without dismissing.
+  - **Add to PRD**: Promotes insight for inclusion in PRD generation.
+- **Hover Highlight**: Hovering insight cards sets `hoveredInsightNodeIds` for canvas highlighting (prop plumbed but visual styling minimal).
+- **Click Focus**: Clicking insight card pans canvas to related nodes.
+- **No System-Initiated Experiments**: All experiment creation requires explicit user action (Explore button or manual experiment node).
+- **Key Files**: `useInsights.ts`, `insightConverter.ts`, `types.ts` (insights), `DiagnosticsTab.tsx`, `workflow-editor.tsx`.
 
 ### Project Panel
 - **Tabs**: KiteAI (AI assistant), Project (unified document), Layers (canvas hierarchy), Notes, Insights.

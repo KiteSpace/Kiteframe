@@ -4973,12 +4973,22 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
               // When using 2px border, the inner content radius should be slightly smaller
               const cornerRadius = 10; // Match the visual appearance
               
+              // Check if this node should be highlighted (e.g., from insight hover)
+              const isHighlighted = props.highlightedNodeIds?.includes(n.id) ?? false;
+              
+              // Compute box-shadow: selection takes priority, then highlight, then none
+              const nodeBoxShadow = n.selected 
+                ? '0 0 0 2px #3b82f6' 
+                : isHighlighted 
+                  ? '0 0 0 2px #a855f7, 0 0 12px 2px rgba(168, 85, 247, 0.3)' // Purple glow for insights
+                  : 'none';
+              
               return (
                 <div
                   key={n.id}
                   ref={(el) => registerNodeRef(n.id, el)}
                   data-node-id={n.id}
-                  className={`kiteframe-node group ${n.selected ? "selected" : ""} ${isSpeculative ? "speculative-node" : ""}`}
+                  className={`kiteframe-node group ${n.selected ? "selected" : ""} ${isSpeculative ? "speculative-node" : ""} ${isHighlighted ? "insight-highlighted" : ""}`}
                   style={{
                     left: n.position.x,
                     top: n.position.y,
@@ -4993,7 +5003,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     borderColor: hasNoBorder ? 'transparent' : (isSpeculative ? '#a855f7' : border),
                     borderRadius: `${cornerRadius}px`,
                     // Selection indicator using box-shadow to respect border-radius
-                    boxShadow: n.selected ? '0 0 0 2px #3b82f6' : 'none',
+                    boxShadow: nodeBoxShadow,
                     background: isSpeculative ? "rgba(168, 85, 247, 0.05)" : "transparent", // Tinted background for speculative
                     display: "flex",
                     flexDirection: "column",
