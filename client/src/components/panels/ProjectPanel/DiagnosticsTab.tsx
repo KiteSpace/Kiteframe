@@ -218,7 +218,6 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                   isFocused && 'bg-purple-50 dark:bg-purple-900/20 ring-1 ring-purple-400',
                 )}
                 onClick={() => {
-                  onMarkViewed(insight.id);
                   if (primaryNodeId) {
                     onNavigateToNode?.(primaryNodeId);
                   }
