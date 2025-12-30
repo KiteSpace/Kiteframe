@@ -263,13 +263,13 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                     <div className="flex items-center gap-1 flex-wrap">
                       {hasExplorationContext && insight.status !== 'explored' && (
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
                             onExplore(insight);
                           }}
-                          className="h-6 text-xs text-purple-600 hover:text-purple-700 border-purple-300 hover:border-purple-400"
+                          className="h-6 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20"
                           data-testid={`btn-explore-${insight.id}`}
                         >
                           <Compass className="w-3 h-3 mr-1" />
@@ -284,7 +284,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                             e.stopPropagation();
                             onPromote(insight.id);
                           }}
-                          className="h-6 text-xs text-green-600 hover:text-green-700"
+                          className="h-6 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                           data-testid={`btn-promote-${insight.id}`}
                         >
                           <FileText className="w-3 h-3 mr-1" />
@@ -299,7 +299,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                             e.stopPropagation();
                             onDefer(insight.id);
                           }}
-                          className="h-6 text-xs text-yellow-600 hover:text-yellow-700"
+                          className="h-6 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                           data-testid={`btn-defer-${insight.id}`}
                         >
                           <Clock className="w-3 h-3 mr-1" />
@@ -313,7 +313,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                           e.stopPropagation();
                           onDismiss(insight.id);
                         }}
-                        className="h-6 text-xs text-gray-500 hover:text-gray-700"
+                        className="h-6 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                         data-testid={`btn-dismiss-${insight.id}`}
                       >
                         <X className="w-3 h-3 mr-1" />
