@@ -45,6 +45,11 @@ export type { KeyboardShortcut } from './hooks/useKeyboardShortcuts';
 export { useUndoRedo } from './hooks/useUndoRedo';
 export type { UseUndoRedoOptions, UseUndoRedoCallbacks } from './hooks/useUndoRedo';
 export { useDiagnostics } from './hooks/useDiagnostics';
+export { useInsights } from './hooks/useInsights';
+
+// Insights types and utilities
+export type { Insight, InsightCategory, InsightStatus, InsightSource } from './utils/insights/types';
+export { convertDiagnosticToInsight, convertDiagnosticsToInsights } from './utils/insights/insightConverter';
 
 // Diagnostics context (no overlay - diagnostics are opt-in via Test Flight)
 export { DiagnosticsProvider, useDiagnosticsContext, useNodeDiagnostics } from './contexts/DiagnosticsContext';

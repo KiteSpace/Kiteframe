@@ -14,7 +14,7 @@ import {
   consolePlugin,
   testPlugin,
   advancedInteractionsPlugin,
-  useDiagnostics,
+  useInsights,
 } from "@/lib/kiteframe";
 import type { ProjectPanelTab } from "@/components/panels/ProjectPanel";
 import { PluginTestButton } from "@/components/PluginTestButton";
@@ -1705,21 +1705,19 @@ function WorkflowEditorContent({
     return map;
   }, [nodes, getOptionsForNode]);
 
-  // Diagnostics system for workflow issues
-  const [focusedDiagnosticFingerprint, setFocusedDiagnosticFingerprint] = useState<string | null>(null);
+  // Insights system for workflow analysis (opt-in via Test Flight)
+  const [focusedInsightId, setFocusedInsightId] = useState<string | null>(null);
   const [forcePanelTab, setForcePanelTab] = useState<ProjectPanelTab | null>(null);
-  const [projectBadgeVisibility, setProjectBadgeVisibility] = useState<Record<string, boolean>>({});
   const [workflowTools, setWorkflowTools] = useState<WorkflowTool[]>([]);
   
   const projectIdentifier = activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId || 'default';
   
-  const diagnostics = useDiagnostics(nodes, edges, {
+  const insights = useInsights(nodes, edges, {
     projectId: projectIdentifier,
     workflowId: activeTabId,
-    enabled: openTabs.length > 0,
   });
 
-  const handleOpenDiagnosticsPanel = useCallback(() => {
+  const handleOpenInsightsPanel = useCallback(() => {
     setForcePanelTab('diagnostics');
   }, []);
 
@@ -10580,14 +10578,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   });
                 }}
                 isReadOnly={isReadOnly}
-                diagnosticsIssues={diagnostics.issues}
-                diagnosticsLoading={diagnostics.isLoading}
-                onDiagnosticsAcknowledge={diagnostics.acknowledge}
-                onDiagnosticsUnacknowledge={diagnostics.unacknowledge}
-                onDiagnosticsAcknowledgeAll={diagnostics.acknowledgeAll}
-                onDiagnosticsRefresh={diagnostics.refresh}
-                onDiagnosticsNavigateToNode={focusOnNode}
-                focusedDiagnosticFingerprint={focusedDiagnosticFingerprint}
+                insights={insights.insights}
+                insightsLoading={insights.isRunning}
+                onRunTestFlight={insights.runTestFlight}
+                onDismissInsight={insights.dismiss}
+                onDismissAllInsights={insights.dismissAll}
+                onMarkInsightViewed={insights.markViewed}
+                onMarkInsightExplored={insights.markExplored}
+                onInsightNavigateToNode={focusOnNode}
+                focusedInsightId={focusedInsightId}
                 forceTab={forcePanelTab}
                 initialPrompt={pendingChatPrompt || undefined}
                 onInitialPromptConsumed={handleChatPromptConsumed}

@@ -10,7 +10,7 @@ import { LayersTab } from './LayersTab';
 import { NotesTab } from './NotesTab';
 import { DiagnosticsTab } from './DiagnosticsTab';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
-import type { DiagnosticIssue } from '@/lib/kiteframe/utils/diagnostics/types';
+import type { Insight } from '@/lib/kiteframe/utils/insights/types';
 
 export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers' | 'notes' | 'diagnostics';
 
@@ -28,14 +28,15 @@ interface ProjectPanelProps {
   onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   isReadOnly?: boolean;
-  diagnosticsIssues?: DiagnosticIssue[];
-  diagnosticsLoading?: boolean;
-  onDiagnosticsAcknowledge?: (fingerprint: string) => void;
-  onDiagnosticsUnacknowledge?: (fingerprint: string) => void;
-  onDiagnosticsAcknowledgeAll?: () => void;
-  onDiagnosticsRefresh?: () => void;
-  onDiagnosticsNavigateToNode?: (nodeId: string) => void;
-  focusedDiagnosticFingerprint?: string | null;
+  insights?: Insight[];
+  insightsLoading?: boolean;
+  onRunTestFlight?: () => void;
+  onDismissInsight?: (insightId: string) => void;
+  onDismissAllInsights?: () => void;
+  onMarkInsightViewed?: (insightId: string) => void;
+  onMarkInsightExplored?: (insightId: string) => void;
+  onInsightNavigateToNode?: (nodeId: string) => void;
+  focusedInsightId?: string | null;
   forceTab?: ProjectPanelTab | null;
   initialPrompt?: string;
   onInitialPromptConsumed?: () => void;
@@ -60,14 +61,15 @@ export function ProjectPanel({
   onApplyWorkflow,
   onPreviewWorkflow,
   isReadOnly = false,
-  diagnosticsIssues = [],
-  diagnosticsLoading = false,
-  onDiagnosticsAcknowledge,
-  onDiagnosticsUnacknowledge,
-  onDiagnosticsAcknowledgeAll,
-  onDiagnosticsRefresh,
-  onDiagnosticsNavigateToNode,
-  focusedDiagnosticFingerprint,
+  insights = [],
+  insightsLoading = false,
+  onRunTestFlight,
+  onDismissInsight,
+  onDismissAllInsights,
+  onMarkInsightViewed,
+  onMarkInsightExplored,
+  onInsightNavigateToNode,
+  focusedInsightId,
   forceTab,
   initialPrompt,
   onInitialPromptConsumed,
@@ -330,14 +332,14 @@ export function ProjectPanel({
         <TabsContent value="diagnostics" className="flex-1 m-0 overflow-hidden">
           <DiagnosticsTab
             key={projectId || 'default'}
-            issues={diagnosticsIssues}
-            isLoading={diagnosticsLoading}
-            onAcknowledge={onDiagnosticsAcknowledge || (() => {})}
-            onUnacknowledge={onDiagnosticsUnacknowledge || (() => {})}
-            onAcknowledgeAll={onDiagnosticsAcknowledgeAll || (() => {})}
-            onRefresh={onDiagnosticsRefresh || (() => {})}
-            onNavigateToNode={onDiagnosticsNavigateToNode}
-            focusedFingerprint={focusedDiagnosticFingerprint}
+            insights={insights}
+            isLoading={insightsLoading}
+            onRunTestFlight={onRunTestFlight || (() => {})}
+            onDismiss={onDismissInsight || (() => {})}
+            onDismissAll={onDismissAllInsights || (() => {})}
+            onMarkViewed={onMarkInsightViewed || (() => {})}
+            onNavigateToNode={onInsightNavigateToNode}
+            focusedInsightId={focusedInsightId}
           />
         </TabsContent>
       </Tabs>
