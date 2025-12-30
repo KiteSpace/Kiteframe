@@ -1,14 +1,45 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useLocation, useSearch } from 'wouter';
 import { usePromptContextStore } from '@/contexts/PromptContextStore';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { KiteAIChatBrain, type WorkflowDraft } from '@/components/KiteAIChat';
+import { AiProvider } from '@/ai/AiProvider';
+import { OpenAICompatClient } from '@/ai/OpenAICompatClient';
 
 export default function FullScreenChat() {
   const [, navigate] = useLocation();
   const searchString = useSearch();
   const promptContextStore = usePromptContextStore();
+  
+  const aiClient = useMemo(() => {
+    let baseURL = "/api/ai";
+    const savedSettings = localStorage.getItem("ai_settings");
+    let defaultModel = "gpt-4o";
+
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        if (settings.provider === "custom" && settings.customEndpoint) {
+          baseURL = settings.customEndpoint;
+        } else if (settings.provider === "anthropic") {
+          baseURL = "https://api.anthropic.com/v1";
+        }
+        defaultModel =
+          settings.model === "custom" && settings.customModel
+            ? settings.customModel
+            : settings.model || defaultModel;
+      } catch (e) {
+        console.warn("Failed to parse saved AI settings");
+      }
+    }
+
+    return new OpenAICompatClient({
+      baseURL,
+      apiKey: localStorage.getItem("openai_api_key") || "",
+      defaultModel,
+    });
+  }, []);
   
   const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
   const [promptConsumed, setPromptConsumed] = useState(false);
@@ -57,15 +88,17 @@ export default function FullScreenChat() {
       </header>
       
       <main className="flex-1 container max-w-4xl mx-auto px-4 py-6 flex flex-col">
-        <KiteAIChatBrain
-          mode="fullscreen"
-          nodes={[]}
-          edges={[]}
-          canvasObjects={[]}
-          initialPrompt={initialPrompt || undefined}
-          onInitialPromptConsumed={handleInitialPromptConsumed}
-          onCreateWorkflow={handleCreateWorkflow}
-        />
+        <AiProvider client={aiClient}>
+          <KiteAIChatBrain
+            mode="fullscreen"
+            nodes={[]}
+            edges={[]}
+            canvasObjects={[]}
+            initialPrompt={initialPrompt || undefined}
+            onInitialPromptConsumed={handleInitialPromptConsumed}
+            onCreateWorkflow={handleCreateWorkflow}
+          />
+        </AiProvider>
       </main>
     </div>
   );
