@@ -15,7 +15,6 @@ import {
   testPlugin,
   advancedInteractionsPlugin,
   useDiagnostics,
-  DiagnosticOverlay,
 } from "@/lib/kiteframe";
 import type { ProjectPanelTab } from "@/components/panels/ProjectPanel";
 import { PluginTestButton } from "@/components/PluginTestButton";
@@ -406,7 +405,6 @@ function WorkflowEditorContent({
       const defaults = {
         nodeAutoConnect: false,
         snapToGuides: false,
-        showAcknowledgedBadges: false,
       };
       return saved
         ? { ...defaults, ...JSON.parse(saved) }
@@ -415,7 +413,6 @@ function WorkflowEditorContent({
       return {
         nodeAutoConnect: false,
         snapToGuides: false,
-        showAcknowledgedBadges: false,
       };
     }
   });
@@ -10340,83 +10337,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }}
                   />
                   
-                  {/* Diagnostic badges overlay */}
-                  <DiagnosticOverlay
-                    nodes={nodes}
-                    viewport={viewport}
-                    issues={diagnostics.issues}
-                    onAcknowledge={diagnostics.acknowledge}
-                    onUnacknowledge={diagnostics.unacknowledge}
-                    showAcknowledgedBadges={editorSettings.showAcknowledgedBadges}
-                    onViewInPanel={(issue) => {
-                      setFocusedDiagnosticFingerprint(issue.fingerprint);
-                      setForcePanelTab('diagnostics');
-                    }}
-                    onCreateExperiment={(issue) => {
-                      if (!activeTabId || activeTabId === 'home') {
-                        toast({
-                          title: "Cannot create experiment",
-                          description: "No active workflow selected.",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      
-                      if (!issue.nodeId) {
-                        toast({
-                          title: "Cannot create experiment",
-                          description: "This issue is not associated with a specific node.",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      
-                      const sourceNode = nodes.find(n => n.id === issue.nodeId);
-                      if (!sourceNode) {
-                        toast({
-                          title: "Node not found",
-                          description: "The affected node could not be found.",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      
-                      const experimentMode = (issue.recommendedAction?.experimentMode || 'whatif') as ExperimentMode;
-                      const modeLabels: Record<string, string> = {
-                        whatif: 'What If',
-                        enhancement: 'Enhancement',
-                        open_exploration: 'Open Exploration',
-                      };
-                      
-                      const toolId = `tool-${Date.now()}`;
-                      const newTool: WorkflowTool = {
-                        id: toolId,
-                        type: 'experiment',
-                        anchorNodeId: issue.nodeId,
-                        mode: experimentMode,
-                        state: 'idle',
-                        userPrompt: `Explore solutions for: ${issue.title}\n\n${issue.description}`,
-                        meta: {
-                          experimentId: crypto.randomUUID(),
-                          source: 'diagnostic',
-                          createdAt: Date.now(),
-                          issueTitle: issue.title,
-                          issueDescription: issue.description,
-                        },
-                      };
-                      
-                      setWorkflowTools(prev => [...prev, newTool]);
-                      
-                      setTimeout(() => {
-                        focusOnNode(issue.nodeId!);
-                      }, 100);
-                      
-                      toast({
-                        title: "Experiment tool opened",
-                        description: `Opened ${modeLabels[experimentMode]} experiment. Select an option and generate.`,
-                      });
-                    }}
-                  />
                   
                   {/* Workflow Tools (floating experiment UIs) */}
                   {workflowTools.map(tool => {
@@ -10669,13 +10589,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 onDiagnosticsNavigateToNode={focusOnNode}
                 focusedDiagnosticFingerprint={focusedDiagnosticFingerprint}
                 forceTab={forcePanelTab}
-                showAcknowledgedBadges={editorSettings.showAcknowledgedBadges}
-                onToggleAcknowledgedBadges={(show) => {
-                  setEditorSettings(prev => ({
-                    ...prev,
-                    showAcknowledgedBadges: show,
-                  }));
-                }}
                 initialPrompt={pendingChatPrompt || undefined}
                 onInitialPromptConsumed={handleChatPromptConsumed}
               />

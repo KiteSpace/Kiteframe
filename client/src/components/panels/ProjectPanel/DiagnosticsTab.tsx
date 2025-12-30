@@ -1,12 +1,11 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, AlertCircle, Info, XCircle, Check, ChevronRight, RefreshCw, CheckCheck, Focus, Filter } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Info, Check, ChevronRight, RefreshCw, CheckCheck, Focus, Filter } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
@@ -24,34 +23,32 @@ interface DiagnosticsTabProps {
   onCreateExperiment?: (issue: DiagnosticIssue) => void;
   onNavigateToNode?: (nodeId: string) => void;
   focusedFingerprint?: string | null;
-  showAcknowledgedBadges?: boolean;
-  onToggleAcknowledgedBadges?: (show: boolean) => void;
 }
 
 const SEVERITY_STYLES: Record<DiagnosticSeverity, { bg: string; text: string; icon: typeof AlertTriangle; label: string }> = {
   critical: {
-    bg: 'bg-red-100 dark:bg-red-900/30',
-    text: 'text-red-600 dark:text-red-400',
-    icon: XCircle,
-    label: 'Critical',
+    bg: 'bg-purple-100 dark:bg-purple-900/30',
+    text: 'text-purple-600 dark:text-purple-400',
+    icon: AlertCircle,
+    label: 'Observation',
   },
   risk: {
-    bg: 'bg-orange-100 dark:bg-orange-900/30',
-    text: 'text-orange-600 dark:text-orange-400',
-    icon: AlertTriangle,
-    label: 'Risk',
+    bg: 'bg-blue-100 dark:bg-blue-900/30',
+    text: 'text-blue-600 dark:text-blue-400',
+    icon: Info,
+    label: 'Observation',
   },
   warn: {
-    bg: 'bg-yellow-100 dark:bg-yellow-900/30',
-    text: 'text-yellow-700 dark:text-yellow-400',
-    icon: AlertCircle,
-    label: 'Warning',
+    bg: 'bg-gray-100 dark:bg-gray-800',
+    text: 'text-gray-600 dark:text-gray-400',
+    icon: Info,
+    label: 'Suggestion',
   },
   info: {
     bg: 'bg-gray-100 dark:bg-gray-800',
     text: 'text-gray-600 dark:text-gray-400',
     icon: Info,
-    label: 'Info',
+    label: 'Note',
   },
 };
 
@@ -67,8 +64,6 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   onCreateExperiment,
   onNavigateToNode,
   focusedFingerprint,
-  showAcknowledgedBadges = false,
-  onToggleAcknowledgedBadges,
 }: DiagnosticsTabProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const focusedRowRef = useRef<HTMLDivElement>(null);
@@ -103,10 +98,10 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
           <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
         </div>
         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-          No Issues Found
+          No Insights Yet
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs">
-          Your workflow looks good! All diagnostic checks passed.
+          Run Test Flight to analyze your workflow and discover insights.
         </p>
         <Button
           variant="ghost"
@@ -117,7 +112,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
           data-testid="diagnostics-refresh-empty"
         >
           <RefreshCw className={cn('w-4 h-4 mr-2', isLoading && 'animate-spin')} />
-          Refresh
+          Test Flight
         </Button>
       </div>
     );
@@ -128,9 +123,9 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            Issues
+            Insights
           </h3>
-          <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+          <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
             {newIssues.length} new
           </span>
         </div>
@@ -183,15 +178,6 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
               >
                 <span>All</span>
                 {listFilterMode === 'all' && <Check className="w-4 h-4" />}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => onToggleAcknowledgedBadges?.(!showAcknowledgedBadges)}
-                className="flex items-center justify-between"
-                data-testid="filter-show-acknowledged-badges"
-              >
-                <span>Show acknowledged badges</span>
-                {showAcknowledgedBadges && <Check className="w-4 h-4" />}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

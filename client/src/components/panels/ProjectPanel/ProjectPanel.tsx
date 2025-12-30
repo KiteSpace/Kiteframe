@@ -37,8 +37,6 @@ interface ProjectPanelProps {
   onDiagnosticsNavigateToNode?: (nodeId: string) => void;
   focusedDiagnosticFingerprint?: string | null;
   forceTab?: ProjectPanelTab | null;
-  showAcknowledgedBadges?: boolean;
-  onToggleAcknowledgedBadges?: (show: boolean) => void;
   initialPrompt?: string;
   onInitialPromptConsumed?: () => void;
 }
@@ -48,7 +46,7 @@ const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string }[]
   { id: 'project', icon: ClipboardList, label: 'Project' },
   { id: 'layers', icon: ListTree, label: 'Layers' },
   { id: 'notes', icon: StickyNote, label: 'Notes' },
-  { id: 'diagnostics', icon: AlertTriangle, label: 'Issues' }
+  { id: 'diagnostics', icon: AlertTriangle, label: 'Insights' }
 ];
 
 export function ProjectPanel({ 
@@ -71,8 +69,6 @@ export function ProjectPanel({
   onDiagnosticsNavigateToNode,
   focusedDiagnosticFingerprint,
   forceTab,
-  showAcknowledgedBadges = false,
-  onToggleAcknowledgedBadges,
   initialPrompt,
   onInitialPromptConsumed,
 }: ProjectPanelProps) {
@@ -342,8 +338,6 @@ export function ProjectPanel({
             onRefresh={onDiagnosticsRefresh || (() => {})}
             onNavigateToNode={onDiagnosticsNavigateToNode}
             focusedFingerprint={focusedDiagnosticFingerprint}
-            showAcknowledgedBadges={showAcknowledgedBadges}
-            onToggleAcknowledgedBadges={onToggleAcknowledgedBadges}
           />
         </TabsContent>
       </Tabs>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import type { Node, Edge } from '../types';
 import type { DiagnosticIssue } from '../utils/diagnostics/types';
 import { diagnosticsEngine } from '../utils/diagnostics/DiagnosticsEngine';
@@ -8,7 +8,6 @@ interface UseDiagnosticsOptions {
   projectId: string;
   workflowId?: string;
   enabled?: boolean;
-  debounceMs?: number;
   minEdges?: number;
 }
 
@@ -32,15 +31,12 @@ export function useDiagnostics(
   edges: Edge[],
   options: UseDiagnosticsOptions
 ): UseDiagnosticsResult {
-  const { projectId, workflowId, enabled = true, debounceMs = 300, minEdges = DEFAULT_MIN_EDGES } = options;
+  const { projectId, workflowId, enabled = false, minEdges = DEFAULT_MIN_EDGES } = options;
   
   const meetsEdgeThreshold = edges.length >= minEdges;
   
   const [issues, setIssues] = useState<DiagnosticIssue[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastNodesRef = useRef<string>('');
-  const lastEdgesRef = useRef<string>('');
   
   const runDetection = useCallback(() => {
     if (!enabled || !projectId || !meetsEdgeThreshold) {
@@ -58,65 +54,13 @@ export function useDiagnostics(
         workflowId,
       });
       
-      const storedIssues = diagnosticsStore.load(projectId);
-      const mergedIssues = diagnosticsStore.merge(storedIssues, freshIssues);
-      
-      diagnosticsStore.save(projectId, mergedIssues);
-      setIssues(mergedIssues);
+      setIssues(freshIssues);
     } catch (e) {
       console.error('[useDiagnostics] Detection failed:', e);
     } finally {
       setIsLoading(false);
     }
   }, [nodes, edges, projectId, workflowId, enabled, meetsEdgeThreshold]);
-  
-  useEffect(() => {
-    if (!enabled) {
-      setIssues([]);
-      return;
-    }
-    
-    const nodesKey = JSON.stringify(nodes.map(n => ({ 
-      id: n.id, 
-      type: n.type,
-      speculative: !!(n.meta as { speculative?: boolean })?.speculative,
-    })));
-    const edgesKey = JSON.stringify(edges.map(e => ({ 
-      source: e.source, 
-      target: e.target,
-      speculative: !!(e.meta as { speculative?: boolean })?.speculative,
-    })));
-    
-    if (nodesKey === lastNodesRef.current && edgesKey === lastEdgesRef.current) {
-      return;
-    }
-    
-    lastNodesRef.current = nodesKey;
-    lastEdgesRef.current = edgesKey;
-    
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    
-    debounceRef.current = setTimeout(runDetection, debounceMs);
-    
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, [nodes, edges, enabled, debounceMs, runDetection]);
-  
-  useEffect(() => {
-    if (enabled && projectId && meetsEdgeThreshold) {
-      const stored = diagnosticsStore.load(projectId);
-      if (stored.length > 0) {
-        setIssues(stored);
-      }
-    } else if (!meetsEdgeThreshold) {
-      setIssues([]);
-    }
-  }, [projectId, enabled, meetsEdgeThreshold]);
   
   const acknowledge = useCallback((fingerprint: string) => {
     diagnosticsStore.acknowledge(projectId, fingerprint);

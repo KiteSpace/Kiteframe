@@ -46,9 +46,8 @@ export { useUndoRedo } from './hooks/useUndoRedo';
 export type { UseUndoRedoOptions, UseUndoRedoCallbacks } from './hooks/useUndoRedo';
 export { useDiagnostics } from './hooks/useDiagnostics';
 
-// Diagnostics context and overlay
+// Diagnostics context (no overlay - diagnostics are opt-in via Test Flight)
 export { DiagnosticsProvider, useDiagnosticsContext, useNodeDiagnostics } from './contexts/DiagnosticsContext';
-export { DiagnosticOverlay } from './components/DiagnosticOverlay';
 
 // Types
 export type { 
@@ -275,5 +274,3 @@ export type {
   DiagnosticType
 } from './utils/diagnostics';
 
-// Diagnostics UI Components
-export { DiagnosticBadge } from './components/DiagnosticBadge';
