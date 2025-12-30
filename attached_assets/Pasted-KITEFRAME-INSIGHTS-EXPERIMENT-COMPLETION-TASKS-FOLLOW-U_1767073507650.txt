@@ -1,0 +1,182 @@
+KITEFRAME — INSIGHTS → EXPERIMENT COMPLETION TASKS
+FOLLOW-UP IMPLEMENTATION INSTRUCTIONS
+
+CONTEXT
+The Insights refactor is directionally correct. The remaining work is to:
+- Close the loop between Insights and Experiments
+- Finalize the Insight lifecycle
+- Ensure viewport behavior matches UX intent
+- Eliminate any remaining system-initiated Experiment creation
+- Prepare (but not yet fully implement) PRD integration
+
+=====================================================================
+PRIORITY 1 — INSIGHT → EXPERIMENT ACTION (REQUIRED)
+=====================================================================
+
+GOAL:
+Allow users to explicitly explore an Insight by creating an Experiment,
+without mutating the workflow automatically.
+
+1. ADD “EXPLORE” ACTION TO INSIGHT CARDS
+---------------------------------------
+Location:
+- InsightsTab / InsightCard component
+
+Add a visible action button:
+- Label: “Explore”
+- This button must appear on each Insight item
+
+2. EXPLORE ACTION BEHAVIOR
+--------------------------
+On click:
+- Create a new Experiment object
+- Anchor it to:
+  - Insight.relatedNodeIds
+- Pass Insight.explorationContext as the origin context
+
+IMPORTANT:
+- Do NOT auto-generate nodes or edges
+- Do NOT modify the workflow
+- User must explicitly Accept speculative output later
+
+3. EXPERIMENT MODE SELECTION
+-----------------------------
+Current plan is acceptable:
+- Open existing experiment mode picker
+  (whatif / enhancement / open_exploration)
+
+Note:
+- This may be simplified later, but do NOT block Explore on mode selection refactors.
+
+=====================================================================
+PRIORITY 2 — INSIGHT LIFECYCLE COMPLETION
+=====================================================================
+
+GOAL:
+Align Insight lifecycle with the agreed mental model.
+
+1. ADD NEW INSIGHT STATES
+-------------------------
+Extend Insight.status enum to include:
+- deferred
+- promoted
+
+Existing states remain:
+- new
+- viewed
+- explored
+- dismissed
+
+2. DEFINE STATE TRANSITIONS
+---------------------------
+- new → viewed (on first interaction)
+- viewed → deferred (explicit user action)
+- viewed → explored (when Explore is clicked)
+- any → dismissed (explicit)
+- viewed → promoted (explicit)
+
+NO automatic transitions beyond “viewed”.
+
+3. UI ACTIONS
+-------------
+Add Insight actions:
+- “Defer” → sets status = deferred
+- “Add to PRD” → sets status = promoted
+
+Do NOT auto-remove Insights when promoted.
+
+=====================================================================
+PRIORITY 3 — VIEWPORT & HOVER BEHAVIOR (NON-DISRUPTIVE)
+=====================================================================
+
+GOAL:
+Improve spatial understanding without disrupting flow.
+
+1. HOVER HIGHLIGHT
+------------------
+On Insight hover:
+- Highlight related nodes on canvas
+- DO NOT pan or zoom viewport
+- Highlight should be subtle and reversible
+
+Implement via:
+- hoveredNodeIds state
+- Canvas node styling only
+
+2. CLICK BEHAVIOR (UNCHANGED)
+------------------------------
+On Insight click:
+- Call existing focusInsight()
+- Pan/zoom viewport to related nodes
+
+Confirm:
+- No viewport movement occurs on hover
+
+=====================================================================
+PRIORITY 4 — EXPERIMENT CREATION AUDIT
+=====================================================================
+
+GOAL:
+Ensure Experiments are ONLY created via explicit user intent.
+
+1. AUDIT ALL EXPERIMENT CREATION PATHS
+--------------------------------------
+Search for:
+- new WorkflowTool(...)
+- createExperiment(...)
+- meta.source: 'diagnostic'
+
+Confirm removal or disablement of:
+- Any system-initiated creation paths
+- Any legacy “Explore Solution” callbacks
+
+2. FINAL VALID CREATION PATHS
+------------------------------
+ONLY these must remain:
+1. User manually places Experiment tool on canvas
+2. User clicks “Explore” on an Insight
+
+Document findings in code comments if any legacy paths remain.
+
+=====================================================================
+PRIORITY 5 — PRD PREPARATION (NOT FULL IMPLEMENTATION)
+=====================================================================
+
+GOAL:
+Enable future PRD integration without changing current PRD behavior.
+
+1. PLUMB PROMOTED INSIGHTS
+--------------------------
+- Store promoted Insights in Insight store
+- Make them accessible to PRD generation pipeline
+  (do NOT include by default yet)
+
+2. DO NOT CHANGE PRD OUTPUT
+---------------------------
+- No automatic inclusion
+- No risk language added
+- Assumptions remain unchanged
+
+This is wiring only, not UX.
+
+=====================================================================
+FINAL ACCEPTANCE CRITERIA
+=====================================================================
+
+PASS ONLY IF ALL ARE TRUE:
+
+- Insights show an explicit “Explore” action
+- Clicking Explore creates an Experiment but does NOT mutate workflow
+- Hover highlights nodes without moving viewport
+- Click focuses viewport
+- Insights support deferred and promoted states
+- No system-initiated Experiment creation remains
+- PRD behavior is unchanged unless Insight is explicitly promoted
+
+DO NOT:
+- Reintroduce badges
+- Auto-run diagnostics
+- Auto-create Experiments
+- Add judgmental language
+
+END OF TASK FILE
