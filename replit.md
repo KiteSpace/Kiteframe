@@ -73,11 +73,22 @@ Preferred communication style: Simple, everyday language.
 - **Key Files**: `types.ts` (ExperimentMeta, ExperimentNodeData), `SpaceProbe.ts`, `ExperimentBranchHeader.tsx`, `ExperimentEditButton.tsx`, `experimentNormalizer.ts`.
 - **Note**: Legacy 'wildcard' node type has been completely removed from codebase (Dec 2025). Only 'experiment' nodes exist for speculative branching.
 
+### Insights System (Dec 2025 Refactor)
+- **Philosophy**: Canvas is judgment-free; diagnostics are opt-in via "Test Flight" in the Insights tab.
+- **No Auto-Run**: Insights are only generated when user explicitly clicks "Test Flight".
+- **No Canvas Badges**: DiagnosticBadge and DiagnosticOverlay components have been removed.
+- **Neutral Terminology**: "Issues" renamed to "Insights"; severity labels replaced with categories (Observation, Suggestion, Note).
+- **Insight Type**: Unified `Insight` model in `client/src/lib/kiteframe/utils/insights/types.ts`.
+- **useInsights Hook**: Session-based insight management (no persistent storage), replaces useDiagnostics for UI.
+- **Test Flight**: Runs diagnostics engine on demand, converts results to Insights.
+- **Key Files**: `useInsights.ts`, `insightConverter.ts`, `types.ts` (insights), `DiagnosticsTab.tsx`.
+
 ### Project Panel
-- **Tabs**: KiteAI (AI assistant), Project (unified document), Layers (canvas hierarchy).
+- **Tabs**: KiteAI (AI assistant), Project (unified document), Layers (canvas hierarchy), Notes, Insights.
 - **KiteAI Tab**: AI-powered workflow generation.
 - **Project Tab**: Combines project overview, workflow selection with inline PRD generation, markdown notes, and external sources.
 - **Layers Tab**: Workflow-first hierarchical view with search and visibility toggles.
+- **Insights Tab**: Opt-in workflow analysis via Test Flight, showing observations and suggestions with click-to-focus.
 - **Persistence**: Collapsible panel and active tab state persisted in localStorage.
 
 ### PRD System (Project Tab)

@@ -149,8 +149,8 @@ export function ProjectPanel({
     }
   }, [forceTab]);
 
-  const activeIssueCount = diagnosticsIssues.filter(i => i.status !== 'resolved').length;
-  const newIssueCount = diagnosticsIssues.filter(i => i.status === 'new').length;
+  const activeInsightCount = insights.filter(i => i.status !== 'dismissed').length;
+  const newInsightCount = insights.filter(i => i.status === 'new').length;
 
   if (isCollapsed) {
     return (
@@ -266,13 +266,13 @@ export function ProjectPanel({
               <TabsTrigger 
                 value="diagnostics" 
                 className="text-xs px-3 gap-1.5 data-[state=active]:bg-background relative" 
-                data-testid="tab-diagnostics"
+                data-testid="tab-insights"
               >
-                <AlertTriangle size={14} className={newIssueCount > 0 ? 'text-orange-500' : ''} />
-                Issues
-                {newIssueCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 text-[10px] font-medium rounded-full bg-red-500 text-white flex items-center justify-center">
-                    {newIssueCount > 9 ? '9+' : newIssueCount}
+                <AlertTriangle size={14} className={newInsightCount > 0 ? 'text-purple-500' : ''} />
+                Insights
+                {newInsightCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 text-[10px] font-medium rounded-full bg-purple-500 text-white flex items-center justify-center">
+                    {newInsightCount > 9 ? '9+' : newInsightCount}
                   </span>
                 )}
               </TabsTrigger>
