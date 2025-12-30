@@ -7,10 +7,13 @@ import {
   type InsertProjectFolder,
   type ShareLink,
   type InsertShareLink,
+  type InsightHistory,
+  type InsertInsightHistory,
   users,
   savedProjects,
   projectFolders,
   shareLinks,
+  insightHistory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -39,6 +42,10 @@ export interface IStorage {
   createShareLink(data: InsertShareLink): Promise<ShareLink>;
   getShareLink(shareId: string): Promise<ShareLink | undefined>;
   updateShareLink(shareId: string, data: Partial<InsertShareLink>): Promise<ShareLink | undefined>;
+  // Insight history
+  getInsightHistory(userId: string, projectId?: string): Promise<InsightHistory[]>;
+  createInsightHistory(data: InsertInsightHistory): Promise<InsightHistory>;
+  updateInsightHistory(id: string, data: Partial<InsertInsightHistory>): Promise<InsightHistory | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -283,6 +290,46 @@ export class DatabaseStorage implements IStorage {
       viewport: updated.viewport ? updated.viewport : undefined,
       projectMetadata: updated.projectMetadata ? updated.projectMetadata : undefined,
     };
+  }
+
+  // Insight history methods
+  async getInsightHistory(userId: string, projectId?: string): Promise<InsightHistory[]> {
+    if (projectId) {
+      return db
+        .select()
+        .from(insightHistory)
+        .where(and(eq(insightHistory.userId, userId), eq(insightHistory.projectId, projectId)))
+        .orderBy(desc(insightHistory.actedAt));
+    }
+    return db
+      .select()
+      .from(insightHistory)
+      .where(eq(insightHistory.userId, userId))
+      .orderBy(desc(insightHistory.actedAt));
+  }
+
+  async createInsightHistory(data: InsertInsightHistory): Promise<InsightHistory> {
+    const [entry] = await db
+      .insert(insightHistory)
+      .values({
+        ...data,
+        explorationContext: data.explorationContext ? JSON.parse(JSON.stringify(data.explorationContext)) : null,
+      })
+      .returning();
+    return entry;
+  }
+
+  async updateInsightHistory(id: string, data: Partial<InsertInsightHistory>): Promise<InsightHistory | undefined> {
+    const serialized: Record<string, any> = { ...data };
+    if (data.explorationContext !== undefined) {
+      serialized.explorationContext = JSON.parse(JSON.stringify(data.explorationContext));
+    }
+    const [updated] = await db
+      .update(insightHistory)
+      .set(serialized)
+      .where(eq(insightHistory.id, id))
+      .returning();
+    return updated;
   }
 }
 

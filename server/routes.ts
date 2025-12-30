@@ -1111,6 +1111,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Insight history endpoints
+  const insightHistorySchema = z.object({
+    originalInsightId: z.string(),
+    projectId: z.string().optional(),
+    workflowId: z.string().optional(),
+    title: z.string(),
+    description: z.string(),
+    category: z.enum(['observation', 'suggestion', 'note']),
+    status: z.enum(['new', 'viewed', 'explored', 'dismissed', 'deferred', 'promoted']),
+    relatedNodeIds: z.array(z.string()).optional(),
+    relatedEdgeIds: z.array(z.string()).optional(),
+    explorationContext: z.object({
+      suggestedMode: z.enum(['whatif', 'enhancement', 'open_exploration']).optional(),
+      prefilledPrompt: z.string().optional(),
+      anchorNodeId: z.string().optional(),
+    }).optional(),
+    actedAt: z.string().optional(),
+    viewedAt: z.string().optional(),
+    exploredAt: z.string().optional(),
+    dismissedAt: z.string().optional(),
+    deferredAt: z.string().optional(),
+    promotedAt: z.string().optional(),
+  });
+
+  app.get('/api/insights/history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserIdFromRequest(req.user);
+      const projectId = req.query.projectId as string | undefined;
+      const history = await storage.getInsightHistory(userId, projectId);
+      res.json({ history });
+    } catch (error) {
+      console.error('Error fetching insight history:', error);
+      res.status(500).json({ error: 'Failed to fetch insight history' });
+    }
+  });
+
+  app.post('/api/insights/history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserIdFromRequest(req.user);
+      const parseResult = insightHistorySchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: 'Invalid request data', details: parseResult.error.errors });
+      }
+
+      const data = parseResult.data;
+      const entry = await storage.createInsightHistory({
+        userId,
+        projectId: data.projectId,
+        workflowId: data.workflowId,
+        originalInsightId: data.originalInsightId,
+        title: data.title,
+        description: data.description,
+        category: data.category,
+        status: data.status,
+        relatedNodeIds: data.relatedNodeIds || [],
+        relatedEdgeIds: data.relatedEdgeIds || [],
+        explorationContext: data.explorationContext,
+        actedAt: data.actedAt ? new Date(data.actedAt) : new Date(),
+        viewedAt: data.viewedAt ? new Date(data.viewedAt) : undefined,
+        exploredAt: data.exploredAt ? new Date(data.exploredAt) : undefined,
+        dismissedAt: data.dismissedAt ? new Date(data.dismissedAt) : undefined,
+        deferredAt: data.deferredAt ? new Date(data.deferredAt) : undefined,
+        promotedAt: data.promotedAt ? new Date(data.promotedAt) : undefined,
+      });
+      res.json({ entry });
+    } catch (error) {
+      console.error('Error creating insight history:', error);
+      res.status(500).json({ error: 'Failed to create insight history' });
+    }
+  });
+
   // Share project endpoint - create a view-only share link (requires authentication)
   const shareProjectSchema = z.object({
     nodes: z.array(z.object({

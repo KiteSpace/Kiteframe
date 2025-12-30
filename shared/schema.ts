@@ -455,3 +455,46 @@ export const insertDocAccessGrantSchema = createInsertSchema(docAccessGrants).om
 
 export type DocAccessGrant = typeof docAccessGrants.$inferSelect;
 export type InsertDocAccessGrant = z.infer<typeof insertDocAccessGrantSchema>;
+
+// Insight history - persists acted-upon insights for user review
+export const insightCategoryEnum = ['observation', 'suggestion', 'note'] as const;
+export type InsightCategoryType = typeof insightCategoryEnum[number];
+
+export const insightStatusEnum = ['new', 'viewed', 'explored', 'dismissed', 'deferred', 'promoted'] as const;
+export type InsightStatusType = typeof insightStatusEnum[number];
+
+export const insightHistory = pgTable("insight_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  projectId: varchar("project_id"),
+  workflowId: varchar("workflow_id"),
+  originalInsightId: varchar("original_insight_id").notNull(),
+  title: varchar("title").notNull(),
+  description: text("description").notNull(),
+  category: varchar("category").notNull(),
+  status: varchar("status").notNull(),
+  relatedNodeIds: text("related_node_ids").array().default(sql`ARRAY[]::text[]`),
+  relatedEdgeIds: text("related_edge_ids").array().default(sql`ARRAY[]::text[]`),
+  explorationContext: jsonb("exploration_context"),
+  createdAt: timestamp("created_at").defaultNow(),
+  actedAt: timestamp("acted_at").defaultNow(),
+  viewedAt: timestamp("viewed_at"),
+  exploredAt: timestamp("explored_at"),
+  dismissedAt: timestamp("dismissed_at"),
+  deferredAt: timestamp("deferred_at"),
+  promotedAt: timestamp("promoted_at"),
+}, (table) => [
+  index("IDX_insight_history_user").on(table.userId),
+  index("IDX_insight_history_project").on(table.projectId),
+  index("IDX_insight_history_workflow").on(table.workflowId),
+  index("IDX_insight_history_status").on(table.status),
+  index("IDX_insight_history_acted_at").on(table.actedAt),
+]);
+
+export const insertInsightHistorySchema = createInsertSchema(insightHistory).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsightHistory = typeof insightHistory.$inferSelect;
+export type InsertInsightHistory = z.infer<typeof insertInsightHistorySchema>;

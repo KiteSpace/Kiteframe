@@ -80,7 +80,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   const scrollRef = useRef<HTMLDivElement>(null);
   const focusedRowRef = useRef<HTMLDivElement>(null);
   const [listFilterMode, setListFilterMode] = useState<ListFilterMode>('new');
-  const [categoryFilter, setCategoryFilter] = useState<Set<InsightCategory>>(new Set(['observation', 'suggestion', 'note']));
+  const [categoryFilter, setCategoryFilter] = useState<Set<InsightCategory>>(new Set<InsightCategory>(['observation', 'suggestion', 'note']));
   
   const toggleCategory = (category: InsightCategory) => {
     setCategoryFilter(prev => {
