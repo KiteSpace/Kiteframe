@@ -2274,17 +2274,18 @@ function WorkflowEditorContent({
       }
       
       // Create a new WorkflowTool (experiment) anchored to the insight's related nodes
-      // This does NOT auto-generate nodes - user must explicitly accept speculative output
+      // origin: 'explore' locks mode and uses solution-oriented prompts
       const newTool: WorkflowTool = {
         id: `experiment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         type: 'experiment',
         anchorNodeId,
         mode: insight.explorationContext.suggestedMode,
+        origin: 'explore',
         userPrompt: insight.explorationContext.prefilledPrompt || '',
         state: 'idle',
         meta: {
           experimentId: `exp-${Date.now()}`,
-          source: 'user',
+          source: 'diagnostic',
           createdAt: Date.now(),
           issueTitle: insight.title,
           issueDescription: insight.description,
@@ -2297,8 +2298,8 @@ function WorkflowEditorContent({
       focusOnNode(anchorNodeId);
       
       toast({
-        title: "Exploration started",
-        description: `Created experiment anchored to "${anchorNode.data?.label || 'node'}". Select a mode to generate options.`,
+        title: "Exploring solutions",
+        description: `Finding solutions for "${insight.title}"...`,
       });
     };
   }, [insights, nodes, focusOnNode, toast]);

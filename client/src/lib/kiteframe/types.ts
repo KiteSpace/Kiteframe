@@ -221,6 +221,7 @@ export interface ExperimentOption {
   description?: string;
   tags?: string[];
   requires?: string[];
+  recommended?: boolean;
 }
 
 export interface ExperimentAnchor {
@@ -245,9 +246,12 @@ export interface ExperimentUI {
   badge?: 'Preview' | 'Speculative';
 }
 
+export type ExperimentOrigin = 'explore' | 'experiment';
+
 export interface ExperimentNodeData extends BaseNodeData {
   label: string;
   mode: ExperimentMode;
+  origin?: ExperimentOrigin;
   selectedOptionId?: string;
   selectedOptionLabel?: string;
   selectedOptionDescription?: string;
@@ -255,6 +259,8 @@ export interface ExperimentNodeData extends BaseNodeData {
   anchor: ExperimentAnchor;
   generation: ExperimentGeneration;
   ui: ExperimentUI;
+  issueTitle?: string;
+  issueDescription?: string;
 }
 
 export type CanvasObjectType = 'text' | 'sticky' | 'shape';
@@ -1358,6 +1364,7 @@ export interface WorkflowTool {
   type: WorkflowToolType;
   anchorNodeId: string;
   mode: ExperimentMode;
+  origin?: ExperimentOrigin;
   state: WorkflowToolState;
   selectedOption?: WorkflowToolSelectedOption;
   userPrompt?: string;

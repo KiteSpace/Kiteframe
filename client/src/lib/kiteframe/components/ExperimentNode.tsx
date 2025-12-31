@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { FlaskConical, Check, Trash2, ChevronDown, Loader2, AlertCircle, X, RefreshCw } from 'lucide-react';
+import { FlaskConical, Check, Trash2, ChevronDown, Loader2, AlertCircle, X, RefreshCw, Compass } from 'lucide-react';
 import type { Node, ExperimentNodeData, ExperimentMode, ExperimentOption } from '../types';
 import { sanitizeText } from '../utils/validation';
 import { useScrollIsolation } from '../hooks/useScrollIsolation';
@@ -11,7 +11,7 @@ const NODE_HEIGHT = 360;
 const NODE_WIDTH = 320;
 const SIMPLIFIED_NODE_HEIGHT = 140;
 
-// Purple theme colors
+// Purple theme colors for Experiment
 const PURPLE = {
   stroke: '#9333ea', // purple-600
   header: '#9333ea', // purple-600 (solid purple for consistency)
@@ -19,6 +19,16 @@ const PURPLE = {
   body: '#faf5ff', // purple-50 (light purple body)
   accent: '#a855f7', // purple-500
   dark: '#7c3aed', // purple-600 darker
+};
+
+// Amber/Orange theme colors for Explore (system-led, solution-oriented)
+const AMBER = {
+  stroke: '#d97706', // amber-600
+  header: '#d97706', // amber-600
+  footer: '#d97706', // amber-600
+  body: '#fffbeb', // amber-50
+  accent: '#f59e0b', // amber-500
+  dark: '#b45309', // amber-700
 };
 
 export interface ExperimentNodeComponentProps {
@@ -132,6 +142,11 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
   const rawMode = data.mode || 'whatif';
   const mode: ExperimentMode = (rawMode as string) === 'risk' ? 'whatif' : (rawMode as string) === 'prompt' ? 'open_exploration' : rawMode as ExperimentMode;
   const modeConfig = MODE_CONFIG[mode];
+  
+  // Determine if this is an Explore (system-led) or Experiment (user-led)
+  const isExplore = data.origin === 'explore';
+  // Use amber theme for Explore, purple for Experiment
+  const theme = isExplore ? AMBER : PURPLE;
   
   const generationStatus = getGenerationStatus(data);
   const isGenerating = generationStatus === 'generating';
@@ -318,14 +333,14 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
         'rounded-lg shadow-sm transition-all duration-200',
         'hover:shadow-md cursor-move overflow-hidden',
         'border-2',
-        node.selected ? 'ring-2 ring-purple-400 shadow-md' : '',
+        node.selected ? (isExplore ? 'ring-2 ring-amber-400 shadow-md' : 'ring-2 ring-purple-400 shadow-md') : '',
         node.hidden ? 'opacity-0 pointer-events-none' : '',
         className,
       )}
       style={{
         ...nodeStyles,
-        backgroundColor: PURPLE.body,
-        borderColor: PURPLE.stroke,
+        backgroundColor: theme.body,
+        borderColor: theme.stroke,
       }}
       onMouseDown={handleMouseDown}
       onClick={(e) => onClick?.(e, node)}
@@ -338,18 +353,25 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
         style={{ 
           height: HEADER_H, 
           minHeight: HEADER_H,
-          backgroundColor: PURPLE.header,
-          borderBottom: `1px solid ${PURPLE.stroke}`,
+          backgroundColor: theme.header,
+          borderBottom: `1px solid ${theme.stroke}`,
         }}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {/* Mode selector - simplified when hasGenerated (just label, no dropdown) */}
-          {hasGenerated ? (
+          {/* For Explore: always show static "Explore Solutions" header - no mode switching */}
+          {isExplore ? (
+            <div className="flex items-center gap-1.5 text-sm font-medium py-1 px-2 text-white">
+              <Compass className="w-3.5 h-3.5" />
+              <span className="truncate">Explore Solutions</span>
+            </div>
+          ) : hasGenerated ? (
+            /* Mode label (no dropdown) when generated for Experiment */
             <div className="flex items-center gap-1.5 text-sm font-medium py-1 px-2 text-white">
               <FlaskConical className="w-3.5 h-3.5" />
               <span className="truncate">{MODE_LABELS[mode]}</span>
             </div>
           ) : (
+            /* Mode selector dropdown for Experiment */
             <div className="relative">
               <button
                 onClick={(e) => {
@@ -527,13 +549,24 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                     className={cn(
                       "text-left px-2.5 py-2 text-xs rounded-md border transition-colors flex-shrink-0",
                       selectedOption?.id === option.id
-                        ? "bg-purple-100 border-purple-400 text-purple-800"
-                        : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50",
+                        ? isExplore
+                          ? "bg-amber-100 border-amber-400 text-amber-800"
+                          : "bg-purple-100 border-purple-400 text-purple-800"
+                        : isExplore
+                          ? "bg-white border-gray-200 text-gray-700 hover:border-amber-300 hover:bg-amber-50"
+                          : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50",
                       (readOnly || isGenerating) ? "opacity-50 cursor-not-allowed" : ""
                     )}
                     data-testid={`experiment-option-${option.id}`}
                   >
-                    <span className="font-medium block">{option.label}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium">{option.label}</span>
+                      {isExplore && option.recommended && (
+                        <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-amber-500 text-white rounded">
+                          Recommended
+                        </span>
+                      )}
+                    </div>
                     {option.description && (
                       <span className="text-[10px] text-gray-500 line-clamp-1">{option.description}</span>
                     )}
@@ -559,12 +592,34 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
 
             {/* Selected option display */}
             {selectedOption && (
-              <div className="mt-2 p-2 bg-purple-50 border border-purple-200 rounded-md flex-shrink-0">
+              <div className={cn(
+                "mt-2 p-2 rounded-md flex-shrink-0",
+                isExplore 
+                  ? "bg-amber-50 border border-amber-200" 
+                  : "bg-purple-50 border border-purple-200"
+              )}>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-medium text-purple-800">{selectedOption.label}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className={cn(
+                        "text-sm font-medium",
+                        isExplore ? "text-amber-800" : "text-purple-800"
+                      )}>
+                        {selectedOption.label}
+                      </p>
+                      {isExplore && selectedOption.recommended && (
+                        <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-amber-500 text-white rounded">
+                          Recommended
+                        </span>
+                      )}
+                    </div>
                     {selectedOption.description && (
-                      <p className="text-xs text-purple-600 mt-0.5">{selectedOption.description}</p>
+                      <p className={cn(
+                        "text-xs mt-0.5",
+                        isExplore ? "text-amber-600" : "text-purple-600"
+                      )}>
+                        {selectedOption.description}
+                      </p>
                     )}
                   </div>
                   {!readOnly && !isGenerating && (
@@ -573,7 +628,10 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                         e.stopPropagation();
                         setSelectedOption(null);
                       }}
-                      className="p-0.5 text-purple-500 hover:text-purple-700"
+                      className={cn(
+                        "p-0.5",
+                        isExplore ? "text-amber-500 hover:text-amber-700" : "text-purple-500 hover:text-purple-700"
+                      )}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -601,8 +659,8 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
           style={{ 
             height: FOOTER_H, 
             minHeight: FOOTER_H,
-            backgroundColor: PURPLE.footer,
-            borderTop: `1px solid ${PURPLE.stroke}`,
+            backgroundColor: theme.footer,
+            borderTop: `1px solid ${theme.stroke}`,
           }}
         >
           {/* Generate button - always visible in full view */}
@@ -612,23 +670,27 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
               canGenerate && !readOnly
-                ? "bg-white text-purple-700 hover:bg-purple-50 shadow-sm"
+                ? isExplore 
+                  ? "bg-white text-amber-700 hover:bg-amber-50 shadow-sm"
+                  : "bg-white text-purple-700 hover:bg-purple-50 shadow-sm"
                 : "bg-white/20 text-white/50 cursor-not-allowed"
             )}
             title={
               !hasIncomingEdges ? "Connect to a workflow node first" :
               !hasContent ? (mode === 'open_exploration' ? "Enter at least 20 characters" : "Select an option") :
               isGenerating ? "Generating..." :
-              "Generate speculative branch"
+              isExplore ? "Find solutions" : "Generate speculative branch"
             }
             data-testid="experiment-generate-btn"
           >
             {isGenerating ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : isExplore ? (
+              <Compass className="w-3.5 h-3.5" />
             ) : (
               <FlaskConical className="w-3.5 h-3.5" />
             )}
-            <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
+            <span>{isGenerating ? 'Finding solutions...' : isExplore ? 'Find Solutions' : 'Generate'}</span>
           </button>
         </div>
       )}

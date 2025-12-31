@@ -71,8 +71,13 @@ export function useExperimentOptions(
       return;
     }
 
-    // open_exploration mode doesn't get AI suggestions - user provides freeform input
-    if (mode === 'open_exploration') {
+    // Get origin from node data first to check if this is Explore
+    const experimentNode = nodes.find(n => n.id === nodeId);
+    const nodeData = experimentNode?.data as ExperimentNodeData | undefined;
+    const isExplore = nodeData?.origin === 'explore';
+    
+    // open_exploration mode doesn't get AI suggestions for Experiment - but Explore always generates
+    if (!isExplore && mode === 'open_exploration') {
       setOptionsMap(prev => {
         const next = new Map(prev);
         next.set(nodeId, {
@@ -156,7 +161,14 @@ export function useExperimentOptions(
         return;
       }
 
-      const result = await generateExperimentOptions(ai, { mode, context });
+      // Use nodeData already extracted at the start of the function
+      const result = await generateExperimentOptions(ai, { 
+        mode, 
+        context,
+        origin: nodeData?.origin,
+        issueTitle: nodeData?.issueTitle,
+        issueDescription: nodeData?.issueDescription,
+      });
 
       if (result.success && result.options) {
         const options = result.options;

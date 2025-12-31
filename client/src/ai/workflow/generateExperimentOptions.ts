@@ -1,5 +1,5 @@
 import type { AiClient, AiMessage } from '../types';
-import type { ExperimentMode, ExperimentOption } from '../../lib/kiteframe/types';
+import type { ExperimentMode, ExperimentOption, ExperimentOrigin } from '../../lib/kiteframe/types';
 import type { ExperimentContext } from '../../lib/kiteframe/utils/experimentContext';
 import { formatContextForPrompt } from '../../lib/kiteframe/utils/experimentContext';
 
@@ -9,6 +9,9 @@ type GenerateOptionsMode = ExperimentMode | 'risk' | 'prompt';
 export interface GenerateOptionsInput {
   mode: GenerateOptionsMode;
   context: ExperimentContext;
+  origin?: ExperimentOrigin;
+  issueTitle?: string;
+  issueDescription?: string;
 }
 
 export interface GenerateOptionsResult {
@@ -83,6 +86,36 @@ Example format:
 
 Return ONLY valid JSON array, no markdown or explanation.`;
 
+// EXPLORE prompt - system-led, solution-oriented, decisive
+// Max 2 solutions, exactly 1 marked as recommended
+const EXPLORE_PROMPT = `You are a senior product consultant proposing solutions to a workflow issue.
+
+Issue: {{issueTitle}}
+{{issueDescription}}
+
+Current workflow context:
+{{context}}
+
+Task:
+Propose exactly 1-2 concrete solutions that resolve this issue. One solution MUST be marked as recommended.
+
+STRICT REQUIREMENTS:
+1. Maximum 2 solutions total
+2. Exactly 1 solution must have "recommended": true
+3. Each solution MUST describe specific workflow changes (add nodes, add conditions, split branches, etc.)
+4. Use assertive language - state what SHOULD happen, not what "could" or "might" happen
+5. Be specific - name actual steps, conditions, or branches to add
+6. Do NOT ask follow-up questions
+7. Do NOT use abstract language like "improve UX" or "add validation"
+
+Return JSON array:
+[
+  {"id": "sol-1", "label": "Add approval gate before deploy", "description": "Insert a condition node after 'Build Complete' that routes to manager approval. If approved, continue to deploy. If rejected, return to revision.", "recommended": true},
+  {"id": "sol-2", "label": "Add automated checks before deploy", "description": "Insert a process node that runs security scan and test suite. Create a condition that blocks deploy if any check fails.", "recommended": false}
+]
+
+Return ONLY valid JSON array. No markdown, no explanation, no questions.`;
+
 function getPromptForMode(mode: ExperimentMode | 'risk' | 'prompt'): string | null {
   switch (mode) {
     case 'whatif':
@@ -99,7 +132,12 @@ function getPromptForMode(mode: ExperimentMode | 'risk' | 'prompt'): string | nu
   }
 }
 
-function parseAiResponse(text: string, mode: ExperimentMode): ExperimentOption[] {
+// Extended option type for Explore with recommended field
+export interface ExploreOption extends ExperimentOption {
+  recommended?: boolean;
+}
+
+function parseAiResponse(text: string, mode: ExperimentMode, isExplore: boolean = false): ExploreOption[] {
   try {
     let jsonStr = text.trim();
     
@@ -115,14 +153,34 @@ function parseAiResponse(text: string, mode: ExperimentMode): ExperimentOption[]
       return [];
     }
     
-    return parsed.map((item, index) => ({
+    let options: ExploreOption[] = parsed.map((item, index) => ({
       id: item.id || `${mode}-${index + 1}`,
       label: item.label || item.title || 'Untitled',
       description: item.description || '',
       tags: item.severity ? [`severity:${item.severity}`] : 
             item.impact ? [`impact:${item.impact}`] :
             item.confidence ? [`confidence:${item.confidence}`] : undefined,
+      recommended: isExplore ? item.recommended === true : undefined,
     }));
+    
+    // For Explore: enforce max 2 options and EXACTLY 1 is recommended
+    if (isExplore) {
+      options = options.slice(0, 2);
+      
+      // Find first recommended option index, or default to first option
+      let recommendedIdx = options.findIndex(o => o.recommended);
+      if (recommendedIdx === -1 && options.length > 0) {
+        recommendedIdx = 0;
+      }
+      
+      // Enforce exactly one recommended - set all to false except the chosen one
+      options = options.map((o, idx) => ({
+        ...o,
+        recommended: idx === recommendedIdx,
+      }));
+    }
+    
+    return options;
   } catch (error) {
     console.error('Failed to parse AI response:', error, text);
     return [];
@@ -133,20 +191,34 @@ export async function generateExperimentOptions(
   ai: AiClient,
   input: GenerateOptionsInput
 ): Promise<GenerateOptionsResult> {
-  const { mode, context } = input;
+  const { mode, context, origin, issueTitle, issueDescription } = input;
   
-  // open_exploration and legacy 'prompt' mode don't get AI suggestions - user provides freeform input
-  if (mode === 'open_exploration' || mode === 'prompt') {
+  const isExplore = origin === 'explore';
+  
+  // For Explore: always generate solutions regardless of mode
+  // For Experiment: open_exploration and legacy 'prompt' mode don't get AI suggestions
+  if (!isExplore && (mode === 'open_exploration' || mode === 'prompt')) {
     return { success: true, options: [] };
   }
   
-  const promptTemplate = getPromptForMode(mode);
-  if (!promptTemplate) {
-    return { success: false, error: 'Invalid mode' };
-  }
+  let prompt: string;
   
-  const contextStr = formatContextForPrompt(context);
-  const prompt = promptTemplate.replace('{{context}}', contextStr);
+  if (isExplore) {
+    // Use Explore prompt with issue context
+    const contextStr = formatContextForPrompt(context);
+    prompt = EXPLORE_PROMPT
+      .replace('{{issueTitle}}', issueTitle || 'Workflow issue')
+      .replace('{{issueDescription}}', issueDescription ? `Details: ${issueDescription}` : '')
+      .replace('{{context}}', contextStr);
+  } else {
+    // Use standard experiment prompts
+    const promptTemplate = getPromptForMode(mode);
+    if (!promptTemplate) {
+      return { success: false, error: 'Invalid mode' };
+    }
+    const contextStr = formatContextForPrompt(context);
+    prompt = promptTemplate.replace('{{context}}', contextStr);
+  }
   
   const messages: AiMessage[] = [
     { role: 'user', content: prompt }
@@ -157,7 +229,7 @@ export async function generateExperimentOptions(
       messages,
     });
     
-    const options = parseAiResponse(response.text, mode);
+    const options = parseAiResponse(response.text, mode, isExplore);
     
     if (options.length === 0) {
       return { 
