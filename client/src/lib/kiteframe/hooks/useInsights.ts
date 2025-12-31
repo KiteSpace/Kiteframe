@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import type { Node, Edge } from '../types';
-import type { Insight, InsightStatus, InsightCategory } from '../utils/insights/types';
+import type { Insight } from '../utils/insights/types';
 import { diagnosticsEngine } from '../utils/diagnostics/DiagnosticsEngine';
 import { convertDiagnosticsToInsights } from '../utils/insights/insightConverter';
 import { apiRequest } from '@/lib/queryClient';
@@ -17,26 +17,23 @@ async function persistInsightAction(
   workflowId?: string
 ): Promise<void> {
   try {
-    await apiRequest('/api/insights/history', {
-      method: 'POST',
-      body: JSON.stringify({
-        originalInsightId: insight.id,
-        projectId,
-        workflowId,
-        title: insight.title,
-        description: insight.description,
-        category: insight.category,
-        status: insight.status,
-        relatedNodeIds: insight.relatedNodeIds,
-        relatedEdgeIds: insight.relatedEdgeIds,
-        explorationContext: insight.explorationContext,
-        actedAt: new Date().toISOString(),
-        viewedAt: insight.viewedAt ? new Date(insight.viewedAt).toISOString() : undefined,
-        exploredAt: insight.exploredAt ? new Date(insight.exploredAt).toISOString() : undefined,
-        dismissedAt: insight.dismissedAt ? new Date(insight.dismissedAt).toISOString() : undefined,
-        deferredAt: insight.deferredAt ? new Date(insight.deferredAt).toISOString() : undefined,
-        promotedAt: insight.promotedAt ? new Date(insight.promotedAt).toISOString() : undefined,
-      }),
+    await apiRequest('POST', '/api/insights/history', {
+      originalInsightId: insight.id,
+      projectId,
+      workflowId,
+      title: insight.title,
+      description: insight.description,
+      category: insight.category,
+      status: insight.status,
+      relatedNodeIds: insight.relatedNodeIds,
+      relatedEdgeIds: insight.relatedEdgeIds,
+      explorationContext: insight.explorationContext,
+      actedAt: new Date().toISOString(),
+      viewedAt: insight.viewedAt ? new Date(insight.viewedAt).toISOString() : undefined,
+      exploredAt: insight.exploredAt ? new Date(insight.exploredAt).toISOString() : undefined,
+      dismissedAt: insight.dismissedAt ? new Date(insight.dismissedAt).toISOString() : undefined,
+      deferredAt: insight.deferredAt ? new Date(insight.deferredAt).toISOString() : undefined,
+      promotedAt: insight.promotedAt ? new Date(insight.promotedAt).toISOString() : undefined,
     });
   } catch (error) {
     console.error('[useInsights] Failed to persist insight action:', error);
@@ -44,6 +41,15 @@ async function persistInsightAction(
 }
 
 const DEFAULT_MIN_EDGES = 3;
+
+interface WorkflowInsightState {
+  insights: Insight[];
+  lastRunAt: number | null;
+}
+
+interface InsightsStore {
+  [key: string]: WorkflowInsightState;
+}
 
 interface UseInsightsResult {
   insights: Insight[];
@@ -62,6 +68,10 @@ interface UseInsightsResult {
   getPromotedInsights: () => Insight[];
 }
 
+const getWorkflowKey = (projectId: string, workflowId?: string): string => {
+  return workflowId ? `${projectId}:${workflowId}` : projectId;
+};
+
 export function useInsights(
   nodes: Node[],
   edges: Edge[],
@@ -69,9 +79,25 @@ export function useInsights(
 ): UseInsightsResult {
   const { projectId, workflowId, minEdges = DEFAULT_MIN_EDGES } = options;
   
-  const [insights, setInsights] = useState<Insight[]>([]);
+  const insightsStoreRef = useRef<InsightsStore>({});
+  const [, forceUpdate] = useState({});
   const [isRunning, setIsRunning] = useState(false);
-  const [lastRunAt, setLastRunAt] = useState<number | null>(null);
+  
+  const workflowKey = getWorkflowKey(projectId, workflowId);
+  
+  const getCurrentState = useCallback((): WorkflowInsightState => {
+    return insightsStoreRef.current[workflowKey] || { insights: [], lastRunAt: null };
+  }, [workflowKey]);
+  
+  const setCurrentInsights = useCallback((updater: (prev: Insight[]) => Insight[]) => {
+    const currentState = insightsStoreRef.current[workflowKey] || { insights: [], lastRunAt: null };
+    const newInsights = updater(currentState.insights);
+    insightsStoreRef.current[workflowKey] = {
+      ...currentState,
+      insights: newInsights,
+    };
+    forceUpdate({});
+  }, [workflowKey]);
   
   const meetsEdgeThreshold = edges.length >= minEdges;
   
@@ -92,17 +118,20 @@ export function useInsights(
       
       const newInsights = convertDiagnosticsToInsights(diagnosticIssues);
       
-      setInsights(newInsights);
-      setLastRunAt(Date.now());
+      insightsStoreRef.current[workflowKey] = {
+        insights: newInsights,
+        lastRunAt: Date.now(),
+      };
+      forceUpdate({});
     } catch (e) {
       console.error('[useInsights] Test flight failed:', e);
     } finally {
       setIsRunning(false);
     }
-  }, [nodes, edges, projectId, workflowId, meetsEdgeThreshold]);
+  }, [nodes, edges, projectId, workflowId, workflowKey, meetsEdgeThreshold]);
   
   const markViewed = useCallback((insightId: string) => {
-    setInsights(prev => {
+    setCurrentInsights(prev => {
       const updated = prev.map(insight => 
         insight.id === insightId 
           ? { ...insight, status: 'viewed' as const, viewedAt: Date.now() }
@@ -114,10 +143,10 @@ export function useInsights(
       }
       return updated;
     });
-  }, [projectId, workflowId]);
+  }, [projectId, workflowId, setCurrentInsights]);
   
   const markExplored = useCallback((insightId: string) => {
-    setInsights(prev => {
+    setCurrentInsights(prev => {
       const updated = prev.map(insight =>
         insight.id === insightId
           ? { ...insight, status: 'explored' as const, exploredAt: Date.now() }
@@ -129,10 +158,10 @@ export function useInsights(
       }
       return updated;
     });
-  }, [projectId, workflowId]);
+  }, [projectId, workflowId, setCurrentInsights]);
   
   const dismiss = useCallback((insightId: string) => {
-    setInsights(prev => {
+    setCurrentInsights(prev => {
       const updated = prev.map(insight =>
         insight.id === insightId
           ? { ...insight, status: 'dismissed' as const, dismissedAt: Date.now() }
@@ -144,11 +173,11 @@ export function useInsights(
       }
       return updated;
     });
-  }, [projectId, workflowId]);
+  }, [projectId, workflowId, setCurrentInsights]);
   
   const dismissAll = useCallback(() => {
     const now = Date.now();
-    setInsights(prev => {
+    setCurrentInsights(prev => {
       const updated = prev.map(insight => ({
         ...insight,
         status: 'dismissed' as const,
@@ -159,10 +188,10 @@ export function useInsights(
       });
       return updated;
     });
-  }, [projectId, workflowId]);
+  }, [projectId, workflowId, setCurrentInsights]);
   
   const defer = useCallback((insightId: string) => {
-    setInsights(prev => {
+    setCurrentInsights(prev => {
       const updated = prev.map(insight =>
         insight.id === insightId
           ? { ...insight, status: 'deferred' as const, deferredAt: Date.now() }
@@ -174,10 +203,10 @@ export function useInsights(
       }
       return updated;
     });
-  }, [projectId, workflowId]);
+  }, [projectId, workflowId, setCurrentInsights]);
   
   const promote = useCallback((insightId: string) => {
-    setInsights(prev => {
+    setCurrentInsights(prev => {
       const updated = prev.map(insight =>
         insight.id === insightId
           ? { ...insight, status: 'promoted' as const, promotedAt: Date.now() }
@@ -189,15 +218,19 @@ export function useInsights(
       }
       return updated;
     });
-  }, [projectId, workflowId]);
+  }, [projectId, workflowId, setCurrentInsights]);
+  
+  const currentState = getCurrentState();
+  const insights = currentState.insights;
+  const lastRunAt = currentState.lastRunAt;
   
   const getPromotedInsights = useCallback(() => {
     return insights.filter(i => i.status === 'promoted');
   }, [insights]);
   
-  const newInsights = insights.filter(i => i.status === 'new');
-  const viewedInsights = insights.filter(i => i.status === 'viewed');
-  const promotedInsights = insights.filter(i => i.status === 'promoted');
+  const newInsights = useMemo(() => insights.filter(i => i.status === 'new'), [insights]);
+  const viewedInsights = useMemo(() => insights.filter(i => i.status === 'viewed'), [insights]);
+  const promotedInsights = useMemo(() => insights.filter(i => i.status === 'promoted'), [insights]);
   
   return {
     insights,
