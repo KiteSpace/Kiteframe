@@ -343,6 +343,7 @@ export function ProjectPanel({
             insights={insights}
             isLoading={insightsLoading}
             edgeCount={edges.length}
+            projectId={projectId}
             onRunTestFlight={onRunTestFlight || (() => {})}
             onDismiss={onDismissInsight || (() => {})}
             onDismissAll={onDismissAllInsights || (() => {})}

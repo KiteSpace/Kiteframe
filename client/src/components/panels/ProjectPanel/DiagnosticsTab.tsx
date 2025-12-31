@@ -20,6 +20,7 @@ interface DiagnosticsTabProps {
   insights: Insight[];
   isLoading: boolean;
   edgeCount: number;
+  projectId?: string;
   onRunTestFlight: () => void;
   onDismiss: (insightId: string) => void;
   onDismissAll: () => void;
@@ -70,6 +71,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   insights,
   isLoading,
   edgeCount,
+  projectId,
   onRunTestFlight,
   onDismiss,
   onDismissAll,
@@ -85,6 +87,17 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   const scrollRef = useRef<HTMLDivElement>(null);
   const focusedRowRef = useRef<HTMLDivElement>(null);
   const [listFilterMode, setListFilterMode] = useState<ListFilterMode>('new');
+  
+  const handleTestFlightClick = () => {
+    console.log('[DiagnosticsTab] Test Flight button clicked', {
+      projectId,
+      edgeCount,
+      minRequired: MIN_EDGES_FOR_TEST_FLIGHT,
+      canRunTestFlight,
+      isLoading,
+    });
+    onRunTestFlight();
+  };
   const [categoryFilter, setCategoryFilter] = useState<Set<InsightCategory>>(new Set<InsightCategory>(['observation', 'suggestion', 'note']));
   
   const toggleCategory = (category: InsightCategory) => {
@@ -143,7 +156,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
         <Button
           variant="default"
           size="sm"
-          onClick={onRunTestFlight}
+          onClick={handleTestFlightClick}
           className="mt-4 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           disabled={isLoading || !canRunTestFlight}
           data-testid="btn-test-flight-empty"
@@ -184,7 +197,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
             <Button
               variant="ghost"
               size="icon"
-              onClick={onRunTestFlight}
+              onClick={handleTestFlightClick}
               disabled={isLoading || !canRunTestFlight}
               className="h-7 w-7"
               data-testid="btn-test-flight"
