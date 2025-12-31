@@ -1,0 +1,132 @@
+
+Audit: Experiment vs Explore Objects + AI Behavior Quality
+
+⸻
+
+SECTION 1 — OBJECT DEFINITIONS & OWNERSHIP
+	1.	Where are Experiment and Explore defined as distinct object types in the codebase?
+	•	Are they separate components?
+	•	Or the same component with different props/flags?
+	2.	What properties differentiate an Experiment from an Explore at runtime?
+	•	Trigger source (user vs system)?
+	•	Metadata?
+	•	Prompt template?
+	•	UI config?
+	3.	Is there a single schema/model that both objects share?
+	•	If yes, what fields are conditional?
+	•	If no, where do they diverge?
+	4.	Which part of the system decides whether something becomes an Experiment vs an Explore?
+	•	Badge logic?
+	•	Insight logic?
+	•	User action?
+
+⸻
+
+SECTION 2 — HEADER CONTROLS & AFFORDANCES
+	5.	Why does Experiment currently expose header options (What If / Enhancement / etc.)?
+	•	Where are these options defined?
+	•	Are they hardcoded or generated?
+	6.	Does Explore currently expose any of these same header controls?
+	•	If yes, why?
+	•	If no, how is that enforced?
+	7.	Is there any shared header component between Experiment and Explore?
+	•	If yes, what props control which controls appear?
+	•	If no, why do they still look similar?
+	8.	Can you point to the exact code that determines which controls appear in the header for each object?
+
+⸻
+
+SECTION 3 — AI PROMPTING & GENERATION PATHS
+	9.	What prompt template is used for Experiment generation?
+	•	Please reference the file and function.
+	10.	What prompt template is used for Explore generation?
+	•	Is it distinct, or parameterized off the same base prompt?
+	11.	Does the Explore prompt explicitly instruct the AI to:
+	•	Propose solutions (yes/no)
+	•	Recommend a best approach (yes/no)
+	•	Limit the number of suggestions (yes/no)
+	12.	Is the AI told why an Explore was created (e.g. which issue/risk/gap triggered it)?
+	•	If yes, where is that context injected?
+	•	If no, explain why not.
+
+⸻
+
+SECTION 4 — WHY SOLUTIONS FEEL VAGUE
+	13.	What constraints exist on Explore outputs today?
+	•	Max number of suggestions?
+	•	Required structure?
+	•	Required actionability?
+	14.	Is there any post-processing or validation of AI output for Explore?
+	•	Or is raw text rendered directly?
+	15.	Does the system check whether Explore suggestions describe concrete workflow changes?
+	•	e.g. adding nodes, branches, conditions
+	•	If not, why?
+	16.	Are Explore outputs allowed to be abstract (“improve UX”, “add validation”)?
+	•	If yes, is that intentional?
+
+⸻
+
+SECTION 5 — STUNLOCK & TOO-MANY-OPTIONS PROBLEM
+	17.	How many suggestions can Explore currently return?
+	•	Is there a cap?
+	•	Or is it unbounded?
+	18.	Does Explore currently mark any suggestion as “recommended”?
+	•	If no, why not?
+	19.	Does the UI present all suggestions with equal visual weight?
+	•	If yes, how is the user expected to choose?
+	20.	What user action is expected after Explore renders today?
+	•	Apply?
+	•	Choose one?
+	•	Keep reading?
+	•	Start a chat?
+
+⸻
+
+SECTION 6 — APPLY / NEXT-STEP MECHANICS
+	21.	What actions are available from an Explore object today?
+	•	Apply solution?
+	•	Create branch?
+	•	Start experiment?
+	•	Start chat?
+	22.	Is there a single default “forward” action from Explore?
+	•	Or does the user always have to decide?
+	23.	What happens if the user does nothing after Explore renders?
+	•	Does the system stall?
+	•	Does it escalate?
+	•	Does it disappear?
+
+⸻
+
+SECTION 7 — RELATIONSHIP TO KITEAI CHAT
+	24.	Is Explore currently connected to KiteAI Chat in any way?
+	•	Shared context?
+	•	Shared state?
+	•	Or completely separate?
+	25.	If a user wants to discuss an Explore proposal conversationally, what is the current path?
+	•	Is there one?
+	•	Or is that not supported yet?
+	26.	Was Explore designed to replace chat, or complement it?
+	•	What was the original intent?
+
+⸻
+
+SECTION 8 — INTENT & DESIGN ASSUMPTIONS (FORCING ALIGNMENT)
+	27.	Should Experiment and Explore feel equivalent in power and flexibility?
+	•	Or should Explore be more assertive and directive?
+	28.	Should Explore optimize for:
+	•	Fewer, higher-confidence solutions?
+	•	Or broad ideation?
+	29.	If Explore proposes 3 vague ideas instead of 1 strong recommendation, is that considered success today?
+	30.	What signals would you use to determine that Explore is “working well”?
+
+⸻
+
+SECTION 9 — REQUIRED DESIGN INVARIANTS (CONFIRMATION)
+	31.	Can you confirm whether the following statements are true or false:
+
+	•	Experiment is user-driven and hypothesis-based
+	•	Explore is system-driven and solution-oriented
+	•	Explore should not ask the user how to think about the problem
+	•	Explore should reduce cognitive load, not increase it
+
+	32.	If any are false, explain why.
