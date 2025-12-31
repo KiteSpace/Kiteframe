@@ -40,7 +40,7 @@ async function persistInsightAction(
   }
 }
 
-const DEFAULT_MIN_EDGES = 3;
+const DEFAULT_MIN_EDGES = 2;
 
 interface WorkflowInsightState {
   insights: Insight[];
@@ -102,7 +102,12 @@ export function useInsights(
   const meetsEdgeThreshold = edges.length >= minEdges;
   
   const runTestFlight = useCallback(() => {
-    if (!projectId || !meetsEdgeThreshold) {
+    if (!projectId) {
+      console.warn('[useInsights] Cannot run Test Flight: projectId is missing');
+      return;
+    }
+    if (!meetsEdgeThreshold) {
+      console.warn('[useInsights] Cannot run Test Flight: insufficient edges', { edgeCount: edges.length, required: minEdges });
       return;
     }
     
@@ -128,7 +133,7 @@ export function useInsights(
     } finally {
       setIsRunning(false);
     }
-  }, [nodes, edges, projectId, workflowId, workflowKey, meetsEdgeThreshold]);
+  }, [nodes, edges, projectId, workflowId, workflowKey, meetsEdgeThreshold, minEdges]);
   
   const markViewed = useCallback((insightId: string) => {
     setCurrentInsights(prev => {
