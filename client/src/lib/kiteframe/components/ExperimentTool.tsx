@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { FlaskConical, Check, X, ChevronDown, Loader2, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
+import { FlaskConical, Compass, Check, X, ChevronDown, Loader2, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
 import type { Node, WorkflowTool, ExperimentMode, ExperimentOption } from '../types';
 import { sanitizeText } from '../utils/validation';
 import { useScrollIsolation } from '../hooks/useScrollIsolation';
@@ -17,6 +17,16 @@ const PURPLE = {
   body: '#faf5ff',
   accent: '#a855f7',
   dark: '#7c3aed',
+};
+
+// Amber theme for Explore (system-led, solution-oriented)
+const AMBER = {
+  stroke: '#d97706',
+  header: '#d97706',
+  footer: '#d97706',
+  body: '#fffbeb',
+  accent: '#f59e0b',
+  dark: '#b45309',
 };
 
 const MODE_CONFIG: Record<ExperimentMode, { label: string; placeholder: string; helper: string }> = {
@@ -95,10 +105,18 @@ export function ExperimentTool({
   const modeConfig = MODE_CONFIG[mode];
   const isGenerating = tool.state === 'generating';
   const hasGenerated = tool.state === 'preview' && tool.generated && (tool.generated.nodeIds.length > 0 || tool.generated.edgeIds.length > 0);
+  
+  // Explore vs Experiment: origin determines theming and behavior
+  const isExplore = tool.origin === 'explore';
+  const theme = isExplore ? AMBER : PURPLE;
 
-  const hasContent = mode === 'open_exploration' 
-    ? userPromptValue.trim().length >= 20
-    : !!selectedOption;
+  // For Explore: can generate as soon as options arrive (auto-selects recommended)
+  // For Experiment: requires manual option selection or 20+ char prompt
+  const hasContent = isExplore
+    ? !!selectedOption || predictiveOptions.length > 0  // Explore can use any option
+    : mode === 'open_exploration' 
+      ? userPromptValue.trim().length >= 20
+      : !!selectedOption;
   const canGenerate = hasContent && !isGenerating && !hasGenerated;
 
   useEffect(() => {
@@ -109,10 +127,24 @@ export function ExperimentTool({
   }, [tool.userPrompt, tool.selectedOption]);
 
   useEffect(() => {
+    // For both Explore and Experiment: trigger options generation if none exist
     if (mode !== 'open_exploration' && !optionsLoading && predictiveOptions.length === 0) {
       onGenerateOptionsForMode?.(tool.id, mode);
     }
   }, [mode, optionsLoading, predictiveOptions.length, tool.id, onGenerateOptionsForMode]);
+  
+  // For Explore: auto-select the recommended option when options arrive
+  useEffect(() => {
+    if (isExplore && predictiveOptions.length > 0 && !selectedOption) {
+      const recommended = predictiveOptions.find(o => o.recommended) || predictiveOptions[0];
+      if (recommended) {
+        setSelectedOption(recommended);
+        onUpdate(tool.id, { 
+          selectedOption: { id: recommended.id, label: recommended.label, description: recommended.description } 
+        });
+      }
+    }
+  }, [isExplore, predictiveOptions, selectedOption, tool.id, onUpdate]);
 
   const anchorWidth = anchorNode.width || anchorNode.measuredWidth || 200;
   const toolLeft = anchorNode.position.x + anchorWidth + 24;
@@ -183,8 +215,8 @@ export function ExperimentTool({
         top: screenY,
         width: scaledWidth,
         height: scaledHeight,
-        backgroundColor: PURPLE.body,
-        borderColor: PURPLE.stroke,
+        backgroundColor: theme.body,
+        borderColor: theme.stroke,
         zIndex: 1000,
         transform: `scale(${Math.max(0.5, Math.min(1, viewport.zoom))})`,
         transformOrigin: 'top left',
@@ -194,10 +226,16 @@ export function ExperimentTool({
       {/* Header */}
       <div
         className="flex items-center justify-between px-3"
-        style={{ height: HEADER_H, backgroundColor: PURPLE.header, borderBottom: `1px solid ${PURPLE.stroke}` }}
+        style={{ height: HEADER_H, backgroundColor: theme.header, borderBottom: `1px solid ${theme.stroke}` }}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {hasGenerated ? (
+          {isExplore ? (
+            /* Explore: Static header with Compass icon, no mode selector */
+            <div className="flex items-center gap-1.5 text-sm font-medium py-1 px-2 text-white">
+              <Compass className="w-3.5 h-3.5" />
+              <span className="truncate">Explore Solutions</span>
+            </div>
+          ) : hasGenerated ? (
             <div className="flex items-center gap-1.5 text-sm font-medium py-1 px-2 text-white">
               <FlaskConical className="w-3.5 h-3.5" />
               <span className="truncate">{MODE_LABELS[mode]}</span>
@@ -259,16 +297,19 @@ export function ExperimentTool({
         {hasGenerated ? (
           <div className="flex-1 flex flex-col">
             <p className="text-xs text-gray-500 font-medium mb-1">Preview Generated:</p>
-            <div className="flex-1 bg-purple-50 border border-purple-200 rounded-md p-3 overflow-y-auto">
+            <div className={cn(
+              "flex-1 rounded-md p-3 overflow-y-auto",
+              isExplore ? "bg-amber-50 border border-amber-200" : "bg-purple-50 border border-purple-200"
+            )}>
               {selectedOption ? (
                 <>
-                  <p className="text-sm font-medium text-purple-800">{selectedOption.label}</p>
+                  <p className={cn("text-sm font-medium", isExplore ? "text-amber-800" : "text-purple-800")}>{selectedOption.label}</p>
                   {selectedOption.description && (
-                    <p className="text-xs text-purple-600 mt-1 leading-relaxed">{selectedOption.description}</p>
+                    <p className={cn("text-xs mt-1 leading-relaxed", isExplore ? "text-amber-600" : "text-purple-600")}>{selectedOption.description}</p>
                   )}
                 </>
               ) : (
-                <p className="text-sm text-purple-800 leading-relaxed">{userPromptValue || 'Generated branch'}</p>
+                <p className={cn("text-sm leading-relaxed", isExplore ? "text-amber-800" : "text-purple-800")}>{userPromptValue || 'Generated branch'}</p>
               )}
             </div>
             <div className="flex gap-2 mt-3">
@@ -301,7 +342,9 @@ export function ExperimentTool({
               className={cn(
                 "w-full h-full text-sm border rounded-md px-3 py-2 resize-none outline-none transition-colors",
                 "placeholder:text-gray-400 placeholder:italic",
-                "bg-white border-purple-200 focus:border-purple-400 focus:ring-1 focus:ring-purple-200",
+                isExplore 
+                  ? "bg-white border-amber-200 focus:border-amber-400 focus:ring-1 focus:ring-amber-200"
+                  : "bg-white border-purple-200 focus:border-purple-400 focus:ring-1 focus:ring-purple-200",
                 (readOnly || isGenerating) ? "opacity-60 cursor-not-allowed" : ""
               )}
               onClick={(e) => e.stopPropagation()}
@@ -317,8 +360,14 @@ export function ExperimentTool({
                   <button
                     onClick={(e) => { e.stopPropagation(); onRefreshOptions(tool.id); }}
                     disabled={readOnly || optionsLoading}
-                    className={cn("p-1 rounded text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors", optionsLoading ? "animate-spin" : "")}
-                    title="Refresh suggestions"
+                    className={cn(
+                      "p-1 rounded transition-colors",
+                      isExplore 
+                        ? "text-gray-400 hover:text-amber-600 hover:bg-amber-50"
+                        : "text-gray-400 hover:text-purple-600 hover:bg-purple-50",
+                      optionsLoading ? "animate-spin" : ""
+                    )}
+                    title={isExplore ? "Refresh solutions" : "Refresh suggestions"}
                     data-testid="experiment-tool-refresh-options-btn"
                   >
                     <RefreshCw className="w-3 h-3" />
@@ -329,7 +378,9 @@ export function ExperimentTool({
             
             {optionsLoading ? (
               <div className="flex flex-col gap-2">
-                <p className="text-xs text-purple-600 italic mb-1">Exploring possibilities…</p>
+                <p className={cn("text-xs italic mb-1", isExplore ? "text-amber-600" : "text-purple-600")}>
+                  {isExplore ? 'Finding solutions…' : 'Exploring possibilities…'}
+                </p>
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i} className="animate-pulse"><div className="h-8 bg-gray-100 rounded-md w-full" /></div>
                 ))}
@@ -339,7 +390,10 @@ export function ExperimentTool({
                 <AlertCircle className="w-5 h-5 text-red-400" />
                 <p className="text-xs text-red-600">{optionsError}</p>
                 {onRefreshOptions && (
-                  <button onClick={(e) => { e.stopPropagation(); onRefreshOptions(tool.id); }} className="text-xs text-purple-600 hover:text-purple-700 underline">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onRefreshOptions(tool.id); }} 
+                    className={cn("text-xs underline", isExplore ? "text-amber-600 hover:text-amber-700" : "text-purple-600 hover:text-purple-700")}
+                  >
                     Try refreshing
                   </button>
                 )}
@@ -354,20 +408,33 @@ export function ExperimentTool({
                     className={cn(
                       "text-left px-2.5 py-2 text-xs rounded-md border transition-colors flex-shrink-0",
                       selectedOption?.id === option.id
-                        ? "bg-purple-100 border-purple-400 text-purple-800"
-                        : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50",
+                        ? isExplore
+                          ? "bg-amber-100 border-amber-400 text-amber-800"
+                          : "bg-purple-100 border-purple-400 text-purple-800"
+                        : isExplore
+                          ? "bg-white border-gray-200 text-gray-700 hover:border-amber-300 hover:bg-amber-50"
+                          : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50",
                       (readOnly || isGenerating) ? "opacity-50 cursor-not-allowed" : ""
                     )}
                     data-testid={`experiment-tool-option-${option.id}`}
                   >
-                    <span className="font-medium block">{option.label}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium">{option.label}</span>
+                      {isExplore && option.recommended && (
+                        <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-amber-500 text-white rounded">
+                          Recommended
+                        </span>
+                      )}
+                    </div>
                     {option.description && <span className="text-[10px] text-gray-500 line-clamp-1">{option.description}</span>}
                   </button>
                 ))}
               </div>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-2">
-                <p className="text-xs text-gray-500 italic">No suggestions available. Try switching mode or use Prompt mode.</p>
+                <p className="text-xs text-gray-500 italic">
+                  {isExplore ? 'No solutions found.' : 'No suggestions available. Try switching mode or use Prompt mode.'}
+                </p>
               </div>
             )}
           </div>
@@ -378,7 +445,7 @@ export function ExperimentTool({
       {!hasGenerated && (
         <div
           className="flex items-center justify-end px-3 gap-2"
-          style={{ height: FOOTER_H, backgroundColor: PURPLE.footer, borderTop: `1px solid ${PURPLE.stroke}` }}
+          style={{ height: FOOTER_H, backgroundColor: theme.footer, borderTop: `1px solid ${theme.stroke}` }}
         >
           <button
             onClick={handleGenerateClick}
@@ -386,15 +453,19 @@ export function ExperimentTool({
             className={cn(
               "flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors",
               canGenerate && !readOnly
-                ? "bg-white text-purple-700 hover:bg-purple-50"
-                : "bg-white/50 text-purple-400 cursor-not-allowed"
+                ? isExplore
+                  ? "bg-white text-amber-700 hover:bg-amber-50"
+                  : "bg-white text-purple-700 hover:bg-purple-50"
+                : isExplore
+                  ? "bg-white/50 text-amber-400 cursor-not-allowed"
+                  : "bg-white/50 text-purple-400 cursor-not-allowed"
             )}
             data-testid="experiment-tool-generate-btn"
           >
             {isGenerating ? (
-              <><Loader2 className="w-4 h-4 animate-spin" />Generating...</>
+              <><Loader2 className="w-4 h-4 animate-spin" />{isExplore ? 'Finding solutions...' : 'Generating...'}</>
             ) : (
-              <><Sparkles className="w-4 h-4" />Generate</>
+              <><Sparkles className="w-4 h-4" />{isExplore ? 'Find Solutions' : 'Generate'}</>
             )}
           </button>
         </div>
