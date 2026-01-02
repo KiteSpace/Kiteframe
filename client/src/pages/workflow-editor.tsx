@@ -10096,6 +10096,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           
                           console.log('[EXPERIMENT] Generation complete - IDs stored in node.data.generation and node.meta.experiment');
                           
+                          logRenderedGraph({
+                            nodes: previewNodes.map(n => ({
+                              id: n.id,
+                              type: n.type || 'process',
+                              header: n.data?.label,
+                              body: n.data?.description,
+                            })),
+                            edges: previewEdges.map(e => ({
+                              source: e.source,
+                              target: e.target,
+                            })),
+                          });
+                          
                           toast({
                             title: "Branch generated",
                             description: `Created ${branch.nodes.length} preview nodes. Review and adopt or discard.`,
@@ -10614,6 +10627,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                                 } : t
                               ));
                               
+                              logRenderedGraph({
+                                nodes: previewNodes.map(n => ({
+                                  id: n.id,
+                                  type: n.type || 'process',
+                                  header: n.data?.label,
+                                  body: n.data?.description,
+                                })),
+                                edges: previewEdges.map(e => ({
+                                  source: e.source,
+                                  target: e.target,
+                                })),
+                              });
+                              
                               toast({
                                 title: "Branch generated",
                                 description: `Created ${result.branch.nodes.length} preview nodes. Review and accept or reject.`,
@@ -10661,6 +10687,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           }));
                           
                           setWorkflowTools(prev => prev.filter(t => t.id !== toolId));
+                          
+                          logCommitFinalGraph({
+                            nodes: currentTool.generated.nodeIds,
+                            edges: currentTool.generated.edgeIds.map(id => {
+                              const edge = edges.find(e => e.id === id);
+                              return { source: edge?.source || '', target: edge?.target || '' };
+                            }),
+                          });
                           
                           toast({
                             title: "Experiment accepted",
