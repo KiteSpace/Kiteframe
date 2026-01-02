@@ -1583,55 +1583,9 @@ function WorkflowEditorContent({
     }
   }, [tabs]);
 
-  // Handle navigation from FullScreenChat with pending workflow draft
-  // When user clicks "Create Workflow" in full-screen chat, the draft is saved
-  // to localStorage and they navigate here with ?fromChat=true
+  // Ref to prevent double-processing of fromChat navigation
+  // The actual handling is consolidated in the localStorage loading effect below
   const fromChatLoadedRef = useRef(false);
-  useEffect(() => {
-    // Only run once
-    if (fromChatLoadedRef.current) return;
-    
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('fromChat') === 'true') {
-      fromChatLoadedRef.current = true;
-      
-      // Clear the query param from URL
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
-      
-      // Load pending workflow draft from localStorage
-      const draftJson = localStorage.getItem('kiteframe-pending-workflow-draft');
-      if (draftJson) {
-        try {
-          const draft = JSON.parse(draftJson);
-          localStorage.removeItem('kiteframe-pending-workflow-draft');
-          
-          // Create a new tab with the workflow draft
-          const newTab = createBlankTab();
-          newTab.nodes = draft.nodes || [];
-          newTab.edges = draft.edges || [];
-          newTab.canvasObjects = draft.canvasObjects || [];
-          newTab.history = [{
-            nodes: newTab.nodes,
-            edges: newTab.edges,
-            canvasObjects: newTab.canvasObjects,
-            viewport: newTab.viewport,
-          }];
-          newTab.historyIndex = 0;
-          
-          setTabs(prev => [...prev, newTab]);
-          setActiveTabId(newTab.id);
-          
-          toast({
-            title: "Workflow Created",
-            description: `Created workflow with ${draft.nodes?.length || 0} nodes.`
-          });
-        } catch (e) {
-          console.error('Failed to load workflow draft:', e);
-        }
-      }
-    }
-  }, [createBlankTab, toast]);
 
   // Dark mode effects
   useEffect(() => {
@@ -5584,14 +5538,66 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [tabs, saveToLocalStorage, isReadOnly]);
 
   // Load workflows from local storage on mount - skip in view mode
+  // Also handles merging with pending chat draft if navigating from FullScreenChat
   useEffect(() => {
     if (isReadOnly) return; // Don't load in view mode
+    
+    // Prevent double-processing via ref guard
+    // If already processed, skip entirely - tabs were already set correctly
+    if (fromChatLoadedRef.current) {
+      return;
+    }
+    
     const savedTabs = loadFromLocalStorage();
-    if (savedTabs.length > 0) {
+    const params = new URLSearchParams(window.location.search);
+    const isFromChat = params.get('fromChat') === 'true';
+    const draftJson = localStorage.getItem('kiteframe-pending-workflow-draft');
+    
+    // If coming from chat with a pending draft, create the new tab and merge with saved tabs
+    if (isFromChat && draftJson) {
+      // Mark as processed FIRST to prevent re-entry on effect re-runs
+      fromChatLoadedRef.current = true;
+      
+      // Clear the query param from URL immediately to prevent re-entry
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      try {
+        const draft = JSON.parse(draftJson);
+        localStorage.removeItem('kiteframe-pending-workflow-draft');
+        
+        // Create a new tab with the workflow draft
+        const newTab = createBlankTab();
+        newTab.nodes = draft.nodes || [];
+        newTab.edges = draft.edges || [];
+        newTab.canvasObjects = draft.canvasObjects || [];
+        newTab.history = [{
+          nodes: newTab.nodes,
+          edges: newTab.edges,
+          canvasObjects: newTab.canvasObjects,
+          viewport: newTab.viewport,
+        }];
+        newTab.historyIndex = 0;
+        
+        // Merge saved tabs with the new chat tab, making it active
+        setTabs([...savedTabs, newTab]);
+        setActiveTabId(newTab.id);
+        
+        toast({
+          title: "Workflow Created",
+          description: `Created workflow with ${draft.nodes?.length || 0} nodes.`
+        });
+      } catch (e) {
+        console.error('Failed to load workflow draft:', e);
+        // Fallback to just loading saved tabs
+        if (savedTabs.length > 0) {
+          setTabs(savedTabs);
+        }
+      }
+    } else if (savedTabs.length > 0) {
       setTabs(savedTabs);
       // Keep user on home screen by default, they can switch to a tab from there
     }
-  }, [loadFromLocalStorage, isReadOnly]);
+  }, [loadFromLocalStorage, isReadOnly, createBlankTab, toast]);
 
   // Handle reset in view mode: restore original data
   const handleViewReset = useCallback(() => {
