@@ -11,24 +11,24 @@ const NODE_HEIGHT = 360;
 const NODE_WIDTH = 320;
 const SIMPLIFIED_NODE_HEIGHT = 140;
 
-// Purple theme colors for Experiment
+// Purple theme colors for Explore (system-led, solution-oriented)
 const PURPLE = {
   stroke: '#9333ea', // purple-600
-  header: '#9333ea', // purple-600 (solid purple for consistency)
-  footer: '#9333ea', // purple-600 (solid purple for consistency)
-  body: '#faf5ff', // purple-50 (light purple body)
+  header: '#9333ea', // purple-600
+  footer: '#9333ea', // purple-600
+  body: '#faf5ff', // purple-50
   accent: '#a855f7', // purple-500
   dark: '#7c3aed', // purple-600 darker
 };
 
-// Amber/Orange theme colors for Explore (system-led, solution-oriented)
-const AMBER = {
-  stroke: '#d97706', // amber-600
-  header: '#d97706', // amber-600
-  footer: '#d97706', // amber-600
-  body: '#fffbeb', // amber-50
-  accent: '#f59e0b', // amber-500
-  dark: '#b45309', // amber-700
+// Dark grey theme colors for Experiment (user-led, divergent exploration)
+const DARK_GREY = {
+  stroke: '#312e34', // dark grey
+  header: '#312e34', // dark grey
+  footer: '#312e34', // dark grey
+  body: '#f5f5f5', // light grey
+  accent: '#4a4a4a', // medium grey
+  dark: '#1f1f1f', // darker grey
 };
 
 export interface ExperimentNodeComponentProps {
@@ -145,8 +145,8 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
   
   // Determine if this is an Explore (system-led) or Experiment (user-led)
   const isExplore = data.origin === 'explore';
-  // Use amber theme for Explore, purple for Experiment
-  const theme = isExplore ? AMBER : PURPLE;
+  // Use purple theme for Explore, dark grey for Experiment
+  const theme = isExplore ? PURPLE : DARK_GREY;
   
   const generationStatus = getGenerationStatus(data);
   const isGenerating = generationStatus === 'generating';
@@ -333,7 +333,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
         'rounded-lg shadow-sm transition-all duration-200',
         'hover:shadow-md cursor-move overflow-hidden',
         'border-2',
-        node.selected ? (isExplore ? 'ring-2 ring-amber-400 shadow-md' : 'ring-2 ring-purple-400 shadow-md') : '',
+        node.selected ? (isExplore ? 'ring-2 ring-purple-400 shadow-md' : 'ring-2 ring-gray-400 shadow-md') : '',
         node.hidden ? 'opacity-0 pointer-events-none' : '',
         className,
       )}
@@ -358,11 +358,11 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
         }}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {/* For Explore: always show static "Explore Solutions" header - no mode switching */}
+          {/* For Explore: always show static "Explore" header - no mode switching */}
           {isExplore ? (
             <div className="flex items-center gap-1.5 text-sm font-medium py-1 px-2 text-white">
               <Compass className="w-3.5 h-3.5" />
-              <span className="truncate">Explore Solutions</span>
+              <span className="truncate">Explore</span>
             </div>
           ) : hasGenerated ? (
             /* Mode label (no dropdown) when generated for Experiment */
@@ -403,7 +403,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                         }}
                         className={cn(
                           "w-full px-3 py-2 text-left text-sm hover:bg-gray-50",
-                          m === mode ? "bg-purple-50 text-purple-700 font-medium" : "text-gray-700"
+                          m === mode ? "bg-gray-100 text-gray-800 font-medium" : "text-gray-700"
                         )}
                       >
                         <span className="font-medium">{MODE_LABELS[m]}</span>
@@ -440,16 +440,19 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
         {hasGenerated ? (
           <div className="flex-1 flex flex-col">
             <p className="text-xs text-gray-500 font-medium mb-1">Selected:</p>
-            <div className="flex-1 bg-purple-50 border border-purple-200 rounded-md p-3 overflow-y-auto">
+            <div className={cn(
+              "flex-1 rounded-md p-3 overflow-y-auto",
+              isExplore ? "bg-purple-50 border border-purple-200" : "bg-gray-100 border border-gray-200"
+            )}>
               {selectedOption ? (
                 <>
-                  <p className="text-sm font-medium text-purple-800">{selectedOption.label}</p>
+                  <p className={cn("text-sm font-medium", isExplore ? "text-purple-800" : "text-gray-800")}>{selectedOption.label}</p>
                   {selectedOption.description && (
-                    <p className="text-xs text-purple-600 mt-1 leading-relaxed">{selectedOption.description}</p>
+                    <p className={cn("text-xs mt-1 leading-relaxed", isExplore ? "text-purple-600" : "text-gray-600")}>{selectedOption.description}</p>
                   )}
                 </>
               ) : (
-                <p className="text-sm text-purple-800 leading-relaxed">
+                <p className={cn("text-sm leading-relaxed", isExplore ? "text-purple-800" : "text-gray-800")}>
                   {userPromptValue || 'No content selected'}
                 </p>
               )}
@@ -468,7 +471,9 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
               className={cn(
                 "w-full h-full text-sm border rounded-md px-3 py-2 resize-none outline-none transition-colors",
                 "placeholder:text-gray-400 placeholder:italic",
-                "bg-white border-purple-200 focus:border-purple-400 focus:ring-1 focus:ring-purple-200",
+                isExplore 
+                  ? "bg-white border-purple-200 focus:border-purple-400 focus:ring-1 focus:ring-purple-200"
+                  : "bg-white border-gray-200 focus:border-gray-400 focus:ring-1 focus:ring-gray-200",
                 (readOnly || isGenerating) ? "opacity-60 cursor-not-allowed" : ""
               )}
               onClick={(e) => e.stopPropagation()}
@@ -494,7 +499,10 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                     }}
                     disabled={readOnly || optionsLoading}
                     className={cn(
-                      "p-1 rounded text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors",
+                      "p-1 rounded transition-colors",
+                      isExplore 
+                        ? "text-gray-400 hover:text-purple-600 hover:bg-purple-50"
+                        : "text-gray-400 hover:text-gray-700 hover:bg-gray-100",
                       optionsLoading ? "animate-spin" : ""
                     )}
                     title="Refresh suggestions"
@@ -509,7 +517,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
             {/* Loading skeleton */}
             {optionsLoading ? (
               <div className="flex flex-col gap-2">
-                <p className="text-xs text-purple-600 italic mb-1">Exploring possibilities…</p>
+                <p className={cn("text-xs italic mb-1", isExplore ? "text-purple-600" : "text-gray-600")}>Exploring possibilities…</p>
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i} className="animate-pulse">
                     <div className="h-8 bg-gray-100 rounded-md w-full" />
@@ -527,7 +535,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                       e.stopPropagation();
                       onRefreshOptions(node.id);
                     }}
-                    className="text-xs text-purple-600 hover:text-purple-700 underline"
+                    className={cn("text-xs underline", isExplore ? "text-purple-600 hover:text-purple-700" : "text-gray-600 hover:text-gray-700")}
                   >
                     Try refreshing
                   </button>
@@ -550,11 +558,11 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                       "text-left px-2.5 py-2 text-xs rounded-md border transition-colors flex-shrink-0",
                       selectedOption?.id === option.id
                         ? isExplore
-                          ? "bg-amber-100 border-amber-400 text-amber-800"
-                          : "bg-purple-100 border-purple-400 text-purple-800"
+                          ? "bg-purple-100 border-purple-400 text-purple-800"
+                          : "bg-gray-200 border-gray-400 text-gray-800"
                         : isExplore
-                          ? "bg-white border-gray-200 text-gray-700 hover:border-amber-300 hover:bg-amber-50"
-                          : "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50",
+                          ? "bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
+                          : "bg-white border-gray-200 text-gray-700 hover:border-gray-400 hover:bg-gray-50",
                       (readOnly || isGenerating) ? "opacity-50 cursor-not-allowed" : ""
                     )}
                     data-testid={`experiment-option-${option.id}`}
@@ -562,7 +570,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                     <div className="flex items-center gap-1.5">
                       <span className="font-medium">{option.label}</span>
                       {isExplore && option.recommended && (
-                        <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-amber-500 text-white rounded">
+                        <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-purple-500 text-white rounded">
                           Recommended
                         </span>
                       )}
@@ -595,20 +603,20 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
               <div className={cn(
                 "mt-2 p-2 rounded-md flex-shrink-0",
                 isExplore 
-                  ? "bg-amber-50 border border-amber-200" 
-                  : "bg-purple-50 border border-purple-200"
+                  ? "bg-purple-50 border border-purple-200" 
+                  : "bg-gray-100 border border-gray-200"
               )}>
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-1.5">
                       <p className={cn(
                         "text-sm font-medium",
-                        isExplore ? "text-amber-800" : "text-purple-800"
+                        isExplore ? "text-purple-800" : "text-gray-800"
                       )}>
                         {selectedOption.label}
                       </p>
                       {isExplore && selectedOption.recommended && (
-                        <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-amber-500 text-white rounded">
+                        <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-purple-500 text-white rounded">
                           Recommended
                         </span>
                       )}
@@ -616,7 +624,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                     {selectedOption.description && (
                       <p className={cn(
                         "text-xs mt-0.5",
-                        isExplore ? "text-amber-600" : "text-purple-600"
+                        isExplore ? "text-purple-600" : "text-gray-600"
                       )}>
                         {selectedOption.description}
                       </p>
@@ -630,7 +638,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
                       }}
                       className={cn(
                         "p-0.5",
-                        isExplore ? "text-amber-500 hover:text-amber-700" : "text-purple-500 hover:text-purple-700"
+                        isExplore ? "text-purple-500 hover:text-purple-700" : "text-gray-500 hover:text-gray-700"
                       )}
                     >
                       <X className="w-3.5 h-3.5" />
@@ -655,7 +663,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
       {/* Footer - only show in full view (not when hasGenerated) */}
       {!hasGenerated && (
         <div
-          className="flex items-center justify-between px-3"
+          className="flex items-center justify-end px-3"
           style={{ 
             height: FOOTER_H, 
             minHeight: FOOTER_H,
@@ -671,8 +679,8 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
               "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
               canGenerate && !readOnly
                 ? isExplore 
-                  ? "bg-white text-amber-700 hover:bg-amber-50 shadow-sm"
-                  : "bg-white text-purple-700 hover:bg-purple-50 shadow-sm"
+                  ? "bg-white text-purple-700 hover:bg-purple-50 shadow-sm"
+                  : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
                 : "bg-white/20 text-white/50 cursor-not-allowed"
             )}
             title={
@@ -690,7 +698,7 @@ export const ExperimentNode: React.FC<ExperimentNodeComponentProps> = ({
             ) : (
               <FlaskConical className="w-3.5 h-3.5" />
             )}
-            <span>{isGenerating ? 'Finding solutions...' : isExplore ? 'Find Solutions' : 'Generate'}</span>
+            <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
           </button>
         </div>
       )}
