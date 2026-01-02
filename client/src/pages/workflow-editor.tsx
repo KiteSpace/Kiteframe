@@ -10210,6 +10210,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         return;
                       }
                       
+                      logCommitAccept({
+                        removedNodeId: nodeId,
+                        reattachedBranches: generatedNodeIds,
+                        newParentNodeId: data.anchor?.anchorNodeId || '',
+                      });
+                      
                       const experimentContent = data.userPrompt || data.selectedOptionDescription || data.selectedOptionLabel || '';
                       if (!experimentContent.trim()) {
                         console.log('[EXPERIMENT] Warning: experimentContent is empty', {
@@ -10312,6 +10318,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         }
                         return e;
                       }));
+                      
+                      logCommitFinalGraph({
+                        nodes: [...generatedNodeIds, nodeId],
+                        edges: generatedEdgeIds.map(id => {
+                          const edge = edges.find(e => e.id === id);
+                          return { source: edge?.source || '', target: edge?.target || '' };
+                        }),
+                      });
                       
                       saveToHistory("Adopt speculative branch");
                       

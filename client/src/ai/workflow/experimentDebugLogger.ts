@@ -1,4 +1,19 @@
-const DEBUG_AI_EXPERIMENTS = true;
+function isDebugEnabled(): boolean {
+  if (typeof window !== 'undefined') {
+    return (window as any).DEBUG_AI_EXPERIMENTS === true;
+  }
+  return process.env.DEBUG_AI_EXPERIMENTS === 'true';
+}
+
+export function setDebugAiExperiments(enabled: boolean) {
+  if (typeof window !== 'undefined') {
+    (window as any).DEBUG_AI_EXPERIMENTS = enabled;
+  }
+}
+
+export function isDebugAiExperimentsEnabled(): boolean {
+  return isDebugEnabled();
+}
 
 function safeJSONParse(text: string): unknown {
   try {
@@ -18,7 +33,7 @@ export function logGenerationInput(params: {
   systemDetectedIssue?: string | null;
   workflowSnapshot: { nodeCount: number; edgeCount: number };
 }) {
-  if (!DEBUG_AI_EXPERIMENTS) return;
+  if (!isDebugEnabled()) return;
   console.groupCollapsed(`[AI][${params.triggerType === 'experiment' ? 'Experiment' : 'Explore'}] Generation Input`);
   console.log(params);
   console.groupEnd();
@@ -28,7 +43,7 @@ export function logRawAIOutput(params: {
   triggerType: 'experiment' | 'explore';
   rawText: string;
 }) {
-  if (!DEBUG_AI_EXPERIMENTS) return;
+  if (!isDebugEnabled()) return;
   console.groupCollapsed(`[AI][${params.triggerType === 'experiment' ? 'Experiment' : 'Explore'}] Raw Output`);
   console.log({
     rawText: params.rawText,
@@ -42,7 +57,7 @@ export function logParsedProposal(params: {
   nodes: Array<{ id: string; type: string; header?: string; body?: string }>;
   edges: Array<{ id: string; source: string; target: string }>;
 }) {
-  if (!DEBUG_AI_EXPERIMENTS) return;
+  if (!isDebugEnabled()) return;
   console.groupCollapsed(`[AI][${params.triggerType === 'experiment' ? 'Experiment' : 'Explore'}] Parsed Proposal`);
   console.log({
     nodes: params.nodes,
@@ -57,7 +72,7 @@ export function logPreviewTopology(params: {
   previewBranchNodeIds: string[];
   expectedEdgePattern: string;
 }) {
-  if (!DEBUG_AI_EXPERIMENTS) return;
+  if (!isDebugEnabled()) return;
   console.groupCollapsed('[Preview] Topology Intent');
   console.log(params);
   console.groupEnd();
@@ -67,7 +82,7 @@ export function logRenderedGraph(params: {
   nodes: Array<{ id: string; type: string; header?: string; body?: string }>;
   edges: Array<{ source: string; target: string }>;
 }) {
-  if (!DEBUG_AI_EXPERIMENTS) return;
+  if (!isDebugEnabled()) return;
   console.groupCollapsed('[Preview] Rendered Graph');
   console.log(params);
   console.groupEnd();
@@ -78,7 +93,7 @@ export function logCommitAccept(params: {
   reattachedBranches: string[];
   newParentNodeId: string;
 }) {
-  if (!DEBUG_AI_EXPERIMENTS) return;
+  if (!isDebugEnabled()) return;
   console.groupCollapsed('[Commit] Experiment Accept');
   console.log(params);
   console.groupEnd();
@@ -88,7 +103,7 @@ export function logCommitFinalGraph(params: {
   nodes: string[];
   edges: Array<{ source: string; target: string }>;
 }) {
-  if (!DEBUG_AI_EXPERIMENTS) return;
+  if (!isDebugEnabled()) return;
   console.groupCollapsed('[Commit] Final Graph');
   console.log(params);
   console.groupEnd();
@@ -100,7 +115,7 @@ export function warnContentContractViolation(params: {
   body?: string;
   isAIGenerated: boolean;
 }) {
-  if (!DEBUG_AI_EXPERIMENTS) return;
+  if (!isDebugEnabled()) return;
   if (params.isAIGenerated && (!params.header || !params.body)) {
     console.warn('[AI][Content Contract Violation]', {
       nodeId: params.nodeId,
