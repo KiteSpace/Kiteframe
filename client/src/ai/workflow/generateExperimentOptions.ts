@@ -229,7 +229,8 @@ export async function generateExperimentOptions(
       messages,
     });
     
-    const options = parseAiResponse(response.text, mode, isExplore);
+    const normalizedMode: ExperimentMode = mode === 'risk' ? 'whatif' : mode === 'prompt' ? 'open_exploration' : mode as ExperimentMode;
+    const options = parseAiResponse(response.text, normalizedMode, isExplore);
     
     if (options.length === 0) {
       return { 

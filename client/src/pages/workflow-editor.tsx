@@ -155,6 +155,8 @@ import { resetLayersState } from "@/stores/layersStateManager";
 import { prdNodeLinkStore, type PRDNodeLink } from "@/stores/prdNodeLinkStore";
 import { usePromptContextStoreOptional } from "@/contexts/PromptContextStore";
 import { generateWorkflowPRD } from "@/ai/prdEngine";
+import { generateExperimentBranch } from "@/ai/workflow/generateExperimentBranch";
+import { buildExperimentContext, getAnchorNodeId } from "@/lib/kiteframe/utils/experimentContext";
 import type { ExperimentNodeData, WorkflowTool, ExperimentMode } from "@/lib/kiteframe/types";
 import { ExperimentTool } from "@/lib/kiteframe/components/ExperimentTool";
 import { extractSemanticWorkflowModel } from "@/lib/kiteframe/utils/extractSemanticWorkflowModel";
@@ -9947,56 +9949,73 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         const experimentId = `exp-${nodeId}-${Date.now()}`;
                         const generatedAt = Date.now();
                         
-                        toast({
-                          title: "Experiment generation",
-                          description: "Experiment branch generation is being refactored. Please try again later.",
+                        if (!ai) {
+                          throw new Error('AI client not available');
+                        }
+                        
+                        const anchorNodeId = getAnchorNodeId(nodeId, nodes, edges);
+                        if (!anchorNodeId) {
+                          throw new Error('Could not find anchor node for experiment');
+                        }
+                        
+                        const anchorNode = nodes.find(n => n.id === anchorNodeId);
+                        if (!anchorNode) {
+                          throw new Error('Anchor node not found');
+                        }
+                        
+                        const context = buildExperimentContext({
+                          experimentNodeId: nodeId,
+                          nodes,
+                          edges,
+                          workflowName: activeTab?.name || 'Workflow',
                         });
                         
-                        setNodes(prev => prev.map(n => 
-                          n.id === nodeId 
-                            ? { 
-                                ...node, 
-                                data: { 
-                                  ...data, 
-                                  generation: { 
-                                    ...data.generation,
-                                    status: 'idle' as const,
-                                    generatedNodeIds: [],
-                                    generatedEdgeIds: [],
-                                  } 
-                                } 
-                              }
-                            : n
-                        ));
+                        if (!context) {
+                          throw new Error('Could not build experiment context');
+                        }
                         
-                        const result = { success: false, error: 'Experiment generation is being refactored', branch: null };
+                        const result = await generateExperimentBranch(ai, {
+                          mode: data.mode || 'whatif',
+                          context,
+                          origin: data.origin || 'experiment',
+                          selectedOptionLabel: data.selectedOptionLabel || '',
+                          selectedOptionDescription: data.selectedOptionDescription || promptContent,
+                          userPrompt: promptContent,
+                          anchorNodeId,
+                          anchorNodeLabel: (anchorNode.data as any)?.label || anchorNode.type || 'Node',
+                          anchorNodePosition: anchorNode.position,
+                        });
                         
                         if (result.success && result.branch) {
                           const branch = result.branch;
-                          const generatedNodeIds = branch.nodes.map(n => n.id);
-                          const generatedEdgeIds = branch.edges.map(e => e.id);
+                          const generatedNodeIds = branch.nodes.map(n => n.id!);
+                          const generatedEdgeIds = branch.edges.map(e => e.id!);
                           const experimentId = `exp-${nodeId}-${Date.now()}`;
                           const generatedAt = Date.now();
                           
-                          const previewNodes = branch.nodes.map(n => ({
-                            ...n,
+                          const previewNodes: Node[] = branch.nodes.map(n => ({
+                            id: n.id!,
+                            type: n.type || 'process',
+                            position: n.position!,
+                            data: { ...n.data, ui: { ...n.data?.ui, preview: true } },
                             meta: { 
-                              ...n.meta, 
                               speculative: true, 
                               experimentId,
                               generatedFrom: { nodeId, ts: generatedAt } 
                             },
-                            data: { ...n.data, ui: { ...n.data?.ui, preview: true } }
                           }));
-                          const previewEdges = branch.edges.map(e => ({
-                            ...e,
+                          const previewEdges: Edge[] = branch.edges.map(e => ({
+                            id: e.id!,
+                            source: e.source!,
+                            target: e.target!,
+                            type: e.type || 'smoothstep',
+                            label: e.label,
                             meta: { 
-                              ...e.meta, 
                               speculative: true, 
                               experimentId,
                               generatedFrom: { nodeId, ts: generatedAt } 
                             },
-                            style: { ...e.style, strokeOpacity: 0.8 }
+                            style: { ...(e.style || {}), strokeOpacity: 0.8 }
                           }));
                           
                           console.log('[EXPERIMENT] Generation storing IDs', {
@@ -10008,43 +10027,55 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             promptContent
                           });
                           
-                          setNodes(prev => [
-                            ...prev.map(n => 
-                              n.id === nodeId 
-                                ? { 
-                                    ...node,
-                                    meta: {
-                                      ...node.meta,
-                                      experimentId,
-                                      experiment: {
+                          // Get existing generated IDs to clear before adding new ones
+                          const existingNodeIds = data.generation?.generatedNodeIds || [];
+                          const existingEdgeIds = data.generation?.generatedEdgeIds || [];
+                          
+                          setNodes(prev => {
+                            // Filter out previous speculative nodes for this experiment
+                            const filtered = prev.filter(n => !existingNodeIds.includes(n.id));
+                            return [
+                              ...filtered.map(n => 
+                                n.id === nodeId 
+                                  ? { 
+                                      ...node,
+                                      meta: {
+                                        ...node.meta,
                                         experimentId,
-                                        originNodeId: nodeId,
-                                        mode: data.mode,
-                                        selectedOptionId: data.selectedOptionId,
-                                        selectedOptionLabel: data.selectedOptionLabel || promptContent,
-                                        selectedOptionDescription: data.selectedOptionDescription || promptContent,
+                                        experiment: {
+                                          experimentId,
+                                          originNodeId: nodeId,
+                                          mode: data.mode,
+                                          selectedOptionId: data.selectedOptionId,
+                                          selectedOptionLabel: data.selectedOptionLabel || promptContent,
+                                          selectedOptionDescription: data.selectedOptionDescription || promptContent,
+                                          userPrompt: promptContent,
+                                          generatedNodeIds,
+                                          generatedEdgeIds,
+                                          generatedAt,
+                                        },
+                                      },
+                                      data: { 
+                                        ...data, 
                                         userPrompt: promptContent,
-                                        generatedNodeIds,
-                                        generatedEdgeIds,
-                                        generatedAt,
-                                      },
-                                    },
-                                    data: { 
-                                      ...data, 
-                                      userPrompt: promptContent,
-                                      generation: { 
-                                        status: 'generated' as const,
-                                        lastGeneratedAt: generatedAt,
-                                        generatedNodeIds,
-                                        generatedEdgeIds,
-                                      },
-                                    } 
-                                  }
-                                : n
-                            ),
-                            ...previewNodes
-                          ]);
-                          setEdges(prev => [...prev, ...previewEdges]);
+                                        generation: { 
+                                          status: 'generated' as const,
+                                          lastGeneratedAt: generatedAt,
+                                          generatedNodeIds,
+                                          generatedEdgeIds,
+                                        },
+                                      } 
+                                    }
+                                  : n
+                              ),
+                              ...previewNodes
+                            ];
+                          });
+                          // Filter out previous speculative edges before adding new ones
+                          setEdges(prev => {
+                            const filtered = prev.filter(e => !existingEdgeIds.includes(e.id));
+                            return [...filtered, ...previewEdges];
+                          });
                           
                           console.log('[EXPERIMENT] Generation complete - IDs stored in node.data.generation and node.meta.experiment');
                           
@@ -10463,16 +10494,100 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               userPrompt: currentTool.userPrompt,
                             });
                             
-                            toast({
-                              title: "Experiment generation",
-                              description: "Experiment tool generation is being refactored. Please try again later.",
+                            if (!ai) {
+                              throw new Error('AI client not available');
+                            }
+                            
+                            const context = buildExperimentContext({
+                              experimentNodeId: currentTool.anchorNodeId,
+                              nodes,
+                              edges,
+                              workflowName: activeTab?.name || 'Workflow',
                             });
                             
-                            setWorkflowTools(prev => prev.map(t => 
-                              t.id === toolId ? { ...t, state: 'idle' as const } : t
-                            ));
+                            if (!context) {
+                              throw new Error('Could not build experiment context');
+                            }
                             
-                            console.log('[ExperimentTool] Generation disabled - function removed');
+                            const result = await generateExperimentBranch(ai, {
+                              mode: currentTool.mode || 'whatif',
+                              context,
+                              origin: currentTool.origin || 'explore',
+                              selectedOptionLabel: currentTool.selectedOption?.label || '',
+                              selectedOptionDescription: description,
+                              userPrompt: currentTool.userPrompt,
+                              anchorNodeId: currentTool.anchorNodeId,
+                              anchorNodeLabel: (anchorNodeData.data as any)?.label || anchorNodeData.type || 'Node',
+                              anchorNodePosition: anchorNodeData.position,
+                            });
+                            
+                            if (result.success && result.branch) {
+                              const experimentId = `tool-${toolId}-${Date.now()}`;
+                              const generatedAt = Date.now();
+                              
+                              const generatedNodeIds = result.branch.nodes.map(n => n.id!);
+                              const generatedEdgeIds = result.branch.edges.map(e => e.id!);
+                              
+                              const previewNodes = result.branch.nodes.map(n => ({
+                                ...n,
+                                id: n.id!,
+                                type: n.type || 'process',
+                                position: n.position!,
+                                data: n.data || { label: 'New Step' },
+                                meta: { 
+                                  speculative: true, 
+                                  experimentId,
+                                  generatedFrom: { nodeId: currentTool.anchorNodeId, ts: generatedAt } 
+                                },
+                              } as Node));
+                              
+                              const previewEdges = result.branch.edges.map(e => ({
+                                ...e,
+                                id: e.id!,
+                                source: e.source!,
+                                target: e.target!,
+                                meta: { 
+                                  speculative: true, 
+                                  experimentId,
+                                  generatedFrom: { nodeId: currentTool.anchorNodeId, ts: generatedAt } 
+                                },
+                                style: { ...(e.style || {}), strokeOpacity: 0.8 }
+                              } as Edge));
+                              
+                              // Clear any existing speculative nodes/edges for this tool before adding new ones
+                              const existingToolData = currentTool.generated;
+                              setNodes(prev => {
+                                const filtered = existingToolData?.nodeIds 
+                                  ? prev.filter(n => !existingToolData.nodeIds.includes(n.id))
+                                  : prev;
+                                return [...filtered, ...previewNodes];
+                              });
+                              setEdges(prev => {
+                                const filtered = existingToolData?.edgeIds 
+                                  ? prev.filter(e => !existingToolData.edgeIds.includes(e.id))
+                                  : prev;
+                                return [...filtered, ...previewEdges];
+                              });
+                              
+                              setWorkflowTools(prev => prev.map(t => 
+                                t.id === toolId ? { 
+                                  ...t, 
+                                  state: 'preview' as const,
+                                  generated: {
+                                    nodeIds: generatedNodeIds,
+                                    edgeIds: generatedEdgeIds,
+                                    generatedAt,
+                                  }
+                                } : t
+                              ));
+                              
+                              toast({
+                                title: "Branch generated",
+                                description: `Created ${result.branch.nodes.length} preview nodes. Review and accept or reject.`,
+                              });
+                            } else {
+                              throw new Error(result.error || 'Failed to generate branch');
+                            }
                           } catch (error) {
                             console.error('[ExperimentTool] Generation failed:', error);
                             setWorkflowTools(prev => prev.map(t => 
