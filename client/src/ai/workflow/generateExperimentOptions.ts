@@ -2,6 +2,7 @@ import type { AiClient, AiMessage } from '../types';
 import type { ExperimentMode, ExperimentOption, ExperimentOrigin } from '../../lib/kiteframe/types';
 import type { ExperimentContext } from '../../lib/kiteframe/utils/experimentContext';
 import { formatContextForPrompt } from '../../lib/kiteframe/utils/experimentContext';
+import { logGenerationInput, logRawAIOutput } from './experimentDebugLogger';
 
 // Input mode can include legacy modes for backward compatibility
 type GenerateOptionsMode = ExperimentMode | 'risk' | 'prompt';
@@ -225,8 +226,29 @@ export async function generateExperimentOptions(
   ];
   
   try {
+    logGenerationInput({
+      triggerType: isExplore ? 'explore' : 'experiment',
+      originNode: {
+        id: context.anchorNodeId,
+        type: context.anchorNodeType,
+        header: context.anchorNodeLabel,
+      },
+      experimentNode: null,
+      userSelectedMode: mode,
+      systemDetectedIssue: isExplore ? (issueTitle || null) : null,
+      workflowSnapshot: {
+        nodeCount: (context.upstreamNodes?.length || 0) + (context.downstreamNodes?.length || 0) + 1,
+        edgeCount: 0,
+      },
+    });
+    
     const response = await ai.chat({
       messages,
+    });
+    
+    logRawAIOutput({
+      triggerType: isExplore ? 'explore' : 'experiment',
+      rawText: response.text,
     });
     
     const normalizedMode: ExperimentMode = mode === 'risk' ? 'whatif' : mode === 'prompt' ? 'open_exploration' : mode as ExperimentMode;

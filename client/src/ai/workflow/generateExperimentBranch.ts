@@ -2,6 +2,7 @@ import type { AiClient, AiMessage } from '../types';
 import type { Node, Edge, ExperimentMode, ExperimentOrigin } from '../../lib/kiteframe/types';
 import type { ExperimentContext } from '../../lib/kiteframe/utils/experimentContext';
 import { formatContextForPrompt } from '../../lib/kiteframe/utils/experimentContext';
+import { logGenerationInput, logRawAIOutput, logParsedProposal, warnContentContractViolation } from './experimentDebugLogger';
 
 export interface GenerateBranchInput {
   mode: ExperimentMode;
@@ -192,13 +193,30 @@ export async function generateExperimentBranch(
   ];
   
   try {
-    console.log('[generateExperimentBranch] Calling AI with prompt for:', description.substring(0, 100));
+    logGenerationInput({
+      triggerType: isExplore ? 'explore' : 'experiment',
+      originNode: {
+        id: anchorNodeId,
+        type: 'unknown',
+        header: anchorNodeLabel,
+      },
+      experimentNode: null,
+      userSelectedMode: mode,
+      systemDetectedIssue: isExplore ? description : null,
+      workflowSnapshot: {
+        nodeCount: (context.upstreamNodes?.length || 0) + (context.downstreamNodes?.length || 0) + 1,
+        edgeCount: 0,
+      },
+    });
     
     const response = await ai.chat({
       messages,
     });
     
-    console.log('[generateExperimentBranch] AI response received, parsing...');
+    logRawAIOutput({
+      triggerType: isExplore ? 'explore' : 'experiment',
+      rawText: response.text,
+    });
     
     const branch = parseAiBranchResponse(response.text);
     
@@ -244,9 +262,28 @@ export async function generateExperimentBranch(
       }
     }
     
-    console.log('[generateExperimentBranch] Generated branch:', {
-      nodeCount: branch.nodes.length,
-      edgeCount: branch.edges.length,
+    logParsedProposal({
+      triggerType: isExplore ? 'explore' : 'experiment',
+      nodes: branch.nodes.map(n => ({
+        id: n.id!,
+        type: n.type || 'process',
+        header: n.data?.label,
+        body: n.data?.description,
+      })),
+      edges: branch.edges.map(e => ({
+        id: e.id!,
+        source: e.source!,
+        target: e.target!,
+      })),
+    });
+    
+    branch.nodes.forEach(n => {
+      warnContentContractViolation({
+        nodeId: n.id!,
+        header: n.data?.label,
+        body: n.data?.description,
+        isAIGenerated: true,
+      });
     });
     
     return {

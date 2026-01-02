@@ -1,0 +1,273 @@
+EXPERIMENT & EXPLORE — DIAGNOSTIC LOGGING (V1)
+REPLIT IMPLEMENTATION INSTRUCTIONS
+
+OBJECTIVE
+
+Add structured logging to capture the full, raw data path for Experiment and Explore flows so we can diagnose:
+
+Preview vs committed graph topology errors
+
+Incorrect edge attachment during preview
+
+Header/body content mapping issues
+
+AI reasoning vs parsing vs rendering failures
+
+Differences between AI output and rendered nodes
+
+This logging is temporary, dev-only, and diagnostic.
+
+LOGGING SCOPE (ONLY THESE FLOWS)
+
+Enable logging for:
+
+Experiment node generation
+
+Explore solution generation
+
+Preview branch generation
+
+Accept / Commit actions
+
+Do NOT log:
+
+General chat messages
+
+Non-AI user edits
+
+Routine workflow operations
+
+PART 1 — GENERATION INPUT LOGGING (BEFORE AI CALL)
+
+Before any AI call for Experiment or Explore, log the following as a single structured object:
+
+console.groupCollapsed('[AI][Experiment|Explore] Generation Input')
+console.log({
+  triggerType: 'experiment' | 'explore',
+  originNode: {
+    id,
+    type,
+    header,
+    body
+  },
+  experimentNode: triggerType === 'experiment' ? {
+    id,
+    header,
+    body
+  } : null,
+  userSelectedMode: 'what_if' | 'enhancement' | 'wildcard' | null,
+  systemDetectedIssue: triggerType === 'explore' ? issueSummary : null,
+  workflowSnapshot: {
+    nodeCount,
+    edgeCount
+  }
+})
+console.groupEnd()
+
+
+Purpose:
+
+Confirms what context the AI is actually given
+
+Separates user intent vs system-initiated exploration
+
+Anchors all later logs to a known input state
+
+PART 2 — RAW AI OUTPUT LOGGING (CRITICAL)
+
+Immediately after receiving the AI response (before parsing or normalization):
+
+console.groupCollapsed('[AI][Experiment|Explore] Raw Output')
+console.log({
+  rawText: aiResponseText,
+  parsedJSONAttempt: safeJSONParse(aiResponseText),
+})
+console.groupEnd()
+
+
+Rules:
+
+Log the raw text exactly as returned
+
+Do NOT mutate, normalize, or transform before logging
+
+If parsing fails, log the error explicitly
+
+Purpose:
+
+Determines whether issues are AI-reasoning or parsing/rendering
+
+Prevents “the AI did something weird” ambiguity
+
+PART 3 — PARSED STRUCTURE LOGGING (POST-PROCESSING)
+
+After parsing + normalization, but before rendering:
+
+console.groupCollapsed('[AI][Experiment|Explore] Parsed Proposal')
+console.log({
+  nodes: parsedNodes.map(n => ({
+    id: n.id,
+    type: n.type,
+    header: n.data?.label,
+    body: n.data?.description
+  })),
+  edges: parsedEdges.map(e => ({
+    id: e.id,
+    source: e.source,
+    target: e.target
+  }))
+})
+console.groupEnd()
+
+
+Purpose:
+
+Confirms whether header/body content exists but is misplaced
+
+Confirms structural intent before UI rendering
+
+PART 4 — PREVIEW TOPOLOGY LOGGING (PRE-RENDER)
+
+Before rendering preview branches, log topology intent:
+
+console.groupCollapsed('[Preview] Topology Intent')
+console.log({
+  previewAnchorNodeId: experimentNodeId,
+  originNodeId,
+  previewBranchNodeIds,
+  expectedEdgePattern: 'branches_attach_to_experiment_node'
+})
+console.groupEnd()
+
+
+Purpose:
+
+Explicitly captures what the system believes it is doing
+
+Lets us detect mismatches between intent and actual graph
+
+PART 5 — RENDERED GRAPH LOGGING (POST-RENDER)
+
+After preview graph is rendered:
+
+console.groupCollapsed('[Preview] Rendered Graph')
+console.log({
+  nodes: renderedNodes.map(n => ({
+    id: n.id,
+    type: n.type,
+    header: n.data?.label,
+    body: n.data?.description
+  })),
+  edges: renderedEdges.map(e => ({
+    source: e.source,
+    target: e.target
+  }))
+})
+console.groupEnd()
+
+
+Purpose:
+
+Confirms whether preview branches incorrectly attach to origin
+
+Confirms whether body content was dropped during render
+
+PART 6 — ACCEPT / COMMIT LOGGING
+
+When user clicks Accept on Experiment / Explore:
+
+console.groupCollapsed('[Commit] Experiment Accept')
+console.log({
+  removedNodeId: experimentNodeId,
+  reattachedBranches: branchNodeIds,
+  newParentNodeId: originNodeId
+})
+console.groupEnd()
+
+
+After commit completes:
+
+console.groupCollapsed('[Commit] Final Graph')
+console.log({
+  nodes: finalNodes.map(n => n.id),
+  edges: finalEdges.map(e => ({
+    source: e.source,
+    target: e.target
+  }))
+})
+console.groupEnd()
+
+
+Purpose:
+
+Verifies preview → commit transformation is correct
+
+Ensures Experiment node is removed and branches reattach correctly
+
+PART 7 — CONTENT CONTRACT ASSERTION (DEV WARNING)
+
+Add a non-blocking dev warning if AI-generated nodes violate content expectations:
+
+if (isAIGeneratedNode && (!header || !body)) {
+  console.warn('[AI][Content Contract Violation]', {
+    nodeId,
+    header,
+    body
+  })
+}
+
+
+Purpose:
+
+Flags missing body text immediately
+
+Confirms whether issue is AI output vs UI mapping
+
+PART 8 — LOGGING CONTROLS
+
+Wrap all logs behind a single flag:
+
+const DEBUG_AI_EXPERIMENTS = true
+
+
+Logs must:
+
+Be console-only
+
+Be removable in one pass
+
+Not ship to production analytics
+
+WHAT THIS LOGGING ENABLES
+
+With these logs, we can definitively answer:
+
+Did the AI produce good content?
+
+Was content lost during parsing?
+
+Did preview attach to the wrong node?
+
+Did commit mutate topology incorrectly?
+
+Are headers/bodies inverted or missing?
+
+No guesswork. No interpretation.
+
+ACCEPTANCE CRITERIA
+
+A single Experiment or Explore run produces:
+
+Input log
+
+Raw AI output log
+
+Parsed structure log
+
+Preview intent log
+
+Rendered graph log
+
+Commit log (if accepted)
+
+If any stage is missing, logging is incomplete.

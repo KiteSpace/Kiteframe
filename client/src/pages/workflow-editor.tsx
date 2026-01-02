@@ -46,6 +46,7 @@ import { SavedProjectsDrawer } from "@/components/SavedProjectsDrawer";
 import { HomeScreen } from "@/components/HomeScreen";
 import { AiProvider, useAi } from "../ai/AiProvider";
 import { OpenAICompatClient } from "../ai/OpenAICompatClient";
+import { logPreviewTopology, logRenderedGraph, logCommitAccept, logCommitFinalGraph, warnContentContractViolation } from "../ai/workflow/experimentDebugLogger";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ObjectUploader } from "@/components/ObjectUploader";
@@ -10027,6 +10028,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             promptContent
                           });
                           
+                          logPreviewTopology({
+                            previewAnchorNodeId: nodeId,
+                            originNodeId: anchorNodeId,
+                            previewBranchNodeIds: generatedNodeIds,
+                            expectedEdgePattern: 'branches_attach_to_experiment_node'
+                          });
+                          
+                          previewNodes.forEach(n => {
+                            warnContentContractViolation({
+                              nodeId: n.id,
+                              header: n.data?.label,
+                              body: n.data?.description,
+                              isAIGenerated: true,
+                            });
+                          });
+                          
                           // Get existing generated IDs to clear before adding new ones
                           const existingNodeIds = data.generation?.generatedNodeIds || [];
                           const existingEdgeIds = data.generation?.generatedEdgeIds || [];
@@ -10554,6 +10571,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                                 style: { ...(e.style || {}), strokeOpacity: 0.8 }
                               } as Edge));
                               
+                              logPreviewTopology({
+                                previewAnchorNodeId: currentTool.anchorNodeId,
+                                originNodeId: currentTool.anchorNodeId,
+                                previewBranchNodeIds: generatedNodeIds,
+                                expectedEdgePattern: 'branches_attach_to_experiment_node'
+                              });
+                              
+                              previewNodes.forEach(n => {
+                                warnContentContractViolation({
+                                  nodeId: n.id,
+                                  header: n.data?.label,
+                                  body: n.data?.description,
+                                  isAIGenerated: true,
+                                });
+                              });
+                              
                               // Clear any existing speculative nodes/edges for this tool before adding new ones
                               const existingToolData = currentTool.generated;
                               setNodes(prev => {
@@ -10603,6 +10636,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         onAccept={(toolId) => {
                           const currentTool = workflowTools.find(t => t.id === toolId);
                           if (!currentTool?.generated) return;
+                          
+                          logCommitAccept({
+                            removedNodeId: '',
+                            reattachedBranches: currentTool.generated.nodeIds,
+                            newParentNodeId: currentTool.anchorNodeId,
+                          });
                           
                           saveToHistory();
                           
