@@ -9820,7 +9820,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           const queue: string[] = [...rootNodeIds];
                           rootNodeIds.forEach((id) => nodeDepth.set(id, 0));
 
-                          while (queue.length > 0) {
+                          // Guard against infinite loops (cycles) with max iterations
+                          const maxIterations = workflowNodeData.length * workflowNodeData.length;
+                          let iterations = 0;
+
+                          while (queue.length > 0 && iterations < maxIterations) {
+                            iterations++;
                             const currentId = queue.shift()!;
                             const currentDepth = nodeDepth.get(currentId) ?? 0;
 
@@ -9830,12 +9835,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             );
                             outEdges.forEach((edge) => {
                               const existingDepth = nodeDepth.get(edge.target);
-                              // Only update if not visited or if new depth is greater (handle multi-parent)
+                              // Only update if not visited (don't re-add for cycles)
                               if (existingDepth === undefined) {
-                                nodeDepth.set(edge.target, currentDepth + 1);
-                                queue.push(edge.target);
-                              } else if (currentDepth + 1 > existingDepth) {
-                                // Update to deepest path for multi-parent nodes
                                 nodeDepth.set(edge.target, currentDepth + 1);
                                 queue.push(edge.target);
                               }

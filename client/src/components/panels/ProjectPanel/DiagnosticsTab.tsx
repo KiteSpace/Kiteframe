@@ -397,21 +397,6 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                           {isProposalGenerating ? 'Generating...' : 'Propose'}
                         </Button>
                       )}
-                      {hasExplorationContext && insight.status !== 'explored' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onExplore(insight);
-                          }}
-                          className="h-6 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                          data-testid={`btn-explore-${insight.id}`}
-                        >
-                          <Compass className="w-3 h-3 mr-1" />
-                          Explore
-                        </Button>
-                      )}
                       {!isPromoted && (
                         <Button
                           variant="ghost"
