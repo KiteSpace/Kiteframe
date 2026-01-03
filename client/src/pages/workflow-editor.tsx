@@ -1700,7 +1700,7 @@ function WorkflowEditorContent({
     error: string | null;
   }>({ proposal: null, isGenerating: false, error: null });
 
-  const handleProposeSolution = useCallback(async () => {
+  const handleProposeSolution = useCallback(async (insight: import('@/lib/kiteframe/utils/insights/types').Insight) => {
     if (proposalState.isGenerating || proposalState.proposal) return;
     
     setProposalState(prev => ({ ...prev, isGenerating: true, error: null }));
@@ -1709,9 +1709,9 @@ function WorkflowEditorContent({
       const { generateProposedWorkflow } = await import('@/ai/proposal/generateProposedWorkflow');
       
       const proposal = await generateProposedWorkflow({
-        currentNodes: nodes,
-        currentEdges: edges,
-        insights: insights.insights.map(i => ({ title: i.title, description: i.description })),
+        insight,
+        snapshotNodes: nodes,
+        snapshotEdges: edges,
         aiClient: ai,
       });
       
@@ -1729,7 +1729,7 @@ function WorkflowEditorContent({
         variant: 'destructive',
       });
     }
-  }, [proposalState.isGenerating, proposalState.proposal, nodes, edges, insights.insights, ai, toast]);
+  }, [proposalState.isGenerating, proposalState.proposal, nodes, edges, ai, toast]);
 
   const handleCancelProposal = useCallback(() => {
     setProposalState({ proposal: null, isGenerating: false, error: null });

@@ -34,7 +34,7 @@ interface DiagnosticsTabProps {
   onHoverInsight?: (insightId: string | null) => void;
   focusedInsightId?: string | null;
   // Propose Solution (Phase 1)
-  onProposeSolution?: () => void;
+  onProposeSolution?: (insight: Insight) => void;
   hasActiveProposal?: boolean;
   isProposalGenerating?: boolean;
 }
@@ -248,20 +248,6 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
             >
               <Rocket className={cn('w-3.5 h-3.5', isLoading && 'animate-bounce')} />
             </Button>
-            {showProposeSolution && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onProposeSolution}
-                disabled={isProposalGenerating || !canRunTestFlight}
-                className="h-7 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                data-testid="btn-propose-solution"
-                title="Generate a proposed workflow improvement"
-              >
-                <Lightbulb className={cn('w-3.5 h-3.5 mr-1', isProposalGenerating && 'animate-pulse')} />
-                {isProposalGenerating ? 'Generating...' : 'Propose Solution'}
-              </Button>
-            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -395,6 +381,22 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                       {insight.description}
                     </p>
                     <div className="flex items-center gap-1 flex-wrap">
+                      {showProposeSolution && insight.relatedNodeIds.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onProposeSolution?.(insight);
+                          }}
+                          disabled={isProposalGenerating}
+                          className="h-6 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                          data-testid={`btn-propose-${insight.id}`}
+                        >
+                          <Lightbulb className={cn('w-3 h-3 mr-1', isProposalGenerating && 'animate-pulse')} />
+                          {isProposalGenerating ? 'Generating...' : 'Propose'}
+                        </Button>
+                      )}
                       {hasExplorationContext && insight.status !== 'explored' && (
                         <Button
                           variant="ghost"

@@ -46,7 +46,7 @@ interface ProjectPanelProps {
   initialPrompt?: string;
   onInitialPromptConsumed?: () => void;
   // Propose Solution (Phase 1)
-  onProposeSolution?: () => void;
+  onProposeSolution?: (insight: Insight) => void;
   hasActiveProposal?: boolean;
   isProposalGenerating?: boolean;
 }
