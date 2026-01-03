@@ -131,17 +131,23 @@ function parseAiBranchResponse(text: string): GeneratedBranch | null {
       parsed.edges = [];
     }
     
-    const nodes: Partial<Node>[] = parsed.nodes.map((node: any, index: number) => ({
-      id: node.id || `gen-${Date.now()}-${index}`,
-      type: ['process', 'condition', 'input', 'output'].includes(node.type) ? node.type : 'process',
-      position: {
-        x: typeof node.position?.x === 'number' ? node.position.x : 500 + (index * 250),
-        y: typeof node.position?.y === 'number' ? node.position.y : 200,
-      },
-      data: {
-        label: node.data?.label || node.label || 'New Step',
-      },
-    }));
+    const nodes: Partial<Node>[] = parsed.nodes.map((node: any, index: number) => {
+      const label = node.data?.label || node.label || 'New Step';
+      const description = node.data?.description || node.description || label;
+      
+      return {
+        id: node.id || `gen-${Date.now()}-${index}`,
+        type: ['process', 'condition', 'input', 'output'].includes(node.type) ? node.type : 'process',
+        position: {
+          x: typeof node.position?.x === 'number' ? node.position.x : 500 + (index * 250),
+          y: typeof node.position?.y === 'number' ? node.position.y : 200,
+        },
+        data: {
+          label,
+          description,
+        },
+      };
+    });
     
     const edges: Partial<Edge>[] = parsed.edges.map((edge: any, index: number) => ({
       id: edge.id || `edge-${Date.now()}-${index}`,

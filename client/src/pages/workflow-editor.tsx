@@ -10013,16 +10013,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           }));
                           const previewEdges: Edge[] = branch.edges.map(e => ({
                             id: e.id!,
-                            source: e.source!,
+                            source: e.source === anchorNodeId ? nodeId : e.source!,
                             target: e.target!,
                             type: e.type || 'smoothstep',
                             label: e.label,
                             meta: { 
                               speculative: true, 
                               experimentId,
-                              generatedFrom: { nodeId, ts: generatedAt } 
+                              generatedFrom: { nodeId, ts: generatedAt },
+                              originalSource: e.source === anchorNodeId ? anchorNodeId : undefined,
                             },
-                            style: { ...(e.style || {}), strokeOpacity: 0.8 }
+                            style: { ...(e.style || {}), strokeOpacity: 0.8, strokeDasharray: '5,5' }
                           }));
                           
                           console.log('[EXPERIMENT] Generation storing IDs', {
@@ -10081,6 +10082,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                                       data: { 
                                         ...data, 
                                         userPrompt: promptContent,
+                                        anchor: {
+                                          ...data.anchor,
+                                          anchorNodeId,
+                                        },
                                         generation: { 
                                           status: 'generated' as const,
                                           lastGeneratedAt: generatedAt,
@@ -10234,13 +10239,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       const nodeIdSet = new Set(generatedNodeIds);
                       const edgeIdSet = new Set(generatedEdgeIds);
                       
-                      const modeLabels: Record<string, string> = {
-                        whatif: 'What If',
-                        risk: 'Risk Analysis',
-                        enhancement: 'Enhancement',
-                        prompt: 'AI Prompt',
-                      };
-                      
                       const processNodeDefaults = { width: 180, height: 100, measuredWidth: 180, measuredHeight: 100 };
                       const defaultNodeStyle = {
                         headerBackground: '#4f46e5',
@@ -10254,107 +10252,176 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       const experimentMeta = node.meta?.experiment;
                       const experimentId = node.meta?.experimentId;
                       
-                      setNodes(prev => prev.map(n => {
-                        if (nodeIdSet.has(n.id)) {
-                          const cleared = clearPreviewFlags(n);
-                          return {
-                            ...cleared,
-                            meta: {
-                              ...cleared.meta,
-                              experimentId,
-                              speculative: false,
-                            },
-                            width: cleared.width || processNodeDefaults.width,
-                            height: cleared.height || processNodeDefaults.height,
-                            measuredWidth: cleared.measuredWidth || processNodeDefaults.measuredWidth,
-                            measuredHeight: cleared.measuredHeight || processNodeDefaults.measuredHeight,
-                            style: {
-                              ...cleared.style,
-                              ...defaultNodeStyle,
-                            },
-                          };
-                        }
-                        if (n.id === nodeId) {
-                          const experimentMode = data.mode || 'whatif';
-                          return {
-                            ...n,
-                            type: 'process' as const,
-                            width: processNodeDefaults.width,
-                            height: processNodeDefaults.height,
-                            measuredWidth: processNodeDefaults.measuredWidth,
-                            measuredHeight: processNodeDefaults.measuredHeight,
-                            meta: {
-                              ...n.meta,
-                              experimentId,
-                              speculative: false,
-                              experiment: experimentMeta ? {
-                                ...experimentMeta,
-                                acceptedAt,
-                              } : undefined,
-                            },
-                            style: {
-                              ...n.style,
-                              ...defaultNodeStyle,
-                            },
-                            data: { 
-                              label: data.selectedOptionLabel || modeLabels[experimentMode] || 'Adopted Node',
-                              description: data.selectedOptionDescription || experimentContent,
-                            }
-                          };
-                        }
-                        return n;
-                      }));
+                      const incomingEdge = edges.find(e => e.target === nodeId);
+                      const anchorNodeId = data.anchor?.anchorNodeId 
+                        || experimentMeta?.originNodeId 
+                        || (node.meta as any)?.generatedFrom?.nodeId
+                        || incomingEdge?.source;
                       
-                      setEdges(prev => prev.map(e => {
-                        if (edgeIdSet.has(e.id)) {
-                          const cleared = clearEdgePreviewFlags(e);
-                          return {
-                            ...cleared,
-                            meta: {
-                              ...cleared.meta,
-                              experimentId,
-                              speculative: false,
-                            },
-                            markerEnd: cleared.markerEnd !== undefined ? cleared.markerEnd : true,
-                            style: {
-                              ...cleared.style,
-                              strokeColor: cleared.style?.strokeColor || '#64748b',
-                            },
-                          };
-                        }
-                        return e;
-                      }));
+                      console.log('[EXPERIMENT] Accept - anchorNodeId resolution', {
+                        fromDataAnchor: data.anchor?.anchorNodeId,
+                        fromExperimentMeta: experimentMeta?.originNodeId,
+                        fromGeneratedFrom: (node.meta as any)?.generatedFrom?.nodeId,
+                        fromIncomingEdge: incomingEdge?.source,
+                        resolved: anchorNodeId,
+                      });
+                      
+                      const commitTimestamp = Date.now();
+                      const nodeIdRemap = new Map<string, string>();
+                      const edgeIdRemap = new Map<string, string>();
+                      
+                      generatedNodeIds.forEach((oldId, index) => {
+                        nodeIdRemap.set(oldId, `committed-node-${commitTimestamp}-${index}`);
+                      });
+                      generatedEdgeIds.forEach((oldId, index) => {
+                        edgeIdRemap.set(oldId, `committed-edge-${commitTimestamp}-${index}`);
+                      });
+                      
+                      setNodes(prev => {
+                        const filtered = prev.filter(n => n.id !== nodeId);
+                        return filtered.map(n => {
+                          if (nodeIdSet.has(n.id)) {
+                            const cleared = clearPreviewFlags(n);
+                            const newId = nodeIdRemap.get(n.id) || n.id;
+                            return {
+                              ...cleared,
+                              id: newId,
+                              meta: {
+                                ...cleared.meta,
+                                experimentId,
+                                speculative: false,
+                                experiment: experimentMeta ? {
+                                  ...experimentMeta,
+                                  acceptedAt,
+                                } : undefined,
+                              },
+                              width: cleared.width || processNodeDefaults.width,
+                              height: cleared.height || processNodeDefaults.height,
+                              measuredWidth: cleared.measuredWidth || processNodeDefaults.measuredWidth,
+                              measuredHeight: cleared.measuredHeight || processNodeDefaults.measuredHeight,
+                              style: {
+                                ...cleared.style,
+                                ...defaultNodeStyle,
+                              },
+                            };
+                          }
+                          return n;
+                        });
+                      });
+                      
+                      setEdges(prev => {
+                        console.log('[EXPERIMENT] Edge remapping - before filter', {
+                          totalEdges: prev.length,
+                          edgesInGenSet: prev.filter(e => edgeIdSet.has(e.id)).map(e => ({
+                            id: e.id,
+                            source: e.source,
+                            target: e.target,
+                            originalSource: (e.meta as any)?.originalSource,
+                          })),
+                        });
+                        
+                        const filteredEdges = prev.filter(e => {
+                          if (e.target === nodeId) return false;
+                          if (e.source === nodeId && !edgeIdSet.has(e.id)) return false;
+                          return true;
+                        });
+                        
+                        console.log('[EXPERIMENT] Edge remapping - after filter', {
+                          filteredCount: filteredEdges.length,
+                          keptGeneratedEdges: filteredEdges.filter(e => edgeIdSet.has(e.id)).length,
+                        });
+                        
+                        const remappedEdges = filteredEdges.map(e => {
+                          if (edgeIdSet.has(e.id)) {
+                            const originalSource = (e.meta as any)?.originalSource;
+                            const cleared = clearEdgePreviewFlags(e);
+                            const newId = edgeIdRemap.get(e.id) || e.id;
+                            let newSource: string;
+                            if (originalSource) {
+                              newSource = originalSource;
+                            } else if (e.source === nodeId) {
+                              newSource = anchorNodeId || e.source;
+                            } else {
+                              newSource = nodeIdRemap.get(e.source) || e.source;
+                            }
+                            const newTarget = nodeIdRemap.get(e.target) || e.target;
+                            
+                            return {
+                              ...cleared,
+                              id: newId,
+                              source: newSource,
+                              target: newTarget,
+                              meta: {
+                                ...cleared.meta,
+                                experimentId,
+                                speculative: false,
+                                originalSource: undefined,
+                              },
+                              markerEnd: cleared.markerEnd !== undefined ? cleared.markerEnd : true,
+                              style: {
+                                ...cleared.style,
+                                strokeColor: cleared.style?.strokeColor || '#64748b',
+                                strokeDasharray: undefined,
+                              },
+                            };
+                          }
+                          const remappedSource = nodeIdRemap.get(e.source) || e.source;
+                          const remappedTarget = nodeIdRemap.get(e.target) || e.target;
+                          if (remappedSource !== e.source || remappedTarget !== e.target) {
+                            return { ...e, source: remappedSource, target: remappedTarget };
+                          }
+                          return e;
+                        });
+                        
+                        const firstCommittedNodeId = generatedNodeIds.length > 0 ? nodeIdRemap.get(generatedNodeIds[0]) : null;
+                        const anchorEdges = anchorNodeId && firstCommittedNodeId 
+                          ? remappedEdges.filter(e => e.source === anchorNodeId && e.target === firstCommittedNodeId)
+                          : [];
+                        
+                        console.log('[EXPERIMENT] Edge remapping - final result', {
+                          remappedCount: remappedEdges.length,
+                          anchorEdgesCount: anchorEdges.length,
+                          anchorNodeId,
+                          firstCommittedNodeId,
+                          allRemappedEdges: remappedEdges.map(e => ({ id: e.id, source: e.source, target: e.target })),
+                        });
+                        
+                        return remappedEdges;
+                      });
                       
                       logCommitFinalGraph({
-                        nodes: [...generatedNodeIds, nodeId],
-                        edges: generatedEdgeIds.map(id => {
-                          const edge = edges.find(e => e.id === id);
-                          return { source: edge?.source || '', target: edge?.target || '' };
+                        nodes: Array.from(nodeIdRemap.values()),
+                        edges: Array.from(edgeIdRemap.entries()).map(([oldId, newId]) => {
+                          const edge = edges.find(e => e.id === oldId);
+                          const originalSource = (edge?.meta as any)?.originalSource;
+                          let source: string;
+                          if (originalSource) {
+                            source = originalSource;
+                          } else if (edge?.source === nodeId) {
+                            source = anchorNodeId || '';
+                          } else {
+                            source = nodeIdRemap.get(edge?.source || '') || edge?.source || '';
+                          }
+                          return { 
+                            id: newId,
+                            source,
+                            target: nodeIdRemap.get(edge?.target || '') || edge?.target || '' 
+                          };
                         }),
                       });
                       
                       saveToHistory("Adopt speculative branch");
                       
-                      console.log('[EXPERIMENT] Conversion completed', { 
-                        nodeId, 
-                        expectedType: 'process',
-                        experimentContent: data.userPrompt || data.selectedOptionDescription || data.selectedOptionLabel || ''
-                      });
-                      
-                      requestAnimationFrame(() => {
-                        const postNode = nodes.find(n => n.id === nodeId);
-                        console.log('[EXPERIMENT] Post-RAF node snapshot', {
-                          nodeId,
-                          type: postNode?.type,
-                          dataLabel: (postNode?.data as any)?.label,
-                          dataDescription: (postNode?.data as any)?.description,
-                          metaAcceptedAt: postNode?.meta?.experiment?.acceptedAt
-                        });
+                      console.log('[EXPERIMENT] Adopt completed - experiment node removed, branch re-parented', { 
+                        removedNodeId: nodeId,
+                        anchorNodeId,
+                        newNodeIds: Array.from(nodeIdRemap.values()),
+                        newEdgeIds: Array.from(edgeIdRemap.values()),
                       });
                       
                       toast({
                         title: "Branch adopted",
-                        description: "The experiment has been converted and the branch is now permanent.",
+                        description: "The speculative branch is now part of the workflow.",
                       });
                     }}
                     onExperimentDiscardBranch={(nodeId: string) => {

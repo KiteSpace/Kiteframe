@@ -1,0 +1,100 @@
+IMPLEMENTATION AUDIT QUESTIONS FOR REPLIT
+
+Regression Prevention + Scope Alignment
+
+Please answer these explicitly and concretely. Do not summarize intent; list files, state, and behavior.
+
+⸻
+
+SECTION 1 — WHAT IS ALREADY IMPLEMENTED (GROUND TRUTH)
+	1.	Which of the following are already implemented in code (not design), and in which files?
+Please answer item by item:
+	•	Removal of “Risk” from Experiment options
+	•	Addition of “Open Exploration” option
+	•	Distinct Experiment vs Explore Solution behaviors
+	•	Unified AI workflow generation between Home Prompt and KiteAI Chat
+	•	Shared normalizeWorkflowGraph utility
+	•	Shared AI system prompt
+	2.	Are any of the above currently in-progress, partially implemented, or only discussed but not merged?
+If yes, list which and their current state.
+	3.	Which of these areas does the new task file actually modify in your understanding?
+(Preview/commit topology and node content plumbing should be the only correct answer.)
+
+⸻
+
+SECTION 2 — AI PROMPT / CHAT PATH SAFETY CHECK (CRITICAL)
+	4.	Does the new task file require any changes to:
+	•	AI system prompts?
+	•	Experiment / Explore prompt wording?
+	•	Intent classification?
+	•	Confidence gating?
+	•	Home Prompt → Chat unification logic?
+Answer must be yes/no for each.
+If “yes” to any, explain why, because this would be a regression risk.
+	5.	Will any files related to AI prompt construction or chat state be edited as part of this task?
+If yes, list file names and what changes you believe are required.
+	6.	Can you confirm that no AI logic changes are required to fix preview vs commit topology or node content plumbing?
+(This should be “yes, confirmed.”)
+
+⸻
+
+SECTION 3 — PREVIEW VS COMMIT FIX: SCOPE CONFIRMATION
+	7.	Which exact files will you modify to implement preview vs commit topology?
+List files and the specific responsibility of each change.
+	8.	Are you introducing any new graph state, flags, or abstractions beyond:
+	•	base (committed) nodes/edges
+	•	preview nodes/edges
+If yes, explain why they are necessary.
+	9.	Will preview operations touch any of the following systems?
+Answer yes/no to each:
+	•	Activity/history persistence
+	•	Undo/redo stack
+	•	Project save
+	•	Collaboration sync
+Any “yes” here indicates a misunderstanding.
+
+⸻
+
+SECTION 4 — NODE CONTENT PLUMBING: SCOPE CONFIRMATION
+	10.	Where is the AI-generated node content currently lost or dropped?
+Choose all that apply and explain:
+	•	AI output missing description
+	•	Normalization layer dropping description
+	•	Renderer ignoring description
+	•	Incorrect field mapping (label vs description)
+	11.	Which files will you change to fix header/body mapping?
+List them explicitly.
+	12.	Will this change affect user-authored nodes or only AI-generated nodes?
+If it affects user-authored nodes, explain why.
+
+⸻
+
+SECTION 5 — HOME PROMPT / KITEAI CHAT REGRESSION CHECK
+	13.	Does this task introduce any branching logic that treats Home Prompt differently from KiteAI Chat?
+If yes, that is a regression — explain why it’s necessary.
+	14.	Can you confirm that after this task:
+	•	Home Prompt still routes into full-screen chat
+	•	All workflow generation still happens in the same chat pipeline
+	•	No new UI surfaces (modals, overlays) are introduced
+	15.	What specific manual tests will you run to ensure Home Prompt behavior is unchanged?
+(They should list the same tests you already aligned on.)
+
+⸻
+
+SECTION 6 — REGRESSION SAFETY COMMITMENT
+	16.	Before implementing, can you confirm the task file is limited to:
+	•	Preview graph lifecycle (temporary vs committed)
+	•	Node content mapping (header/body)
+And explicitly does NOT include:
+	•	AI prompt changes
+	•	Experiment/Explore option changes
+	•	Export bundle changes
+	17.	If you discover something “missing” while implementing, will you pause and ask before expanding scope?
+(This is a required commitment.)
+
+⸻
+
+SECTION 7 — FINAL ALIGNMENT CHECK (YES/NO)
+	18.	Is it correct that the purpose of the task file is to fix implementation bugs in existing behavior, not to introduce new features or refactors?
+	19.	Is it correct that nothing in the task file invalidates or replaces previously merged work?
+	20.	Is it correct that success is measured by topology correctness and content rendering, not by AI “quality”?
