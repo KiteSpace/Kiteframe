@@ -1,7 +1,8 @@
 import { memo, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { X, Lightbulb, Link2 } from 'lucide-react';
+import { X, Lightbulb, Link2, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { KiteFrameCanvas } from '@/lib/kiteframe/components/KiteFrameCanvas';
 import type { ProposedWorkflow } from '@/hooks/useProposalState';
 import { composePreviewData } from '@/hooks/useProposalState';
@@ -10,29 +11,34 @@ import type { Node, Edge } from '@/lib/kiteframe/types';
 interface ProposalPreviewContainerProps {
   proposal: ProposedWorkflow;
   onCancel: () => void;
+  onAccept: () => void;
+  onVariantChange: (variant: 'proposed' | 'alternative') => void;
 }
 
 /**
  * ProposalPreviewContainer
  * 
- * Two-column layout for displaying a surgical proposal preview.
+ * Phase 2: Two-column layout with variant toggle for comparison.
  * 
- * Left column (~35-40%): Proposal details (insight context, title, description)
+ * Left column (~35-40%): Proposal details, variant tabs, insight context
  * Right column (~60-65%): Read-only canvas preview showing ONLY:
  *   - Existing origin nodes (affected by the insight)
- *   - Proposed new nodes and edges
+ *   - Additions from the ACTIVE variant
  *   - NOT the full workflow
+ *   - NOT both variants simultaneously
  * 
  * Constraints (Locked):
  * - Preview uses readOnly={true}
- * - Preview shows origin + additions only (not full workflow)
- * - No withUndo() or saveToHistory() calls
- * - No visual changes to nodes or edges
- * - Distinction lives entirely in container chrome
+ * - Preview shows origin + active variant additions only
+ * - Switching tabs never triggers AI regeneration
+ * - No withUndo() or saveToHistory() during preview
+ * - Accept commits only the currently active variant
  */
 export const ProposalPreviewContainer = memo(function ProposalPreviewContainer({
   proposal,
   onCancel,
+  onAccept,
+  onVariantChange,
 }: ProposalPreviewContainerProps) {
   const handleNodesChange = useCallback((_nodes: Node[]) => {
   }, []);
@@ -41,6 +47,9 @@ export const ProposalPreviewContainer = memo(function ProposalPreviewContainer({
   }, []);
 
   const previewData = useMemo(() => composePreviewData(proposal), [proposal]);
+  
+  const activeVariant = proposal.activeVariant;
+  const currentVariantData = activeVariant === 'proposed' ? proposal.proposed : proposal.alternative;
 
   return (
     <div 
@@ -59,8 +68,36 @@ export const ProposalPreviewContainer = memo(function ProposalPreviewContainer({
               </h2>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Here is a surgical change I'm proposing to address your insight.
+              Compare options and choose which to apply.
             </p>
+          </div>
+          
+          {/* Variant Toggle Tabs */}
+          <div className="flex border-b border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => onVariantChange('proposed')}
+              className={cn(
+                'flex-1 px-4 py-3 text-sm font-medium transition-colors',
+                activeVariant === 'proposed'
+                  ? 'text-purple-600 dark:text-purple-400 border-b-2 border-purple-600 dark:border-purple-400 bg-purple-50/50 dark:bg-purple-900/10'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              )}
+              data-testid="tab-proposed"
+            >
+              Proposed
+            </button>
+            <button
+              onClick={() => onVariantChange('alternative')}
+              className={cn(
+                'flex-1 px-4 py-3 text-sm font-medium transition-colors',
+                activeVariant === 'alternative'
+                  ? 'text-purple-600 dark:text-purple-400 border-b-2 border-purple-600 dark:border-purple-400 bg-purple-50/50 dark:bg-purple-900/10'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              )}
+              data-testid="tab-alternative"
+            >
+              Alternative
+            </button>
           </div>
           
           <ScrollArea className="flex-1 px-5 py-4">
@@ -79,17 +116,17 @@ export const ProposalPreviewContainer = memo(function ProposalPreviewContainer({
               
               <div>
                 <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
-                  {proposal.title}
+                  {currentVariantData.title}
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                  {proposal.description}
+                  {currentVariantData.description}
                 </p>
               </div>
               
               <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                   <span>
-                    Adding {proposal.proposedNodes.length} node{proposal.proposedNodes.length !== 1 ? 's' : ''}, {proposal.proposedEdges.length} connection{proposal.proposedEdges.length !== 1 ? 's' : ''}
+                    Adding {currentVariantData.nodes.length} node{currentVariantData.nodes.length !== 1 ? 's' : ''}, {currentVariantData.edges.length} connection{currentVariantData.edges.length !== 1 ? 's' : ''}
                   </span>
                   <span>
                     {new Date(proposal.generatedAt).toLocaleTimeString()}
@@ -107,7 +144,7 @@ export const ProposalPreviewContainer = memo(function ProposalPreviewContainer({
                 Preview
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Showing origin nodes + proposed additions
+                Showing origin nodes + {activeVariant} additions
               </p>
             </div>
           </div>
@@ -132,6 +169,7 @@ export const ProposalPreviewContainer = memo(function ProposalPreviewContainer({
         </div>
       </div>
       
+      {/* Footer with Accept and Cancel */}
       <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-900">
         <Button
           variant="outline"
@@ -140,6 +178,14 @@ export const ProposalPreviewContainer = memo(function ProposalPreviewContainer({
         >
           <X className="w-4 h-4 mr-2" />
           Cancel
+        </Button>
+        <Button
+          onClick={onAccept}
+          className="bg-purple-600 hover:bg-purple-700 text-white"
+          data-testid="btn-accept-proposal"
+        >
+          <Check className="w-4 h-4 mr-2" />
+          Accept
         </Button>
       </div>
     </div>

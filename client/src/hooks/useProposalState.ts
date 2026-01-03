@@ -1,15 +1,20 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Node, Edge } from '@/lib/kiteframe/types';
-import type { Insight } from '@/lib/kiteframe/utils/insights/types';
+
+export interface ProposalVariant {
+  nodes: Node[];
+  edges: Edge[];
+  title: string;
+  description: string;
+}
 
 export interface ProposedWorkflow {
   insightId: string;
   insightTitle: string;
   affectedNodeIds: string[];
-  proposedNodes: Node[];
-  proposedEdges: Edge[];
-  title: string;
-  description: string;
+  proposed: ProposalVariant;
+  alternative: ProposalVariant;
+  activeVariant: 'proposed' | 'alternative';
   generatedAt: number;
   snapshotNodes: Node[];
   snapshotEdges: Edge[];
@@ -27,6 +32,7 @@ export interface UseProposalStateReturn {
   clearProposal: () => void;
   setGenerating: (isGenerating: boolean) => void;
   setError: (error: string | null) => void;
+  setActiveVariant: (variant: 'proposed' | 'alternative') => void;
   hasActiveProposal: boolean;
 }
 
@@ -35,13 +41,15 @@ export interface UseProposalStateReturn {
  * 
  * Manages the proposal lifecycle for "Propose Solution" feature.
  * 
- * Constraints (Locked):
+ * Phase 2 Constraints:
  * - Client-only state (not persisted)
  * - Only one active proposal at a time
  * - Proposal does not persist across refresh
  * - Cleared entirely on Cancel
  * - Proposal is scoped to a specific Insight
- * - Contains only proposed additions, not full workflow replacement
+ * - Contains both proposed and alternative variants
+ * - activeVariant controls which variant is shown in preview
+ * - Switching variants never triggers regeneration
  */
 export function useProposalState(): UseProposalStateReturn {
   const [proposalState, setProposalState] = useState<ProposalState>({
@@ -82,6 +90,19 @@ export function useProposalState(): UseProposalStateReturn {
     }));
   }, []);
 
+  const setActiveVariant = useCallback((variant: 'proposed' | 'alternative') => {
+    setProposalState(prev => {
+      if (!prev.proposal) return prev;
+      return {
+        ...prev,
+        proposal: {
+          ...prev.proposal,
+          activeVariant: variant,
+        },
+      };
+    });
+  }, []);
+
   useEffect(() => {
     return () => {
     };
@@ -93,6 +114,7 @@ export function useProposalState(): UseProposalStateReturn {
     clearProposal,
     setGenerating,
     setError,
+    setActiveVariant,
     hasActiveProposal: proposalState.proposal !== null,
   };
 }
@@ -100,11 +122,16 @@ export function useProposalState(): UseProposalStateReturn {
 /**
  * Compose preview data for ProposalPreviewContainer
  * 
- * Preview shows: existing origin nodes + proposed additions only
- * NOT the full workflow
+ * Phase 2: Variant-aware preview composition
+ * - Always includes origin node(s) from affected nodes
+ * - Includes only additions from the active variant
+ * - Never includes full workflow
+ * - Never includes both variants simultaneously
  */
 export function composePreviewData(proposal: ProposedWorkflow): { nodes: Node[]; edges: Edge[] } {
-  const { affectedNodeIds, proposedNodes, proposedEdges, snapshotNodes, snapshotEdges } = proposal;
+  const { affectedNodeIds, activeVariant, proposed, alternative, snapshotNodes, snapshotEdges } = proposal;
+  
+  const variant = activeVariant === 'proposed' ? proposed : alternative;
   
   const existingOriginNodes = snapshotNodes.filter(n => affectedNodeIds.includes(n.id));
   
@@ -112,8 +139,8 @@ export function composePreviewData(proposal: ProposedWorkflow): { nodes: Node[];
     affectedNodeIds.includes(e.source) || affectedNodeIds.includes(e.target)
   );
   
-  const previewNodes = [...existingOriginNodes, ...proposedNodes];
-  const previewEdges = [...existingRelevantEdges, ...proposedEdges];
+  const previewNodes = [...existingOriginNodes, ...variant.nodes];
+  const previewEdges = [...existingRelevantEdges, ...variant.edges];
   
   return { nodes: previewNodes, edges: previewEdges };
 }

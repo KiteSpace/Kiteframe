@@ -1693,12 +1693,18 @@ function WorkflowEditorContent({
     }
   }, [insights.insights]);
 
-  // Propose Solution state (Phase 1 - Preview Only)
+  // Propose Solution state (Phase 2 - Accept + Alternative)
   const [proposalState, setProposalState] = useState<{
     proposal: import('@/hooks/useProposalState').ProposedWorkflow | null;
     isGenerating: boolean;
     error: string | null;
   }>({ proposal: null, isGenerating: false, error: null });
+  
+  // Ref to track latest proposal state for Accept handler (prevents variant drift bug)
+  const proposalStateRef = useRef(proposalState);
+  useEffect(() => {
+    proposalStateRef.current = proposalState;
+  }, [proposalState]);
 
   const handleProposeSolution = useCallback(async (insight: import('@/lib/kiteframe/utils/insights/types').Insight) => {
     if (proposalState.isGenerating || proposalState.proposal) return;
@@ -1733,6 +1739,19 @@ function WorkflowEditorContent({
 
   const handleCancelProposal = useCallback(() => {
     setProposalState({ proposal: null, isGenerating: false, error: null });
+  }, []);
+
+  const handleVariantChange = useCallback((variant: 'proposed' | 'alternative') => {
+    setProposalState(prev => {
+      if (!prev.proposal) return prev;
+      return {
+        ...prev,
+        proposal: {
+          ...prev.proposal,
+          activeVariant: variant,
+        },
+      };
+    });
   }, []);
   
   // Explore insight - creates experiment anchored to related nodes without auto-mutating workflow
@@ -3169,6 +3188,60 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     },
     [activeTab, nodes, edges, canvasObjects, viewport, setTabs],
   );
+
+  // Accept Proposal - commits active variant to canvas with undo support (Phase 2)
+  // Uses ref to read latest proposal state at click time (prevents variant drift bug)
+  const handleAcceptProposal = useCallback(() => {
+    const currentProposal = proposalStateRef.current.proposal;
+    if (!currentProposal) return;
+    
+    // Read activeVariant at click time to honor any tab switches
+    const activeVariant = currentProposal.activeVariant;
+    const variantData = activeVariant === 'proposed' ? currentProposal.proposed : currentProposal.alternative;
+    
+    // Generate truly unique IDs with timestamp + random suffix to prevent collisions
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substr(2, 9);
+    
+    const newNodes: Node[] = variantData.nodes.map((node, idx) => ({
+      ...node,
+      id: `node-${timestamp}-${randomSuffix}-${idx}`,
+      data: {
+        ...node.data,
+        createdFromInsightId: currentProposal.insightId,
+      },
+    }));
+    
+    // Build ID map from old preview IDs to new live IDs
+    const nodeIdMap: Record<string, string> = {};
+    variantData.nodes.forEach((node, idx) => {
+      nodeIdMap[node.id] = `node-${timestamp}-${randomSuffix}-${idx}`;
+    });
+    
+    const newEdges: Edge[] = variantData.edges.map((edge, idx) => ({
+      ...edge,
+      id: `edge-${timestamp}-${randomSuffix}-${idx}`,
+      source: nodeIdMap[edge.source] || edge.source,
+      target: nodeIdMap[edge.target] || edge.target,
+    }));
+    
+    withUndo(
+      `Apply proposal from Insight: ${currentProposal.insightTitle}`,
+      saveToHistory,
+      () => {
+        // Use functional updates to ensure we're working with the latest canvas state
+        setNodes(currentNodes => [...currentNodes, ...newNodes]);
+        setEdges(currentEdges => [...currentEdges, ...newEdges]);
+      }
+    );
+    
+    setProposalState({ proposal: null, isGenerating: false, error: null });
+    
+    toast({
+      title: 'Proposal Applied',
+      description: `Added ${newNodes.length} node${newNodes.length !== 1 ? 's' : ''} and ${newEdges.length} connection${newEdges.length !== 1 ? 's' : ''} to your workflow.`,
+    });
+  }, [setNodes, setEdges, saveToHistory, toast]);
 
   // Quick-add functionality
   const handleQuickAdd = useCallback(
@@ -11004,13 +11077,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         )}
       </div>
 
-      {/* Proposal Preview Modal (Phase 1) */}
+      {/* Proposal Preview Modal (Phase 2 - Accept + Alternative) */}
       {proposalState.proposal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
           <div className="w-[90vw] h-[85vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl overflow-hidden">
             <ProposalPreviewContainer
               proposal={proposalState.proposal}
               onCancel={handleCancelProposal}
+              onAccept={handleAcceptProposal}
+              onVariantChange={handleVariantChange}
             />
           </div>
         </div>
