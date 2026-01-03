@@ -35,6 +35,7 @@ import { NewTabModal } from "@/components/NewTabModal";
 import { ImageUploadModal } from "@/lib/kiteframe/components/modals/ImageUploadModal";
 import { ImageAnalysisModal } from "@/components/modals/ImageAnalysisModal";
 import { ProposalPreviewContainer } from "@/components/proposal/ProposalPreviewContainer";
+import { ExperimentPreviewContainer } from "@/components/experiment/ExperimentPreviewContainer";
 import { LinearToolbar } from "@/lib/kiteframe/components/LinearToolbar";
 import {
   QuickCreateRadialMenu,
@@ -1707,6 +1708,11 @@ function WorkflowEditorContent({
   }, [proposalState]);
 
   const handleProposeSolution = useCallback(async (insight: import('@/lib/kiteframe/utils/insights/types').Insight) => {
+    // Close any active experiment first (container exclusivity)
+    if (experimentState.session) {
+      setExperimentState({ session: null, generatingInsightId: null, error: null });
+    }
+    
     if (proposalState.generatingInsightId || proposalState.proposal) return;
     
     setProposalState(prev => ({ ...prev, generatingInsightId: insight.id, error: null }));
@@ -1754,6 +1760,75 @@ function WorkflowEditorContent({
     });
   }, []);
   
+  // Experiment state (Phase 3 - Pressure Testing)
+  // NOTE: We need experimentState defined before handleProposeSolution but the hook ordering is correct -
+  // handleProposeSolution uses setExperimentState which is a stable function, not experimentState.session directly
+  const [experimentState, setExperimentState] = useState<{
+    session: import('@/hooks/useExperimentState').ExperimentSession | null;
+    generatingInsightId: string | null;
+    error: string | null;
+  }>({ session: null, generatingInsightId: null, error: null });
+  
+  // Ref to track latest experiment state for Accept handler
+  const experimentStateRef = useRef(experimentState);
+  useEffect(() => {
+    experimentStateRef.current = experimentState;
+  }, [experimentState]);
+
+  const handleStartExperiment = useCallback(async (insight: import('@/lib/kiteframe/utils/insights/types').Insight) => {
+    // Close any active proposal first (container exclusivity)
+    if (proposalState.proposal) {
+      setProposalState({ proposal: null, generatingInsightId: null, error: null });
+    }
+    
+    if (experimentState.generatingInsightId || experimentState.session) return;
+    
+    setExperimentState(prev => ({ ...prev, generatingInsightId: insight.id, error: null }));
+    
+    try {
+      const { generateExperiments } = await import('@/ai/experiment/generateExperiments');
+      
+      const session = await generateExperiments({
+        insight,
+        snapshotNodes: nodes,
+        snapshotEdges: edges,
+        aiClient: ai,
+      });
+      
+      setExperimentState({ session, generatingInsightId: null, error: null });
+    } catch (err) {
+      console.error('[Experiment] Generation failed:', err);
+      setExperimentState({ 
+        session: null, 
+        generatingInsightId: null, 
+        error: err instanceof Error ? err.message : 'Failed to generate experiments' 
+      });
+      toast({
+        title: 'Experiment Generation Failed',
+        description: err instanceof Error ? err.message : 'Failed to generate experiments',
+        variant: 'destructive',
+      });
+    }
+  }, [experimentState.generatingInsightId, experimentState.session, proposalState.proposal, nodes, edges, ai, toast]);
+
+  const handleCancelExperiment = useCallback(() => {
+    // Cancel clears state entirely - no undo entry, no canvas mutation
+    setExperimentState({ session: null, generatingInsightId: null, error: null });
+  }, []);
+
+  const handleSelectExperiment = useCallback((experimentId: string) => {
+    setExperimentState(prev => {
+      if (!prev.session) return prev;
+      return {
+        ...prev,
+        session: {
+          ...prev.session,
+          activeExperimentId: experimentId,
+        },
+      };
+    });
+  }, []);
+
   // Explore insight - creates experiment anchored to related nodes without auto-mutating workflow
   // Note: focusOnNode is defined later, so we use a ref pattern
   const handleExploreInsightRef = useRef<((insight: import('@/lib/kiteframe/utils/insights/types').Insight) => void) | null>(null);
@@ -3244,6 +3319,64 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     
     toast({
       title: 'Proposal Applied',
+      description: `Added ${newNodes.length} node${newNodes.length !== 1 ? 's' : ''} and ${newEdges.length} connection${newEdges.length !== 1 ? 's' : ''} to your workflow.`,
+    });
+  }, [setNodes, setEdges, saveToHistory, toast, insights]);
+
+  // Accept Experiment - commits selected experiment to canvas with undo support (Phase 3)
+  const handleAcceptExperiment = useCallback(() => {
+    const currentSession = experimentStateRef.current.session;
+    if (!currentSession || !currentSession.activeExperimentId) return;
+    
+    const activeExperiment = currentSession.experiments.find(e => e.id === currentSession.activeExperimentId);
+    if (!activeExperiment) return;
+    
+    // Generate truly unique IDs with timestamp + random suffix to prevent collisions
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substr(2, 9);
+    
+    const newNodes: Node[] = activeExperiment.variant.nodes.map((node, idx) => ({
+      ...node,
+      id: `node-${timestamp}-${randomSuffix}-${idx}`,
+      data: {
+        ...node.data,
+        createdFromInsightId: currentSession.insightId,
+        createdFromExperimentId: activeExperiment.id,
+      },
+    }));
+    
+    // Build ID map from old preview IDs to new live IDs
+    const nodeIdMap: Record<string, string> = {};
+    activeExperiment.variant.nodes.forEach((node, idx) => {
+      nodeIdMap[node.id] = `node-${timestamp}-${randomSuffix}-${idx}`;
+    });
+    
+    const newEdges: Edge[] = activeExperiment.variant.edges.map((edge, idx) => ({
+      ...edge,
+      id: `edge-${timestamp}-${randomSuffix}-${idx}`,
+      source: nodeIdMap[edge.source] || edge.source,
+      target: nodeIdMap[edge.target] || edge.target,
+    }));
+    
+    withUndo(
+      `Apply experiment: ${activeExperiment.title}`,
+      saveToHistory,
+      () => {
+        // Use functional updates to ensure we're working with the latest canvas state
+        setNodes(currentNodes => [...currentNodes, ...newNodes]);
+        setEdges(currentEdges => [...currentEdges, ...newEdges]);
+      }
+    );
+    
+    // Mark the insight as resolved when experiment is accepted
+    if (currentSession.insightId) {
+      insights.markResolved(currentSession.insightId);
+    }
+    
+    setExperimentState({ session: null, generatingInsightId: null, error: null });
+    
+    toast({
+      title: 'Experiment Applied',
       description: `Added ${newNodes.length} node${newNodes.length !== 1 ? 's' : ''} and ${newEdges.length} connection${newEdges.length !== 1 ? 's' : ''} to your workflow.`,
     });
   }, [setNodes, setEdges, saveToHistory, toast, insights]);
@@ -11076,6 +11209,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 onProposeSolution={handleProposeSolution}
                 hasActiveProposal={proposalState.proposal !== null}
                 generatingInsightId={proposalState.generatingInsightId}
+                onStartExperiment={handleStartExperiment}
+                hasActiveExperiment={experimentState.session !== null}
+                generatingExperimentInsightId={experimentState.generatingInsightId}
               />
             )}
           </>
@@ -11091,6 +11227,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onCancel={handleCancelProposal}
               onAccept={handleAcceptProposal}
               onVariantChange={handleVariantChange}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Experiment Preview Modal (Phase 3 - Pressure Testing) */}
+      {experimentState.session && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <div className="w-[90vw] h-[85vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl overflow-hidden">
+            <ExperimentPreviewContainer
+              session={experimentState.session}
+              onCancel={handleCancelExperiment}
+              onAccept={handleAcceptExperiment}
+              onSelectExperiment={handleSelectExperiment}
             />
           </div>
         </div>

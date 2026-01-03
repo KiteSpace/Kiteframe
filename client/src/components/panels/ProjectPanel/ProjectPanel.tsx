@@ -49,6 +49,10 @@ interface ProjectPanelProps {
   onProposeSolution?: (insight: Insight) => void;
   hasActiveProposal?: boolean;
   generatingInsightId?: string | null;
+  // Experiment (Phase 3)
+  onStartExperiment?: (insight: Insight) => void;
+  hasActiveExperiment?: boolean;
+  generatingExperimentInsightId?: string | null;
 }
 
 const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string }[] = [
@@ -90,6 +94,9 @@ export function ProjectPanel({
   onProposeSolution,
   hasActiveProposal = false,
   generatingInsightId = null,
+  onStartExperiment,
+  hasActiveExperiment = false,
+  generatingExperimentInsightId = null,
 }: ProjectPanelProps) {
   const resizeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -367,6 +374,9 @@ export function ProjectPanel({
             onProposeSolution={onProposeSolution}
             hasActiveProposal={hasActiveProposal}
             generatingInsightId={generatingInsightId}
+            onStartExperiment={onStartExperiment}
+            hasActiveExperiment={hasActiveExperiment}
+            generatingExperimentInsightId={generatingExperimentInsightId}
           />
         </TabsContent>
       </Tabs>

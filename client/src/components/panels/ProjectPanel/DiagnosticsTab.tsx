@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Rocket, Info, Check, Eye, Focus, Filter, X, Clock, FileText, Compass, Lightbulb } from 'lucide-react';
+import { Rocket, Info, Check, Eye, Focus, Filter, X, Clock, FileText, Compass, Lightbulb, FlaskConical } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +37,10 @@ interface DiagnosticsTabProps {
   onProposeSolution?: (insight: Insight) => void;
   hasActiveProposal?: boolean;
   generatingInsightId?: string | null;
+  // Experiment (Phase 3)
+  onStartExperiment?: (insight: Insight) => void;
+  hasActiveExperiment?: boolean;
+  generatingExperimentInsightId?: string | null;
 }
 
 const CATEGORY_STYLES: Record<InsightCategory, { bg: string; text: string; icon: typeof Info; label: string }> = {
@@ -93,8 +97,12 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   onProposeSolution,
   hasActiveProposal = false,
   generatingInsightId = null,
+  onStartExperiment,
+  hasActiveExperiment = false,
+  generatingExperimentInsightId = null,
 }: DiagnosticsTabProps) {
-  const showProposeSolution = isFeatureEnabled('PROPOSE_SOLUTION_PREVIEW') && !hasActiveProposal;
+  const showProposeSolution = isFeatureEnabled('PROPOSE_SOLUTION_PREVIEW') && !hasActiveProposal && !hasActiveExperiment;
+  const showExperiment = isFeatureEnabled('PROPOSE_SOLUTION_PREVIEW') && !hasActiveExperiment && !hasActiveProposal;
   const canRunTestFlight = edgeCount >= MIN_EDGES_FOR_TEST_FLIGHT;
   const scrollRef = useRef<HTMLDivElement>(null);
   const focusedRowRef = useRef<HTMLDivElement>(null);
@@ -429,6 +437,31 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                           >
                             <Lightbulb className={cn('w-3 h-3 mr-1', isThisGenerating && 'animate-pulse')} />
                             {isThisGenerating ? 'Generating...' : 'Propose'}
+                          </Button>
+                        );
+                      })()}
+                      {showExperiment && insight.relatedNodeIds.length > 0 && (() => {
+                        const isThisGenerating = generatingExperimentInsightId === insight.id;
+                        const isOtherGenerating = generatingExperimentInsightId !== null && generatingExperimentInsightId !== insight.id;
+                        return (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onStartExperiment?.(insight);
+                            }}
+                            disabled={isThisGenerating || isOtherGenerating}
+                            className={cn(
+                              "h-6 text-xs",
+                              isOtherGenerating 
+                                ? "text-gray-400 cursor-not-allowed" 
+                                : "text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                            )}
+                            data-testid={`btn-experiment-${insight.id}`}
+                          >
+                            <FlaskConical className={cn('w-3 h-3 mr-1', isThisGenerating && 'animate-pulse')} />
+                            {isThisGenerating ? 'Generating...' : 'Experiment'}
                           </Button>
                         );
                       })()}
