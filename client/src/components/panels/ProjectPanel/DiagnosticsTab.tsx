@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Rocket, Info, Check, Eye, Focus, Filter, X, Clock, FileText, Compass } from 'lucide-react';
+import { Rocket, Info, Check, Eye, Focus, Filter, X, Clock, FileText, Compass, Lightbulb } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { Insight, InsightCategory, InsightStatus } from '@/lib/kiteframe/utils/insights/types';
+import { isFeatureEnabled } from '@/config/featureFlags';
 
 type ListFilterMode = 'new' | 'all';
 
@@ -32,6 +33,10 @@ interface DiagnosticsTabProps {
   onNavigateToNode?: (nodeId: string) => void;
   onHoverInsight?: (insightId: string | null) => void;
   focusedInsightId?: string | null;
+  // Propose Solution (Phase 1)
+  onProposeSolution?: () => void;
+  hasActiveProposal?: boolean;
+  isProposalGenerating?: boolean;
 }
 
 const CATEGORY_STYLES: Record<InsightCategory, { bg: string; text: string; icon: typeof Info; label: string }> = {
@@ -84,7 +89,11 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   onNavigateToNode,
   onHoverInsight,
   focusedInsightId,
+  onProposeSolution,
+  hasActiveProposal = false,
+  isProposalGenerating = false,
 }: DiagnosticsTabProps) {
+  const showProposeSolution = isFeatureEnabled('PROPOSE_SOLUTION_PREVIEW') && !hasActiveProposal;
   const canRunTestFlight = edgeCount >= MIN_EDGES_FOR_TEST_FLIGHT;
   const scrollRef = useRef<HTMLDivElement>(null);
   const focusedRowRef = useRef<HTMLDivElement>(null);
@@ -239,6 +248,20 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
             >
               <Rocket className={cn('w-3.5 h-3.5', isLoading && 'animate-bounce')} />
             </Button>
+            {showProposeSolution && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onProposeSolution}
+                disabled={isProposalGenerating || !canRunTestFlight}
+                className="h-7 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                data-testid="btn-propose-solution"
+                title="Generate a proposed workflow improvement"
+              >
+                <Lightbulb className={cn('w-3.5 h-3.5 mr-1', isProposalGenerating && 'animate-pulse')} />
+                {isProposalGenerating ? 'Generating...' : 'Propose Solution'}
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

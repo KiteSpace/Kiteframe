@@ -34,6 +34,7 @@ import { MissingImagesModal } from "@/components/MissingImagesModal";
 import { NewTabModal } from "@/components/NewTabModal";
 import { ImageUploadModal } from "@/lib/kiteframe/components/modals/ImageUploadModal";
 import { ImageAnalysisModal } from "@/components/modals/ImageAnalysisModal";
+import { ProposalPreviewContainer } from "@/components/proposal/ProposalPreviewContainer";
 import { LinearToolbar } from "@/lib/kiteframe/components/LinearToolbar";
 import {
   QuickCreateRadialMenu,
@@ -1691,6 +1692,48 @@ function WorkflowEditorContent({
       setHoveredInsightNodeIds(insight.relatedNodeIds);
     }
   }, [insights.insights]);
+
+  // Propose Solution state (Phase 1 - Preview Only)
+  const [proposalState, setProposalState] = useState<{
+    proposal: import('@/hooks/useProposalState').ProposedWorkflow | null;
+    isGenerating: boolean;
+    error: string | null;
+  }>({ proposal: null, isGenerating: false, error: null });
+
+  const handleProposeSolution = useCallback(async () => {
+    if (proposalState.isGenerating || proposalState.proposal) return;
+    
+    setProposalState(prev => ({ ...prev, isGenerating: true, error: null }));
+    
+    try {
+      const { generateProposedWorkflow } = await import('@/ai/proposal/generateProposedWorkflow');
+      
+      const proposal = await generateProposedWorkflow({
+        currentNodes: nodes,
+        currentEdges: edges,
+        insights: insights.insights.map(i => ({ title: i.title, description: i.description })),
+        aiClient: ai,
+      });
+      
+      setProposalState({ proposal, isGenerating: false, error: null });
+    } catch (err) {
+      console.error('[ProposeSolution] Generation failed:', err);
+      setProposalState({ 
+        proposal: null, 
+        isGenerating: false, 
+        error: err instanceof Error ? err.message : 'Failed to generate proposal' 
+      });
+      toast({
+        title: 'Generation Failed',
+        description: err instanceof Error ? err.message : 'Failed to generate proposal',
+        variant: 'destructive',
+      });
+    }
+  }, [proposalState.isGenerating, proposalState.proposal, nodes, edges, insights.insights, ai, toast]);
+
+  const handleCancelProposal = useCallback(() => {
+    setProposalState({ proposal: null, isGenerating: false, error: null });
+  }, []);
   
   // Explore insight - creates experiment anchored to related nodes without auto-mutating workflow
   // Note: focusOnNode is defined later, so we use a ref pattern
@@ -10951,11 +10994,26 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 forceTab={forcePanelTab}
                 initialPrompt={pendingChatPrompt || undefined}
                 onInitialPromptConsumed={handleChatPromptConsumed}
+                onProposeSolution={handleProposeSolution}
+                hasActiveProposal={proposalState.proposal !== null}
+                isProposalGenerating={proposalState.isGenerating}
               />
             )}
           </>
         )}
       </div>
+
+      {/* Proposal Preview Modal (Phase 1) */}
+      {proposalState.proposal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <div className="w-[90vw] h-[85vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl overflow-hidden">
+            <ProposalPreviewContainer
+              proposal={proposalState.proposal}
+              onCancel={handleCancelProposal}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       {showAiModal && (

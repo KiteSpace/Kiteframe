@@ -1,0 +1,179 @@
+1. Canvas & Rendering Architecture
+
+Goal: Validate that we can safely render preview workflows without mutating the main canvas.
+
+How is the current workflow canvas rendered?
+
+Is it driven by a single source-of-truth document (e.g., Yjs / state tree)?
+
+Can multiple workflow graphs be rendered without committing them?
+
+Can we render a read-only workflow preview that:
+
+Supports pan & zoom
+
+Disables node editing
+
+Does not register selection, drag, or mutation events
+
+Is there an existing concept of:
+
+A “preview” canvas
+
+A detached graph renderer
+
+Or will this require a parallel rendering layer?
+
+What is the safest way to render a workflow preview without polluting undo/redo history?
+
+2. Workflow Data Model & Snapshots
+
+Goal: Ensure determinism and trust (no regeneration drift).
+
+How are workflows currently represented internally?
+
+Nodes / edges schema
+
+Metadata storage
+
+Can we:
+
+Clone a workflow graph in memory
+
+Store multiple variants simultaneously (proposed + alternative)
+
+Keep them immutable until accepted
+
+Where should these proposal workflows live?
+
+In client-only state?
+
+In a temporary server-side structure?
+
+In memory only until Accept/Cancel?
+
+What is the cleanest way to:
+
+Promote a preview workflow into a “real” workflow
+
+While preserving IDs, layout, and metadata
+
+3. Deterministic Generation Requirements
+
+Goal: Guarantee that Proposed and Alternative workflows do not change while comparing.
+
+How is AI generation currently triggered?
+
+On demand?
+
+Streaming?
+
+Regenerated on re-render?
+
+Can we:
+
+Generate both Proposed and Alternative workflows in a single generation pass?
+
+Cache the results for the duration of the proposal session?
+
+Where should the cached proposal data live to avoid re-generation?
+
+Local component state?
+
+Central store?
+
+Server session?
+
+What happens today if a component re-renders — does AI generation re-trigger automatically?
+
+4. UI Container & Layout Constraints
+
+Goal: Validate feasibility of the two-column horizontal layout.
+
+Is the current Insights / Explore UI:
+
+A floating panel?
+
+A modal?
+
+A docked container?
+
+Can it support:
+
+A resizable two-column layout
+
+A large canvas preview on the right
+
+Persistent footer actions (Accept / Cancel)
+
+Are there existing layout primitives we should reuse?
+
+Split panes
+
+Side panels
+
+Canvas overlays
+
+Are there performance concerns with rendering a large workflow inside a panel?
+
+5. Interaction Rules & Guardrails
+
+Goal: Enforce the UX contract strictly.
+
+Can we programmatically disable:
+
+Node dragging
+
+Edge creation
+
+Keyboard shortcuts (delete, duplicate, etc.)
+
+Context menus
+
+Is there an existing “read-only” or “view mode” flag we can leverage?
+
+Can pan & zoom be enabled independently of editing?
+
+How do we prevent accidental commits (e.g., clicking on canvas shouldn’t mutate state)?
+
+6. Accept / Cancel Semantics
+
+Goal: Make commit vs discard explicit and safe.
+
+On Accept:
+
+What exact steps are required to insert the workflow into the main canvas?
+
+Should it replace an existing workflow or create a new one?
+
+On Cancel:
+
+What state must be cleaned up?
+
+Are there side effects we must explicitly undo?
+
+Is there any existing confirmation, undo, or versioning logic that will conflict with this?
+
+7. Incremental Rollout Safety
+
+Goal: Avoid regressions.
+
+Can this feature be:
+
+Feature-flagged?
+
+Scoped to a specific action path only (Insights → Propose)?
+
+What is the safest minimal implementation that:
+
+Renders a proposal preview
+
+Does not yet allow acceptance
+
+What parts of the system are most at risk of regression if we get this wrong?
+
+8. Explicit “Unknowns” Request
+
+End with this (important):
+
+Please list any assumptions you are making that are not explicitly stated above, and any parts of the system that feel brittle or risky with this approach.
