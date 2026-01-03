@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import type { Insight, InsightCategory, InsightStatus } from '@/lib/kiteframe/utils/insights/types';
 import { isFeatureEnabled } from '@/config/featureFlags';
 
-type ListFilterMode = 'new' | 'all';
+type ListFilterMode = 'new' | 'all' | 'resolved';
 
 interface DiagnosticsTabProps {
   insights: Insight[];
@@ -68,7 +68,8 @@ const STATUS_ORDER: Record<InsightStatus, number> = {
   deferred: 2,
   explored: 3,
   promoted: 4,
-  dismissed: 5,
+  resolved: 5,
+  dismissed: 6,
 };
 
 const MIN_EDGES_FOR_TEST_FLIGHT = 2;
@@ -127,13 +128,18 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
     });
   };
   
-  const activeInsights = insights.filter(i => i.status !== 'dismissed');
+  const activeInsights = insights.filter(i => i.status !== 'dismissed' && i.status !== 'resolved');
+  const resolvedInsights = insights.filter(i => i.status === 'resolved');
   const newInsights = activeInsights.filter(i => i.status === 'new');
   
-  const filteredInsights = (listFilterMode === 'new' 
-    ? activeInsights.filter(i => i.status === 'new')
-    : activeInsights
-  ).filter(i => categoryFilter.has(i.category));
+  const filteredInsights = (() => {
+    if (listFilterMode === 'new') {
+      return activeInsights.filter(i => i.status === 'new');
+    } else if (listFilterMode === 'resolved') {
+      return resolvedInsights;
+    }
+    return activeInsights;
+  })().filter(i => categoryFilter.has(i.category));
   
   const sortedInsights = [...filteredInsights].sort((a, b) => {
     const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
@@ -149,7 +155,11 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
     }
   }, [focusedInsightId]);
   
-  if (activeInsights.length === 0) {
+  // Show empty state only when there are no insights at all to show (including resolved)
+  // When in resolved filter mode, allow showing resolved insights even if no active insights exist
+  const hasAnyInsights = activeInsights.length > 0 || resolvedInsights.length > 0;
+  
+  if (!hasAnyInsights) {
     if (hasRunTestFlight) {
       return (
         <div className="flex flex-col items-center justify-center h-full p-8 text-center">
@@ -274,8 +284,16 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                   className="flex items-center justify-between"
                   data-testid="filter-all"
                 >
-                  <span>All</span>
+                  <span>All Open</span>
                   {listFilterMode === 'all' && <Check className="w-4 h-4" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setListFilterMode('resolved')}
+                  className="flex items-center justify-between"
+                  data-testid="filter-resolved"
+                >
+                  <span>Resolved ({resolvedInsights.length})</span>
+                  {listFilterMode === 'resolved' && <Check className="w-4 h-4" />}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-xs text-gray-500">Categories</DropdownMenuLabel>
@@ -322,6 +340,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
             const isViewed = insight.status === 'viewed' || insight.status === 'explored' || insight.status === 'deferred';
             const isPromoted = insight.status === 'promoted';
             const isDeferred = insight.status === 'deferred';
+            const isResolved = insight.status === 'resolved';
             const isFocused = focusedInsightId === insight.id;
             const primaryNodeId = insight.relatedNodeIds[0];
             const hasExplorationContext = !!insight.explorationContext;
@@ -332,9 +351,10 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                 ref={isFocused ? focusedRowRef : undefined}
                 className={cn(
                   'px-4 py-3 transition-colors cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50',
-                  isViewed && !isPromoted && 'opacity-60',
+                  isViewed && !isPromoted && !isResolved && 'opacity-60',
                   isPromoted && 'bg-green-50 dark:bg-green-900/10 border-l-2 border-green-500',
                   isDeferred && 'bg-yellow-50 dark:bg-yellow-900/10 border-l-2 border-yellow-500',
+                  isResolved && 'bg-emerald-50 dark:bg-emerald-900/10 border-l-2 border-emerald-500 opacity-75',
                   isFocused && 'bg-purple-50 dark:bg-purple-900/20 ring-1 ring-purple-400',
                 )}
                 onClick={() => {
@@ -367,7 +387,13 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                           Deferred
                         </span>
                       )}
-                      {primaryNodeId && !isPromoted && !isDeferred && (
+                      {isResolved && (
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          Resolved
+                        </span>
+                      )}
+                      {primaryNodeId && !isPromoted && !isDeferred && !isResolved && (
                         <span className="text-xs text-gray-400 flex items-center gap-1">
                           <Focus className="w-3 h-3" />
                           {primaryNodeId.slice(0, 8)}...

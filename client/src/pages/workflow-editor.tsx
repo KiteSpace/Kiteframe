@@ -3235,13 +3235,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       }
     );
     
+    // Mark the insight as resolved when proposal is accepted
+    if (currentProposal.insightId) {
+      insights.markResolved(currentProposal.insightId);
+    }
+    
     setProposalState({ proposal: null, generatingInsightId: null, error: null });
     
     toast({
       title: 'Proposal Applied',
       description: `Added ${newNodes.length} node${newNodes.length !== 1 ? 's' : ''} and ${newEdges.length} connection${newEdges.length !== 1 ? 's' : ''} to your workflow.`,
     });
-  }, [setNodes, setEdges, saveToHistory, toast]);
+  }, [setNodes, setEdges, saveToHistory, toast, insights]);
 
   // Quick-add functionality
   const handleQuickAdd = useCallback(
