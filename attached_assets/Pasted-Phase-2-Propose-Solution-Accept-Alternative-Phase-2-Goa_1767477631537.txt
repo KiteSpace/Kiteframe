@@ -1,0 +1,297 @@
+Phase 2 — Propose Solution (Accept + Alternative)
+Phase 2 Goal (Authoritative)
+
+Enable commitment and comparison for Insight-scoped proposals by introducing:
+
+Accept semantics (commit proposed changes with undo)
+
+Alternative Proposal (deterministic, cached, preview-toggleable)
+
+Phase 2 must not expand proposal scope, visual language, or generation sophistication.
+
+Locked Constraints (Still Apply)
+
+All Phase 1 constraints remain in force, plus the following:
+
+Proposals remain Insight-scoped
+
+Preview remains origin node(s) + proposed additions only
+
+Preview remains read-only
+
+Distinction remains container chrome only
+
+No visual differentiation between existing vs proposed nodes
+
+No Experiment flow in this phase
+
+Explicitly Out of Scope (Do NOT Implement)
+
+Experiment UI or logic
+
+Prompt iteration / quality improvements
+
+Node styling changes
+
+Multi-Insight proposals
+
+Persistence across refresh
+
+Batch acceptance
+
+Partial acceptance of nodes
+
+Task Breakdown
+Task 1 — Extend Proposal State to Support Alternatives
+
+Goal: Represent two deterministic proposal variants.
+
+Update Proposal State Shape
+
+Extend ProposedWorkflow to:
+
+interface ProposedWorkflow {
+  insightId: string;
+  affectedNodeIds: string[];
+  proposed: {
+    nodes: Node[];
+    edges: Edge[];
+  };
+  alternative: {
+    nodes: Node[];
+    edges: Edge[];
+  };
+  activeVariant: 'proposed' | 'alternative';
+}
+
+
+Rules:
+
+Both variants must be generated together
+
+Both variants must be cached
+
+activeVariant controls preview rendering only
+
+No regeneration on toggle
+
+Task 2 — Dual Generation (Single Invocation)
+
+Goal: Ensure deterministic comparison.
+
+Generation Rules
+
+Replace single-variant generation with one AI call
+
+AI must return both:
+
+proposed
+
+alternative
+
+Structured JSON only (no prose)
+
+Guardrails
+
+Generation must run once per Insight
+
+If proposal already exists → do nothing
+
+If generation fails → show error, do not partially populate state
+
+Task 3 — Proposal Variant Toggle UI
+
+Goal: Allow comparison without branching or regeneration.
+
+UI Requirements
+
+In the Proposal container header, add two tabs:
+
+Proposed
+
+Alternative
+
+Default selection: Proposed
+
+Tabs:
+
+Switch activeVariant
+
+Re-render preview immediately
+
+Never trigger AI calls
+
+Explicit Non-Behavior
+
+Do NOT animate regeneration
+
+Do NOT show loading on tab switch
+
+Do NOT allow both previews simultaneously
+
+Task 4 — Preview Composition (Variant-Aware)
+
+Goal: Preview the selected variant correctly.
+
+Preview Logic
+
+Use the same composePreviewData() logic from Phase 1, but variant-aware:
+
+const variant = proposal.activeVariant === 'proposed'
+  ? proposal.proposed
+  : proposal.alternative;
+
+previewNodes = [
+  ...originNodes,
+  ...variant.nodes
+];
+
+previewEdges = [
+  ...originEdges,
+  ...variant.edges
+];
+
+
+Rules:
+
+Origin nodes remain constant
+
+Only proposed additions swap
+
+No full-workflow rendering
+
+Task 5 — Accept Semantics (Commit Changes)
+
+Goal: Promote proposal into the real workflow safely.
+
+Accept Button
+
+Add Accept button to Proposal footer
+
+Button enabled only when:
+
+proposal exists
+
+generation completed
+
+no errors
+
+Accept Behavior (Authoritative)
+
+On click:
+
+Clone the active variant’s nodes & edges
+
+Strip any:
+
+meta.speculative
+
+meta.proposalStage
+
+Generate fresh IDs if needed (avoid collisions)
+
+Insert into main canvas state via:
+
+withUndo(
+  `Apply proposal from Insight: ${insight.title}`,
+  saveToHistory,
+  () => {
+    setNodes([...currentNodes, ...newNodes]);
+    setEdges([...currentEdges, ...newEdges]);
+  }
+);
+
+
+Clear proposal state completely
+
+Close proposal container
+
+Task 6 — Cancel Semantics (Unchanged)
+
+Goal: Preserve Phase 1 behavior.
+
+Cancel:
+
+Clears proposal state
+
+Closes container
+
+No undo entry
+
+No canvas mutation
+
+Accept and Cancel must be visually symmetrical.
+
+Task 7 — Undo / Redo Validation
+
+Goal: Ensure Phase 2 introduces exactly one undo entry.
+
+Required Checks
+
+Accept creates one undo step
+
+Undo fully removes inserted nodes & edges
+
+Redo fully restores them
+
+No partial history entries
+
+Task 8 — Insight Attribution Preservation
+
+Goal: Preserve reasoning context for future phases.
+
+When committing nodes:
+
+Attach metadata:
+
+meta: {
+  createdFromInsightId: insight.id
+}
+
+
+This is required for future Experiment and audit flows.
+
+Task 9 — Feature Flag Extension
+
+Goal: Allow safe rollout of Accept + Alternative.
+
+Reuse existing PROPOSE_SOLUTION_PREVIEW flag
+
+Do NOT add a new flag yet
+
+Accept + Alternative are enabled only when flag is on
+
+Validation Checklist (Must Pass)
+
+ Both Proposed & Alternative generated in one call
+
+ Switching tabs never regenerates
+
+ Preview swaps instantly
+
+ Accept commits only proposed additions
+
+ Existing nodes are never replaced
+
+ Exactly one undo entry created
+
+ Cancel still leaves zero residue
+
+ Proposal remains Insight-scoped
+
+Known Limitations (Acceptable for Phase 2)
+
+No Experiment flow yet
+
+No proposal quality improvements
+
+No visual diff between variants
+
+No partial acceptance
+
+Final Instruction to Replit
+
+Do not expand scope beyond what is listed.
+
+Phase 3 will introduce Experiments and pressure-testing.
+Phase 2 is strictly about commitment and comparison.
