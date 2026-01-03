@@ -1,0 +1,315 @@
+Phase 3 — Experiment (Pressure Testing)
+Phase 3 Goal (Authoritative)
+
+Introduce pressure-testing via Experiments that allow users to explore what-ifs and enhancements without committing changes, using:
+
+A deterministic, cached experiment preview
+
+A two-column layout consistent with Propose Solution
+
+Explicit Accept / Cancel semantics
+
+No scope creep into prompt sophistication or visual differentiation
+
+Phase 3 is about challenging ideas, not improving generation quality.
+
+Locked Constraints (Carry Forward)
+
+All Phase 1 and Phase 2 constraints remain in force, plus:
+
+Experiments are Insight-scoped
+
+Experiments are derived from an accepted proposal or existing workflow context
+
+Experiments never mutate the canvas unless explicitly accepted
+
+Preview semantics are identical to Propose Solution:
+
+origin node(s) + experiment additions only
+
+read-only canvas
+
+deterministic previews
+
+Distinction lives entirely in container chrome
+
+No visual styling differences between origin vs experimental nodes
+
+Explicitly Out of Scope (Do NOT Implement)
+
+Prompt quality improvements
+
+Re-running experiments automatically
+
+Experiment chaining
+
+Visual diffs between experiments
+
+Partial acceptance
+
+Persisting experiment history
+
+Applying multiple experiments at once
+
+Core Concept (Lock This Mentally)
+
+An Experiment is a hypothetical modification to a specific part of the workflow, intended to reveal risk, failure modes, or opportunities — not a recommendation.
+
+Experiments are provocations, not solutions.
+
+Task Breakdown
+Task 1 — Experiment State Model
+
+Goal: Introduce a first-class, deterministic Experiment state.
+
+Create Experiment Types
+interface Experiment {
+  id: string;
+  insightId: string;
+  affectedNodeIds: string[];
+  description: string;
+  variant: {
+    nodes: Node[];
+    edges: Edge[];
+  };
+}
+
+Experiment Session State
+interface ExperimentState {
+  experiments: Experiment[]; // exactly 4
+  activeExperimentId: string | null;
+}
+
+
+Rules:
+
+Exactly 4 experiments per session
+
+Generated together
+
+Cached for the session
+
+One active experiment at a time
+
+Task 2 — Experiment Generation (Single Invocation)
+
+Goal: Generate four experiments deterministically.
+
+Generation Rules
+
+One AI call per Experiment session
+
+AI must return exactly 4 experiments
+
+Do not label experiments by category in the UI
+
+Each experiment includes:
+
+Short title or prompt
+
+Proposed nodes/edges only (no full workflow)
+
+Guardrails
+
+Capture snapshotNodes / snapshotEdges once
+
+Pass insightId and affectedNodeIds
+
+Cache all experiments in state
+
+Do not regenerate on click or re-render
+
+Task 3 — Experiment Entry Point
+
+Goal: Allow the user to start experimentation intentionally.
+
+UI Entry
+
+Add “Try this as an experiment” button:
+
+Appears after a proposal has been accepted
+
+Or on an Insight with an existing workflow state
+
+Feature-flagged under the same Phase 1 flag
+
+Click behavior:
+
+Generate experiments
+
+Open Experiment container UI
+
+Task 4 — Experiment Container UI (Two-Column Layout)
+
+Goal: Mirror Propose Solution layout for consistency.
+
+Left Column (≈35–40%)
+
+Header: Experiments
+
+Render a vertical list of 4 experiment cards
+
+Card contents:
+
+Experiment title
+
+One-line description
+
+Card behavior:
+
+Click selects experiment
+
+Expands to show concise details (optional)
+
+Sets activeExperimentId
+
+Right Column (≈60–65%)
+
+Read-only preview canvas
+
+Renders preview for the active experiment
+
+If no experiment selected:
+
+Show empty state or prompt (“Select an experiment to preview”)
+
+Task 5 — Experiment Preview Composition
+
+Goal: Show only the hypothetical change.
+
+Preview Rules
+
+For the active experiment:
+
+previewNodes = [
+  ...originNodes,
+  ...experiment.variant.nodes
+];
+
+previewEdges = [
+  ...originEdges,
+  ...experiment.variant.edges
+];
+
+
+Rules:
+
+Origin nodes come from affectedNodeIds
+
+Only one experiment preview visible at a time
+
+Full workflow is never rendered
+
+Task 6 — Accept Experiment (Commit)
+
+Goal: Allow experiments to become real changes.
+
+Accept Button
+
+Replace “Run Experiment” with Accept
+
+Enabled only when:
+
+An experiment is selected
+
+Preview is visible
+
+Accept Behavior
+
+On click:
+
+Clone experiment variant nodes/edges
+
+Strip speculative / experiment metadata
+
+Attach:
+
+meta: {
+  createdFromInsightId: insightId,
+  createdFromExperimentId: experiment.id
+}
+
+
+Insert via:
+
+withUndo(
+  `Apply experiment: ${experiment.description}`,
+  saveToHistory,
+  () => {
+    setNodes([...currentNodes, ...newNodes]);
+    setEdges([...currentEdges, ...newEdges]);
+  }
+);
+
+
+Clear Experiment state
+
+Close Experiment container
+
+Task 7 — Cancel Experiment (Discard)
+
+Goal: Preserve safety and confidence.
+
+Cancel clears experiment state entirely
+
+No undo entry
+
+No canvas mutation
+
+Returns user to normal canvas
+
+Cancel semantics must mirror Propose Solution exactly.
+
+Task 8 — Determinism & Guardrails
+
+Goal: Prevent accidental regeneration or mutation.
+
+Confirm:
+
+Experiments generated once per session
+
+Clicking cards never regenerates
+
+Preview reads from cached data only
+
+No AI calls after initial generation
+
+Task 9 — Undo / Redo Validation
+
+Goal: Ensure experiment commits are reversible.
+
+Accept creates exactly one undo entry
+
+Undo removes experiment changes
+
+Redo restores them
+
+Cancel creates zero undo entries
+
+Validation Checklist (Must Pass)
+
+ Exactly 4 experiments generated
+
+ Experiments are deterministic and cached
+
+ Preview shows origin + experiment additions only
+
+ Accept commits only selected experiment
+
+ Undo/redo works as a single atomic operation
+
+ Cancel leaves no residue
+
+ No Phase 1 or Phase 2 constraints violated
+
+Known Limitations (Intentional)
+
+Experiments may be naive
+
+No experiment comparison UI
+
+No experiment chaining
+
+No prompt tuning yet
+
+These are acceptable and expected.
