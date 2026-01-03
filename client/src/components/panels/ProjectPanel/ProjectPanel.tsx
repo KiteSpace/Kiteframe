@@ -45,10 +45,10 @@ interface ProjectPanelProps {
   forceTab?: ProjectPanelTab | null;
   initialPrompt?: string;
   onInitialPromptConsumed?: () => void;
-  // Propose Solution (Phase 1)
+  // Propose Solution (Phase 2)
   onProposeSolution?: (insight: Insight) => void;
   hasActiveProposal?: boolean;
-  isProposalGenerating?: boolean;
+  generatingInsightId?: string | null;
 }
 
 const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string }[] = [
@@ -89,7 +89,7 @@ export function ProjectPanel({
   onInitialPromptConsumed,
   onProposeSolution,
   hasActiveProposal = false,
-  isProposalGenerating = false,
+  generatingInsightId = null,
 }: ProjectPanelProps) {
   const resizeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -366,7 +366,7 @@ export function ProjectPanel({
             focusedInsightId={focusedInsightId}
             onProposeSolution={onProposeSolution}
             hasActiveProposal={hasActiveProposal}
-            isProposalGenerating={isProposalGenerating}
+            generatingInsightId={generatingInsightId}
           />
         </TabsContent>
       </Tabs>

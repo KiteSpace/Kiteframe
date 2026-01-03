@@ -33,10 +33,10 @@ interface DiagnosticsTabProps {
   onNavigateToNode?: (nodeId: string) => void;
   onHoverInsight?: (insightId: string | null) => void;
   focusedInsightId?: string | null;
-  // Propose Solution (Phase 1)
+  // Propose Solution (Phase 2)
   onProposeSolution?: (insight: Insight) => void;
   hasActiveProposal?: boolean;
-  isProposalGenerating?: boolean;
+  generatingInsightId?: string | null;
 }
 
 const CATEGORY_STYLES: Record<InsightCategory, { bg: string; text: string; icon: typeof Info; label: string }> = {
@@ -91,7 +91,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   focusedInsightId,
   onProposeSolution,
   hasActiveProposal = false,
-  isProposalGenerating = false,
+  generatingInsightId = null,
 }: DiagnosticsTabProps) {
   const showProposeSolution = isFeatureEnabled('PROPOSE_SOLUTION_PREVIEW') && !hasActiveProposal;
   const canRunTestFlight = edgeCount >= MIN_EDGES_FOR_TEST_FLIGHT;
@@ -381,22 +381,31 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
                       {insight.description}
                     </p>
                     <div className="flex items-center gap-1 flex-wrap">
-                      {showProposeSolution && insight.relatedNodeIds.length > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onProposeSolution?.(insight);
-                          }}
-                          disabled={isProposalGenerating}
-                          className="h-6 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                          data-testid={`btn-propose-${insight.id}`}
-                        >
-                          <Lightbulb className={cn('w-3 h-3 mr-1', isProposalGenerating && 'animate-pulse')} />
-                          {isProposalGenerating ? 'Generating...' : 'Propose'}
-                        </Button>
-                      )}
+                      {showProposeSolution && insight.relatedNodeIds.length > 0 && (() => {
+                        const isThisGenerating = generatingInsightId === insight.id;
+                        const isOtherGenerating = generatingInsightId !== null && generatingInsightId !== insight.id;
+                        return (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onProposeSolution?.(insight);
+                            }}
+                            disabled={isThisGenerating || isOtherGenerating}
+                            className={cn(
+                              "h-6 text-xs",
+                              isOtherGenerating 
+                                ? "text-gray-400 cursor-not-allowed" 
+                                : "text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                            )}
+                            data-testid={`btn-propose-${insight.id}`}
+                          >
+                            <Lightbulb className={cn('w-3 h-3 mr-1', isThisGenerating && 'animate-pulse')} />
+                            {isThisGenerating ? 'Generating...' : 'Propose'}
+                          </Button>
+                        );
+                      })()}
                       {!isPromoted && (
                         <Button
                           variant="ghost"

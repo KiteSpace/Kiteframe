@@ -1696,9 +1696,9 @@ function WorkflowEditorContent({
   // Propose Solution state (Phase 2 - Accept + Alternative)
   const [proposalState, setProposalState] = useState<{
     proposal: import('@/hooks/useProposalState').ProposedWorkflow | null;
-    isGenerating: boolean;
+    generatingInsightId: string | null;
     error: string | null;
-  }>({ proposal: null, isGenerating: false, error: null });
+  }>({ proposal: null, generatingInsightId: null, error: null });
   
   // Ref to track latest proposal state for Accept handler (prevents variant drift bug)
   const proposalStateRef = useRef(proposalState);
@@ -1707,9 +1707,9 @@ function WorkflowEditorContent({
   }, [proposalState]);
 
   const handleProposeSolution = useCallback(async (insight: import('@/lib/kiteframe/utils/insights/types').Insight) => {
-    if (proposalState.isGenerating || proposalState.proposal) return;
+    if (proposalState.generatingInsightId || proposalState.proposal) return;
     
-    setProposalState(prev => ({ ...prev, isGenerating: true, error: null }));
+    setProposalState(prev => ({ ...prev, generatingInsightId: insight.id, error: null }));
     
     try {
       const { generateProposedWorkflow } = await import('@/ai/proposal/generateProposedWorkflow');
@@ -1721,12 +1721,12 @@ function WorkflowEditorContent({
         aiClient: ai,
       });
       
-      setProposalState({ proposal, isGenerating: false, error: null });
+      setProposalState({ proposal, generatingInsightId: null, error: null });
     } catch (err) {
       console.error('[ProposeSolution] Generation failed:', err);
       setProposalState({ 
         proposal: null, 
-        isGenerating: false, 
+        generatingInsightId: null, 
         error: err instanceof Error ? err.message : 'Failed to generate proposal' 
       });
       toast({
@@ -1735,10 +1735,10 @@ function WorkflowEditorContent({
         variant: 'destructive',
       });
     }
-  }, [proposalState.isGenerating, proposalState.proposal, nodes, edges, ai, toast]);
+  }, [proposalState.generatingInsightId, proposalState.proposal, nodes, edges, ai, toast]);
 
   const handleCancelProposal = useCallback(() => {
-    setProposalState({ proposal: null, isGenerating: false, error: null });
+    setProposalState({ proposal: null, generatingInsightId: null, error: null });
   }, []);
 
   const handleVariantChange = useCallback((variant: 'proposed' | 'alternative') => {
@@ -3235,7 +3235,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       }
     );
     
-    setProposalState({ proposal: null, isGenerating: false, error: null });
+    setProposalState({ proposal: null, generatingInsightId: null, error: null });
     
     toast({
       title: 'Proposal Applied',
@@ -11070,7 +11070,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 onInitialPromptConsumed={handleChatPromptConsumed}
                 onProposeSolution={handleProposeSolution}
                 hasActiveProposal={proposalState.proposal !== null}
-                isProposalGenerating={proposalState.isGenerating}
+                generatingInsightId={proposalState.generatingInsightId}
               />
             )}
           </>
