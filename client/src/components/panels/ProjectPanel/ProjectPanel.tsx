@@ -30,6 +30,7 @@ interface ProjectPanelProps {
   isReadOnly?: boolean;
   insights?: Insight[];
   insightsLoading?: boolean;
+  insightsLastRunAt?: number | null;
   onRunTestFlight?: () => void;
   onDismissInsight?: (insightId: string) => void;
   onDismissAllInsights?: () => void;
@@ -67,6 +68,7 @@ export function ProjectPanel({
   isReadOnly = false,
   insights = [],
   insightsLoading = false,
+  insightsLastRunAt,
   onRunTestFlight,
   onDismissInsight,
   onDismissAllInsights,
@@ -344,6 +346,7 @@ export function ProjectPanel({
             isLoading={insightsLoading}
             edgeCount={edges.length}
             projectId={projectId}
+            lastRunAt={insightsLastRunAt}
             onRunTestFlight={onRunTestFlight || (() => {})}
             onDismiss={onDismissInsight || (() => {})}
             onDismissAll={onDismissAllInsights || (() => {})}

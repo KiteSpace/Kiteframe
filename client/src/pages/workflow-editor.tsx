@@ -10936,6 +10936,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 isReadOnly={isReadOnly}
                 insights={insights.insights}
                 insightsLoading={insights.isRunning}
+                insightsLastRunAt={insights.lastRunAt}
                 onRunTestFlight={insights.runTestFlight}
                 onDismissInsight={insights.dismiss}
                 onDismissAllInsights={insights.dismissAll}

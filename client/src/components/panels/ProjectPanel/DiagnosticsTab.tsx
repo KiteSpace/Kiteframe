@@ -21,6 +21,7 @@ interface DiagnosticsTabProps {
   isLoading: boolean;
   edgeCount: number;
   projectId?: string;
+  lastRunAt?: number | null;
   onRunTestFlight: () => void;
   onDismiss: (insightId: string) => void;
   onDismissAll: () => void;
@@ -72,6 +73,7 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   isLoading,
   edgeCount,
   projectId,
+  lastRunAt,
   onRunTestFlight,
   onDismiss,
   onDismissAll,
@@ -98,6 +100,8 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
     });
     onRunTestFlight();
   };
+  
+  const hasRunTestFlight = lastRunAt !== null && lastRunAt !== undefined;
   const [categoryFilter, setCategoryFilter] = useState<Set<InsightCategory>>(new Set<InsightCategory>(['observation', 'suggestion', 'note']));
   
   const toggleCategory = (category: InsightCategory) => {
@@ -137,6 +141,36 @@ export const DiagnosticsTab = memo(function DiagnosticsTab({
   }, [focusedInsightId]);
   
   if (activeInsights.length === 0) {
+    if (hasRunTestFlight) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+          <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
+            <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            Test Flight Successful
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs">
+            No issues detected. Your workflow looks good!
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+            Last run: {new Date(lastRunAt!).toLocaleTimeString()}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTestFlightClick}
+            className="mt-4"
+            disabled={isLoading}
+            data-testid="btn-rerun-test-flight"
+          >
+            <Rocket className={cn('w-4 h-4 mr-2', isLoading && 'animate-bounce')} />
+            {isLoading ? 'Analyzing...' : 'Re-run Test Flight'}
+          </Button>
+        </div>
+      );
+    }
+    
     return (
       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
         <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4">

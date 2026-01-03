@@ -392,16 +392,53 @@ export class DiagnosticsEngine {
   analyze(input: GraphInput): DiagnosticIssue[] {
     const { nodes, edges } = this.filterSpeculative(input.nodes, input.edges);
     
-    if (nodes.length === 0) return [];
+    console.log('[DiagnosticsEngine] Analyzing workflow', {
+      projectId: input.projectId,
+      workflowId: input.workflowId,
+      totalNodes: input.nodes.length,
+      filteredNodes: nodes.length,
+      speculativeNodesRemoved: input.nodes.length - nodes.length,
+      totalEdges: input.edges.length,
+      filteredEdges: edges.length,
+    });
+    
+    if (nodes.length === 0) {
+      console.log('[DiagnosticsEngine] No nodes to analyze after filtering');
+      return [];
+    }
     
     const adjacency = buildAdjacencyMaps(nodes, edges);
     const issues: DiagnosticIssue[] = [];
     
-    issues.push(...detectMissingEndState(input, adjacency));
-    issues.push(...detectDeadEndNodes(input, adjacency));
-    issues.push(...detectDisconnectedSubgraphs(input, adjacency));
-    issues.push(...detectOrphanDecisions(input, adjacency));
-    issues.push(...detectLoopsWithoutExit(input, adjacency));
+    // Node type summary for debugging
+    const nodeTypeSummary: Record<string, number> = {};
+    for (const node of nodes) {
+      const type = node.type || 'unknown';
+      nodeTypeSummary[type] = (nodeTypeSummary[type] || 0) + 1;
+    }
+    console.log('[DiagnosticsEngine] Node types:', nodeTypeSummary);
+    
+    const missingEndIssues = detectMissingEndState(input, adjacency);
+    const deadEndIssues = detectDeadEndNodes(input, adjacency);
+    const disconnectedIssues = detectDisconnectedSubgraphs(input, adjacency);
+    const orphanDecisionIssues = detectOrphanDecisions(input, adjacency);
+    const loopIssues = detectLoopsWithoutExit(input, adjacency);
+    
+    console.log('[DiagnosticsEngine] Detection results', {
+      missingEndState: missingEndIssues.length,
+      deadEndNodes: deadEndIssues.length,
+      disconnectedSubgraphs: disconnectedIssues.length,
+      orphanDecisions: orphanDecisionIssues.length,
+      loopsWithoutExit: loopIssues.length,
+    });
+    
+    issues.push(...missingEndIssues);
+    issues.push(...deadEndIssues);
+    issues.push(...disconnectedIssues);
+    issues.push(...orphanDecisionIssues);
+    issues.push(...loopIssues);
+    
+    console.log('[DiagnosticsEngine] Total issues found:', issues.length);
     
     return issues;
   }
