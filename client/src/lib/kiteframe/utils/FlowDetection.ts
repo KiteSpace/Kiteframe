@@ -28,23 +28,37 @@ export class FlowDetection {
    * Find all separate flows (connected components) in the graph
    */
   static detectFlows(nodes: Node[], edges: Edge[]): Flow[] {
-    if (nodes.length === 0) return [];
+    if (!nodes || nodes.length === 0) return [];
+    
+    // Guard against undefined/null edges
+    const safeEdges = edges || [];
 
     const visited = new Set<string>();
     const flows: Flow[] = [];
     
+    // Create set of valid node IDs for filtering
+    const validNodeIds = new Set(nodes.map(n => n.id));
+    
+    // Filter edges to only include those referencing existing nodes
+    const validEdges = safeEdges.filter(edge => 
+      validNodeIds.has(edge.source) && validNodeIds.has(edge.target)
+    );
+    
     // Build adjacency list for efficient traversal
-    const adjacencyList = this.buildAdjacencyList(nodes, edges);
+    const adjacencyList = this.buildAdjacencyList(nodes, validEdges);
     
     // Find all connected components using DFS
     for (const node of nodes) {
       if (!visited.has(node.id)) {
         const flowNodeIds = this.dfsTraversal(node.id, adjacencyList, visited);
-        // Get actual node objects for this flow
-        const flowNodes = flowNodeIds.map(stubNode => 
-          nodes.find(n => n.id === stubNode.id)!
-        );
-        const flowEdges = this.getFlowEdges(flowNodes, edges);
+        // Get actual node objects for this flow, filtering out any undefined
+        const flowNodes = flowNodeIds
+          .map(stubNode => nodes.find(n => n.id === stubNode.id))
+          .filter((n): n is Node => n !== undefined);
+        
+        if (flowNodes.length === 0) continue;
+        
+        const flowEdges = this.getFlowEdges(flowNodes, validEdges);
         const boundingBox = this.calculateBoundingBox(flowNodes);
         
         // Use stable ID based on root node (topmost-left node by position sum)

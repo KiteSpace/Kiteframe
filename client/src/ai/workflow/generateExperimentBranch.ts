@@ -149,8 +149,9 @@ function parseAiBranchResponse(text: string): GeneratedBranch | null {
       };
     });
     
+    const edgeTimestamp = Date.now();
     const edges: Partial<Edge>[] = parsed.edges.map((edge: any, index: number) => ({
-      id: edge.id || `edge-${Date.now()}-${index}`,
+      id: `edge-${edgeTimestamp}-${index}`,
       source: edge.source,
       target: edge.target,
       label: edge.label,

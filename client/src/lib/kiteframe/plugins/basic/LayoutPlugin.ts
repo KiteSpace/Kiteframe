@@ -196,6 +196,10 @@ export class LayoutPlugin implements KiteFramePlugin {
    * Moves entire workflows without rearranging internal nodes
    */
   layoutWorkflows(nodes: Node[], edges: Edge[], layoutType: string): Node[] {
+    // Guard against empty/undefined inputs
+    if (!nodes || nodes.length === 0) return nodes || [];
+    if (!edges) edges = [];
+    
     // Detect separate workflows
     const flows = FlowDetection.detectFlows(nodes, edges);
     
@@ -297,6 +301,10 @@ export class LayoutPlugin implements KiteFramePlugin {
    * Apply layout per-flow instead of globally (deprecated - kept for compatibility)
    */
   applyLayoutPerFlow(nodes: Node[], edges: Edge[], layoutType: string): Node[] {
+    // Guard against empty/undefined inputs
+    if (!nodes || nodes.length === 0) return nodes || [];
+    if (!edges) edges = [];
+    
     // Detect separate flows (connected components)
     const flows = FlowDetection.detectFlows(nodes, edges);
     
@@ -443,6 +451,7 @@ export class LayoutPlugin implements KiteFramePlugin {
    * Arrange nodes in horizontal flow
    */
   horizontalFlow(nodes: Node[], spacing = 250): Node[] {
+    if (!nodes || nodes.length === 0) return nodes || [];
     return nodes.map((node, index) => ({
       ...node,
       position: {
@@ -456,6 +465,7 @@ export class LayoutPlugin implements KiteFramePlugin {
    * Arrange nodes in vertical flow
    */
   verticalFlow(nodes: Node[], spacing = 150): Node[] {
+    if (!nodes || nodes.length === 0) return nodes || [];
     return nodes.map((node, index) => ({
       ...node,
       position: {
@@ -469,6 +479,7 @@ export class LayoutPlugin implements KiteFramePlugin {
    * Arrange nodes in grid layout
    */
   gridLayout(nodes: Node[], columns = 3, spacing = 250): Node[] {
+    if (!nodes || nodes.length === 0) return nodes || [];
     return nodes.map((node, index) => {
       const row = Math.floor(index / columns);
       const col = index % columns;
@@ -487,6 +498,7 @@ export class LayoutPlugin implements KiteFramePlugin {
    * Arrange nodes in hierarchical layout based on connections
    */
   hierarchicalLayout(nodes: Node[], edges: any[] = []): Node[] {
+    if (!nodes || nodes.length === 0) return nodes || [];
     // Simple hierarchical layout - can be enhanced with proper graph algorithms
     const nodeMap = new Map(nodes.map(n => [n.id, n]));
     const inDegree = new Map<string, number>();
