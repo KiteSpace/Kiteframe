@@ -24,7 +24,7 @@ export class OpenAICompatClient implements AiClient {
   async chat(req: AiRequest): Promise<AiResponse> {
     const savedSettings = localStorage.getItem('ai_settings');
     let currentModel = req.model || this.opts.defaultModel || 'gpt-4o';
-    let provider = 'openai';
+    let provider = req.provider || 'openai';
     let apiKey = null;
     
     if (savedSettings) {
@@ -35,7 +35,9 @@ export class OpenAICompatClient implements AiClient {
             ? settings.customModel 
             : settings.model || currentModel;
         }
-        provider = settings.provider || 'openai';
+        if (!req.provider) {
+          provider = settings.provider || 'openai';
+        }
         apiKey = settings.apiKey;
       } catch (e) {
         console.warn('Failed to parse saved AI settings, using default model');
@@ -59,7 +61,8 @@ export class OpenAICompatClient implements AiClient {
         temperature: req.temperature ?? 0.7, 
         maxTokens: req.maxTokens ?? 1024,
         provider: provider,
-        apiKey: apiKey
+        apiKey: apiKey,
+        taskType: req.taskType
       })
     });
     if(!res.ok) {

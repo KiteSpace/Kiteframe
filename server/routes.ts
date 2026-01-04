@@ -1510,7 +1510,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Chat endpoint - proxy for AI models with dynamic provider routing
   app.post('/api/ai/chat', aiRateLimiter, requireUSOnly, requireCredits, async (req, res) => {
     try {
-      const { model, temperature, maxTokens, provider, apiKey: clientApiKey } = req.body;
+      const { model, temperature, maxTokens, provider, apiKey: clientApiKey, taskType, sessionLocked } = req.body;
+      
+      // Feature flag for GPT-5 workflow reasoning (disabled by default)
+      const ENABLE_GPT5_WORKFLOW_REASONING = false;
+      
+      // Task-type based model routing policy
+      const TASK_TYPE_MODELS: Record<string, { model: string; provider: string; allowUserOverride: boolean }> = {
+        workflow_reasoning: { model: 'gpt-5.1', provider: 'openai', allowUserOverride: false },
+        workflow_experiments: { model: 'gpt-5.1', provider: 'openai', allowUserOverride: false },
+        prd_generation: { model: 'gpt-5.1', provider: 'openai', allowUserOverride: false },
+        vision_ingestion: { model: 'gpt-4o', provider: 'openai', allowUserOverride: false },
+        general_chat: { model: 'gpt-4o', provider: 'openai', allowUserOverride: true },
+      };
+      
+      // Resolve model based on taskType routing policy
+      let resolvedModel = model;
+      let resolvedProvider = provider;
+      
+      if (taskType && TASK_TYPE_MODELS[taskType]) {
+        const policy = TASK_TYPE_MODELS[taskType];
+        
+        // When GPT-5 flag is disabled, respect client-provided model (session lock)
+        // Only enforce routing when GPT-5 is enabled
+        if (!ENABLE_GPT5_WORKFLOW_REASONING) {
+          // If client provided model and provider (from session lock), use them
+          if (model && provider) {
+            resolvedModel = model;
+            resolvedProvider = provider;
+          } else {
+            // No client model, fall back to GPT-4o
+            resolvedModel = 'gpt-4o';
+            resolvedProvider = 'openai';
+          }
+        } else {
+          // GPT-5 enabled - enforce policy routing
+          if (!policy.allowUserOverride || !model) {
+            resolvedModel = policy.model;
+            resolvedProvider = policy.provider;
+          }
+        }
+      }
       
       // Sanitize all messages to prevent prompt injection
       const messages = (req.body.messages || []).map((msg: any) => ({
@@ -1519,12 +1559,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
       
       // Determine provider and API key
-      let activeProvider = provider;
+      let activeProvider = resolvedProvider || provider;
       let activeApiKey = clientApiKey;
       
       // If no explicit provider, try to infer from model name
+      const activeModel = resolvedModel || model;
       if (!activeProvider) {
-        if (model && model.includes('claude')) {
+        if (activeModel && activeModel.includes('claude')) {
           activeProvider = 'anthropic';
           activeApiKey = process.env.ANTHROPIC_API_KEY;
         } else {
@@ -1559,7 +1600,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'anthropic-version': '2023-06-01'
         };
         requestBody = {
-          model,
+          model: activeModel,
           max_tokens: maxTokens || 1024,
           messages
         };
@@ -1572,7 +1613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Ollama doesn't require Authorization header for local usage
         };
         requestBody = {
-          model,
+          model: activeModel,
           messages,
           temperature,
           max_tokens: maxTokens,
@@ -1586,7 +1627,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Kiteframe managed service - no auth required
         };
         requestBody = {
-          model,
+          model: activeModel,
           messages,
           temperature,
           max_tokens: maxTokens,
@@ -1600,7 +1641,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Auto-detect if this is an Ollama endpoint or OpenAI endpoint
         const isCustomOllama = customEndpoint.includes('ollama') || !activeApiKey;
         const isCustomOpenAI = customEndpoint.includes('api.openai.com');
-        const isGpt5Model = model && (model.includes('gpt-5') || model.startsWith('gpt-5'));
+        const isGpt5Model = activeModel && (activeModel.includes('gpt-5') || activeModel.startsWith('gpt-5'));
         
         endpoint = `${customEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
         headers = {
@@ -1611,13 +1652,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (isCustomOpenAI && isGpt5Model) {
           // Use GPT-5 compatible parameters for custom OpenAI endpoints
           requestBody = {
-            model,
+            model: activeModel,
             messages,
             max_completion_tokens: maxTokens
           };
         } else {
           requestBody = {
-            model,
+            model: activeModel,
             messages,
             temperature,
             max_tokens: maxTokens,
@@ -1632,9 +1673,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         
         // GPT-5 models require different parameters
-        const isGpt5Model = model && (model.includes('gpt-5') || model.startsWith('gpt-5'));
+        const isGpt5Model = activeModel && (activeModel.includes('gpt-5') || activeModel.startsWith('gpt-5'));
         requestBody = {
-          model,
+          model: activeModel,
           messages,
           ...(isGpt5Model ? {
             max_completion_tokens: maxTokens

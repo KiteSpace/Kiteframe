@@ -34,6 +34,19 @@ export interface AppliedHeuristics {
 }
 
 /**
+ * Model provenance metadata for GPT-5 migration
+ * Captures which model was used for generation
+ */
+export interface ModelProvenance {
+  providerUsed: string;
+  modelUsed: string;
+  routerTaskType: 'workflow_reasoning' | 'workflow_experiments' | 'prd_generation' | 'vision_ingestion' | 'general_chat';
+  usedFallback: boolean;
+  fallbackModelUsed?: string;
+  sessionId?: string;
+}
+
+/**
  * Decision snapshot captured at accept time
  * This is immutable and never recomputed after creation
  */
@@ -86,6 +99,9 @@ export interface DecisionSnapshot {
   
   // Whether Phase 4 heuristics were enabled
   heuristicsEnabled: boolean;
+  
+  // Model provenance (GPT-5 migration)
+  modelProvenance?: ModelProvenance;
 }
 
 /**
@@ -140,6 +156,7 @@ export interface AuditExport {
     createdFromProposalId?: string;
     createdFromExperimentId?: string;
     createdAt?: number;
+    modelProvenance?: ModelProvenance;
   }>;
   
   // Edge provenance data
@@ -149,6 +166,7 @@ export interface AuditExport {
     createdFromProposalId?: string;
     createdFromExperimentId?: string;
     createdAt?: number;
+    modelProvenance?: ModelProvenance;
   }>;
   
   // Decision history

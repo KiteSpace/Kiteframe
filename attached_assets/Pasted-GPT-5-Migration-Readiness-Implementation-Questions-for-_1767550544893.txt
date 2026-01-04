@@ -1,0 +1,161 @@
+GPT-5 Migration Readiness — Implementation Questions for Replit
+
+Purpose:
+Before switching any workflow reasoning to GPT-5, we need to fully understand how models are currently selected, routed, cached, and isolated across sessions. These questions are about correctness, determinism, and audit safety, not cost or preference.
+
+Please answer each question with code-level detail (file names, functions, state boundaries).
+
+⸻
+
+1. Model Selection & Routing (Critical)
+	1.	Where is the model selected today?
+	•	Single global config?
+	•	Per-request parameter?
+	•	Derived from user settings?
+	2.	Is model selection:
+	•	Centralized in one abstraction?
+	•	Or scattered across feature implementations (workflow gen, PRD, vision, etc.)?
+	3.	Can we route models by task type (e.g. workflow reasoning vs vision ingestion), or is model choice currently monolithic?
+	4.	If a user changes model in Settings:
+	•	Does it immediately affect in-flight sessions?
+	•	Or only future requests?
+
+⸻
+
+2. Session Isolation & Determinism (Non-Negotiable)
+	1.	During a Propose / Alternative / Experiment session:
+	•	Is the model fixed for the entire session?
+	•	Or re-read dynamically from settings on each request?
+	2.	What guarantees currently exist that:
+	•	Proposed and Alternative are generated with the same model?
+	•	All 4 Experiments use the same model?
+	3.	Is there any situation today where:
+	•	One variant is generated with GPT-4o
+	•	Another with GPT-4 or GPT-4o Mini
+	•	Without explicit user intent?
+	4.	If a user switches models mid-session, what happens?
+	•	Is it blocked?
+	•	Does it silently change behavior?
+	•	Does it invalidate cached previews?
+
+⸻
+
+3. Capability Awareness (Vision vs Reasoning)
+	1.	Does the system currently distinguish between:
+	•	Vision tasks (image import, screenshot analysis)
+	•	Text-only reasoning tasks (workflow generation, experiments)?
+	2.	Or is GPT-4o being used simply because it “can do everything”?
+	3.	If we introduce GPT-5 (text-only) for reasoning:
+	•	Where would vision requests be routed?
+	•	Is there a clean separation point today?
+	4.	Are vision calls tightly coupled to workflow reasoning, or can they be isolated as a preprocessing step?
+
+⸻
+
+4. Output Contracts & Validation
+	1.	Where are AI outputs validated today?
+	•	Central schema validation?
+	•	Per-feature sanitization?
+	•	Or mostly implicit trust?
+	2.	Are output schemas:
+	•	Shared across models?
+	•	Or implicitly shaped by GPT-4o behavior?
+	3.	If GPT-5 outputs are stricter / slightly different:
+	•	What parts of the system would break?
+	•	Where would validation need tightening?
+	4.	Is regeneration logic model-aware (e.g. “try again with same model”), or model-agnostic?
+
+⸻
+
+5. Fallback & Error Handling
+	1.	If a model call fails today:
+	•	Is there a fallback model?
+	•	Or does the request fail outright?
+	2.	Is fallback behavior:
+	•	Explicit in code?
+	•	Or implicit via provider defaults?
+	3.	Can the system record metadata such as:
+	•	generatedWithFallback: true
+	•	fallbackModelUsed: "gpt-4o"
+	4.	Would adding GPT-5 introduce any ambiguity in error handling paths?
+
+⸻
+
+6. Provider Abstraction (OpenAI / Anthropic / Ollama)
+	1.	Is there a clean provider abstraction layer today?
+	•	Or is model/provider logic intertwined?
+	2.	Can GPT-5 be added as:
+	•	A new model enum?
+	•	Or does it require deeper refactors?
+	3.	Are all providers expected to support:
+	•	The same structured output contracts?
+	•	Or do we already branch behavior per provider?
+	4.	How do local models (Ollama) differ in:
+	•	Schema strictness?
+	•	Determinism expectations?
+	•	Error handling?
+
+⸻
+
+7. Settings UX vs System Defaults (Important)
+	1.	Is the current Settings model selector:
+	•	Treated as an absolute override?
+	•	Or a preference hint?
+	2.	Can we enforce:
+	•	System-required models for certain tasks
+	•	While still honoring user choice where safe?
+	3.	If not today, what changes would be required to support:
+	•	“Workflow reasoning uses system-recommended model”
+	•	“Vision uses a different model”
+
+⸻
+
+8. Audit & Phase 5 Compatibility
+	1.	Is model identity recorded anywhere today?
+	•	Per generation?
+	•	Per commit?
+	•	Or not at all?
+	2.	Can we attach metadata like:
+	•	modelUsed: "gpt-5"
+	•	provider: "openai"
+…to DecisionSnapshots without refactor?
+	3.	Would switching models mid-project affect:
+	•	Audit exports?
+	•	Trust guarantees?
+	•	Reproducibility?
+
+⸻
+
+9. Rollout & Feature Flagging
+	1.	Can GPT-5 be:
+	•	Feature-flagged?
+	•	Enabled per environment?
+	•	Enabled per user cohort?
+	2.	Is there an existing pattern for:
+	•	Gradual rollout
+	•	A/B testing
+	•	Safe rollback
+	3.	What would be the safest way to:
+	•	Introduce GPT-5 for workflow reasoning only
+	•	Without touching vision or chat yet?
+
+⸻
+
+Final Clarifying Question (Most Important)
+
+If we were to replace GPT-4o with GPT-5 for workflow reasoning tomorrow, what part of the system are you most worried would break — and why?
+
+This answer will tell us whether the migration is mechanical or architectural.
+
+⸻
+
+Why These Questions Matter
+
+GPT-5 is not a drop-in replacement.
+It is stricter, more obedient, and less forgiving.
+
+That’s a strength — but only if:
+	•	Model routing is intentional
+	•	Sessions are isolated
+	•	Contracts are enforced
+	•	Auditability is preserved

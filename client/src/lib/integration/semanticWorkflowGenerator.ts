@@ -625,7 +625,7 @@ Example response format:
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        taskType: 'workflow_reasoning',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         maxTokens: 2048,
@@ -788,7 +788,7 @@ RESPONSE FORMAT (JSON only):
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        taskType: 'vision_ingestion',
         messages,
         temperature: 0.3,
         maxTokens: 3000,

@@ -1,4 +1,4 @@
-export type AiModel = 'gpt-4o' | 'gpt-5.1' | 'custom';
+export type AiModel = 'gpt-4o' | 'gpt-4o-mini' | 'gpt-4' | 'gpt-3.5-turbo' | 'gpt-5' | 'gpt-5.1' | 'custom';
 
 export type AiMessageContent = 
   | string 
@@ -11,10 +11,12 @@ export type AiMessage = {
 
 export type AiRequest = { 
   model?: string; 
+  provider?: string;
   messages: AiMessage[]; 
   temperature?: number; 
   maxTokens?: number; 
   stream?: boolean;
+  taskType?: string;
 };
 
 export type AiResponse = { text: string };
@@ -26,6 +28,10 @@ export interface ModelCapabilities {
 
 export const MODEL_CAPABILITIES: Record<string, ModelCapabilities> = {
   'gpt-4o': { vision: true, maxTokens: 128000 },
+  'gpt-4o-mini': { vision: true, maxTokens: 128000 },
+  'gpt-4': { vision: false, maxTokens: 8192 },
+  'gpt-3.5-turbo': { vision: false, maxTokens: 4096 },
+  'gpt-5': { vision: true, maxTokens: 200000 },
   'gpt-5.1': { vision: true, maxTokens: 200000 },
 };
 

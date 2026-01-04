@@ -276,6 +276,10 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
               <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-md text-sm">
                 ✅ Using: <strong>{settings.model === 'gpt-4o' ? 'GPT-4o (latest model, faster analysis)' : settings.model}</strong>
               </div>
+              <div className="p-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-md text-xs text-gray-600 dark:text-gray-400">
+                <strong>Note:</strong> Workflow generation uses a system-recommended model for reliability and consistency. 
+                Your model selection applies to general chat only.
+              </div>
             </div>
           )}
 
