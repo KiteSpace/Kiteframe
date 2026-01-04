@@ -9,6 +9,7 @@ import {
   validateProposalOutput,
   sanitizeOutput,
   getHeuristicBias,
+  ENABLE_PHASE_4_HEURISTICS,
 } from '@/ai/heuristics';
 
 interface GenerateProposalOptions {
@@ -69,10 +70,14 @@ export async function generateProposedWorkflow(
       }))
     : [];
 
-  const patternGuidance = getPatternGuidance(insight);
-  const scopeGuidance = getScopeGuidance(insight, affectedNodes.length);
-  const nodeConstraints = getNodeCountConstraints(insight, affectedNodes.length);
-  const heuristicBias = getHeuristicBias();
+  const patternGuidance = ENABLE_PHASE_4_HEURISTICS ? getPatternGuidance(insight) : '';
+  const scopeGuidance = ENABLE_PHASE_4_HEURISTICS ? getScopeGuidance(insight, affectedNodes.length) : '';
+  const nodeConstraints = ENABLE_PHASE_4_HEURISTICS 
+    ? getNodeCountConstraints(insight, affectedNodes.length) 
+    : { min: 1, max: 4 };
+  const heuristicBias = ENABLE_PHASE_4_HEURISTICS 
+    ? getHeuristicBias() 
+    : { preferAlternative: false, reduceScope: false, increaseValidation: false };
 
   const systemPrompt = `You are a workflow design assistant. Generate TWO DISTINCT surgical additions to address a specific insight.
 
@@ -131,20 +136,28 @@ The two variants should represent meaningfully different approaches.`;
     ? 'Keep proposals minimal and focused - smaller is better.'
     : '';
 
+  const heuristicSection = ENABLE_PHASE_4_HEURISTICS && (patternGuidance || scopeGuidance || biasNote || scopeNote)
+    ? `
+HEURISTIC GUIDANCE (follow these constraints):
+${patternGuidance}
+${scopeGuidance}
+${biasNote}
+${scopeNote}
+`
+    : '';
+
+  const nodeCountInstruction = ENABLE_PHASE_4_HEURISTICS
+    ? `Generate TWO different surgical additions (${nodeConstraints.min}-${nodeConstraints.max} new nodes each) that address this insight.`
+    : `Generate TWO different surgical additions (1-4 new nodes each) that address this insight.`;
+
   const userPrompt = `INSIGHT TO ADDRESS:
 Title: ${insight.title}
 Description: ${insight.description}
 Category: ${insight.category}
 
 ${originNodeList}
-
-HEURISTIC GUIDANCE (follow these constraints):
-${patternGuidance}
-${scopeGuidance}
-${biasNote}
-${scopeNote}
-
-Generate TWO different surgical additions (${nodeConstraints.min}-${nodeConstraints.max} new nodes each) that address this insight.
+${heuristicSection}
+${nodeCountInstruction}
 - "proposed": Your primary recommendation
 - "alternative": A meaningfully different approach (not just rewording)
 

@@ -41,3 +41,5 @@ export {
   type ExperimentSignal,
   type SessionSignals,
 } from './sessionSignals';
+
+export { ENABLE_PHASE_4_HEURISTICS } from './config';

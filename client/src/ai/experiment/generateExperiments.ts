@@ -7,6 +7,7 @@ import {
   validateExperimentDiversity,
   validateExperimentOutput,
   sanitizeOutput,
+  ENABLE_PHASE_4_HEURISTICS,
 } from '@/ai/heuristics';
 
 interface GenerateExperimentsOptions {
@@ -107,7 +108,9 @@ Generate exactly 4 experiments with different approaches.`;
       ).join('\n')}`
     : 'No specific origin nodes identified. Generate standalone experiment nodes.';
 
-  const diversityGuidance = getExperimentDiversityGuidance(insight);
+  const diversityGuidance = ENABLE_PHASE_4_HEURISTICS 
+    ? getExperimentDiversityGuidance(insight) 
+    : '';
 
   const userPrompt = `INSIGHT TO EXPERIMENT WITH:
 Title: ${insight.title}
@@ -233,12 +236,14 @@ These are what-if explorations, not recommendations.`;
     };
   });
 
-  const diversityValidation = validateExperimentDiversity(
-    experiments.map(e => ({ title: e.title, description: e.description }))
-  );
-  
-  if (!diversityValidation.isValid) {
-    console.warn('[Experiment] Diversity validation issues:', diversityValidation.issues);
+  if (ENABLE_PHASE_4_HEURISTICS) {
+    const diversityValidation = validateExperimentDiversity(
+      experiments.map(e => ({ title: e.title, description: e.description }))
+    );
+    
+    if (!diversityValidation.isValid) {
+      console.warn('[Experiment] Diversity validation issues:', diversityValidation.issues);
+    }
   }
 
   const outputValidation = validateExperimentOutput(
