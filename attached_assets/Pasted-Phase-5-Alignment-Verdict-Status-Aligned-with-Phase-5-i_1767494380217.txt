@@ -1,0 +1,186 @@
+Phase 5 Alignment Verdict
+
+Status: ✅ Aligned with Phase 5 instructions and intent
+
+Replit’s proposed approach correctly interprets Phase 5 as:
+	•	Explainability, not intelligence
+	•	Transparency, not behavior change
+	•	Auditability, not UX expansion
+	•	Read-only inspection, not new actions
+
+Nothing in the proposal violates Phase 1–4 guarantees.
+
+⸻
+
+Line-by-Line Alignment Review
+
+1. Provenance Metadata
+
+Alignment: ✅ Correct
+
+“Extend node types to track createdFromInsightId, createdFromProposalId, createdFromExperimentId, and createdAt.”
+
+This exactly matches Phase 5 Task 1.
+
+Key positives:
+	•	Immutable metadata
+	•	Set only during Accept flows
+	•	Survives undo/redo/save
+
+⚠️ Guardrail:
+	•	Ensure metadata is never mutated post-creation
+	•	Undo/redo must restore metadata verbatim, not recompute it
+
+⸻
+
+2. Decision Reasoning Snapshots
+
+Alignment: ✅ Correct
+
+“Create a DecisionSnapshot type that captures heuristics applied, scope rules, variant choice, and user action at accept time.”
+
+This is a direct hit on Phase 5 Task 2.
+
+Key positives:
+	•	Snapshot is taken at decision time
+	•	Not recomputed later
+	•	Captures system reasoning, not model output
+
+⚠️ Guardrail:
+	•	Do not store raw prompts or LLM responses
+	•	Store structured reasoning signals only (enums, flags, rule IDs)
+
+⸻
+
+3. Read-Only “Why” Inspector
+
+Alignment: ✅ Correct
+
+“A dismissible panel/popover accessible from nodes showing provenance and reasoning.”
+
+This aligns perfectly with Phase 5 Task 3.
+
+Key positives:
+	•	Read-only
+	•	Optional / inspect-on-demand
+	•	No new actions or mutations
+
+⚠️ Guardrail:
+	•	The inspector must not become a new workflow mode
+	•	Avoid inline canvas clutter (tooltips everywhere, badges, etc.)
+
+⸻
+
+4. Structural Change Timeline
+
+Alignment: ✅ Correct
+
+“Internal data structure tracking Accept/Undo/Redo events.”
+
+This is exactly what Phase 5 intended: structural, not visual.
+
+Key positives:
+	•	Internal-first
+	•	Records real events, not inferred ones
+	•	Ties changes back to Insights
+
+⚠️ Guardrail:
+	•	Do not surface this as a full visual timeline yet
+	•	Keep it queryable, not navigational
+
+⸻
+
+5. Exportable Audit Data
+
+Alignment: ✅ Correct
+
+“JSON export combining workflow, provenance, snapshots, and timeline.”
+
+This fully satisfies Phase 5 Task 5.
+
+Key positives:
+	•	Read-only
+	•	Enterprise-ready
+	•	No prompt or model internals leaked
+
+⚠️ Guardrail:
+	•	Ensure export reflects actual committed history, not previews
+	•	Avoid including rejected / canceled proposals unless explicitly flagged
+
+⸻
+
+6. Uncertainty Disclosure
+
+Alignment: ✅ Correct
+
+“Add uncertaintyLevel and validationWarnings to metadata.”
+
+This is exactly what Phase 5 Task 6 allows.
+
+Key positives:
+	•	Stored, not broadcast
+	•	Inspectable on demand
+	•	Honest about system confidence
+
+⚠️ Guardrail:
+	•	Do not show uncertainty proactively in UI
+	•	Only surface via inspector or audit export
+
+⸻
+
+7. Enterprise Guardrails
+
+Alignment: ✅ Correct
+
+“Config-level hooks for disabling AI, read-only mode, audit-only access.”
+
+This matches Phase 5 Task 7 precisely.
+
+Key positives:
+	•	Configuration only
+	•	No UI yet
+	•	No behavior change unless explicitly configured
+
+⚠️ Guardrail:
+	•	Do not implement role-based UX yet
+	•	These are hooks, not features (Phase 6 territory)
+
+⸻
+
+Review of Proposed Task List
+
+Replit’s task list:
+	•	Add creation details to items
+	•	Store decision reasoning when accepted
+	•	Track decisions in approval flows
+	•	Create timeline for structural changes
+	•	Build display for node reasoning
+	•	Add uncertainty info to generation
+	•	Create function for audit export
+	•	Add config for enterprise features
+
+Assessment:
+	•	✅ Correct scope
+	•	✅ Correct sequencing
+	•	✅ Correct abstraction level
+	•	❌ Slightly underspecified ordering (fix below)
+
+⸻
+
+One Recommendation: Tighten Task Ordering (Non-Blocking)
+
+To avoid subtle bugs, I recommend Replit executes Phase 5 in this order:
+	1.	Metadata + Provenance
+	2.	DecisionSnapshot capture
+	3.	Undo/redo survival validation
+	4.	Structural timeline
+	5.	Audit export
+	6.	Why Inspector (read-only)
+	7.	Uncertainty flags
+	8.	Enterprise config hooks
+
+Reason:
+	•	Everything else depends on provenance being correct
+	•	Inspector and export should consume stable data, not shape it
+
+This is advisory, not mandatory.
