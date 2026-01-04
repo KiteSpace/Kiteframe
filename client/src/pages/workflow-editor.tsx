@@ -3326,11 +3326,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     });
     
     // Phase 5: Add provenance metadata to edge.meta (immutable after creation)
+    // Also ensure markerEnd is set for arrow indicators on AI-generated edges
     const newEdges: Edge[] = variantData.edges.map((edge, idx) => ({
       ...edge,
       id: `edge-${timestamp}-${randomSuffix}-${idx}`,
       source: nodeIdMap[edge.source] || edge.source,
       target: nodeIdMap[edge.target] || edge.target,
+      markerEnd: edge.markerEnd ?? true,
       meta: {
         ...edge.meta,
         createdFromInsightId: currentProposal.insightId,
@@ -3424,11 +3426,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     });
     
     // Phase 5: Add provenance metadata to edge.meta (immutable after creation)
+    // Also ensure markerEnd is set for arrow indicators on AI-generated edges
     const newEdges: Edge[] = activeExperiment.variant.edges.map((edge, idx) => ({
       ...edge,
       id: `edge-${timestamp}-${randomSuffix}-${idx}`,
       source: nodeIdMap[edge.source] || edge.source,
       target: nodeIdMap[edge.target] || edge.target,
+      markerEnd: edge.markerEnd ?? true,
       meta: {
         ...edge.meta,
         createdFromInsightId: currentSession.insightId,
