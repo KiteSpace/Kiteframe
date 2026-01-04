@@ -1738,7 +1738,7 @@ function WorkflowEditorContent({
     
     try {
       const { generateProposedWorkflow } = await import('@/ai/proposal/generateProposedWorkflow');
-      const { createSessionId } = await import('@/ai/router');
+      const { createSessionId, toModelProvenance } = await import('@/ai/router');
       
       const sessionId = createSessionId();
       const result = await generateProposedWorkflow({
@@ -1748,7 +1748,12 @@ function WorkflowEditorContent({
         sessionId,
       });
       
-      setProposalState({ proposal: result.proposal, generatingInsightId: null, error: null });
+      const modelProvenance = toModelProvenance(result.routerMetadata);
+      setProposalState({ 
+        proposal: { ...result.proposal, modelProvenance }, 
+        generatingInsightId: null, 
+        error: null 
+      });
     } catch (err) {
       console.error('[ProposeSolution] Generation failed:', err);
       setProposalState({ 
@@ -1812,7 +1817,7 @@ function WorkflowEditorContent({
     
     try {
       const { generateExperiments } = await import('@/ai/experiment/generateExperiments');
-      const { createSessionId } = await import('@/ai/router');
+      const { createSessionId, toModelProvenance } = await import('@/ai/router');
       
       const sessionId = createSessionId();
       const result = await generateExperiments({
@@ -1822,7 +1827,12 @@ function WorkflowEditorContent({
         sessionId,
       });
       
-      setExperimentState({ session: result.session, generatingInsightId: null, error: null });
+      const modelProvenance = toModelProvenance(result.routerMetadata);
+      setExperimentState({ 
+        session: { ...result.session, modelProvenance }, 
+        generatingInsightId: null, 
+        error: null 
+      });
     } catch (err) {
       console.error('[Experiment] Generation failed:', err);
       setExperimentState({ 
@@ -3382,6 +3392,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         uncertaintyLevel: 'low',
         validationWarnings: [],
         heuristicsEnabled: ENABLE_PHASE_4_HEURISTICS,
+        modelProvenance: currentProposal.modelProvenance,
       });
       storeDecisionSnapshot(snapshot);
       recordProposalTimelineAccept(snapshot);
@@ -3483,6 +3494,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         uncertaintyLevel: 'low',
         validationWarnings: [],
         heuristicsEnabled: ENABLE_PHASE_4_HEURISTICS,
+        modelProvenance: currentSession.modelProvenance,
       });
       storeDecisionSnapshot(snapshot);
       recordExperimentTimelineAccept(snapshot);

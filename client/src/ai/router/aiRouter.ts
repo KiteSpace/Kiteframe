@@ -69,6 +69,7 @@ function resolveModel(
   }
   
   if (ENABLE_GPT5_WORKFLOW_REASONING) {
+    console.log(`[AIRouter] GPT-5 enabled: Using ${policy.systemModel} for ${taskType}`);
     return { 
       provider: policy.systemProvider, 
       model: policy.systemModel,
@@ -76,6 +77,7 @@ function resolveModel(
     };
   }
   
+  console.log(`[AIRouter] GPT-5 disabled: Using fallback ${policy.fallbackModel || 'gpt-4o'} for ${taskType}`);
   return { 
     provider: policy.systemProvider, 
     model: policy.fallbackModel || 'gpt-4o',
@@ -110,6 +112,20 @@ export function createAiRouter(baseClient: AiClient) {
       fallbackModelUsed: metadata?.fallbackModelUsed,
     };
     
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const startTime = performance.now();
+    
+    console.log(`[AIRouter] Request started:`, {
+      requestId,
+      taskType,
+      model,
+      provider,
+      sessionId: sessionId ? sessionId.slice(0, 8) + '...' : undefined,
+      gpt5Enabled: ENABLE_GPT5_WORKFLOW_REASONING,
+      retryCount: metadata?.retryCount ?? 0,
+      usedSessionLock,
+    });
+    
     try {
       const response = await baseClient.chat({
         model,
@@ -118,6 +134,17 @@ export function createAiRouter(baseClient: AiClient) {
         temperature: temperature ?? ROUTER_CONFIG.defaultTemperature,
         maxTokens: maxTokens ?? ROUTER_CONFIG.defaultMaxTokens,
         taskType,
+      });
+      
+      const duration = Math.round(performance.now() - startTime);
+      console.log(`[AIRouter] Request completed:`, {
+        requestId,
+        taskType,
+        model,
+        provider,
+        success: true,
+        durationMs: duration,
+        responseLength: response.text?.length ?? 0,
       });
       
       return {
@@ -154,6 +181,17 @@ export function createAiRouter(baseClient: AiClient) {
             taskType,
           });
           
+          const fallbackDuration = Math.round(performance.now() - startTime);
+          console.log(`[AIRouter] Fallback completed:`, {
+            requestId,
+            taskType,
+            originalModel: model,
+            fallbackModel: policy.fallbackModel,
+            success: true,
+            durationMs: fallbackDuration,
+            retryCount: currentRetry,
+          });
+          
           return {
             text: fallbackResponse.text,
             metadata: {
@@ -164,7 +202,16 @@ export function createAiRouter(baseClient: AiClient) {
             },
           };
         } catch (fallbackError) {
-          console.error(`[AIRouter] Fallback to ${policy.fallbackModel} also failed.`);
+          const errorDuration = Math.round(performance.now() - startTime);
+          console.error(`[AIRouter] Fallback to ${policy.fallbackModel} also failed:`, {
+            requestId,
+            taskType,
+            originalModel: model,
+            fallbackModel: policy.fallbackModel,
+            durationMs: errorDuration,
+            retryCount: currentRetry,
+            error: fallbackError instanceof Error ? fallbackError.message : 'Unknown error',
+          });
           throw fallbackError;
         }
       }

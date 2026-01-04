@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Node, Edge } from '@/lib/kiteframe/types';
+import type { ModelProvenance } from '@/ai/explainability/types';
 
 /**
  * Experiment
@@ -36,6 +37,7 @@ export interface ExperimentSession {
   generatedAt: number;
   snapshotNodes: Node[];
   snapshotEdges: Edge[];
+  modelProvenance?: ModelProvenance;
 }
 
 export interface ExperimentState {

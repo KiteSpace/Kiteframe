@@ -1,0 +1,379 @@
+GPT-5 ENABLEMENT ROLLOUT INSTRUCTIONS
+FROM STAGING → BETA → PRODUCTION
+AUTHORITATIVE REPLIT TASK FILE
+
+GOAL
+
+Enable GPT-5 as the enforced system model for workflow reasoning and workflow experiments (and PRD generation if included), while preserving:
+
+determinism via session locks
+
+auditability via provenance capture
+
+safe fallback behavior
+
+user “choose model” only for general chat
+
+vision ingestion remains on GPT-4o
+
+Roll out in controlled stages (dev → beta cohort → prod), with verification gates at each step.
+
+NON-NEGOTIABLE CONSTRAINTS
+
+GPT-5 enforcement MUST apply only to task types:
+
+workflow_reasoning
+
+workflow_experiments
+
+prd_generation (if included in policy)
+
+User model selection MUST apply only to:
+
+general_chat
+
+Vision tasks MUST remain on:
+
+gpt-4o
+
+via vision_ingestion task type
+
+Session model locking MUST remain active for:
+
+proposal flows
+
+experiment flows
+
+Every Accept commit MUST record model provenance in Phase 5 DecisionSnapshot.
+
+PHASE 0 — PRE-FLIGHT CHECKS (MUST PASS BEFORE ENABLING GPT-5)
+
+Task 0.1 — Confirm provenance capture on Accept
+
+Verify that proposal/experiment Accept flows write model provenance:
+
+providerUsed
+
+modelUsed
+
+routerTaskType
+
+usedFallback
+
+fallbackModelUsed (if any)
+
+sessionId (if present)
+
+Acceptance:
+
+Export / inspector (or internal snapshot) can answer: “which model generated these nodes?”
+
+Task 0.2 — Confirm router policies match desired defaults
+
+Confirm TASK_TYPE_POLICIES (or equivalent) are:
+
+workflow_reasoning.systemModel = gpt-5.x
+
+workflow_experiments.systemModel = gpt-5.x
+
+prd_generation.systemModel = gpt-5.x (if you want PRDs on GPT-5)
+
+vision_ingestion.systemModel = gpt-4o
+
+general_chat.allowUserOverride = true
+
+Acceptance:
+
+No stray policies allow user override for workflow tasks.
+
+Task 0.3 — Confirm fallback metadata is written
+
+If router falls back from GPT-5 → GPT-4o:
+
+usedFallback must be true
+
+fallbackModelUsed must be gpt-4o
+
+uncertaintyLevel must be elevated
+
+Acceptance:
+
+Fallback is never silent; always recorded.
+
+Task 0.4 — Confirm “Choose model” UI is scoped to chat only
+
+Ensure Settings copy is accurate and behavior is enforced:
+
+selecting GPT-4 / 3.5 etc affects general chat only
+
+workflow tasks ignore user setting
+
+Acceptance:
+
+Attempt to downgrade workflow generation has no effect.
+
+PHASE 1 — MAKE THE GPT-5 FLAG RUNTIME CONFIGURABLE (RECOMMENDED FOR BETA/PROD)
+
+Task 1.1 — Convert ENABLE_GPT5_WORKFLOW_REASONING to env config
+
+Replace hardcoded boolean with environment variable resolution
+
+Support at least:
+
+development
+
+staging/beta
+
+production
+
+Example behavior:
+
+ENABLE_GPT5_WORKFLOW_REASONING = "true" enables GPT-5 enforcement
+
+default "false" maintains GPT-4o everywhere
+
+Acceptance:
+
+No code change required to toggle in beta/prod
+
+Toggle affects routing behavior only (no UI dependency)
+
+Task 1.2 — Add optional cohort gating (beta)
+
+Add optional env vars:
+
+ENABLE_GPT5_BETA_COHORT = "true/false"
+
+GPT5_BETA_PERCENT = "0-100" OR GPT5_BETA_USER_IDS list
+
+Implement gating at router decision point for workflow tasks only
+
+If cohort gating is off, fall back to flag-only behavior
+
+Acceptance:
+
+You can enable GPT-5 for 5–20% of users or a fixed allowlist.
+
+NOTE:
+
+If you lack user identity in client, use a stable identifier (account ID) or deterministic hash.
+
+PHASE 2 — OBSERVABILITY (REQUIRED BEFORE BETA)
+
+Task 2.1 — Add structured logging for workflow AI calls
+Log (client or server—wherever calls occur) per request:
+
+requestId
+
+taskType
+
+modelChosen
+
+providerChosen
+
+sessionId
+
+parseSuccess (true/false)
+
+schemaValid (true/false)
+
+retryCount
+
+usedFallback
+
+durationMs
+
+token usage if available
+
+Acceptance:
+
+You can compare GPT-5 vs GPT-4o behavior in beta without guesswork.
+
+Task 2.2 — Add “quality proxy” counters (non-UI)
+Track simple counters:
+
+proposal_generation_success
+
+experiment_generation_success
+
+parse_failures
+
+schema_failures
+
+fallback_rate
+
+accept_rate (proposal accepted / canceled)
+
+undo_after_accept_rate (within N seconds)
+
+time_to_accept (ms)
+
+Acceptance:
+
+You can tell if GPT-5 actually improved outcomes.
+
+PHASE 3 — STAGING ENABLEMENT (INTERNAL QA)
+
+Task 3.1 — Enable GPT-5 on staging only
+
+Set:
+
+ENABLE_GPT5_WORKFLOW_REASONING=true
+
+ENABLE_GPT5_BETA_COHORT=false (or 100%)
+
+Keep:
+
+vision_ingestion → gpt-4o
+
+general_chat → user selection
+
+Task 3.2 — Run the staging verification suite (manual test plan)
+Execute these tests:
+
+A) Propose Solution (Insight-scoped)
+
+Generate proposal
+
+Toggle Proposed/Alternative repeatedly
+
+Confirm previews are deterministic (no regeneration drift)
+
+Accept Proposed; undo; redo
+
+Confirm exactly one undo entry
+
+Confirm provenance captures modelUsed = gpt-5.x and taskType = workflow_reasoning
+
+Confirm Cancel produces zero undo entries
+
+B) Experiments
+
+Generate experiments (4)
+
+Click through options (cache must hold)
+
+Accept one; undo; redo
+
+Confirm provenance captures modelUsed = gpt-5.x and taskType = workflow_experiments
+
+C) PRD generation (if included)
+
+Generate PRD
+
+Confirm parsing and schema validation succeed
+
+Confirm provenance recorded where appropriate (or logs if PRDs aren’t committed artifacts)
+
+D) Image import / hand-drawn analysis
+
+Confirm vision_ingestion still uses gpt-4o
+
+Confirm no accidental routing to gpt-5 for vision content
+
+E) Mid-session settings change
+
+Start proposal session
+
+Switch chat model in settings
+
+Confirm active proposal/expt session model remains locked
+
+Confirm general_chat uses new selected model immediately
+
+Acceptance:
+
+All tests pass with zero regressions.
+
+Logs show expected model routing.
+
+PHASE 4 — BETA ROLLOUT (CONTROLLED COHORT)
+
+Task 4.1 — Enable GPT-5 for a cohort
+Recommended starting point:
+
+GPT5_BETA_PERCENT = 10 (or allowlist of internal users)
+
+ENABLE_GPT5_WORKFLOW_REASONING=true
+
+ENABLE_GPT5_BETA_COHORT=true
+
+Task 4.2 — Monitor metrics for 48–72 hours of active usage (no new features)
+Key thresholds (suggested):
+
+parse/schema failure rate does not increase vs baseline
+
+fallback rate remains low (target < 2–5%)
+
+accept rate does not drop materially
+
+undo-after-accept rate does not increase materially
+
+no spike in user-reported “inconsistent previews” complaints
+
+Task 4.3 — Expand cohort gradually
+Example ramp:
+
+10% → 25% → 50% → 100%
+Only ramp if metrics remain stable.
+
+Acceptance:
+
+GPT-5 shows equal-or-better reliability and user behavior signals.
+
+PHASE 5 — PRODUCTION ENABLEMENT (FULL ROLLOUT)
+
+Task 5.1 — Enable GPT-5 enforcement for all users
+
+ENABLE_GPT5_WORKFLOW_REASONING=true
+
+ENABLE_GPT5_BETA_COHORT=false (or 100%)
+
+Keep vision ingestion on gpt-4o
+
+Task 5.2 — Maintain rollback capability
+Rollback plan:
+
+Flip ENABLE_GPT5_WORKFLOW_REASONING=false
+
+Confirm immediate revert of workflow task routing to GPT-4o
+
+Preserve provenance trails as recorded (no retroactive edits)
+
+Acceptance:
+
+Rollback is instantaneous and safe.
+
+DEFINITION OF DONE
+
+GPT-5 enablement is complete when:
+
+Workflow reasoning and experiments use GPT-5 by default and cannot be downgraded by user settings
+
+General chat model selection still works independently
+
+Vision ingestion remains stable on GPT-4o
+
+Sessions are model-locked; no mixed-model sessions
+
+Every commit records model provenance for Phase 5
+
+Observability confirms stable reliability and fallback behavior
+
+Beta ramp completes without regressions
+
+OPTIONAL FOLLOW-UPS (POST-ROLLOUT, NOT REQUIRED)
+
+Migrate PRD generation to GPT-5 if not already included
+
+Evaluate GPT-5 vision variant for image import parity
+
+Tighten schemas / reduce sanitization further once GPT-5 is stable
+
+Add per-org admin controls (Phase 6 governance)
+
+END OF GPT-5 ENABLEMENT ROLLOUT INSTRUCTIONS
+
+If you want, I can also generate a shorter “Beta QA checklist” you can run yourself in 10 minutes, or a production monitoring dashboard spec keyed to the metrics above.
+
+I want to roll this out to all Beta, not just a percetgae of the cohort

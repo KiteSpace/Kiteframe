@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Node, Edge } from '@/lib/kiteframe/types';
+import type { ModelProvenance } from '@/ai/explainability/types';
 
 export interface ProposalVariant {
   nodes: Node[];
@@ -18,6 +19,7 @@ export interface ProposedWorkflow {
   generatedAt: number;
   snapshotNodes: Node[];
   snapshotEdges: Edge[];
+  modelProvenance?: ModelProvenance;
 }
 
 export interface ProposalState {

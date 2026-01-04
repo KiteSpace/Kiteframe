@@ -9,10 +9,25 @@ import type {
   DecisionSnapshot, 
   AppliedHeuristics, 
   UncertaintyLevel,
-  ValidationWarning 
+  ValidationWarning,
+  ModelProvenance
 } from './types';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
 import { getSessionSignals, getHeuristicBias } from '../heuristics/sessionSignals';
+import { createFallbackProvenance } from '../router/provenanceHelper';
+
+/**
+ * Ensures model provenance is always present.
+ * Uses provided provenance if available, otherwise creates a fallback.
+ */
+function ensureProvenance(
+  provenance: ModelProvenance | undefined,
+  taskType: ModelProvenance['routerTaskType']
+): ModelProvenance {
+  if (provenance) return provenance;
+  console.warn(`[DecisionCapture] Missing model provenance for ${taskType}, using fallback`);
+  return createFallbackProvenance('openai', 'gpt-4o', taskType);
+}
 
 let snapshotIdCounter = 0;
 
@@ -35,6 +50,7 @@ export interface CaptureProposalDecisionParams {
   uncertaintyLevel: UncertaintyLevel;
   validationWarnings: ValidationWarning[];
   heuristicsEnabled: boolean;
+  modelProvenance?: ModelProvenance;
 }
 
 export interface CaptureExperimentDecisionParams {
@@ -53,6 +69,7 @@ export interface CaptureExperimentDecisionParams {
   uncertaintyLevel: UncertaintyLevel;
   validationWarnings: ValidationWarning[];
   heuristicsEnabled: boolean;
+  modelProvenance?: ModelProvenance;
 }
 
 /**
@@ -85,6 +102,7 @@ export function captureProposalDecision(
     uncertaintyLevel: params.uncertaintyLevel,
     validationWarnings: params.validationWarnings,
     heuristicsEnabled: params.heuristicsEnabled,
+    modelProvenance: ensureProvenance(params.modelProvenance, 'workflow_reasoning'),
   };
 }
 
@@ -119,5 +137,6 @@ export function captureExperimentDecision(
     uncertaintyLevel: params.uncertaintyLevel,
     validationWarnings: params.validationWarnings,
     heuristicsEnabled: params.heuristicsEnabled,
+    modelProvenance: ensureProvenance(params.modelProvenance, 'workflow_experiments'),
   };
 }

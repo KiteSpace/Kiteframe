@@ -112,11 +112,13 @@ Preferred communication style: Simple, everyday language.
 
 ### GPT-5 Migration Foundation
 - **Central AI Router**: All AI calls route through `client/src/ai/router/aiRouter.ts` with task-type based model selection.
-- **Task-Type Model Policy**: Defined in `types.ts` - GPT-5 for workflow_reasoning/workflow_experiments/prd_generation, GPT-4o for vision_ingestion, user-selected for general_chat.
+- **Task-Type Model Policy**: Defined in `types.ts` - GPT-5.1 for workflow_reasoning/workflow_experiments/prd_generation, GPT-4o for vision_ingestion, user-selected for general_chat.
 - **Session Model Lock**: Model/provider locked at session start.
-- **Model Provenance**: `ModelProvenance` interface captures providerUsed, modelUsed, routerTaskType, usedFallback, fallbackModelUsed, sessionId. Added to DecisionSnapshot for audit trail.
-- **Retry & Fallback**: Max 1 retry with same model, then fallback GPT-5 → GPT-4o with metadata tracking.
+- **Model Provenance**: `ModelProvenance` interface captures providerUsed, modelUsed, routerTaskType, usedFallback, fallbackModelUsed, sessionId. Flows from generation → ProposedWorkflow/ExperimentSession → Accept handlers → DecisionSnapshot.
+- **Retry & Fallback**: Max 1 retry with same model, then fallback GPT-5.1 → GPT-4o with metadata tracking.
 - **Tolerant JSON Parser**: `jsonParser.ts` extracts JSON from fenced code blocks, validates with Zod schemas.
+- **Feature Flag**: `VITE_ENABLE_GPT5_WORKFLOW_REASONING` environment variable controls GPT-5.1 enablement. Set to "true" or "1" to enable GPT-5.1 for workflow tasks.
+- **Structured Logging**: Router logs all requests with taskType, model, provider, sessionId, and gpt5Enabled status for observability.
 
 ### Plugin Architecture
 - **KiteFrameCore**: Plugin management system with `PluginProvider`, hooks, and an event system.
