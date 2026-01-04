@@ -2,6 +2,8 @@ import type { Node, Edge } from '@/lib/kiteframe/types';
 import type { ProposedWorkflow, ProposalVariant } from '@/hooks/useProposalState';
 import type { AiClient } from '@/ai/types';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
+import type { RouterMetadata } from '@/ai/router/types';
+import { getRouter, extractJSON } from '@/ai/router';
 import { 
   getPatternGuidance, 
   getScopeGuidance, 
@@ -16,7 +18,13 @@ interface GenerateProposalOptions {
   insight: Insight;
   snapshotNodes: Node[];
   snapshotEdges: Edge[];
-  aiClient: AiClient;
+  aiClient?: AiClient;
+  sessionId?: string;
+}
+
+export interface GenerateProposalResult {
+  proposal: ProposedWorkflow;
+  routerMetadata?: RouterMetadata;
 }
 
 interface ParsedVariant {
@@ -52,8 +60,8 @@ interface ParsedDualProposal {
  */
 export async function generateProposedWorkflow(
   options: GenerateProposalOptions
-): Promise<ProposedWorkflow> {
-  const { insight, snapshotNodes, snapshotEdges, aiClient } = options;
+): Promise<GenerateProposalResult> {
+  const { insight, snapshotNodes, snapshotEdges, sessionId } = options;
   
   const affectedNodeIds = insight.relatedNodeIds.length > 0 
     ? insight.relatedNodeIds 
@@ -163,19 +171,25 @@ ${nodeCountInstruction}
 
 Both MUST connect to existing origin nodes and differ in structure/approach.`;
 
-  const response = await aiClient.chat({
+  const router = getRouter();
+  const response = await router.chat({
+    taskType: 'workflow_reasoning',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
+    sessionId,
   });
 
+  const routerMetadata = response.metadata;
   const content = response.text || '';
   
   let parsed: ParsedDualProposal;
   try {
-    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
-    const jsonStr = jsonMatch[1]?.trim() || content.trim();
+    const jsonStr = extractJSON(content);
+    if (!jsonStr) {
+      throw new Error('No valid JSON found in response');
+    }
     parsed = JSON.parse(jsonStr);
     
     if (!parsed.proposed || !parsed.alternative) {
@@ -301,14 +315,17 @@ Both MUST connect to existing origin nodes and differ in structure/approach.`;
   }
 
   return {
-    insightId: insight.id,
-    insightTitle: insight.title,
-    affectedNodeIds,
-    proposed,
-    alternative,
-    activeVariant: 'proposed',
-    generatedAt: timestamp,
-    snapshotNodes,
-    snapshotEdges,
+    proposal: {
+      insightId: insight.id,
+      insightTitle: insight.title,
+      affectedNodeIds,
+      proposed,
+      alternative,
+      activeVariant: 'proposed',
+      generatedAt: timestamp,
+      snapshotNodes,
+      snapshotEdges,
+    },
+    routerMetadata,
   };
 }

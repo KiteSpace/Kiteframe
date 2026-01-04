@@ -11,6 +11,7 @@ import type { Node, Edge } from '../lib/kiteframe/types';
 import { Sparkles, Loader2, Image, Upload, FileImage, CheckCircle, AlertTriangle, MessageSquare } from 'lucide-react';
 import { AI_WORKFLOW_SYSTEM_PROMPT } from '@/constants/aiWorkflowPrompt';
 import { normalizeWorkflowGraph } from '@/utils/normalizeWorkflowGraph';
+import { getRouter, extractJSON } from '@/ai/router';
 
 interface ImageAnalysisResult {
   success: boolean;
@@ -185,36 +186,21 @@ export function AiWorkflowGenerator({ onClose, onGenerate, initialPrompt = '' }:
 
     setIsGenerating(true);
     try {
-      const response = await aiClient.chat({
+      const router = getRouter();
+      const response = await router.chat({
+        taskType: 'workflow_reasoning',
         messages: [
           { role: 'system', content: AI_WORKFLOW_SYSTEM_PROMPT },
           { role: 'user', content: `Create workflow: ${prompt}` }
         ],
         temperature: 0.1,
-        maxTokens: 3000  // Increased to handle complex workflows
+        maxTokens: 3000
       });
 
-      // Parse the AI response with comprehensive JSON cleaning
-      let cleanedResponse = response.text
-        .replace(/^JSON:\s*/i, '') // Remove "JSON:" prefix
-        .replace(/```json\s?|```/g, '') // Remove markdown code blocks
-        .replace(/^[^{]*/, '') // Remove any text before first {
-        .trim();
-      
-      // Find the last closing brace to properly trim the end
-      const lastBraceIndex = cleanedResponse.lastIndexOf('}');
-      if (lastBraceIndex !== -1) {
-        cleanedResponse = cleanedResponse.substring(0, lastBraceIndex + 1);
-      }
+      let cleanedResponse = extractJSON(response.text) || response.text;
       
       console.log('🧹 CLEANED RESPONSE LENGTH:', cleanedResponse.length, 'chars');
       console.log('🧹 FIRST 500 CHARS:', cleanedResponse.substring(0, 500));
-      
-      // Try to find JSON content if wrapped in text
-      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        cleanedResponse = jsonMatch[0];
-      }
       
       let workflowData;
       

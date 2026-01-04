@@ -1738,15 +1738,17 @@ function WorkflowEditorContent({
     
     try {
       const { generateProposedWorkflow } = await import('@/ai/proposal/generateProposedWorkflow');
+      const { createSessionId } = await import('@/ai/router');
       
-      const proposal = await generateProposedWorkflow({
+      const sessionId = createSessionId();
+      const result = await generateProposedWorkflow({
         insight,
         snapshotNodes: nodes,
         snapshotEdges: edges,
-        aiClient: ai,
+        sessionId,
       });
       
-      setProposalState({ proposal, generatingInsightId: null, error: null });
+      setProposalState({ proposal: result.proposal, generatingInsightId: null, error: null });
     } catch (err) {
       console.error('[ProposeSolution] Generation failed:', err);
       setProposalState({ 
@@ -1810,15 +1812,17 @@ function WorkflowEditorContent({
     
     try {
       const { generateExperiments } = await import('@/ai/experiment/generateExperiments');
+      const { createSessionId } = await import('@/ai/router');
       
-      const session = await generateExperiments({
+      const sessionId = createSessionId();
+      const result = await generateExperiments({
         insight,
         snapshotNodes: nodes,
         snapshotEdges: edges,
-        aiClient: ai,
+        sessionId,
       });
       
-      setExperimentState({ session, generatingInsightId: null, error: null });
+      setExperimentState({ session: result.session, generatingInsightId: null, error: null });
     } catch (err) {
       console.error('[Experiment] Generation failed:', err);
       setExperimentState({ 

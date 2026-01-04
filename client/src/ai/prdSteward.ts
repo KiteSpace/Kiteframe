@@ -117,6 +117,7 @@ export async function reviewPRD(
   model: SemanticWorkflowModel,
   prd: WorkflowPRD
 ): Promise<PRDReviewResult> {
+  const { getRouter } = await import('./router');
   const prompt = buildReviewPrompt(model, prd);
   
   const messages: AiMessage[] = [
@@ -127,7 +128,9 @@ export async function reviewPRD(
     { role: 'user', content: prompt }
   ];
   
-  const response = await aiClient.chat({
+  const router = getRouter();
+  const response = await router.chat({
+    taskType: 'prd_generation',
     messages,
     temperature: 0.3,
     maxTokens: 1500

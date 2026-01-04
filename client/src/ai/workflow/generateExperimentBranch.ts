@@ -3,6 +3,7 @@ import type { Node, Edge, ExperimentMode, ExperimentOrigin } from '../../lib/kit
 import type { ExperimentContext } from '../../lib/kiteframe/utils/experimentContext';
 import { formatContextForPrompt } from '../../lib/kiteframe/utils/experimentContext';
 import { logGenerationInput, logRawAIOutput, logParsedProposal, warnContentContractViolation } from './experimentDebugLogger';
+import { getRouter } from '../router';
 
 export interface GenerateBranchInput {
   mode: ExperimentMode;
@@ -216,7 +217,9 @@ export async function generateExperimentBranch(
       },
     });
     
-    const response = await ai.chat({
+    const router = getRouter();
+    const response = await router.chat({
+      taskType: 'workflow_experiments',
       messages,
     });
     

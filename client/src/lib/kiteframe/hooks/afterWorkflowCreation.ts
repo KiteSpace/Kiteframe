@@ -4,6 +4,7 @@ import type { WorkflowPRD } from '../../../ai/prdEngine';
 import { generateWorkflowPRD } from '../../../ai/prdEngine';
 import { extractSemanticWorkflowModel } from '../utils/extractSemanticWorkflowModel';
 import { loadWorkflowPRD, saveWorkflowPRD, saveWorkflowPRDVersion } from '../utils/prdStorage';
+import { getRouter, extractJSON } from '../../../ai/router';
 
 export type WorkflowCreationSource = 'kiteai' | 'figma' | 'image' | 'import' | 'template';
 
@@ -162,7 +163,9 @@ Return ONLY valid JSON:
 }`;
 
   try {
-    const response = await aiClient.chat({
+    const router = getRouter();
+    const response = await router.chat({
+      taskType: 'prd_generation',
       messages: [
         { role: 'system', content: 'You are a product manager creating project documentation. Be concise and specific. Output only valid JSON.' },
         { role: 'user', content: prompt }
@@ -171,15 +174,7 @@ Return ONLY valid JSON:
       maxTokens: 1000
     });
 
-    let cleanedResponse = response.text
-      .replace(/^```json\s?|```$/g, '')
-      .replace(/^[^{]*/, '')
-      .trim();
-    
-    const lastBraceIndex = cleanedResponse.lastIndexOf('}');
-    if (lastBraceIndex !== -1) {
-      cleanedResponse = cleanedResponse.substring(0, lastBraceIndex + 1);
-    }
+    const cleanedResponse = extractJSON(response.text) || response.text;
 
     const parsed = JSON.parse(cleanedResponse);
     

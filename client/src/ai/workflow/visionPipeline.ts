@@ -1,5 +1,6 @@
 import type { AiClient, AiMessage } from '../types';
 import { supportsVision } from '../types';
+import { getRouter, extractJSON } from '../router';
 
 export type VisionRole = 'pm' | 'designer';
 
@@ -303,8 +304,9 @@ export async function generateWorkflowFromFrame(
   incrementBatchCount();
   
   try {
-    const response = await aiClient.chat({
-      model,
+    const router = getRouter();
+    const response = await router.chat({
+      taskType: 'vision_ingestion',
       messages,
       temperature: 0.3,
       maxTokens: 2048,
@@ -312,12 +314,12 @@ export async function generateWorkflowFromFrame(
     
     decrementBatchCount();
     
-    const jsonMatch = response.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    const jsonStr = extractJSON(response.text);
+    if (!jsonStr) {
       throw new Error('No JSON found in vision response');
     }
     
-    const visionResult = JSON.parse(jsonMatch[0]) as VisionResult;
+    const visionResult = JSON.parse(jsonStr) as VisionResult;
     
     console.log('[VisionPipeline] visionConfidence', visionResult.confidence);
     

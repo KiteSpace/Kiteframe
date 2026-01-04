@@ -2,6 +2,8 @@ import type { Node, Edge } from '@/lib/kiteframe/types';
 import type { Experiment, ExperimentSession } from '@/hooks/useExperimentState';
 import type { AiClient } from '@/ai/types';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
+import type { RouterMetadata } from '@/ai/router/types';
+import { getRouter, extractJSON } from '@/ai/router';
 import {
   getExperimentDiversityGuidance,
   validateExperimentDiversity,
@@ -14,7 +16,13 @@ interface GenerateExperimentsOptions {
   insight: Insight;
   snapshotNodes: Node[];
   snapshotEdges: Edge[];
-  aiClient: AiClient;
+  aiClient?: AiClient;
+  sessionId?: string;
+}
+
+export interface GenerateExperimentsResult {
+  session: ExperimentSession;
+  routerMetadata?: RouterMetadata;
 }
 
 interface ParsedExperiment {
@@ -48,8 +56,8 @@ interface ParsedExperimentsResponse {
  */
 export async function generateExperiments(
   options: GenerateExperimentsOptions
-): Promise<ExperimentSession> {
-  const { insight, snapshotNodes, snapshotEdges, aiClient } = options;
+): Promise<GenerateExperimentsResult> {
+  const { insight, snapshotNodes, snapshotEdges, sessionId } = options;
   
   const affectedNodeIds = insight.relatedNodeIds.length > 0 
     ? insight.relatedNodeIds 
@@ -124,19 +132,25 @@ ${diversityGuidance}
 Generate FOUR experiments (1-3 new nodes each) where each experiment tests a DIFFERENT risk.
 These are what-if explorations, not recommendations.`;
 
-  const response = await aiClient.chat({
+  const router = getRouter();
+  const response = await router.chat({
+    taskType: 'workflow_experiments',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
+    sessionId,
   });
 
+  const routerMetadata = response.metadata;
   const content = response.text || '';
   
   let parsed: ParsedExperimentsResponse;
   try {
-    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
-    const jsonStr = jsonMatch[1]?.trim() || content.trim();
+    const jsonStr = extractJSON(content);
+    if (!jsonStr) {
+      throw new Error('No valid JSON found in response');
+    }
     parsed = JSON.parse(jsonStr);
     
     if (!parsed.experiments || !Array.isArray(parsed.experiments)) {
@@ -270,13 +284,16 @@ These are what-if explorations, not recommendations.`;
   }));
 
   return {
-    insightId: insight.id,
-    insightTitle: insight.title,
-    affectedNodeIds,
-    experiments: sanitizedExperiments,
-    activeExperimentId: null,
-    generatedAt: timestamp,
-    snapshotNodes,
-    snapshotEdges,
+    session: {
+      insightId: insight.id,
+      insightTitle: insight.title,
+      affectedNodeIds,
+      experiments: sanitizedExperiments,
+      activeExperimentId: null,
+      generatedAt: timestamp,
+      snapshotNodes,
+      snapshotEdges,
+    },
+    routerMetadata,
   };
 }

@@ -21,6 +21,7 @@ import {
 } from '../lib/ai/buildKiteAIContext';
 import { inferKiteAIRole } from '../lib/ai/inferKiteAIRole';
 import { ChatSendButton } from '@/components/chat';
+import { getRouter, extractJSON } from '@/ai/router';
 import { 
   MessageCircle, 
   Paperclip, 
@@ -630,7 +631,9 @@ export function KiteAIChatBrain({
         enhancedPrompt += `\n\nNOTE: Nodes exist but lack labels/descriptions. Help refine them rather than asking foundational questions.`;
       }
 
-      const response = await aiClient.chat({
+      const router = getRouter();
+      const response = await router.chat({
+        taskType: 'general_chat',
         messages: [
           { role: 'system', content: enhancedPrompt },
           ...conversationHistory,
@@ -803,7 +806,9 @@ export function KiteAIChatBrain({
           // Call AI to expand workflow with edge cases
           toast({ title: 'Expanding workflow', description: 'Adding edge and failure cases...' });
           
-          const expandResponse = await aiClient.chat({
+          const router1 = getRouter();
+          const expandResponse = await router1.chat({
+            taskType: 'workflow_reasoning',
             messages: [
               { role: 'system', content: AI_WORKFLOW_EXPAND_EDGE_CASES_PROMPT },
               { role: 'user', content: `Original prompt: ${currentWorkflowDraft.originPrompt || 'Workflow expansion'}\n\nCurrent workflow:\n${JSON.stringify({ nodes: currentWorkflowDraft.nodes, edges: currentWorkflowDraft.edges }, null, 2)}` }
@@ -844,7 +849,9 @@ export function KiteAIChatBrain({
           // Call AI to list edge cases for discussion
           toast({ title: 'Analyzing edge cases', description: 'Identifying potential failure paths...' });
           
-          const listResponse = await aiClient.chat({
+          const router2 = getRouter();
+          const listResponse = await router2.chat({
+            taskType: 'workflow_reasoning',
             messages: [
               { role: 'system', content: AI_WORKFLOW_LIST_EDGE_CASES_PROMPT },
               { role: 'user', content: `Original prompt: ${currentWorkflowDraft.originPrompt || 'Workflow'}\n\nCurrent workflow:\n${JSON.stringify({ nodes: currentWorkflowDraft.nodes, edges: currentWorkflowDraft.edges }, null, 2)}` }
@@ -906,7 +913,9 @@ export function KiteAIChatBrain({
       });
       
       // Call AI to expand with selected edge cases
-      const selectResponse = await aiClient.chat({
+      const router3 = getRouter();
+      const selectResponse = await router3.chat({
+        taskType: 'workflow_reasoning',
         messages: [
           { role: 'system', content: AI_WORKFLOW_EXPAND_SELECTED_EDGE_CASES_PROMPT },
           { role: 'user', content: `Original prompt: ${currentWorkflowDraft.originPrompt || 'Workflow'}\n\nCurrent workflow:\n${JSON.stringify({ nodes: currentWorkflowDraft.nodes, edges: currentWorkflowDraft.edges }, null, 2)}\n\nSelected edge cases to include:\n${selectedCases.map(c => `- ${c.label}`).join('\n')}` }
@@ -1525,7 +1534,9 @@ ${workflowContext}`;
       
       conversationHistory.push({ role: 'user', content: userMessage.content });
       
-      const response = await aiClient.chat({
+      const router4 = getRouter();
+      const response = await router4.chat({
+        taskType: 'general_chat',
         messages: [
           { role: 'system', content: systemPrompt },
           ...conversationHistory
@@ -1549,7 +1560,7 @@ ${workflowContext}`;
     } finally {
       setIsLoading(false);
     }
-  }, [inputValue, isLoading, messages, aiClient, buildWorkflowContext, toast]);
+  }, [inputValue, isLoading, messages, buildWorkflowContext, toast]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

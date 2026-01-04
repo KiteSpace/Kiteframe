@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useAi } from '@/ai/AiProvider';
 import { usePRDGenerationState } from '@/stores/prdGenerationBus';
 import type { Node, Edge } from '@/lib/kiteframe/types';
+import { getRouter, extractJSON } from '@/ai/router';
 
 interface ProjectDetails {
   name: string;
@@ -266,15 +267,17 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
 
 Respond in JSON format: {"name": "descriptive project name", "description": "2-3 sentence description of what this workflow does"}`;
 
-      const response = await aiClient.chat({
+      const router = getRouter();
+      const response = await router.chat({
+        taskType: 'prd_generation',
         messages: [{ role: 'user', content: workflowSummary }],
         temperature: 0.7,
         maxTokens: 200
       });
 
-      // Parse the JSON response
-      const jsonMatch = response.text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
+      const jsonStr = extractJSON(response.text);
+      if (jsonStr) {
+        const jsonMatch = [jsonStr];
         const parsed = JSON.parse(jsonMatch[0]);
         if (parsed.name) {
           updateName(parsed.name);

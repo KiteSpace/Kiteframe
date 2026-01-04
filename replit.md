@@ -1,7 +1,7 @@
 # Kiteframe Workflow Editor
 
 ## Overview
-Kiteframe is a visual workflow editor for creating and managing interactive diagrams with various node types (input, process, condition, output, AI tasks, and images). It features a modern UI with drag-and-drop functionality, real-time canvas interactions, and AI integration for workflow processing and generation. The project aims to provide core workflow editing capabilities with advanced features delivered through a plugin architecture. The core canvas library has been extracted into an open-source npm package, Kiteline (`@kiteline/core`), complete with documentation and a demo website.
+Kiteframe is a visual workflow editor for creating and managing interactive diagrams with various node types (input, process, condition, output, AI tasks, and images). It features a modern UI with drag-and-drop functionality, real-time canvas interactions, and AI integration for workflow processing and generation. The project aims to provide core workflow editing capabilities with advanced features delivered through a plugin architecture. Its core canvas library has been extracted into an open-source npm package, Kiteline (`@kiteline/core`), complete with documentation and a demo website.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -11,7 +11,7 @@ Preferred communication style: Simple, everyday language.
 ### Multi-Service Architecture
 - **Kiteframe**: The main visual workflow editor web application.
 - **Kiteline Library (`@kiteline/core`)**: An extracted, standalone open-source npm package containing the core canvas library.
-- **KitelineAI**: A dedicated Ollama service designed for privacy-focused AI processing, communicating with Kiteframe for AI workflow generation.
+- **KitelineAI**: A dedicated Ollama service for privacy-focused AI processing, communicating with Kiteframe for AI workflow generation.
 
 ### Frontend Architecture (Kiteframe)
 - **Framework**: React 18 with TypeScript and Vite.
@@ -47,7 +47,6 @@ Preferred communication style: Simple, everyday language.
 ### Subscription System (KiteAI)
 - **Tiered Model**: Free, Advanced, and Pro tiers with monthly credit allocations.
 - **Stripe Integration**: Checkout, Customer Portal, and webhooks for subscription management.
-- **Features**: Credit system, cloud-saved projects (Pro tier), pricing page, and account management.
 
 ### Canvas and Workflow System
 - **Node Types**: Input, process, condition, output, AI, experiment, and image nodes with dynamic sizing.
@@ -57,46 +56,25 @@ Preferred communication style: Simple, everyday language.
 - **Workflow Generation**: AI-generated workflows from text prompts and image analysis.
 - **Image Analysis**: Upload and analyze workflow diagrams (PNG, JPG, GIF) to convert into interactive workflows.
 - **Figma Import**: Import Figma designs as interactive image nodes with screenshot caching.
-- **Figma Caching**: Figma frames are imported with cached screenshots and `cachedAt` timestamps. Non-authenticated users can view cached frames; refresh button only appears when authenticated with Figma. Calendar icon in node header shows cache date.
-- **Touch Gestures**: The `enableTouchGestures` prop exists but touch pinch-zoom/pan is currently disabled due to conflicts with node drag interactions. Mobile users should use minimap or toolbar controls for zoom/pan.
 
 ### Experiment Node System
 - **Purpose**: AI-powered speculative branch authoring for exploring what-if scenarios and enhancements.
 - **Modes**: whatif (alternative paths), enhancement (improvements), open_exploration (freeform).
-- **ExperimentMeta**: Stores experimentId, originNodeId, mode, userPrompt, selectedOption, generatedNodeIds/EdgeIds, generatedAt, acceptedAt.
 - **Speculative Preview**: Generated branches marked with `meta.speculative=true`, styled with dashed edges and opacity, excluded from exports/PRD.
-- **SpaceProbe**: Intelligent layout positioning (right/left/down/up) with collision detection and overlap scoring algorithm.
-- **ExperimentBranchHeader**: Purple overlay component anchored above origin node with Accept/Reject buttons and drag-all functionality.
+- **SpaceProbe**: Intelligent layout positioning with collision detection and overlap scoring algorithm.
+- **ExperimentBranchHeader**: Purple overlay component above origin node with Accept/Reject buttons and drag-all functionality.
 - **Edit-After-Accept**: ExperimentEditButton popover appears on process nodes with `meta.experiment.acceptedAt`, allowing mode selection and regeneration.
-- **Silent Reject / Batched Accept**: Discard doesn't save history; Accept saves once with "Adopt speculative branch" label.
-- **Normalizers**: `ensureExperimentDefaults` fills anchor, generation, ui fields for experiment nodes.
-- **Key Files**: `types.ts` (ExperimentMeta, ExperimentNodeData), `SpaceProbe.ts`, `ExperimentBranchHeader.tsx`, `ExperimentEditButton.tsx`, `experimentNormalizer.ts`.
-- **Note**: Legacy 'wildcard' node type has been completely removed from codebase (Dec 2025). Only 'experiment' nodes exist for speculative branching.
 
-### Insights System (Dec 2025 Refactor)
+### Insights System
 - **Philosophy**: Canvas is judgment-free; diagnostics are opt-in via "Test Flight" in the Insights tab.
 - **No Auto-Run**: Insights are only generated when user explicitly clicks "Test Flight".
-- **No Canvas Badges**: DiagnosticBadge and DiagnosticOverlay components have been removed.
-- **Neutral Terminology**: "Issues" renamed to "Insights"; severity labels replaced with categories (Observation, Suggestion, Note).
 - **Insight Type**: Unified `Insight` model in `client/src/lib/kiteframe/utils/insights/types.ts`.
-- **useInsights Hook**: Session-based insight management (no persistent storage), replaces useDiagnostics for UI.
-- **Test Flight**: Runs diagnostics engine on demand, converts results to Insights.
-- **Insight Lifecycle**: Status progression: new → viewed → deferred → explored → promoted → dismissed.
-- **Insight Actions**:
-  - **Explore**: Creates an Experiment node anchored to related nodes (explicit user action only, never auto-generated).
-  - **Defer**: Marks insight for later review without dismissing.
-  - **Add to PRD**: Promotes insight for inclusion in PRD generation.
-- **Hover Highlight**: Hovering insight cards sets `hoveredInsightNodeIds` for canvas highlighting (prop plumbed but visual styling minimal).
-- **Click Focus**: Clicking insight card pans canvas to related nodes.
-- **No System-Initiated Experiments**: All experiment creation requires explicit user action (Explore button or manual experiment node).
-- **Key Files**: `useInsights.ts`, `insightConverter.ts`, `types.ts` (insights), `DiagnosticsTab.tsx`, `workflow-editor.tsx`.
+- **Insight Actions**: Explore (creates Experiment node), Defer, Add to PRD.
+- **Hover/Click Interactions**: Hovering insight cards highlights related nodes; clicking pans canvas to related nodes.
+- **No System-Initiated Experiments**: All experiment creation requires explicit user action.
 
 ### Project Panel
 - **Tabs**: KiteAI (AI assistant), Project (unified document), Layers (canvas hierarchy), Notes, Insights.
-- **KiteAI Tab**: AI-powered workflow generation.
-- **Project Tab**: Combines project overview, workflow selection with inline PRD generation, markdown notes, and external sources.
-- **Layers Tab**: Workflow-first hierarchical view with search and visibility toggles.
-- **Insights Tab**: Opt-in workflow analysis via Test Flight, showing observations and suggestions with click-to-focus.
 - **Persistence**: Collapsible panel and active tab state persisted in localStorage.
 
 ### PRD System (Project Tab)
@@ -111,49 +89,34 @@ Preferred communication style: Simple, everyday language.
 - **Privacy Tiers**: UI options for "Maximum Privacy" (Ollama-based) and "Standard Privacy" (OpenAI, Anthropic).
 - **Image-to-Workflow Generation**: AI analysis of diagrams for conversion to interactive workflows.
 
-### Unified Vision Pipeline (KiteAI)
-- **Location**: `client/src/ai/kiteaiState.ts`, `client/src/ai/actionability.ts`, `client/src/hooks/useKiteAIConversation.ts`
+### Unified Vision Pipeline
 - **Purpose**: Routes all input types (text, image, Figma) through the same PM conversation flow with consistent actionability scoring.
-- **ConversationSource**: Tracks text prompts, images, and Figma frames with extracted vision signals.
 - **VisionExtractedSignals**: Captures flowsDetected, branching, screensDetected, primaryCTA, decisionPoints, entryPoints.
-- **computeActionabilityWithVision()**: Enhances base actionability score with vision signals, boosting confidence up to 0.3.
-- **Vision Signal Extraction**: Extracts signals from AI responses via regex patterns in PreProjectChat.
-- **Dimension Satisfaction**: Vision signals can satisfy actionability dimensions (flowSignal, scope, trigger, goal).
+- **computeActionabilityWithVision()**: Enhances base actionability score with vision signals.
 
-### PM Depth Guards (Phase 3.5)
-- **Location**: `client/src/ai/guards/pmDepthGuards.ts`
+### PM Depth Guards
 - **Purpose**: Enforces PM-level reasoning depth, blocking workflows that are structurally valid but lack meaningful product decisions.
-- **Detection Functions**:
-  - `detectTradeoff()`: Identifies speed vs accuracy, friction vs conversion, option A/B patterns
-  - `detectRisk()`: Finds fraud, churn, abuse mentions with mitigations
-  - `detectIrreversible()`: Detects account creation, payments, data submission
-  - `detectNonRetryBranches()`: Validates branches lead to different outcomes
-- **Gate Condition**: Requires AT LEAST ONE of: tradeoff, risk, irreversible action, or meaningful branching
-- **Role Context**: Only applies when role === 'pm' OR (role === 'hybrid' AND confidence >= 0.7)
-- **System Prompt**: `client/src/ai/prompts/system.pm.txt` requires 5 proof obligations (WHO, GOAL, DECISIONS 3+, TRADEOFF 1+, FAILURE MODE 1+)
+- **Detection Functions**: `detectTradeoff()`, `detectRisk()`, `detectIrreversible()`, `detectNonRetryBranches()`.
+- **Gate Condition**: Requires AT LEAST ONE of: tradeoff, risk, irreversible action, or meaningful branching.
+- **Role Context**: Applies when role === 'pm' OR (role === 'hybrid' AND confidence >= 0.7).
+- **System Prompt**: Requires 5 proof obligations (WHO, GOAL, DECISIONS 3+, TRADEOFF 1+, FAILURE MODE 1+).
 
-### Phase 5: Explainability, Auditability & Trust (Jan 2026)
-- **Philosophy**: All additions are optional, read-only, and non-blocking. No changes to Phase 1-4 behavior.
-- **Provenance Metadata**: NodeMeta and EdgeMeta now include immutable fields: `createdFromInsightId`, `createdFromProposalId`, `createdFromExperimentId`, `createdAt`. Set once during Accept, never modified.
-- **Decision Snapshots**: Structured capture of heuristics, scope rules, variant choice, session context, uncertainty level, and validation warnings. No raw prompts or model outputs stored.
-- **Structural Timeline**: Tracks Accept/Undo/Redo events with timestamps. Session-scoped, resets on reload.
-- **Audit Export**: `generateAuditExport()` produces JSON with workflow structure, provenance, snapshots, and timeline. Read-only, committed history only.
-- **Why Inspector**: `WhyInspector.tsx` provides read-only popover showing "why this node exists" with insight linkage and heuristics applied. Dismissible, no state changes.
-- **Enterprise Guardrails**: Config-level hooks (`aiActionsDisabled`, `readOnlyMode`, `auditOnlyAccess`) in `guardrails.ts`. No UI, config only.
-- **Feature Flag**: `ENABLE_PHASE_4_HEURISTICS` in `client/src/ai/heuristics/config.ts` toggles all Phase 4 heuristics.
-- **Key Files**: `client/src/ai/explainability/types.ts`, `decisionCapture.ts`, `timeline.ts`, `auditExport.ts`, `guardrails.ts`, `WhyInspector.tsx`.
+### Explainability, Auditability & Trust
+- **Philosophy**: All additions are optional, read-only, and non-blocking.
+- **Provenance Metadata**: NodeMeta and EdgeMeta now include immutable fields: `createdFromInsightId`, `createdFromProposalId`, `createdFromExperimentId`, `createdAt`.
+- **Decision Snapshots**: Structured capture of heuristics, scope rules, variant choice, session context, uncertainty level, and validation warnings.
+- **Structural Timeline**: Tracks Accept/Undo/Redo events with timestamps. Session-scoped.
+- **Audit Export**: `generateAuditExport()` produces JSON with workflow structure, provenance, snapshots, and timeline.
+- **Why Inspector**: `WhyInspector.tsx` provides read-only popover showing "why this node exists" with insight linkage and heuristics applied.
+- **Enterprise Guardrails**: Config-level hooks (`aiActionsDisabled`, `readOnlyMode`, `auditOnlyAccess`).
 
-### GPT-5 Migration Foundation (Jan 2026)
+### GPT-5 Migration Foundation
 - **Central AI Router**: All AI calls route through `client/src/ai/router/aiRouter.ts` with task-type based model selection.
 - **Task-Type Model Policy**: Defined in `types.ts` - GPT-5 for workflow_reasoning/workflow_experiments/prd_generation, GPT-4o for vision_ingestion, user-selected for general_chat.
-- **Session Model Lock**: Model/provider locked at session start via `sessionLock.ts`. Mid-session settings changes only affect future sessions.
+- **Session Model Lock**: Model/provider locked at session start.
 - **Model Provenance**: `ModelProvenance` interface captures providerUsed, modelUsed, routerTaskType, usedFallback, fallbackModelUsed, sessionId. Added to DecisionSnapshot for audit trail.
-- **Retry & Fallback**: Max 1 retry with same model, then fallback GPT-5 → GPT-4o with metadata tracking. Fallback executes once, never loops.
-- **Tolerant JSON Parser**: `jsonParser.ts` extracts JSON from fenced code blocks, validates with Zod schemas (PRDResponseSchema, DualProposalSchema, ExperimentsResponseSchema).
-- **Feature Flag**: `ENABLE_GPT5_WORKFLOW_REASONING` in `config.ts` and `server/routes.ts`. OFF = current behavior (GPT-4o), ON = GPT-5 enforced for workflow tasks.
-- **Client/Server Contract**: Client forwards resolved model/provider/taskType to backend. Backend respects client model when flag OFF.
-- **Settings UX**: AI Settings modal shows explanatory copy that workflow reasoning uses system-recommended model; user model selection applies to general chat only.
-- **Key Files**: `client/src/ai/router/` (aiRouter.ts, types.ts, config.ts, sessionLock.ts, jsonParser.ts, provenanceHelper.ts, RouterProvider.tsx, index.ts).
+- **Retry & Fallback**: Max 1 retry with same model, then fallback GPT-5 → GPT-4o with metadata tracking.
+- **Tolerant JSON Parser**: `jsonParser.ts` extracts JSON from fenced code blocks, validates with Zod schemas.
 
 ### Plugin Architecture
 - **KiteFrameCore**: Plugin management system with `PluginProvider`, hooks, and an event system.
@@ -170,8 +133,6 @@ Preferred communication style: Simple, everyday language.
 - **Distribution**: TypeScript source files, MIT License.
 - **Documentation**: Comprehensive `README.md`, `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`.
 - **Demo Website**: Interactive demo at `/demo` route showcasing features, installation, and API examples.
-- **Internal Developer Docs**: Live interactive examples at `/internal/docs` (requires docs access, separate from admin access).
-- **Free Features**: All core functionality, including 6 node types, 6 edge types, 5 auto-layout algorithms, undo/redo, and plugin architecture.
 
 ## External Dependencies
 

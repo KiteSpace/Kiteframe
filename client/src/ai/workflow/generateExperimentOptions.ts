@@ -3,6 +3,7 @@ import type { ExperimentMode, ExperimentOption, ExperimentOrigin } from '../../l
 import type { ExperimentContext } from '../../lib/kiteframe/utils/experimentContext';
 import { formatContextForPrompt } from '../../lib/kiteframe/utils/experimentContext';
 import { logGenerationInput, logRawAIOutput } from './experimentDebugLogger';
+import { getRouter } from '../router';
 
 // Input mode can include legacy modes for backward compatibility
 type GenerateOptionsMode = ExperimentMode | 'risk' | 'prompt';
@@ -242,7 +243,9 @@ export async function generateExperimentOptions(
       },
     });
     
-    const response = await ai.chat({
+    const router = getRouter();
+    const response = await router.chat({
+      taskType: 'workflow_experiments',
       messages,
     });
     
