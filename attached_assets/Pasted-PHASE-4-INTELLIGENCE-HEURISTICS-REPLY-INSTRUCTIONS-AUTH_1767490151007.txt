@@ -1,0 +1,223 @@
+PHASE 4 — INTELLIGENCE & HEURISTICS
+REPLY INSTRUCTIONS (AUTHORITATIVE)
+
+⸻
+
+PHASE 4 GOAL (NON-NEGOTIABLE)
+
+Improve the quality, relevance, and reliability of:
+	•	Propose Solution outputs
+	•	Alternative proposals
+	•	Experiment generation
+
+WITHOUT changing:
+	•	UI
+	•	UX flows
+	•	Layout
+	•	Interaction surfaces
+	•	User-visible controls
+
+Phase 4 is about system judgment, not features.
+
+⸻
+
+CORE PRINCIPLE
+
+Phase 4 must NOT introduce any new UI, buttons, panels, modes, or visual distinctions.
+
+All improvements must occur inside existing:
+	•	generation logic
+	•	validation logic
+	•	heuristic selection logic
+
+If a change requires a UX explanation, it does not belong in Phase 4.
+
+⸻
+
+LOCKED CONSTRAINTS (STILL APPLY)
+
+All constraints from Phases 1–3 remain in force, including:
+	•	Insight-scoped actions only
+	•	Surgical additions (origin + additions only)
+	•	Deterministic previews
+	•	Cached generation
+	•	Accept / Cancel semantics
+	•	Undo atomicity
+	•	Container-chrome-only distinction
+
+Phase 4 must not weaken or bypass any of these.
+
+⸻
+
+PHASE 4 SCOPE — ALLOWED CHANGES
+
+You MAY improve:
+	1.	Proposal selection logic
+	2.	Alternative proposal differentiation
+	3.	Experiment selection logic
+	4.	Generation constraints
+	5.	Validation and rejection of AI output
+	6.	Heuristic biasing based on Insight type
+	7.	Internal confidence and filtering
+
+You MAY NOT improve quality by:
+	•	Adding UI explanations
+	•	Adding verbosity
+	•	Adding new surfaces
+	•	Making prompts longer without structure
+
+⸻
+
+TASK 1 — INSIGHT-AWARE HEURISTIC LAYER
+
+Goal: Bias generation based on Insight semantics.
+
+Introduce a lightweight heuristic layer mapping:
+
+Insight.type → generation bias
+
+Examples (illustrative only):
+	•	single_point_of_failure
+→ prefer redundancy, fallback, parallel paths
+	•	ambiguous_responsibility
+→ prefer explicit branching or ownership nodes
+	•	overloaded_step
+→ prefer decomposition, sequencing, buffering
+	•	missing_validation
+→ prefer guard or check nodes
+
+Rules:
+	•	Heuristics influence structure, not prose
+	•	Heuristics may constrain:
+	•	number of nodes
+	•	attachment points
+	•	divergence between Proposed and Alternative
+	•	Heuristics must be deterministic
+
+⸻
+
+TASK 2 — PROPOSAL SCOPE CALIBRATION
+
+Goal: Avoid overreaching proposals.
+
+Introduce scope rules such as:
+	•	If affectedNodeIds.length === 1
+→ proposals attach only downstream
+	•	If affectedNodeIds.length > N
+→ avoid global restructuring
+	•	If a proposal from this Insight was previously canceled
+→ reduce scope for the next proposal
+
+Rules:
+	•	Scope reduction is preferred to novelty
+	•	Smaller, precise proposals are better than clever ones
+
+⸻
+
+TASK 3 — EXPERIMENT DIVERSITY HEURISTICS
+
+Goal: Ensure experiments test different risks.
+
+Ensure the four experiments differ along orthogonal dimensions, such as:
+	•	Failure mode
+	•	Load / scale
+	•	Human error
+	•	Missing dependency
+	•	Timing / ordering
+
+Rules:
+	•	No two experiments should test the same risk
+	•	At least one experiment should contradict the proposal
+	•	At least one experiment should model a negative scenario
+
+⸻
+
+TASK 4 — OUTPUT VALIDATION & REJECTION
+
+Goal: Prevent malformed AI output from entering the system.
+
+Add a validation layer that runs:
+	•	before preview
+	•	before Accept
+
+Validation must check:
+	•	All edges reference valid node IDs
+	•	No duplicate node IDs
+	•	No orphan edges
+	•	No empty proposals or experiments
+	•	No cycles unless explicitly allowed
+
+If validation fails:
+	•	Reject output
+	•	Log diagnostic info
+	•	Regenerate once (maximum)
+	•	If still invalid, surface a controlled error state
+
+⸻
+
+TASK 5 — METADATA & LEARNING SIGNALS (NO UI)
+
+Goal: Capture internal signals for future improvement.
+
+Record (client-side only):
+	•	Proposal accepted vs canceled
+	•	Alternative chosen vs Proposed
+	•	Experiment accepted vs discarded
+	•	Undo immediately after Accept
+
+Rules:
+	•	No UI exposure
+	•	No persistence requirement
+	•	Signals influence heuristics only within the session
+
+⸻
+
+TASK 6 — DETERMINISM PRESERVATION
+
+Goal: Ensure Phase 4 does not reintroduce randomness.
+
+Confirm:
+	•	Heuristics do not cause regeneration drift
+	•	Same input produces same output within a session
+	•	No hidden randomness added
+
+All heuristic decisions must be:
+	•	Pure
+	•	Repeatable
+	•	Inspectable in code
+
+⸻
+
+EXPLICITLY OUT OF SCOPE (DO NOT IMPLEMENT)
+	•	UI copy changes
+	•	Visual indicators of confidence
+	•	New Insight types
+	•	ML models
+	•	Server-side learning
+	•	Cross-session memory
+	•	Any change requiring user explanation
+
+⸻
+
+PHASE 4 VALIDATION CHECKLIST
+
+Phase 4 is complete only if:
+	•	Proposal relevance improves without UI changes
+	•	Experiments are more distinct and purposeful
+	•	Invalid AI output is rejected safely
+	•	No new UX affordances are introduced
+	•	Determinism is preserved
+	•	Phase 1–3 guarantees remain intact
+
+⸻
+
+FINAL INSTRUCTION
+
+Phase 4 is not about “making the AI smarter.”
+It is about making the system more discerning.
+
+If a change cannot be justified as improving judgment inside existing contracts, do not implement it.
+
+⸻
+
+END OF PHASE 4 INSTRUCTIONS

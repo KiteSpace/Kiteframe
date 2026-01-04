@@ -2,6 +2,14 @@ import type { Node, Edge } from '@/lib/kiteframe/types';
 import type { ProposedWorkflow, ProposalVariant } from '@/hooks/useProposalState';
 import type { AiClient } from '@/ai/types';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
+import { 
+  getPatternGuidance, 
+  getScopeGuidance, 
+  getNodeCountConstraints,
+  validateProposalOutput,
+  sanitizeOutput,
+  getHeuristicBias,
+} from '@/ai/heuristics';
 
 interface GenerateProposalOptions {
   insight: Insight;
@@ -61,6 +69,11 @@ export async function generateProposedWorkflow(
       }))
     : [];
 
+  const patternGuidance = getPatternGuidance(insight);
+  const scopeGuidance = getScopeGuidance(insight, affectedNodes.length);
+  const nodeConstraints = getNodeCountConstraints(insight, affectedNodes.length);
+  const heuristicBias = getHeuristicBias();
+
   const systemPrompt = `You are a workflow design assistant. Generate TWO DISTINCT surgical additions to address a specific insight.
 
 CRITICAL RULES:
@@ -110,6 +123,14 @@ The two variants should represent meaningfully different approaches.`;
       ).join('\n')}`
     : 'No specific origin nodes identified. Generate standalone improvement nodes.';
 
+  const biasNote = heuristicBias.preferAlternative 
+    ? 'Note: The "alternative" approach may be better suited based on previous interactions.'
+    : '';
+  
+  const scopeNote = heuristicBias.reduceScope
+    ? 'Keep proposals minimal and focused - smaller is better.'
+    : '';
+
   const userPrompt = `INSIGHT TO ADDRESS:
 Title: ${insight.title}
 Description: ${insight.description}
@@ -117,11 +138,17 @@ Category: ${insight.category}
 
 ${originNodeList}
 
-Generate TWO different surgical additions (1-4 new nodes each) that address this insight.
-- "proposed": Your primary recommendation
-- "alternative": A different valid approach
+HEURISTIC GUIDANCE (follow these constraints):
+${patternGuidance}
+${scopeGuidance}
+${biasNote}
+${scopeNote}
 
-Both should connect to the existing origin nodes.`;
+Generate TWO different surgical additions (${nodeConstraints.min}-${nodeConstraints.max} new nodes each) that address this insight.
+- "proposed": Your primary recommendation
+- "alternative": A meaningfully different approach (not just rewording)
+
+Both MUST connect to existing origin nodes and differ in structure/approach.`;
 
   const response = await aiClient.chat({
     messages: [
@@ -229,8 +256,36 @@ Both should connect to the existing origin nodes.`;
     };
   };
 
-  const proposed = buildVariant(parsed.proposed, 'proposed', 0);
-  const alternative = buildVariant(parsed.alternative, 'alternative', 0);
+  let proposed = buildVariant(parsed.proposed, 'proposed', 0);
+  let alternative = buildVariant(parsed.alternative, 'alternative', 0);
+
+  const proposedValidation = validateProposalOutput(proposed.nodes, proposed.edges, snapshotNodes);
+  const alternativeValidation = validateProposalOutput(alternative.nodes, alternative.edges, snapshotNodes);
+
+  if (!proposedValidation.isValid) {
+    console.warn('[Proposal] Proposed variant validation issues:', proposedValidation.errors);
+    proposed = sanitizeOutput(proposed, snapshotNodes);
+  }
+  
+  if (!alternativeValidation.isValid) {
+    console.warn('[Proposal] Alternative variant validation issues:', alternativeValidation.errors);
+    alternative = sanitizeOutput(alternative, snapshotNodes);
+  }
+
+  if (proposedValidation.warnings.length > 0) {
+    console.warn('[Proposal] Proposed warnings:', proposedValidation.warnings);
+  }
+  
+  if (alternativeValidation.warnings.length > 0) {
+    console.warn('[Proposal] Alternative warnings:', alternativeValidation.warnings);
+  }
+
+  const finalProposedValidation = validateProposalOutput(proposed.nodes, proposed.edges, snapshotNodes);
+  const finalAlternativeValidation = validateProposalOutput(alternative.nodes, alternative.edges, snapshotNodes);
+  
+  if (!finalProposedValidation.isValid && !finalAlternativeValidation.isValid) {
+    throw new Error('Both proposal variants failed validation after sanitization');
+  }
 
   return {
     insightId: insight.id,

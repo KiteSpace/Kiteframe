@@ -159,6 +159,13 @@ import { prdNodeLinkStore, type PRDNodeLink } from "@/stores/prdNodeLinkStore";
 import { usePromptContextStoreOptional } from "@/contexts/PromptContextStore";
 import { generateWorkflowPRD } from "@/ai/prdEngine";
 import { generateExperimentBranch } from "@/ai/workflow/generateExperimentBranch";
+import {
+  recordProposalAccepted,
+  recordProposalCanceled,
+  recordExperimentAccepted,
+  recordExperimentDiscarded,
+  recordUndo,
+} from "@/ai/heuristics";
 import { buildExperimentContext, getAnchorNodeId } from "@/lib/kiteframe/utils/experimentContext";
 import type { ExperimentNodeData, WorkflowTool, ExperimentMode } from "@/lib/kiteframe/types";
 import { ExperimentTool } from "@/lib/kiteframe/components/ExperimentTool";
@@ -1744,6 +1751,10 @@ function WorkflowEditorContent({
   }, [proposalState.generatingInsightId, proposalState.proposal, nodes, edges, ai, toast]);
 
   const handleCancelProposal = useCallback(() => {
+    const currentProposal = proposalStateRef.current.proposal;
+    if (currentProposal) {
+      recordProposalCanceled(currentProposal.insightId);
+    }
     setProposalState({ proposal: null, generatingInsightId: null, error: null });
   }, []);
 
@@ -1813,6 +1824,10 @@ function WorkflowEditorContent({
 
   const handleCancelExperiment = useCallback(() => {
     // Cancel clears state entirely - no undo entry, no canvas mutation
+    const currentSession = experimentStateRef.current.session;
+    if (currentSession && currentSession.activeExperimentId) {
+      recordExperimentDiscarded(currentSession.insightId, currentSession.activeExperimentId);
+    }
     setExperimentState({ session: null, generatingInsightId: null, error: null });
   }, []);
 
@@ -3315,6 +3330,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       insights.markResolved(currentProposal.insightId);
     }
     
+    // Record session signal for heuristic learning
+    recordProposalAccepted(currentProposal.insightId, activeVariant);
+    
     setProposalState({ proposal: null, generatingInsightId: null, error: null });
     
     toast({
@@ -3372,6 +3390,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     if (currentSession.insightId) {
       insights.markResolved(currentSession.insightId);
     }
+    
+    // Record session signal for heuristic learning
+    recordExperimentAccepted(currentSession.insightId, activeExperiment.id);
     
     setExperimentState({ session: null, generatingInsightId: null, error: null });
     
@@ -3894,6 +3915,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         viewport: { ...targetState.viewport },
         historyIndex: newIndex,
       });
+      
+      // Record undo for session signal tracking (detects immediate undo after accept)
+      recordUndo();
     } else {
       console.log(`[UNDO] ⚠️ UNDO blocked: historyIndex=${historyIndex}, historyLength=${history.length}`);
     }

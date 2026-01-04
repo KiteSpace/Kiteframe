@@ -2,6 +2,12 @@ import type { Node, Edge } from '@/lib/kiteframe/types';
 import type { Experiment, ExperimentSession } from '@/hooks/useExperimentState';
 import type { AiClient } from '@/ai/types';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
+import {
+  getExperimentDiversityGuidance,
+  validateExperimentDiversity,
+  validateExperimentOutput,
+  sanitizeOutput,
+} from '@/ai/heuristics';
 
 interface GenerateExperimentsOptions {
   insight: Insight;
@@ -101,6 +107,8 @@ Generate exactly 4 experiments with different approaches.`;
       ).join('\n')}`
     : 'No specific origin nodes identified. Generate standalone experiment nodes.';
 
+  const diversityGuidance = getExperimentDiversityGuidance(insight);
+
   const userPrompt = `INSIGHT TO EXPERIMENT WITH:
 Title: ${insight.title}
 Description: ${insight.description}
@@ -108,12 +116,9 @@ Category: ${insight.category}
 
 ${originNodeList}
 
-Generate FOUR experiments (1-3 new nodes each) that:
-1. Challenge the current approach
-2. Explore edge cases or failure modes
-3. Test alternative assumptions
-4. Reveal hidden risks or opportunities
+${diversityGuidance}
 
+Generate FOUR experiments (1-3 new nodes each) where each experiment tests a DIFFERENT risk.
 These are what-if explorations, not recommendations.`;
 
   const response = await aiClient.chat({
@@ -228,11 +233,42 @@ These are what-if explorations, not recommendations.`;
     };
   });
 
+  const diversityValidation = validateExperimentDiversity(
+    experiments.map(e => ({ title: e.title, description: e.description }))
+  );
+  
+  if (!diversityValidation.isValid) {
+    console.warn('[Experiment] Diversity validation issues:', diversityValidation.issues);
+  }
+
+  const outputValidation = validateExperimentOutput(
+    experiments.map(e => ({
+      id: e.id,
+      title: e.title,
+      nodes: e.variant.nodes,
+      edges: e.variant.edges,
+    })),
+    snapshotNodes
+  );
+
+  if (!outputValidation.isValid) {
+    console.warn('[Experiment] Output validation errors:', outputValidation.errors);
+  }
+  
+  if (outputValidation.warnings.length > 0) {
+    console.warn('[Experiment] Output warnings:', outputValidation.warnings);
+  }
+
+  const sanitizedExperiments = experiments.map(exp => ({
+    ...exp,
+    variant: sanitizeOutput(exp.variant, snapshotNodes),
+  }));
+
   return {
     insightId: insight.id,
     insightTitle: insight.title,
     affectedNodeIds,
-    experiments,
+    experiments: sanitizedExperiments,
     activeExperimentId: null,
     generatedAt: timestamp,
     snapshotNodes,
