@@ -27,7 +27,17 @@ const DIMENSION_PROMPTS: Record<RiskDimension, string> = {
   negative_scenario: 'Model the worst reasonable outcome and how to detect/recover from it.',
 };
 
-export function selectExperimentDimensions(): RiskDimension[] {
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+export function selectExperimentDimensions(insightId: string): RiskDimension[] {
   const allDimensions: RiskDimension[] = [
     'failure_mode',
     'load_scale',
@@ -47,7 +57,7 @@ export function selectExperimentDimensions(): RiskDimension[] {
   
   const remaining = allDimensions.filter(d => !selected.includes(d));
   
-  let seed = Date.now() % remaining.length;
+  let seed = hashString(insightId) % remaining.length;
   while (selected.length < 4) {
     const dim = remaining[seed % remaining.length];
     if (!selected.includes(dim)) {
@@ -60,7 +70,7 @@ export function selectExperimentDimensions(): RiskDimension[] {
 }
 
 export function getExperimentDiversityGuidance(insight: Insight): string {
-  const dimensions = selectExperimentDimensions();
+  const dimensions = selectExperimentDimensions(insight.id);
   
   const parts: string[] = [
     'Generate 4 experiments that each test a DIFFERENT risk dimension:',
