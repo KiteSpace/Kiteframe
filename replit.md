@@ -143,6 +143,18 @@ Preferred communication style: Simple, everyday language.
 - **Feature Flag**: `ENABLE_PHASE_4_HEURISTICS` in `client/src/ai/heuristics/config.ts` toggles all Phase 4 heuristics.
 - **Key Files**: `client/src/ai/explainability/types.ts`, `decisionCapture.ts`, `timeline.ts`, `auditExport.ts`, `guardrails.ts`, `WhyInspector.tsx`.
 
+### GPT-5 Migration Foundation (Jan 2026)
+- **Central AI Router**: All AI calls route through `client/src/ai/router/aiRouter.ts` with task-type based model selection.
+- **Task-Type Model Policy**: Defined in `types.ts` - GPT-5 for workflow_reasoning/workflow_experiments/prd_generation, GPT-4o for vision_ingestion, user-selected for general_chat.
+- **Session Model Lock**: Model/provider locked at session start via `sessionLock.ts`. Mid-session settings changes only affect future sessions.
+- **Model Provenance**: `ModelProvenance` interface captures providerUsed, modelUsed, routerTaskType, usedFallback, fallbackModelUsed, sessionId. Added to DecisionSnapshot for audit trail.
+- **Retry & Fallback**: Max 1 retry with same model, then fallback GPT-5 → GPT-4o with metadata tracking. Fallback executes once, never loops.
+- **Tolerant JSON Parser**: `jsonParser.ts` extracts JSON from fenced code blocks, validates with Zod schemas (PRDResponseSchema, DualProposalSchema, ExperimentsResponseSchema).
+- **Feature Flag**: `ENABLE_GPT5_WORKFLOW_REASONING` in `config.ts` and `server/routes.ts`. OFF = current behavior (GPT-4o), ON = GPT-5 enforced for workflow tasks.
+- **Client/Server Contract**: Client forwards resolved model/provider/taskType to backend. Backend respects client model when flag OFF.
+- **Settings UX**: AI Settings modal shows explanatory copy that workflow reasoning uses system-recommended model; user model selection applies to general chat only.
+- **Key Files**: `client/src/ai/router/` (aiRouter.ts, types.ts, config.ts, sessionLock.ts, jsonParser.ts, provenanceHelper.ts, RouterProvider.tsx, index.ts).
+
 ### Plugin Architecture
 - **KiteFrameCore**: Plugin management system with `PluginProvider`, hooks, and an event system.
 - **Extension Points**: 8 defined extension points for canvas interactions.
