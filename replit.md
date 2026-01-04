@@ -132,6 +132,17 @@ Preferred communication style: Simple, everyday language.
 - **Role Context**: Only applies when role === 'pm' OR (role === 'hybrid' AND confidence >= 0.7)
 - **System Prompt**: `client/src/ai/prompts/system.pm.txt` requires 5 proof obligations (WHO, GOAL, DECISIONS 3+, TRADEOFF 1+, FAILURE MODE 1+)
 
+### Phase 5: Explainability, Auditability & Trust (Jan 2026)
+- **Philosophy**: All additions are optional, read-only, and non-blocking. No changes to Phase 1-4 behavior.
+- **Provenance Metadata**: NodeMeta and EdgeMeta now include immutable fields: `createdFromInsightId`, `createdFromProposalId`, `createdFromExperimentId`, `createdAt`. Set once during Accept, never modified.
+- **Decision Snapshots**: Structured capture of heuristics, scope rules, variant choice, session context, uncertainty level, and validation warnings. No raw prompts or model outputs stored.
+- **Structural Timeline**: Tracks Accept/Undo/Redo events with timestamps. Session-scoped, resets on reload.
+- **Audit Export**: `generateAuditExport()` produces JSON with workflow structure, provenance, snapshots, and timeline. Read-only, committed history only.
+- **Why Inspector**: `WhyInspector.tsx` provides read-only popover showing "why this node exists" with insight linkage and heuristics applied. Dismissible, no state changes.
+- **Enterprise Guardrails**: Config-level hooks (`aiActionsDisabled`, `readOnlyMode`, `auditOnlyAccess`) in `guardrails.ts`. No UI, config only.
+- **Feature Flag**: `ENABLE_PHASE_4_HEURISTICS` in `client/src/ai/heuristics/config.ts` toggles all Phase 4 heuristics.
+- **Key Files**: `client/src/ai/explainability/types.ts`, `decisionCapture.ts`, `timeline.ts`, `auditExport.ts`, `guardrails.ts`, `WhyInspector.tsx`.
+
 ### Plugin Architecture
 - **KiteFrameCore**: Plugin management system with `PluginProvider`, hooks, and an event system.
 - **Extension Points**: 8 defined extension points for canvas interactions.
