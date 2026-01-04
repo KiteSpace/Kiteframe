@@ -1,0 +1,123 @@
+/**
+ * Phase 5: Decision Capture
+ * 
+ * Captures decision reasoning at accept time.
+ * Snapshots are immutable and never recomputed.
+ */
+
+import type { 
+  DecisionSnapshot, 
+  AppliedHeuristics, 
+  UncertaintyLevel,
+  ValidationWarning 
+} from './types';
+import type { Insight } from '@/lib/kiteframe/utils/insights/types';
+import { getSessionSignals, getHeuristicBias } from '../heuristics/sessionSignals';
+
+let snapshotIdCounter = 0;
+
+function generateSnapshotId(): string {
+  return `snapshot_${Date.now()}_${++snapshotIdCounter}`;
+}
+
+export interface CaptureProposalDecisionParams {
+  insight: Insight;
+  variantChosen: 'proposed' | 'alternative';
+  affectedNodeIds: string[];
+  createdNodeIds: string[];
+  createdEdgeIds: string[];
+  heuristics: AppliedHeuristics;
+  scopeCalibration: {
+    affectedNodeCount: number;
+    cancelCountForInsight: number;
+    reducedScope: boolean;
+  };
+  uncertaintyLevel: UncertaintyLevel;
+  validationWarnings: ValidationWarning[];
+  heuristicsEnabled: boolean;
+}
+
+export interface CaptureExperimentDecisionParams {
+  insight: Insight;
+  experimentIndex: number;
+  experimentLabel: string;
+  affectedNodeIds: string[];
+  createdNodeIds: string[];
+  createdEdgeIds: string[];
+  heuristics: AppliedHeuristics;
+  scopeCalibration: {
+    affectedNodeCount: number;
+    cancelCountForInsight: number;
+    reducedScope: boolean;
+  };
+  uncertaintyLevel: UncertaintyLevel;
+  validationWarnings: ValidationWarning[];
+  heuristicsEnabled: boolean;
+}
+
+/**
+ * Capture a proposal decision snapshot at accept time
+ */
+export function captureProposalDecision(
+  params: CaptureProposalDecisionParams
+): DecisionSnapshot {
+  const signals = getSessionSignals();
+  const bias = getHeuristicBias();
+  
+  return {
+    id: generateSnapshotId(),
+    timestamp: Date.now(),
+    actionType: 'proposal',
+    variantChosen: params.variantChosen,
+    insightId: params.insight.id,
+    insightTitle: params.insight.title,
+    insightCategory: params.insight.category,
+    affectedNodeIds: params.affectedNodeIds,
+    createdNodeIds: params.createdNodeIds,
+    createdEdgeIds: params.createdEdgeIds,
+    heuristicsApplied: params.heuristics,
+    scopeCalibration: params.scopeCalibration,
+    sessionContext: {
+      totalAccepts: signals.acceptedProposals.length + signals.acceptedExperiments.length,
+      totalCancels: signals.canceledProposals.length + signals.discardedExperiments.length,
+      preferAlternative: bias.preferAlternative,
+    },
+    uncertaintyLevel: params.uncertaintyLevel,
+    validationWarnings: params.validationWarnings,
+    heuristicsEnabled: params.heuristicsEnabled,
+  };
+}
+
+/**
+ * Capture an experiment decision snapshot at accept time
+ */
+export function captureExperimentDecision(
+  params: CaptureExperimentDecisionParams
+): DecisionSnapshot {
+  const signals = getSessionSignals();
+  const bias = getHeuristicBias();
+  
+  return {
+    id: generateSnapshotId(),
+    timestamp: Date.now(),
+    actionType: 'experiment',
+    experimentIndex: params.experimentIndex,
+    experimentLabel: params.experimentLabel,
+    insightId: params.insight.id,
+    insightTitle: params.insight.title,
+    insightCategory: params.insight.category,
+    affectedNodeIds: params.affectedNodeIds,
+    createdNodeIds: params.createdNodeIds,
+    createdEdgeIds: params.createdEdgeIds,
+    heuristicsApplied: params.heuristics,
+    scopeCalibration: params.scopeCalibration,
+    sessionContext: {
+      totalAccepts: signals.acceptedProposals.length + signals.acceptedExperiments.length,
+      totalCancels: signals.canceledProposals.length + signals.discardedExperiments.length,
+      preferAlternative: bias.preferAlternative,
+    },
+    uncertaintyLevel: params.uncertaintyLevel,
+    validationWarnings: params.validationWarnings,
+    heuristicsEnabled: params.heuristicsEnabled,
+  };
+}

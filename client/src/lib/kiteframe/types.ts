@@ -56,6 +56,11 @@ export interface NodeMeta {
   generatedIds?: { nodeIds: string[]; edgeIds: string[] };
   mode?: 'whatif' | 'enhancement' | 'open_exploration';
   experiment?: ExperimentMeta;
+  // Phase 5: Provenance metadata - immutable after creation
+  createdFromInsightId?: string;
+  createdFromProposalId?: string;
+  createdFromExperimentId?: string;
+  createdAt?: number;
 }
 
 export interface EdgeMeta {
@@ -63,6 +68,11 @@ export interface EdgeMeta {
   experimentId?: string;
   source?: 'heuristic' | 'vision' | 'user' | 'ai';
   generatedFrom?: { nodeId: string; ts: number };
+  // Phase 5: Provenance metadata - immutable after creation
+  createdFromInsightId?: string;
+  createdFromProposalId?: string;
+  createdFromExperimentId?: string;
+  createdAt?: number;
 }
 
 export type Node = {

@@ -165,7 +165,19 @@ import {
   recordExperimentAccepted,
   recordExperimentDiscarded,
   recordUndo,
+  ENABLE_PHASE_4_HEURISTICS,
 } from "@/ai/heuristics";
+import {
+  captureProposalDecision,
+  captureExperimentDecision,
+} from "@/ai/explainability/decisionCapture";
+import {
+  storeDecisionSnapshot,
+} from "@/ai/explainability/auditExport";
+import {
+  recordProposalAccept as recordProposalTimelineAccept,
+  recordExperimentAccept as recordExperimentTimelineAccept,
+} from "@/ai/explainability/timeline";
 import { buildExperimentContext, getAnchorNodeId } from "@/lib/kiteframe/utils/experimentContext";
 import type { ExperimentNodeData, WorkflowTool, ExperimentMode } from "@/lib/kiteframe/types";
 import { ExperimentTool } from "@/lib/kiteframe/components/ExperimentTool";
@@ -3292,13 +3304,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     // Generate truly unique IDs with timestamp + random suffix to prevent collisions
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substr(2, 9);
+    const proposalId = `proposal-${timestamp}-${randomSuffix}`;
     
+    // Phase 5: Add provenance metadata to node.meta (immutable after creation)
     const newNodes: Node[] = variantData.nodes.map((node, idx) => ({
       ...node,
       id: `node-${timestamp}-${randomSuffix}-${idx}`,
-      data: {
-        ...node.data,
+      meta: {
+        ...node.meta,
         createdFromInsightId: currentProposal.insightId,
+        createdFromProposalId: proposalId,
+        createdAt: timestamp,
+        source: 'ai' as const,
       },
     }));
     
@@ -3308,11 +3325,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       nodeIdMap[node.id] = `node-${timestamp}-${randomSuffix}-${idx}`;
     });
     
+    // Phase 5: Add provenance metadata to edge.meta (immutable after creation)
     const newEdges: Edge[] = variantData.edges.map((edge, idx) => ({
       ...edge,
       id: `edge-${timestamp}-${randomSuffix}-${idx}`,
       source: nodeIdMap[edge.source] || edge.source,
       target: nodeIdMap[edge.target] || edge.target,
+      meta: {
+        ...edge.meta,
+        createdFromInsightId: currentProposal.insightId,
+        createdFromProposalId: proposalId,
+        createdAt: timestamp,
+        source: 'ai' as const,
+      },
     }));
     
     withUndo(
@@ -3333,6 +3358,29 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     // Record session signal for heuristic learning
     recordProposalAccepted(currentProposal.insightId, activeVariant);
     
+    // Phase 5: Capture decision snapshot and record timeline event
+    const insightData = insights.insights.find((i: { id: string }) => i.id === currentProposal.insightId);
+    if (insightData) {
+      const snapshot = captureProposalDecision({
+        insight: insightData,
+        variantChosen: activeVariant,
+        affectedNodeIds: currentProposal.affectedNodeIds || [],
+        createdNodeIds: newNodes.map(n => n.id),
+        createdEdgeIds: newEdges.map(e => e.id),
+        heuristics: {},
+        scopeCalibration: {
+          affectedNodeCount: currentProposal.affectedNodeIds?.length || 0,
+          cancelCountForInsight: 0,
+          reducedScope: false,
+        },
+        uncertaintyLevel: 'low',
+        validationWarnings: [],
+        heuristicsEnabled: ENABLE_PHASE_4_HEURISTICS,
+      });
+      storeDecisionSnapshot(snapshot);
+      recordProposalTimelineAccept(snapshot);
+    }
+    
     setProposalState({ proposal: null, generatingInsightId: null, error: null });
     
     toast({
@@ -3349,17 +3397,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     const activeExperiment = currentSession.experiments.find(e => e.id === currentSession.activeExperimentId);
     if (!activeExperiment) return;
     
+    // Find experiment index for decision snapshot
+    const experimentIndex = currentSession.experiments.findIndex(e => e.id === currentSession.activeExperimentId);
+    
     // Generate truly unique IDs with timestamp + random suffix to prevent collisions
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substr(2, 9);
     
+    // Phase 5: Add provenance metadata to node.meta (immutable after creation)
     const newNodes: Node[] = activeExperiment.variant.nodes.map((node, idx) => ({
       ...node,
       id: `node-${timestamp}-${randomSuffix}-${idx}`,
-      data: {
-        ...node.data,
+      meta: {
+        ...node.meta,
         createdFromInsightId: currentSession.insightId,
         createdFromExperimentId: activeExperiment.id,
+        createdAt: timestamp,
+        source: 'ai' as const,
       },
     }));
     
@@ -3369,11 +3423,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       nodeIdMap[node.id] = `node-${timestamp}-${randomSuffix}-${idx}`;
     });
     
+    // Phase 5: Add provenance metadata to edge.meta (immutable after creation)
     const newEdges: Edge[] = activeExperiment.variant.edges.map((edge, idx) => ({
       ...edge,
       id: `edge-${timestamp}-${randomSuffix}-${idx}`,
       source: nodeIdMap[edge.source] || edge.source,
       target: nodeIdMap[edge.target] || edge.target,
+      meta: {
+        ...edge.meta,
+        createdFromInsightId: currentSession.insightId,
+        createdFromExperimentId: activeExperiment.id,
+        createdAt: timestamp,
+        source: 'ai' as const,
+      },
     }));
     
     withUndo(
@@ -3393,6 +3455,30 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     
     // Record session signal for heuristic learning
     recordExperimentAccepted(currentSession.insightId, activeExperiment.id);
+    
+    // Phase 5: Capture decision snapshot and record timeline event
+    const insightData = insights.insights.find((i: { id: string }) => i.id === currentSession.insightId);
+    if (insightData) {
+      const snapshot = captureExperimentDecision({
+        insight: insightData,
+        experimentIndex,
+        experimentLabel: activeExperiment.title,
+        affectedNodeIds: currentSession.affectedNodeIds || [],
+        createdNodeIds: newNodes.map(n => n.id),
+        createdEdgeIds: newEdges.map(e => e.id),
+        heuristics: {},
+        scopeCalibration: {
+          affectedNodeCount: currentSession.affectedNodeIds?.length || 0,
+          cancelCountForInsight: 0,
+          reducedScope: false,
+        },
+        uncertaintyLevel: 'low',
+        validationWarnings: [],
+        heuristicsEnabled: ENABLE_PHASE_4_HEURISTICS,
+      });
+      storeDecisionSnapshot(snapshot);
+      recordExperimentTimelineAccept(snapshot);
+    }
     
     setExperimentState({ session: null, generatingInsightId: null, error: null });
     
