@@ -1350,17 +1350,12 @@ function DiscussionView({
     timestamp: new Date()
   }]);
   
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   
   const { toast } = useToast();
   const aiClient = useAi();
   
   const hasApiKey = Boolean(localStorage.getItem('openai_api_key'));
-  
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   useLayoutEffect(() => {
     if (inputRef.current) {
@@ -1495,55 +1490,11 @@ ${workflowContext}`;
         <Badge variant="secondary" className="text-[10px] ml-auto">Read Only</Badge>
       </div>
       
-      <ScrollArea className="flex-1 px-3 py-2">
-        <div className="space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex gap-2 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {message.role === 'assistant' && (
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Bot className="w-4 h-4 text-white" />
-                </div>
-              )}
-              <div
-                className={`rounded-lg px-3 py-2 max-w-[85%] ${
-                  message.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
-                }`}
-              >
-                {message.role === 'assistant' ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                    <ReactMarkdown>
-                      {message.content}
-                    </ReactMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                )}
-              </div>
-              {message.role === 'user' && (
-                <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <User className="w-4 h-4 text-primary-foreground" />
-                </div>
-              )}
-            </div>
-          ))}
-          {isLoading && (
-            <div className="flex gap-2 justify-start">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0">
-                <Bot className="w-4 h-4 text-white" />
-              </div>
-              <div className="bg-muted rounded-lg px-3 py-2">
-                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-      </ScrollArea>
+      <ChatMessageList
+        messages={messages}
+        isLoading={isLoading}
+        mode="discussion"
+      />
       
       <div className="border-t border-border p-3">
         <div className="flex gap-2">
