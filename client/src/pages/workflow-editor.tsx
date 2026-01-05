@@ -178,6 +178,11 @@ import {
   recordProposalAccept as recordProposalTimelineAccept,
   recordExperimentAccept as recordExperimentTimelineAccept,
 } from "@/ai/explainability/timeline";
+import {
+  getSemanticAnalysis,
+  shouldBlockAcceptance,
+  ENABLE_SEMANTIC_COMPLETENESS_ENFORCEMENT,
+} from "@/ai/semantic";
 import { buildExperimentContext, getAnchorNodeId } from "@/lib/kiteframe/utils/experimentContext";
 import type { ExperimentNodeData, WorkflowTool, ExperimentMode } from "@/lib/kiteframe/types";
 import { ExperimentTool } from "@/lib/kiteframe/components/ExperimentTool";
@@ -3356,6 +3361,27 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       },
     }));
     
+    // Phase 6: Check for semantic enforcement blocking (only if flag is enabled)
+    if (ENABLE_SEMANTIC_COMPLETENESS_ENFORCEMENT) {
+      const insightForBlocking = insights.insights.find((i: { id: string }) => i.id === currentProposal.insightId);
+      const combinedNodesForCheck = [...nodes, ...newNodes];
+      const combinedEdgesForCheck = [...edges, ...newEdges];
+      const blockCheck = shouldBlockAcceptance(
+        combinedNodesForCheck,
+        combinedEdgesForCheck,
+        insightForBlocking ? [insightForBlocking] : []
+      );
+      
+      if (blockCheck.blocked) {
+        toast({
+          title: 'Acceptance Blocked',
+          description: blockCheck.reason || 'This workflow has structural gaps that need to be addressed.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+    
     withUndo(
       `Apply proposal from Insight: ${currentProposal.insightTitle}`,
       saveToHistory,
@@ -3374,8 +3400,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     // Record session signal for heuristic learning
     recordProposalAccepted(currentProposal.insightId, activeVariant);
     
-    // Phase 5: Capture decision snapshot and record timeline event
+    // Phase 6: Run semantic analysis on the combined workflow
+    const combinedNodes = [...nodes, ...newNodes];
+    const combinedEdges = [...edges, ...newEdges];
     const insightData = insights.insights.find((i: { id: string }) => i.id === currentProposal.insightId);
+    const { claims: semanticClaims, mismatches: semanticMismatches } = getSemanticAnalysis(
+      combinedNodes,
+      combinedEdges,
+      insightData ? [insightData] : []
+    );
+    
+    // Phase 5: Capture decision snapshot and record timeline event
     if (insightData) {
       const snapshot = captureProposalDecision({
         insight: insightData,
@@ -3393,6 +3428,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         validationWarnings: [],
         heuristicsEnabled: ENABLE_PHASE_4_HEURISTICS,
         modelProvenance: currentProposal.modelProvenance,
+        semanticClaims,
+        semanticMismatches,
       });
       storeDecisionSnapshot(snapshot);
       recordProposalTimelineAccept(snapshot);
@@ -3404,7 +3441,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       title: 'Proposal Applied',
       description: `Added ${newNodes.length} node${newNodes.length !== 1 ? 's' : ''} and ${newEdges.length} connection${newEdges.length !== 1 ? 's' : ''} to your workflow.`,
     });
-  }, [setNodes, setEdges, saveToHistory, toast, insights]);
+  }, [nodes, edges, setNodes, setEdges, saveToHistory, toast, insights]);
 
   // Accept Experiment - commits selected experiment to canvas with undo support (Phase 3)
   const handleAcceptExperiment = useCallback(() => {
@@ -3457,6 +3494,27 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       },
     }));
     
+    // Phase 6: Check for semantic enforcement blocking (only if flag is enabled)
+    if (ENABLE_SEMANTIC_COMPLETENESS_ENFORCEMENT) {
+      const insightForBlocking = insights.insights.find((i: { id: string }) => i.id === currentSession.insightId);
+      const combinedNodesForCheck = [...nodes, ...newNodes];
+      const combinedEdgesForCheck = [...edges, ...newEdges];
+      const blockCheck = shouldBlockAcceptance(
+        combinedNodesForCheck,
+        combinedEdgesForCheck,
+        insightForBlocking ? [insightForBlocking] : []
+      );
+      
+      if (blockCheck.blocked) {
+        toast({
+          title: 'Acceptance Blocked',
+          description: blockCheck.reason || 'This workflow has structural gaps that need to be addressed.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+    
     withUndo(
       `Apply experiment: ${activeExperiment.title}`,
       saveToHistory,
@@ -3475,8 +3533,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     // Record session signal for heuristic learning
     recordExperimentAccepted(currentSession.insightId, activeExperiment.id);
     
-    // Phase 5: Capture decision snapshot and record timeline event
+    // Phase 6: Run semantic analysis on the combined workflow
+    const combinedNodes = [...nodes, ...newNodes];
+    const combinedEdges = [...edges, ...newEdges];
     const insightData = insights.insights.find((i: { id: string }) => i.id === currentSession.insightId);
+    const { claims: semanticClaims, mismatches: semanticMismatches } = getSemanticAnalysis(
+      combinedNodes,
+      combinedEdges,
+      insightData ? [insightData] : []
+    );
+    
+    // Phase 5: Capture decision snapshot and record timeline event
     if (insightData) {
       const snapshot = captureExperimentDecision({
         insight: insightData,
@@ -3495,6 +3562,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         validationWarnings: [],
         heuristicsEnabled: ENABLE_PHASE_4_HEURISTICS,
         modelProvenance: currentSession.modelProvenance,
+        semanticClaims,
+        semanticMismatches,
       });
       storeDecisionSnapshot(snapshot);
       recordExperimentTimelineAccept(snapshot);
@@ -3506,7 +3575,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       title: 'Experiment Applied',
       description: `Added ${newNodes.length} node${newNodes.length !== 1 ? 's' : ''} and ${newEdges.length} connection${newEdges.length !== 1 ? 's' : ''} to your workflow.`,
     });
-  }, [setNodes, setEdges, saveToHistory, toast, insights]);
+  }, [nodes, edges, setNodes, setEdges, saveToHistory, toast, insights]);
 
   // Quick-add functionality
   const handleQuickAdd = useCallback(

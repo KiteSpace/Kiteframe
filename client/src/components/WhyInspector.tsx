@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, Sparkles, Clock, GitBranch, Lightbulb, Info } from 'lucide-react';
+import { X, Sparkles, Clock, GitBranch, Lightbulb, Info, AlertTriangle, CheckCircle } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -22,7 +22,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { Node, NodeMeta } from '@/lib/kiteframe/types';
 import { getDecisionSnapshotForNode } from '@/ai/explainability/auditExport';
-import type { DecisionSnapshot } from '@/ai/explainability/types';
+import type { DecisionSnapshot, SemanticMismatch } from '@/ai/explainability/types';
+import { getClaimTypeDescription } from '@/ai/semantic/extractSemanticClaims';
 
 interface WhyInspectorProps {
   node: Node;
@@ -217,6 +218,70 @@ export function WhyInspector({ node, children }: WhyInspectorProps) {
                     {snapshot.validationWarnings.length} validation warning(s)
                   </div>
                 )}
+              </div>
+            </>
+          )}
+          
+          {/* Phase 6: Semantic Claims */}
+          {snapshot?.semanticClaims && snapshot.semanticClaims.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground font-medium">Detected Behaviors</div>
+                <div className="space-y-1">
+                  {snapshot.semanticClaims.map((claim, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-xs">
+                      <CheckCircle className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <div className="font-medium">{getClaimTypeDescription(claim.type)}</div>
+                        <div className="text-muted-foreground">
+                          Evidence: "{claim.evidenceText}"
+                        </div>
+                        <div className="text-muted-foreground">
+                          Confidence: {Math.round(claim.confidence * 100)}%
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+          
+          {/* Phase 6: Semantic Mismatches */}
+          {snapshot?.semanticMismatches && snapshot.semanticMismatches.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                  Structural Gaps
+                </div>
+                <div className="space-y-2">
+                  {snapshot.semanticMismatches.map((mismatch: SemanticMismatch, idx: number) => (
+                    <div 
+                      key={idx} 
+                      className={`text-xs p-2 rounded border ${
+                        mismatch.severity === 'error' 
+                          ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800' 
+                          : mismatch.severity === 'warning'
+                          ? 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800'
+                          : 'bg-muted border-muted-foreground/20'
+                      }`}
+                      data-testid={`semantic-mismatch-${idx}`}
+                    >
+                      <div className="font-medium mb-1">
+                        {getClaimTypeDescription(mismatch.claimType)}
+                      </div>
+                      <div className="text-muted-foreground mb-1">
+                        This workflow describes this behavior but does not structurally encode it.
+                      </div>
+                      <div className="text-muted-foreground">
+                        Missing: {mismatch.missing.join(', ')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </>
           )}

@@ -1,10 +1,13 @@
 /**
  * Phase 5: Explainability Types
+ * Phase 6: Semantic Completeness Types
  * 
  * These types support auditability and trust by capturing decision reasoning
  * at accept time. All data is structured signals only - no raw prompts or 
  * model outputs are stored.
  */
+
+import type { SemanticClaim } from '../semantic/semanticClaims';
 
 /**
  * Uncertainty level for generated content
@@ -102,6 +105,24 @@ export interface DecisionSnapshot {
   
   // Model provenance (GPT-5 migration)
   modelProvenance?: ModelProvenance;
+  
+  // Phase 6: Semantic claims detected in generated content
+  semanticClaims?: SemanticClaim[];
+  
+  // Phase 6: Structural mismatches between claims and graph
+  semanticMismatches?: SemanticMismatch[];
+}
+
+/**
+ * Phase 6: Semantic Mismatch
+ * Indicates a claim exists but the required structure is missing
+ */
+export interface SemanticMismatch {
+  claimType: SemanticClaim['type'];
+  claim: SemanticClaim;
+  missing: string[];
+  severity: 'info' | 'warning' | 'error';
+  message: string;
 }
 
 /**

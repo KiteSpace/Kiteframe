@@ -10,9 +10,11 @@ import type {
   AppliedHeuristics, 
   UncertaintyLevel,
   ValidationWarning,
-  ModelProvenance
+  ModelProvenance,
+  SemanticMismatch
 } from './types';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
+import type { SemanticClaim } from '../semantic/semanticClaims';
 import { getSessionSignals, getHeuristicBias } from '../heuristics/sessionSignals';
 import { createFallbackProvenance } from '../router/provenanceHelper';
 
@@ -51,6 +53,9 @@ export interface CaptureProposalDecisionParams {
   validationWarnings: ValidationWarning[];
   heuristicsEnabled: boolean;
   modelProvenance?: ModelProvenance;
+  // Phase 6: Semantic completeness
+  semanticClaims?: SemanticClaim[];
+  semanticMismatches?: SemanticMismatch[];
 }
 
 export interface CaptureExperimentDecisionParams {
@@ -70,6 +75,9 @@ export interface CaptureExperimentDecisionParams {
   validationWarnings: ValidationWarning[];
   heuristicsEnabled: boolean;
   modelProvenance?: ModelProvenance;
+  // Phase 6: Semantic completeness
+  semanticClaims?: SemanticClaim[];
+  semanticMismatches?: SemanticMismatch[];
 }
 
 /**
@@ -103,6 +111,9 @@ export function captureProposalDecision(
     validationWarnings: params.validationWarnings,
     heuristicsEnabled: params.heuristicsEnabled,
     modelProvenance: ensureProvenance(params.modelProvenance, 'workflow_reasoning'),
+    // Phase 6: Semantic completeness
+    semanticClaims: params.semanticClaims,
+    semanticMismatches: params.semanticMismatches,
   };
 }
 
@@ -138,5 +149,8 @@ export function captureExperimentDecision(
     validationWarnings: params.validationWarnings,
     heuristicsEnabled: params.heuristicsEnabled,
     modelProvenance: ensureProvenance(params.modelProvenance, 'workflow_experiments'),
+    // Phase 6: Semantic completeness
+    semanticClaims: params.semanticClaims,
+    semanticMismatches: params.semanticMismatches,
   };
 }

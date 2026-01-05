@@ -104,11 +104,22 @@ Preferred communication style: Simple, everyday language.
 ### Explainability, Auditability & Trust
 - **Philosophy**: All additions are optional, read-only, and non-blocking.
 - **Provenance Metadata**: NodeMeta and EdgeMeta now include immutable fields: `createdFromInsightId`, `createdFromProposalId`, `createdFromExperimentId`, `createdAt`.
-- **Decision Snapshots**: Structured capture of heuristics, scope rules, variant choice, session context, uncertainty level, and validation warnings.
+- **Decision Snapshots**: Structured capture of heuristics, scope rules, variant choice, session context, uncertainty level, validation warnings, semantic claims, and semantic mismatches.
 - **Structural Timeline**: Tracks Accept/Undo/Redo events with timestamps. Session-scoped.
 - **Audit Export**: `generateAuditExport()` produces JSON with workflow structure, provenance, snapshots, and timeline.
-- **Why Inspector**: `WhyInspector.tsx` provides read-only popover showing "why this node exists" with insight linkage and heuristics applied.
+- **Why Inspector**: `WhyInspector.tsx` provides read-only popover showing "why this node exists" with insight linkage, heuristics applied, semantic claims, and structural gaps.
 - **Enterprise Guardrails**: Config-level hooks (`aiActionsDisabled`, `readOnlyMode`, `auditOnlyAccess`).
+
+### Semantic Completeness Enforcement (Phase 6)
+- **Purpose**: Detect when AI-generated workflows describe stateful behavior (retries, thresholds, escalation) but lack the corresponding structural encoding.
+- **Philosophy**: Read-only detection by default; enforcement requires explicit feature flag.
+- **Semantic Claims**: Types include `repeated_failure`, `retry_with_limit`, `threshold_escalation`, `time_based_escalation`, `quota_limit`, `manual_intervention_required`.
+- **Claim Extraction**: Pattern-based detection from node labels, descriptions, and insight text with confidence scoring.
+- **Structural Analysis**: Detects decision nodes, loops, escalation paths, monitoring steps, human handoffs.
+- **Mismatch Detection**: Compares claims to structure, surfacing gaps as warnings in WhyInspector.
+- **Feature Flag**: `VITE_ENABLE_SEMANTIC_ENFORCEMENT` enables blocking for high-confidence mismatches.
+- **Non-Goals**: No auto-regeneration, no silent edits, no inferred thresholds, no new node types.
+- **Key Files**: `client/src/ai/semantic/` directory contains all Phase 6 logic.
 
 ### GPT-5 Migration Foundation
 - **Central AI Router**: All AI calls route through `client/src/ai/router/aiRouter.ts` with task-type based model selection.
