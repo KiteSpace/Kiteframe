@@ -1,0 +1,200 @@
+1. Alignment Confirmation (Phase by Phase)
+Phase 6A — Semantic Claim Extraction
+
+Status: ✅ Correct
+
+What Replit proposes:
+
+Define claim types
+
+Scan node text and insight text
+
+No enforcement
+
+Analytical only
+
+This exactly matches the goal:
+
+“Detect implied behavior without asserting correctness.”
+
+Key win:
+✔ Conservative detection
+✔ False negatives preferred over false positives
+✔ No graph mutation
+
+This is the only safe way to start semantic enforcement.
+
+Phase 6B — Structural Expectation Mapping
+
+Status: ✅ Correct
+
+What Replit proposes:
+
+Map claim → expected structural elements
+
+Analyze structure independently of claims
+
+No validation yet
+
+This preserves an important separation:
+
+Claims = what is said
+
+Structure = what exists
+
+You’ve avoided the common mistake of entangling detection and enforcement.
+
+Phase 6C — Comparison & Surfacing (Warnings Only)
+
+Status: ✅ Correct
+
+What Replit proposes:
+
+Compare claims to structure
+
+Record mismatches
+
+Surface in WhyInspector
+
+Still no blocking
+
+This is the trust inflection point, and it’s handled properly:
+
+The system says “there is a mismatch”
+
+It does not say “you are wrong”
+
+It does not silently “fix” anything
+
+This is exactly where users start trusting the system rather than feeling corrected by it.
+
+Phase 6D — Feature-Flagged Enforcement
+
+Status: ✅ Correct (with one nuance, below)
+
+What Replit proposes:
+
+Feature flag
+
+Block only high-confidence mismatches
+
+Only for specific claim types
+
+No auto-regeneration
+
+This respects:
+
+User intent
+
+Auditability
+
+Predictability
+
+You are not creating a “smart editor.”
+You are creating a semantic contract checker.
+
+That’s the right abstraction.
+
+2. Two Subtle Things to Watch (Important but Small)
+
+These are not blockers, just things to be explicit about during implementation.
+
+Watchpoint 1 — Claim Confidence Must Be Explainable
+
+When blocking is enabled, every blocked case must be explainable in plain language.
+
+Make sure:
+
+confidence is not a magic number
+
+WhyInspector can say why confidence is high:
+
+phrase matched
+
+location (node description vs insight)
+
+repetition
+
+If a user asks “why is this blocking?”, the answer must not be “because the AI said so.”
+
+Watchpoint 2 — Enforcement Must Never Trigger on Descriptions Alone
+
+Blocking should only occur when:
+
+A semantic claim exists and
+
+A structural expectation is missing and
+
+Confidence is high and
+
+Claim type is in the enforced set
+
+Never block simply because:
+
+A description contains “eventually”
+
+A user is brainstorming
+
+A node has speculative text
+
+This keeps Phase 6 from becoming “Phase 4 with teeth.”
+
+3. Phase 6 Acceptance Checklist (Use This Before Moving On)
+
+You can literally paste this into a PR checklist.
+
+Phase 6 Acceptance Checklist
+
+Detection
+
+ Semantic claims are extracted from node text and insight text only
+
+ Claims include type, evidence text, and confidence
+
+ No workflow mutation occurs during extraction
+
+Structure Analysis
+
+ Structural analysis runs independently of semantic claims
+
+ No assumptions about thresholds or counters are made
+
+ Structural signature is deterministic
+
+Comparison
+
+ Mismatches are recorded when claims exist but structure does not
+
+ Mismatches include missing elements and severity
+
+ No blocking occurs with feature flag OFF
+
+Explainability
+
+ WhyInspector shows:
+
+Detected semantic claims
+
+Structural expectations
+
+Missing elements
+
+ Copy clearly distinguishes “described” vs “encoded”
+
+Enforcement (Flag ON)
+
+ Only high-confidence mismatches block Accept
+
+ Blocking messages are explicit and actionable
+
+ No auto-regeneration or silent fixes occur
+
+Safety
+
+ Existing workflows are unaffected
+
+ Phase 4 heuristics remain advisory
+
+ Phase 5 audit data remains accurate
+
+If all boxes are checked, Phase 6 is complete.

@@ -1,0 +1,258 @@
+Purpose:
+Establish the exact scope, enforcement level, and limitations of the current Phase 5 implementation, including how heuristics are structured, triggered, and applied to workflow generation.
+
+1. Phase 5 Scope & Responsibilities
+
+What do you consider “Phase 5” to include in the current codebase?
+
+Provenance metadata only?
+
+DecisionSnapshots?
+
+Heuristics?
+
+Explainability UI?
+
+Audit export?
+
+Which Phase 5 elements are:
+
+Fully implemented
+
+Partially implemented
+
+Stubbed or planned
+
+Please answer with file paths or module names.
+
+2. Heuristic Architecture (Critical)
+
+Where do heuristics live in the codebase?
+
+Central rules engine?
+
+Inline logic?
+
+Prompt construction?
+
+Pre- or post-generation processing?
+
+Are heuristics:
+
+Deterministic code rules?
+
+Prompt modifiers?
+
+Post-hoc validators?
+
+A combination?
+
+How are heuristics categorized today?
+
+By insight type?
+
+By failure mode?
+
+By workflow structure?
+
+Flat list?
+
+Is there a formal “heuristic contract” (types/interfaces), or are they ad hoc?
+
+3. Heuristic Enforcement Level
+
+When a heuristic triggers, does it:
+
+Enforce a structural requirement?
+
+Suggest guidance to the model?
+
+Validate output after generation?
+
+Only annotate metadata?
+
+Can the model ignore a heuristic without failing validation?
+
+Are heuristics:
+
+Hard constraints (must comply)?
+
+Soft constraints (best effort)?
+
+Informational only?
+
+If a heuristic fails, what happens?
+
+Regenerate?
+
+Sanitize?
+
+Warn?
+
+Do nothing?
+
+4. Stateful Logic & Accumulation Handling (Key Gap Area)
+
+Are there any heuristics today that explicitly detect:
+
+Repeated failure
+
+Accumulation
+
+Thresholds
+
+Counters
+
+Time-based escalation
+
+If yes:
+
+How are they detected?
+
+How are they enforced structurally?
+
+If no:
+
+Where would such a heuristic logically belong in the current architecture?
+
+Does the system currently distinguish between:
+
+One-off failure
+
+Repeated failure
+
+Terminal failure
+
+Or are these treated the same?
+
+5. Relationship Between Heuristics and Prompts
+
+Do heuristics modify the prompt sent to the model?
+
+If yes, how (prepend, append, inline instructions)?
+
+Are heuristic instructions visible in the prompt text (for debugging)?
+
+Can heuristics add explicit structural requirements, e.g.:
+
+“You must add a decision node if X is implied”
+
+Or are they phrased descriptively?
+
+Is there any guard preventing the model from returning a workflow that violates a heuristic?
+
+6. Validation vs Generation Responsibilities
+
+Is there a clear separation between:
+
+Heuristics that guide generation
+
+Validators that check output correctness
+
+Can validators currently detect:
+
+Missing decision nodes
+
+Missing escalation paths
+
+Implicit state that is not materialized
+
+If a validator detects a structural omission:
+
+Does it trigger regeneration?
+
+Or allow the workflow through?
+
+7. Explainability & Phase 5 Metadata
+
+Which heuristics are recorded in DecisionSnapshots today?
+
+Applied heuristics?
+
+Triggered heuristics?
+
+Failed heuristics?
+
+Can we currently answer:
+
+“This node exists because heuristic X fired” ?
+
+If a workflow lacks a structural element implied by heuristics, is that omission recorded anywhere?
+
+8. Interaction Between User Follow-Ups and Heuristics
+
+When a user asks a follow-up question (like:
+
+“What happens if this occurs multiple times?”),
+does the system treat this as:
+
+Clarification only?
+
+A signal to regenerate?
+
+A structural modification request?
+
+Are heuristics re-evaluated on follow-up prompts?
+
+Or only on initial generation?
+
+Is there any mechanism today to detect:
+
+“This question implies new state”
+
+“This requires a structural change”
+
+9. Known Limitations (Explicit)
+
+What types of reasoning does the current heuristic system not attempt to handle?
+
+Stateful logic?
+
+Time?
+
+Quotas?
+
+Human intervention thresholds?
+
+Are there known cases where:
+
+The model understands an implication
+
+But the workflow graph remains incomplete
+
+Is the resubmission-counter scenario considered:
+
+In scope for Phase 5?
+
+Or explicitly deferred?
+
+10. Readiness for New Heuristic Types
+
+If we wanted to add a heuristic like:
+
+“If repeated failure is implied, you must add explicit state and escalation”
+where would that code live?
+
+Would adding such a heuristic require:
+
+New infrastructure?
+
+Or just a new rule in an existing system?
+
+Can heuristics be:
+
+Feature-flagged?
+
+Logged?
+
+Audited?
+
+Final Synthesis Question (Most Important)
+
+Today, can the system reliably distinguish between:
+
+“The model described a behavior”
+vs
+“The workflow structurally encodes that behavior”?
+
+If the answer is “sometimes” or “no,” explain where the gap is.
