@@ -1,0 +1,259 @@
+GPT-5 WORKFLOW REASONING — IMPLEMENTATION COMPLETION CHECKLIST
+
+Beta → Production Readiness Gate
+
+A. ROUTER & ARCHITECTURE (FOUNDATION)
+
+ Single AI entry point enforced
+
+aiRouter.chat() is the only AI invocation path
+
+grep "aiClient.chat(" returns zero matches outside router
+
+ Task-type routing exists and is enforced
+
+Supported taskTypes:
+
+workflow_reasoning
+
+workflow_experiments
+
+prd_generation
+
+vision_ingestion
+
+general_chat
+
+Each feature maps to the correct taskType
+
+ No hardcoded model strings remain
+
+No model: 'gpt-*' in feature files
+
+Model selection occurs only in router policy
+
+B. MODEL POLICY & DEFAULTS
+
+ GPT-5 enforced for workflow tasks
+
+workflow_reasoning → GPT-5.x
+
+workflow_experiments → GPT-5.x
+
+prd_generation → GPT-5.x (if in scope)
+
+ Vision ingestion isolated
+
+vision_ingestion → GPT-4o
+
+No vision content routed to GPT-5
+
+ User model choice limited to chat
+
+general_chat respects user-selected model
+
+Workflow reasoning ignores user settings
+
+C. SESSION DETERMINISM (CRITICAL)
+
+ SessionId generated at flow start
+
+Propose Solution
+
+Experiment generation
+
+ Session-level model lock active
+
+First router call locks {provider, model}
+
+All subsequent calls reuse lock
+
+ Mid-session settings changes ignored
+
+Changing model settings does NOT affect active proposal/experiment
+
+ No mixed-model sessions possible
+
+Verified via logs or forced test
+
+D. OUTPUT SAFETY & PARSING
+
+ Tolerant JSON parsing in place
+
+Supports raw JSON and fenced blocks
+
+No regex-only parsing
+
+ Schema validation enforced
+
+Zod (or equivalent) validates:
+
+proposals
+
+alternatives
+
+experiments
+
+PRDs (if applicable)
+
+ Invalid output never reaches canvas
+
+Parse/validation failure blocks commit
+
+E. RETRY & FALLBACK BEHAVIOR
+
+ Single retry with same model
+
+No unlimited retries
+
+No silent changes
+
+ Explicit fallback logic
+
+GPT-5 → GPT-4o only after retry
+
+No recursive fallback loops
+
+ Fallback metadata recorded
+
+usedFallback = true
+
+fallbackModelUsed set
+
+uncertaintyLevel elevated
+
+F. PHASE 5 AUDITABILITY (NON-NEGOTIABLE)
+
+ Model provenance written on Accept
+
+providerUsed
+
+modelUsed
+
+routerTaskType
+
+usedFallback
+
+fallbackModelUsed (if any)
+
+sessionId
+
+ Provenance survives undo/redo
+
+Undo removes nodes but retains historical record
+
+Redo restores nodes with same provenance
+
+ Audit export includes model data
+
+JSON export answers:
+“Which model generated this and why?”
+
+G. FEATURE FLAG & ENV CONFIG
+
+ ENABLE_GPT5_WORKFLOW_REASONING exists
+
+OFF → all tasks use GPT-4o
+
+ON → workflow tasks enforce GPT-5
+
+ Flag is runtime-configurable
+
+No redeploy required to flip
+
+Rollback is immediate
+
+ Beta environment uses GPT-5
+
+Production remains controlled until promotion
+
+H. UI & UX GUARANTEES
+
+ No new UI required for GPT-5
+
+No new buttons
+
+No new modes
+
+No visual regressions
+
+ Settings copy accurate
+
+“Choose model” clearly applies to chat only
+
+ Workflow behavior unchanged
+
+Propose / Alternative / Experiments behave identically
+
+Only intelligence quality changes
+
+I. OBSERVABILITY & MONITORING
+
+ Structured logs emitted
+
+taskType
+
+modelUsed
+
+sessionId
+
+parseSuccess
+
+retryCount
+
+fallback status
+
+duration
+
+ Quality proxy metrics available
+
+proposal success rate
+
+experiment success rate
+
+parse/schema failure rate
+
+fallback rate
+
+accept vs cancel ratio
+
+undo-after-accept rate
+
+J. BETA VALIDATION (ALL USERS)
+
+ GPT-5 enabled for 100% of Beta
+
+ 48–72 hours of active usage observed
+
+ No regression signals
+
+No spike in failures
+
+No spike in undo-after-accept
+
+No trust-breaking reports
+
+K. ROLLBACK READINESS
+
+ Single-flag rollback confirmed
+
+ Rollback affects only new sessions
+
+ Existing sessions remain consistent
+
+ No data corruption risk
+
+FINAL GO / NO-GO QUESTION
+
+If a Beta user asks:
+“Why did the system suggest this workflow?”
+Can we show exactly which model produced it, under what constraints, and whether fallback occurred?
+
+ YES → GO
+
+ NO → DO NOT SHIP
+
+DEFINITION OF DONE
+
+All checkboxes above are verified YES.
+Only then is GPT-5 workflow reasoning considered production-ready.
