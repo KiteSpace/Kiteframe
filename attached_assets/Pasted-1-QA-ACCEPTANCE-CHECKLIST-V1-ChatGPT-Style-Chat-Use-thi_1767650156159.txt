@@ -1,0 +1,219 @@
+1) QA ACCEPTANCE CHECKLIST (V1 ChatGPT-Style Chat)
+
+Use this checklist verbatim during QA. All items must pass for V1 sign-off.
+
+A. Visual & Layout
+
+ No avatars appear anywhere (user, assistant, system).
+
+ User messages render as subtle, right-aligned bubbles.
+
+ Assistant messages render as paragraph-style prose (no bubble, no background).
+
+ System messages are visually distinct (italic, muted), not bubbles.
+
+ Workflow proposal cards remain visually distinct and are not wrapped in bubbles.
+
+ Fullscreen chat is centered with a max-width; panel chat uses the same typography and spacing, just narrower.
+
+B. Typography & Readability
+
+ Assistant text has comfortable line length (~60–75ch).
+
+ Line height ~1.5–1.6 for assistant prose.
+
+ Clear paragraph spacing; no cramped blocks.
+
+ Lists render with proper indentation and spacing.
+
+ Code blocks have breathing room and horizontal scroll if needed.
+
+C. Message Grouping
+
+ Consecutive assistant messages are grouped (reduced vertical spacing).
+
+ Increased spacing occurs only when roles change.
+
+ Grouping does not change message order or content.
+
+D. Scroll Behavior
+
+ Chat auto-scrolls only if user is already near the bottom.
+
+ When user scrolls up, new messages do not jump the viewport.
+
+ A “↓ New message” indicator appears when messages arrive off-screen.
+
+ Sending a user message forces scroll to bottom.
+
+ Behavior matches ChatGPT (no scroll hijacking).
+
+E. Input Composer
+
+ Textarea auto-resizes up to max height.
+
+ Enter submits; Shift+Enter inserts newline.
+
+ Input disables during loading.
+
+ Focus returns to input after send.
+
+F. Persistence & State
+
+ Chat history persists across reloads.
+
+ No schema changes to ChatMessage.
+
+ No regressions in proposal accept/reject flows.
+
+G. Non-Goals (Confirm Not Implemented)
+
+ No avatars added.
+
+ No reactions/edit/regenerate controls.
+
+ No token-by-token streaming UI (unless explicitly approved).
+
+PASS CRITERION:
+If all boxes above are checked, chat meets V1 acceptance for launch.
+
+2) TAILWIND CLASS EXAMPLES (CHATGPT-STYLE)
+
+These are examples, not mandates—use them to align implementation. Keep semantics identical across panel + fullscreen.
+
+A. Chat Container
+<div className="mx-auto w-full max-w-4xl px-4 py-6">
+  {/* ChatMessageList */}
+</div>
+
+
+Panel variant:
+
+<div className="w-full h-full px-3 py-4">
+  {/* Same ChatMessageList */}
+</div>
+
+B. Message Group Wrapper
+<div className="mb-6">
+  {/* Messages in this role group */}
+</div>
+
+
+Between messages in the same group:
+
+<div className="mt-1">
+
+
+Between role changes:
+
+<div className="mt-6">
+
+C. User Message (Bubble)
+<div className="flex justify-end">
+  <div className="
+    max-w-[60%]
+    rounded-2xl rounded-br-none
+    bg-primary/10
+    px-4 py-2.5
+    text-sm
+    leading-relaxed
+    text-foreground
+  ">
+    {content}
+  </div>
+</div>
+
+
+Notes:
+
+Subtle tint only (/10)
+
+No borders
+
+Right-aligned
+
+D. Assistant Message (Prose, No Bubble)
+<div className="
+  prose prose-sm
+  max-w-[65ch]
+  text-foreground
+  leading-relaxed
+">
+  <ReactMarkdown components={markdownComponents}>
+    {content}
+  </ReactMarkdown>
+</div>
+
+
+Important:
+
+No background
+
+No border
+
+Feels like a document, not a chat bubble
+
+E. System Message
+<div className="
+  italic
+  text-sm
+  text-muted-foreground
+">
+  {content}
+</div>
+
+F. Code Blocks (Assistant)
+<pre className="
+  my-4
+  rounded-lg
+  bg-muted/50
+  p-3
+  overflow-x-auto
+  text-xs
+  font-mono
+">
+  <code>{code}</code>
+</pre>
+
+G. Lists (Assistant)
+<ul className="list-disc pl-5 my-3 space-y-1">
+
+<ol className="list-decimal pl-5 my-3 space-y-1">
+
+H. “New Message” Indicator
+<button className="
+  fixed bottom-20 left-1/2 -translate-x-1/2
+  rounded-full
+  bg-background
+  border
+  px-3 py-1
+  text-xs
+  shadow
+">
+  ↓ New message
+</button>
+
+I. Input Composer
+<textarea
+  className="
+    w-full
+    resize-none
+    rounded-lg
+    border
+    px-3 py-2
+    text-sm
+    leading-relaxed
+    focus:outline-none
+    focus:ring-1
+  "
+/>
+
+Final Notes for Replit
+
+Do not introduce avatars, gradients, or heavy containers.
+
+Whitespace > decoration.
+
+If something feels “chatty,” remove it.
+
+If something reads like a document, you’re doing it right.

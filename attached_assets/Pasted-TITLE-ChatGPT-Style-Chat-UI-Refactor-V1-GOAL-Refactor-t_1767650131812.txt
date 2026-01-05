@@ -1,0 +1,208 @@
+TITLE: ChatGPT-Style Chat UI Refactor (V1)
+
+GOAL
+Refactor the chat UI (prompt chat + in-project chat) to match ChatGPT’s interaction and visual model:
+- User messages appear as subtle right-aligned bubbles
+- KiteAI (assistant) messages render as document-style prose (no bubble, no avatar)
+- No avatars anywhere
+- Minimal color, strong spacing, excellent typography
+- Message grouping for consecutive roles
+- Improved scroll behavior
+- No changes to AI logic, message schema, or persistence
+
+STRICT CONSTRAINTS
+- DO NOT change ChatMessage schema
+- DO NOT change AI routing, prompts, or heuristics
+- DO NOT change persistence (localStorage behavior)
+- DO NOT change workflow proposal cards logic
+- DO NOT add new features (reactions, edit, regenerate)
+- This is a PRESENTATION-LAYER refactor only
+
+------------------------------------------------------------
+PHASE A — EXTRACT CANONICAL MESSAGE RENDERER (NO VISUAL CHANGE)
+------------------------------------------------------------
+
+1. Create a new component:
+   client/src/components/chat/ChatMessageList.tsx
+
+2. Move ALL message rendering logic out of KiteAIChat.tsx:
+   - The messages.map(...)
+   - Role conditionals
+   - Workflow proposal rendering hooks
+
+3. ChatMessageList props must include:
+   - messages: ChatMessage[]
+   - mode: 'panel' | 'fullscreen'
+   - onAcceptProposal
+   - onRejectProposal
+
+4. Initially copy the JSX EXACTLY from KiteAIChat.tsx.
+   - No styling changes yet
+   - Output must be pixel-identical
+
+5. Update:
+   - KiteAIChat.tsx
+   - KiteAIDiscussionPanel.tsx
+   - FullScreenChat.tsx
+
+   …to render <ChatMessageList /> instead of inline JSX.
+
+Acceptance criteria:
+- Chat looks exactly the same as before
+- No logic changes
+- No regressions
+
+------------------------------------------------------------
+PHASE B — NORMALIZE MESSAGE BUBBLES (FOUNDATION)
+------------------------------------------------------------
+
+6. Make ChatBubble.tsx the ONLY message bubble renderer.
+
+7. Move role-based rendering logic into ChatBubble:
+   - role: 'user' | 'assistant' | 'system' | 'tool'
+   - content
+   - attachments
+   - metadata
+
+8. ChatMessageList should:
+   - Determine grouping (later)
+   - Delegate actual message rendering to ChatBubble
+
+9. Workflow proposal cards:
+   - Must render as children within assistant messages
+   - DO NOT wrap them in bubbles
+
+Acceptance criteria:
+- All messages route through ChatBubble
+- Visual output still unchanged
+
+------------------------------------------------------------
+PHASE C — REMOVE AVATARS & SWITCH TO CHATGPT VISUAL MODEL
+------------------------------------------------------------
+
+10. Remove all avatar rendering:
+    - No Bot icons
+    - No User icons
+    - No placeholder avatar spacing
+
+11. Update ChatBubble styles:
+
+USER MESSAGE:
+- Right-aligned
+- Subtle bubble
+- Rounded corners
+- Muted background
+- Max width ~60%
+- Small font size consistent with body text
+
+ASSISTANT MESSAGE:
+- NO bubble
+- NO background
+- Full-width prose layout
+- Render using ReactMarkdown with prose classes
+- Looks like a document paragraph, not a message
+
+SYSTEM MESSAGE:
+- Italic
+- Muted color
+- No bubble
+
+Acceptance criteria:
+- Chat visually resembles ChatGPT
+- No avatars anywhere
+- Assistant text feels “document-like”
+
+------------------------------------------------------------
+PHASE D — MESSAGE GROUPING (CRITICAL FOR READABILITY)
+------------------------------------------------------------
+
+12. Implement grouping in ChatMessageList:
+    - Group consecutive messages by role
+    - Example: assistant + assistant → one group
+
+13. Group behavior:
+    - Reduce vertical spacing between grouped messages
+    - Increase spacing between role changes
+    - Only first message in group gets top margin
+
+14. User messages:
+    - Each user message can remain its own group
+
+Acceptance criteria:
+- Long assistant responses feel cohesive
+- Visual noise reduced
+- Easier to read multi-paragraph outputs
+
+------------------------------------------------------------
+PHASE E — SCROLL BEHAVIOR FIX (MANDATORY)
+------------------------------------------------------------
+
+15. Replace unconditional auto-scroll behavior.
+
+16. Implement scroll intent detection:
+    - Track if user is within ~100px of bottom
+    - Only auto-scroll when true
+
+17. If user is scrolled up:
+    - Do NOT jump scroll
+    - Show “↓ New message” indicator
+
+18. On user send:
+    - Force scroll to bottom
+
+Acceptance criteria:
+- Reading older messages is not interrupted
+- Behavior matches ChatGPT
+
+------------------------------------------------------------
+PHASE F — TYPOGRAPHY & SPACING PASS (FINAL POLISH)
+------------------------------------------------------------
+
+19. Typography rules:
+    - Assistant prose max width ~65ch
+    - Line height ~1.5–1.6
+    - Proper paragraph spacing
+    - Lists and code blocks breathe
+
+20. Color rules:
+    - Minimal palette
+    - No heavy borders
+    - No gradients
+    - Prefer whitespace over containers
+
+21. Panel vs fullscreen:
+    - Same typography rules
+    - Same grouping
+    - Same spacing
+    - Only width changes
+
+Acceptance criteria:
+- Chat feels calm, readable, professional
+- Matches ChatGPT’s UX philosophy (not exact pixels)
+
+------------------------------------------------------------
+OUT OF SCOPE (DO NOT IMPLEMENT)
+------------------------------------------------------------
+
+- Token-by-token streaming UI (optional V2)
+- Abort / cancel mid-response
+- Reactions
+- Inline editing
+- Message regeneration
+- Tool role visualization
+- Analytics
+
+------------------------------------------------------------
+FINAL ACCEPTANCE CHECKLIST
+------------------------------------------------------------
+
+- User messages = subtle bubbles
+- KiteAI messages = clean prose, no container
+- No avatars anywhere
+- Consecutive assistant messages grouped
+- Scroll does not hijack user
+- Same behavior in panel + fullscreen
+- No changes to AI logic or schema
+- No regressions in workflow proposal cards
+
+END OF TASK FILE
