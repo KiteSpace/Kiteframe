@@ -1,0 +1,99 @@
+PHASE 7 – CHAT UX POLISH INSTRUCTIONS (V1 LAUNCH)
+
+Goal:
+Bring both prompt chat and in-project chat to ChatGPT-level visual and behavioral parity without changing AI logic, message schemas, or routing.
+
+This is a UI/UX polish task only.
+
+--------------------------------------------------
+A. USER MESSAGE BUBBLE VISIBILITY (CRITICAL)
+--------------------------------------------------
+
+Problem:
+User message bubbles technically exist but are often visually indistinguishable from the background due to low contrast (bg-muted/60).
+
+Instruction:
+Increase the visual contrast of user message bubbles so they are clearly visible at a glance in both light and dark mode.
+
+Constraints:
+- Do NOT change message grouping logic
+- Do NOT add avatars
+- Do NOT introduce new containers
+
+Allowed approaches (choose ONE):
+- Replace bg-muted/60 with a stronger neutral (e.g. bg-neutral-200 / dark:bg-neutral-800)
+- OR introduce a dedicated semantic token (e.g. bg-chat-user)
+- OR add a subtle border (e.g. border border-muted-foreground/20)
+
+Acceptance criteria:
+- User messages are obviously bubbled in both fullscreen and panel modes
+- Bubble visibility does not rely on hover or focus
+- Assistant messages remain unboxed / paragraph-style
+
+--------------------------------------------------
+B. ASSISTANT OUTPUT SANITIZATION (CRITICAL)
+--------------------------------------------------
+
+Problem:
+Occasionally, raw model scaffolding tokens such as a standalone "json" label appear in assistant responses.
+
+This should NEVER be visible to users.
+
+Instruction:
+Add a pre-render sanitation step for assistant messages to remove leading model scaffolding artifacts while preserving valid content.
+
+Scope:
+- Apply ONLY to assistant role messages
+- Apply BEFORE rendering with ReactMarkdown
+
+Sanitization rules:
+- Strip leading standalone tokens such as:
+  - "json"
+  - "JSON:"
+  - Similar schema markers on their own line
+- Preserve:
+  - Valid fenced code blocks (```json ... ```)
+  - Inline code
+  - Legitimate JSON shown intentionally in code blocks
+
+Explicitly DO NOT:
+- Strip all code blocks
+- Disable markdown rendering
+- Modify user messages
+- Modify workflow proposal cards
+
+Acceptance criteria:
+- No raw "json" markers appear in assistant responses
+- Legitimate code blocks still render correctly
+- Sanitization does not alter normal prose responses
+
+--------------------------------------------------
+C. VERIFICATION CHECKLIST (MUST CONFIRM)
+--------------------------------------------------
+
+Please confirm the following explicitly after changes:
+
+[ ] User messages have a clearly visible grey/neutral bubble
+[ ] Assistant messages render as paragraph-style content with no container
+[ ] No avatars appear for any role
+[ ] No raw JSON or schema markers ever appear in chat output
+[ ] Styling is identical in fullscreen chat and panel chat
+[ ] No AI logic, routing, or schemas were modified
+
+--------------------------------------------------
+D. NON-GOALS (IMPORTANT)
+--------------------------------------------------
+
+This phase should NOT include:
+- Streaming implementation
+- Message schema changes
+- Chat history refactors
+- Virtualization
+- Tool-role rendering changes
+- Workflow proposal logic changes
+
+This is V1 polish only.
+
+--------------------------------------------------
+END OF INSTRUCTIONS
+--------------------------------------------------
