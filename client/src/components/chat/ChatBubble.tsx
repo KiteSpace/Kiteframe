@@ -3,6 +3,23 @@ import ReactMarkdown from 'react-markdown';
 import { Badge } from '@/components/ui/badge';
 import type { ChatMessage } from '../KiteAIChat';
 
+/**
+ * Sanitize assistant message content by removing leading scaffolding tokens
+ * that may leak from model responses (e.g., "json", "JSON:", etc.)
+ * Preserves valid fenced code blocks and inline code.
+ * Only targets the very start of the message - never modifies mid-content.
+ */
+function sanitizeAssistantContent(content: string): string {
+  let cleaned = content;
+  
+  // Only remove scaffolding tokens at the absolute start of the message
+  // Pattern: standalone "json" or "JSON" or "JSON:" on first line before real content
+  cleaned = cleaned.replace(/^json\s*\n/i, '');    // "json\n" at start
+  cleaned = cleaned.replace(/^JSON:\s*\n?/, '');   // "JSON:" at start
+  
+  return cleaned.trim();
+}
+
 interface ChatBubbleProps {
   message: ChatMessage;
   onFollowUpClick?: (question: string) => void;
@@ -72,7 +89,7 @@ export function ChatBubble({
             </div>
           )}
           
-          <div className="bg-muted/60 dark:bg-muted/40 px-4 py-2.5 rounded-2xl rounded-br-sm text-sm">
+          <div className="bg-neutral-200 dark:bg-neutral-800 px-4 py-2.5 rounded-2xl rounded-br-sm text-sm">
             <p className="whitespace-pre-wrap">{message.content}</p>
           </div>
           
@@ -108,7 +125,7 @@ export function ChatBubble({
               },
             }}
           >
-            {message.content}
+            {sanitizeAssistantContent(message.content)}
           </ReactMarkdown>
         </div>
         
@@ -167,7 +184,7 @@ export function UserBubble({
   return (
     <div className={`flex justify-end ${className}`}>
       <div 
-        className="bg-muted/60 dark:bg-muted/40 px-4 py-2.5 rounded-2xl rounded-br-sm max-w-[80%]"
+        className="bg-neutral-200 dark:bg-neutral-800 px-4 py-2.5 rounded-2xl rounded-br-sm max-w-[80%]"
         data-testid={testId}
       >
         <p className="text-sm whitespace-pre-wrap">{content}</p>
