@@ -1507,6 +1507,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Health Check endpoint - test connectivity to OpenAI models
+  app.get('/api/ai/health', async (req, res) => {
+    const models = ['gpt-4o', 'gpt-5.1'];
+    const results: Record<string, { success: boolean; error?: string; responseTime?: number }> = {};
+    const apiKey = process.env.OPENAI_API_KEY;
+    
+    if (!apiKey) {
+      return res.status(401).json({ 
+        error: 'OpenAI API key not configured',
+        models: {}
+      });
+    }
+    
+    for (const model of models) {
+      const startTime = Date.now();
+      try {
+        const isGpt5 = model.includes('gpt-5');
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: 'user', content: 'Say "OK" and nothing else.' }],
+            ...(isGpt5 ? { max_completion_tokens: 10 } : { max_tokens: 10, temperature: 0 })
+          })
+        });
+        
+        const responseTime = Date.now() - startTime;
+        
+        if (response.ok) {
+          const data = await response.json();
+          results[model] = { 
+            success: true, 
+            responseTime,
+          };
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          results[model] = { 
+            success: false, 
+            error: `${response.status}: ${errorData.error?.message || 'Unknown error'}`,
+            responseTime
+          };
+        }
+      } catch (error) {
+        results[model] = { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Connection failed',
+          responseTime: Date.now() - startTime
+        };
+      }
+    }
+    
+    const allSuccessful = Object.values(results).every(r => r.success);
+    res.status(allSuccessful ? 200 : 207).json({
+      status: allSuccessful ? 'healthy' : 'partial',
+      models: results,
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // AI Chat endpoint - proxy for AI models with dynamic provider routing
   app.post('/api/ai/chat', aiRateLimiter, requireUSOnly, requireCredits, async (req, res) => {
     try {
