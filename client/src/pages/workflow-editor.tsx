@@ -6031,6 +6031,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         }];
         newTab.historyIndex = 0;
         
+        // Restore transcript from the draft if present
+        if (draft.transcript && draft.transcript.length > 0) {
+          const transcriptKey = `kiteframe-prompt-transcript-${newTab.projectUuid}`;
+          localStorage.setItem(transcriptKey, JSON.stringify(draft.transcript));
+        }
+        
+        // Clear the homepage prompt input to avoid showing stale data
+        if (promptContextStore) {
+          promptContextStore.clearStore();
+        }
+        
         // Merge saved tabs with the new chat tab, making it active
         setTabs([...savedTabs, newTab]);
         setActiveTabId(newTab.id);
@@ -6050,7 +6061,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       setTabs(savedTabs);
       // Keep user on home screen by default, they can switch to a tab from there
     }
-  }, [loadFromLocalStorage, isReadOnly, createBlankTab, toast]);
+  }, [loadFromLocalStorage, isReadOnly, createBlankTab, toast, promptContextStore]);
 
   // Handle reset in view mode: restore original data
   const handleViewReset = useCallback(() => {

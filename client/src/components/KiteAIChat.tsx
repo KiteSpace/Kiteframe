@@ -133,6 +133,12 @@ function loadMessagesFromStorage(storageKey: string): ChatMessage[] | null {
   return null;
 }
 
+// Transcript message type for storing conversation history
+export interface TranscriptMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 // WorkflowDraft type exported for use by shells
 export interface WorkflowDraft {
   nodes: Node[];
@@ -140,6 +146,7 @@ export interface WorkflowDraft {
   canvasObjects?: CanvasObject[];
   status: 'draft' | 'expanded';
   originPrompt?: string;
+  transcript?: TranscriptMessage[];
 }
 
 interface KiteAIChatBrainProps {
@@ -741,7 +748,18 @@ export function KiteAIChatBrain({
 
     // Fullscreen mode: create project via callback (no canvas exists yet)
     if (mode === 'fullscreen' && onCreateWorkflow) {
-      onCreateWorkflow(currentWorkflowDraft);
+      // Include transcript in the draft so it can be saved with the new project
+      const transcript = messages
+        .filter(msg => msg.role !== 'system' && msg.id !== 'welcome')
+        .map(msg => ({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content
+        }));
+      
+      onCreateWorkflow({
+        ...currentWorkflowDraft,
+        transcript: transcript.length > 0 ? transcript : undefined
+      });
       // Clear state after handing off to shell
       setCurrentWorkflowDraft(null);
       setWorkflowGenState(null);
