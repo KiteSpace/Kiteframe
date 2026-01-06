@@ -5,6 +5,7 @@ import { runMigrations } from 'stripe-replit-sync';
 import { getStripeSync } from "./stripeClient";
 import { WebhookHandlers } from "./webhookHandlers";
 import { requireUSOnly } from "./middleware/regionLock";
+import { seedFeatureFlags } from "./seedFeatureFlags";
 
 const app = express();
 
@@ -114,6 +115,13 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
+
+  // Seed feature flags on startup
+  try {
+    await seedFeatureFlags();
+  } catch (error) {
+    console.error('Failed to seed feature flags:', error);
+  }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

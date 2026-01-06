@@ -45,6 +45,7 @@ import { sendBetaApprovalEmail, sendContactEmail } from "./emailService";
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
 import { z } from "zod";
 import { registerFigmaRoutes } from "./figmaRoutes";
+import { registerFeatureFlagRoutes } from "./featureFlagRoutes";
 import { verifyFirebaseIdToken, initializeFirebaseAdmin, isAdminSdkAvailable, getInitializationError } from "./firebaseAdmin";
 
 // Initialize Firebase Admin on module load
@@ -403,6 +404,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup Figma API proxy routes
   registerFigmaRoutes(app);
+
+  // Setup Feature Flag routes
+  registerFeatureFlagRoutes(app);
 
   // Firebase auth sync endpoint - syncs Firebase auth to backend session
   app.post('/api/auth/firebase-sync', authRateLimiter, async (req: any, res) => {

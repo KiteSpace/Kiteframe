@@ -498,3 +498,131 @@ export const insertInsightHistorySchema = createInsertSchema(insightHistory).omi
 
 export type InsightHistory = typeof insightHistory.$inferSelect;
 export type InsertInsightHistory = z.infer<typeof insertInsightHistorySchema>;
+
+// ============================================
+// FEATURE FLAGS SYSTEM
+// ============================================
+
+// Rollout status for feature flags
+export const featureFlagStatusEnum = ['disabled', 'beta', 'ga', 'deprecated'] as const;
+export type FeatureFlagStatus = typeof featureFlagStatusEnum[number];
+
+// Feature flags definition table
+export const featureFlags = pgTable("feature_flags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key").notNull().unique(), // e.g. "ai.workflowGeneration", "canvas.autoLayout"
+  name: varchar("name").notNull(), // Human-readable name
+  description: text("description"),
+  category: varchar("category").notNull(), // ai, canvas, chat, enterprise, integrations
+  parentKey: varchar("parent_key"), // For sub-features, references parent flag key
+  status: varchar("status").notNull().default('disabled'), // disabled, beta, ga, deprecated
+  defaultEnabled: boolean("default_enabled").default(false), // Default state for all users
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_feature_flags_key").on(table.key),
+  index("IDX_feature_flags_category").on(table.category),
+  index("IDX_feature_flags_parent").on(table.parentKey),
+  index("IDX_feature_flags_status").on(table.status),
+]);
+
+// Feature groups - collections of users with access to specific flags
+export const featureGroups = pgTable("feature_groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull().unique(), // e.g. "Beta Testers", "Enterprise", "Internal"
+  description: text("description"),
+  color: varchar("color").default('#6366f1'), // For UI display
+  isDefault: boolean("is_default").default(false), // If true, all new users get added
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_feature_groups_name").on(table.name),
+]);
+
+// Maps which flags are enabled for which groups
+export const featureGroupFlags = pgTable("feature_group_flags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  groupId: varchar("group_id").references(() => featureGroups.id, { onDelete: 'cascade' }).notNull(),
+  flagKey: varchar("flag_key").references(() => featureFlags.key, { onDelete: 'cascade' }).notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_feature_group_flags_group").on(table.groupId),
+  index("IDX_feature_group_flags_flag").on(table.flagKey),
+]);
+
+// Maps users to feature groups
+export const featureGroupMemberships = pgTable("feature_group_memberships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  groupId: varchar("group_id").references(() => featureGroups.id, { onDelete: 'cascade' }).notNull(),
+  addedBy: varchar("added_by"), // Admin who added this membership
+  addedAt: timestamp("added_at").defaultNow(),
+}, (table) => [
+  index("IDX_feature_group_memberships_user").on(table.userId),
+  index("IDX_feature_group_memberships_group").on(table.groupId),
+]);
+
+// User-specific flag overrides (takes precedence over group membership)
+export const userFeatureOverrides = pgTable("user_feature_overrides", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  flagKey: varchar("flag_key").references(() => featureFlags.key, { onDelete: 'cascade' }).notNull(),
+  enabled: boolean("enabled").notNull(),
+  reason: text("reason"), // Why this override was applied
+  createdBy: varchar("created_by"), // Admin who created override
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // Optional expiration
+}, (table) => [
+  index("IDX_user_feature_overrides_user").on(table.userId),
+  index("IDX_user_feature_overrides_flag").on(table.flagKey),
+]);
+
+// Insert schemas
+export const insertFeatureFlagSchema = createInsertSchema(featureFlags).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertFeatureGroupSchema = createInsertSchema(featureGroups).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertFeatureGroupFlagSchema = createInsertSchema(featureGroupFlags).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertFeatureGroupMembershipSchema = createInsertSchema(featureGroupMemberships).omit({
+  id: true,
+  addedAt: true,
+});
+
+export const insertUserFeatureOverrideSchema = createInsertSchema(userFeatureOverrides).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types
+export type FeatureFlag = typeof featureFlags.$inferSelect;
+export type InsertFeatureFlag = z.infer<typeof insertFeatureFlagSchema>;
+export type FeatureGroup = typeof featureGroups.$inferSelect;
+export type InsertFeatureGroup = z.infer<typeof insertFeatureGroupSchema>;
+export type FeatureGroupFlag = typeof featureGroupFlags.$inferSelect;
+export type InsertFeatureGroupFlag = z.infer<typeof insertFeatureGroupFlagSchema>;
+export type FeatureGroupMembership = typeof featureGroupMemberships.$inferSelect;
+export type InsertFeatureGroupMembership = z.infer<typeof insertFeatureGroupMembershipSchema>;
+export type UserFeatureOverride = typeof userFeatureOverrides.$inferSelect;
+export type InsertUserFeatureOverride = z.infer<typeof insertUserFeatureOverrideSchema>;
+
+// Resolved flag state for a user (used by frontend)
+export interface ResolvedFeatureFlags {
+  [key: string]: {
+    enabled: boolean;
+    source: 'override' | 'group' | 'default';
+    groupName?: string;
+  };
+}
