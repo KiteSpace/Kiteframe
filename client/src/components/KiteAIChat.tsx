@@ -58,6 +58,13 @@ import {
   AI_WORKFLOW_EXPAND_SELECTED_EDGE_CASES_PROMPT
 } from '@/constants/aiWorkflowExpansionPrompts';
 import { usePromptContextStore } from '@/contexts/PromptContextStore';
+import { useKiteAIConversation, type ProcessInputResult } from '@/hooks/useKiteAIConversation';
+import { useFeatureFlag } from '@/contexts/FeatureFlagContext';
+
+// Phase 7 feature flag keys
+const FLAG_UNIFIED_ENGINE = 'ai.unifiedConversationEngine';
+const FLAG_PM_DEPTH_GUARDS = 'ai.pmDepthGuardsChat';
+const FLAG_CLARIFICATION_LOOPS = 'ai.clarificationLoopsChat';
 
 // Message type categorization for unified workflow draft model
 export type MessageType = 
@@ -209,6 +216,55 @@ export function KiteAIChatBrain({
     openPricing,
     openCreditsDialog
   } = useCreditsGate();
+  
+  // Phase 7: Unified Conversation Engine integration
+  // Feature flags for behavioral control
+  const { enabled: unifiedEngineEnabled } = useFeatureFlag(FLAG_UNIFIED_ENGINE);
+  const { enabled: pmDepthGuardsEnabled } = useFeatureFlag(FLAG_PM_DEPTH_GUARDS);
+  const { enabled: clarificationLoopsEnabled } = useFeatureFlag(FLAG_CLARIFICATION_LOOPS);
+  
+  // Initialize the canonical conversation engine
+  // Map surface context to KiteAIMode: home → 'base', project → 'designer'
+  const surfaceContext = mode === 'fullscreen' ? 'home' : 'project';
+  const initialMode = surfaceContext === 'home' ? 'base' : 'designer';
+  const conversation = useKiteAIConversation(initialMode);
+  
+  // Store last actionability result for logging/annotation
+  const lastActionabilityRef = useRef<ProcessInputResult | null>(null);
+  
+  // Track surface and project changes
+  const prevSurfaceRef = useRef(surfaceContext);
+  const prevProjectRef = useRef(projectId);
+  
+  // Sync conversation mode and reset state when surface/project changes
+  useEffect(() => {
+    if (!unifiedEngineEnabled) return;
+    
+    const targetMode = surfaceContext === 'home' ? 'base' : 'designer';
+    
+    // Reset and update mode when switching surfaces or projects
+    if (prevSurfaceRef.current !== surfaceContext || prevProjectRef.current !== projectId) {
+      console.log(`[Phase7] Surface changed: ${prevSurfaceRef.current} → ${surfaceContext}, mode: ${targetMode}, projectId: ${projectId}`);
+      conversation.resetWithMode(targetMode);
+      prevSurfaceRef.current = surfaceContext;
+      prevProjectRef.current = projectId;
+    }
+  }, [surfaceContext, projectId, unifiedEngineEnabled, conversation]);
+  
+  // Log workflow context for observability
+  useEffect(() => {
+    if (!unifiedEngineEnabled) return;
+    
+    const workflowContext = {
+      surface: surfaceContext,
+      mode: surfaceContext === 'home' ? 'base' : 'designer',
+      projectId,
+      nodeCount: currentNodes.length,
+      edgeCount: currentEdges.length,
+      hasCanvas: currentNodes.length > 0,
+    };
+    console.log('[Phase7] Workflow context:', workflowContext);
+  }, [surfaceContext, projectId, currentNodes.length, currentEdges.length, unifiedEngineEnabled]);
   
   const storageKey = projectId ? `${CHAT_STORAGE_KEY_PREFIX}${projectId}` : null;
   
@@ -492,6 +548,26 @@ export function KiteAIChatBrain({
       return;
     }
 
+    // Phase 7: Unified Conversation Engine - run actionability scoring
+    // V1 behavior: scoring is passive (log/annotate only, no blocking)
+    if (unifiedEngineEnabled && messageContent.trim()) {
+      const inputResult = conversation.processUserInput(messageContent);
+      lastActionabilityRef.current = inputResult;
+      
+      // Log actionability for observability (V1: scoring only, no enforcement)
+      console.log(`[Phase7] Surface: ${surfaceContext} | State: ${inputResult.newState} | Score: ${inputResult.actionability.score} | Confidence: ${inputResult.actionability.confidence.toFixed(2)}`);
+      
+      // PM depth guards (V1: warn-only when flag is OFF)
+      if (!pmDepthGuardsEnabled && inputResult.actionability.score < 3) {
+        console.warn(`[Phase7] PM depth guard: Low actionability score (${inputResult.actionability.score}) - would block if enabled`);
+      }
+      
+      // Clarification loops (V1: dormant when flag is OFF)
+      if (!clarificationLoopsEnabled && inputResult.newState === 'clarification') {
+        console.log(`[Phase7] Clarification loop: State changed to clarification - would trigger if enabled`);
+      }
+    }
+
     const messageId = `msg-${Date.now()}`;
     const attachments: ChatMessage['attachments'] = [];
 
@@ -510,6 +586,16 @@ export function KiteAIChatBrain({
           name: file.name, 
           data: parsed 
         });
+      }
+    }
+
+    // Phase 7: Track attachments as conversation sources for unified vision pipeline
+    if (unifiedEngineEnabled) {
+      for (const attachment of attachments) {
+        if (attachment.type === 'image') {
+          conversation.addConversationSource('image', { name: attachment.name, preview: attachment.preview }, 0.8);
+          console.log(`[Phase7] Added image source: ${attachment.name}`);
+        }
       }
     }
 

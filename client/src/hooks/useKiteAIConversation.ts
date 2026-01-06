@@ -58,6 +58,7 @@ export interface UseKiteAIConversationResult {
   processUserInput: (input: string) => ProcessInputResult;
   setMode: (mode: KiteAIMode) => void;
   reset: () => void;
+  resetWithMode: (mode: KiteAIMode) => void;
   addAssistantMessage: (content: string) => void;
   getAccumulatedSummary: () => string;
   /**
@@ -234,6 +235,12 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
     console.log('[KiteAI] conversation reset');
   }, [context.mode]);
 
+  const resetWithMode = useCallback((newMode: KiteAIMode) => {
+    const newContext = createInitialContext(newMode);
+    setContext(newContext);
+    console.log(`[KiteAI] conversation reset with mode: ${newMode}`);
+  }, []);
+
   const addAssistantMessage = useCallback((content: string) => {
     setContext(prev => ({
       ...prev,
@@ -375,6 +382,7 @@ export function useKiteAIConversation(initialMode: KiteAIMode = 'base'): UseKite
     processUserInput,
     setMode,
     reset,
+    resetWithMode,
     addAssistantMessage,
     getAccumulatedSummary,
     addConversationSource,

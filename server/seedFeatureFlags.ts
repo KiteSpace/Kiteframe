@@ -11,6 +11,11 @@ const INITIAL_FLAGS = [
   { key: 'ai.gpt5Routing', name: 'GPT-5 Routing', description: 'Enable GPT-5.1 for workflow reasoning', category: 'ai', status: 'beta', defaultEnabled: false },
   { key: 'ai.ollamaProvider', name: 'Ollama Provider', description: 'Enable Ollama/KitelineAI provider', category: 'ai', status: 'beta', defaultEnabled: false },
   { key: 'ai.semanticEnforcement', name: 'Semantic Enforcement', description: 'Detect claim/structure mismatches', category: 'ai', status: 'beta', defaultEnabled: false },
+  
+  // Phase 7: Unified Conversation Engine
+  { key: 'ai.unifiedConversationEngine', name: 'Unified Conversation Engine', description: 'Use useKiteAIConversation across all chat surfaces', category: 'ai', status: 'ga', defaultEnabled: true },
+  { key: 'ai.pmDepthGuardsChat', name: 'PM Depth Guards (Chat)', description: 'PM depth guards in chat - warn/log only when OFF', category: 'ai', status: 'beta', defaultEnabled: false },
+  { key: 'ai.clarificationLoopsChat', name: 'Clarification Loops (Chat)', description: 'Auto-trigger clarification loops in chat', category: 'ai', status: 'beta', defaultEnabled: false },
 
   // Canvas & Editing
   { key: 'canvas.autoLayout', name: 'Auto Layout', description: '5 layout algorithms (horizontal, grid, etc.)', category: 'canvas', status: 'ga', defaultEnabled: true },
