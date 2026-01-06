@@ -121,6 +121,17 @@ Preferred communication style: Simple, everyday language.
 - **Non-Goals**: No auto-regeneration, no silent edits, no inferred thresholds, no new node types.
 - **Key Files**: `client/src/ai/semantic/` directory contains all Phase 6 logic.
 
+### Merge vs Branch Intent Heuristic (Phase 6.5)
+- **Purpose**: Detect whether users want to modify existing workflows (merge) or create new variants (branch), preventing accidental workflow duplication.
+- **Philosophy**: V1 is passive detection only (no UI prompts, no blocking). Ambiguous intent defaults to MERGE for safety.
+- **Detection**: Pattern matching in `mergeBranchDetector.ts` for merge signals (tighten, simplify, fix, refine) and branch signals (alternative, compare, version 2).
+- **MergeBranchDecision**: Captures `intent` ('merge' | 'branch' | 'ambiguous'), `confidence` (0-1), `resolvedIntent` (always 'merge' or 'branch'), and `detectedSignals` (string[]).
+- **Integration Point**: Detector invoked ONLY in chat workflow generation (KiteAIChat.tsx), NOT in Test Flight, import flows, or read-only analysis.
+- **Persistence**: Decision flows from detection → WorkflowDraft → CaptureProposalDecisionParams → DecisionSnapshot → WhyInspector.
+- **Audit Visibility**: WhyInspector displays merge/branch decision read-only with GitMerge/GitBranch visual indicators.
+- **Feature Flag**: `ai.mergeBranchHeuristic` (default ON) enables instant disable.
+- **Key Files**: `client/src/ai/intent/mergeBranchDetector.ts`, `client/src/ai/explainability/types.ts`, `client/src/components/WhyInspector.tsx`.
+
 ### GPT-5 Migration Foundation
 - **Central AI Router**: All AI calls route through `client/src/ai/router/aiRouter.ts` with task-type based model selection.
 - **Task-Type Model Policy**: Defined in `types.ts` - GPT-5.1 for workflow_reasoning/workflow_experiments/prd_generation, GPT-4o for vision_ingestion, user-selected for general_chat.

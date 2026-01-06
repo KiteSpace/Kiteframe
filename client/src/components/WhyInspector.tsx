@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, Sparkles, Clock, GitBranch, Lightbulb, Info, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, Sparkles, Clock, GitBranch, GitMerge, Lightbulb, Info, AlertTriangle, CheckCircle } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { Node, NodeMeta } from '@/lib/kiteframe/types';
 import { getDecisionSnapshotForNode } from '@/ai/explainability/auditExport';
-import type { DecisionSnapshot, SemanticMismatch } from '@/ai/explainability/types';
+import type { DecisionSnapshot, SemanticMismatch, MergeBranchDecision } from '@/ai/explainability/types';
 import { getClaimTypeDescription } from '@/ai/semantic/extractSemanticClaims';
 
 interface WhyInspectorProps {
@@ -35,8 +35,9 @@ export function WhyInspector({ node, children }: WhyInspectorProps) {
   const [snapshot, setSnapshot] = useState<DecisionSnapshot | null>(null);
   
   const meta = node.meta as NodeMeta | undefined;
+  const dataMeta = (node.data as any)?.meta as { createdAt?: number; mergeBranchDecision?: MergeBranchDecision } | undefined;
   
-  const hasProvenance = meta?.createdFromInsightId || meta?.createdFromProposalId || meta?.createdFromExperimentId;
+  const hasProvenance = meta?.createdFromInsightId || meta?.createdFromProposalId || meta?.createdFromExperimentId || dataMeta?.mergeBranchDecision;
   
   useEffect(() => {
     if (open && node.id) {
@@ -285,6 +286,48 @@ export function WhyInspector({ node, children }: WhyInspectorProps) {
               </div>
             </>
           )}
+          
+          {/* Phase 6.5: Merge vs Branch Decision (from snapshot or node metadata) */}
+          {(() => {
+            const decision = snapshot?.mergeBranchDecision || dataMeta?.mergeBranchDecision;
+            if (!decision) return null;
+            return (
+              <>
+                <Separator />
+                <div className="space-y-2" data-testid="merge-branch-decision">
+                  <div className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                    {decision.resolvedIntent === 'merge' ? (
+                      <GitMerge className="h-3 w-3 text-blue-500" />
+                    ) : (
+                      <GitBranch className="h-3 w-3 text-purple-500" />
+                    )}
+                    Modification Strategy
+                  </div>
+                  <div className="space-y-1">
+                    <Badge 
+                      variant={decision.resolvedIntent === 'merge' ? 'default' : 'secondary'}
+                      className="text-xs"
+                    >
+                      {decision.intent === 'merge' 
+                        ? 'Modified Existing' 
+                        : decision.intent === 'branch'
+                        ? 'Created New Variant'
+                        : 'Intent Ambiguous (defaulted to Modify)'}
+                    </Badge>
+                    <div className="text-xs text-muted-foreground">
+                      Confidence: {Math.round(decision.confidence * 100)}%
+                    </div>
+                    {decision.detectedSignals.length > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        Signals: {decision.detectedSignals.slice(0, 3).join(', ')}
+                        {decision.detectedSignals.length > 3 && '...'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </PopoverContent>
     </Popover>
@@ -293,7 +336,8 @@ export function WhyInspector({ node, children }: WhyInspectorProps) {
 
 export function WhyInspectorButton({ node }: { node: Node }) {
   const meta = node.meta as NodeMeta | undefined;
-  const hasProvenance = meta?.createdFromInsightId || meta?.createdFromProposalId || meta?.createdFromExperimentId;
+  const dataMeta = (node.data as any)?.meta as { mergeBranchDecision?: MergeBranchDecision } | undefined;
+  const hasProvenance = meta?.createdFromInsightId || meta?.createdFromProposalId || meta?.createdFromExperimentId || dataMeta?.mergeBranchDecision;
   
   if (!hasProvenance) {
     return null;

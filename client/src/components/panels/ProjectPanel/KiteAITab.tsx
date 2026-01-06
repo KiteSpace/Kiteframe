@@ -1,12 +1,13 @@
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import { KiteAIChatPanel, KiteAIDiscussionPanel } from '@/components/KiteAIChat';
+import type { ApplyWorkflowPayload } from '@/components/KiteAIChat';
 
 interface KiteAITabProps {
   projectId: string;
   nodes: Node[];
   edges: Edge[];
   canvasObjects: CanvasObject[];
-  onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
+  onApplyWorkflow?: (workflow: ApplyWorkflowPayload) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   isReadOnly?: boolean;
   initialPrompt?: string;

@@ -11305,6 +11305,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 projectName={activeTab?.name}
                 onProjectNameChange={(name) => updateActiveTab({ name })}
                 onApplyWorkflow={(workflow) => {
+                  // Phase 6.5: Log merge/branch decision for audit
+                  if (workflow.mergeBranchDecision) {
+                    console.log('[Phase 6.5] Merge/Branch decision applied:', {
+                      intent: workflow.mergeBranchDecision.intent,
+                      resolvedIntent: workflow.mergeBranchDecision.resolvedIntent,
+                      confidence: workflow.mergeBranchDecision.confidence,
+                      signals: workflow.mergeBranchDecision.detectedSignals
+                    });
+                  }
+                  
                   const offset = calculateWorkflowOffset(workflow.nodes);
                   const batchId = Date.now();
                   const nodeIdMapping: { [oldId: string]: string } = {};
@@ -11323,6 +11333,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           y: node.position.y + offset.y,
                         },
                         selected: false,
+                        data: {
+                          ...node.data,
+                          meta: {
+                            ...(node.data as any)?.meta,
+                            createdAt: Date.now(),
+                            // Phase 6.5: Stamp nodes with merge/branch decision
+                            ...(workflow.mergeBranchDecision && {
+                              mergeBranchDecision: workflow.mergeBranchDecision,
+                            }),
+                          },
+                        },
                       };
                     },
                   );

@@ -11,7 +11,8 @@ import type {
   UncertaintyLevel,
   ValidationWarning,
   ModelProvenance,
-  SemanticMismatch
+  SemanticMismatch,
+  MergeBranchDecision
 } from './types';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
 import type { SemanticClaim } from '../semantic/semanticClaims';
@@ -56,6 +57,8 @@ export interface CaptureProposalDecisionParams {
   // Phase 6: Semantic completeness
   semanticClaims?: SemanticClaim[];
   semanticMismatches?: SemanticMismatch[];
+  // Phase 6.5: Merge vs Branch decision
+  mergeBranchDecision?: MergeBranchDecision;
 }
 
 export interface CaptureExperimentDecisionParams {
@@ -78,6 +81,8 @@ export interface CaptureExperimentDecisionParams {
   // Phase 6: Semantic completeness
   semanticClaims?: SemanticClaim[];
   semanticMismatches?: SemanticMismatch[];
+  // Phase 6.5: Merge vs Branch decision
+  mergeBranchDecision?: MergeBranchDecision;
 }
 
 /**
@@ -114,6 +119,8 @@ export function captureProposalDecision(
     // Phase 6: Semantic completeness
     semanticClaims: params.semanticClaims,
     semanticMismatches: params.semanticMismatches,
+    // Phase 6.5: Merge vs Branch decision
+    mergeBranchDecision: params.mergeBranchDecision,
   };
 }
 
@@ -152,5 +159,7 @@ export function captureExperimentDecision(
     // Phase 6: Semantic completeness
     semanticClaims: params.semanticClaims,
     semanticMismatches: params.semanticMismatches,
+    // Phase 6.5: Merge vs Branch decision
+    mergeBranchDecision: params.mergeBranchDecision,
   };
 }

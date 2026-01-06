@@ -1,0 +1,175 @@
+PHASE 6.5 – MERGE VS BRANCH INTENT HEURISTIC
+(V1 SAFE IMPLEMENTATION)
+
+Goal:
+Ensure KiteAI correctly decides whether to MODIFY an existing workflow (MERGE)
+or create a NEW workflow (BRANCH) when responding to user requests.
+
+This prevents accidental workflow duplication and false “disconnected” insights.
+
+This phase MUST NOT:
+- Change UI behavior unexpectedly
+- Destroy or overwrite user work
+- Introduce blocking behavior by default
+- Affect Test Flight logic directly
+
+--------------------------------------------------
+A. DEFINITIONS (LOCKED)
+--------------------------------------------------
+
+MERGE:
+Modify the currently active workflow in place.
+Used when the user is refining, fixing, or improving the same system.
+
+BRANCH:
+Create a new workflow variant for comparison.
+Used when the user is explicitly exploring alternatives.
+
+--------------------------------------------------
+B. WHERE THIS LOGIC LIVES
+--------------------------------------------------
+
+Add a lightweight intent classifier BEFORE workflow generation.
+
+Location:
+client/src/ai/intent/mergeBranchDetector.ts
+
+This detector must run:
+- Before generateProposedWorkflow
+- Before generateWorkflowFromChat
+- Before experiment generation that touches structure
+
+--------------------------------------------------
+C. INTENT DETECTION RULES (READ-ONLY, NO BLOCKING)
+--------------------------------------------------
+
+Implement a pure function:
+
+detectMergeBranchIntent({
+  userMessage: string,
+  hasExistingWorkflow: boolean,
+  previousUserMessages?: string[]
+}) → { intent: 'merge' | 'branch' | 'ambiguous', confidence: number }
+
+--------------------------------------------------
+D. MERGE SIGNALS (STRONG)
+--------------------------------------------------
+
+If the user message contains verbs or phrases like:
+- tighten
+- simplify
+- clean up
+- fix
+- correct
+- improve
+- refine
+- reduce branching
+- remove dead ends
+- add retry logic
+- handle failures
+- make optional
+- adjust this workflow
+
+AND there is an existing workflow,
+THEN default intent = MERGE.
+
+--------------------------------------------------
+E. BRANCH SIGNALS (STRONG)
+--------------------------------------------------
+
+If the user message contains phrases like:
+- alternative
+- another approach
+- different version
+- compare
+- what if instead
+- version 2
+- variant
+- explore a new flow
+
+THEN intent = BRANCH.
+
+--------------------------------------------------
+F. AMBIGUOUS CASES
+--------------------------------------------------
+
+If signals are mixed or weak:
+- intent = AMBIGUOUS
+- DO NOT ask the user yet (V1 constraint)
+- Default behavior:
+  → MERGE (safer, avoids duplication)
+
+Record ambiguity for audit/debugging only.
+
+--------------------------------------------------
+G. EXECUTION POLICY (CRITICAL)
+--------------------------------------------------
+
+If intent === MERGE:
+- Modify the existing workflow
+- Reuse nodes where possible
+- Insert / replace nodes as needed
+- Do NOT create a new workflow object
+
+If intent === BRANCH:
+- Create a new workflow
+- Preserve the original untouched
+
+If intent === AMBIGUOUS:
+- Default to MERGE
+- Add metadata flag: intentAmbiguous: true
+
+--------------------------------------------------
+H. SAFETY GUARDS
+--------------------------------------------------
+
+Hard rules:
+- Never delete user nodes automatically
+- Never overwrite without explicit MERGE intent
+- Never branch silently unless BRANCH intent is strong
+
+--------------------------------------------------
+I. METADATA & AUDIT (PHASE 5 COMPATIBLE)
+--------------------------------------------------
+
+Extend DecisionSnapshot with:
+
+mergeBranchDecision: {
+  intent: 'merge' | 'branch' | 'ambiguous',
+  confidence: number,
+  detectedSignals: string[]
+}
+
+Expose this in:
+- WhyInspector (read-only)
+- Audit export
+
+--------------------------------------------------
+J. FEATURE FLAG
+--------------------------------------------------
+
+Add flag:
+ENABLE_MERGE_BRANCH_HEURISTIC
+
+Behavior:
+OFF → current behavior (always branch)
+ON  → apply logic above
+
+Default for V1:
+ON
+
+--------------------------------------------------
+K. ACCEPTANCE CHECKLIST
+--------------------------------------------------
+
+[ ] Editing requests modify existing workflow by default
+[ ] “Simplify / tighten” does NOT create parallel workflows
+[ ] Explicit “alternative” still creates new workflow
+[ ] No user work is deleted
+[ ] No Test Flight regressions
+[ ] Decision is auditable in WhyInspector
+[ ] Feature flag can disable behavior instantly
+
+--------------------------------------------------
+END OF INSTRUCTIONS
+--------------------------------------------------

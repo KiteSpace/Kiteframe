@@ -16,6 +16,9 @@ const INITIAL_FLAGS = [
   { key: 'ai.unifiedConversationEngine', name: 'Unified Conversation Engine', description: 'Use useKiteAIConversation across all chat surfaces', category: 'ai', status: 'ga', defaultEnabled: true },
   { key: 'ai.pmDepthGuardsChat', name: 'PM Depth Guards (Chat)', description: 'PM depth guards in chat - warn/log only when OFF', category: 'ai', status: 'beta', defaultEnabled: false },
   { key: 'ai.clarificationLoopsChat', name: 'Clarification Loops (Chat)', description: 'Auto-trigger clarification loops in chat', category: 'ai', status: 'beta', defaultEnabled: false },
+  
+  // Phase 6.5: Merge vs Branch Intent Detection
+  { key: 'ai.mergeBranchHeuristic', name: 'Merge/Branch Heuristic', description: 'Detect whether to modify existing workflow or create new', category: 'ai', status: 'ga', defaultEnabled: true },
 
   // Canvas & Editing
   { key: 'canvas.autoLayout', name: 'Auto Layout', description: '5 layout algorithms (horizontal, grid, etc.)', category: 'canvas', status: 'ga', defaultEnabled: true },

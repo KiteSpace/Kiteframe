@@ -111,6 +111,21 @@ export interface DecisionSnapshot {
   
   // Phase 6: Structural mismatches between claims and graph
   semanticMismatches?: SemanticMismatch[];
+  
+  // Phase 6.5: Merge vs Branch decision
+  mergeBranchDecision?: MergeBranchDecision;
+}
+
+/**
+ * Phase 6.5: Merge vs Branch Decision
+ * Captures whether the system decided to modify existing workflow or create new
+ */
+export interface MergeBranchDecision {
+  intent: 'merge' | 'branch' | 'ambiguous';
+  confidence: number;
+  detectedSignals: string[];
+  /** Resolved intent - ambiguous always resolves to 'merge' for safety */
+  resolvedIntent: 'merge' | 'branch';
 }
 
 /**

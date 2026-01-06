@@ -11,6 +11,7 @@ import { NotesTab } from './NotesTab';
 import { DiagnosticsTab } from './DiagnosticsTab';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
+import type { ApplyWorkflowPayload } from '@/components/KiteAIChat';
 
 export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers' | 'notes' | 'diagnostics';
 
@@ -25,7 +26,7 @@ interface ProjectPanelProps {
   projectId?: string;
   projectName?: string;
   onProjectNameChange?: (name: string) => void;
-  onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
+  onApplyWorkflow?: (workflow: ApplyWorkflowPayload) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   isReadOnly?: boolean;
   insights?: Insight[];

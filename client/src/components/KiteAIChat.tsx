@@ -60,11 +60,20 @@ import {
 import { usePromptContextStore } from '@/contexts/PromptContextStore';
 import { useKiteAIConversation, type ProcessInputResult } from '@/hooks/useKiteAIConversation';
 import { useFeatureFlag } from '@/contexts/FeatureFlagContext';
+import { 
+  detectMergeBranchIntent, 
+  resolveIntent, 
+  isAmbiguous,
+  type MergeBranchDecision 
+} from '@/ai/intent/mergeBranchDetector';
 
 // Phase 7 feature flag keys
 const FLAG_UNIFIED_ENGINE = 'ai.unifiedConversationEngine';
 const FLAG_PM_DEPTH_GUARDS = 'ai.pmDepthGuardsChat';
 const FLAG_CLARIFICATION_LOOPS = 'ai.clarificationLoopsChat';
+
+// Phase 6.5 feature flag key
+const FLAG_MERGE_BRANCH_HEURISTIC = 'ai.mergeBranchHeuristic';
 
 // Message type categorization for unified workflow draft model
 export type MessageType = 
@@ -154,6 +163,14 @@ export interface WorkflowDraft {
   status: 'draft' | 'expanded';
   originPrompt?: string;
   transcript?: TranscriptMessage[];
+  mergeBranchDecision?: MergeBranchDecision;
+}
+
+export interface ApplyWorkflowPayload {
+  nodes: Node[];
+  edges: Edge[];
+  canvasObjects?: CanvasObject[];
+  mergeBranchDecision?: MergeBranchDecision;
 }
 
 interface KiteAIChatBrainProps {
@@ -161,7 +178,7 @@ interface KiteAIChatBrainProps {
   nodes: Node[];
   edges: Edge[];
   canvasObjects: CanvasObject[];
-  onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
+  onApplyWorkflow?: (workflow: ApplyWorkflowPayload) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   mode: 'panel' | 'floating' | 'fullscreen';
   initialPrompt?: string;
@@ -222,6 +239,9 @@ export function KiteAIChatBrain({
   const { enabled: unifiedEngineEnabled } = useFeatureFlag(FLAG_UNIFIED_ENGINE);
   const { enabled: pmDepthGuardsEnabled } = useFeatureFlag(FLAG_PM_DEPTH_GUARDS);
   const { enabled: clarificationLoopsEnabled } = useFeatureFlag(FLAG_CLARIFICATION_LOOPS);
+  
+  // Phase 6.5: Merge/Branch Heuristic
+  const { enabled: mergeBranchHeuristicEnabled } = useFeatureFlag(FLAG_MERGE_BRANCH_HEURISTIC);
   
   // Initialize the canonical conversation engine
   // Map surface context to KiteAIMode: home → 'base', project → 'designer'
@@ -743,6 +763,27 @@ export function KiteAIChatBrain({
           
           const parsed = JSON.parse(cleanJson);
           if (parsed.nodes && parsed.edges) {
+            // Phase 6.5: Detect merge vs branch intent
+            let mergeBranchDecision: MergeBranchDecision | undefined;
+            if (mergeBranchHeuristicEnabled) {
+              const previousMessages = messages
+                .filter(m => m.role === 'user')
+                .map(m => m.content);
+              
+              mergeBranchDecision = detectMergeBranchIntent({
+                userMessage: messageContent,
+                hasExistingWorkflow: currentNodes.length > 0,
+                previousUserMessages: previousMessages.slice(-3),
+              });
+              
+              const resolvedIntent = resolveIntent(mergeBranchDecision);
+              console.log(`[Phase6.5] MergeBranch decision: ${mergeBranchDecision.intent} → resolved: ${resolvedIntent} | confidence: ${mergeBranchDecision.confidence.toFixed(2)} | signals: ${mergeBranchDecision.detectedSignals.join(', ')}`);
+              
+              if (isAmbiguous(mergeBranchDecision)) {
+                console.log(`[Phase6.5] Ambiguous intent defaulted to MERGE (intentAmbiguous: true)`);
+              }
+            }
+            
             // Keep workflowProposal for message history/display only
             workflowProposal = {
               nodes: parsed.nodes,
@@ -756,7 +797,8 @@ export function KiteAIChatBrain({
               nodes: parsed.nodes,
               edges: parsed.edges,
               status: 'draft',
-              originPrompt: messageContent
+              originPrompt: messageContent,
+              mergeBranchDecision,
             });
             
             // Analyze workflow diagnostics for quick action suggestions
@@ -854,7 +896,8 @@ export function KiteAIChatBrain({
     onApplyWorkflow({
       nodes: currentWorkflowDraft.nodes,
       edges: currentWorkflowDraft.edges,
-      canvasObjects: currentWorkflowDraft.canvasObjects
+      canvasObjects: currentWorkflowDraft.canvasObjects,
+      mergeBranchDecision: currentWorkflowDraft.mergeBranchDecision
     });
 
     // Clear the draft after applying
@@ -921,12 +964,13 @@ export function KiteAIChatBrain({
             try {
               const parsed = JSON.parse(expandedJson[0].replace(/,(\s*[}\]])/g, '$1'));
               if (parsed.nodes && parsed.edges) {
-                // REPLACE the draft with expanded workflow
+                // REPLACE the draft with expanded workflow (preserve merge/branch decision)
                 setCurrentWorkflowDraft({
                   nodes: parsed.nodes,
                   edges: parsed.edges,
                   status: 'expanded',
-                  originPrompt: currentWorkflowDraft.originPrompt
+                  originPrompt: currentWorkflowDraft.originPrompt,
+                  mergeBranchDecision: currentWorkflowDraft.mergeBranchDecision,
                 });
                 setWorkflowGenState('EXPANDED_WITH_EDGE_CASES');
                 setPendingQuickActions([]);
@@ -1028,12 +1072,13 @@ export function KiteAIChatBrain({
         try {
           const parsed = JSON.parse(expandedJson[0].replace(/,(\s*[}\]])/g, '$1'));
           if (parsed.nodes && parsed.edges) {
-            // REPLACE the draft with expanded workflow
+            // REPLACE the draft with expanded workflow (preserve merge/branch decision)
             setCurrentWorkflowDraft({
               nodes: parsed.nodes,
               edges: parsed.edges,
               status: 'expanded',
-              originPrompt: currentWorkflowDraft.originPrompt
+              originPrompt: currentWorkflowDraft.originPrompt,
+              mergeBranchDecision: currentWorkflowDraft.mergeBranchDecision,
             });
             setWorkflowGenState('SELECTED_EDGE_CASES_APPLIED');
             setDiscussedEdgeCases([]);
@@ -1618,7 +1663,7 @@ interface KiteAIChatPanelProps {
   nodes: Node[];
   edges: Edge[];
   canvasObjects: CanvasObject[];
-  onApplyWorkflow?: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
+  onApplyWorkflow?: (workflow: ApplyWorkflowPayload) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   initialPrompt?: string;
   onInitialPromptConsumed?: () => void;
@@ -1680,7 +1725,7 @@ interface KiteAIChatProps {
   currentNodes: Node[];
   currentEdges: Edge[];
   currentCanvasObjects: CanvasObject[];
-  onApplyWorkflow: (workflow: { nodes: Node[]; edges: Edge[]; canvasObjects?: CanvasObject[] }) => void;
+  onApplyWorkflow: (workflow: ApplyWorkflowPayload) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
 }
 
