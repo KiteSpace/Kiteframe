@@ -7,7 +7,8 @@ export type DiagnosticType =
   | 'dead-end-node'
   | 'disconnected-subgraph'
   | 'orphan-decision'
-  | 'loop-without-exit';
+  | 'loop-without-exit'
+  | 'retry-without-counter';
 
 export interface DiagnosticIssue {
   id: string;

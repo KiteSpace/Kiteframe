@@ -1,5 +1,6 @@
 import type { Node, Edge } from '../../types';
 import type { DiagnosticIssue, DiagnosticType, DiagnosticSeverity } from './types';
+import { detectLoops, isLoopDetectionEnabled } from '@/ai/analysis/loopDetection';
 
 interface GraphInput {
   nodes: Node[];
@@ -325,6 +326,41 @@ function hasSelfLoop(nodeId: string, adjacency: AdjacencyMaps): boolean {
   return outgoing.includes(nodeId);
 }
 
+function detectRetryWithoutCounter(input: GraphInput, adjacency: AdjacencyMaps, filteredEdges: Edge[]): DiagnosticIssue[] {
+  const issues: DiagnosticIssue[] = [];
+  
+  if (!isLoopDetectionEnabled()) {
+    return issues;
+  }
+  
+  const result = detectLoops(
+    Array.from(adjacency.nodeMap.values()),
+    filteredEdges
+  );
+  
+  for (const concern of result.concerns) {
+    if (concern.type === 'retry_without_counter') {
+      const firstNodeId = concern.affectedNodeIds?.[0];
+      const node = firstNodeId ? adjacency.nodeMap.get(firstNodeId) : undefined;
+      const label = node ? ((node.data as { label?: string })?.label || node.type) : 'Unknown';
+      
+      issues.push(createIssue(
+        input,
+        'retry-without-counter',
+        'Retry without limit',
+        concern.message || `"${label}" appears to be a retry pattern without a visible counter or max attempts.`,
+        'warn',
+        firstNodeId,
+        undefined,
+        'enhancement',
+        concern.affectedNodeIds?.join(',')
+      ));
+    }
+  }
+  
+  return issues;
+}
+
 function detectLoopsWithoutExit(input: GraphInput, adjacency: AdjacencyMaps): DiagnosticIssue[] {
   const issues: DiagnosticIssue[] = [];
   const processedCycles = new Set<string>();
@@ -423,6 +459,7 @@ export class DiagnosticsEngine {
     const disconnectedIssues = detectDisconnectedSubgraphs(input, adjacency);
     const orphanDecisionIssues = detectOrphanDecisions(input, adjacency);
     const loopIssues = detectLoopsWithoutExit(input, adjacency);
+    const retryIssues = detectRetryWithoutCounter(input, adjacency, edges);
     
     console.log('[DiagnosticsEngine] Detection results', {
       missingEndState: missingEndIssues.length,
@@ -430,6 +467,7 @@ export class DiagnosticsEngine {
       disconnectedSubgraphs: disconnectedIssues.length,
       orphanDecisions: orphanDecisionIssues.length,
       loopsWithoutExit: loopIssues.length,
+      retryWithoutCounter: retryIssues.length,
     });
     
     issues.push(...missingEndIssues);
@@ -437,6 +475,7 @@ export class DiagnosticsEngine {
     issues.push(...disconnectedIssues);
     issues.push(...orphanDecisionIssues);
     issues.push(...loopIssues);
+    issues.push(...retryIssues);
     
     console.log('[DiagnosticsEngine] Total issues found:', issues.length);
     

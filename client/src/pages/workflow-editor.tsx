@@ -47,8 +47,9 @@ import { NodeGalleryPanel } from "@/lib/kiteframe/components/NodeGalleryPanel";
 import { SavedProjectsDrawer } from "@/components/SavedProjectsDrawer";
 import { HomeScreen } from "@/components/HomeScreen";
 import { AiProvider } from "../ai/AiProvider";
-import { getRouter } from "../ai/router";
+import { getRouter, clearSessionLock, createFallbackProvenance } from "../ai/router";
 import { OpenAICompatClient } from "../ai/OpenAICompatClient";
+import type { AiClient } from "../ai/types";
 import { logPreviewTopology, logRenderedGraph, logCommitAccept, logCommitFinalGraph, warnContentContractViolation } from "../ai/workflow/experimentDebugLogger";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -433,6 +434,24 @@ function WorkflowEditorContent({
     deleteProject: deleteCloudProject,
     isSaving: isCloudSaving,
   } = useCloudProjects();
+
+  // AI Client wrapper that adapts the router to AiClient interface for legacy hooks
+  const routerAiClient = useMemo<AiClient>(() => ({
+    chat: async (req) => {
+      const router = getRouter();
+      const response = await router.chat({
+        taskType: (req.taskType as 'workflow_reasoning' | 'workflow_experiments' | 'prd_generation' | 'vision_ingestion' | 'general_chat') || 'general_chat',
+        messages: req.messages,
+        temperature: req.temperature,
+        maxTokens: req.maxTokens,
+      });
+      return { text: response.text };
+    },
+  }), []);
+
+  // Session ID refs for proposal and experiment flows (Phase A - Session Locking)
+  const proposalSessionIdRef = useRef<string | null>(null);
+  const experimentSessionIdRef = useRef<string | null>(null);
 
   // Editor Settings State with persistence
   const [editorSettings, setEditorSettings] = useState(() => {
@@ -1678,7 +1697,7 @@ function WorkflowEditorContent({
     generateOptions: generateExperimentOptionsForNode,
     refreshOptions: refreshExperimentOptions,
     invalidateNode: invalidateExperimentNode,
-  } = useExperimentOptions(nodes, edges, activeTab?.name || 'Workflow', ai);
+  } = useExperimentOptions(nodes, edges, activeTab?.name || 'Workflow', routerAiClient);
 
   // Build experiment options map for canvas
   const experimentOptionsMap = useMemo(() => {
@@ -1753,6 +1772,7 @@ function WorkflowEditorContent({
       const { createSessionId, toModelProvenance } = await import('@/ai/router');
       
       const sessionId = createSessionId();
+      proposalSessionIdRef.current = sessionId;
       const result = await generateProposedWorkflow({
         insight,
         snapshotNodes: nodes,
@@ -1760,7 +1780,9 @@ function WorkflowEditorContent({
         sessionId,
       });
       
-      const modelProvenance = toModelProvenance(result.routerMetadata);
+      const modelProvenance = result.routerMetadata 
+        ? toModelProvenance(result.routerMetadata) 
+        : createFallbackProvenance('openai', 'gpt-4o', 'workflow_reasoning');
       setProposalState({ 
         proposal: { ...result.proposal, modelProvenance }, 
         generatingInsightId: null, 
@@ -1768,6 +1790,7 @@ function WorkflowEditorContent({
       });
     } catch (err) {
       console.error('[ProposeSolution] Generation failed:', err);
+      proposalSessionIdRef.current = null;
       setProposalState({ 
         proposal: null, 
         generatingInsightId: null, 
@@ -1779,12 +1802,16 @@ function WorkflowEditorContent({
         variant: 'destructive',
       });
     }
-  }, [proposalState.generatingInsightId, proposalState.proposal, nodes, edges, ai, toast]);
+  }, [proposalState.generatingInsightId, proposalState.proposal, nodes, edges, toast]);
 
   const handleCancelProposal = useCallback(() => {
     const currentProposal = proposalStateRef.current.proposal;
     if (currentProposal) {
       recordProposalCanceled(currentProposal.insightId);
+    }
+    if (proposalSessionIdRef.current) {
+      clearSessionLock(proposalSessionIdRef.current);
+      proposalSessionIdRef.current = null;
     }
     setProposalState({ proposal: null, generatingInsightId: null, error: null });
   }, []);
@@ -1832,6 +1859,7 @@ function WorkflowEditorContent({
       const { createSessionId, toModelProvenance } = await import('@/ai/router');
       
       const sessionId = createSessionId();
+      experimentSessionIdRef.current = sessionId;
       const result = await generateExperiments({
         insight,
         snapshotNodes: nodes,
@@ -1839,7 +1867,9 @@ function WorkflowEditorContent({
         sessionId,
       });
       
-      const modelProvenance = toModelProvenance(result.routerMetadata);
+      const modelProvenance = result.routerMetadata 
+        ? toModelProvenance(result.routerMetadata) 
+        : createFallbackProvenance('openai', 'gpt-4o', 'workflow_experiments');
       setExperimentState({ 
         session: { ...result.session, modelProvenance }, 
         generatingInsightId: null, 
@@ -1847,6 +1877,7 @@ function WorkflowEditorContent({
       });
     } catch (err) {
       console.error('[Experiment] Generation failed:', err);
+      experimentSessionIdRef.current = null;
       setExperimentState({ 
         session: null, 
         generatingInsightId: null, 
@@ -1858,13 +1889,17 @@ function WorkflowEditorContent({
         variant: 'destructive',
       });
     }
-  }, [experimentState.generatingInsightId, experimentState.session, proposalState.proposal, nodes, edges, ai, toast]);
+  }, [experimentState.generatingInsightId, experimentState.session, proposalState.proposal, nodes, edges, toast]);
 
   const handleCancelExperiment = useCallback(() => {
     // Cancel clears state entirely - no undo entry, no canvas mutation
     const currentSession = experimentStateRef.current.session;
     if (currentSession && currentSession.activeExperimentId) {
       recordExperimentDiscarded(currentSession.insightId, currentSession.activeExperimentId);
+    }
+    if (experimentSessionIdRef.current) {
+      clearSessionLock(experimentSessionIdRef.current);
+      experimentSessionIdRef.current = null;
     }
     setExperimentState({ session: null, generatingInsightId: null, error: null });
   }, []);
@@ -2847,7 +2882,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         throw new Error("Invalid workflow structure returned");
       }
     },
-    [ai],
+    [],
   );
 
   // Function to enforce minimum spacing between nodes
@@ -3444,6 +3479,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       recordProposalTimelineAccept(snapshot);
     }
     
+    // Clear session lock on accept (Phase A - Session Locking)
+    if (proposalSessionIdRef.current) {
+      clearSessionLock(proposalSessionIdRef.current);
+      proposalSessionIdRef.current = null;
+    }
+    
     setProposalState({ proposal: null, generatingInsightId: null, error: null });
     
     toast({
@@ -3576,6 +3617,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       });
       storeDecisionSnapshot(snapshot);
       recordExperimentTimelineAccept(snapshot);
+    }
+    
+    // Clear session lock on accept (Phase A - Session Locking)
+    if (experimentSessionIdRef.current) {
+      clearSessionLock(experimentSessionIdRef.current);
+      experimentSessionIdRef.current = null;
     }
     
     setExperimentState({ session: null, generatingInsightId: null, error: null });
@@ -10430,10 +10477,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         const experimentId = `exp-${nodeId}-${Date.now()}`;
                         const generatedAt = Date.now();
                         
-                        if (!ai) {
-                          throw new Error('AI client not available');
-                        }
-                        
                         const anchorNodeId = getAnchorNodeId(nodeId, nodes, edges);
                         if (!anchorNodeId) {
                           throw new Error('Could not find anchor node for experiment');
@@ -10455,7 +10498,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           throw new Error('Could not build experiment context');
                         }
                         
-                        const result = await generateExperimentBranch(ai, {
+                        const result = await generateExperimentBranch(routerAiClient, {
                           mode: data.mode || 'whatif',
                           context,
                           origin: data.origin || 'experiment',
@@ -11085,10 +11128,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               userPrompt: currentTool.userPrompt,
                             });
                             
-                            if (!ai) {
-                              throw new Error('AI client not available');
-                            }
-                            
                             const context = buildExperimentContext({
                               experimentNodeId: currentTool.anchorNodeId,
                               nodes,
@@ -11100,7 +11139,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               throw new Error('Could not build experiment context');
                             }
                             
-                            const result = await generateExperimentBranch(ai, {
+                            const result = await generateExperimentBranch(routerAiClient, {
                               mode: currentTool.mode || 'whatif',
                               context,
                               origin: currentTool.origin || 'explore',
@@ -12516,7 +12555,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 ],
                 source: "figma",
                 generatePRD: true,
-                aiClient: ai,
+                aiClient: routerAiClient,
                 onPRDGenerated: (workflowId, prd) => {
                   console.log(
                     "[Figma] PRD generated for workflow:",
@@ -13649,7 +13688,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     ],
                     source: "figma",
                     generatePRD: true,
-                    aiClient: ai,
+                    aiClient: routerAiClient,
                     onPRDGenerated: (workflowId, prd) => {
                       console.log(
                         "[Figma Single] PRD generated for workflow:",

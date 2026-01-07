@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, Sparkles, Clock, GitBranch, GitMerge, Lightbulb, Info, AlertTriangle, CheckCircle, Wrench } from 'lucide-react';
+import { X, Sparkles, Clock, GitBranch, GitMerge, Lightbulb, Info, AlertTriangle, CheckCircle, Wrench, AlertCircle } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -22,8 +22,21 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { Node, NodeMeta } from '@/lib/kiteframe/types';
 import { getDecisionSnapshotForNode } from '@/ai/explainability/auditExport';
-import type { DecisionSnapshot, SemanticMismatch, MergeBranchDecision, DecisionRepairApplied } from '@/ai/explainability/types';
+import type { DecisionSnapshot, SemanticMismatch, MergeBranchDecision, DecisionRepairApplied, UnresolvedConcern, UnresolvedConcernType } from '@/ai/explainability/types';
 import { getClaimTypeDescription } from '@/ai/semantic/extractSemanticClaims';
+
+function getConcernTypeDescription(type: UnresolvedConcernType): string {
+  switch (type) {
+    case 'loop_without_exit': return 'Loop Without Exit';
+    case 'retry_without_counter': return 'Retry Without Counter';
+    case 'infinite_loop_risk': return 'Potential Infinite Loop';
+    case 'semantic_mismatch': return 'Semantic Mismatch';
+    case 'structural_gap': return 'Structural Gap';
+    case 'missing_error_handling': return 'Missing Error Handling';
+    case 'unaddressed_edge_case': return 'Unaddressed Edge Case';
+    default: return type;
+  }
+}
 
 interface WhyInspectorProps {
   node: Node;
@@ -387,6 +400,44 @@ export function WhyInspector({ node, children }: WhyInspectorProps) {
               </>
             );
           })()}
+          
+          {/* Phase 7: Unresolved Concerns */}
+          {snapshot?.unresolvedConcerns && snapshot.unresolvedConcerns.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2" data-testid="unresolved-concerns">
+                <div className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3 text-amber-500" />
+                  Unresolved Concerns
+                </div>
+                <div className="space-y-2">
+                  {snapshot.unresolvedConcerns.map((concern: UnresolvedConcern, idx: number) => (
+                    <div 
+                      key={idx} 
+                      className={`text-xs p-2 rounded border ${
+                        concern.severity === 'warning'
+                          ? 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800'
+                          : 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800'
+                      }`}
+                      data-testid={`unresolved-concern-${idx}`}
+                    >
+                      <div className="font-medium mb-1">
+                        {getConcernTypeDescription(concern.type)}
+                      </div>
+                      <div className="text-muted-foreground">
+                        {concern.message}
+                      </div>
+                      {concern.affectedNodeIds && concern.affectedNodeIds.length > 0 && (
+                        <div className="text-muted-foreground mt-1">
+                          Affects: {concern.affectedNodeIds.length} node(s)
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </PopoverContent>
     </Popover>

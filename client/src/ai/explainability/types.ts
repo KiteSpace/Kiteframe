@@ -117,6 +117,9 @@ export interface DecisionSnapshot {
   
   // Phase 6.7: Decision repairs applied during workflow generation
   decisionRepairsApplied?: DecisionRepairApplied[];
+  
+  // Phase 7: Unresolved concerns (warnings that don't block acceptance)
+  unresolvedConcerns?: UnresolvedConcern[];
 }
 
 /**
@@ -141,6 +144,28 @@ export interface DecisionRepairApplied {
   edgesAdded: number;
   labelsAssigned: string[];
   nodesCreated: string[];
+}
+
+/**
+ * Phase 7: Unresolved Concern
+ * Captures warnings and concerns that were detected but not addressed
+ * These are surfaced for visibility but don't block workflow acceptance
+ */
+export type UnresolvedConcernType = 
+  | 'loop_without_exit'
+  | 'retry_without_counter'
+  | 'infinite_loop_risk'
+  | 'semantic_mismatch'
+  | 'structural_gap'
+  | 'missing_error_handling'
+  | 'unaddressed_edge_case';
+
+export interface UnresolvedConcern {
+  type: UnresolvedConcernType;
+  severity: 'info' | 'warning';
+  message: string;
+  affectedNodeIds?: string[];
+  detectedAt: number;
 }
 
 /**
