@@ -313,18 +313,10 @@ export function KiteAIChatBrain({
     try {
       localStorage.setItem(storageKey, JSON.stringify(messages));
       
-      // Also save prompt transcript (user/assistant messages only, excluding welcome)
-      const transcript = messages
-        .filter(msg => msg.role !== 'system' && msg.id !== 'welcome')
-        .map(msg => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content
-        }));
-      
-      if (transcript.length > 0) {
-        const transcriptKey = `kiteframe-prompt-transcript-${projectId}`;
-        localStorage.setItem(transcriptKey, JSON.stringify(transcript));
-      }
+      // NOTE: We intentionally do NOT save to kiteframe-prompt-transcript here.
+      // The prompt transcript is ONLY for pre-project conversations from FullScreenChat.
+      // In-project chat messages are stored in kiteframe-kiteai-chat and shown separately
+      // in the Notes tab as "In-Project Chat". Saving to both would cause duplicates.
     } catch {
     }
   }, [messages, storageKey, projectId]);
@@ -380,6 +372,20 @@ export function KiteAIChatBrain({
     // Mark this prompt as being processed
     initialPromptProcessedRef.current = initialPrompt;
     
+    // Save the initial prompt to the prompt transcript immediately
+    // This captures the "pre-project" conversation from the home page
+    // Regular in-project chat is saved separately to kiteai-chat storage
+    if (projectId) {
+      const transcriptKey = `kiteframe-prompt-transcript-${projectId}`;
+      const existingTranscript = localStorage.getItem(transcriptKey);
+      
+      // Only save if there's no existing transcript (to preserve FullScreenChat transcript)
+      if (!existingTranscript) {
+        const promptTranscript = [{ role: 'user' as const, content: initialPrompt }];
+        localStorage.setItem(transcriptKey, JSON.stringify(promptTranscript));
+      }
+    }
+    
     // Consume attachments from PromptContextStore if any
     // This ensures Home Prompt attachments are carried through to KiteAI Chat
     let filesToSend: File[] = [];
@@ -403,7 +409,7 @@ export function KiteAIChatBrain({
       }
       onInitialPromptConsumed?.();
     });
-  }, [initialPrompt, isLoading, onInitialPromptConsumed, promptContextStore]);
+  }, [initialPrompt, isLoading, onInitialPromptConsumed, promptContextStore, projectId]);
 
   useLayoutEffect(() => {
     if (inputRef.current) {
