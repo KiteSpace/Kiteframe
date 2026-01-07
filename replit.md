@@ -144,12 +144,21 @@ Preferred communication style: Simple, everyday language.
 ### GPT-5 Migration Foundation
 - **Central AI Router**: All AI calls route through `client/src/ai/router/aiRouter.ts` with task-type based model selection.
 - **Task-Type Model Policy**: Defined in `types.ts` - GPT-5.1 for workflow_reasoning/experiments/prd_generation, GPT-4o for vision_ingestion, user-selected for general_chat.
-- **Session Model Lock**: Model/provider locked at session start.
+- **Session Model Lock**: Model/provider locked at session start using `sessionLock.ts`. SessionIds stored in refs (proposalSessionIdRef, experimentSessionIdRef), cleared on Accept/Cancel.
 - **Model Provenance**: `ModelProvenance` interface captures `providerUsed`, `modelUsed`, `routerTaskType`, `usedFallback`, `fallbackModelUsed`, `sessionId`.
 - **Retry & Fallback**: Max 1 retry with same model, then fallback GPT-5.1 → GPT-4o.
 - **Tolerant JSON Parser**: `jsonParser.ts` extracts JSON from fenced code blocks, validates with Zod.
 - **Feature Flag**: `VITE_ENABLE_GPT5_WORKFLOW_REASONING` enables GPT-5.1.
 - **Structured Logging**: Router logs all requests for observability.
+- **routerAiClient Wrapper**: Adapts `getRouter()` to legacy `AiClient` interface for backwards compatibility with existing hooks.
+
+### Loop Detection System
+- **Purpose**: Detect retry patterns lacking exit conditions or counters, surfacing potential infinite loop risks.
+- **Detection Types**: `loop_without_exit`, `retry_without_counter`, `infinite_loop_risk`.
+- **Implementation**: `client/src/ai/analysis/loopDetection.ts` with cycle detection, self-loop detection, retry pattern analysis, semantic exit condition checking.
+- **Integration**: Surfaced via Test Flight diagnostics as `retry-without-counter` diagnostic type.
+- **Feature Flag**: `VITE_ENABLE_LOOP_DETECTION_WARNINGS` (default ON).
+- **Graph Filtering**: Uses speculative-filtered graph to avoid noise from AI-generated preview branches.
 
 ### Plugin Architecture
 - **KiteFrameCore**: Plugin management system with `PluginProvider`, hooks, and event system.
