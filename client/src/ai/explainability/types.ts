@@ -114,6 +114,9 @@ export interface DecisionSnapshot {
   
   // Phase 6.5: Merge vs Branch decision
   mergeBranchDecision?: MergeBranchDecision;
+  
+  // Phase 6.7: Decision repairs applied during workflow generation
+  decisionRepairsApplied?: DecisionRepairApplied[];
 }
 
 /**
@@ -126,6 +129,18 @@ export interface MergeBranchDecision {
   detectedSignals: string[];
   /** Resolved intent - ambiguous always resolves to 'merge' for safety */
   resolvedIntent: 'merge' | 'branch';
+}
+
+/**
+ * Phase 6.7: Decision Repair Applied
+ * Captures repair actions taken on incomplete decision nodes
+ */
+export interface DecisionRepairApplied {
+  decisionNodeId: string;
+  issuesResolved: ('MISSING_OUTCOME' | 'UNLABELED_EDGES' | 'DANGLING_EDGE')[];
+  edgesAdded: number;
+  labelsAssigned: string[];
+  nodesCreated: string[];
 }
 
 /**

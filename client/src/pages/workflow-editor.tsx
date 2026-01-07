@@ -157,8 +157,10 @@ import {
 import { resetLayersState } from "@/stores/layersStateManager";
 import { prdNodeLinkStore, type PRDNodeLink } from "@/stores/prdNodeLinkStore";
 import { usePromptContextStoreOptional } from "@/contexts/PromptContextStore";
+import { useFeatureFlag } from "@/contexts/FeatureFlagContext";
 import { generateWorkflowPRD } from "@/ai/prdEngine";
 import { generateExperimentBranch } from "@/ai/workflow/generateExperimentBranch";
+import { runDecisionRepair } from "@/ai/repair/decisionRepair";
 import {
   recordProposalAccepted,
   recordProposalCanceled,
@@ -397,6 +399,11 @@ function WorkflowEditorContent({
   const ai = useAi();
   const { toast } = useToast();
   const promptContextStore = usePromptContextStoreOptional();
+  
+  // Phase 6.7: Decision Repair feature flag
+  // Only run repairs when flag is loaded AND enabled - prevents running during loading state
+  const { enabled: decisionRepairEnabled, isLoading: decisionRepairLoading } = useFeatureFlag('ai.decisionRepair');
+  const shouldRunDecisionRepair = decisionRepairEnabled && !decisionRepairLoading;
 
   // URL routing for project UUID
   const { projectUuid } = useParams<{ projectUuid?: string }>();
@@ -11315,11 +11322,27 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     });
                   }
                   
-                  const offset = calculateWorkflowOffset(workflow.nodes);
+                  // Phase 6.7: Run Decision Repair before applying workflow
+                  // This repairs incomplete decisions (missing branches, unlabeled edges)
+                  // Only runs when flag is loaded AND enabled
+                  const repairResult = runDecisionRepair(workflow.nodes, workflow.edges, { enabled: shouldRunDecisionRepair });
+                  
+                  if (repairResult.hasChanges) {
+                    console.log('[Phase 6.7] Decision Repair applied:', {
+                      repairsApplied: repairResult.repairsApplied.length,
+                      details: repairResult.repairsApplied
+                    });
+                  }
+                  
+                  // Use repaired nodes/edges for the rest of the flow
+                  const workflowNodes = repairResult.hasChanges ? repairResult.nodes : workflow.nodes;
+                  const workflowEdges = repairResult.hasChanges ? repairResult.edges : workflow.edges;
+                  
+                  const offset = calculateWorkflowOffset(workflowNodes);
                   const batchId = Date.now();
                   const nodeIdMapping: { [oldId: string]: string } = {};
 
-                  const offsetNodes = workflow.nodes.map(
+                  const offsetNodes = workflowNodes.map(
                     (node: Node, index: number) => {
                       const oldId = node.id || `node-${index}`;
                       const newId = `node-${batchId}-${index}`;
@@ -11342,13 +11365,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             ...(workflow.mergeBranchDecision && {
                               mergeBranchDecision: workflow.mergeBranchDecision,
                             }),
+                            // Phase 6.7: Stamp nodes with decision repair metadata
+                            ...(repairResult.hasChanges && {
+                              decisionRepairsApplied: repairResult.repairsApplied,
+                            }),
                           },
                         },
                       };
                     },
                   );
 
-                  const offsetEdges = workflow.edges.map(
+                  const offsetEdges = workflowEdges.map(
                     (edge: Edge, index: number) => {
                       let newSource = nodeIdMapping[edge.source];
                       let newTarget = nodeIdMapping[edge.target];
@@ -11357,10 +11384,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         const sourceNumeric = parseInt(edge.source);
                         if (
                           !isNaN(sourceNumeric) &&
-                          sourceNumeric < workflow.nodes.length
+                          sourceNumeric < workflowNodes.length
                         ) {
                           const sourceNodeId =
-                            workflow.nodes[sourceNumeric]?.id ||
+                            workflowNodes[sourceNumeric]?.id ||
                             `node-${sourceNumeric}`;
                           newSource = nodeIdMapping[sourceNodeId];
                         }
@@ -11370,10 +11397,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         const targetNumeric = parseInt(edge.target);
                         if (
                           !isNaN(targetNumeric) &&
-                          targetNumeric < workflow.nodes.length
+                          targetNumeric < workflowNodes.length
                         ) {
                           const targetNodeId =
-                            workflow.nodes[targetNumeric]?.id ||
+                            workflowNodes[targetNumeric]?.id ||
                             `node-${targetNumeric}`;
                           newTarget = nodeIdMapping[targetNodeId];
                         }

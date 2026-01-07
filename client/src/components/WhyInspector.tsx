@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, Sparkles, Clock, GitBranch, GitMerge, Lightbulb, Info, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, Sparkles, Clock, GitBranch, GitMerge, Lightbulb, Info, AlertTriangle, CheckCircle, Wrench } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { Node, NodeMeta } from '@/lib/kiteframe/types';
 import { getDecisionSnapshotForNode } from '@/ai/explainability/auditExport';
-import type { DecisionSnapshot, SemanticMismatch, MergeBranchDecision } from '@/ai/explainability/types';
+import type { DecisionSnapshot, SemanticMismatch, MergeBranchDecision, DecisionRepairApplied } from '@/ai/explainability/types';
 import { getClaimTypeDescription } from '@/ai/semantic/extractSemanticClaims';
 
 interface WhyInspectorProps {
@@ -35,9 +35,14 @@ export function WhyInspector({ node, children }: WhyInspectorProps) {
   const [snapshot, setSnapshot] = useState<DecisionSnapshot | null>(null);
   
   const meta = node.meta as NodeMeta | undefined;
-  const dataMeta = (node.data as any)?.meta as { createdAt?: number; mergeBranchDecision?: MergeBranchDecision } | undefined;
+  const dataMeta = (node.data as any)?.meta as { 
+    createdAt?: number; 
+    mergeBranchDecision?: MergeBranchDecision; 
+    decisionRepairsApplied?: DecisionRepairApplied[];
+    createdByDecisionRepair?: boolean;
+  } | undefined;
   
-  const hasProvenance = meta?.createdFromInsightId || meta?.createdFromProposalId || meta?.createdFromExperimentId || dataMeta?.mergeBranchDecision;
+  const hasProvenance = meta?.createdFromInsightId || meta?.createdFromProposalId || meta?.createdFromExperimentId || dataMeta?.mergeBranchDecision || dataMeta?.createdByDecisionRepair || dataMeta?.decisionRepairsApplied;
   
   useEffect(() => {
     if (open && node.id) {
@@ -328,6 +333,60 @@ export function WhyInspector({ node, children }: WhyInspectorProps) {
               </>
             );
           })()}
+          
+          {/* Phase 6.7: Decision Repair Applied */}
+          {(() => {
+            const repairs = snapshot?.decisionRepairsApplied || dataMeta?.decisionRepairsApplied;
+            const isRepairCreated = dataMeta?.createdByDecisionRepair;
+            
+            if (!repairs?.length && !isRepairCreated) return null;
+            
+            return (
+              <>
+                <Separator />
+                <div className="space-y-2" data-testid="decision-repair-applied">
+                  <div className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                    <Wrench className="h-3 w-3 text-amber-500" />
+                    Decision Repair
+                  </div>
+                  
+                  {isRepairCreated && (
+                    <div className="text-xs bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded p-2">
+                      This node was auto-generated to complete an incomplete decision branch.
+                    </div>
+                  )}
+                  
+                  {repairs && repairs.length > 0 && (
+                    <div className="space-y-2">
+                      {repairs.map((repair, idx) => (
+                        <div key={idx} className="text-xs space-y-1">
+                          <div className="flex flex-wrap gap-1">
+                            {repair.issuesResolved.map((issue, issueIdx) => (
+                              <Badge key={issueIdx} variant="outline" className="text-xs">
+                                {issue === 'MISSING_OUTCOME' && 'Added Missing Branch'}
+                                {issue === 'UNLABELED_EDGES' && 'Labeled Edges'}
+                                {issue === 'DANGLING_EDGE' && 'Fixed Dangling Edge'}
+                              </Badge>
+                            ))}
+                          </div>
+                          {repair.labelsAssigned.length > 0 && (
+                            <div className="text-muted-foreground">
+                              Labels: {repair.labelsAssigned.join(', ')}
+                            </div>
+                          )}
+                          {repair.edgesAdded > 0 && (
+                            <div className="text-muted-foreground">
+                              Edges added: {repair.edgesAdded}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </PopoverContent>
     </Popover>
@@ -336,8 +395,12 @@ export function WhyInspector({ node, children }: WhyInspectorProps) {
 
 export function WhyInspectorButton({ node }: { node: Node }) {
   const meta = node.meta as NodeMeta | undefined;
-  const dataMeta = (node.data as any)?.meta as { mergeBranchDecision?: MergeBranchDecision } | undefined;
-  const hasProvenance = meta?.createdFromInsightId || meta?.createdFromProposalId || meta?.createdFromExperimentId || dataMeta?.mergeBranchDecision;
+  const dataMeta = (node.data as any)?.meta as { 
+    mergeBranchDecision?: MergeBranchDecision; 
+    createdByDecisionRepair?: boolean;
+    decisionRepairsApplied?: DecisionRepairApplied[];
+  } | undefined;
+  const hasProvenance = meta?.createdFromInsightId || meta?.createdFromProposalId || meta?.createdFromExperimentId || dataMeta?.mergeBranchDecision || dataMeta?.createdByDecisionRepair || dataMeta?.decisionRepairsApplied;
   
   if (!hasProvenance) {
     return null;

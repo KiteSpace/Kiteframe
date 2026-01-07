@@ -19,6 +19,9 @@ const INITIAL_FLAGS = [
   
   // Phase 6.5: Merge vs Branch Intent Detection
   { key: 'ai.mergeBranchHeuristic', name: 'Merge/Branch Heuristic', description: 'Detect whether to modify existing workflow or create new', category: 'ai', status: 'ga', defaultEnabled: true },
+  
+  // Phase 6.7: Decision Repair Heuristic
+  { key: 'ai.decisionRepair', name: 'Decision Repair', description: 'Auto-repair incomplete decision nodes (missing branches, unlabeled edges)', category: 'ai', status: 'ga', defaultEnabled: true },
 
   // Canvas & Editing
   { key: 'canvas.autoLayout', name: 'Auto Layout', description: '5 layout algorithms (horizontal, grid, etc.)', category: 'canvas', status: 'ga', defaultEnabled: true },
