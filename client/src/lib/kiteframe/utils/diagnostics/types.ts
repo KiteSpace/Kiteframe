@@ -34,6 +34,14 @@ export interface DiagnosticIssue {
   };
   
   fingerprint: string;
+  
+  autoRepaired?: boolean;
+  autoRepairDetails?: string;
+}
+
+export interface RepairInfo {
+  repairedNodeIds: string[];
+  repairedIssueTypes: string[];
 }
 
 export const SEVERITY_CONFIG: Record<DiagnosticSeverity, { color: string; glyph: string; priority: number }> = {

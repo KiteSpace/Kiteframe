@@ -12,7 +12,8 @@ import type {
   ValidationWarning,
   ModelProvenance,
   SemanticMismatch,
-  MergeBranchDecision
+  MergeBranchDecision,
+  MutationSafety
 } from './types';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
 import type { SemanticClaim } from '../semantic/semanticClaims';
@@ -59,6 +60,8 @@ export interface CaptureProposalDecisionParams {
   semanticMismatches?: SemanticMismatch[];
   // Phase 6.5: Merge vs Branch decision
   mergeBranchDecision?: MergeBranchDecision;
+  // Phase 8: Mutation safety report
+  mutationSafety?: MutationSafety;
 }
 
 export interface CaptureExperimentDecisionParams {
@@ -83,6 +86,8 @@ export interface CaptureExperimentDecisionParams {
   semanticMismatches?: SemanticMismatch[];
   // Phase 6.5: Merge vs Branch decision
   mergeBranchDecision?: MergeBranchDecision;
+  // Phase 8: Mutation safety report
+  mutationSafety?: MutationSafety;
 }
 
 /**
@@ -121,6 +126,8 @@ export function captureProposalDecision(
     semanticMismatches: params.semanticMismatches,
     // Phase 6.5: Merge vs Branch decision
     mergeBranchDecision: params.mergeBranchDecision,
+    // Phase 8: Mutation safety report
+    mutationSafety: params.mutationSafety,
   };
 }
 
@@ -161,5 +168,7 @@ export function captureExperimentDecision(
     semanticMismatches: params.semanticMismatches,
     // Phase 6.5: Merge vs Branch decision
     mergeBranchDecision: params.mergeBranchDecision,
+    // Phase 8: Mutation safety report
+    mutationSafety: params.mutationSafety,
   };
 }

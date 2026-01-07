@@ -1,5 +1,5 @@
 import type { Node, Edge } from '../../types';
-import type { DiagnosticIssue, DiagnosticType, DiagnosticSeverity } from './types';
+import type { DiagnosticIssue, DiagnosticType, DiagnosticSeverity, RepairInfo } from './types';
 import { detectLoops, isLoopDetectionEnabled } from '@/ai/analysis/loopDetection';
 
 interface GraphInput {
@@ -7,6 +7,7 @@ interface GraphInput {
   edges: Edge[];
   projectId: string;
   workflowId?: string;
+  repairInfo?: RepairInfo;
 }
 
 interface AdjacencyMaps {
@@ -436,6 +437,7 @@ export class DiagnosticsEngine {
       speculativeNodesRemoved: input.nodes.length - nodes.length,
       totalEdges: input.edges.length,
       filteredEdges: edges.length,
+      hasRepairInfo: !!input.repairInfo,
     });
     
     if (nodes.length === 0) {
@@ -446,7 +448,6 @@ export class DiagnosticsEngine {
     const adjacency = buildAdjacencyMaps(nodes, edges);
     const issues: DiagnosticIssue[] = [];
     
-    // Node type summary for debugging
     const nodeTypeSummary: Record<string, number> = {};
     for (const node of nodes) {
       const type = node.type || 'unknown';
@@ -457,9 +458,27 @@ export class DiagnosticsEngine {
     const missingEndIssues = detectMissingEndState(input, adjacency);
     const deadEndIssues = detectDeadEndNodes(input, adjacency);
     const disconnectedIssues = detectDisconnectedSubgraphs(input, adjacency);
-    const orphanDecisionIssues = detectOrphanDecisions(input, adjacency);
+    let orphanDecisionIssues = detectOrphanDecisions(input, adjacency);
     const loopIssues = detectLoopsWithoutExit(input, adjacency);
     const retryIssues = detectRetryWithoutCounter(input, adjacency, edges);
+    
+    if (input.repairInfo) {
+      const { repairedNodeIds, repairedIssueTypes } = input.repairInfo;
+      const repairedNodeSet = new Set(repairedNodeIds);
+      
+      orphanDecisionIssues = orphanDecisionIssues.filter(issue => {
+        if (issue.nodeId && repairedNodeSet.has(issue.nodeId)) {
+          console.log('[DiagnosticsEngine] Suppressing auto-repaired orphan-decision for node:', issue.nodeId);
+          return false;
+        }
+        return true;
+      });
+      
+      console.log('[DiagnosticsEngine] Repair suppression applied', {
+        repairedNodes: repairedNodeIds.length,
+        issueTypesSuppressed: Array.from(repairedIssueTypes),
+      });
+    }
     
     console.log('[DiagnosticsEngine] Detection results', {
       missingEndState: missingEndIssues.length,

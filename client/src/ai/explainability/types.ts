@@ -120,6 +120,9 @@ export interface DecisionSnapshot {
   
   // Phase 7: Unresolved concerns (warnings that don't block acceptance)
   unresolvedConcerns?: UnresolvedConcern[];
+  
+  // Phase 8: Mutation safety report
+  mutationSafety?: MutationSafety;
 }
 
 /**
@@ -166,6 +169,19 @@ export interface UnresolvedConcern {
   message: string;
   affectedNodeIds?: string[];
   detectedAt: number;
+}
+
+/**
+ * Phase 8: Mutation Safety Report
+ * Captures safety checks and corrections applied during workflow mutations
+ */
+export interface MutationSafety {
+  mergeEnforced: boolean;
+  orphanPreventionTriggered: boolean;
+  decisionRepairApplied: boolean;
+  mutationAborted?: string;
+  attachmentResolved?: boolean;
+  resolvedAttachmentNodeId?: string;
 }
 
 /**

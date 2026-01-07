@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, Sparkles, Clock, GitBranch, GitMerge, Lightbulb, Info, AlertTriangle, CheckCircle, Wrench, AlertCircle } from 'lucide-react';
+import { X, Sparkles, Clock, GitBranch, GitMerge, Lightbulb, Info, AlertTriangle, CheckCircle, Wrench, AlertCircle, Shield } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { Node, NodeMeta } from '@/lib/kiteframe/types';
 import { getDecisionSnapshotForNode } from '@/ai/explainability/auditExport';
-import type { DecisionSnapshot, SemanticMismatch, MergeBranchDecision, DecisionRepairApplied, UnresolvedConcern, UnresolvedConcernType } from '@/ai/explainability/types';
+import type { DecisionSnapshot, SemanticMismatch, MergeBranchDecision, DecisionRepairApplied, UnresolvedConcern, UnresolvedConcernType, MutationSafety } from '@/ai/explainability/types';
 import { getClaimTypeDescription } from '@/ai/semantic/extractSemanticClaims';
 
 function getConcernTypeDescription(type: UnresolvedConcernType): string {
@@ -400,6 +400,56 @@ export function WhyInspector({ node, children }: WhyInspectorProps) {
               </>
             );
           })()}
+          
+          {/* Phase 8: Mutation Safety */}
+          {snapshot?.mutationSafety && (
+            (() => {
+              const safety = snapshot.mutationSafety;
+              const hasAnyCorrections = safety.mergeEnforced || safety.orphanPreventionTriggered || safety.decisionRepairApplied || safety.mutationAborted;
+              if (!hasAnyCorrections) return null;
+              return (
+                <>
+                  <Separator />
+                  <div className="space-y-2" data-testid="mutation-safety">
+                    <div className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                      <Shield className="h-3 w-3 text-green-500" />
+                      Automatic Safety Corrections
+                    </div>
+                    <div className="space-y-1">
+                      {safety.mergeEnforced && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <CheckCircle className="h-3 w-3 text-green-500" />
+                          <span>Merge mode enforced - modified existing workflow</span>
+                        </div>
+                      )}
+                      {safety.orphanPreventionTriggered && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <AlertTriangle className="h-3 w-3 text-amber-500" />
+                          <span>Orphan node prevention triggered</span>
+                        </div>
+                      )}
+                      {safety.decisionRepairApplied && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <Wrench className="h-3 w-3 text-amber-500" />
+                          <span>Decision repair applied automatically</span>
+                        </div>
+                      )}
+                      {safety.attachmentResolved && safety.resolvedAttachmentNodeId && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>Attached to: {safety.resolvedAttachmentNodeId.slice(0, 12)}...</span>
+                        </div>
+                      )}
+                      {safety.mutationAborted && (
+                        <div className="text-xs bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded p-2">
+                          Mutation aborted: {safety.mutationAborted}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              );
+            })()
+          )}
           
           {/* Phase 7: Unresolved Concerns */}
           {snapshot?.unresolvedConcerns && snapshot.unresolvedConcerns.length > 0 && (
