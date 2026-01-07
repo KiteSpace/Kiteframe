@@ -1,0 +1,185 @@
+V1 BLOCKER RESOLUTION — LOCKED IMPLEMENTATION INSTRUCTIONS
+STATUS: REQUIRED FOR V1 LAUNCH
+SCOPE: STABILIZATION ONLY (NO NEW FEATURES)
+
+==================================================
+GOAL
+==================================================
+
+Resolve the four V1-blocking issues identified in the AI System Integrity Audit:
+
+1. Central AI Router is not the single source of truth
+2. Session locking is incomplete for structure-mutating flows
+3. Semantic incompleteness can silently pass Test Flight
+4. Retry / loop-without-exit patterns are not detected
+
+This phase MUST NOT introduce new UX concepts, new AI behaviors,
+or expanded heuristics. This is a sealing and hardening phase only.
+
+==================================================
+GLOBAL CONSTRAINTS (NON-NEGOTIABLE)
+==================================================
+
+- No new product features
+- No prompt changes unless explicitly listed
+- No changes to Propose / Experiment semantics
+- No changes to Decision Repair logic
+- No new node types
+- No speculative heuristics
+- Prefer warnings over blocking unless specified
+
+==================================================
+BLOCKER 1 — CENTRAL AI ROUTER CONSOLIDATION
+==================================================
+
+PROBLEM:
+AI calls still bypass the central AI Router, causing:
+- Model drift
+- Inconsistent taskType enforcement
+- Broken audit guarantees
+
+TASKS:
+
+1. Identify ALL remaining direct AI calls:
+   - Search for:
+     - aiClient.chat()
+     - provider SDK calls
+     - legacy helper wrappers
+   - Produce a definitive list of files
+
+2. Refactor ALL remaining AI calls to:
+   aiRouter.chat({ taskType, sessionId?, messages })
+
+3. Enforce:
+   - taskType is REQUIRED for every router call
+   - No default / fallback taskType allowed
+
+4. Add a runtime guard:
+   - If aiRouter.chat() is not used for an AI request, throw in dev mode
+
+ACCEPTANCE CRITERIA:
+[ ] Zero direct aiClient.chat() calls remain
+[ ] All AI requests pass through aiRouter
+[ ] Every request specifies a taskType
+[ ] No regression in existing behavior
+
+==================================================
+BLOCKER 2 — SESSION LOCKING COMPLETION
+==================================================
+
+PROBLEM:
+Model determinism is not guaranteed because some flows
+do not pass sessionId to the router.
+
+TASKS:
+
+1. Define REQUIRED session-locked flows:
+   - Proposal generation
+   - Proposal regeneration
+   - Experiment generation
+   - Experiment regeneration
+   - Workflow-mutating chat actions
+
+2. Ensure each flow:
+   - Generates a sessionId at start
+   - Persists sessionId through the full lifecycle
+   - Passes sessionId to EVERY router call
+
+3. Update router behavior:
+   - If sessionId is provided, lock:
+     - provider
+     - model
+   - Ignore user model changes mid-session
+
+4. Add audit visibility:
+   - sessionId must appear in ModelProvenance
+
+ACCEPTANCE CRITERIA:
+[ ] All mutating flows pass a sessionId
+[ ] Proposed + Alternative always use same model
+[ ] Regeneration cannot change model mid-session
+[ ] sessionId recorded in DecisionSnapshot
+
+==================================================
+BLOCKER 3 — SEMANTIC INCOMPLETENESS VISIBILITY
+==================================================
+
+PROBLEM:
+Test Flight can pass workflows that are semantically incomplete
+when enforcement is OFF, without making this obvious to the user.
+
+TASKS:
+
+1. Modify Test Flight result model to include:
+   - structuralStatus: PASS | FAIL
+   - semanticStatus: COMPLETE | INCOMPLETE (warning)
+
+2. When semanticStatus === INCOMPLETE:
+   - Test Flight must display a clear warning
+   - User must explicitly acknowledge before proceeding
+
+3. DO NOT:
+   - Block workflow
+   - Auto-repair
+   - Trigger Propose / Experiment automatically
+
+4. Update copy to clearly state:
+   “Workflow is structurally valid but semantically incomplete.”
+
+ACCEPTANCE CRITERIA:
+[ ] Semantic warnings are visible
+[ ] Test Flight PASS does not silently imply completeness
+[ ] No behavior changes to generation logic
+[ ] No blocking introduced
+
+==================================================
+BLOCKER 4 — LOOP / RETRY-WITHOUT-EXIT DETECTION
+==================================================
+
+PROBLEM:
+The system does not detect retry loops with no exit path,
+leading to false confidence in workflow correctness.
+
+TASKS:
+
+1. Implement a read-only detector that identifies:
+   - Cycles involving decision/process nodes
+   - Retry paths without terminal nodes
+   - Loops without exit or escalation edges
+
+2. Detector MUST:
+   - Be deterministic
+   - Not modify workflows
+   - Not add nodes or edges
+
+3. Integrate detector into Test Flight:
+   - Surface as WARNING insight only
+   - Do NOT block
+   - Do NOT auto-repair
+
+4. Suppress Propose / Experiment suggestions
+   for issues that are purely loop-detection warnings
+
+ACCEPTANCE CRITERIA:
+[ ] Retry-without-exit patterns are detected
+[ ] Warning surfaced in Test Flight
+[ ] No workflow mutations occur
+[ ] No new proposals triggered for these issues
+
+==================================================
+FINAL VALIDATION CHECK
+==================================================
+
+Before marking this phase complete, confirm:
+
+[ ] All AI calls route through aiRouter
+[ ] All mutating flows are session-locked
+[ ] Model provenance is complete and accurate
+[ ] Test Flight distinguishes structural vs semantic validity
+[ ] Retry loops are detected (warning-only)
+[ ] No new regressions introduced
+[ ] No scope creep occurred
+
+==================================================
+END OF DOCUMENT
+==================================================

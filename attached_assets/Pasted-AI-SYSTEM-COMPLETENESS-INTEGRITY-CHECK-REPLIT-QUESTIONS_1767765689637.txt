@@ -1,0 +1,248 @@
+AI SYSTEM COMPLETENESS & INTEGRITY CHECK — REPLIT QUESTIONS
+
+SECTION 1 — GLOBAL AI ARCHITECTURE & ROUTING
+	1.	Single Entry Point
+	•	Are all AI calls now routed through the central AI Router?
+	•	Are there any remaining direct calls to aiClient.chat() or provider SDKs?
+	•	Can you provide a grep result proving no bypass paths remain?
+	2.	Task-Type Enforcement
+	•	What taskTypes are currently supported by the router?
+	•	Which features use each taskType?
+	•	Are there any features using a generic/default taskType when they should be specialized?
+	3.	Model Enforcement
+	•	Which taskTypes are currently hard-pinned to system models?
+	•	Which taskTypes allow user override?
+	•	Is GPT-5 enforced for workflow reasoning when the flag is ON?
+	4.	Session Determinism
+	•	Which flows generate a sessionId?
+	•	Which router calls receive it?
+	•	What happens if a sessionId is missing?
+	•	Can model drift occur within a single proposal/experiment lifecycle?
+	5.	Fallback & Retry
+	•	When fallback occurs:
+	•	Is it recorded?
+	•	Is the user aware?
+	•	Is it written to DecisionSnapshot?
+	•	Can fallback happen silently today?
+
+⸻
+
+SECTION 2 — HOME PROMPT (ENTRY EXPERIENCE)
+	6.	Conversation Engine
+	•	Does HomeScreen use useKiteAIConversation?
+	•	If yes:
+	•	Which capabilities are enabled?
+	•	Which are running in passive/log-only mode?
+	•	If no:
+	•	Why not, and what remains divergent?
+	7.	Actionability & PM Depth
+	•	Is actionability scoring computed on Home prompt interactions?
+	•	Is PM depth analysis performed?
+	•	Are results logged, ignored, or surfaced?
+	8.	Clarification Logic
+	•	Does Home prompt support structured clarification turns?
+	•	Are clarification limits enforced?
+	•	What happens when clarification confidence is low?
+	9.	Merge vs Branch Detection
+	•	Does the Home prompt detect merge vs branch intent?
+	•	Is the decision recorded?
+	•	Is it enforced or advisory only?
+
+⸻
+
+SECTION 3 — IN-PROJECT CHAT (KiteAI PANEL)
+	10.	Hook Unification
+	•	Does in-project chat now use useKiteAIConversation?
+	•	Which parameters differ from Home prompt?
+	•	Are heuristics applied identically?
+	11.	Workflow Awareness
+	•	Does the hook receive:
+	•	Active workflow snapshot?
+	•	Insight context?
+	•	Node selection context?
+	•	Are these inputs actually used?
+	12.	Behavioral Consistency
+	•	Can identical prompts produce different behavior between Home and Project chat?
+	•	If yes, why?
+	13.	Chat → Structure Boundary
+	•	When chat modifies workflows:
+	•	Is merge vs branch enforced?
+	•	Is Decision Repair run afterward?
+	•	Is semantic completeness checked?
+
+⸻
+
+SECTION 4 — INSIGHTS ENGINE
+	14.	Insight Generation
+	•	What triggers Insight generation?
+	•	Is it deterministic given the same workflow?
+	•	Are heuristics applied before or after insight creation?
+	15.	Decision Awareness
+	•	Does Insights understand:
+	•	Decision nodes?
+	•	Required branching?
+	•	Label completeness?
+	•	Or is this delegated entirely to Decision Repair?
+	16.	False Positives
+	•	Does Insights flag:
+	•	Parallel workflows as “disconnected”?
+	•	Draft workflows incorrectly?
+	•	How is intent inferred?
+	17.	Suppression Rules
+	•	Are insights suppressed when:
+	•	An issue is auto-repaired?
+	•	A repair is pending?
+	•	Or do they stack regardless?
+
+⸻
+
+SECTION 5 — PROPOSE SOLUTION ENGINE
+	18.	Scope Enforcement
+	•	Are proposals:
+	•	Insight-scoped?
+	•	Node-scoped?
+	•	Workflow-scoped?
+	•	Can a proposal modify unrelated nodes?
+	19.	Preview Accuracy
+	•	Does preview include:
+	•	Origin nodes?
+	•	Proposed nodes only?
+	•	Is full workflow ever rendered?
+	20.	Determinism
+	•	Are Proposed and Alternative generated in one call?
+	•	Can regeneration cause divergence?
+	•	Is model identity locked?
+	21.	Suppression Logic
+	•	Are Propose options suppressed when:
+	•	Decision Repair applies?
+	•	Issues are structurally fixable?
+	•	Or does Propose still fire?
+	22.	Commit Integrity
+	•	Does Accept:
+	•	Create exactly one undo entry?
+	•	Attach provenance?
+	•	Record model identity?
+	•	Are there any known edge cases?
+
+⸻
+
+SECTION 6 — EXPERIMENT ENGINE
+	23.	Entry Points
+	•	Can experiments be triggered:
+	•	Before proposal acceptance?
+	•	After?
+	•	From any insight?
+	•	Is this intentional?
+	24.	Variant Stability
+	•	Are experiment variants cached?
+	•	Can switching cause regeneration?
+	•	Is session locking enforced?
+	25.	Preview Semantics
+	•	Does experiment preview:
+	•	Modify main canvas?
+	•	Use cloned data?
+	•	Is it read-only enforced everywhere?
+	26.	Outcome Capture
+	•	Are experiment results recorded?
+	•	Do they affect heuristics/session signals?
+	•	Are they auditable?
+
+⸻
+
+SECTION 7 — HEURISTICS (PHASE 4–7)
+	27.	Heuristic Types Active
+	•	Which heuristics are currently enabled?
+	•	Which are soft vs hard?
+	•	Which are feature-flagged?
+	28.	Session Signals
+	•	What behaviors are tracked?
+	•	Are they reset per session?
+	•	Are they used in generation today?
+	29.	Semantic Completeness (Phase 6)
+	•	Are semantic claims extracted?
+	•	Are mismatches detected?
+	•	Are they blocking, warning, or ignored?
+	30.	Decision Repair (Phase 6.7)
+	•	Does it run:
+	•	Automatically?
+	•	Before Test Flight?
+	•	Does it ever add more than 1 node?
+	•	Is it idempotent?
+
+⸻
+
+SECTION 8 — TEST FLIGHT
+	31.	Execution Order
+	•	In what order do these run?
+	•	Decision Repair
+	•	Semantic validation
+	•	Insight generation
+	•	Proposal eligibility
+	32.	Trustworthiness
+	•	Can Test Flight pass a workflow that is semantically incomplete?
+	•	If yes, why?
+	33.	Regression Detection
+	•	Does Test Flight detect:
+	•	Infinite loops?
+	•	Retry-without-exit?
+	•	Counter logic omissions?
+
+⸻
+
+SECTION 9 — CHAT STYLING & OUTPUT SANITY
+	34.	Styling Parity
+	•	Is ChatGPT-style layout enforced everywhere?
+	•	Any mode-specific overrides?
+	35.	Raw Output Safety
+	•	Is raw JSON ever rendered?
+	•	Are code blocks filtered?
+	•	Can structured output leak into UI?
+	36.	Streaming & Interruptions
+	•	Is streaming enabled?
+	•	Can user interrupt?
+	•	Does scroll hijack reading?
+
+⸻
+
+SECTION 10 — AUDIT & EXPLAINABILITY (PHASE 5)
+	37.	Provenance Coverage
+	•	Can we answer:
+“Which model created this node?”
+	•	For all nodes?
+	•	Across undo/redo?
+	38.	Decision Visibility
+	•	Can users see:
+	•	Why a proposal was generated?
+	•	Why a repair occurred?
+	•	Why an experiment was suggested?
+	39.	Export Completeness
+	•	Does export include:
+	•	Workflow
+	•	Provenance
+	•	Heuristics applied
+	•	Timeline
+
+⸻
+
+SECTION 11 — LAUNCH READINESS
+	40.	Single-Workflow Guarantee
+	•	Can the system accidentally create parallel workflows?
+	•	If yes, where?
+	41.	Known Gaps
+	•	What parts are:
+	•	Implemented but unused?
+	•	Wired but disabled?
+	•	Missing tests?
+	42.	Confidence Assessment
+	•	What would you NOT ship today?
+	•	What still feels fragile?
+
+⸻
+
+FINAL QUESTION (MANDATORY)
+	43.	V1 Definition
+
+If a user creates a workflow, chats to refine it, runs Test Flight, accepts a proposal, experiments, exports the result —
+Can you guarantee the system behaves deterministically, explains itself, and does not loop or regress?
+
+If not, what exactly breaks?

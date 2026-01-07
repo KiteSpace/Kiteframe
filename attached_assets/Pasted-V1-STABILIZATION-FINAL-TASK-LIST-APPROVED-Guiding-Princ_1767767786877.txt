@@ -1,0 +1,135 @@
+V1 STABILIZATION — FINAL TASK LIST (APPROVED)
+
+Guiding Principle
+
+This phase seals the system, it does not extend it.
+If a task does not directly eliminate nondeterminism, opacity, or false confidence, it is out of scope.
+
+⸻
+
+1. Router Consolidation (BLOCKER #1)
+
+Tasks
+	1.	Audit all AI entry points
+	•	Enumerate every file that:
+	•	Calls aiClient.chat()
+	•	Calls provider SDKs directly
+	•	Wraps AI calls without routing
+	•	Produce a definitive list (commit-visible).
+	2.	Refactor all calls to aiRouter.chat()
+	•	Replace every direct call.
+	•	Require explicit taskType for every call.
+	•	No defaults, no fallbacks.
+	3.	Enforce router-only usage
+	•	Add a dev-mode invariant:
+	•	Any AI call outside the router throws/logs loudly.
+	•	This is a safety rail, not user-facing.
+
+Acceptance
+	•	✅ Zero direct AI calls remain
+	•	✅ All AI requests specify taskType
+	•	✅ No behavior change observed in generation, chat, proposals, or experiments
+
+⸻
+
+2. Session Locking Completion (BLOCKER #2)
+
+Tasks
+	4.	Define session-locked flows
+Required:
+	•	Proposal generation + regeneration
+	•	Experiment generation + regeneration
+	•	Workflow-mutating chat actions
+	5.	Session ID lifecycle
+	•	Generate sessionId at flow start
+	•	Persist through the entire lifecycle
+	•	Pass to every router call in that flow
+	6.	Router enforcement
+	•	When sessionId is present:
+	•	Lock provider + model
+	•	Ignore mid-session settings changes
+	7.	Audit integration
+	•	Ensure sessionId, modelUsed, and providerUsed are written to DecisionSnapshot
+
+Acceptance
+	•	✅ Proposed + Alternative always use same model
+	•	✅ Regeneration cannot switch models
+	•	✅ Model provenance is complete and auditable
+
+⸻
+
+3. Semantic Visibility in Test Flight (BLOCKER #3)
+
+Tasks
+	8.	Extend Test Flight result schema
+Add:
+	•	structuralStatus: PASS | FAIL
+	•	semanticStatus: COMPLETE | INCOMPLETE
+	9.	Warning UI (non-blocking)
+	•	If semanticStatus === INCOMPLETE:
+	•	Show a clear warning
+	•	Explicitly state:
+“Structurally valid, semantically incomplete”
+	10.	No behavior changes
+
+	•	Do NOT:
+	•	Block Test Flight
+	•	Auto-repair
+	•	Trigger Propose/Experiment automatically
+
+Acceptance
+	•	✅ Users can no longer confuse “passes Test Flight” with “complete”
+	•	✅ Semantic gaps are visible but not blocking
+	•	✅ No changes to generation logic
+
+⸻
+
+4. Loop / Retry-without-Exit Detection (BLOCKER #4)
+
+Tasks
+	11.	Implement read-only loop detector
+Detect:
+
+	•	Cycles involving decision/process nodes
+	•	Retry paths without terminal or escalation nodes
+	•	Infinite retry patterns
+
+	12.	Integrate with Test Flight
+
+	•	Surface as WARNING insight only
+	•	Deterministic detection
+	•	No mutations, no auto-repair
+
+	13.	Suppress downstream noise
+
+	•	Do NOT trigger Propose or Experiment for loop warnings
+	•	This avoids suggestion thrash
+
+Acceptance
+	•	✅ Retry-without-exit patterns are detected
+	•	✅ Users are warned, not blocked
+	•	✅ No workflow mutations occur
+
+⸻
+
+5. Final Validation Pass
+
+Tasks
+	14.	Regression sweep
+
+	•	Proposal flow
+	•	Experiment flow
+	•	Chat → workflow mutation
+	•	Test Flight behavior
+	•	Audit export
+
+	15.	Explicit confirmation
+
+	•	Re-run the AI System Integrity Check
+	•	Confirm all four blockers are resolved
+
+Acceptance
+	•	✅ Deterministic behavior across sessions
+	•	✅ Explainability preserved
+	•	✅ No new regressions
+	•	✅ No scope creep
