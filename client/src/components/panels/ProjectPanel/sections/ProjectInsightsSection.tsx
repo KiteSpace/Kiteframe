@@ -24,7 +24,7 @@ import {
   getChipTypeColor,
   createInsight 
 } from '@/ai/insights';
-import { useAi } from '@/ai/AiProvider';
+import { getRouter } from '@/ai/router';
 import { useToast } from '@/hooks/use-toast';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { FlowDetection } from '@/lib/kiteframe/utils/FlowDetection';
@@ -141,7 +141,6 @@ export function ProjectInsightsSection({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<CrossWorkflowAnalysis | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const ai = useAi();
   const { toast } = useToast();
 
   const allInsights = useMemo(() => {
@@ -195,7 +194,9 @@ export function ProjectInsightsSection({
         return `Workflow ${i + 1} (${wf.nodes.length} nodes): ${nodeLabels}`;
       }).join('\n');
 
-      const response = await ai.chat({
+      const router = getRouter();
+      const response = await router.chat({
+        taskType: 'general_chat',
         messages: [
           {
             role: 'system',
@@ -269,7 +270,7 @@ Only include genuine issues. Be concise (under 100 chars per item).`
     } finally {
       setIsAnalyzing(false);
     }
-  }, [workflowSummaries, ai, toast]);
+  }, [workflowSummaries, projectId, toast]);
 
   const totalInsights = allInsights.length;
   const hasAnalysis = analysis && (

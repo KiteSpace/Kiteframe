@@ -33,7 +33,7 @@ import {
   generatePRDFilename 
 } from '@/lib/kiteframe/utils/prdExport';
 import { type WorkflowPRD } from '@/ai/prdEngine';
-import { useAi } from '@/ai/AiProvider';
+import { getRouter } from '@/ai/router';
 import { generateWorkflowPRD, generateSingleSection } from '@/ai/prdEngine';
 import { reviewPRD, type PRDReviewResult, type PRDSuggestion } from '@/ai/prdSteward';
 import { useToast } from '@/hooks/use-toast';
@@ -186,7 +186,6 @@ export function WorkflowPRDSection({
   const [isRegeneratingSectionId, setIsRegeneratingSectionId] = useState<string | null>(null);
   const [applyingSuggestionSectionId, setApplyingSuggestionSectionId] = useState<string | null>(null);
   const prevUpdateKeyRef = useRef(0);
-  const ai = useAi();
   const { toast } = useToast();
   const prdLinks = usePRDNodeLinks(projectId);
   
@@ -286,7 +285,8 @@ export function WorkflowPRDSection({
         edges
       );
 
-      const newPrd = await generateWorkflowPRD(ai, model, prd || undefined);
+      const router = getRouter();
+      const newPrd = await generateWorkflowPRD(router, model, prd || undefined);
       
       const hash = computeWorkflowHash(nodes, edges);
       storeHash(projectId, workflowId, hash);
@@ -318,7 +318,7 @@ export function WorkflowPRDSection({
     } finally {
       setIsGenerating(false);
     }
-  }, [workflowId, projectId, workflowName, nodes, edges, prd, ai, toast]);
+  }, [workflowId, projectId, workflowName, nodes, edges, prd, toast]);
 
   const handleSectionSave = useCallback((sectionKey: string, content: string) => {
     if (!prd || !projectId || !workflowId) return;
@@ -386,7 +386,8 @@ export function WorkflowPRDSection({
         edges
       );
 
-      const result = await reviewPRD(ai, model, prd);
+      const router = getRouter();
+      const result = await reviewPRD(router, model, prd);
       setReviewResult(result);
 
       if (result.suggestions.length === 0) {
@@ -403,7 +404,7 @@ export function WorkflowPRDSection({
     } finally {
       setIsReviewing(false);
     }
-  }, [workflowId, projectId, workflowName, nodes, edges, prd, ai, toast]);
+  }, [workflowId, projectId, workflowName, nodes, edges, prd, toast]);
 
   const handleRestoreVersion = useCallback((version: number) => {
     if (!projectId || !workflowId) return;
@@ -429,7 +430,9 @@ export function WorkflowPRDSection({
     try {
       let newContent = suggestion.suggestedContent || '';
 
-      const response = await ai.chat({
+      const router = getRouter();
+      const response = await router.chat({
+        taskType: 'prd_generation',
         messages: [
           {
             role: 'system',
@@ -483,7 +486,7 @@ export function WorkflowPRDSection({
     } finally {
       setApplyingSuggestionSectionId(null);
     }
-  }, [prd, projectId, workflowId, ai, toast]);
+  }, [prd, projectId, workflowId, toast]);
 
   const handleDismissSuggestion = useCallback((suggestion: PRDSuggestion) => {
     setReviewResult(prev => prev ? {
@@ -581,7 +584,8 @@ export function WorkflowPRDSection({
     
     try {
       const model = extractSemanticWorkflowModel(workflowId, workflowName, nodes, edges);
-      const newSection = await generateSingleSection(ai, model, sectionId, prd);
+      const router = getRouter();
+      const newSection = await generateSingleSection(router, model, sectionId, prd);
       
       if (newSection) {
         const updatedSections = prd.sections.map(s => 
@@ -615,7 +619,7 @@ export function WorkflowPRDSection({
     } finally {
       setIsRegeneratingSectionId(null);
     }
-  }, [prd, projectId, workflowId, workflowName, nodes, edges, ai, toast]);
+  }, [prd, projectId, workflowId, workflowName, nodes, edges, toast]);
 
   return (
     <div data-testid="workflow-prd-section">

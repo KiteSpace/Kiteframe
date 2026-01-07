@@ -6,11 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Target, User, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, Edit2, Check, X, Sparkles, Loader2, Shield, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { useWorkflowIntent, type WorkflowIntent, type WorkflowMaturity, canTransitionMaturity, getMaturityGatingRules } from '@/stores/workflowIntentStore';
-import { useAi } from '@/ai/AiProvider';
+import { getRouter } from '@/ai/router';
 import { useToast } from '@/hooks/use-toast';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { extractSemanticWorkflowModel } from '@/lib/kiteframe/utils/extractSemanticWorkflowModel';
-import type { AiRequest } from '@/ai/types';
 import { analyzeWorkflowForFailures } from '@/ai/failureFirstHeuristics';
 
 interface WorkflowIntentSectionProps {
@@ -51,7 +50,6 @@ export function WorkflowIntentSection({
   const [isEditing, setIsEditing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [editForm, setEditForm] = useState<WorkflowIntent | null>(null);
-  const ai = useAi();
   const { toast } = useToast();
 
   const failureAnalysis = useMemo(() => {
@@ -69,11 +67,6 @@ export function WorkflowIntentSection({
   }, [intent]);
 
   const handleGenerateIntent = useCallback(async () => {
-    if (!ai) {
-      toast({ title: 'AI not available', description: 'Please configure an AI provider.', variant: 'destructive' });
-      return;
-    }
-
     setIsGenerating(true);
     try {
       const semanticModel = extractSemanticWorkflowModel(workflowId, workflowName, nodes, edges);
@@ -93,12 +86,12 @@ Extract the following in JSON format:
 
 Be specific and actionable. Return ONLY valid JSON.`;
 
-      const request: AiRequest = {
+      const router = getRouter();
+      const response = await router.chat({
+        taskType: 'workflow_reasoning',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
-      };
-
-      const response = await ai.chat(request);
+      });
 
       const content = response.text || '';
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -124,7 +117,7 @@ Be specific and actionable. Return ONLY valid JSON.`;
     } finally {
       setIsGenerating(false);
     }
-  }, [ai, nodes, edges, workflowName, setIntent, toast]);
+  }, [nodes, edges, workflowId, workflowName, setIntent, toast]);
 
   const handleConfirm = useCallback(() => {
     if (editForm) {

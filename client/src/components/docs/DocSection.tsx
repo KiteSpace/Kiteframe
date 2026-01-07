@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Edit3, RotateCcw, Sparkles, Loader2, Check, X, Link2, Unlink, RefreshCw, AlertCircle, Shield, Lightbulb, Clock, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAi } from '@/ai/AiProvider';
+import { getRouter } from '@/ai/router';
 import { useToast } from '@/hooks/use-toast';
 import type { PRDNodeLink, PRDLinkTargetType } from '@/stores/prdNodeLinkStore';
 import { type AIInsight, getChipTypeColor, type InsightChipType } from '@/ai/insights';
@@ -347,7 +347,6 @@ export function DocSection({
   const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const ai = useAi();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -401,7 +400,9 @@ export function DocSection({
     setSuggestion(null);
 
     try {
-      const response = await ai.chat({
+      const router = getRouter();
+      const response = await router.chat({
+        taskType: 'prd_generation',
         messages: [
           {
             role: 'system',
@@ -426,7 +427,7 @@ export function DocSection({
     } finally {
       setIsGeneratingSuggestion(false);
     }
-  }, [content, title, ai, toast, isGeneratingSuggestion]);
+  }, [content, title, toast, isGeneratingSuggestion]);
 
   const handleAcceptSuggestion = useCallback(() => {
     if (suggestion) {

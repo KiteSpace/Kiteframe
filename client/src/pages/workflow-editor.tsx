@@ -46,7 +46,8 @@ import { TablePanel } from "@/lib/kiteframe/components/TablePanel";
 import { NodeGalleryPanel } from "@/lib/kiteframe/components/NodeGalleryPanel";
 import { SavedProjectsDrawer } from "@/components/SavedProjectsDrawer";
 import { HomeScreen } from "@/components/HomeScreen";
-import { AiProvider, useAi } from "../ai/AiProvider";
+import { AiProvider } from "../ai/AiProvider";
+import { getRouter } from "../ai/router";
 import { OpenAICompatClient } from "../ai/OpenAICompatClient";
 import { logPreviewTopology, logRenderedGraph, logCommitAccept, logCommitFinalGraph, warnContentContractViolation } from "../ai/workflow/experimentDebugLogger";
 import { useToast } from "@/hooks/use-toast";
@@ -396,7 +397,6 @@ function WorkflowEditorContent({
   onReset,
 }: WorkflowEditorContentProps) {
   const isReadOnly = mode === "view";
-  const ai = useAi();
   const { toast } = useToast();
   const promptContextStore = usePromptContextStoreOptional();
   
@@ -2765,7 +2765,9 @@ Icon mapping:
 
 Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
-      const response = await ai.chat({
+      const router = getRouter();
+      const response = await router.chat({
+        taskType: 'workflow_reasoning',
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: prompt },
