@@ -1,0 +1,173 @@
+PHASE 6.7 – DECISION REPAIR HEURISTIC
+LOCKDOWN TASKS & ACCEPTANCE CRITERIA
+
+Status:
+LOCKED FOR V1
+No additional features, UI changes, or behavior expansion permitted.
+
+Purpose:
+Automatically repair incomplete decision nodes (missing Yes/No branches,
+unlabeled edges, dangling outcomes) BEFORE the system offers Propose or
+Experiment suggestions.
+
+This phase fixes logic errors instead of adding new structure.
+
+==================================================
+A. HARD GUARANTEES (NON-NEGOTIABLE)
+==================================================
+
+Decision Repair MUST:
+
+- Modify existing workflows only (MERGE mode)
+- Never create parallel workflows
+- Never delete user-created nodes
+- Never invent business semantics
+- Never trigger Propose or Experiment for fixable issues
+- Be idempotent (safe to run multiple times)
+
+==================================================
+B. LOCKED DEFINITIONS
+==================================================
+
+Decision Node:
+node.type === "decision"
+
+Decision Completeness (ALL required):
+1. At least 2 outgoing edges
+2. Every outgoing edge has a semantic label
+3. Every edge points to a valid node
+4. Covers a positive and negative outcome
+   (Yes/No, Pass/Fail, Retry/Exit, Valid/Invalid)
+
+An incomplete decision is INVALID and must be repaired.
+
+==================================================
+C. LOCKED TASKS
+==================================================
+
+TASK 1 — Decision Detection
+---------------------------
+Create a pure, read-only detector that identifies:
+
+- Decision nodes with <2 outgoing edges
+- Decision edges missing labels
+- Decision edges without valid targets
+
+Output:
+Array of DecisionIssue objects with:
+- decisionNodeId
+- issueType
+- missingOutcomes
+- confidence
+
+TASK 2 — Edge Label Enforcement
+-------------------------------
+For every decision node:
+
+- All outgoing edges MUST have labels
+- If labels are missing:
+  - 2 edges → assign "Yes" / "No"
+  - >2 edges → assign "Option A", "Option B", etc.
+- This rule is mandatory and automatic
+
+TASK 3 — Decision Repair Logic
+------------------------------
+If a decision is incomplete:
+
+- Add missing complementary outcomes
+- Route dangling edges to:
+  1. Existing retry nodes
+  2. Existing support/help nodes
+  3. Existing end/exit nodes
+  4. ONE new minimal node (only if none exist)
+
+Allowed new node types (MAX 1):
+- "Exit Flow"
+- "Contact Support"
+
+DO NOT:
+- Add unrelated branches
+- Add exploratory nodes
+- Expand scope beyond the decision
+
+TASK 4 — Idempotency Guarantee
+------------------------------
+Decision Repair MUST be idempotent.
+
+- Running repair twice must produce zero changes on second run
+- No duplicate edges
+- No duplicate labels
+- No repeated fallback nodes
+
+TASK 5 — Workflow Lifecycle Integration
+---------------------------------------
+Decision Repair MUST run:
+
+1. After generation
+2. Before Test Flight
+3. Before Propose / Experiment
+
+If repair is applied:
+- Propose / Experiment must be suppressed for that issue
+
+TASK 6 — Audit & Explainability
+-------------------------------
+Extend DecisionSnapshot with:
+
+decisionRepairApplied?: {
+  decisionNodeId: string;
+  issuesResolved: string[];
+  edgesAdded: number;
+  labelsAssigned: string[];
+}
+
+Expose this in:
+- WhyInspector (read-only)
+- Audit export
+
+TASK 7 — Feature Flag
+--------------------
+Add feature flag:
+ENABLE_DECISION_REPAIR
+
+Behavior:
+ON  → Repair logic active
+OFF → Current behavior restored
+
+Default for V1:
+ON
+
+==================================================
+D. EXPLICIT NON-GOALS
+==================================================
+
+This phase MUST NOT:
+
+- Add new UI
+- Add new prompts
+- Ask the user questions
+- Guess business logic
+- Replace Propose or Experiment
+- Change Test Flight logic
+- Modify chat behavior
+
+==================================================
+E. ACCEPTANCE CRITERIA (ALL REQUIRED)
+==================================================
+
+Implementation is ACCEPTED only if ALL are true:
+
+[ ] No decision node exists with fewer than 2 outcomes
+[ ] All decision edges have semantic labels
+[ ] No dangling decision edges exist
+[ ] Repair modifies existing workflows only
+[ ] No parallel workflows are created
+[ ] Repair is idempotent
+[ ] Propose / Experiment no longer loops on decision issues
+[ ] Repair actions are visible in WhyInspector
+[ ] Feature flag disables behavior cleanly
+[ ] Test Flight produces fewer repeated decision insights
+
+==================================================
+END OF DOCUMENT
+==================================================

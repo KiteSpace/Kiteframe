@@ -1,0 +1,183 @@
+PHASE 6.7 – DECISION REPAIR HEURISTIC
+(V1 SAFE, STRUCTURAL CORRECTNESS)
+
+Purpose:
+Prevent incomplete or ambiguous decision nodes by introducing a
+Decision Repair heuristic that FIXES existing decision logic instead of
+adding new, unrelated nodes.
+
+This phase addresses:
+- Missing Yes/No (or equivalent) labels on decision edges
+- Decision nodes with missing outcomes
+- Infinite propose/experiment loops that never resolve the root issue
+
+This is a REPAIR mechanism, not an exploration mechanism.
+
+==================================================
+A. DEFINITIONS (LOCKED)
+==================================================
+
+Decision Node:
+A node of type "decision" that represents a question or conditional.
+
+Decision Completeness:
+A decision node is complete only if:
+1) It has at least 2 outgoing edges
+2) Every outgoing edge has a semantic label
+3) Every outgoing edge leads to a valid node
+4) Outcomes cover both a positive and negative case
+   (e.g. Yes/No, Pass/Fail, Valid/Invalid, Retry/Exit)
+
+==================================================
+B. WHERE THIS LOGIC LIVES
+==================================================
+
+Create a new repair module:
+
+client/src/ai/repair/decisionRepair.ts
+
+This module runs:
+- BEFORE Test Flight pass
+- BEFORE Propose / Experiment is offered
+- AFTER workflow generation or modification
+
+==================================================
+C. DETECTION STEP (READ-ONLY)
+==================================================
+
+Implement a pure detector:
+
+detectIncompleteDecisions(workflow) → Array<DecisionIssue>
+
+Each DecisionIssue must include:
+- decisionNodeId
+- issueType:
+  - MISSING_OUTCOME
+  - UNLABELED_EDGES
+  - DANGLING_EDGE
+- existingOutcomes: string[]
+- missingOutcomes: string[]
+- confidence: number
+
+==================================================
+D. EDGE LABEL ENFORCEMENT (HARD RULE)
+==================================================
+
+If node.type === "decision":
+
+- Every outgoing edge MUST have edge.label
+- If label is missing:
+  - Auto-assign defaults based on count:
+    2 edges → "Yes" / "No"
+    >2 edges → "Option A", "Option B", etc.
+- Never allow an unlabeled decision edge to persist
+
+This is non-negotiable.
+
+==================================================
+E. REPAIR STRATEGY (CORE LOGIC)
+==================================================
+
+If a decision is incomplete, DO NOT:
+- Add unrelated nodes
+- Create a new workflow
+- Trigger Propose or Experiment
+
+Instead, perform a REPAIR PATCH:
+
+Repair rules:
+1) If only one outcome exists:
+   - Add the missing complementary outcome
+2) If an edge exists but has no target:
+   - Route it to:
+     a) Retry loop (if failure context)
+     b) Exit / End node
+     c) Support / Help node
+3) If outcomes are ambiguous:
+   - Normalize to Yes / No or equivalent
+
+==================================================
+F. SAFE DEFAULT TARGETS
+==================================================
+
+When repairing missing outcomes, prefer:
+
+1) Existing retry nodes
+2) Existing support/help nodes
+3) Existing terminal/end nodes
+4) If none exist, create ONE minimal node:
+   - "Exit Flow"
+   - or "Contact Support"
+
+Never create more than one new node during repair.
+
+==================================================
+G. EXECUTION POLICY
+==================================================
+
+Decision Repair runs in MERGE mode ONLY.
+
+- It modifies the existing workflow
+- It reuses node IDs where possible
+- It never creates parallel workflows
+- It never deletes user-created nodes
+
+==================================================
+H. RELATIONSHIP TO PROPOSE / EXPERIMENT
+==================================================
+
+Priority order:
+1) Decision Repair
+2) Test Flight validation
+3) Propose Solution
+4) Experiment
+
+If Decision Repair runs:
+- Propose / Experiment must be suppressed for that issue
+- The system must NOT add exploratory nodes until repair is complete
+
+==================================================
+I. AUDIT & EXPLAINABILITY (PHASE 5 COMPATIBLE)
+==================================================
+
+Extend DecisionSnapshot with:
+
+decisionRepairApplied?: {
+  decisionNodeId: string;
+  issuesResolved: string[];
+  edgesAdded: number;
+  labelsAssigned: string[];
+}
+
+Expose this in:
+- WhyInspector (read-only)
+- Audit export
+
+==================================================
+J. FEATURE FLAG
+==================================================
+
+Add flag:
+ENABLE_DECISION_REPAIR
+
+Default for V1:
+ON
+
+If OFF:
+- System falls back to current behavior (no repair)
+
+==================================================
+K. ACCEPTANCE CHECKLIST
+==================================================
+
+[ ] No decision node exists with <2 outcomes
+[ ] All decision edges are labeled
+[ ] Missing branches are repaired, not expanded
+[ ] Propose / Experiment no longer loop on the same decision issue
+[ ] No new workflows are created during repair
+[ ] Repair actions are visible in WhyInspector
+[ ] Feature flag can disable behavior instantly
+
+==================================================
+END OF DOCUMENT
+==================================================
