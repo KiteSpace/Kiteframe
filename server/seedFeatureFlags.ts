@@ -8,14 +8,14 @@ const INITIAL_FLAGS = [
   { key: 'ai.followUpPrompts', name: 'Follow-up Prompts', description: 'Suggested follow-up questions', category: 'ai', status: 'ga', defaultEnabled: true },
   { key: 'ai.insightsSurfacing', name: 'Insights Surfacing', description: 'Test Flight diagnostics in Insights tab', category: 'ai', status: 'ga', defaultEnabled: true },
   { key: 'ai.prdGeneration', name: 'PRD Generation', description: 'AI-powered PRD from workflow', category: 'ai', status: 'ga', defaultEnabled: true },
-  { key: 'ai.gpt5Routing', name: 'GPT-5 Routing', description: 'Enable GPT-5.1 for workflow reasoning', category: 'ai', status: 'beta', defaultEnabled: false },
+  { key: 'ai.gpt5Routing', name: 'GPT-5 Routing', description: 'Enable GPT-5.1 for workflow reasoning', category: 'ai', status: 'ga', defaultEnabled: true },
   { key: 'ai.ollamaProvider', name: 'Ollama Provider', description: 'Enable Ollama/KitelineAI provider', category: 'ai', status: 'beta', defaultEnabled: false },
   { key: 'ai.semanticEnforcement', name: 'Semantic Enforcement', description: 'Detect claim/structure mismatches', category: 'ai', status: 'beta', defaultEnabled: false },
   
   // Phase 7: Unified Conversation Engine
   { key: 'ai.unifiedConversationEngine', name: 'Unified Conversation Engine', description: 'Use useKiteAIConversation across all chat surfaces', category: 'ai', status: 'ga', defaultEnabled: true },
-  { key: 'ai.pmDepthGuardsChat', name: 'PM Depth Guards (Chat)', description: 'PM depth guards in chat - warn/log only when OFF', category: 'ai', status: 'beta', defaultEnabled: false },
-  { key: 'ai.clarificationLoopsChat', name: 'Clarification Loops (Chat)', description: 'Auto-trigger clarification loops in chat', category: 'ai', status: 'beta', defaultEnabled: false },
+  { key: 'ai.pmDepthGuardsChat', name: 'PM Depth Guards (Chat)', description: 'PM depth guards in chat - warn/log only when OFF', category: 'ai', status: 'ga', defaultEnabled: true },
+  { key: 'ai.clarificationLoopsChat', name: 'Clarification Loops (Chat)', description: 'Auto-trigger clarification loops in chat', category: 'ai', status: 'ga', defaultEnabled: true },
   
   // Phase 6.5: Merge vs Branch Intent Detection
   { key: 'ai.mergeBranchHeuristic', name: 'Merge/Branch Heuristic', description: 'Detect whether to modify existing workflow or create new', category: 'ai', status: 'ga', defaultEnabled: true },
@@ -25,7 +25,7 @@ const INITIAL_FLAGS = [
 
   // Canvas & Editing
   { key: 'canvas.autoLayout', name: 'Auto Layout', description: '5 layout algorithms (horizontal, grid, etc.)', category: 'canvas', status: 'ga', defaultEnabled: true },
-  { key: 'canvas.minimap', name: 'Minimap', description: 'Navigation minimap overlay', category: 'canvas', status: 'ga', defaultEnabled: true },
+  { key: 'canvas.minimap', name: 'Minimap', description: 'Navigation minimap overlay', category: 'canvas', status: 'ga', defaultEnabled: false },
   { key: 'canvas.multiSelect', name: 'Multi-Select', description: 'Select/edit multiple nodes', category: 'canvas', status: 'ga', defaultEnabled: true },
   { key: 'canvas.experimentNodes', name: 'Experiment Nodes', description: 'Speculative branch authoring', category: 'canvas', status: 'beta', defaultEnabled: false },
   { key: 'canvas.smartGuides', name: 'Smart Guides', description: 'Snap & alignment guides', category: 'canvas', status: 'ga', defaultEnabled: true },
@@ -41,11 +41,11 @@ const INITIAL_FLAGS = [
   { key: 'chat.smartScroll', name: 'Smart Scroll', description: 'Auto-scroll + "New messages" indicator', category: 'chat', status: 'ga', defaultEnabled: true },
 
   // Enterprise Governance
-  { key: 'enterprise.auditExport', name: 'Audit Export', description: 'JSON export with provenance + timeline', category: 'enterprise', status: 'beta', defaultEnabled: false },
-  { key: 'enterprise.whyInspector', name: 'Why Inspector', description: 'Read-only "why this node exists" popover', category: 'enterprise', status: 'beta', defaultEnabled: false },
+  { key: 'enterprise.auditExport', name: 'Audit Export', description: 'JSON export with provenance + timeline', category: 'enterprise', status: 'ga', defaultEnabled: true },
+  { key: 'enterprise.whyInspector', name: 'Why Inspector', description: 'Read-only "why this node exists" popover', category: 'enterprise', status: 'ga', defaultEnabled: true },
   { key: 'enterprise.pmDepthGuards', name: 'PM Depth Guards', description: 'Block shallow workflows in PM mode', category: 'enterprise', status: 'beta', defaultEnabled: false },
   { key: 'enterprise.readOnlyMode', name: 'Read-Only Mode', description: 'View-only access for auditors', category: 'enterprise', status: 'beta', defaultEnabled: false },
-  { key: 'enterprise.diagnosticsLogging', name: 'Diagnostics Logging', description: 'Detailed runtime logging', category: 'enterprise', status: 'beta', defaultEnabled: false },
+  { key: 'enterprise.diagnosticsLogging', name: 'Diagnostics Logging', description: 'Detailed runtime logging', category: 'enterprise', status: 'ga', defaultEnabled: true },
 
   // External Integrations
   { key: 'integrations.figmaImport', name: 'Figma Import', description: 'Import Figma designs as image nodes', category: 'integrations', status: 'ga', defaultEnabled: true },

@@ -46,6 +46,8 @@ integrations = ["javascript_object_storage:1.0.0", "javascript_websocket:1.0.0",
 
 [userenv.shared]
 ADMIN_USERNAME = "master-rooney"
+VITE_ENABLE_LOOP_DETECTION_WARNINGS = "true"
+VITE_ENABLE_GPT5_WORKFLOW_REASONING = "true"
 
 [userenv.development]
 VITE_PROPOSE_SOLUTION_PREVIEW = "true"
