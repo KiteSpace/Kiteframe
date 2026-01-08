@@ -107,46 +107,49 @@ function verifyNewNodesReachable(
   const existingNodeIds = new Set(existingGraph.nodes.map(n => n.id));
   const newNodeIds = new Set(newNodes.map(n => n.id));
   
-  const adjacencyList = new Map<string, Set<string>>();
+  // Build DIRECTED adjacency list (source -> target)
+  // A new node is reachable if there's a directed path FROM an existing node TO it
+  const outgoingEdges = new Map<string, Set<string>>();
   for (const edge of allEdges) {
-    if (!adjacencyList.has(edge.source)) {
-      adjacencyList.set(edge.source, new Set());
+    if (!outgoingEdges.has(edge.source)) {
+      outgoingEdges.set(edge.source, new Set());
     }
-    adjacencyList.get(edge.source)!.add(edge.target);
-    
-    if (!adjacencyList.has(edge.target)) {
-      adjacencyList.set(edge.target, new Set());
-    }
-    adjacencyList.get(edge.target)!.add(edge.source);
+    outgoingEdges.get(edge.source)!.add(edge.target);
   }
   
+  // BFS from existing nodes following directed edges
   const reachableFromExisting = new Set<string>();
-  const queue: string[] = [...existingNodeIds];
+  const existingNodeIdArray = Array.from(existingNodeIds);
   
-  if (attachmentNodeId && existingNodeIds.has(attachmentNodeId)) {
-    queue.length = 0;
-    queue.push(attachmentNodeId);
-    reachableFromExisting.add(attachmentNodeId);
-  }
-  
-  for (const id of existingNodeIds) {
+  // Initialize with all existing nodes as reachable
+  for (const id of existingNodeIdArray) {
     reachableFromExisting.add(id);
   }
   
+  // Start BFS from attachment node if specified, otherwise from all existing
+  const queue: string[] = attachmentNodeId && existingNodeIds.has(attachmentNodeId)
+    ? [attachmentNodeId]
+    : [...existingNodeIdArray];
+  
   while (queue.length > 0) {
     const current = queue.shift()!;
-    const neighbors = adjacencyList.get(current) || new Set();
+    const targets = outgoingEdges.get(current);
     
-    for (const neighbor of neighbors) {
-      if (!reachableFromExisting.has(neighbor)) {
-        reachableFromExisting.add(neighbor);
-        queue.push(neighbor);
+    if (targets) {
+      const targetArray = Array.from(targets);
+      for (const target of targetArray) {
+        if (!reachableFromExisting.has(target)) {
+          reachableFromExisting.add(target);
+          queue.push(target);
+        }
       }
     }
   }
   
+  // Check which new nodes are NOT reachable via directed path
   const unreachableNodeIds: string[] = [];
-  for (const newNodeId of newNodeIds) {
+  const newNodeIdArray = Array.from(newNodeIds);
+  for (const newNodeId of newNodeIdArray) {
     if (!reachableFromExisting.has(newNodeId)) {
       unreachableNodeIds.push(newNodeId);
     }

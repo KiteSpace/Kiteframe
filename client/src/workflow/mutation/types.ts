@@ -39,7 +39,8 @@ export type MutationErrorCode =
   | 'NO_ATTACHMENT_TARGET'
   | 'MERGE_MODE_VIOLATION'
   | 'PARALLEL_WORKFLOW_BLOCKED'
-  | 'MISSING_INCOMING_EDGE';
+  | 'MISSING_INCOMING_EDGE'
+  | 'UNREACHABLE_NODES';
 
 export interface ChatMutationIntent {
   newNodes: Node[];

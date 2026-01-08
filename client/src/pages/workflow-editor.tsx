@@ -163,6 +163,7 @@ import { useFeatureFlag } from "@/contexts/FeatureFlagContext";
 import { generateWorkflowPRD } from "@/ai/prdEngine";
 import { generateExperimentBranch } from "@/ai/workflow/generateExperimentBranch";
 import { runDecisionRepair } from "@/ai/repair/decisionRepair";
+import { applyMergeSafeChatMutation } from "@/hooks/useChatMutation";
 import {
   recordProposalAccepted,
   recordProposalCanceled,
@@ -11353,31 +11354,56 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 projectName={activeTab?.name}
                 onProjectNameChange={(name) => updateActiveTab({ name })}
                 onApplyWorkflow={(workflow) => {
+                  // V1 STABILIZATION: Merge-Safe Workflow Mutation
+                  // All chat-driven mutations MUST pass through merge-safe validation
+                  // This prevents orphan nodes, floating islands, and invalid graph states
+                  
+                  const mutationResult = applyMergeSafeChatMutation({
+                    existingNodes: nodes,
+                    existingEdges: edges,
+                    newNodes: workflow.nodes,
+                    newEdges: workflow.edges,
+                    userMessage: '', // Context passed from chat
+                    attachmentTargetId: undefined,
+                  });
+                  
+                  if (!mutationResult.success) {
+                    console.error('[MergeSafe] Mutation blocked:', {
+                      reason: mutationResult.reason,
+                      validationErrors: mutationResult.safetyReport.validationErrors,
+                    });
+                    
+                    // Record failure - canvas remains unchanged (TASK 6: Failure Behavior)
+                    toast({
+                      title: "Workflow Update Blocked",
+                      description: mutationResult.reason || "The workflow changes could not be applied safely.",
+                      variant: "destructive"
+                    });
+                    
+                    return; // Canvas unchanged on mutation failure
+                  }
+                  
                   // Phase 6.5: Log merge/branch decision for audit
-                  if (workflow.mergeBranchDecision) {
+                  if (mutationResult.mergeBranchDecision) {
                     console.log('[Phase 6.5] Merge/Branch decision applied:', {
-                      intent: workflow.mergeBranchDecision.intent,
-                      resolvedIntent: workflow.mergeBranchDecision.resolvedIntent,
-                      confidence: workflow.mergeBranchDecision.confidence,
-                      signals: workflow.mergeBranchDecision.detectedSignals
+                      intent: mutationResult.mergeBranchDecision.intent,
+                      resolvedIntent: mutationResult.mergeBranchDecision.resolvedIntent,
+                      confidence: mutationResult.mergeBranchDecision.confidence,
+                      signals: mutationResult.mergeBranchDecision.detectedSignals
                     });
                   }
                   
-                  // Phase 6.7: Run Decision Repair before applying workflow
-                  // This repairs incomplete decisions (missing branches, unlabeled edges)
-                  // Only runs when flag is loaded AND enabled
-                  const repairResult = runDecisionRepair(workflow.nodes, workflow.edges, { enabled: shouldRunDecisionRepair });
-                  
-                  if (repairResult.hasChanges) {
-                    console.log('[Phase 6.7] Decision Repair applied:', {
-                      repairsApplied: repairResult.repairsApplied.length,
-                      details: repairResult.repairsApplied
+                  // Log repair info if decision repair was applied
+                  if (mutationResult.safetyReport.decisionRepairApplied) {
+                    console.log('[MergeSafe] Decision Repair applied:', {
+                      repairedNodeIds: mutationResult.repairInfo.repairedNodeIds,
+                      repairedIssueTypes: mutationResult.repairInfo.repairedIssueTypes,
                     });
                   }
                   
-                  // Use repaired nodes/edges for the rest of the flow
-                  const workflowNodes = repairResult.hasChanges ? repairResult.nodes : workflow.nodes;
-                  const workflowEdges = repairResult.hasChanges ? repairResult.edges : workflow.edges;
+                  // Use validated and repaired nodes/edges from mutation result
+                  const workflowNodes = mutationResult.mutatedNodes;
+                  const workflowEdges = mutationResult.mutatedEdges as unknown as Edge[];
                   
                   const offset = calculateWorkflowOffset(workflowNodes);
                   const batchId = Date.now();
@@ -11402,13 +11428,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           meta: {
                             ...(node.data as any)?.meta,
                             createdAt: Date.now(),
-                            // Phase 6.5: Stamp nodes with merge/branch decision
-                            ...(workflow.mergeBranchDecision && {
-                              mergeBranchDecision: workflow.mergeBranchDecision,
+                            // V1: Stamp nodes with merge/branch decision from merge-safe mutation
+                            ...(mutationResult.mergeBranchDecision && {
+                              mergeBranchDecision: mutationResult.mergeBranchDecision,
                             }),
-                            // Phase 6.7: Stamp nodes with decision repair metadata
-                            ...(repairResult.hasChanges && {
-                              decisionRepairsApplied: repairResult.repairsApplied,
+                            // V1: Stamp nodes with mutation safety metadata
+                            ...(mutationResult.safetyReport.decisionRepairApplied && {
+                              mutationSafety: mutationResult.mutationSafety,
                             }),
                           },
                         },
