@@ -60,3 +60,54 @@ export interface AttachmentResolution {
   targetNodeId?: string;
   reason?: string;
 }
+
+export type MutationIntent = 'PATCH' | 'REPLACE' | 'BRANCH' | 'ADVISE_ONLY';
+
+export interface FullGraphDetectionResult {
+  isFullGraph: boolean;
+  confidence: number;
+  matchedHeuristics: string[];
+  suggestedIntent: MutationIntent;
+}
+
+export interface MutationPolicy {
+  allowedIntents: MutationIntent[];
+  requiresConfirmation: boolean;
+  blockFullGraphMerge: boolean;
+}
+
+/**
+ * Resolves AiMode + MergeBranchDecision into a unified MutationIntent.
+ * This ensures full-graph policy checks work correctly across all AI modes.
+ */
+import type { AiMode } from '@/ai/types';
+import type { MergeBranchDecision } from '@/ai/intent/mergeBranchDetector';
+
+export function resolveMutationIntent(
+  aiMode: AiMode,
+  mergeBranchDecision: MergeBranchDecision,
+  isFullGraph: boolean
+): MutationIntent {
+  // ADVISE mode always blocks mutations
+  if (aiMode === 'ADVISE') {
+    return 'ADVISE_ONLY';
+  }
+  
+  // GENERATE mode on empty canvas is PATCH (initial creation)
+  if (aiMode === 'GENERATE') {
+    return isFullGraph ? 'REPLACE' : 'PATCH';
+  }
+  
+  // EDIT mode: use merge/branch decision + full graph detection
+  if (mergeBranchDecision.resolvedIntent === 'branch') {
+    return 'BRANCH';
+  }
+  
+  // Merge intent + full graph = REPLACE (requires confirmation)
+  if (isFullGraph) {
+    return 'REPLACE';
+  }
+  
+  // Small patch to existing workflow
+  return 'PATCH';
+}

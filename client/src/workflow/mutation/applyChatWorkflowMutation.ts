@@ -338,11 +338,16 @@ export function applyChatWorkflowMutation(
   
   safetyReport.validationErrors = validationErrors;
   
+  // Phase 0.2: High-signal logging for mutation debugging
   console.log('[MutationContract] Mutation applied successfully', {
+    mutationPlan: resolvedIntent === 'merge' ? 'MERGE' : resolvedIntent === 'branch' ? 'BRANCH' : 'PATCH',
     nodesAdded: intent.newNodes.length,
     edgesAdded: intent.newEdges.length,
+    totalNodesAfter: mutatedNodes.length,
+    totalEdgesAfter: mutatedEdges.length,
     mergeEnforced: safetyReport.mergeEnforced,
     attachmentTarget: safetyReport.resolvedAttachmentNodeId,
+    wasFollowUp: intent.isFollowUp,
   });
   
   return {

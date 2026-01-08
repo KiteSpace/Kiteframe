@@ -15,11 +15,14 @@ import {
   orchestrateChatWorkflowMutation,
   type OrchestrateMutationResult,
 } from '@/workflow/mutation/applyChatWorkflowMutation';
-import type { ChatMutationIntent, ExistingGraph } from '@/workflow/mutation/types';
+import type { ChatMutationIntent, ExistingGraph, FullGraphDetectionResult, MutationIntent } from '@/workflow/mutation/types';
+import { resolveMutationIntent } from '@/workflow/mutation/types';
 import {
   detectMergeBranchIntent,
   type MergeBranchDecision,
 } from '@/ai/intent/mergeBranchDetector';
+import { detectFullGraphPayload, shouldBlockMerge, requiresReplaceConfirmation } from '@/workflow/mutation/fullGraphDetector';
+import type { AiMode } from '@/ai/types';
 import type { RepairInfo } from '@/lib/kiteframe/utils/diagnostics/types';
 import type { MutationSafety } from '@/ai/explainability/types';
 
@@ -31,6 +34,7 @@ export interface ChatMutationInput {
   userMessage: string;
   previousMessages?: string[];
   attachmentTargetId?: string;
+  aiMode?: AiMode;
 }
 
 export interface ChatMutationResult {
@@ -42,6 +46,8 @@ export interface ChatMutationResult {
   repairInfo: RepairInfo;
   mergeBranchDecision: MergeBranchDecision;
   mutationSafety: MutationSafety;
+  fullGraphDetection?: FullGraphDetectionResult;
+  requiresConfirmation?: boolean;
 }
 
 /**
@@ -62,6 +68,7 @@ export function applyChatMutation(input: ChatMutationInput): ChatMutationResult 
     userMessage,
     previousMessages = [],
     attachmentTargetId,
+    aiMode = 'EDIT',
   } = input;
 
   const hasExistingWorkflow = existingNodes.length > 0;
@@ -73,12 +80,102 @@ export function applyChatMutation(input: ChatMutationInput): ChatMutationResult 
     previousUserMessages: previousMessages,
   });
 
-  console.log('[ChatMutation] Merge/Branch intent detected:', {
-    intent: mergeBranchDecision.intent,
-    resolvedIntent: mergeBranchDecision.resolvedIntent,
+  // Phase 2.2: Full Graph Payload detection
+  const fullGraphDetection = detectFullGraphPayload(
+    existingNodes,
+    existingEdges,
+    newNodes,
+    newEdges
+  );
+  
+  // Phase 2.1: Resolve unified MutationIntent from AiMode + merge/branch + full graph
+  const resolvedIntent = resolveMutationIntent(
+    aiMode,
+    mergeBranchDecision,
+    fullGraphDetection.isFullGraph
+  );
+  
+  // Phase 2.3: Block mutations in ADVISE mode
+  if (resolvedIntent === 'ADVISE_ONLY') {
+    console.log('[ChatMutation] ADVISE mode - blocking mutation pipeline');
+    return {
+      success: false,
+      reason: 'Suggest mode is active. Switch to Apply mode to make changes.',
+      mutatedNodes: existingNodes,
+      mutatedEdges: existingEdges as any,
+      safetyReport: {
+        mergeEnforced: false,
+        orphanPreventionTriggered: false,
+        decisionRepairApplied: false,
+        attachmentResolved: false,
+        validationErrors: [],
+        mutationAborted: 'ADVISE mode - mutations blocked'
+      },
+      repairInfo: { repairedNodeIds: [], repairedIssueTypes: [] },
+      mergeBranchDecision,
+      mutationSafety: { 
+        decisionRepairApplied: false,
+        mergeEnforced: false,
+        orphanPreventionTriggered: false,
+      },
+      fullGraphDetection,
+      requiresConfirmation: false,
+    };
+  }
+  
+  // Phase 2.3: Block full graph with REPLACE intent - require confirmation
+  const needsConfirmation = resolvedIntent === 'REPLACE' && hasExistingWorkflow;
+  
+  // Phase 0.2: High-signal logging for debugging mutation issues
+  console.log('[ChatMutation] Intent resolution:', {
+    aiMode,
+    mergeBranchIntent: mergeBranchDecision.resolvedIntent,
+    resolvedMutationIntent: resolvedIntent,
     confidence: mergeBranchDecision.confidence,
     signals: mergeBranchDecision.detectedSignals,
+    fullGraphDetection: {
+      isFullGraph: fullGraphDetection.isFullGraph,
+      confidence: fullGraphDetection.confidence,
+      matchedHeuristics: fullGraphDetection.matchedHeuristics,
+      suggestedIntent: fullGraphDetection.suggestedIntent,
+    },
+    needsConfirmation,
+    existingNodeCount: existingNodes.length,
+    newNodeCount: newNodes.length,
+    newEdgeCount: newEdges.length,
+    userMessage: userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''),
   });
+  
+  // Phase 2.3: Block mutation if full graph detected and would default to merge
+  if (needsConfirmation) {
+    console.warn('[ChatMutation] Full graph payload detected - blocking merge, requires REPLACE confirmation');
+    return {
+      success: false,
+      reason: 'Full graph detected. This would replace the existing workflow. Please confirm to proceed.',
+      mutatedNodes: existingNodes,
+      mutatedEdges: existingEdges as any,
+      safetyReport: {
+        mergeEnforced: false,
+        orphanPreventionTriggered: false,
+        decisionRepairApplied: false,
+        attachmentResolved: false,
+        validationErrors: [{
+          code: 'PARALLEL_WORKFLOW_BLOCKED',
+          message: 'Full graph payload would create duplicate workflow. Confirm REPLACE to proceed.'
+        }],
+        mutationAborted: 'Full graph detected - awaiting REPLACE confirmation'
+      },
+      repairInfo: { repairedNodeIds: [], repairedIssueTypes: [] },
+      mergeBranchDecision,
+      mutationSafety: { 
+        decisionRepairApplied: false,
+        mergeEnforced: false,
+        orphanPreventionTriggered: false,
+      },
+      fullGraphDetection,
+      requiresConfirmation: true,
+    };
+  }
 
   const existingGraph: ExistingGraph = {
     nodes: existingNodes,

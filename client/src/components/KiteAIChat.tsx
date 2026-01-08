@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
 import { useCreditsGate } from '@/hooks/useCreditsGate';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
+import { type AiMode, DEFAULT_AI_MODE, AI_MODE_LABELS } from '../ai/types';
 import { selectKiteRole, getRoleLabel, type KiteRole, type RoleContext } from '../ai/roleSelector';
 import { computeConfidence, isConfidenceInsufficient } from '../ai/confidenceScoring';
 import { getSystemPromptForRole } from '../ai/systemPrompts';
@@ -204,6 +205,9 @@ export function KiteAIChatBrain({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [showDiffPreview, setShowDiffPreview] = useState<string | null>(null);
   const [visionRole, setVisionRole] = useState<VisionRole>('pm');
+  
+  const [aiMode, setAiMode] = useState<AiMode>(DEFAULT_AI_MODE);
+  const [pendingApplyConfirmation, setPendingApplyConfirmation] = useState(false);
   
   // Workflow generation state for assertive first-turn generation
   type WorkflowGenState = 'BASELINE_GENERATED' | 'EXPANDED_WITH_EDGE_CASES' | 'DISCUSSING_EDGE_CASES' | 'SELECTED_EDGE_CASES_APPLIED' | null;
@@ -872,8 +876,21 @@ export function KiteAIChatBrain({
   // UPDATED: Accept uses currentWorkflowDraft (authoritative), not message.workflowProposal
   // In fullscreen mode, calls onCreateWorkflow to create project and navigate
   // In panel/floating mode, calls onApplyWorkflow to apply to existing canvas
+  // Phase 1: Enforce AI mode - ADVISE mode blocks mutations
   const handleAcceptWorkflow = () => {
     if (!currentWorkflowDraft) return;
+
+    // Phase 1: Block mutations in ADVISE mode - user must switch to EDIT/GENERATE first
+    if (aiMode === 'ADVISE') {
+      toast({
+        title: "Suggest Mode Active",
+        description: "Switch to 'Apply' mode to make changes to the canvas.",
+        variant: "default"
+      });
+      // Prompt user to switch mode
+      setPendingApplyConfirmation(true);
+      return;
+    }
 
     // Fullscreen mode: create project via callback (no canvas exists yet)
     if (mode === 'fullscreen' && onCreateWorkflow) {
@@ -1358,6 +1375,59 @@ export function KiteAIChatBrain({
             <span className="text-primary font-medium">Drop files here</span>
           </div>
         )}
+        
+        {/* AI Mode Selector - Phase 1 */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground">Mode:</span>
+            <div className="flex rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setAiMode('ADVISE')}
+                className={`px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                  aiMode === 'ADVISE' 
+                    ? 'bg-green-600 text-white' 
+                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+                title="Get suggestions without modifying the canvas"
+                data-testid="button-ai-mode-advise"
+              >
+                Suggest
+              </button>
+              <button
+                type="button"
+                onClick={() => setAiMode('EDIT')}
+                className={`px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                  aiMode === 'EDIT' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+                title="Apply changes to the existing workflow"
+                data-testid="button-ai-mode-edit"
+              >
+                Apply
+              </button>
+              {currentNodes.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => setAiMode('GENERATE')}
+                  className={`px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                    aiMode === 'GENERATE' 
+                      ? 'bg-purple-600 text-white' 
+                      : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  title="Create a new workflow from scratch"
+                  data-testid="button-ai-mode-generate"
+                >
+                  Create
+                </button>
+              )}
+            </div>
+          </div>
+          {aiMode === 'ADVISE' && (
+            <span className="text-[10px] text-green-600 dark:text-green-400">Read-only</span>
+          )}
+        </div>
         
         {isOutOfCredits ? (
           <div className="space-y-3">

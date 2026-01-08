@@ -133,14 +133,32 @@ function findComplementaryLabel(existingLabels: string[]): string {
   return 'No';
 }
 
+/**
+ * Phase 4.1: Banned placeholder labels - "Option A/B/C/D" are forbidden
+ * These provide no semantic value and confuse users.
+ * Instead, we use a sentinel value that signals the edge needs proper labeling.
+ * The sentinel is stripped in UI display but preserved for diagnostics.
+ */
+const BANNED_LABEL_PATTERN = /^Option\s+[A-Z]$/i;
+export const NEEDS_LABEL_SENTINEL = '{needs-label}';
+
+export function isBannedLabel(label: string): boolean {
+  return BANNED_LABEL_PATTERN.test(label.trim());
+}
+
+export function isNeedsLabelSentinel(label: string): boolean {
+  return label === NEEDS_LABEL_SENTINEL;
+}
+
 function generateDefaultLabels(edgeCount: number): string[] {
   if (edgeCount === 2) {
     return ['Yes', 'No'];
   }
   
-  return Array.from({ length: edgeCount }, (_, i) => 
-    `Option ${String.fromCharCode(65 + i)}`
-  );
+  // Phase 4.1: For >2 branches, use sentinel instead of "Option A/B/C/D"
+  // Sentinel signals that the edge needs proper labeling by AI or user
+  console.log('[DecisionRepair] Using needs-label sentinel for', edgeCount, 'edges (banning Option A/B/C/D)');
+  return Array.from({ length: edgeCount }, () => NEEDS_LABEL_SENTINEL);
 }
 
 function generateUniqueId(prefix: string): string {
@@ -283,7 +301,9 @@ export function ensureEdgeLabels(
     } else if (outgoingEdges.length === 2 && unlabeledEdges.length === 1) {
       newLabel = findComplementaryLabel(existingLabels);
     } else {
-      newLabel = defaultLabels[labelIndex] || `Option ${labelIndex + 1}`;
+      // Phase 4.1: Use sentinel instead of "Option X" for >2 branches
+      // Sentinel signals that proper labeling is needed
+      newLabel = defaultLabels[labelIndex] || NEEDS_LABEL_SENTINEL;
     }
     
     labelsAssigned.push(newLabel);

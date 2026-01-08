@@ -62,9 +62,15 @@ export function FeatureFlagProvider({ children, fallbackFlags = {} }: FeatureFla
 export function useFeatureFlags(): FeatureFlagContextValue {
   const context = useContext(FeatureFlagContext);
   if (!context) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[FeatureFlags] useFeatureFlags called outside of FeatureFlagProvider - all flags will return disabled');
+    // In development, throw to catch wiring issues early
+    if (import.meta.env.DEV) {
+      throw new Error(
+        '[FeatureFlags] useFeatureFlags must be used within FeatureFlagProvider. ' +
+        'Ensure all React roots (main app, portals, overlays) are wrapped with FeatureFlagProvider.'
+      );
     }
+    // In production, log error and return safe fallback
+    console.error('[FeatureFlags] useFeatureFlags called outside of FeatureFlagProvider - all flags disabled. This is a critical configuration error.');
     return {
       flags: {},
       isLoading: false,

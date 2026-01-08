@@ -5,6 +5,7 @@ import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PromptContextStoreProvider } from "@/contexts/PromptContextStore";
+import { FeatureFlagProvider } from "@/contexts/FeatureFlagContext";
 import { Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import { PageViewTracker } from "@/components/PageViewTracker";
@@ -168,12 +169,14 @@ function App() {
   
   return (
     <QueryClientProvider client={queryClient}>
-      <PromptContextStoreProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </PromptContextStoreProvider>
+      <FeatureFlagProvider>
+        <PromptContextStoreProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </PromptContextStoreProvider>
+      </FeatureFlagProvider>
     </QueryClientProvider>
   );
 }

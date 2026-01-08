@@ -1,6 +1,9 @@
 export type TaskType = 
   | 'workflow_reasoning'
   | 'workflow_experiments'
+  | 'workflow_advise'
+  | 'workflow_edit'
+  | 'workflow_generate'
   | 'prd_generation'
   | 'vision_ingestion'
   | 'general_chat';
@@ -54,6 +57,24 @@ export const TASK_TYPE_POLICIES: Record<TaskType, ModelPolicy> = {
     fallbackModel: 'gpt-4o',
   },
   workflow_experiments: {
+    systemModel: 'gpt-5.1',
+    systemProvider: 'openai',
+    allowUserOverride: false,
+    fallbackModel: 'gpt-4o',
+  },
+  workflow_advise: {
+    systemModel: 'gpt-4o',
+    systemProvider: 'openai',
+    allowUserOverride: true,
+    fallbackModel: 'gpt-4o',
+  },
+  workflow_edit: {
+    systemModel: 'gpt-4o',
+    systemProvider: 'openai',
+    allowUserOverride: false,
+    fallbackModel: 'gpt-4o',
+  },
+  workflow_generate: {
     systemModel: 'gpt-5.1',
     systemProvider: 'openai',
     allowUserOverride: false,
