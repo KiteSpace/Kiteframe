@@ -24,6 +24,7 @@ import type { Node, NodeMeta } from '@/lib/kiteframe/types';
 import { getDecisionSnapshotForNode } from '@/ai/explainability/auditExport';
 import type { DecisionSnapshot, SemanticMismatch, MergeBranchDecision, DecisionRepairApplied, UnresolvedConcern, UnresolvedConcernType, MutationSafety, SemanticTerminalSignal } from '@/ai/explainability/types';
 import { getClaimTypeDescription } from '@/ai/semantic/extractSemanticClaims';
+import { isSemanticTerminalInferenceEnabled } from '@/config/featureFlags';
 
 function getConcernTypeDescription(type: UnresolvedConcernType): string {
   switch (type) {
@@ -489,8 +490,8 @@ export function WhyInspector({ node, children }: WhyInspectorProps) {
             </>
           )}
           
-          {/* Phase 6.8: Semantic Terminal Signals */}
-          {snapshot?.semanticTerminalSignals && snapshot.semanticTerminalSignals.length > 0 && (
+          {/* Phase 6.8: Semantic Terminal Signals (only when feature enabled) */}
+          {isSemanticTerminalInferenceEnabled() && snapshot?.semanticTerminalSignals && snapshot.semanticTerminalSignals.length > 0 && (
             <>
               <Separator />
               <div className="space-y-2" data-testid="semantic-terminal-signals">
