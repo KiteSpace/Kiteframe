@@ -153,12 +153,16 @@ export function createAiRouter(baseClient: AiClient) {
           issue: 'responseLength === 0',
         });
         
-        // Try fallback if available and not already used
-        if (policy.fallbackModel && model !== policy.fallbackModel && !alreadyUsedFallback) {
+        // Try fallback if available, not already used, and different from primary
+        const canFallback = policy.fallbackModel && 
+                            policy.fallbackModel !== model && 
+                            !alreadyUsedFallback;
+        
+        if (canFallback) {
           console.warn(`[AIRouter] Empty response from ${model}. Falling back to ${policy.fallbackModel}.`);
           
           const fallbackResponse = await baseClient.chat({
-            model: policy.fallbackModel,
+            model: policy.fallbackModel!,
             provider: policy.systemProvider,
             messages: messages as AiMessage[],
             temperature: temperature ?? ROUTER_CONFIG.defaultTemperature,
@@ -187,15 +191,15 @@ export function createAiRouter(baseClient: AiClient) {
             text: fallbackResponse.text,
             metadata: {
               ...routerMetadata,
-              modelUsed: policy.fallbackModel,
+              modelUsed: policy.fallbackModel!,
               usedFallback: true,
               fallbackModelUsed: policy.fallbackModel,
             },
           };
         }
         
-        // No fallback available - throw error
-        throw new Error(`Model ${model} returned empty response and no fallback available`);
+        // No fallback available or fallback same as primary - throw error
+        throw new Error(`Model ${model} returned empty response and no distinct fallback available`);
       }
       
       console.log(`[AIRouter] Request completed:`, {

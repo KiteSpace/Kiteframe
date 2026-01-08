@@ -58,6 +58,12 @@ import {
   AI_WORKFLOW_LIST_EDGE_CASES_PROMPT,
   AI_WORKFLOW_EXPAND_SELECTED_EDGE_CASES_PROMPT
 } from '@/constants/aiWorkflowExpansionPrompts';
+import { 
+  parseWorkflowProposal, 
+  parseEdgeCases,
+  type ProposalParseResult,
+  type EdgeCaseParseResult
+} from '@/ai/proposalParser';
 import { usePromptContextStore } from '@/contexts/PromptContextStore';
 import { useKiteAIConversation, type ProcessInputResult } from '@/hooks/useKiteAIConversation';
 import { useFeatureFlag } from '@/contexts/FeatureFlagContext';
@@ -970,7 +976,7 @@ export function KiteAIChatBrain({
           }]);
           break;
           
-        case 'INCLUDE_EDGE_CASES':
+        case 'INCLUDE_EDGE_CASES': {
           // Call AI to expand workflow with edge cases
           toast({ title: 'Expanding workflow', description: 'Adding edge and failure cases...' });
           
@@ -985,36 +991,79 @@ export function KiteAIChatBrain({
             maxTokens: 4000
           });
           
-          const expandedJson = expandResponse.text.match(/\{[\s\S]*"nodes"[\s\S]*"edges"[\s\S]*\}/);
-          if (expandedJson) {
-            try {
-              const parsed = JSON.parse(expandedJson[0].replace(/,(\s*[}\]])/g, '$1'));
-              if (parsed.nodes && parsed.edges) {
-                // REPLACE the draft with expanded workflow (preserve merge/branch decision)
-                setCurrentWorkflowDraft({
-                  nodes: parsed.nodes,
-                  edges: parsed.edges,
-                  status: 'expanded',
-                  originPrompt: currentWorkflowDraft.originPrompt,
-                  mergeBranchDecision: currentWorkflowDraft.mergeBranchDecision,
-                });
-                setWorkflowGenState('EXPANDED_WITH_EDGE_CASES');
-                setPendingQuickActions([]);
-                setMessages(prev => [...prev, {
-                  id: `system-${Date.now()}`,
-                  role: 'assistant',
-                  content: AI_RESPONSE_TEMPLATES.EXPANDED_WITH_EDGE_CASES,
-                  timestamp: new Date()
-                }]);
-              }
-            } catch (e) {
-              console.error('Failed to parse expanded workflow:', e);
-              throw new Error('Failed to parse AI response');
-            }
-          }
-          break;
+          // Phase 2: Use deterministic parsing with proper error handling
+          const requestId1 = `req_${Date.now()}_expand`;
+          const parseResult: ProposalParseResult = parseWorkflowProposal(
+            expandResponse.text,
+            requestId1
+          );
           
-        case 'DISCUSS_EDGE_CASES':
+          if (!parseResult.success || !parseResult.proposal) {
+            console.error('[KiteAIChat] Failed to parse expanded workflow:', {
+              error: parseResult.error,
+              validationErrors: parseResult.validationErrors,
+              requestId: parseResult.requestId,
+            });
+            toast({ 
+              title: "Couldn't update proposal", 
+              description: `${parseResult.error || 'Unknown error'}. Tap to retry.`,
+              variant: 'destructive',
+              action: (
+                <button 
+                  onClick={() => handleQuickAction('INCLUDE_EDGE_CASES')}
+                  className="text-xs underline"
+                >
+                  Retry
+                </button>
+              )
+            });
+            break;
+          }
+          
+          // Convert proposal nodes to workflow nodes format, preserving AI-provided geometry
+          const expandedNodes = parseResult.proposal.nodes.map(n => ({
+            ...n,
+            id: n.id,
+            type: n.type || 'process',
+            position: (n as any).position || { x: 0, y: 0 },
+            data: { 
+              label: n.label, 
+              description: n.description,
+              icon: n.icon,
+              iconColor: n.iconColor,
+              ...n.data 
+            },
+          }));
+          
+          const expandedEdges = parseResult.proposal.edges.map(e => ({
+            ...e,
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            label: e.label,
+            data: { label: e.label, ...e.data },
+          }));
+          
+          // REPLACE the draft with expanded workflow (preserve merge/branch decision)
+          setCurrentWorkflowDraft({
+            nodes: expandedNodes as Node[],
+            edges: expandedEdges as Edge[],
+            status: 'expanded',
+            originPrompt: currentWorkflowDraft.originPrompt,
+            mergeBranchDecision: currentWorkflowDraft.mergeBranchDecision,
+          });
+          setWorkflowGenState('EXPANDED_WITH_EDGE_CASES');
+          setPendingQuickActions([]);
+          setMessages(prev => [...prev, {
+            id: `system-${Date.now()}`,
+            role: 'assistant',
+            content: AI_RESPONSE_TEMPLATES.EXPANDED_WITH_EDGE_CASES,
+            timestamp: new Date()
+          }]);
+          break;
+        }
+          
+        case 'DISCUSS_EDGE_CASES': {
           // Call AI to list edge cases for discussion
           toast({ title: 'Analyzing edge cases', description: 'Identifying potential failure paths...' });
           
@@ -1029,27 +1078,45 @@ export function KiteAIChatBrain({
             maxTokens: 1500
           });
           
-          const edgeCasesJson = listResponse.text.match(/\{[\s\S]*"edgeCases"[\s\S]*\}/);
-          if (edgeCasesJson) {
-            try {
-              const parsed = JSON.parse(edgeCasesJson[0].replace(/,(\s*[}\]])/g, '$1'));
-              if (parsed.edgeCases && Array.isArray(parsed.edgeCases)) {
-                setDiscussedEdgeCases(parsed.edgeCases);
-                setWorkflowGenState('DISCUSSING_EDGE_CASES');
-                setPendingQuickActions([]);
-                setMessages(prev => [...prev, {
-                  id: `system-${Date.now()}`,
-                  role: 'assistant',
-                  content: AI_RESPONSE_TEMPLATES.DISCUSSING_EDGE_CASES,
-                  timestamp: new Date()
-                }]);
-              }
-            } catch (e) {
-              console.error('Failed to parse edge cases:', e);
-              throw new Error('Failed to parse AI response');
-            }
+          // Phase 2: Use deterministic parsing with proper error handling
+          const requestId2 = `req_${Date.now()}_discuss`;
+          const edgeCaseResult: EdgeCaseParseResult = parseEdgeCases(
+            listResponse.text,
+            requestId2
+          );
+          
+          if (!edgeCaseResult.success || !edgeCaseResult.edgeCases) {
+            console.error('[KiteAIChat] Failed to parse edge cases:', {
+              error: edgeCaseResult.error,
+              requestId: edgeCaseResult.requestId,
+            });
+            toast({ 
+              title: "Couldn't analyze edge cases", 
+              description: `${edgeCaseResult.error || 'Unknown error'}. Tap to retry.`,
+              variant: 'destructive',
+              action: (
+                <button 
+                  onClick={() => handleQuickAction('DISCUSS_EDGE_CASES')}
+                  className="text-xs underline"
+                >
+                  Retry
+                </button>
+              )
+            });
+            break;
           }
+          
+          setDiscussedEdgeCases(edgeCaseResult.edgeCases);
+          setWorkflowGenState('DISCUSSING_EDGE_CASES');
+          setPendingQuickActions([]);
+          setMessages(prev => [...prev, {
+            id: `system-${Date.now()}`,
+            role: 'assistant',
+            content: AI_RESPONSE_TEMPLATES.DISCUSSING_EDGE_CASES,
+            timestamp: new Date()
+          }]);
           break;
+        }
           
         case 'SELECT_EDGE_CASES':
           setShowEdgeCaseSelector(true);
@@ -1093,33 +1160,67 @@ export function KiteAIChatBrain({
         maxTokens: 4000
       });
       
-      const expandedJson = selectResponse.text.match(/\{[\s\S]*"nodes"[\s\S]*"edges"[\s\S]*\}/);
-      if (expandedJson) {
-        try {
-          const parsed = JSON.parse(expandedJson[0].replace(/,(\s*[}\]])/g, '$1'));
-          if (parsed.nodes && parsed.edges) {
-            // REPLACE the draft with expanded workflow (preserve merge/branch decision)
-            setCurrentWorkflowDraft({
-              nodes: parsed.nodes,
-              edges: parsed.edges,
-              status: 'expanded',
-              originPrompt: currentWorkflowDraft.originPrompt,
-              mergeBranchDecision: currentWorkflowDraft.mergeBranchDecision,
-            });
-            setWorkflowGenState('SELECTED_EDGE_CASES_APPLIED');
-            setDiscussedEdgeCases([]);
-            setMessages(prev => [...prev, {
-              id: `system-${Date.now()}`,
-              role: 'assistant',
-              content: AI_RESPONSE_TEMPLATES.SELECTED_EDGE_CASES_APPLIED,
-              timestamp: new Date()
-            }]);
-          }
-        } catch (e) {
-          console.error('Failed to parse expanded workflow:', e);
-          throw new Error('Failed to parse AI response');
-        }
+      // Phase 2: Use deterministic parsing with proper error handling
+      const requestId3 = `req_${Date.now()}_select`;
+      const selectParseResult: ProposalParseResult = parseWorkflowProposal(
+        selectResponse.text,
+        requestId3
+      );
+      
+      if (!selectParseResult.success || !selectParseResult.proposal) {
+        console.error('[KiteAIChat] Failed to parse selected edge case expansion:', {
+          error: selectParseResult.error,
+          validationErrors: selectParseResult.validationErrors,
+          requestId: selectParseResult.requestId,
+        });
+        toast({ 
+          title: "Couldn't apply edge cases", 
+          description: `${selectParseResult.error || 'Unknown error'}. Please try again.`,
+          variant: 'destructive'
+        });
+        return;
       }
+      
+      // Convert proposal nodes to workflow nodes format, preserving AI-provided geometry
+      const selectedNodes = selectParseResult.proposal.nodes.map(n => ({
+        ...n,
+        id: n.id,
+        type: n.type || 'process',
+        position: (n as any).position || { x: 0, y: 0 },
+        data: { 
+          label: n.label, 
+          description: n.description,
+          icon: n.icon,
+          iconColor: n.iconColor,
+          ...n.data 
+        },
+      }));
+      
+      const selectedEdges = selectParseResult.proposal.edges.map(e => ({
+        ...e,
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        label: e.label,
+        data: { label: e.label, ...e.data },
+      }));
+      
+      // REPLACE the draft with expanded workflow (preserve merge/branch decision)
+      setCurrentWorkflowDraft({
+        nodes: selectedNodes as Node[],
+        edges: selectedEdges as Edge[],
+        status: 'expanded',
+        originPrompt: currentWorkflowDraft.originPrompt,
+        mergeBranchDecision: currentWorkflowDraft.mergeBranchDecision,
+      });
+      setWorkflowGenState('SELECTED_EDGE_CASES_APPLIED');
+      setDiscussedEdgeCases([]);
+      setMessages(prev => [...prev, {
+        id: `system-${Date.now()}`,
+        role: 'assistant',
+        content: AI_RESPONSE_TEMPLATES.SELECTED_EDGE_CASES_APPLIED,
+        timestamp: new Date()
+      }]);
     } catch (error) {
       console.error('Edge case selection error:', error);
       toast({ 
