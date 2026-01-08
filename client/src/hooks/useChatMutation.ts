@@ -35,6 +35,7 @@ export interface ChatMutationInput {
   previousMessages?: string[];
   attachmentTargetId?: string;
   aiMode?: AiMode;
+  bypassConfirmation?: boolean;
 }
 
 export interface ChatMutationResult {
@@ -69,6 +70,7 @@ export function applyChatMutation(input: ChatMutationInput): ChatMutationResult 
     previousMessages = [],
     attachmentTargetId,
     aiMode = 'EDIT',
+    bypassConfirmation = false,
   } = input;
 
   const hasExistingWorkflow = existingNodes.length > 0;
@@ -123,8 +125,8 @@ export function applyChatMutation(input: ChatMutationInput): ChatMutationResult 
     };
   }
   
-  // Phase 2.3: Block full graph with REPLACE intent - require confirmation
-  const needsConfirmation = resolvedIntent === 'REPLACE' && hasExistingWorkflow;
+  // Phase 2.3: Block full graph with REPLACE intent - require confirmation (unless bypassed)
+  const needsConfirmation = resolvedIntent === 'REPLACE' && hasExistingWorkflow && !bypassConfirmation;
   
   // Phase 0.2: High-signal logging for debugging mutation issues
   console.log('[ChatMutation] Intent resolution:', {

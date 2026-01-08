@@ -7,6 +7,16 @@ import { WorkflowCanvas } from "@/components/WorkflowCanvas";
 import { ProjectPanel } from "@/components/panels/ProjectPanel";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { BlankCanvasState } from "@/components/BlankCanvasState";
 import {
   PluginProvider,
@@ -5060,6 +5070,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   } | null>(null);
   const [copiedCanvasObjectProperties, setCopiedCanvasObjectProperties] =
     useState<{ data?: any; style?: any } | null>(null);
+
+  // Phase 5: REPLACE confirmation state for full-graph detection
+  // Stores all context needed to replay the mutation through the same success path
+  const [pendingReplaceConfirmation, setPendingReplaceConfirmation] = useState<{
+    workflow: {
+      nodes: Node[];
+      edges: Edge[];
+      canvasObjects?: CanvasObject[];
+      aiMode?: 'ADVISE' | 'EDIT' | 'GENERATE';
+      bypassConfirmation?: boolean;
+    };
+    existingNodes: Node[];
+    existingEdges: Edge[];
+    nodeCount: number;
+    existingNodeCount: number;
+  } | null>(null);
 
   // Click vs drag detection for properties panel
   const clickDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -11366,9 +11392,30 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     userMessage: '', // Context passed from chat
                     attachmentTargetId: undefined,
                     aiMode: workflow.aiMode || 'EDIT',
+                    bypassConfirmation: workflow.bypassConfirmation,
                   });
                   
                   if (!mutationResult.success) {
+                    // Phase 5: Check if this requires REPLACE confirmation
+                    if (mutationResult.requiresConfirmation) {
+                      console.log('[Phase 5] Full graph detected - showing REPLACE confirmation dialog');
+                      // Store all context needed to replay through same success path
+                      setPendingReplaceConfirmation({
+                        workflow: {
+                          nodes: workflow.nodes,
+                          edges: workflow.edges,
+                          canvasObjects: workflow.canvasObjects,
+                          aiMode: workflow.aiMode,
+                          bypassConfirmation: true, // Will be used when replaying
+                        },
+                        existingNodes: nodes, // Capture current state for replay
+                        existingEdges: edges,
+                        nodeCount: workflow.nodes.length,
+                        existingNodeCount: nodes.length,
+                      });
+                      return; // Wait for user confirmation
+                    }
+                    
                     console.error('[MergeSafe] Mutation blocked:', {
                       reason: mutationResult.reason,
                       validationErrors: mutationResult.safetyReport.validationErrors,
@@ -12052,6 +12099,200 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       {showBugReportModal && (
         <BugReportModal onClose={() => setShowBugReportModal(false)} />
       )}
+
+      {/* Phase 5: REPLACE Confirmation Dialog */}
+      <AlertDialog 
+        open={!!pendingReplaceConfirmation} 
+        onOpenChange={(open) => !open && setPendingReplaceConfirmation(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace entire workflow?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The AI generated a complete workflow with {pendingReplaceConfirmation?.nodeCount || 0} nodes. 
+              This will replace your current workflow ({pendingReplaceConfirmation?.existingNodeCount || 0} nodes).
+              <br /><br />
+              <strong>This action can be undone</strong> using Ctrl+Z or the undo button.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setPendingReplaceConfirmation(null);
+              toast({
+                title: "Replace Cancelled",
+                description: "Your existing workflow was preserved.",
+              });
+            }}>
+              Keep Existing
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!pendingReplaceConfirmation) return;
+                
+                const pending = pendingReplaceConfirmation;
+                
+                // Safety check: Abort if canvas changed while dialog was open
+                // This prevents silently discarding user edits made during confirmation
+                const canvasChanged = nodes.length !== pending.existingNodes.length ||
+                  edges.length !== pending.existingEdges.length ||
+                  nodes.some((n, i) => n.id !== pending.existingNodes[i]?.id);
+                
+                if (canvasChanged) {
+                  setPendingReplaceConfirmation(null);
+                  toast({
+                    title: "Canvas Changed",
+                    description: "The canvas was modified while the dialog was open. Please try again.",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                
+                setPendingReplaceConfirmation(null);
+                
+                // Save current state for undo BEFORE replacing
+                saveToHistory("Before workflow replace");
+                
+                // Apply with bypass flag using CURRENT canvas state (not stale snapshot)
+                // Since we verified canvas hasn't changed, current nodes === stored nodes
+                const mutationResult = applyMergeSafeChatMutation({
+                  existingNodes: nodes,
+                  existingEdges: edges,
+                  newNodes: pending.workflow.nodes,
+                  newEdges: pending.workflow.edges,
+                  userMessage: '',
+                  attachmentTargetId: undefined,
+                  aiMode: pending.workflow.aiMode || 'EDIT',
+                  bypassConfirmation: true,
+                });
+                
+                if (!mutationResult.success) {
+                  toast({
+                    title: "Replace Failed",
+                    description: mutationResult.reason || "Could not replace workflow.",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                
+                // Log merge/branch decision for audit (matching success path)
+                if (mutationResult.mergeBranchDecision) {
+                  console.log('[Phase 5 REPLACE] Merge/Branch decision applied:', {
+                    intent: mutationResult.mergeBranchDecision.intent,
+                    resolvedIntent: mutationResult.mergeBranchDecision.resolvedIntent,
+                    confidence: mutationResult.mergeBranchDecision.confidence,
+                  });
+                }
+                
+                // Log repair info if decision repair was applied (matching success path)
+                if (mutationResult.safetyReport.decisionRepairApplied) {
+                  console.log('[Phase 5 REPLACE] Decision Repair applied:', {
+                    repairedNodeIds: mutationResult.repairInfo.repairedNodeIds,
+                    repairedIssueTypes: mutationResult.repairInfo.repairedIssueTypes,
+                  });
+                }
+                
+                // Apply the replacement using same logic as success path
+                const workflowNodes = mutationResult.mutatedNodes;
+                const workflowEdges = mutationResult.mutatedEdges as unknown as Edge[];
+                
+                // For REPLACE, we don't offset - we're replacing entirely
+                const batchId = Date.now();
+                const nodeIdMapping: { [oldId: string]: string } = {};
+                
+                // Full node processing with metadata stamping (matching success path exactly)
+                const newNodes = workflowNodes.map((node: Node, index: number) => {
+                  const oldId = node.id || `node-${index}`;
+                  const newId = `node-${batchId}-${index}`;
+                  nodeIdMapping[oldId] = newId;
+                  return {
+                    ...node,
+                    id: newId,
+                    selected: false,
+                    data: {
+                      ...node.data,
+                      meta: {
+                        ...(node.data as any)?.meta,
+                        createdAt: Date.now(),
+                        replacedExistingWorkflow: true,
+                        ...(mutationResult.mergeBranchDecision && {
+                          mergeBranchDecision: mutationResult.mergeBranchDecision,
+                        }),
+                        ...(mutationResult.safetyReport.decisionRepairApplied && {
+                          mutationSafety: mutationResult.mutationSafety,
+                        }),
+                      },
+                    },
+                  };
+                });
+                
+                // Full edge processing with proper ID remapping (matching success path)
+                const newEdges = workflowEdges.map((edge: Edge, index: number) => {
+                  let newSource = nodeIdMapping[edge.source];
+                  let newTarget = nodeIdMapping[edge.target];
+                  
+                  // Handle numeric source references
+                  if (!newSource) {
+                    const sourceNumeric = parseInt(edge.source);
+                    if (!isNaN(sourceNumeric) && sourceNumeric < workflowNodes.length) {
+                      const sourceNodeId = workflowNodes[sourceNumeric]?.id || `node-${sourceNumeric}`;
+                      newSource = nodeIdMapping[sourceNodeId];
+                    }
+                  }
+                  
+                  // Handle numeric target references
+                  if (!newTarget) {
+                    const targetNumeric = parseInt(edge.target);
+                    if (!isNaN(targetNumeric) && targetNumeric < workflowNodes.length) {
+                      const targetNodeId = workflowNodes[targetNumeric]?.id || `node-${targetNumeric}`;
+                      newTarget = nodeIdMapping[targetNodeId];
+                    }
+                  }
+                  
+                  return {
+                    ...edge,
+                    id: `edge-${batchId}-${index}`,
+                    source: newSource || edge.source,
+                    target: newTarget || edge.target,
+                    selected: false,
+                  };
+                });
+                
+                // REPLACE: Set nodes/edges directly (not append)
+                setNodes(newNodes);
+                setEdges(newEdges);
+                
+                // Handle canvas objects (matching success path pattern)
+                if (pending.workflow.canvasObjects && pending.workflow.canvasObjects.length > 0) {
+                  const newCanvasObjects = pending.workflow.canvasObjects.map(
+                    (obj: CanvasObject, index: number) => ({
+                      ...obj,
+                      id: `obj-${batchId}-${index}`,
+                      selected: false,
+                    })
+                  );
+                  // For REPLACE, set directly (not append)
+                  updateActiveTab({ canvasObjects: newCanvasObjects });
+                } else {
+                  // Clear existing canvas objects when replacing with workflow without them
+                  updateActiveTab({ canvasObjects: [] });
+                }
+                
+                // Save post-replace state for proper undo chain (matching success path)
+                setTimeout(() => saveToHistory("Replace workflow"), 0);
+                
+                toast({
+                  title: "Workflow Replaced",
+                  description: `Replaced with ${newNodes.length} nodes. Use Ctrl+Z to undo.`,
+                });
+              }}
+              className="bg-primary hover:bg-primary/90"
+              data-testid="confirm-replace-workflow"
+            >
+              Replace (Undoable)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Table Link Picker for FormNode */}
       {tableLinkPicker && (

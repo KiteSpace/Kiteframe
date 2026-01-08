@@ -173,6 +173,7 @@ export interface ApplyWorkflowPayload {
   canvasObjects?: CanvasObject[];
   mergeBranchDecision?: MergeBranchDecision;
   aiMode?: AiMode;
+  bypassConfirmation?: boolean;
 }
 
 interface KiteAIChatBrainProps {
