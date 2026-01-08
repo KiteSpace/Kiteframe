@@ -112,6 +112,88 @@ function isCanvasObject(node: Node): boolean {
   return objectTypes.includes(node.type || '');
 }
 
+interface SemanticEndpointInfo {
+  nodeId: string;
+  label: string;
+  reasons: string[];
+  matchedRules: string[];
+}
+
+interface ValidEndpointResult {
+  hasEndpoint: boolean;
+  explicitTerminals: string[];
+  semanticEndpoints: SemanticEndpointInfo[];
+}
+
+function hasValidEndpoint(
+  nodes: Node[],
+  edges: Edge[],
+  adjacency: AdjacencyMaps
+): ValidEndpointResult {
+  const explicitTerminals: string[] = [];
+  const semanticEndpoints: SemanticEndpointInfo[] = [];
+  
+  for (const node of nodes) {
+    if (isTerminalNode(node)) {
+      explicitTerminals.push(node.id);
+    }
+  }
+  
+  if (explicitTerminals.length > 0) {
+    return {
+      hasEndpoint: true,
+      explicitTerminals,
+      semanticEndpoints: [],
+    };
+  }
+  
+  if (!isSemanticTerminalInferenceEnabled()) {
+    return {
+      hasEndpoint: false,
+      explicitTerminals: [],
+      semanticEndpoints: [],
+    };
+  }
+  
+  const workflowNodes = nodes.filter(n => !isCanvasObject(n));
+  
+  for (const node of workflowNodes) {
+    if (isTerminalNode(node)) continue;
+    
+    const outgoingNodeIds = adjacency.outgoing.get(node.id) || [];
+    const incomingNodeIds = adjacency.incoming.get(node.id) || [];
+    
+    const isLeaf = outgoingNodeIds.length === 0 && incomingNodeIds.length > 0;
+    if (!isLeaf) continue;
+    
+    const incomingEdges = edges.filter(e => e.target === node.id);
+    const outgoingEdges = edges.filter(e => e.source === node.id);
+    
+    const signal = detectTerminalIntent({
+      node,
+      incomingEdges,
+      outgoingEdges,
+      nodesById: adjacency.nodeMap,
+    });
+    
+    if (signal.isLikelyTerminal && signal.confidence === 'high') {
+      const label = (node.data as { label?: string })?.label || node.type || 'Unknown';
+      semanticEndpoints.push({
+        nodeId: node.id,
+        label,
+        reasons: signal.reasons,
+        matchedRules: signal.matchedRules,
+      });
+    }
+  }
+  
+  return {
+    hasEndpoint: semanticEndpoints.length > 0,
+    explicitTerminals: [],
+    semanticEndpoints,
+  };
+}
+
 function findConnectedComponents(nodes: Node[], adjacency: AdjacencyMaps): string[][] {
   const visited = new Set<string>();
   const components: string[][] = [];
@@ -142,15 +224,19 @@ function findConnectedComponents(nodes: Node[], adjacency: AdjacencyMaps): strin
   return components;
 }
 
-function detectMissingEndState(input: GraphInput, adjacency: AdjacencyMaps): DiagnosticIssue[] {
+interface MissingEndStateResult {
+  issues: DiagnosticIssue[];
+  semanticEndpointsUsed: SemanticEndpointInfo[];
+}
+
+function detectMissingEndState(input: GraphInput, adjacency: AdjacencyMaps, edges: Edge[]): MissingEndStateResult {
   const issues: DiagnosticIssue[] = [];
   const nodes = Array.from(adjacency.nodeMap.values());
   
-  const hasTerminal = nodes.some(n => isTerminalNode(n));
-  if (hasTerminal) return issues;
-  
   const workflowNodes = nodes.filter(n => !isCanvasObject(n));
-  if (workflowNodes.length === 0) return issues;
+  if (workflowNodes.length === 0) {
+    return { issues, semanticEndpointsUsed: [] };
+  }
   
   const hasAnyEdges = workflowNodes.some(n => {
     const out = adjacency.outgoing.get(n.id) || [];
@@ -158,7 +244,31 @@ function detectMissingEndState(input: GraphInput, adjacency: AdjacencyMaps): Dia
     return out.length > 0 || inc.length > 0;
   });
   
-  if (!hasAnyEdges && workflowNodes.length <= 1) return issues;
+  if (!hasAnyEdges && workflowNodes.length <= 1) {
+    return { issues, semanticEndpointsUsed: [] };
+  }
+  
+  const endpointResult = hasValidEndpoint(nodes, edges, adjacency);
+  
+  if (endpointResult.hasEndpoint) {
+    if (endpointResult.semanticEndpoints.length > 0) {
+      console.log('[DiagnosticsEngine] Missing end state suppressed by semantic endpoints:', 
+        endpointResult.semanticEndpoints.map(ep => ep.label));
+      
+      const nodeNames = endpointResult.semanticEndpoints.map(ep => `"${ep.label}"`).join(', ');
+      issues.push(createIssue(
+        input,
+        'semantic-end-state',
+        'Semantic endpoints detected',
+        `This workflow has no explicit output node, but ${nodeNames} ${endpointResult.semanticEndpoints.length === 1 ? 'appears' : 'appear'} to be valid semantic endpoint(s).`,
+        'info',
+        endpointResult.semanticEndpoints[0]?.nodeId,
+        undefined,
+        undefined
+      ));
+    }
+    return { issues, semanticEndpointsUsed: endpointResult.semanticEndpoints };
+  }
   
   issues.push(createIssue(
     input,
@@ -171,7 +281,7 @@ function detectMissingEndState(input: GraphInput, adjacency: AdjacencyMaps): Dia
     'whatif'
   ));
   
-  return issues;
+  return { issues, semanticEndpointsUsed: [] };
 }
 
 function detectDeadEndNodes(input: GraphInput, adjacency: AdjacencyMaps, edges: Edge[]): DiagnosticIssue[] {
@@ -542,7 +652,7 @@ export class DiagnosticsEngine {
     }
     console.log('[DiagnosticsEngine] Node types:', nodeTypeSummary);
     
-    const missingEndIssues = detectMissingEndState(input, adjacency);
+    const missingEndResult = detectMissingEndState(input, adjacency, edges);
     const deadEndIssues = detectDeadEndNodes(input, adjacency, edges);
     const disconnectedIssues = detectDisconnectedSubgraphs(input, adjacency);
     let orphanDecisionIssues = detectOrphanDecisions(input, adjacency);
@@ -567,16 +677,22 @@ export class DiagnosticsEngine {
       });
     }
     
+    if (missingEndResult.semanticEndpointsUsed.length > 0) {
+      console.log('[DiagnosticsEngine] Semantic endpoints used for end state:', 
+        missingEndResult.semanticEndpointsUsed.map(ep => ep.label));
+    }
+    
     console.log('[DiagnosticsEngine] Detection results', {
-      missingEndState: missingEndIssues.length,
+      missingEndState: missingEndResult.issues.length,
       deadEndNodes: deadEndIssues.length,
       disconnectedSubgraphs: disconnectedIssues.length,
       orphanDecisions: orphanDecisionIssues.length,
       loopsWithoutExit: loopIssues.length,
       retryWithoutCounter: retryIssues.length,
+      semanticEndpointsUsed: missingEndResult.semanticEndpointsUsed.length,
     });
     
-    issues.push(...missingEndIssues);
+    issues.push(...missingEndResult.issues);
     issues.push(...deadEndIssues);
     issues.push(...disconnectedIssues);
     issues.push(...orphanDecisionIssues);

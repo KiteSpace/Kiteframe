@@ -9,7 +9,8 @@ export type DiagnosticType =
   | 'orphan-decision'
   | 'loop-without-exit'
   | 'retry-without-counter'
-  | 'semantic-terminal';
+  | 'semantic-terminal'
+  | 'semantic-end-state';
 
 export interface DiagnosticIssue {
   id: string;
