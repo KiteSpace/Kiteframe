@@ -137,6 +137,67 @@ export function createAiRouter(baseClient: AiClient) {
       });
       
       const duration = Math.round(performance.now() - startTime);
+      const responseLength = response.text?.length ?? 0;
+      
+      // Phase 1.2: Treat empty responses as failures - trigger fallback
+      if (responseLength === 0) {
+        const policy = TASK_TYPE_POLICIES[taskType];
+        const alreadyUsedFallback = metadata?.usedFallback ?? false;
+        
+        console.error(`[AIRouter] Empty response received:`, {
+          requestId,
+          taskType,
+          model,
+          provider,
+          durationMs: duration,
+          issue: 'responseLength === 0',
+        });
+        
+        // Try fallback if available and not already used
+        if (policy.fallbackModel && model !== policy.fallbackModel && !alreadyUsedFallback) {
+          console.warn(`[AIRouter] Empty response from ${model}. Falling back to ${policy.fallbackModel}.`);
+          
+          const fallbackResponse = await baseClient.chat({
+            model: policy.fallbackModel,
+            provider: policy.systemProvider,
+            messages: messages as AiMessage[],
+            temperature: temperature ?? ROUTER_CONFIG.defaultTemperature,
+            maxTokens: maxTokens ?? ROUTER_CONFIG.defaultMaxTokens,
+            taskType,
+          });
+          
+          const fallbackLength = fallbackResponse.text?.length ?? 0;
+          const fallbackDuration = Math.round(performance.now() - startTime);
+          
+          console.log(`[AIRouter] Fallback completed:`, {
+            requestId,
+            taskType,
+            originalModel: model,
+            fallbackModel: policy.fallbackModel,
+            success: fallbackLength > 0,
+            durationMs: fallbackDuration,
+            responseLength: fallbackLength,
+          });
+          
+          if (fallbackLength === 0) {
+            throw new Error(`Both ${model} and fallback ${policy.fallbackModel} returned empty responses`);
+          }
+          
+          return {
+            text: fallbackResponse.text,
+            metadata: {
+              ...routerMetadata,
+              modelUsed: policy.fallbackModel,
+              usedFallback: true,
+              fallbackModelUsed: policy.fallbackModel,
+            },
+          };
+        }
+        
+        // No fallback available - throw error
+        throw new Error(`Model ${model} returned empty response and no fallback available`);
+      }
+      
       console.log(`[AIRouter] Request completed:`, {
         requestId,
         taskType,
@@ -144,7 +205,7 @@ export function createAiRouter(baseClient: AiClient) {
         provider,
         success: true,
         durationMs: duration,
-        responseLength: response.text?.length ?? 0,
+        responseLength,
       });
       
       return {

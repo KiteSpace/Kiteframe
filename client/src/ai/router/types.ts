@@ -51,13 +51,13 @@ export interface ModelPolicy {
 
 export const TASK_TYPE_POLICIES: Record<TaskType, ModelPolicy> = {
   workflow_reasoning: {
-    systemModel: 'gpt-5.1',
+    systemModel: 'gpt-4o',
     systemProvider: 'openai',
     allowUserOverride: false,
     fallbackModel: 'gpt-4o',
   },
   workflow_experiments: {
-    systemModel: 'gpt-5.1',
+    systemModel: 'gpt-4o',
     systemProvider: 'openai',
     allowUserOverride: false,
     fallbackModel: 'gpt-4o',
@@ -75,13 +75,13 @@ export const TASK_TYPE_POLICIES: Record<TaskType, ModelPolicy> = {
     fallbackModel: 'gpt-4o',
   },
   workflow_generate: {
-    systemModel: 'gpt-5.1',
+    systemModel: 'gpt-4o',
     systemProvider: 'openai',
     allowUserOverride: false,
     fallbackModel: 'gpt-4o',
   },
   prd_generation: {
-    systemModel: 'gpt-5.1',
+    systemModel: 'gpt-4o',
     systemProvider: 'openai',
     allowUserOverride: false,
     fallbackModel: 'gpt-4o',
