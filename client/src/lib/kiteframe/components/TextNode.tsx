@@ -9,6 +9,7 @@ import { useEventCleanup } from '../utils/eventCleanup';
 
 interface TextNodeProps {
   node: Node & { data: TextNodeData };
+  scale?: number;
   onUpdate?: (updates: Partial<TextNodeData>) => void;
   onResize?: (width: number, height: number) => void;
   onAddReaction?: (nodeId: string, emoji: string) => void;
@@ -20,6 +21,7 @@ interface TextNodeProps {
 
 export const TextNode: React.FC<TextNodeProps> = ({
   node,
+  scale = 1,
   onUpdate,
   onResize,
   onAddReaction,
@@ -224,6 +226,7 @@ export const TextNode: React.FC<TextNodeProps> = ({
         {node.showHandles !== false && (
           <NodeHandles 
             node={node}
+            scale={scale}
             onHandleConnect={() => {}} // Will be handled by KiteFrameCanvas
           />
         )}

@@ -3892,6 +3892,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   <TextNode
                     key={n.id}
                     node={n}
+                    scale={viewport.zoom}
                     onUpdate={(updates) => {
                       const updated = props.nodes.map((node) =>
                         node.id === n.id
@@ -3919,6 +3920,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   <StickyNote
                     key={n.id}
                     node={n}
+                    scale={viewport.zoom}
                     onUpdate={(updates) => {
                       const updated = props.nodes.map((node) =>
                         node.id === n.id
@@ -3952,6 +3954,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   <ShapeNode
                     key={n.id}
                     node={n}
+                    scale={viewport.zoom}
                     onUpdate={(updates) => {
                       const updated = props.nodes.map((node) =>
                         node.id === n.id

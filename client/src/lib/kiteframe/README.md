@@ -502,17 +502,35 @@ function App() {
 ### Custom Node Renderer
 
 ```tsx
-import { BasicNode } from '@kiteline/core';
+import { DefaultNode, NodeHandles, type Node, type BaseNodeData } from '@kiteline/core';
 
-const CustomNode = ({ node, isSelected, onUpdate }) => {
+// Define your custom node data extending BaseNodeData
+interface CustomData extends BaseNodeData {
+  label: string;
+  description?: string;
+  clicked?: boolean;
+}
+
+interface CustomNodeProps {
+  node: Node & { data: CustomData };
+  scale?: number; // Canvas zoom level for proper handle sizing
+  isSelected?: boolean;
+  onUpdate?: (updates: Partial<CustomData>) => void; // Updates partial data, not full node
+  onHandleConnect?: (pos: 'top'|'bottom'|'left'|'right', e: React.MouseEvent) => void;
+}
+
+const CustomNode = ({ node, scale = 1, isSelected, onUpdate, onHandleConnect }: CustomNodeProps) => {
   return (
-    <div className={`custom-node ${isSelected ? 'selected' : ''}`}>
-      <h3>{node.data.label}</h3>
-      <p>{node.data.description}</p>
-      <button onClick={() => onUpdate({ ...node, data: { ...node.data, clicked: true }})}>
-        Click me!
-      </button>
-    </div>
+    <DefaultNode node={node} className={isSelected ? 'ring-2 ring-blue-500' : ''}>
+      <div className="p-4">
+        <h3>{node.data.label}</h3>
+        <p>{node.data.description}</p>
+        <button onClick={() => onUpdate?.({ clicked: true })}>
+          Click me!
+        </button>
+      </div>
+      <NodeHandles node={node} scale={scale} onHandleConnect={onHandleConnect} />
+    </DefaultNode>
   );
 };
 
@@ -596,8 +614,50 @@ import type {
   Viewport, 
   KiteFramePlugin,
   EdgeValidationRules,
-  NodeType 
+  NodeType,
+  // Canvas object types
+  CanvasObject,
+  ShapeNodeData,
+  TextNodeData,
+  StickyNoteData,
+  CompoundNodeData,
+  // Styling types
+  NodeColors,
+  NodeStatus,
+  NodeHyperlink
 } from '@kiteline/core';
+```
+
+### Building Block Components
+
+For creating custom nodes, Kiteline exports low-level building blocks:
+
+```typescript
+import {
+  DefaultNode,      // Base wrapper for custom nodes
+  ResizeHandle,     // Resize handle for resizable elements
+  StatusBadge,      // Status indicator badge
+  InlineTextEditor, // Inline text editing component
+  NodeHandles       // Connection handles for nodes
+} from '@kiteline/core';
+```
+
+### Canvas Object Components
+
+Kiteline provides ready-to-use canvas object components:
+
+```typescript
+import {
+  ShapeNode,    // Shapes: rectangle, circle, triangle, diamond, star, hexagon, arrow
+  TextNode,     // Free-form text on canvas
+  StickyNote,   // Sticky notes with editable content
+  CompoundNode  // Complex nodes with multiple subcomponents
+} from '@kiteline/core';
+
+// All canvas object components accept an optional `scale` prop
+// to ensure proper sizing at different zoom levels:
+<ShapeNode node={shapeNode} scale={viewport.zoom} onUpdate={handleUpdate} />
+<TextNode node={textNode} scale={viewport.zoom} onUpdate={handleUpdate} />
 ```
 
 ---

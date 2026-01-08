@@ -4,6 +4,16 @@
 export { KiteFrameCanvas } from './components/KiteFrameCanvas';
 export { ConnectionEdge } from './components/ConnectionEdge';
 export { NodeHandles } from './components/NodeHandles';
+export { DefaultNode } from './components/DefaultNode';
+export { ResizeHandle } from './components/ResizeHandle';
+export { StatusBadge } from './components/StatusBadge';
+export { InlineTextEditor } from './components/InlineTextEditor';
+
+// Canvas object components (shapes, text, sticky notes)
+export { ShapeNode } from './components/ShapeNode';
+export { TextNode } from './components/TextNode';
+export { StickyNote } from './components/StickyNote';
+export { CompoundNode } from './components/CompoundNode';
 
 // Library node components
 export { ImageNode } from './components/ImageNode';
@@ -63,6 +73,9 @@ export type {
   EdgeMarker,
   EdgeMeta,
   NodeMeta,
+  NodeColors,
+  NodeStatus,
+  BaseNodeData,
   ProFeaturesConfig,
   QuickAddConfig,
   CopyPasteConfig,
@@ -101,7 +114,18 @@ export type {
   CodeExecutionResult,
   CodeLanguage,
   CodeNode as CodeNodeType,
-  CodeNodeComponentProps
+  CodeNodeComponentProps,
+  // Canvas object types
+  CanvasObject,
+  ShapeNodeData,
+  TextNodeData,
+  StickyNoteData,
+  CompoundNodeData,
+  CompoundSubcomponent,
+  CompoundNodeComponentProps,
+  // Hyperlink types
+  NodeHyperlink,
+  OgMetadata
 } from './types';
 
 // Utilities

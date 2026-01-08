@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 interface ShapeNodeProps {
   node: Node & { data: ShapeNodeData };
+  scale?: number;
   onUpdate?: (updates: Partial<ShapeNodeData>) => void;
   onResize?: (width: number, height: number) => void;
   onAddReaction?: (nodeId: string, emoji: string) => void;
@@ -16,6 +17,7 @@ interface ShapeNodeProps {
 
 export const ShapeNode: React.FC<ShapeNodeProps> = ({
   node,
+  scale = 1,
   onUpdate,
   onResize,
   onAddReaction,
@@ -167,6 +169,7 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
         {node.showHandles !== false && (
           <NodeHandles 
             node={node}
+            scale={scale}
             onHandleConnect={() => {}} // Will be handled by KiteFrameCanvas
           />
         )}

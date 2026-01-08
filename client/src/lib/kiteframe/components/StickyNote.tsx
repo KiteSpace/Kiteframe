@@ -10,6 +10,7 @@ import { toNumericWeight } from '@/lib/fontUtils';
 
 interface StickyNoteProps {
   node: Node & { data: StickyNoteData };
+  scale?: number;
   onUpdate?: (updates: Partial<StickyNoteData>) => void;
   onResize?: (width: number, height: number) => void;
   onDelete?: () => void;
@@ -19,6 +20,7 @@ interface StickyNoteProps {
 
 export const StickyNote: React.FC<StickyNoteProps> = ({
   node,
+  scale = 1,
   onUpdate,
   onResize,
   onDelete,
@@ -235,7 +237,7 @@ export const StickyNote: React.FC<StickyNoteProps> = ({
         {node.showHandles !== false && (
           <NodeHandles 
             node={node}
-            scale={1}
+            scale={scale}
             onHandleConnect={() => {}} // Will be handled by KiteFrameCanvas
           />
         )}
