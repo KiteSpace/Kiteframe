@@ -172,6 +172,7 @@ export interface ApplyWorkflowPayload {
   edges: Edge[];
   canvasObjects?: CanvasObject[];
   mergeBranchDecision?: MergeBranchDecision;
+  aiMode?: AiMode;
 }
 
 interface KiteAIChatBrainProps {
@@ -920,7 +921,8 @@ export function KiteAIChatBrain({
       nodes: currentWorkflowDraft.nodes,
       edges: currentWorkflowDraft.edges,
       canvasObjects: currentWorkflowDraft.canvasObjects,
-      mergeBranchDecision: currentWorkflowDraft.mergeBranchDecision
+      mergeBranchDecision: currentWorkflowDraft.mergeBranchDecision,
+      aiMode,
     });
 
     // Clear the draft after applying

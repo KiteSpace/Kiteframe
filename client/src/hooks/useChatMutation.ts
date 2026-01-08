@@ -233,13 +233,16 @@ export interface UseChatMutationResult {
     existingEdges: Edge[],
     proposedNodes: Node[],
     proposedEdges: Edge[],
-    userMessage: string
+    userMessage: string,
+    aiMode?: AiMode
   ) => { 
     success: boolean; 
     nodes: Node[]; 
     edges: Edge[]; 
     mergeBranchDecision?: MergeBranchDecision;
     repairInfo?: RepairInfo;
+    requiresConfirmation?: boolean;
+    fullGraphDetection?: FullGraphDetectionResult;
   };
 }
 
@@ -294,7 +297,8 @@ export function useChatMutation(options: UseChatMutationOptions = {}): UseChatMu
     existingEdges: Edge[],
     proposedNodes: Node[],
     proposedEdges: Edge[],
-    userMessage: string
+    userMessage: string,
+    aiMode: AiMode = 'EDIT'
   ) => {
     const newNodes = proposedNodes.filter(
       pn => !existingNodes.some(en => en.id === pn.id)
@@ -309,6 +313,7 @@ export function useChatMutation(options: UseChatMutationOptions = {}): UseChatMu
       newNodes,
       newEdges,
       userMessage,
+      aiMode,
     });
 
     if (!result.success) {
@@ -316,6 +321,8 @@ export function useChatMutation(options: UseChatMutationOptions = {}): UseChatMu
         success: false,
         nodes: existingNodes,
         edges: existingEdges,
+        requiresConfirmation: result.requiresConfirmation,
+        fullGraphDetection: result.fullGraphDetection,
       };
     }
 

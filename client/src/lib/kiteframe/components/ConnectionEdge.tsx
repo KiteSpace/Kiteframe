@@ -1,5 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Edge, Node, EdgeStyle, EdgeMarker } from '../types';
+import { NEEDS_LABEL_SENTINEL, isNeedsLabelSentinel } from '@/ai/repair/decisionRepair';
+
+function getDisplayLabel(label: string | undefined): string | null {
+  if (!label) return null;
+  if (isNeedsLabelSentinel(label)) return null;
+  return label;
+}
 
 // Direction type for edge anchor points
 type AnchorDirection = 'left' | 'right' | 'top' | 'bottom';
@@ -531,56 +538,62 @@ export const ConnectionEdge: React.FC<{
         </>
       )}
       
-      {/* Edge label with enhanced styling */}
-      {(edge.label || isEditing) && (
-        <g 
-          style={{ zIndex: 100, cursor: 'pointer' }}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            onEdgeDoubleClick?.(edge);
-          }}
-        >
-          {isEditing ? (
-            <EdgeLabelEditor
-              edge={edge}
-              x={(s.x + t.x) / 2}
-              y={(s.y + t.y) / 2}
-              strokeColor={strokeColor}
-              backgroundColor={sourceNode.data?.colors?.bodyBackground || edge.labelStyle?.backgroundColor || '#ffffff'}
-              textColor={sourceNode.data?.colors?.bodyTextColor || edge.labelStyle?.fontColor || '#64748b'}
-              onSave={(newLabel) => onLabelSave?.(edge.id, newLabel)}
-              onCancel={() => onLabelCancel?.()}
-            />
-          ) : (
-            <>
-              {/* Label background with source node body color and edge-colored border */}
-              <rect
-                x={(s.x + t.x) / 2 - ((edge.label?.length || 0) * 4 + 6)}
-                y={(s.y + t.y) / 2 - 10}
-                width={(edge.label?.length || 0) * 8 + 12}
-                height={20}
-                fill={sourceNode.data?.colors?.bodyBackground || edge.labelStyle?.backgroundColor || '#ffffff'}
-                stroke={strokeColor}
-                strokeWidth={1.5}
-                rx={edge.labelStyle?.borderRadius || 4}
-                style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))', pointerEvents: 'auto' }}
+      {/* Edge label with enhanced styling - Phase 4: Hide {needs-label} sentinel */}
+      {(() => {
+        const displayLabel = getDisplayLabel(edge.label);
+        const shouldShowLabel = displayLabel || isEditing;
+        if (!shouldShowLabel) return null;
+        
+        return (
+          <g 
+            style={{ zIndex: 100, cursor: 'pointer' }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onEdgeDoubleClick?.(edge);
+            }}
+          >
+            {isEditing ? (
+              <EdgeLabelEditor
+                edge={edge}
+                x={(s.x + t.x) / 2}
+                y={(s.y + t.y) / 2}
+                strokeColor={strokeColor}
+                backgroundColor={sourceNode.data?.colors?.bodyBackground || edge.labelStyle?.backgroundColor || '#ffffff'}
+                textColor={sourceNode.data?.colors?.bodyTextColor || edge.labelStyle?.fontColor || '#64748b'}
+                onSave={(newLabel) => onLabelSave?.(edge.id, newLabel)}
+                onCancel={() => onLabelCancel?.()}
               />
-              <text 
-                x={(s.x + t.x) / 2} 
-                y={(s.y + t.y) / 2} 
-                textAnchor="middle" 
-                dominantBaseline="middle"
-                fontSize={edge.labelStyle?.fontSize || 11}
-                fill={sourceNode.data?.colors?.bodyTextColor || edge.labelStyle?.fontColor || '#64748b'}
-                fontWeight={edge.labelStyle?.fontWeight || '500'}
-                style={{ userSelect: 'none', pointerEvents: 'auto' }}
-              >
-                {edge.label}
-              </text>
-            </>
-          )}
-        </g>
-      )}
+            ) : displayLabel && (
+              <>
+                {/* Label background with source node body color and edge-colored border */}
+                <rect
+                  x={(s.x + t.x) / 2 - (displayLabel.length * 4 + 6)}
+                  y={(s.y + t.y) / 2 - 10}
+                  width={displayLabel.length * 8 + 12}
+                  height={20}
+                  fill={sourceNode.data?.colors?.bodyBackground || edge.labelStyle?.backgroundColor || '#ffffff'}
+                  stroke={strokeColor}
+                  strokeWidth={1.5}
+                  rx={edge.labelStyle?.borderRadius || 4}
+                  style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))', pointerEvents: 'auto' }}
+                />
+                <text 
+                  x={(s.x + t.x) / 2} 
+                  y={(s.y + t.y) / 2} 
+                  textAnchor="middle" 
+                  dominantBaseline="middle"
+                  fontSize={edge.labelStyle?.fontSize || 11}
+                  fill={sourceNode.data?.colors?.bodyTextColor || edge.labelStyle?.fontColor || '#64748b'}
+                  fontWeight={edge.labelStyle?.fontWeight || '500'}
+                  style={{ userSelect: 'none', pointerEvents: 'auto' }}
+                >
+                  {displayLabel}
+                </text>
+              </>
+            )}
+          </g>
+        );
+      })()}
     </g>
   );
 };

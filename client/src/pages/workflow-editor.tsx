@@ -11365,6 +11365,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     newEdges: workflow.edges,
                     userMessage: '', // Context passed from chat
                     attachmentTargetId: undefined,
+                    aiMode: workflow.aiMode || 'EDIT',
                   });
                   
                   if (!mutationResult.success) {
